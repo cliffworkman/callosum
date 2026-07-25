@@ -291,6 +291,11 @@ the Principles + A-A gates before build.)*
   Category metadata, headings, entry targets, and DOI/URL links survive refresh and save/reopen, and removing the
   final assignment restores the exact ordinary layout. Chapter/section bibliographies, custom category ordering
   and batch assignment, bibliography-title links, and per-source grouped-citation navigation remain.
+  **Inc 378 makes category management manuscript-scale:** the panel now supports Ctrl/Shift multi-selection and
+  reuses existing category labels through a bounded picker with explicit create/remove actions. Mixed selections
+  start on a no-op placeholder; one batch performs one metadata write and one bibliography refresh, restoring
+  the complete previous map on failure. Custom category ordering, chapter/section bibliographies,
+  bibliography-title links, and per-source grouped-citation navigation remain.
   **P1 item #10 started (inc 362, 2026-07-23):** selecting the bundled
   `chicago-notes-bibliography` style now inserts each new citation into a real Writer footnote. The shared
   render contract accepts a validated one-based `noteIndex`, Writer scans footnotes in their native collection

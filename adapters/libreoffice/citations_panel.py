@@ -10,7 +10,8 @@ bibliography" (matching how Zotero/EndNote unify this), rather than a separate n
 architecture shift from read-only to read-write, flagged here rather than silently absorbed.
 
 Increment 377 also assigns or removes one document-local category for the selected work. Categories group the
-single managed bibliography without changing CSL records or citation text.
+single managed bibliography without changing CSL records or citation text. Increment 378 makes that control
+multi-select and reuses existing category labels, so a manuscript-scale batch needs one transactional refresh.
 
 A **snapshot at open time, re-fetched after each edit** — not a live-refreshing panel that tracks ongoing
 document edits made outside it: every dialog in this codebase is modal (`.execute()`), and nothing here has
@@ -39,6 +40,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import callosum_cite as cc  # noqa: E402  (after sys.path injection, matching composer.py's own convention)
 
+_CHOOSE_CATEGORY = "\nchoose"
+_CREATE_CATEGORY = "\ncreate"
+_REMOVE_CATEGORY = "\nremove"
+
 
 def _format_row(entry: dict) -> str:
     tags = []
@@ -53,6 +58,40 @@ def _format_row(entry: dict) -> str:
     if entry.get("retraction_label"):
         tags.append(entry["retraction_label"])
     return f"{entry['row']}  ({', '.join(tags)})"
+
+
+def _selected_entries(control, visible: list[dict]) -> list[dict]:
+    """Map the UNO listbox's bounded multi-selection back to the filtered entry snapshot."""
+    positions = tuple(control.getSelectedItemsPos())
+    return [visible[position] for position in positions if 0 <= position < len(visible)]
+
+
+def _category_picker_options(
+    selected: list[dict],
+    assignments: dict[str, str],
+) -> tuple[tuple[tuple[str, str], ...], str]:
+    """Build deterministic reusable-label choices and a safe default for the current selection."""
+    canonical: dict[str, str] = {}
+    for category in assignments.values():
+        canonical.setdefault(category.casefold(), category)
+    categories = sorted(canonical.values(), key=str.casefold)
+    selected_categories = {entry.get("category") for entry in selected}
+    options: list[tuple[str, str]] = []
+    if len(selected_categories) > 1:
+        options.append(("Choose a category…", _CHOOSE_CATEGORY))
+        current = _CHOOSE_CATEGORY
+    elif selected_categories == {None}:
+        current = _CREATE_CATEGORY
+    else:
+        current = next(iter(selected_categories), _CREATE_CATEGORY)
+    options.extend((category, category) for category in categories)
+    options.extend(
+        (
+            ("Create new category…", _CREATE_CATEGORY),
+            ("Remove category", _REMOVE_CATEGORY),
+        )
+    )
+    return tuple(options), current
 
 
 def run_citations_panel(doc, base: str):
@@ -110,11 +149,12 @@ def run_citations_panel(doc, base: str):
 
     results = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
     results.PositionX, results.PositionY, results.Width, results.Height = 6, 36, 408, 200
+    results.MultiSelection = True
     dm.insertByName("results", results)
 
     goto_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     goto_btn.PositionX, goto_btn.PositionY, goto_btn.Width, goto_btn.Height = 6, 244, 80, 18
-    goto_btn.Label, goto_btn.PushButtonType = "Go to", 1
+    goto_btn.Label = "Go to"
     dm.insertByName("goto", goto_btn)
 
     exclude_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
@@ -154,26 +194,32 @@ def run_citations_panel(doc, base: str):
     # state["entries"]: the full, current list from the backend (re-fetched after every edit).
     # state["visible"]: entries after the current filter text — what's actually on screen, so a selected
     # listbox index maps back to the right full-list entry regardless of how the filter has narrowed the list.
-    state = {"entries": cc.list_document_citations(doc, base), "visible": []}
+    state = {"entries": cc.list_document_citations(doc, base), "visible": [], "chosen": None}
 
     def _apply_filter():
         needle = filter_ctrl.getModel().Text.strip().lower()
         entries = state["entries"]
         state["visible"] = list(entries) if not needle else [e for e in entries if needle in _format_row(e).lower()]
         results_ctrl.getModel().StringItemList = tuple(_format_row(e) for e in state["visible"])
-        count_lbl_ctrl.getModel().Label = f"{len(state['visible'])} of {len(entries)} document work(s):"
+        count_lbl_ctrl.getModel().Label = (
+            f"{len(state['visible'])} of {len(entries)} document work(s) — Ctrl/Shift-select to categorize:"
+        )
 
     def _reload():
         state["entries"] = cc.list_document_citations(doc, base)
         _apply_filter()
 
     def do_toggle_exclude():
-        pos = results_ctrl.getSelectedItemPos()
-        if pos is None or pos < 0 or pos >= len(state["visible"]):
+        selected = _selected_entries(results_ctrl, state["visible"])
+        if len(selected) != 1:
+            cc._msgbox("Select exactly one cited work to change its bibliography exclusion.")
             return
-        entry = state["visible"][pos]
+        entry = selected[0]
         if entry.get("uncited"):
-            return  # exclusion only applies to an actually-cited work
+            cc._msgbox(
+                "Only cited works can be excluded. This uncited work is already included explicitly as further reading."
+            )
+            return
         exclude_ids = set(cc._get_id_list(doc, cc.PREF_BIB_EXCLUDE))
         if entry["paper_id"] in exclude_ids:
             exclude_ids.discard(entry["paper_id"])
@@ -205,36 +251,57 @@ def run_citations_panel(doc, base: str):
         _reload()
 
     def do_set_category():
-        pos = results_ctrl.getSelectedItemPos()
-        if pos is None or pos < 0 or pos >= len(state["visible"]):
+        selected = _selected_entries(results_ctrl, state["visible"])
+        if not selected:
             return
-        entry = state["visible"][pos]
-        value = cc._input_box(
+        options, current = _category_picker_options(selected, cc.bibliography_categories(doc))
+        value = cc._choice_box(
             doc,
             "Bibliography category",
-            "Category for this work (blank removes it):",
-            entry.get("category") or "",
+            f"Category for {len(selected)} selected work(s):",
+            options,
+            current,
         )
-        if value is None:
+        if value is None or value == _CHOOSE_CATEGORY:
             return
+        if value == _CREATE_CATEGORY:
+            value = cc._input_box(doc, "New bibliography category", "Category name:")
+            if value is None:
+                return
+            if not value.strip():
+                cc._msgbox("Enter a category name, or choose Remove category.", "Bibliography category")
+                return
+        elif value == _REMOVE_CATEGORY:
+            value = None
         try:
-            cc.set_bibliography_category(doc, entry["paper_id"], value, base)
+            cc.set_bibliography_categories(doc, [entry["paper_id"] for entry in selected], value, base)
+        except ValueError as exc:
+            cc._msgbox(str(exc), "Invalid bibliography category")
+            return
         except Exception:
             cc.set_dirty_state(doc, bibliography=True)
             raise
         _reload()
 
+    def do_goto():
+        selected = _selected_entries(results_ctrl, state["visible"])
+        if len(selected) != 1:
+            cc._msgbox("Select exactly one cited work to go to its first occurrence.")
+            return
+        if selected[0]["mark"] is None:
+            cc._msgbox("This uncited further-reading work has no citation location in the document.")
+            return
+        state["chosen"] = selected[0]["mark"]
+        dialog.endExecute()
+
     _apply_filter()
     filter_ctrl.addTextListener(_TextChangeListener(_apply_filter))
+    dialog.getControl("goto").addActionListener(_ActionListener(do_goto))
     dialog.getControl("exclude").addActionListener(_ActionListener(do_toggle_exclude))
     dialog.getControl("category").addActionListener(_ActionListener(do_set_category))
     dialog.getControl("add_uncited").addActionListener(_ActionListener(do_add_uncited))
 
-    result = dialog.execute()  # 1 == Go to (PushButtonType), 0/2 == Close
-    chosen = None
-    if result == 1:
-        pos = results_ctrl.getSelectedItemPos()
-        if pos is not None and 0 <= pos < len(state["visible"]):
-            chosen = state["visible"][pos]["mark"]
+    dialog.execute()
+    chosen = state["chosen"]
     dialog.dispose()
     return chosen

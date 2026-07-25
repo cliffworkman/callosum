@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 from adapters.libreoffice import callosum_cite as cc
+from adapters.libreoffice import citations_panel as panel
 
 
 def test_mark_name_roundtrip() -> None:
@@ -542,9 +543,10 @@ def test_set_bibliography_external_links_rebuilds_and_rolls_back_on_failure(monk
     assert state["value"] == "1"
 
 
-def test_set_bibliography_category_reuses_case_and_rolls_back_on_failure(monkeypatch) -> None:
+def test_set_bibliography_categories_batches_reuses_case_and_rolls_back_on_failure(monkeypatch) -> None:
     state = {"1": "Methods"}
     writes = []
+    refreshes = []
     monkeypatch.setattr(cc, "bibliography_categories", lambda _doc: dict(state))
 
     def write(_doc, value):
@@ -553,10 +555,22 @@ def test_set_bibliography_category_reuses_case_and_rolls_back_on_failure(monkeyp
         writes.append(dict(value))
 
     monkeypatch.setattr(cc, "_set_bibliography_categories", write)
-    monkeypatch.setattr(cc, "refresh_bibliography", lambda _doc, _base: {"bibliography_text": "Entry"})
+    monkeypatch.setattr(
+        cc,
+        "refresh_bibliography",
+        lambda doc, base: refreshes.append((doc, base)) or {"bibliography_text": "Entry"},
+    )
     doc = object()
-    assert cc.set_bibliography_category(doc, "2", "methods", "http://x") == "Methods"
-    assert state == {"1": "Methods", "2": "Methods"}
+    assert cc.set_bibliography_categories(doc, ["2", "3", "2"], "methods", "http://x") == {
+        "2": "Methods",
+        "3": "Methods",
+    }
+    assert state == {"1": "Methods", "2": "Methods", "3": "Methods"}
+    assert refreshes == [(doc, "http://x")]
+    assert cc.set_bibliography_category(doc, "4", "methods", "http://x") == "Methods"
+    with pytest.raises(ValueError, match="at most 1000"):
+        cc.set_bibliography_categories(doc, [str(index) for index in range(1001)], "Methods", "http://x")
+    assert state == {"1": "Methods", "2": "Methods", "3": "Methods", "4": "Methods"}
 
     monkeypatch.setattr(
         cc,
@@ -564,9 +578,40 @@ def test_set_bibliography_category_reuses_case_and_rolls_back_on_failure(monkeyp
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
     )
     with pytest.raises(RuntimeError, match="boom"):
-        cc.set_bibliography_category(doc, "2", "Theory", "http://x")
-    assert state == {"1": "Methods", "2": "Methods"}
-    assert writes[-1] == {"1": "Methods", "2": "Methods"}
+        cc.set_bibliography_categories(doc, ["2", "3"], "Theory", "http://x")
+    assert state == {"1": "Methods", "2": "Methods", "3": "Methods", "4": "Methods"}
+    assert writes[-1] == state
+
+
+def test_citations_panel_category_picker_reuses_labels_and_handles_mixed_selection() -> None:
+    visible = [
+        {"paper_id": "1", "category": "Methods"},
+        {"paper_id": "2", "category": None},
+        {"paper_id": "3", "category": "Theory"},
+    ]
+
+    class Control:
+        def getSelectedItemsPos(self):
+            return (2, 0, 99)
+
+    selected = panel._selected_entries(Control(), visible)
+    assert selected == [visible[2], visible[0]]
+    options, current = panel._category_picker_options(
+        selected,
+        {"1": "Methods", "3": "Theory", "4": "methods"},
+    )
+    assert options == (
+        ("Choose a category…", panel._CHOOSE_CATEGORY),
+        ("Methods", "Methods"),
+        ("Theory", "Theory"),
+        ("Create new category…", panel._CREATE_CATEGORY),
+        ("Remove category", panel._REMOVE_CATEGORY),
+    )
+    assert current == panel._CHOOSE_CATEGORY
+
+    options, current = panel._category_picker_options([visible[1]], {"1": "Methods"})
+    assert current == panel._CREATE_CATEGORY
+    assert ("Methods", "Methods") in options
 
 
 def test_empty_incremental_delta_creates_no_undo_context() -> None:

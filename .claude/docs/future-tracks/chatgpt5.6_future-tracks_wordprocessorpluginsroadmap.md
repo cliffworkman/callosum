@@ -299,6 +299,13 @@ under **Other references**. Assignments and the existing entry/DOI links survive
 removes an assignment, and removing the last restores the ordinary layout. Chapter/section bibliographies,
 custom category ordering/batch assignment, bibliography-title links, and per-source grouped navigation remain.
 
+**Continued in increment 378 (2026-07-25):** the Writer document-citations panel now supports Ctrl/Shift
+multi-selection for category assignment/removal. Its picker reuses existing document labels and offers explicit
+create/remove actions; a mixed-category batch starts on a safe no-op placeholder. The adapter deduplicates and
+validates the bounded paper-id batch, then writes metadata and refreshes the bibliography once, restoring the
+complete prior map if refresh fails. Custom category ordering, chapter/section bibliographies,
+bibliography-title links, and per-source grouped navigation remain.
+
 12. Add a persistent "Citations in this document" panel
 
 This should list:

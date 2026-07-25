@@ -1983,34 +1983,55 @@ def set_bibliography_external_links(doc, enabled: bool, base: str = DEFAULT_BASE
     return enabled, link_count
 
 
-def set_bibliography_category(
+def set_bibliography_categories(
     doc,
-    paper_id: str,
+    paper_ids: list[str] | tuple[str, ...],
     category: str | None,
     base: str = DEFAULT_BASE,
-) -> str | None:
-    """Assign/remove one work's category and rebuild immediately, restoring the complete map on failure."""
-    paper_id = str(paper_id)
-    if not paper_id.isdigit() or len(paper_id) > MAX_BIBLIOGRAPHY_CATEGORY_PAPER_ID:
-        raise ValueError("Bibliography category assignments require a numeric Callosum paper id.")
+) -> dict[str, str | None]:
+    """Assign/remove a category for one bounded work batch, with one refresh and whole-map rollback."""
+    normalized_ids = list(dict.fromkeys(str(paper_id) for paper_id in paper_ids))
+    if not normalized_ids:
+        return {}
+    if len(normalized_ids) > MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS:
+        raise ValueError(
+            f"A category can be assigned to at most {MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS} works at once."
+        )
+    if any(not paper_id.isdigit() or len(paper_id) > MAX_BIBLIOGRAPHY_CATEGORY_PAPER_ID for paper_id in normalized_ids):
+        raise ValueError("Bibliography category assignments require numeric Callosum paper ids.")
     normalized = normalize_bibliography_category(category)
     previous = bibliography_categories(doc)
     updated = dict(previous)
-    if normalized is None:
-        updated.pop(paper_id, None)
-    else:
-        canonical = next(
+    canonical = (
+        next(
             (existing for existing in updated.values() if existing.casefold() == normalized.casefold()),
             normalized,
         )
-        updated[paper_id] = canonical
+        if normalized is not None
+        else None
+    )
+    for paper_id in normalized_ids:
+        if canonical is None:
+            updated.pop(paper_id, None)
+        else:
+            updated[paper_id] = canonical
     _set_bibliography_categories(doc, updated)
     try:
         refresh_bibliography(doc, base)
     except Exception:
         _set_bibliography_categories(doc, previous)
         raise
-    return updated.get(paper_id)
+    return {paper_id: updated.get(paper_id) for paper_id in normalized_ids}
+
+
+def set_bibliography_category(
+    doc,
+    paper_id: str,
+    category: str | None,
+    base: str = DEFAULT_BASE,
+) -> str | None:
+    """Backward-compatible single-work wrapper around the transactional batch category setter."""
+    return set_bibliography_categories(doc, [paper_id], category, base)[str(paper_id)]
 
 
 def refresh_pending(doc, base: str = DEFAULT_BASE) -> dict | None:

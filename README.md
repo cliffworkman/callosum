@@ -146,7 +146,8 @@ grouped citations remain plain rather than choosing an arbitrary source. A separ
 DOI/URL text already rendered by the selected bibliography style clickable, without changing the bibliography
 text or inventing links. The document’s **Citations in this document…** panel can also assign works to named
 categories, producing one bounded bibliography with alphabetized category headings and an explicit **Other
-references** group for unassigned entries. Selecting the bundled
+references** group for unassigned entries. Ctrl/Shift-select several works to assign or remove a category in one
+transaction; the picker reuses category names already in the document. Selecting the bundled
 **Chicago notes and bibliography** style places each new citation in a real Writer footnote and renders
 first/subsequent notes from the complete note sequence. **Note placement…** can instead route new note citations
 to native Writer endnotes, as a setting saved with the document. **Convert citation placement…** deliberately

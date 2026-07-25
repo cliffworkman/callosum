@@ -1944,7 +1944,10 @@ def spike_categorized_bibliography(ctx, base, p1, p2):
     cc.insert_citation(doc, p1, base, cursor=insertion("CATEGORY-A"))
     cc.insert_citation(doc, p2, base, cursor=insertion("CATEGORY-B"))
     cc.set_bibliography_external_links(doc, True, base)
-    cc.set_bibliography_category(doc, p1, "Methods", base)
+    check(
+        cc.set_bibliography_categories(doc, [p1, p2, p1], "Methods", base) == {p1: "Methods", p2: "Methods"},
+        "batch category assignment did not deduplicate or canonicalize its result",
+    )
     cc.set_bibliography_category(doc, p2, "Theory", base)
     body = text.getString()
     methods = body.index("Methods\n")
@@ -2039,16 +2042,28 @@ def spike_categorized_bibliography(ctx, base, p1, p2):
             "placement conversion lost categorized bibliography DOI links",
         )
 
+        check(
+            cc.set_bibliography_categories(reopened, [p1, p2], "Synthesis", base) == {p1: "Synthesis", p2: "Synthesis"},
+            "batch category reassignment returned the wrong projection",
+        )
+        batch_body = reopened.getText().getString()
+        check(
+            batch_body.count("Synthesis\n") == 1 and f"{cc.BIBLIOGRAPHY_UNCATEGORIZED}\n" not in batch_body,
+            "batch category reassignment did not render one shared group",
+        )
         cc.set_bibliography_category(reopened, p1, "", base)
         uncategorized_body = reopened.getText().getString()
         check(
-            "Theory\n" in uncategorized_body and f"{cc.BIBLIOGRAPHY_UNCATEGORIZED}\n" in uncategorized_body,
+            "Synthesis\n" in uncategorized_body and f"{cc.BIBLIOGRAPHY_UNCATEGORIZED}\n" in uncategorized_body,
             "removing one category did not retain the work under Other references",
         )
-        cc.set_bibliography_category(reopened, p2, "", base)
+        check(
+            cc.set_bibliography_categories(reopened, [p1, p2], None, base) == {p1: None, p2: None},
+            "batch category removal returned the wrong projection",
+        )
         plain_body = reopened.getText().getString()
         check(
-            "Theory\n" not in plain_body and f"{cc.BIBLIOGRAPHY_UNCATEGORIZED}\n" not in plain_body,
+            "Synthesis\n" not in plain_body and f"{cc.BIBLIOGRAPHY_UNCATEGORIZED}\n" not in plain_body,
             "removing the final assignment did not restore the uncategorized bibliography layout",
         )
         reopened.close(False)
@@ -2057,7 +2072,7 @@ def spike_categorized_bibliography(ctx, base, p1, p2):
             os.remove(save_path)
         except OSError:
             pass
-    log("spike (P1 #11): OK — categories group/reorder, link, persist, and clear safely")
+    log("spike (P1 #11): OK — categories batch/reuse, group/reorder, link, persist, and clear safely")
 
 
 def spike_bibliography_links(ctx, base, p1, p2):

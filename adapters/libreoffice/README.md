@@ -155,12 +155,14 @@ message if it isn't):
 21. **Citations in this document…** — an overview of every unique work you've cited: how many times, whether
     it's still in your library, and its retraction/correction status, with a live filter box and a **Go to**
     button that jumps you to its first occurrence. The same panel can **Toggle bibliography exclude** for a
-    cited work, **Add uncited work(s)…** (for further reading), or **Set category…** for the selected work.
-    Categories are saved in the Writer file, listed alphabetically, and keep the active CSL style's ordering
-    within each group. Once any visible work is categorized, unassigned entries remain visible under **Other
-    references**. Submit a blank category to remove the assignment; removing the last assignment restores the
-    ordinary uncategorized bibliography. It is a snapshot at the moment you open it — reopen after editing to
-    refresh.
+    cited work, **Add uncited work(s)…** (for further reading), or **Set category…**. Ctrl/Shift-select several
+    works to categorize them together. The picker lists category names already saved in the Writer file, plus
+    explicit **Create new category…** and **Remove category** choices; a mixed-category selection starts on a
+    safe no-op placeholder. One batch writes once and refreshes the bibliography once, rolling the complete map
+    back if refresh fails. Categories are listed alphabetically and keep the active CSL style's ordering within
+    each group. Once any visible work is categorized, unassigned entries remain visible under **Other
+    references**; removing the final assignment restores the ordinary uncategorized bibliography. It is a
+    snapshot at the moment you open it — reopen after editing to refresh.
 
 The pending-refresh flags are saved inside the document. If you save and reopen while work is pending, the bar
 returns as soon as Writer opens the document. The installed extension also watches the ordered live citation

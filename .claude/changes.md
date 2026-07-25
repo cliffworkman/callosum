@@ -9,7 +9,28 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 377 — Writer categorized bibliographies -->
+<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 378 — Writer batch bibliography categories -->
+## 2026-07-25 — Increment 378: Writer batch bibliography categories (P1 item #11)
+
+- **Files:** Writer category transaction/document-citations panel, installed-UNO fixture, OXT 0.23.0, pure
+  tests, README/help, QA, security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** Ctrl/Shift-select several cited or uncited works in **Citations in this document…**, then
+  choose **Set category…** once. The picker reuses existing document labels and provides explicit **Create new
+  category…** / **Remove category** actions; mixed selections start on a safe no-op placeholder.
+- **Integrity:** batches deduplicate and validate numeric ids, cap at 1,000 works, write category metadata once,
+  and rebuild the bibliography once. Any refresh failure restores the complete prior map. Invalid or blank
+  create-new input mutates nothing.
+- **Writer proof:** installed OXT **0.23.0** batch-assigned and batch-cleared categories, reused a shared group,
+  preserved DOI links through placement conversion, and persisted metadata/layout through `.odt` save/reopen.
+- **Experience:** a deadline-author walkthrough found the multi-select hint and existing-label workflow
+  discoverable. Fix-now findings closed before ship: blank create is no longer destructive; ambiguous/uncited
+  Go to and exclusion explain the constraint without closing the panel.
+- **Verification:** focused adapter/OXT/install/help **149 passed**; installed Writer focused spike and full
+  matrix **SELFTEST OK**; full suite **1578 passed, 1 skipped**; Ruff/format, line budget, QA surface map, OXT
+  packaging, and diff hygiene pass.
+- **Revert:** `git revert` this commit.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-25 inc 377 — Writer categorized bibliographies -->
 ## 2026-07-25 — Increment 377: Writer categorized bibliographies (P1 item #11)
 
 - **Files:** Writer category metadata/grouped layout/document-citations panel, installed-UNO fixture, OXT 0.22.0,
