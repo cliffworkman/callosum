@@ -42,6 +42,19 @@ a derivative of Callosum's code, and **remain under CC-BY-SA — they are NOT re
 Bundled styles: APA (7th), MLA (9th), Chicago author-date (18th), Chicago notes-bibliography (18th), Harvard —
 Cite Them Right (12th), IEEE, Nature. Bundled locales: en-US, en-GB.
 
+### MEDLINE journal-title abbreviations — U.S. National Library of Medicine
+
+The compressed index at `app/backend/citations/data/medline_journals.json.gz` is a modified/distilled snapshot
+of NLM's public `J_Medline.txt` catalog, last modified **2026-07-25**. It retains only normalized full-title and
+ISSN lookup keys mapped to NLM's `MedAbbr` value; it omits the source records' other fields. Runtime citation
+rendering reads this bundled snapshot locally and does not contact NLM.
+
+- Source: <https://ftp.ncbi.nlm.nih.gov/pubmed/J_Medline.txt>
+- Refresh script: `tools/update_medline_journal_abbreviations.py`
+- **Courtesy of the U.S. National Library of Medicine.** NLM does not endorse Callosum.
+- The snapshot may not reflect NLM changes made after the date above. NLM provides the data without warranties;
+  its general download terms apply: <https://www.nlm.nih.gov/databases/download/terms_and_conditions.html>.
+
 ---
 
 ## Word-processor adapters — Zotero `CSL_CITATION` field convention (inc 108)

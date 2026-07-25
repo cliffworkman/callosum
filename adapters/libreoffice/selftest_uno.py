@@ -3100,6 +3100,130 @@ def spike_style_manager(ctx, base):
     log("spike (P1 #9): OK — bundled/custom search, preview, and new-document default")
 
 
+def spike_journal_abbreviations(ctx, base, p1, p2):
+    """P1 item #15: document-local library/MEDLINE/full journal-title selection through real citeproc + Writer."""
+    import tempfile
+
+    log("spike (P1 #15): journal abbreviation modes")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.setString("First XXX. Second YYY.\n")
+    cc._set_pref(doc, "nature", "en-US")
+    for needle, paper_id in (("XXX", p1), ("YYY", p2)):
+        descriptor = doc.createSearchDescriptor()
+        descriptor.SearchString = needle
+        cc.insert_citation(doc, paper_id, base, cursor=text.createTextCursorByRange(doc.findFirst(descriptor)))
+
+    fields = cc.scan_citations_in_order(doc)
+    fixtures = (
+        {
+            "container-title": "Journal of Clinical Investigation",
+            "container-title-short": "Library JCI",
+            "ISSN": "0021-9738",
+        },
+        {
+            "container-title": "Definitely Unknown Callosum Periodical",
+            "container-title-short": None,
+            "journalAbbreviation": None,
+            "ISSN": None,
+        },
+    )
+    for field, fixture in zip(fields, fixtures, strict=True):
+        decoded = cc.decode_mark_name(field["_mark"].Name)
+        item = dict(decoded["items"][0])
+        for name, value in fixture.items():
+            if value is None:
+                item.pop(name, None)
+            else:
+                item[name] = value
+        field["_mark"].Name = cc.encode_mark_name({"items": [item], "sort": decoded["sort"]}, decoded["rnd"])
+
+    library_mode, library_summary = cc.set_journal_abbreviation_mode(doc, "library", base)
+    library_body = text.getString()
+    check(library_mode == "library", "library abbreviation mode did not normalize")
+    check("Library JCI" in library_body, f"library abbreviation was not rendered: {library_body!r}")
+    check(
+        library_summary["library_count"] == 1 and library_summary["unknown_count"] == 1,
+        f"library abbreviation coverage was wrong: {library_summary!r}",
+    )
+
+    medline_mode, medline_summary = cc.set_journal_abbreviation_mode(doc, "medline", base)
+    medline_body = text.getString()
+    check(medline_mode == "medline", "MEDLINE abbreviation mode did not normalize")
+    check(
+        "J Clin Invest" in medline_body and "Library JCI" not in medline_body,
+        f"MEDLINE abbreviation did not replace the library short title: {medline_body!r}",
+    )
+    check(
+        medline_summary["medline_count"] == 1
+        and medline_summary["unknown_count"] == 1
+        and medline_summary["unknown_titles"] == ["Definitely Unknown Callosum Periodical"],
+        f"MEDLINE coverage/warning was wrong: {medline_summary!r}",
+    )
+    embedded = cc.scan_citations_in_order(doc)[0]["items"][0]
+    check(
+        embedded.get("container-title-short") == "Library JCI",
+        "render-time MEDLINE selection rewrote the embedded citation metadata",
+    )
+
+    original_refresh = cc.refresh
+
+    def fail_refresh(*_args, **_kwargs):
+        raise RuntimeError("injected journal-mode refresh failure")
+
+    cc.refresh = fail_refresh
+    try:
+        try:
+            cc.set_journal_abbreviation_mode(doc, "full", base)
+        except RuntimeError as exc:
+            check("injected journal-mode" in str(exc), f"wrong preference rollback error: {exc}")
+        else:
+            raise AssertionError("journal-mode refresh failure did not propagate")
+    finally:
+        cc.refresh = original_refresh
+    check(cc.journal_abbreviation_mode(doc) == "medline", "failed journal-mode refresh did not restore the preference")
+    check("J Clin Invest" in text.getString(), "failed journal-mode refresh changed rendered bibliography text")
+
+    fd, save_path = tempfile.mkstemp(suffix=".odt")
+    os.close(fd)
+    os.remove(save_path)
+    save_url = uno.systemPathToFileUrl(save_path)
+    reopened = None
+    try:
+        from com.sun.star.beans import PropertyValue
+
+        filt = PropertyValue()
+        filt.Name, filt.Value = "FilterName", "writer8"
+        doc.storeAsURL(save_url, (filt,))
+        doc.close(True)
+        reopened = load_doc(ctx, save_url)
+        check(cc.journal_abbreviation_mode(reopened) == "medline", "MEDLINE preference did not survive save/reopen")
+        check("J Clin Invest" in reopened.getText().getString(), "MEDLINE-rendered title did not survive save/reopen")
+        full_mode, full_summary = cc.set_journal_abbreviation_mode(reopened, "full", base)
+        full_body = reopened.getText().getString()
+        check(
+            full_mode == "full" and full_summary["full_title_count"] == 2,
+            f"full-title summary was wrong: {full_summary}",
+        )
+        check(
+            "Journal of Clinical Investigation" in full_body
+            and "Definitely Unknown Callosum Periodical" in full_body
+            and "J Clin Invest" not in full_body,
+            f"full journal titles were not rendered: {full_body!r}",
+        )
+        reopened.close(False)
+        reopened = None
+    finally:
+        if reopened is not None:
+            try:
+                reopened.close(False)
+            except Exception:
+                pass
+        if os.path.exists(save_path):
+            os.remove(save_path)
+    log("spike (P1 #15): OK — library/MEDLINE/full, unknown warning, rollback, immutable fields, and reopen")
+
+
 def main():
     base, p1, p2, port = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
     id1, id2 = f"callosum-{p1}", f"callosum-{p2}"
@@ -3118,6 +3242,10 @@ def main():
         return 0
     if os.environ.get("CALLOSUM_UNO_SPIKE") == "section-bibliographies":
         spike_section_bibliographies(ctx, base, p1, p2)
+        print("SELFTEST OK", flush=True)
+        return 0
+    if os.environ.get("CALLOSUM_UNO_SPIKE") == "journal-abbreviations":
+        spike_journal_abbreviations(ctx, base, p1, p2)
         print("SELFTEST OK", flush=True)
         return 0
     doc = new_writer(ctx)
@@ -3322,6 +3450,9 @@ def main():
 
         # P1 item #11: stable bibliography targets + opt-in links for unambiguous single-work citations.
         spike_bibliography_links(ctx, base, p1, p2)
+
+        # P1 item #15: library/MEDLINE/full journal-title selection with honest unknown warnings.
+        spike_journal_abbreviations(ctx, base, p1, p2)
 
         # 21) P1 item #13: explicit partial refreshes for large documents.
         spike_partial_refresh_controls(ctx, base, p1)

@@ -20,6 +20,8 @@ from typing import Any
 
 from app.backend.api.startup import PROJECT_ROOT
 from app.backend.citations import style_store
+from app.backend.citations.journal_abbreviations import DEFAULT_MODE as DEFAULT_JOURNAL_ABBREVIATION_MODE
+from app.backend.citations.journal_abbreviations import apply_journal_abbreviations
 
 _RUNNER = PROJECT_ROOT / "app" / "backend" / "citations" / "citeproc_runner.js"
 _CITEPROC = PROJECT_ROOT / "node_modules" / "citeproc"
@@ -302,6 +304,7 @@ def render_document(
     style_xml: str | None = None,
     uncited_items: Sequence[Mapping[str, Any]] = (),
     bibliography_exclude_ids: Sequence[str] = (),
+    journal_abbreviation_mode: str = DEFAULT_JOURNAL_ABBREVIATION_MODE,
 ) -> dict[str, Any]:
     """Position-aware render of a document's ORDERED citation clusters — the word-processor adapter contract.
 
@@ -375,17 +378,27 @@ def render_document(
         item.setdefault("type", "article-journal")
         out_uncited.append(item)
     exclude_ids = [str(x) for x in bibliography_exclude_ids]
+    effective_style_xml = style_xml if style_xml is not None else style_store.render_style_xml(style)
+    flat_items = [item for cluster in clusters for item in cluster["items"]] + out_uncited
+    transformed_items, journal_summary = apply_journal_abbreviations(
+        flat_items,
+        journal_abbreviation_mode,
+        style_xml=effective_style_xml,
+    )
+    transformed = iter(transformed_items)
+    for cluster in clusters:
+        cluster["items"] = [next(transformed) for _item in cluster["items"]]
+    out_uncited = [next(transformed) for _item in out_uncited]
 
     request = {
         "mode": "document",
         "style": style,
         "locale": locale,
+        "style_xml": effective_style_xml,
         "citations": clusters,
         "uncited_items": out_uncited,
         "bibliography_exclude_ids": exclude_ids,
     }
-    if style_xml is not None:
-        request["style_xml"] = style_xml
     data = _run(request)
 
     out_citations: list[dict[str, Any]] = []
@@ -411,6 +424,7 @@ def render_document(
             _bibliography_links(entry, entry_ids, items_by_id)
             for entry, entry_ids in zip(bib, bib_entry_ids, strict=True)
         ],
+        "journal_abbreviations": journal_summary,
     }
 
 

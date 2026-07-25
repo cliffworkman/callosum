@@ -149,6 +149,12 @@
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>
+          <node oor:name="m04n" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?setJournalAbbreviations</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Journal abbreviations…</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
           <node oor:name="m04i" oor:op="replace">
             <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?toggleBibliographyLinks</value></prop>
             <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Toggle citation-to-bibliography links</value></prop>

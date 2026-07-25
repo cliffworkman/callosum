@@ -1060,6 +1060,7 @@ def test_build_render_request_shape() -> None:
     # P1 item #11 (backlog #33/#34): omitted entirely -> empty lists, matching the backend's additive contract.
     assert req["uncited_items"] == []
     assert req["bibliography_exclude_ids"] == []
+    assert req["journal_abbreviation_mode"] == "library"
 
 
 def test_build_render_request_bibliography_editing_fields() -> None:
@@ -1068,6 +1069,29 @@ def test_build_render_request_bibliography_editing_fields() -> None:
     )
     assert req["uncited_items"] == [{"id": "callosum-9"}]
     assert req["bibliography_exclude_ids"] == ["callosum-5"]
+
+
+def test_journal_abbreviation_request_validation_and_feedback() -> None:
+    request = cc.build_render_request([], "nature", "en-US", journal_abbreviation_mode="MEDLINE")
+    assert request["journal_abbreviation_mode"] == "medline"
+    assert cc.normalize_journal_abbreviation_mode(None) == "library"
+    with pytest.raises(ValueError, match="library, medline, or full"):
+        cc.normalize_journal_abbreviation_mode("generated")
+
+    assert "current CSL style requests full journal titles" in cc.journal_abbreviation_feedback(
+        {"journal_count": 2, "style_requests_short_titles": False}
+    )
+    assert "1 MEDLINE, 1 library; 1 unknown (Mystery Journal)" in cc.journal_abbreviation_feedback(
+        {
+            "mode": "medline",
+            "journal_count": 3,
+            "style_requests_short_titles": True,
+            "medline_count": 1,
+            "library_count": 1,
+            "unknown_count": 1,
+            "unknown_titles": ["Mystery Journal"],
+        }
+    )
 
 
 def test_style_manifest_and_family_are_validated(monkeypatch) -> None:

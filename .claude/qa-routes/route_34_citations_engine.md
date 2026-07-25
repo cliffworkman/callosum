@@ -162,6 +162,14 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     every section block is removed in one Writer Undo step. Undo/Redo must restore/remove exact text, bookmarks,
     and managed DOI/title links. Inject failure on the second removal and confirm the runtime recovery restores
     both blocks exactly. A damaged triple must be reported, omitted from the list, and disable bulk removal.
+21. **Manual Writer journal abbreviations:** use a short-title CSL style such as Nature with one journal carrying
+    library `container-title-short` metadata, one exact NLM/MEDLINE title or ISSN, and one unknown journal. In
+    **Journal abbreviations…**, verify **Library abbreviations** uses embedded metadata, **MEDLINE first** prefers
+    the NLM match and reports library fallbacks plus the unknown title, and **Full journal titles** restores the
+    complete names. Confirm each change updates live citation text where applicable plus full and section
+    bibliographies, survives save/reopen, and leaves the encoded citation metadata unchanged. Repeat with APA and
+    confirm the dialog explains that its full-title request leaves visible text unchanged. Cancel must mutate
+    nothing; an injected refresh failure must restore both the prior preference and rendered document.
 
 ## Pass criteria
 

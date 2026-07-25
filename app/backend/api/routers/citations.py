@@ -12,7 +12,7 @@ bibliography to write back. Self-contained — it renders from the passed payloa
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -27,6 +27,7 @@ from app.backend.citations.beyond_library import (
     anchors_from_suggestions,
     suggest_beyond_library,
 )
+from app.backend.citations.journal_abbreviations import DEFAULT_MODE as DEFAULT_JOURNAL_ABBREVIATION_MODE
 from app.backend.citations.render import (
     DEFAULT_LOCALE,
     DEFAULT_STYLE,
@@ -185,6 +186,7 @@ class RenderDocumentRequest(BaseModel):
     # P1 item #11 (backlog #33/#34): bibliography editing. Both additive/optional — existing callers unaffected.
     uncited_items: list[UncitedItem] = Field(default=[], max_length=MAX_ITEMS_PER_CLUSTER)
     bibliography_exclude_ids: list[str] = Field(default=[], max_length=MAX_CLUSTERS)
+    journal_abbreviation_mode: Literal["library", "medline", "full"] = DEFAULT_JOURNAL_ABBREVIATION_MODE
 
 
 @router.get("/citations/styles")
@@ -403,6 +405,7 @@ def render_citation_document(payload: RenderDocumentRequest) -> dict[str, Any]:
             locale=payload.locale,
             uncited_items=uncited,
             bibliography_exclude_ids=payload.bibliography_exclude_ids,
+            journal_abbreviation_mode=payload.journal_abbreviation_mode,
         )
     except CitationEngineUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

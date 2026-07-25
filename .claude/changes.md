@@ -9,7 +9,30 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 384 — Writer section-bibliography manager -->
+<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 385 — Writer journal abbreviations -->
+## 2026-07-25 — Increment 385: Writer journal-abbreviation controls
+
+- **Files:** local citation-render abbreviation policy/index, NLM refresh tool/provenance notice, Writer
+  preference/dialog/action, installed-UNO fixture, OXT 0.30.0, pure/API tests, README/help, QA, security,
+  roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** **Journal abbreviations…** selects embedded library abbreviations, MEDLINE-first with library
+  fallback, or full journal titles for one Writer document. The shared render updates applicable citation text
+  plus full/section bibliographies and returns style-aware source/unknown coverage.
+- **Data/provenance:** a deterministic gzip index distills 37,971 records from NLM's 2026-07-25
+  `J_Medline.txt`, matching ISSN before exact normalized title. Runtime is local; the explicit maintainer refresh
+  tool is the only network path. NLM is credited and the snapshot date is visible.
+- **Boundaries:** transformations operate on copied CSL items. Embedded document fields and library metadata are
+  unchanged; unknown journals remain full and are reported instead of guessed. Invalid modes fail validation.
+- **Experience:** the three choices name their precedence plainly, actual citeproc refresh doubles as preview,
+  APA-like full-title styles explain an unchanged document, and bounded unknown examples make metadata cleanup
+  actionable without blocking formatting. A persona subagent was not used because delegation was disabled.
+- **Verification:** focused API/adapter/OXT/install/help **222 passed**; installed Writer focused and full matrix
+  **SELFTEST OK**; full suite **1589 passed, 1 skipped**; Ruff/format, line budget, QA surface map, OXT packaging,
+  bundled-index integrity, security audit, and diff hygiene pass.
+- **Status:** P1 item #15 is complete; the active LibreOffice adapter is closed for now.
+- **Revert:** `git revert` this commit.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-25 inc 384 — Writer section-bibliography manager -->
 ## 2026-07-25 — Increment 384: Writer section-bibliography manager
 
 - **Files:** Writer section inventory/manager/removal Undo recovery, installed-UNO fixture, OXT 0.29.0, pure

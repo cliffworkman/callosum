@@ -120,10 +120,18 @@ PREF_BIB_LINKS = "CallosumBibLinks"  # "1" hyperlinks unambiguous one-work citat
 PREF_BIB_EXTERNAL_LINKS = "CallosumBibExternalLinks"  # "1" links DOI/URL text rendered by the current CSL style
 PREF_BIB_CATEGORIES = "CallosumBibCategories"  # JSON object: Callosum paper id -> document-local category label
 PREF_BIB_CATEGORY_ORDER = "CallosumBibCategoryOrder"  # JSON list: explicit document-local category precedence
+PREF_JOURNAL_ABBREVIATIONS = "CallosumJournalAbbreviations"  # library, MEDLINE-first, or full journal titles
 DEFAULT_STYLE = "apa"
 DEFAULT_LOCALE = "en-US"
 DEFAULT_NOTE_PLACEMENT = "footnote"
 NOTE_PLACEMENTS = ("footnote", "endnote")
+DEFAULT_JOURNAL_ABBREVIATION_MODE = "library"
+JOURNAL_ABBREVIATION_MODES = ("library", "medline", "full")
+JOURNAL_ABBREVIATION_OPTIONS = (
+    ("Library abbreviations (default)", "library"),
+    ("MEDLINE first (library fallback)", "medline"),
+    ("Full journal titles", "full"),
+)
 DEFAULT_BASE = "http://127.0.0.1:8080"
 HTTP_TIMEOUT = 20
 PROGRESS_MIN_WORK = 20  # roughly ten full-document citation updates; avoid flashing UI for small documents
@@ -292,6 +300,7 @@ def build_render_request(
     *,
     uncited_items: list[dict] | None = None,
     bibliography_exclude_ids: list[str] | None = None,
+    journal_abbreviation_mode: str = DEFAULT_JOURNAL_ABBREVIATION_MODE,
 ) -> dict:
     """Turn ordered citation fields into the `/citations/render-document` body.
 
@@ -299,7 +308,8 @@ def build_render_request(
     (in document order). Zero is the established in-text sentinel; note-style fields carry the one-based Writer
     footnote number citeproc needs for first/subsequent/ibid state. `uncited_items`/
     `bibliography_exclude_ids` (P1 item #11, backlog #33/#34) are both optional — omitted entirely, they're empty
-    lists, matching the backend's own additive/optional contract.
+    lists, matching the backend's own additive/optional contract. The journal-title preference is document-level
+    render input; it never rewrites the embedded CSL records.
     """
     return {
         "style": style,
@@ -314,6 +324,7 @@ def build_render_request(
         ],
         "uncited_items": uncited_items or [],
         "bibliography_exclude_ids": bibliography_exclude_ids or [],
+        "journal_abbreviation_mode": normalize_journal_abbreviation_mode(journal_abbreviation_mode),
     }
 
 
@@ -724,6 +735,48 @@ def normalize_note_placement(value: str) -> str:
     if placement not in NOTE_PLACEMENTS:
         raise ValueError("Note placement must be 'footnote' or 'endnote'.")
     return placement
+
+
+def normalize_journal_abbreviation_mode(value: str | None) -> str:
+    mode = str(value or DEFAULT_JOURNAL_ABBREVIATION_MODE).strip().lower()
+    if mode not in JOURNAL_ABBREVIATION_MODES:
+        raise ValueError("Journal abbreviation mode must be library, medline, or full.")
+    return mode
+
+
+def journal_abbreviation_mode(doc) -> str:
+    """Document-level journal-title source; corrupt/legacy values retain the current library behavior."""
+    try:
+        return normalize_journal_abbreviation_mode(_effective_user_prop(doc, PREF_JOURNAL_ABBREVIATIONS))
+    except ValueError:
+        return DEFAULT_JOURNAL_ABBREVIATION_MODE
+
+
+def journal_abbreviation_feedback(summary: dict) -> str:
+    """Concise post-render validation for the document preference dialog."""
+    if not isinstance(summary, dict):
+        return "The preference was saved; refresh again after adding citations to validate journal coverage."
+    journals = max(0, int(summary.get("journal_count", 0)))
+    if not summary.get("style_requests_short_titles"):
+        return (
+            f"The preference was saved for {journals} journal source{'s' if journals != 1 else ''}. "
+            "The current CSL style requests full journal titles, so visible text is unchanged."
+        )
+    mode = normalize_journal_abbreviation_mode(summary.get("mode"))
+    if mode == "full":
+        return f"Full titles are active for {journals} journal source{'s' if journals != 1 else ''}."
+    medline = max(0, int(summary.get("medline_count", 0)))
+    library = max(0, int(summary.get("library_count", 0)))
+    unknown = max(0, int(summary.get("unknown_count", 0)))
+    detail = f"{medline} MEDLINE, {library} library"
+    if unknown:
+        titles = [str(title) for title in summary.get("unknown_titles", [])[:3] if str(title)]
+        warning = f"; {unknown} unknown"
+        if titles:
+            warning += f" ({'; '.join(titles)})"
+    else:
+        warning = "; no unknown journals"
+    return f"Validated {journals} journal source{'s' if journals != 1 else ''}: {detail}{warning}."
 
 
 def set_note_placement(doc, placement: str) -> None:
@@ -2193,6 +2246,7 @@ def refresh(
                 locale,
                 uncited_items=uncited_items,
                 bibliography_exclude_ids=exclude_ids,
+                journal_abbreviation_mode=journal_abbreviation_mode(doc),
             ),
         )
         progress.update(len(fields), "Callosum: checking the live document")
@@ -2736,6 +2790,21 @@ def set_bibliography_heading(doc, heading: str | None, base: str = DEFAULT_BASE)
         _set_user_prop_value(doc, PREF_BIB_HEADING, previous)
         raise
     return normalized
+
+
+def set_journal_abbreviation_mode(doc, mode: str, base: str = DEFAULT_BASE) -> tuple[str, dict]:
+    """Persist one render-only journal-title source and refresh atomically, restoring the preference on failure."""
+    normalized = normalize_journal_abbreviation_mode(mode)
+    previous = _effective_user_prop(doc, PREF_JOURNAL_ABBREVIATIONS)
+    stored = None if normalized == DEFAULT_JOURNAL_ABBREVIATION_MODE else normalized
+    _set_user_prop_value(doc, PREF_JOURNAL_ABBREVIATIONS, stored)
+    try:
+        response = refresh(doc, base, update_citations=True, update_bibliography=True)
+    except Exception:
+        _set_user_prop_value(doc, PREF_JOURNAL_ABBREVIATIONS, previous)
+        raise
+    summary = response.get("journal_abbreviations", {}) if isinstance(response, dict) else {}
+    return normalized, summary
 
 
 def set_bibliography_links(doc, enabled: bool, base: str = DEFAULT_BASE) -> bool:
@@ -3805,6 +3874,7 @@ def _conversion_render_response(
             locale,
             uncited_items=uncited_items,
             bibliography_exclude_ids=exclude_ids,
+            journal_abbreviation_mode=journal_abbreviation_mode(doc),
         ),
     )
 
@@ -5168,6 +5238,22 @@ def set_bibliography_heading_interactive(doc, base: str) -> None:
     _msgbox(f'Bibliography heading is now "{heading}".')
 
 
+def set_journal_abbreviations_interactive(doc, base: str) -> None:
+    """Choose the document's journal-title source, then show citeproc-aware coverage feedback."""
+    chosen = _choice_box(
+        doc,
+        "Journal abbreviations",
+        "Journal titles when the CSL style requests a short form:",
+        JOURNAL_ABBREVIATION_OPTIONS,
+        journal_abbreviation_mode(doc),
+    )
+    if chosen is None:
+        return
+    mode, summary = set_journal_abbreviation_mode(doc, chosen, base)
+    label = next(label for label, value in JOURNAL_ABBREVIATION_OPTIONS if value == mode)
+    _msgbox(f"{label}.\n\n{journal_abbreviation_feedback(summary)}", "Journal abbreviations")
+
+
 def toggle_bibliography_links_interactive(doc, base: str) -> None:
     """Toggle internal navigation for citation clusters with exactly one bibliography entry."""
     enabled = set_bibliography_links(doc, not bibliography_links_enabled(doc), base)
@@ -5508,6 +5594,7 @@ _ACTIONS = {
     "removeSectionBibliography": remove_section_bibliography_interactive,
     "manageSectionBibliographies": manage_section_bibliographies_interactive,
     "setBibliographyHeading": set_bibliography_heading_interactive,
+    "setJournalAbbreviations": set_journal_abbreviations_interactive,
     "toggleBibliographyLinks": toggle_bibliography_links_interactive,
     "toggleBibliographyExternalLinks": toggle_bibliography_external_links_interactive,
     "toggleCiteAuto": toggle_cite_auto_interactive,
@@ -5648,6 +5735,10 @@ def CallosumSetBibliographyHeading(*_args):
     _macro("setBibliographyHeading")
 
 
+def CallosumSetJournalAbbreviations(*_args):
+    _macro("setJournalAbbreviations")
+
+
 def CallosumToggleBibliographyLinks(*_args):
     _macro("toggleBibliographyLinks")
 
@@ -5706,6 +5797,7 @@ g_exportedScripts = (
     CallosumRemoveSectionBibliography,
     CallosumManageSectionBibliographies,
     CallosumSetBibliographyHeading,
+    CallosumSetJournalAbbreviations,
     CallosumToggleBibliographyLinks,
     CallosumToggleBibliographyExternalLinks,
     CallosumToggleCiteAuto,

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 384** (see Increment workflow) with **1586 pytest tests
+It is currently at **Increment 385** (see Increment workflow) with **1589 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -85,7 +85,9 @@ the full per-increment narrative for all other increments now lives in the reloc
   bibliography entry, without making grouped rendered text structurally ambiguous; **inc 384** completes
   bibliography editing with a document-ordered section-bibliography manager, deterministic jump,
   selected/confirmed bulk removal, and verified Writer Undo/Redo recovery that leaves citations and the full
-  bibliography unchanged.
+  bibliography unchanged; **inc 385** closes the active LibreOffice adapter for now with document-local
+  library/MEDLINE/full journal-title modes, a bundled local NLM abbreviation index, honest unknown coverage,
+  immutable embedded metadata, and real-Writer rollback/save/reopen proof.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

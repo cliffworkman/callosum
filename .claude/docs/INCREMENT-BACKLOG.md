@@ -334,6 +334,14 @@ the Principles + A-A gates before build.)*
   change.
   **UX follow-up (deadline author, inc 380) — CLOSED inc 384:** list/jump, remove-all, owning heading, and
   cited-work count are shipped.
+  **Inc 385 completes P1 item #15 and closes the LibreOffice adapter for now:** **Journal abbreviations…**
+  stores one Writer-document choice—embedded library abbreviations, MEDLINE-first with library fallback, or full
+  journal titles—and applies it through the shared document render to citations plus full/section bibliographies.
+  A bundled 2026-07-25 NLM `J_Medline.txt` snapshot matches ISSN then exact normalized title without runtime
+  egress; the renderer reports MEDLINE/library/unknown coverage and never rewrites embedded or library metadata.
+  Real Writer proves all three modes, honest unknown warnings, failure rollback, and save/reopen. Traveling-library
+  collaboration, comprehensive keyboard/screen-reader accessibility, cross-editor parity, and P2 features remain
+  future tracks rather than unfinished active-adapter work.
   **P1 item #10 started (inc 362, 2026-07-23):** selecting the bundled
   `chicago-notes-bibliography` style now inserts each new citation into a real Writer footnote. The shared
   render contract accepts a validated one-based `noteIndex`, Writer scans footnotes in their native collection
@@ -402,9 +410,8 @@ the Principles + A-A gates before build.)*
   rejects stale exact revisions rather than overwriting another edit. **P1 item #9 is complete.**
   **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
-  not left to drift like the composer's verification did). Remaining P1 (more bibliography editing controls —
-  categories/chapter bibliographies/hyperlinked entries, portability, journal abbreviations,
-  keyboard/accessibility) **and P2
+  not left to drift like the composer's verification did). Remaining P1 future tracks (traveling-library
+  portability and comprehensive keyboard/accessibility) **and P2
   leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,
   pre-submission citation-integrity preflight, Citavi-style evidence-card insertion, open-science statement
   insertion, cross-manager conversion) — see the roadmap doc for the full prioritized list + a test plan.

@@ -788,6 +788,89 @@ def test_render_document_ieee_numbering_and_renumber(temp_db_url: str) -> None:
     assert by_id2 == {"C": "[1]", "B": "[2]", "A": "[3]"}  # A was [1], now [3]
 
 
+def test_render_document_journal_abbreviation_modes_are_local_and_honest(temp_db_url: str) -> None:
+    item = {
+        **_DOC_ITEMS["a"],
+        "container-title": "Journal of Clinical Investigation",
+        "container-title-short": "Library JCI",
+        "ISSN": "0021-9738",
+        "volume": "1",
+        "page": "1-2",
+    }
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    def rendered(mode: str) -> dict:
+        response = client.post(
+            "/citations/render-document",
+            json={
+                "style": "nature",
+                "journal_abbreviation_mode": mode,
+                "citations": [{"citationID": "A", "items": [item]}],
+            },
+        )
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    library = rendered("library")
+    assert "Library JCI" in library["bibliography_text"]
+    assert library["journal_abbreviations"] == {
+        "mode": "library",
+        "style_requests_short_titles": True,
+        "journal_count": 1,
+        "abbreviated_count": 1,
+        "medline_count": 0,
+        "library_count": 1,
+        "full_title_count": 0,
+        "unknown_count": 0,
+        "unknown_titles": [],
+        "medline_last_modified": None,
+    }
+
+    medline = rendered("medline")
+    assert "J Clin Invest" in medline["bibliography_text"] and "Library JCI" not in medline["bibliography_text"]
+    assert medline["journal_abbreviations"]["medline_count"] == 1
+    assert medline["journal_abbreviations"]["unknown_count"] == 0
+    assert medline["journal_abbreviations"]["medline_last_modified"]
+
+    full = rendered("full")
+    assert "Journal of Clinical Investigation" in full["bibliography_text"]
+    assert "Library JCI" not in full["bibliography_text"]
+    assert full["journal_abbreviations"]["full_title_count"] == 1
+
+    # Rendering transformed copies, never the caller's embedded/library metadata.
+    assert item["container-title-short"] == "Library JCI"
+
+
+def test_render_document_medline_falls_back_and_reports_unknowns(temp_db_url: str) -> None:
+    fallback = {**_DOC_ITEMS["a"], "container-title": "Not A Real MEDLINE Journal", "container-title-short": "Library"}
+    unknown = {**_DOC_ITEMS["b"], "container-title": "Definitely Unknown Callosum Periodical"}
+    response = TestClient(create_app(db_url=temp_db_url)).post(
+        "/citations/render-document",
+        json={
+            "style": "nature",
+            "journal_abbreviation_mode": "medline",
+            "citations": [
+                {"citationID": "A", "items": [fallback]},
+                {"citationID": "B", "items": [unknown]},
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    summary = response.json()["journal_abbreviations"]
+    assert summary["library_count"] == 1 and summary["medline_count"] == 0
+    assert summary["unknown_count"] == 1
+    assert summary["unknown_titles"] == ["Definitely Unknown Callosum Periodical"]
+    assert (
+        TestClient(create_app(db_url=temp_db_url))
+        .post(
+            "/citations/render-document",
+            json={"style": "nature", "journal_abbreviation_mode": "invented", "citations": [_cluster("A", "a")]},
+        )
+        .status_code
+        == 422
+    )
+
+
 def test_render_document_returns_validated_doi_link_spans(temp_db_url: str) -> None:
     item = {**_DOC_ITEMS["a"], "DOI": "10.1234/callosum.test"}
     response = TestClient(create_app(db_url=temp_db_url)).post(

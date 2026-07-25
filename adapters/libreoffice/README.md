@@ -186,6 +186,13 @@ message if it isn't):
     **Remove all** requires confirmation and commits one Writer Undo step without changing citations or the full
     bibliography. Undo/Redo restores managed text and links. Damaged blocks are reported but never guessed at;
     use **Document diagnostics…** before bulk removal.
+  - **Journal abbreviations…** controls journal titles only when the active CSL style requests a short form.
+    **Library abbreviations** uses each citation's embedded `container-title-short` metadata and is the
+    backward-compatible default. **MEDLINE first** checks the bundled NLM catalog by ISSN, then exact normalized
+    title, and falls back to library metadata. **Full journal titles** suppresses short-title hints. The choice is
+    saved in the Writer file, applies immediately to citations plus full/section bibliographies, and reports
+    MEDLINE/library/unknown counts (with bounded unknown-title examples). It never rewrites embedded citation or
+    library metadata, and the NLM snapshot is local—no runtime network request.
 
 The pending-refresh flags are saved inside the document. If you save and reopen while work is pending, the bar
 returns as soon as Writer opens the document. The installed extension also watches the ordered live citation

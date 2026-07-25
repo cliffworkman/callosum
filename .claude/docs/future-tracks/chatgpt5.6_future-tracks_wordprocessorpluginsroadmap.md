@@ -399,7 +399,7 @@ Cross-platform schema shared by LibreOffice, Word, and Google Docs
 
 Zotero exposes orphaned citations, Paperpile keeps document-specific copies for collaboration, SmartCite indexes references embedded by collaborators, and EndNote embeds a "Traveling Library" in Word documents.
 
-15. Add journal-abbreviation controls
+15. Add journal-abbreviation controls — COMPLETE (inc 385)
 
 Support:
 
@@ -410,6 +410,15 @@ Preview and validation
 Unknown-abbreviation warnings
 
 Zotero exposes a document preference for MEDLINE journal abbreviations.
+
+**Completed in increment 385 (2026-07-25):** Writer now stores one document-level choice: embedded library
+abbreviations (backward-compatible default), MEDLINE-first with library fallback, or full journal titles. The
+local renderer applies the choice to copied embedded CSL records only when citeproc evaluates the selected style;
+it updates citations plus full/section bibliographies without rewriting library or document payload metadata.
+The bundled, compressed NLM `J_Medline.txt` snapshot matches by ISSN then exact normalized title, exposes its
+snapshot date, and makes no runtime network request. Post-refresh validation reports MEDLINE/library/unknown
+counts and bounded unknown-title examples; styles that request full journal titles say why visible text did not
+change. Preference rollback and save/reopen are verified in real Writer.
 
 16. Accessibility and keyboard operation
 
