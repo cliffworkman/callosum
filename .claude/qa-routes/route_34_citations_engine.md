@@ -137,6 +137,17 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     the custom property is removed. With fewer than two categories, the action must explain the requirement.
     Oversized, duplicate, blank, control-character, reserved-label, non-list, or over-50-label metadata must
     degrade to alphabetical or fail before mutation; a refresh failure must restore the exact prior property.
+20. **Manual Writer section bibliographies:** make two peer Heading 1 chapters with distinct citations and one
+    nested Heading 2. Place the caret in each chapter and choose **Insert current-section bibliography here**.
+    Confirm each local block contains only its heading subtree's works, the nested work belongs to its parent,
+    and the full bibliography still contains all works. Add/remove/move a citation, run bibliography refresh,
+    save/reopen, edit a section block manually, and refresh again; membership/text/category order/DOI links must
+    repair without changing prose or another block. A second insert in the same subtree, insertion from a note,
+    a citation-free section, over 50 blocks, or damaged/foreign/copy-suffixed bookmark names must not mutate.
+    Diagnostics reports complete/damaged blocks. Removal targets only the caret's subtree; flatten removes all
+    managed wrappers while preserving text. Placement conversion must refuse before HTTP/mutation until
+    multi-range Undo/Redo is verified. Inject a write failure and confirm every citation/full/section surface
+    returns to its exact prior signature.
 
 ## Pass criteria
 

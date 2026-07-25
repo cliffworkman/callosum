@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 379** (see Increment workflow) with **1579 pytest tests
+It is currently at **Increment 380** (see Increment workflow) with **1582 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -74,7 +74,9 @@ the full per-increment narrative for all other increments now lives in the reloc
   preserving citeproc order within alphabetized groups and retaining unassigned entries under `Other references`;
   **inc 378** adds multi-select batch assignment/removal and a reusable existing-category picker, with one
   transactional bibliography refresh and whole-map rollback; **inc 379** adds bounded document-local custom
-  category precedence with Move up/down, alphabetical reset, reopen persistence, and failure rollback.
+  category precedence with Move up/down, alphabetical reset, reopen persistence, and failure rollback;
+  **inc 380** adds multiple bounded heading-scoped bibliography blocks alongside the full bibliography, with
+  exact section membership, shared refresh, reopen persistence, diagnostics/removal, and fail-closed conversion.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

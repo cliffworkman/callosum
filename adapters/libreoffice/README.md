@@ -167,6 +167,13 @@ message if it isn't):
     Cancel. The custom order is saved in the Writer file; newly created categories that have not been positioned
     yet follow the saved groups alphabetically, and **Other references** always remains last. Reset plus Save
     removes the custom-order property and rebuilds immediately.
+  - **Insert current-section bibliography here** places a bounded live bibliography exactly at the caret.
+    “Current section” means the nearest preceding Writer heading and all of its nested lower-level headings, not
+    a separately created Writer Section. One block is allowed per heading-defined subtree; several
+    section bibliographies can coexist with the full bibliography. Shared bibliography refresh updates every
+    intact block from full-document citeproc context, while each block keeps only works cited in its own subtree.
+    **Remove bibliography for current section** deletes only that managed block. A section block must be removed
+    before citation-placement conversion so the conversion remains safely undoable.
 
 The pending-refresh flags are saved inside the document. If you save and reopen while work is pending, the bar
 returns as soon as Writer opens the document. The installed extension also watches the ordered live citation

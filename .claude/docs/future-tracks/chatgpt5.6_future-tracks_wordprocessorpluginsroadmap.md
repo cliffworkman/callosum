@@ -313,6 +313,14 @@ created groups follow configured groups alphabetically, citeproc order remains s
 reset removes it, and refresh failure restores the exact prior property. Chapter/section bibliographies,
 bibliography-title links, and per-source grouped navigation remain.
 
+**Continued in increment 380 (2026-07-25):** **Insert current-section bibliography here** creates a bounded live
+bibliography at the Writer caret for the nearest semantic heading subtree. Multiple strict scope/start/end
+bookmark triples coexist with the full bibliography, project the same full-context citeproc result onto their
+own live citation membership, refresh transactionally, survive save/reopen, diagnose damaged triples, and remove
+independently. Section blocks deliberately do not duplicate full-bibliography internal-link targets. Placement
+conversion currently refuses while section blocks exist; verified multi-range conversion Undo/Redo,
+bibliography-title links, and per-source grouped navigation remain.
+
 12. Add a persistent "Citations in this document" panel
 
 This should list:

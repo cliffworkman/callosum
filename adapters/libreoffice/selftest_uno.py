@@ -2101,6 +2101,161 @@ def spike_categorized_bibliography(ctx, base, p1, p2):
     log("spike (P1 #11): OK — categories batch/reuse, custom-order/reset, link, persist, and clear safely")
 
 
+def spike_section_bibliographies(ctx, base, p1, p2):
+    """P1 item #11: multiple heading-scoped managed bibliographies coexist with the full bibliography."""
+    import tempfile
+
+    log("spike (P1 #11): heading-scoped bibliographies alongside the full bibliography")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    for row in (
+        "Chapter One",
+        "First SECTION-CITE-A.",
+        "SECTION-BIB-A",
+        "Chapter Two",
+        "Second SECTION-CITE-B.",
+        "SECTION-BIB-B",
+    ):
+        cursor = text.createTextCursorByRange(text.getEnd())
+        text.insertString(cursor, row, False)
+        text.insertControlCharacter(cursor, cc._PARAGRAH_BREAK(), False)
+
+    def find(needle):
+        descriptor = doc.createSearchDescriptor()
+        descriptor.SearchString = needle
+        return doc.findFirst(descriptor)
+
+    def heading(needle):
+        cursor = text.createTextCursorByRange(find(needle))
+        cursor.gotoStartOfParagraph(False)
+        cursor.gotoEndOfParagraph(True)
+        cursor.ParaStyleName = "Heading 1"
+
+    def place_view(needle):
+        found = find(needle)
+        cursor = text.createTextCursorByRange(found)
+        cursor.setString("")
+        cursor.collapseToStart()
+        doc.getCurrentController().getViewCursor().gotoRange(cursor, False)
+
+    heading("Chapter One")
+    heading("Chapter Two")
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find("SECTION-CITE-A")))
+    cc.insert_citation(doc, p2, base, cursor=text.createTextCursorByRange(find("SECTION-CITE-B")))
+    cc.set_bibliography_external_links(doc, True, base)
+
+    place_view("SECTION-BIB-A")
+    first_id = cc.insert_section_bibliography(doc, base)
+    check(first_id is not None, "first section bibliography was not inserted")
+    place_view("SECTION-BIB-B")
+    second_id = cc.insert_section_bibliography(doc, base)
+    check(second_id is not None and second_id != first_id, "second section bibliography identity was not unique")
+
+    records, damaged = cc.section_bibliography_records(doc)
+    check(len(records) == 2 and not damaged, f"wrong section bibliography inventory: {records!r}, {damaged!r}")
+    by_id = {record["id"]: record for record in records}
+    first_text = cc._bookmark_pair_signature(doc, by_id[first_id]["start"], by_id[first_id]["end"])[2]
+    second_text = cc._bookmark_pair_signature(doc, by_id[second_id]["start"], by_id[second_id]["end"])[2]
+    check("Vaswani" in first_text and "Devlin" not in first_text, f"first section membership was wrong: {first_text!r}")
+    check(
+        "Devlin" in second_text and "Vaswani" not in second_text,
+        f"second section membership was wrong: {second_text!r}",
+    )
+    check(
+        "Vaswani" in cc._managed_bibliography_signature(doc)[2]
+        and "Devlin" in cc._managed_bibliography_signature(doc)[2],
+        "full bibliography did not remain alongside section bibliographies",
+    )
+    fields = cc.scan_citations_in_order(doc)
+    style, locale = cc._get_pref(doc, base)
+    response = cc.render_document(base, cc.build_render_request(fields, style, locale))
+    raw_entries = response["bibliography_text"].splitlines()
+    raw_ids = response["bibliography_entry_ids"]
+    raw_links = cc.normalize_bibliography_links(raw_entries, response.get("bibliography_links"))
+    projected_source = cc.categorize_bibliography_entries(
+        raw_entries,
+        raw_ids,
+        raw_links,
+        cc.bibliography_categories(doc),
+        cc.bibliography_category_order(doc),
+    )
+    for record in records:
+        projected = cc.filter_bibliography_entries(
+            *projected_source,
+            cc._section_bibliography_item_ids(doc, fields, record),
+        )
+        section_entries, _section_ids, section_links, section_categories = projected
+        check(
+            cc.bibliography_external_links_are_current(
+                doc,
+                section_entries,
+                section_links,
+                True,
+                section_categories,
+                start_name=record["start"],
+            ),
+            "section bibliography lost validated DOI/URL links",
+        )
+
+    cc._write_bibliography(
+        doc,
+        ["STALE SECTION"],
+        start_name=by_id[first_id]["start"],
+        end_name=by_id[first_id]["end"],
+        manage_targets=False,
+    )
+    cc.refresh_bibliography(doc, base)
+    refreshed_first = cc._bookmark_pair_signature(doc, by_id[first_id]["start"], by_id[first_id]["end"])[2]
+    check(
+        "Vaswani" in refreshed_first and "STALE SECTION" not in refreshed_first,
+        "refresh did not repair section bibliography",
+    )
+    check(
+        cc.diagnose_document(doc, base)["section_bibliographies"] == {"count": 2, "damaged": []},
+        "diagnostics did not report the two intact section bibliographies",
+    )
+    try:
+        cc.convert_citation_placement(doc, "chicago-notes-bibliography", "en-US", "footnote", base)
+    except ValueError as exc:
+        check("remove section bibliographies" in str(exc), f"conversion refusal was unclear: {exc}")
+    else:
+        raise AssertionError("placement conversion accepted section bibliographies before multi-range Undo support")
+
+    fd, save_path = tempfile.mkstemp(suffix=".odt")
+    os.close(fd)
+    try:
+        from com.sun.star.beans import PropertyValue
+
+        save_url = uno.systemPathToFileUrl(save_path)
+        filt = PropertyValue()
+        filt.Name, filt.Value = "FilterName", "writer8"
+        doc.storeToURL(save_url, (filt,))
+        reopened = load_doc(ctx, save_url)
+        reopened_records, reopened_damaged = cc.section_bibliography_records(reopened)
+        check(
+            len(reopened_records) == 2 and not reopened_damaged, "section bibliography bookmarks did not survive reopen"
+        )
+        reopened_body = reopened.getText().getString()
+        check(reopened_body.count("References\n") == 3, f"reopen lost a full/section bibliography: {reopened_body!r}")
+
+        descriptor = reopened.createSearchDescriptor()
+        descriptor.SearchString = "Chapter One"
+        heading_range = reopened.findFirst(descriptor)
+        reopened.getCurrentController().getViewCursor().gotoRange(heading_range.getStart(), False)
+        check(cc.remove_section_bibliography(reopened) == first_id, "remove targeted the wrong section bibliography")
+        check(
+            len(cc.section_bibliography_records(reopened)[0]) == 1,
+            "section bibliography removal did not leave its peer",
+        )
+        reopened.close(False)
+    finally:
+        try:
+            os.remove(save_path)
+        except OSError:
+            pass
+    log("spike (P1 #11): OK — two section blocks + full bibliography refresh, persist, diagnose, and remove safely")
+
+
 def spike_bibliography_links(ctx, base, p1, p2):
     """P1 item #11: stable bibliography targets and opt-in single-work citation links survive an ODT round-trip."""
     import tempfile
@@ -2667,6 +2822,10 @@ def main():
         spike_categorized_bibliography(ctx, base, p1, p2)
         print("SELFTEST OK", flush=True)
         return 0
+    if os.environ.get("CALLOSUM_UNO_SPIKE") == "section-bibliographies":
+        spike_section_bibliographies(ctx, base, p1, p2)
+        print("SELFTEST OK", flush=True)
+        return 0
     doc = new_writer(ctx)
     log("Writer open")
     try:
@@ -2863,6 +3022,9 @@ def main():
 
         # P1 item #11: document-local named categories within the single bounded bibliography.
         spike_categorized_bibliography(ctx, base, p1, p2)
+
+        # P1 item #11: multiple heading-scoped bibliographies alongside the full-document bibliography.
+        spike_section_bibliographies(ctx, base, p1, p2)
 
         # P1 item #11: stable bibliography targets + opt-in links for unambiguous single-work citations.
         spike_bibliography_links(ctx, base, p1, p2)

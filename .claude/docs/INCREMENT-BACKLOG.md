@@ -301,6 +301,14 @@ the Principles + A-A gates before build.)*
   save/reopen; unranked/new groups follow configured groups alphabetically, **Other references** stays last, and
   reset removes the property. Chapter/section bibliographies, bibliography-title links, and per-source
   grouped-citation navigation remain.
+  **Inc 380 starts chapter/section bibliographies:** Writer can insert one bounded live bibliography at the
+  caret for the current semantic heading subtree; multiple section blocks coexist with the full bibliography,
+  share full-context citeproc ordering and bibliography refresh, survive save/reopen, diagnose damage, and
+  remove independently. Strict random scope/start/end bookmark triples are capped at 50. Placement conversion
+  currently refuses while section blocks exist; multi-range conversion Undo/Redo, bibliography-title links, and
+  per-source grouped-citation navigation remain.
+  **UX follow-up (deadline author, inc 380):** add a list/jump-to surface and **Remove all section
+  bibliographies** for long manuscripts; success feedback could name the owning heading and cited-work count.
   **P1 item #10 started (inc 362, 2026-07-23):** selecting the bundled
   `chicago-notes-bibliography` style now inserts each new citation into a real Writer footnote. The shared
   render contract accepts a validated one-based `noteIndex`, Writer scans footnotes in their native collection

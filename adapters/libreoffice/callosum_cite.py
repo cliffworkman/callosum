@@ -30,9 +30,11 @@ import contextlib
 import functools
 import json
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 import webbrowser
 
 # ── constants ──────────────────────────────────────────────────────────────────────────────────────────
@@ -43,6 +45,10 @@ BIB_BOOKMARK = "CALLOSUM_BIBLIOGRAPHY"  # bookmark marking the START of the mana
 # any user text placed after the bibliography.
 BIB_BOOKMARK_END = "CALLOSUM_BIBLIOGRAPHY_END"
 BIB_ENTRY_PREFIX = "CALLOSUM_BIB_ENTRY_"  # stable internal-link targets, one per rendered bibliography item
+SECTION_BIB_PREFIX = "CALLOSUM_SECTION_BIBLIOGRAPHY_"
+SECTION_BIB_KINDS = ("SCOPE", "START", "END")
+MAX_SECTION_BIBLIOGRAPHIES = 50
+_SECTION_BIB_NAME = re.compile(rf"^{SECTION_BIB_PREFIX}([0-9a-f]{{32}})_({'|'.join(SECTION_BIB_KINDS)})$")
 MAX_BIBLIOGRAPHY_LINKS_PER_ENTRY = 20
 MAX_BIBLIOGRAPHY_EXTERNAL_URL = 2048
 MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS = 1000
@@ -749,29 +755,42 @@ def _document_uid(doc) -> str:
         return str(id(doc))
 
 
-def _managed_bibliography_signature(doc) -> tuple[bool, bool, str]:
+def _bookmark_pair_signature(doc, start_name: str, end_name: str) -> tuple[bool, bool, str]:
     bookmarks = doc.getBookmarks()
-    has_start = bookmarks.hasByName(BIB_BOOKMARK)
-    has_end = bookmarks.hasByName(BIB_BOOKMARK_END)
+    has_start = bookmarks.hasByName(start_name)
+    has_end = bookmarks.hasByName(end_name)
     if not (has_start and has_end):
         return has_start, has_end, ""
     text = doc.getText()
-    cursor = text.createTextCursorByRange(bookmarks.getByName(BIB_BOOKMARK).getAnchor().getStart())
-    cursor.gotoRange(bookmarks.getByName(BIB_BOOKMARK_END).getAnchor().getEnd(), True)
+    cursor = text.createTextCursorByRange(bookmarks.getByName(start_name).getAnchor().getStart())
+    cursor.gotoRange(bookmarks.getByName(end_name).getAnchor().getEnd(), True)
     return True, True, cursor.getString()
 
 
-def document_structure_signature(doc) -> tuple[tuple[tuple[str, str], ...], tuple[bool, bool, str]]:
+def _managed_bibliography_signature(doc) -> tuple[bool, bool, str]:
+    return _bookmark_pair_signature(doc, BIB_BOOKMARK, BIB_BOOKMARK_END)
+
+
+def _section_bibliography_signatures(doc) -> tuple[tuple[str, bool, bool, str], ...]:
+    complete, damaged = section_bibliography_records(doc)
+    signatures = [(record["id"], *_bookmark_pair_signature(doc, record["start"], record["end"])) for record in complete]
+    signatures.extend((identifier, False, False, "damaged") for identifier in damaged)
+    return tuple(sorted(signatures))
+
+
+def document_structure_signature(
+    doc,
+) -> tuple[tuple[tuple[str, str], ...], tuple[tuple[bool, bool, str], tuple[tuple[str, bool, bool, str], ...]]]:
     """Snapshot only the Writer structure that can make rendered citations or bibliography stale."""
     citations = tuple(
         (field["_mark"].Name, field["_mark"].getAnchor().getString()) for field in scan_citations_in_order(doc)
     )
-    return citations, _managed_bibliography_signature(doc)
+    return citations, (_managed_bibliography_signature(doc), _section_bibliography_signatures(doc))
 
 
 def structure_change_flags(
-    previous: tuple[tuple[tuple[str, str], ...], tuple[bool, bool, str]],
-    current: tuple[tuple[tuple[str, str], ...], tuple[bool, bool, str]],
+    previous: tuple,
+    current: tuple,
 ) -> tuple[bool, bool]:
     """Map a structured Writer change to `(citations_pending, bibliography_pending)`."""
     citations_changed = previous[0] != current[0]
@@ -1116,6 +1135,62 @@ def ordered_bibliography_categories(categories: list[str], configured_order: lis
     return sorted(
         categories,
         key=lambda category: (rank.get(category.casefold(), len(rank)), category.casefold()),
+    )
+
+
+def section_bibliography_bookmarks(identifier: str) -> dict[str, str]:
+    """Return the three reserved bookmark names for one bounded heading-scoped bibliography."""
+    value = str(identifier)
+    if len(value) != 32 or any(char not in "0123456789abcdef" for char in value):
+        raise ValueError("Section bibliography identifiers must be 32 lowercase hexadecimal characters.")
+    return {kind.lower(): f"{SECTION_BIB_PREFIX}{value}_{kind}" for kind in SECTION_BIB_KINDS}
+
+
+def decode_section_bibliography_bookmark(name: str) -> tuple[str, str] | None:
+    """Decode one exact adapter-owned section-bibliography bookmark name."""
+    match = _SECTION_BIB_NAME.fullmatch(name) if isinstance(name, str) else None
+    return (match.group(1), match.group(2).lower()) if match else None
+
+
+def section_bibliography_records(doc) -> tuple[list[dict[str, str]], list[str]]:
+    """Inventory complete section bibliography triples and damaged ids without reading arbitrary bookmarks."""
+    grouped: dict[str, dict[str, str]] = {}
+    for name in doc.getBookmarks().getElementNames():
+        decoded = decode_section_bibliography_bookmark(name)
+        if decoded is None:
+            continue
+        identifier, kind = decoded
+        grouped.setdefault(identifier, {})[kind] = name
+    if len(grouped) > MAX_SECTION_BIBLIOGRAPHIES:
+        raise ValueError(f"A Writer document can contain at most {MAX_SECTION_BIBLIOGRAPHIES} section bibliographies.")
+    complete = []
+    damaged = []
+    for identifier, names in sorted(grouped.items()):
+        if set(names) == {"scope", "start", "end"}:
+            complete.append({"id": identifier, **names})
+        else:
+            damaged.append(identifier)
+    return complete, damaged
+
+
+def filter_bibliography_entries(
+    entries: list[str],
+    entry_ids: list[list[str]],
+    entry_links: list[list[tuple[int, int, str]]],
+    entry_categories: list[str | None],
+    allowed_item_ids: set[str],
+) -> tuple[list[str], list[list[str]], list[list[tuple[int, int, str]]], list[str | None]]:
+    """Project one citeproc-sorted bibliography onto the works cited by a heading-defined section."""
+    if not (
+        len(entry_ids) == len(entries) and len(entry_links) == len(entries) and len(entry_categories) == len(entries)
+    ):
+        return [], [], [], []
+    indexes = [index for index, ids in enumerate(entry_ids) if any(str(item_id) in allowed_item_ids for item_id in ids)]
+    return (
+        [entries[index] for index in indexes],
+        [entry_ids[index] for index in indexes],
+        [entry_links[index] for index in indexes],
+        [entry_categories[index] for index in indexes],
     )
 
 
@@ -1522,9 +1597,21 @@ def rendered_bibliography_text(
     return bibliography_layout(entries, categories, heading)[0]
 
 
-def bibliography_render_is_current(doc, entries: list[str], categories: list[str | None] | None = None) -> bool:
+def bibliography_render_is_current(
+    doc,
+    entries: list[str],
+    categories: list[str | None] | None = None,
+    *,
+    start_name: str = BIB_BOOKMARK,
+    end_name: str = BIB_BOOKMARK_END,
+) -> bool:
     """Whether an intact managed bibliography already contains the requested rendered plain text."""
-    has_start, has_end, current = _managed_bibliography_signature(doc)
+    signature = (
+        _managed_bibliography_signature(doc)
+        if start_name == BIB_BOOKMARK and end_name == BIB_BOOKMARK_END
+        else _bookmark_pair_signature(doc, start_name, end_name)
+    )
+    has_start, has_end, current = signature
     return (
         has_start
         and has_end
@@ -1616,13 +1703,13 @@ def normalize_bibliography_links(entries: list[str], raw_links) -> list[list[tup
     return normalized
 
 
-def _bibliography_span_url(doc, offset: int, length: int) -> str:
+def _bibliography_span_url(doc, offset: int, length: int, start_name: str = BIB_BOOKMARK) -> str:
     """Read one expected link range relative to the managed bibliography's start bookmark."""
     bookmarks = doc.getBookmarks()
-    if not bookmarks.hasByName(BIB_BOOKMARK) or not bookmarks.hasByName(BIB_BOOKMARK_END):
+    if not bookmarks.hasByName(start_name):
         return ""
     text = doc.getText()
-    cursor = text.createTextCursorByRange(bookmarks.getByName(BIB_BOOKMARK).getAnchor().getStart())
+    cursor = text.createTextCursorByRange(bookmarks.getByName(start_name).getAnchor().getStart())
     if not cursor.goRight(offset, False) or not cursor.goRight(length, True):
         return ""
     try:
@@ -1637,12 +1724,19 @@ def bibliography_external_links_are_current(
     entry_links: list[list[tuple[int, int, str]]],
     enabled: bool,
     categories: list[str | None] | None = None,
+    *,
+    start_name: str = BIB_BOOKMARK,
 ) -> bool:
     """Compare only citeproc-declared DOI/URL spans; arbitrary prose outside the managed block is never read."""
     _text, offsets = bibliography_layout(entries, categories, bibliography_heading(doc))
     for offset, links in zip(offsets, entry_links, strict=True):
         for start, length, url in links:
-            if _bibliography_span_url(doc, offset + start, length) != (url if enabled else ""):
+            current = (
+                _bibliography_span_url(doc, offset + start, length)
+                if start_name == BIB_BOOKMARK
+                else _bibliography_span_url(doc, offset + start, length, start_name)
+            )
+            if current != (url if enabled else ""):
                 return False
     return True
 
@@ -1715,8 +1809,8 @@ def _main_document_position(doc, range_):
     return None
 
 
-def _current_outline_section_bounds(doc) -> tuple[object, object] | None:
-    """Return the heading-defined section containing the Writer caret as ``(start, end)``.
+def _outline_section_bounds_at(doc, position) -> tuple[object, object] | None:
+    """Return the heading-defined section containing one main-document position as ``(start, end)``.
 
     Writer's ``OutlineLevel`` is the semantic authority: 0 is body text and 1..10 are headings. A section starts
     at the nearest preceding heading and includes nested lower-ranked headings until the next heading at the same
@@ -1724,8 +1818,8 @@ def _current_outline_section_bounds(doc) -> tuple[object, object] | None:
     """
     text = doc.getText()
     try:
-        cursor = _main_document_position(doc, doc.getCurrentController().getViewCursor().getStart())
-        if cursor is None:
+        position = _main_document_position(doc, position)
+        if position is None:
             return None
         enumeration = text.createEnumeration()
     except Exception:
@@ -1750,7 +1844,7 @@ def _current_outline_section_bounds(doc) -> tuple[object, object] | None:
     current_index = None
     try:
         for index, (start, _level) in enumerate(headings):
-            if text.compareRegionStarts(start, cursor) >= 0:
+            if text.compareRegionStarts(start, position) >= 0:
                 current_index = index
             else:
                 break
@@ -1769,26 +1863,121 @@ def _current_outline_section_bounds(doc) -> tuple[object, object] | None:
     return start, end
 
 
+def _current_outline_section_bounds(doc) -> tuple[object, object] | None:
+    """Return the heading-defined section containing the Writer caret."""
+    try:
+        position = doc.getCurrentController().getViewCursor().getStart()
+    except Exception:
+        return None
+    return _outline_section_bounds_at(doc, position)
+
+
+def _field_is_in_outline_bounds(doc, field: dict, start, end) -> bool:
+    anchor = field["_note"].getAnchor() if field.get("_note") is not None else field["_mark"].getAnchor()
+    text = doc.getText()
+    try:
+        anchor_start = anchor.getStart()
+        return text.compareRegionStarts(start, anchor_start) >= 0 and text.compareRegionStarts(anchor_start, end) > 0
+    except Exception:
+        return False
+
+
 def current_section_citation_names(doc) -> set[str] | None:
     """Return recognized citation mark names inside the caret's heading-defined section."""
     bounds = _current_outline_section_bounds(doc)
     if bounds is None:
         return None
     start, end = bounds
+    return {
+        field["_mark"].Name
+        for field in scan_citations_in_order(doc)
+        if _field_is_in_outline_bounds(doc, field, start, end)
+    }
+
+
+def _same_outline_bounds(doc, first: tuple[object, object], second: tuple[object, object]) -> bool:
     text = doc.getText()
-    names = set()
-    for field in scan_citations_in_order(doc):
-        note = field.get("_note")
-        anchor_start = note.getAnchor().getStart() if note is not None else field["_mark"].getAnchor().getStart()
-        try:
-            inside = (
-                text.compareRegionStarts(start, anchor_start) >= 0 and text.compareRegionStarts(anchor_start, end) > 0
-            )
-        except Exception:
+    try:
+        return text.compareRegionStarts(first[0], second[0]) == 0 and text.compareRegionStarts(first[1], second[1]) == 0
+    except Exception:
+        return first == second
+
+
+def _section_bibliography_record_at(doc, position) -> dict[str, str] | None:
+    wanted = _outline_section_bounds_at(doc, position)
+    if wanted is None:
+        return None
+    bookmarks = doc.getBookmarks()
+    for record in section_bibliography_records(doc)[0]:
+        scope = bookmarks.getByName(record["scope"]).getAnchor().getStart()
+        actual = _outline_section_bounds_at(doc, scope)
+        if actual is not None and _same_outline_bounds(doc, wanted, actual):
+            return record
+    return None
+
+
+def _section_bibliography_item_ids(doc, fields: list[dict], record: dict[str, str]) -> set[str]:
+    bookmarks = doc.getBookmarks()
+    if not bookmarks.hasByName(record["scope"]):
+        return set()
+    bounds = _outline_section_bounds_at(doc, bookmarks.getByName(record["scope"]).getAnchor().getStart())
+    if bounds is None:
+        return set()
+    start, end = bounds
+    return {
+        str(item.get("id"))
+        for field in fields
+        if _field_is_in_outline_bounds(doc, field, start, end)
+        for item in field["items"]
+        if str(item.get("id") or "").startswith("callosum-")
+    }
+
+
+def _section_bibliography_plans(
+    doc,
+    fields: list[dict],
+    entries: list[str],
+    entry_ids: list[list[str]],
+    entry_links: list[list[tuple[int, int, str]]],
+    entry_categories: list[str | None],
+    external_links: bool,
+) -> list[dict]:
+    plans = []
+    for record in section_bibliography_records(doc)[0]:
+        projected = filter_bibliography_entries(
+            entries,
+            entry_ids,
+            entry_links,
+            entry_categories,
+            _section_bibliography_item_ids(doc, fields, record),
+        )
+        projected_entries, projected_ids, projected_links, projected_categories = projected
+        if bibliography_render_is_current(
+            doc,
+            projected_entries,
+            projected_categories,
+            start_name=record["start"],
+            end_name=record["end"],
+        ) and bibliography_external_links_are_current(
+            doc,
+            projected_entries,
+            projected_links,
+            external_links,
+            projected_categories,
+            start_name=record["start"],
+        ):
             continue
-        if inside:
-            names.add(field["_mark"].Name)
-    return names
+        plans.append(
+            {
+                **record,
+                "entries": projected_entries,
+                "entry_ids": projected_ids,
+                "entry_links": projected_links,
+                "entry_categories": projected_categories,
+                "external_links": external_links,
+            }
+        )
+    return plans
 
 
 def refresh(
@@ -1849,6 +2038,13 @@ def refresh(
     write_bibliography = (
         update_bibliography if update_bibliography is not None else bib_cursor is not None or bib_auto_enabled(doc)
     )
+    section_records, damaged_section_bibliographies = section_bibliography_records(doc)
+    if write_bibliography and damaged_section_bibliographies:
+        raise ValueError(
+            "Document diagnostics found damaged section bibliography bookmarks. "
+            "Remove their remaining Callosum scope/start/end bookmarks before refreshing."
+        )
+    section_bibliography_count = len(section_records) if write_bibliography else 0
     target_count = (
         sum(1 for field in fields if citation_names is None or field["_mark"].Name in citation_names)
         if update_citations
@@ -1856,7 +2052,7 @@ def refresh(
     )
     progress = _new_refresh_progress(
         doc,
-        max(1, len(fields) + target_count + int(write_bibliography)),
+        max(1, len(fields) + target_count + int(write_bibliography) + section_bibliography_count),
     )
     try:
         progress.update(0, "Callosum: preparing citation data")
@@ -1872,12 +2068,18 @@ def refresh(
             apply_bibliography = write_bibliography and (
                 bib_cursor is not None or not bibliography_render_is_current(doc, [])
             )
+            section_plans = (
+                _section_bibliography_plans(doc, fields, [], [], [], [], bibliography_external_links_enabled(doc))
+                if write_bibliography
+                else []
+            )
             _transactional_apply(
                 doc,
                 [],
                 [],
                 bib_cursor=bib_cursor,
                 write_bibliography=apply_bibliography,
+                section_bibliographies=section_plans,
                 progress=progress,
             )
             progress.update(progress.total, "Callosum: refresh complete")
@@ -1922,6 +2124,19 @@ def refresh(
             )
         )
         external_links_enabled = bibliography_external_links_enabled(doc)
+        section_plans = (
+            _section_bibliography_plans(
+                doc,
+                fields,
+                bibliography_entries,
+                bibliography_entry_ids,
+                bibliography_entry_links,
+                bibliography_entry_categories,
+                external_links_enabled,
+            )
+            if write_bibliography
+            else []
+        )
         apply_bibliography = write_bibliography and (
             bib_cursor is not None
             or not bibliography_render_is_current(doc, bibliography_entries, bibliography_entry_categories)
@@ -1954,6 +2169,7 @@ def refresh(
             bib_external_links=external_links_enabled,
             bib_cursor=bib_cursor,
             write_bibliography=apply_bibliography,
+            section_bibliographies=section_plans,
             progress=progress,
             progress_offset=len(fields),
         )
@@ -2007,6 +2223,144 @@ def refresh_current_section(doc, base: str = DEFAULT_BASE) -> dict | None:
 def refresh_bibliography(doc, base: str = DEFAULT_BASE) -> dict:
     """Rebuild the managed bibliography only; leave every citation mark untouched."""
     return refresh(doc, base, update_citations=False, update_bibliography=True)
+
+
+def insert_section_bibliography(doc, base: str = DEFAULT_BASE) -> str | None:
+    """Insert one bounded live bibliography for the caret's heading subtree, alongside the full bibliography."""
+    try:
+        view_position = doc.getCurrentController().getViewCursor().getStart()
+    except Exception:
+        _msgbox("Place your cursor in the main document text where the section bibliography should appear.")
+        return None
+    if not _range_belongs_to_text(doc.getText(), view_position):
+        _msgbox("Section bibliographies must be inserted in the main document text, not inside a note.")
+        return None
+    bounds = _outline_section_bounds_at(doc, view_position)
+    if bounds is None:
+        _msgbox("Callosum could not determine the heading-defined section at the cursor.")
+        return None
+    if _section_bibliography_record_at(doc, view_position) is not None:
+        _msgbox("This heading-defined section already has a Callosum bibliography.")
+        return None
+    complete, damaged = section_bibliography_records(doc)
+    if damaged:
+        raise ValueError("Repair or remove damaged section bibliography bookmarks before inserting another.")
+    if len(complete) >= MAX_SECTION_BIBLIOGRAPHIES:
+        raise ValueError(f"A Writer document can contain at most {MAX_SECTION_BIBLIOGRAPHIES} section bibliographies.")
+
+    fields = scan_citations_in_order(doc)
+    start, end = bounds
+    allowed_ids = {
+        str(item.get("id"))
+        for field in fields
+        if _field_is_in_outline_bounds(doc, field, start, end)
+        for item in field["items"]
+        if str(item.get("id") or "").startswith("callosum-")
+    }
+    if not allowed_ids:
+        _msgbox("No live Callosum citations were found in the current heading-defined section.")
+        return None
+
+    response = refresh(doc, base, update_citations=False, update_bibliography=False)
+    entries = response.get("bibliography_text", "").splitlines()
+    entry_ids = response.get("bibliography_entry_ids", [])
+    if len(entry_ids) != len(entries):
+        entry_ids = [[] for _entry in entries]
+    entry_links = normalize_bibliography_links(entries, response.get("bibliography_links", []))
+    entries, entry_ids, entry_links, entry_categories = categorize_bibliography_entries(
+        entries,
+        entry_ids,
+        entry_links,
+        bibliography_categories(doc),
+        bibliography_category_order(doc),
+    )
+    entries, entry_ids, entry_links, entry_categories = filter_bibliography_entries(
+        entries,
+        entry_ids,
+        entry_links,
+        entry_categories,
+        allowed_ids,
+    )
+
+    identifier = uuid.uuid4().hex
+    names = section_bibliography_bookmarks(identifier)
+    insertion = doc.getText().createTextCursorByRange(view_position)
+    undo = doc.getUndoManager()
+    undo.enterUndoContext("Insert Callosum section bibliography")
+    try:
+        scope = doc.createInstance("com.sun.star.text.Bookmark")
+        scope.Name = names["scope"]
+        doc.getText().insertTextContent(start, scope, False)
+        _write_bibliography(
+            doc,
+            entries,
+            entry_ids=entry_ids,
+            entry_links=entry_links,
+            entry_categories=entry_categories,
+            external_links=bibliography_external_links_enabled(doc),
+            cursor=insertion,
+            start_name=names["start"],
+            end_name=names["end"],
+            manage_targets=False,
+        )
+    except Exception as exc:
+        undo.leaveUndoContext()
+        undo.undo()
+        current = doc.getBookmarks()
+        if any(current.hasByName(name) for name in names.values()):
+            raise RuntimeError(
+                "Writer could not fully roll back the failed section-bibliography insertion. "
+                "Close without saving and reopen the document."
+            ) from exc
+        raise
+    else:
+        undo.leaveUndoContext()
+    return identifier
+
+
+def remove_section_bibliography(doc) -> str | None:
+    """Delete the managed bibliography for the caret's heading subtree without touching the full bibliography."""
+    try:
+        position = doc.getCurrentController().getViewCursor().getStart()
+    except Exception:
+        position = None
+    if position is None:
+        _msgbox("Place your cursor in the heading-defined section whose bibliography should be removed.")
+        return None
+    record = _section_bibliography_record_at(doc, position)
+    if record is None:
+        _msgbox("No Callosum section bibliography was found in the current heading-defined section.")
+        return None
+
+    text = doc.getText()
+    bookmarks = doc.getBookmarks()
+    before = _bookmark_pair_signature(doc, record["start"], record["end"])
+    undo = doc.getUndoManager()
+    undo.enterUndoContext("Remove Callosum section bibliography")
+    try:
+        cursor = text.createTextCursorByRange(bookmarks.getByName(record["start"]).getAnchor().getStart())
+        cursor.gotoRange(bookmarks.getByName(record["end"]).getAnchor().getEnd(), True)
+        cursor.setString("")
+        for name in (record["scope"], record["start"], record["end"]):
+            current = doc.getBookmarks()
+            if current.hasByName(name):
+                text.removeTextContent(current.getByName(name))
+    except Exception as exc:
+        undo.leaveUndoContext()
+        undo.undo()
+        current = doc.getBookmarks()
+        if (
+            not all(current.hasByName(record[kind]) for kind in ("scope", "start", "end"))
+            or _bookmark_pair_signature(doc, record["start"], record["end"]) != before
+        ):
+            raise RuntimeError(
+                "Writer could not fully roll back the failed section-bibliography removal. "
+                "Close without saving and reopen the document."
+            ) from exc
+        raise
+    else:
+        undo.leaveUndoContext()
+    return record["id"]
 
 
 def set_bibliography_heading(doc, heading: str | None, base: str = DEFAULT_BASE) -> str:
@@ -2194,6 +2548,7 @@ def _transactional_apply(
     bib_entry_categories: list[str | None] | None = None,
     bib_external_links: bool = False,
     write_bibliography: bool | None = None,
+    section_bibliographies: list[dict] | None = None,
     progress: _RefreshProgress | None = None,
     progress_offset: int = 0,
 ) -> None:
@@ -2220,10 +2575,16 @@ def _transactional_apply(
         should_write_bibliography = bib_cursor is not None or bib_auto_enabled(doc)
     else:
         should_write_bibliography = write_bibliography
-    if not plan and not should_write_bibliography:
+    section_plans = section_bibliographies or []
+    if not plan and not should_write_bibliography and not section_plans:
         return
     names = [name for name, _text, _url in plan]
     before = _snapshot_mark_states(doc, names)
+    before_bibliographies = (
+        (_managed_bibliography_signature(doc), _section_bibliography_signatures(doc))
+        if should_write_bibliography or section_plans
+        else None
+    )
     undo = doc.getUndoManager()
     if progress is not None:
         progress.update(progress_offset, "Callosum: applying citation formatting")
@@ -2261,11 +2622,38 @@ def _transactional_apply(
             )
             if progress is not None:
                 progress.update(progress_offset + len(plan) + 1, "Callosum: refresh complete")
+        for section_index, section in enumerate(section_plans, 1):
+            if progress is not None:
+                progress.update(
+                    progress_offset + len(plan) + int(should_write_bibliography) + section_index - 1,
+                    f"Callosum: updating section bibliography {section_index} of {len(section_plans)}",
+                )
+            _write_bibliography(
+                doc,
+                section["entries"],
+                entry_ids=section["entry_ids"],
+                entry_links=section["entry_links"],
+                entry_categories=section["entry_categories"],
+                external_links=section["external_links"],
+                start_name=section["start"],
+                end_name=section["end"],
+                manage_targets=False,
+            )
+            if progress is not None:
+                progress.update(
+                    progress_offset + len(plan) + int(should_write_bibliography) + section_index,
+                    f"Callosum: updated section bibliography {section_index} of {len(section_plans)}",
+                )
     except Exception as exc:
         undo.leaveUndoContext()
         undo.undo()
         after = _snapshot_mark_states(doc, names)
-        if after != before:
+        after_bibliographies = (
+            (_managed_bibliography_signature(doc), _section_bibliography_signatures(doc))
+            if before_bibliographies is not None
+            else None
+        )
+        if after != before or after_bibliographies != before_bibliographies:
             raise RuntimeError(
                 "callosum refresh failed partway through, and the automatic rollback did not fully restore the "
                 "document. Please review it carefully (or close without saving and reopen)."
@@ -2300,10 +2688,16 @@ def _set_mark_hyperlink(mark, hyperlink_url: str) -> None:
     cursor.setPropertyValue("HyperLinkURL", hyperlink_url)
 
 
-def _set_bibliography_span_url(doc, offset: int, length: int, url: str) -> None:
+def _set_bibliography_span_url(
+    doc,
+    offset: int,
+    length: int,
+    url: str,
+    start_name: str = BIB_BOOKMARK,
+) -> None:
     """Apply one validated link to an existing range inside the bounded bibliography."""
     text = doc.getText()
-    start = doc.getBookmarks().getByName(BIB_BOOKMARK).getAnchor().getStart()
+    start = doc.getBookmarks().getByName(start_name).getAnchor().getStart()
     cursor = text.createTextCursorByRange(start)
     if (offset and not cursor.goRight(offset, False)) or not cursor.goRight(length, True):
         raise RuntimeError("Writer could not select a rendered bibliography link.")
@@ -2318,9 +2712,14 @@ def _write_bibliography(
     entry_categories: list[str | None] | None = None,
     external_links: bool = False,
     cursor=None,
+    *,
+    start_name: str = BIB_BOOKMARK,
+    end_name: str = BIB_BOOKMARK_END,
+    manage_targets: bool = True,
 ) -> None:
-    """(Re)build the BOUNDED managed bibliography block — a `BIB_BOOKMARK` (start) / `BIB_BOOKMARK_END` (end)
-    bookmark PAIR delimits the exact managed range (P0 phase 7, backlog #33/#34). Clearing + rebuilding NEVER
+    """(Re)build one BOUNDED managed bibliography block; `start_name` / `end_name` delimit its exact range.
+    The defaults are the full-document `BIB_BOOKMARK` pair; section blocks pass their own strict names and disable
+    global entry-target ownership. Clearing + rebuilding NEVER
     touches `text.getEnd()` — the verified data-loss fix for the old "bookmark to document end" design: any
     text a user placed after the bibliography now survives untouched.
 
@@ -2336,20 +2735,21 @@ def _write_bibliography(
     """
     text = doc.getText()
     bookmarks = doc.getBookmarks()
-    for target_name in _existing_bibliography_target_names(doc):
-        current = doc.getBookmarks()
-        if current.hasByName(target_name):
-            text.removeTextContent(current.getByName(target_name))
-    has_start = bookmarks.hasByName(BIB_BOOKMARK)
-    has_end = bookmarks.hasByName(BIB_BOOKMARK_END)
+    if manage_targets:
+        for target_name in _existing_bibliography_target_names(doc):
+            current = doc.getBookmarks()
+            if current.hasByName(target_name):
+                text.removeTextContent(current.getByName(target_name))
+    has_start = bookmarks.hasByName(start_name)
+    has_end = bookmarks.hasByName(end_name)
     if cursor is not None:
         if has_start:
-            text.removeTextContent(bookmarks.getByName(BIB_BOOKMARK))
-        if doc.getBookmarks().hasByName(BIB_BOOKMARK_END):
-            text.removeTextContent(doc.getBookmarks().getByName(BIB_BOOKMARK_END))
+            text.removeTextContent(bookmarks.getByName(start_name))
+        if doc.getBookmarks().hasByName(end_name):
+            text.removeTextContent(doc.getBookmarks().getByName(end_name))
     elif has_start and has_end:
-        start = bookmarks.getByName(BIB_BOOKMARK).getAnchor().getStart()
-        end = bookmarks.getByName(BIB_BOOKMARK_END).getAnchor().getEnd()
+        start = bookmarks.getByName(start_name).getAnchor().getStart()
+        end = bookmarks.getByName(end_name).getAnchor().getEnd()
         cursor = text.createTextCursorByRange(start)
         cursor.gotoRange(end, True)  # select exactly [start, end] — bounded, never extends past the end bookmark
         cursor.setString("")  # clears the managed block's TEXT
@@ -2361,16 +2761,16 @@ def _write_bibliography(
         # refresh. Re-query fresh (not the `bookmarks` snapshot from the top of this function) and remove any
         # survivor before creating the new pair.
         fresh_bookmarks = doc.getBookmarks()
-        if fresh_bookmarks.hasByName(BIB_BOOKMARK):
-            text.removeTextContent(fresh_bookmarks.getByName(BIB_BOOKMARK))
-        if fresh_bookmarks.hasByName(BIB_BOOKMARK_END):
-            text.removeTextContent(fresh_bookmarks.getByName(BIB_BOOKMARK_END))
+        if fresh_bookmarks.hasByName(start_name):
+            text.removeTextContent(fresh_bookmarks.getByName(start_name))
+        if fresh_bookmarks.hasByName(end_name):
+            text.removeTextContent(fresh_bookmarks.getByName(end_name))
     elif has_start:
         # A damaged/legacy document (a start bookmark survived without its end) — rebuild fresh at the start
         # bookmark's own position rather than guessing where "the end" might be. A user-facing repair/diagnostics
         # command (Phase 9) reports this state explicitly; this is just the safe fallback so it never crashes.
-        start = bookmarks.getByName(BIB_BOOKMARK).getAnchor().getStart()
-        text.removeTextContent(bookmarks.getByName(BIB_BOOKMARK))
+        start = bookmarks.getByName(start_name).getAnchor().getStart()
+        text.removeTextContent(bookmarks.getByName(start_name))
         cursor = text.createTextCursorByRange(start)
     else:
         cursor = text.createTextCursorByRange(text.getEnd())
@@ -2378,7 +2778,7 @@ def _write_bibliography(
             text.insertControlCharacter(cursor, _PARAGRAH_BREAK(), False)
 
     start_mark = doc.createInstance("com.sun.star.text.Bookmark")
-    start_mark.Name = BIB_BOOKMARK
+    start_mark.Name = start_name
     text.insertTextContent(cursor, start_mark, False)  # zero-width; cursor stays put
     if entries:
         cursor.setPropertyValue("HyperLinkURL", "")
@@ -2404,24 +2804,25 @@ def _write_bibliography(
                 if previous_category is not None:
                     text.insertString(cursor, "\n", False)
                 text.insertString(cursor, category + "\n", False)
-            for item_id in ids:
-                target_name = bibliography_entry_bookmark(item_id)
-                if target_name is None:
-                    continue
-                target = doc.createInstance("com.sun.star.text.Bookmark")
-                target.Name = target_name
-                text.insertTextContent(cursor, target, False)
+            if manage_targets:
+                for item_id in ids:
+                    target_name = bibliography_entry_bookmark(item_id)
+                    if target_name is None:
+                        continue
+                    target = doc.createInstance("com.sun.star.text.Bookmark")
+                    target.Name = target_name
+                    text.insertTextContent(cursor, target, False)
             cursor.setPropertyValue("HyperLinkURL", "")
             text.insertString(cursor, entry + "\n", False)
             previous_category = category
     end_mark = doc.createInstance("com.sun.star.text.Bookmark")
-    end_mark.Name = BIB_BOOKMARK_END
+    end_mark.Name = end_name
     text.insertTextContent(cursor, end_mark, False)  # placed AFTER the content — no bookmark-gravity ambiguity
     if entries and external_links:
         _layout, offsets = bibliography_layout(entries, aligned_categories, bibliography_heading(doc))
         for offset, links in zip(offsets, aligned_links, strict=True):
             for start, length, url in links:
-                _set_bibliography_span_url(doc, offset + start, length, url)
+                _set_bibliography_span_url(doc, offset + start, length, url, start_name)
 
 
 def _restore_managed_bibliography(doc, signature: tuple[bool, bool, str]) -> None:
@@ -2936,6 +3337,12 @@ def convert_citation_placement(
     base: str = DEFAULT_BASE,
 ) -> dict:
     """Explicit, transactional placement/style conversion for the narrow unambiguous Writer subset."""
+    section_bibliographies, damaged_section_bibliographies = section_bibliography_records(doc)
+    if section_bibliographies or damaged_section_bibliographies:
+        raise ValueError(
+            "To keep citation-placement conversion safely undoable, remove section bibliographies first. "
+            "The document was not changed."
+        )
     styles = list_styles(base)
     families = {entry["id"]: entry["family"] for entry in styles}
     if target_style not in families:
@@ -3119,7 +3526,7 @@ def convert_citation_placement(
 
 
 def flatten(doc) -> int:
-    """Convert live fields → static text: remove every CALLOSUM ReferenceMark + the bibliography bookmark pair.
+    """Convert live fields → static text: remove every CALLOSUM ReferenceMark + all managed bibliography bookmarks.
 
     The rendered text stays in place; only the live-field wrappers are removed. One-way. Returns the count
     of citation marks removed.
@@ -3137,9 +3544,14 @@ def flatten(doc) -> int:
         mark_text.removeTextContent(mark)
         cursor.setString(rendered)  # re-insert the rendered citation as static text (mark is gone)
     bookmarks = doc.getBookmarks()
-    for bookmark_name in (BIB_BOOKMARK, BIB_BOOKMARK_END):  # P0 phase 7: now a start/end PAIR, not just a start
-        if bookmarks.hasByName(bookmark_name):
-            text.removeTextContent(bookmarks.getByName(bookmark_name))  # zero-width bookmark only; bib text stays
+    managed_bookmarks = [BIB_BOOKMARK, BIB_BOOKMARK_END]
+    managed_bookmarks.extend(
+        name for name in bookmarks.getElementNames() if decode_section_bibliography_bookmark(name) is not None
+    )
+    for bookmark_name in managed_bookmarks:
+        current = doc.getBookmarks()
+        if current.hasByName(bookmark_name):
+            text.removeTextContent(current.getByName(bookmark_name))  # zero-width bookmark only; bib text stays
     return len(names)
 
 
@@ -3918,6 +4330,19 @@ def insert_bibliography_here_interactive(doc, base: str) -> None:
     )
 
 
+def insert_section_bibliography_interactive(doc, base: str) -> None:
+    """Insert a live bibliography at the caret containing only works cited in its heading subtree."""
+    identifier = insert_section_bibliography(doc, base)
+    if identifier is not None:
+        _msgbox("Section bibliography inserted. Refresh bibliography updates it together with the full bibliography.")
+
+
+def remove_section_bibliography_interactive(doc, _base: str) -> None:
+    """Remove the live bibliography owned by the caret's heading subtree."""
+    if remove_section_bibliography(doc) is not None:
+        _msgbox("Section bibliography removed; citations and the full bibliography were not changed.")
+
+
 def set_bibliography_heading_interactive(doc, base: str) -> None:
     """Prompt for the document's bibliography heading; blank restores the default."""
     try:
@@ -4075,6 +4500,7 @@ def diagnose_document(doc, base: str = DEFAULT_BASE) -> dict:
         bib_state = "not_built"
     else:
         bib_state = "n/a"
+    section_bibliographies, damaged_section_bibliographies = section_bibliography_records(doc)
     citation_dirty, bibliography_dirty = dirty_state(doc)
 
     return {
@@ -4083,6 +4509,10 @@ def diagnose_document(doc, base: str = DEFAULT_BASE) -> dict:
         "duplicate_ids": duplicate_ids,
         "orphaned": orphaned,
         "bibliography": bib_state,
+        "section_bibliographies": {
+            "count": len(section_bibliographies),
+            "damaged": damaged_section_bibliographies,
+        },
         "refresh_pending": {
             "citations": citation_dirty,
             "bibliography": bibliography_dirty,
@@ -4129,6 +4559,12 @@ def document_diagnostics_interactive(doc, base: str) -> None:
     elif report["bibliography"] == "not_built":
         lines.append(
             "You have live citations but no bibliography yet — Refresh or 'Insert bibliography here' to build one."
+        )
+    section_report = report["section_bibliographies"]
+    if section_report["damaged"]:
+        lines.append(
+            f"{len(section_report['damaged'])} section bibliography block(s) have missing scope/start/end markers. "
+            "Remove their remaining Callosum bookmarks before inserting replacements."
         )
     _msgbox("\n\n".join(lines) if lines else "No issues found.", title="callosum — document diagnostics")
 
@@ -4260,6 +4696,8 @@ _ACTIONS = {
     "splitCitation": split_citation_interactive,
     "openInCallosum": open_in_callosum,
     "insertBibliographyHere": insert_bibliography_here_interactive,
+    "insertSectionBibliography": insert_section_bibliography_interactive,
+    "removeSectionBibliography": remove_section_bibliography_interactive,
     "setBibliographyHeading": set_bibliography_heading_interactive,
     "toggleBibliographyLinks": toggle_bibliography_links_interactive,
     "toggleBibliographyExternalLinks": toggle_bibliography_external_links_interactive,
@@ -4381,6 +4819,14 @@ def CallosumInsertBibliographyHere(*_args):
     _macro("insertBibliographyHere")
 
 
+def CallosumInsertSectionBibliography(*_args):
+    _macro("insertSectionBibliography")
+
+
+def CallosumRemoveSectionBibliography(*_args):
+    _macro("removeSectionBibliography")
+
+
 def CallosumSetBibliographyHeading(*_args):
     _macro("setBibliographyHeading")
 
@@ -4438,6 +4884,8 @@ g_exportedScripts = (
     CallosumSplitCitation,
     CallosumOpenInCallosum,
     CallosumInsertBibliographyHere,
+    CallosumInsertSectionBibliography,
+    CallosumRemoveSectionBibliography,
     CallosumSetBibliographyHeading,
     CallosumToggleBibliographyLinks,
     CallosumToggleBibliographyExternalLinks,

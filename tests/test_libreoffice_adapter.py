@@ -335,6 +335,61 @@ def test_categorized_bibliography_preserves_style_order_within_deterministic_gro
     ) == ["Theory", "Methods", "Results"]
 
 
+def test_section_bibliography_bookmark_names_are_strict_and_inventory_damage() -> None:
+    identifier = "a" * 32
+    names = cc.section_bibliography_bookmarks(identifier)
+    assert names == {
+        "scope": f"{cc.SECTION_BIB_PREFIX}{identifier}_SCOPE",
+        "start": f"{cc.SECTION_BIB_PREFIX}{identifier}_START",
+        "end": f"{cc.SECTION_BIB_PREFIX}{identifier}_END",
+    }
+    assert cc.decode_section_bibliography_bookmark(names["scope"]) == (identifier, "scope")
+    assert cc.decode_section_bibliography_bookmark(f"{names['scope']} Copy 1") is None
+    assert cc.decode_section_bibliography_bookmark(f"{cc.SECTION_BIB_PREFIX}{'A' * 32}_SCOPE") is None
+    with pytest.raises(ValueError, match="lowercase hexadecimal"):
+        cc.section_bibliography_bookmarks("not-an-id")
+
+    damaged_id = "b" * 32
+    bookmark_names = [*names.values(), cc.section_bibliography_bookmarks(damaged_id)["scope"], "USER_BOOKMARK"]
+    bookmarks = SimpleNamespace(getElementNames=lambda: tuple(bookmark_names))
+    records, damaged = cc.section_bibliography_records(SimpleNamespace(getBookmarks=lambda: bookmarks))
+    assert records == [{"id": identifier, **names}]
+    assert damaged == [damaged_id]
+
+    excessive = [
+        cc.section_bibliography_bookmarks(f"{index:032x}")["scope"]
+        for index in range(cc.MAX_SECTION_BIBLIOGRAPHIES + 1)
+    ]
+    excessive_bookmarks = SimpleNamespace(getElementNames=lambda: tuple(excessive))
+    with pytest.raises(ValueError, match="at most 50"):
+        cc.section_bibliography_records(SimpleNamespace(getBookmarks=lambda: excessive_bookmarks))
+
+
+def test_filter_bibliography_entries_projects_section_membership_without_reordering() -> None:
+    entries = ["Alpha.", "Beta and Gamma.", "Delta."]
+    entry_ids = [["callosum-1"], ["callosum-2", "callosum-3"], ["callosum-4"]]
+    links = [[(0, 5, "https://a.example")], [], []]
+    categories = ["Methods", "Theory", cc.BIBLIOGRAPHY_UNCATEGORIZED]
+    assert cc.filter_bibliography_entries(
+        entries,
+        entry_ids,
+        links,
+        categories,
+        {"callosum-3", "callosum-4"},
+    ) == (
+        ["Beta and Gamma.", "Delta."],
+        [["callosum-2", "callosum-3"], ["callosum-4"]],
+        [[], []],
+        ["Theory", cc.BIBLIOGRAPHY_UNCATEGORIZED],
+    )
+    assert cc.filter_bibliography_entries(entries, entry_ids[:-1], links, categories, {"callosum-1"}) == (
+        [],
+        [],
+        [],
+        [],
+    )
+
+
 def test_categorized_bibliography_degrades_to_original_layout_without_applicable_assignments() -> None:
     entries = ["Alpha.", "Beta."]
     ids = [["callosum-1"], ["callosum-2", "callosum-3"]]
@@ -1140,6 +1195,32 @@ def test_placement_conversion_rejects_empty_same_and_mixed_without_mutation() ->
     )
 
 
+def test_placement_conversion_refuses_section_bibliographies_before_fetching_styles(monkeypatch) -> None:
+    identifier = "a" * 32
+    names = cc.section_bibliography_bookmarks(identifier)
+    monkeypatch.setattr(cc, "section_bibliography_records", lambda _doc: ([{"id": identifier, **names}], []))
+    monkeypatch.setattr(
+        cc,
+        "list_styles",
+        lambda _base: pytest.fail("conversion must refuse before an HTTP style lookup"),
+    )
+    with pytest.raises(ValueError, match="remove section bibliographies"):
+        cc.convert_citation_placement(object(), "apa", "en-US")
+    monkeypatch.setattr(cc, "_get_pref", lambda _doc, _base: ("apa", "en-US"))
+    monkeypatch.setattr(cc, "scan_citations_in_order", lambda _doc: [])
+    monkeypatch.setattr(cc, "style_family", lambda _base, _style: "in-text")
+    monkeypatch.setattr(cc, "note_placement", lambda _doc: "footnote")
+    monkeypatch.setattr(cc, "_get_id_list", lambda _doc, _name: [])
+    monkeypatch.setattr(
+        cc,
+        "render_document",
+        lambda *_args, **_kwargs: pytest.fail("refresh must refuse before rendering"),
+    )
+    monkeypatch.setattr(cc, "section_bibliography_records", lambda _doc: ([], [identifier]))
+    with pytest.raises(ValueError, match="damaged section bibliography"):
+        cc.refresh(object(), update_citations=False, update_bibliography=True)
+
+
 @pytest.mark.parametrize(
     ("first", "second", "expected"),
     [
@@ -1434,6 +1515,9 @@ class _FakeBookmarks:
     def hasByName(self, name: str) -> bool:
         return name in self._names
 
+    def getElementNames(self) -> tuple[str, ...]:
+        return tuple(self._names)
+
 
 class _FakeEmptyUserProps:
     def getPropertyValue(self, name: str) -> str:
@@ -1474,6 +1558,7 @@ def test_diagnose_document_clean_document_reports_nothing(monkeypatch) -> None:
         "duplicate_ids": [],
         "orphaned": [],
         "bibliography": "ok",
+        "section_bibliographies": {"count": 0, "damaged": []},
         "refresh_pending": {"citations": False, "bibliography": False},
     }
 
@@ -1662,10 +1747,13 @@ def test_dirty_state_defaults_clean_and_reads_each_persisted_flag() -> None:
 
 
 def test_structure_change_flags_ignore_prose_but_track_citations_and_bibliography() -> None:
-    original = ((("mark-a", "(A, 2020)"),), (True, True, "References\nA"))
+    original = ((("mark-a", "(A, 2020)"),), ((True, True, "References\nA"), ()))
     assert cc.structure_change_flags(original, original) == (False, False)
     assert cc.structure_change_flags(original, ((("mark-b", "(B, 2021)"),), original[1])) == (True, True)
-    assert cc.structure_change_flags(original, (original[0], (True, True, "References\nEdited"))) == (False, True)
+    edited_full = ((True, True, "References\nEdited"), ())
+    assert cc.structure_change_flags(original, (original[0], edited_full)) == (False, True)
+    edited_section = (original[1][0], (("a" * 32, True, True, "References\nSection"),))
+    assert cc.structure_change_flags(original, (original[0], edited_section)) == (False, True)
 
 
 class _ObserverDoc:
@@ -1704,7 +1792,7 @@ def test_dispatch_suspends_observation_and_installs_listener_after_action(monkey
         calls.append(("action", observed, base, doc.RuntimeUID in cc._OBSERVATION_SUPPRESSIONS))
 
     monkeypatch.setitem(cc._ACTIONS, "_testObserver", action)
-    monkeypatch.setattr(cc, "document_structure_signature", lambda observed: ((), (False, False, "")))
+    monkeypatch.setattr(cc, "document_structure_signature", lambda observed: ((), ((False, False, ""), ())))
     monkeypatch.setattr(cc, "_sync_dirty_infobar", lambda observed: calls.append(("sync", observed)))
     monkeypatch.setattr(cc, "observe_document", lambda observed: calls.append(("observe", observed)))
 

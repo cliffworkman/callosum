@@ -148,7 +148,12 @@ text or inventing links. The document’s **Citations in this document…** pane
 categories, producing one bounded bibliography with alphabetized category headings and an explicit **Other
 references** group for unassigned entries. Ctrl/Shift-select several works to assign or remove a category in one
 transaction; the picker reuses category names already in the document. **Category order…** can move named
-groups into manuscript order or reset them to alphabetical; **Other references** remains last. Selecting the bundled
+groups into manuscript order or reset them to alphabetical; **Other references** remains last.
+Writer headings can also own live local bibliographies: place the caret where the block belongs and choose
+**Insert current-section bibliography here**. “Current section” means the nearest preceding Writer heading plus
+its nested lower-level headings, not a separately created Writer Section. The block contains only works cited there,
+updates with **Refresh bibliography only**, and can coexist with other section blocks and the full bibliography.
+**Remove bibliography for current section** removes only the block owned by the caret's section. Selecting the bundled
 **Chicago notes and bibliography** style places each new citation in a real Writer footnote and renders
 first/subsequent notes from the complete note sequence. **Note placement…** can instead route new note citations
 to native Writer endnotes, as a setting saved with the document. **Convert citation placement…** deliberately

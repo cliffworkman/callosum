@@ -9,7 +9,33 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 379 — Writer custom bibliography category order -->
+<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 380 — Writer heading-scoped bibliographies -->
+## 2026-07-25 — Increment 380: Writer heading-scoped bibliographies (P1 item #11)
+
+- **Files:** Writer multi-bibliography bookmark/render/refresh/diagnostic/flatten paths, OXT 0.25.0 menu,
+  installed-UNO fixture, pure tests, README/help, QA, security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** **Insert current-section bibliography here** creates one live bibliography at the caret for
+  the nearest Writer heading subtree. Multiple section blocks coexist with the full bibliography; **Remove
+  bibliography for current section** deletes only the matching block.
+- **Integrity:** each block has a strict random scope/start/end bookmark triple; at most 50 are recognized.
+  Membership comes only from live citation items whose main-text/note anchor lies inside the stored outline
+  subtree. Refresh projects the full citeproc-ordered result without rerendering a partial document.
+- **Safety:** all changed bibliography blocks rebuild in the existing UndoManager transaction and rollback now
+  verifies full + section managed text. Damaged triples are diagnosed and block refresh/new insertion. Section blocks
+  never create duplicate internal-link targets; DOI/URL links reuse the validated span path. Placement conversion
+  refuses before HTTP or mutation until multi-range Undo/Redo is verified.
+- **Writer proof:** installed OXT **0.25.0** created two section bibliographies plus a full bibliography, repaired
+  a stale section via shared refresh, round-tripped through `.odt`, diagnosed both, removed one independently,
+  and refused conversion clearly: **SELFTEST OK**.
+- **Experience:** a deadline-author found insertion/removal safe and the refusal actionable. The command now says
+  **here**, docs define section as nearest heading plus nested subheadings, and conversion copy explains safe
+  Undo rather than implementation status. List/jump-to and remove-all remain polish.
+- **Verification:** focused adapter/OXT **135 passed**, focused adapter/OXT/install/help **153 passed**;
+  installed Writer focused spike and full matrix **SELFTEST OK**; full project suite **1582 passed, 1 skipped**;
+  Ruff, line-budget, QA-surface, OXT-package, and diff-hygiene gates pass.
+- **Revert:** `git revert` this commit.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-25 inc 379 — Writer custom bibliography category order -->
 ## 2026-07-25 — Increment 379: Writer custom bibliography category order (P1 item #11)
 
 - **Files:** Writer category-order metadata/rendering/document-citations panel, installed-UNO fixture, OXT

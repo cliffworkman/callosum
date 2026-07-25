@@ -119,6 +119,18 @@
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>
+          <node oor:name="m04k" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?insertSectionBibliography</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Insert current-section bibliography here</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+          <node oor:name="m04l" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?removeSectionBibliography</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Remove bibliography for current section</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
           <node oor:name="m04h" oor:op="replace">
             <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?setBibliographyHeading</value></prop>
             <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Bibliography heading…</value></prop>
