@@ -285,6 +285,12 @@ the Principles + A-A gates before build.)*
   hyperlinks outside the managed bibliography. It neither invents missing identifiers nor accepts unsafe URL
   schemes. Categories, chapter/section bibliographies, bibliography-title links, and per-source grouped-citation
   navigation remain.
+  **Inc 377 adds document-wide categorized bibliographies:** the existing **Citations in this document…** panel
+  assigns/removes one bounded document-local category per work. Visible categories sort alphabetically while
+  citeproc order remains stable within each group; unassigned entries remain explicit under **Other references**.
+  Category metadata, headings, entry targets, and DOI/URL links survive refresh and save/reopen, and removing the
+  final assignment restores the exact ordinary layout. Chapter/section bibliographies, custom category ordering
+  and batch assignment, bibliography-title links, and per-source grouped-citation navigation remain.
   **P1 item #10 started (inc 362, 2026-07-23):** selecting the bundled
   `chicago-notes-bibliography` style now inserts each new citation into a real Writer footnote. The shared
   render contract accepts a validated one-based `noteIndex`, Writer scans footnotes in their native collection

@@ -296,6 +296,42 @@ def test_bibliography_render_comparison_requires_intact_exact_managed_text(monke
     assert not cc.bibliography_render_is_current(object(), entries)
 
 
+def test_categorized_bibliography_preserves_style_order_within_deterministic_groups() -> None:
+    entries = ["Alpha.", "Beta.", "Gamma."]
+    entry_ids = [["callosum-1"], ["callosum-2"], ["callosum-3"]]
+    entry_links = [[], [], []]
+    grouped = cc.categorize_bibliography_entries(
+        entries,
+        entry_ids,
+        entry_links,
+        {"1": "Methods", "3": "Theory"},
+    )
+    grouped_entries, grouped_ids, grouped_links, categories = grouped
+    assert grouped_entries == ["Alpha.", "Gamma.", "Beta."]
+    assert grouped_ids == [["callosum-1"], ["callosum-3"], ["callosum-2"]]
+    assert grouped_links == [[], [], []]
+    assert categories == ["Methods", "Theory", cc.BIBLIOGRAPHY_UNCATEGORIZED]
+    expected = "References\nMethods\nAlpha.\n\nTheory\nGamma.\n\nOther references\nBeta.\n"
+    layout, offsets = cc.bibliography_layout(grouped_entries, categories)
+    assert layout == expected
+    assert [layout[offset : offset + len(entry)] for offset, entry in zip(offsets, grouped_entries, strict=True)] == (
+        grouped_entries
+    )
+    assert cc.rendered_bibliography_text(grouped_entries, categories=categories) == expected
+
+
+def test_categorized_bibliography_degrades_to_original_layout_without_applicable_assignments() -> None:
+    entries = ["Alpha.", "Beta."]
+    ids = [["callosum-1"], ["callosum-2", "callosum-3"]]
+    links = [[], []]
+    assert cc.categorize_bibliography_entries(entries, ids, links, {"2": "Mixed"}) == (
+        entries,
+        ids,
+        links,
+        [None, None],
+    )
+
+
 def test_bibliography_targets_and_citation_links_are_stable_and_unambiguous() -> None:
     assert cc.bibliography_entry_bookmark("callosum-42") == "CALLOSUM_BIB_ENTRY_42"
     assert cc.bibliography_entry_bookmark("external-42") is None
@@ -350,6 +386,30 @@ def test_bibliography_external_link_metadata_is_bounded_and_fails_plain(monkeypa
     assert cc.bibliography_external_links_are_current(object(), entries, links, False)
     assert seen == [(len("References\n") + start, len(url))]
     assert not cc.bibliography_external_links_are_current(object(), entries, links, True)
+
+
+def test_bibliography_category_metadata_is_bounded_and_case_canonicalized() -> None:
+    doc = _PanelDoc(
+        {},
+        user_props={
+            cc.PREF_BIB_CATEGORIES: (
+                '{"1":"Methods","2":"methods","bad":"Theory","3":"Other references","4":"x\\n",'
+                '"123456789012345678901":"Theory"}'
+            )
+        },
+    )
+    assert cc.bibliography_categories(doc) == {"1": "Methods", "2": "Methods"}
+    assert cc.normalize_bibliography_category("  Theory  ") == "Theory"
+    assert cc.normalize_bibliography_category("  ") is None
+    with pytest.raises(ValueError, match="reserved"):
+        cc.normalize_bibliography_category("other REFERENCES")
+    with pytest.raises(ValueError, match="80 characters"):
+        cc.normalize_bibliography_category("x" * 81)
+    oversized = _PanelDoc(
+        {},
+        user_props={cc.PREF_BIB_CATEGORIES: "x" * (cc.MAX_BIBLIOGRAPHY_CATEGORY_METADATA + 1)},
+    )
+    assert cc.bibliography_categories(oversized) == {}
 
 
 def test_set_bibliography_span_url_selects_only_declared_range() -> None:
@@ -480,6 +540,33 @@ def test_set_bibliography_external_links_rebuilds_and_rolls_back_on_failure(monk
     with pytest.raises(RuntimeError, match="boom"):
         cc.set_bibliography_external_links(doc, False, "http://x")
     assert state["value"] == "1"
+
+
+def test_set_bibliography_category_reuses_case_and_rolls_back_on_failure(monkeypatch) -> None:
+    state = {"1": "Methods"}
+    writes = []
+    monkeypatch.setattr(cc, "bibliography_categories", lambda _doc: dict(state))
+
+    def write(_doc, value):
+        state.clear()
+        state.update(value)
+        writes.append(dict(value))
+
+    monkeypatch.setattr(cc, "_set_bibliography_categories", write)
+    monkeypatch.setattr(cc, "refresh_bibliography", lambda _doc, _base: {"bibliography_text": "Entry"})
+    doc = object()
+    assert cc.set_bibliography_category(doc, "2", "methods", "http://x") == "Methods"
+    assert state == {"1": "Methods", "2": "Methods"}
+
+    monkeypatch.setattr(
+        cc,
+        "refresh_bibliography",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    with pytest.raises(RuntimeError, match="boom"):
+        cc.set_bibliography_category(doc, "2", "Theory", "http://x")
+    assert state == {"1": "Methods", "2": "Methods"}
+    assert writes[-1] == {"1": "Methods", "2": "Methods"}
 
 
 def test_empty_incremental_delta_creates_no_undo_context() -> None:
@@ -1669,9 +1756,16 @@ def test_list_document_citations_includes_uncited_work_with_no_mark(monkeypatch)
     )
     monkeypatch.setattr(cc, "_get_json", lambda url: {"status": "none"})
     n1, m1 = _panel_mark("1", "c1", pos=0)
-    doc = _PanelDoc({n1: m1}, user_props={cc.PREF_BIB_UNCITED: '["9"]'})
+    doc = _PanelDoc(
+        {n1: m1},
+        user_props={
+            cc.PREF_BIB_UNCITED: '["9"]',
+            cc.PREF_BIB_CATEGORIES: '{"1":"Theory","9":"Methods"}',
+        },
+    )
     entries = cc.list_document_citations(doc, "http://x")
     assert [e["paper_id"] for e in entries] == ["1", "9"]
+    assert [e["category"] for e in entries] == ["Theory", "Methods"]
     uncited = entries[1]
     assert uncited["uncited"] is True
     assert uncited["count"] == 0

@@ -9,6 +9,28 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 377 — Writer categorized bibliographies -->
+## 2026-07-25 — Increment 377: Writer categorized bibliographies (P1 item #11)
+
+- **Files:** Writer category metadata/grouped layout/document-citations panel, installed-UNO fixture, OXT 0.22.0,
+  pure tests, README/help, QA, security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** select any cited or uncited work in **Citations in this document…** and choose **Set
+  category…**. Visible categories sort alphabetically, preserve citeproc order within each group, and leave
+  unassigned works explicit under **Other references**. Blank removes an assignment; removing the final one
+  restores the ordinary bibliography.
+- **Integrity:** numeric ids, printable 80-character labels, 1,000 assignments, and 50 categories are hard caps;
+  corrupt/excessive/mixed metadata fails uncategorized. Labels are plain Writer text inside the bounded block.
+  Entry targets and DOI/URL offsets move with entries; a failed refresh restores the complete prior map.
+- **Writer proof:** installed OXT **0.22.0** grouped and reordered entries, preserved external links through
+  placement conversion, persisted through `.odt` save/reopen, rejected invalid input without mutation, exposed
+  categories in panel data, and restored the exact ordinary layout after the final removal.
+- **Experience:** a deadline-author walkthrough completed a three-category task. The inclusive panel count now
+  says **document work(s)** rather than mislabeling uncited further reading; custom ordering and batch assignment
+  remain follow-ups.
+- **Verification:** **210 focused tests**; installed Writer focused spike and full matrix **SELFTEST OK**; full
+  suite **1577 passed, 1 skipped**; Ruff/format, line budget, QA surface map, OXT packaging, and security clean.
+- **Revert:** `git revert` this commit.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-24 inc 376 — Writer bibliography DOI/URL links -->
 ## 2026-07-24 — Increment 376: Writer bibliography DOI/URL links (P1 item #11)
 

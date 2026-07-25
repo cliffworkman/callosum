@@ -292,6 +292,13 @@ survive refresh, save/reopen, bibliography moves, and placement conversion; turn
 hyperlinks. Categorized and chapter/section bibliographies, bibliography-title links, and per-source grouped-
 citation navigation remain.
 
+**Continued in increment 377 (2026-07-25):** the existing Writer document-citations panel now assigns one
+document-local category to a cited or uncited bibliography work. A single bounded bibliography groups visible
+categories alphabetically, preserves citeproc order within each group, and keeps unassigned entries explicit
+under **Other references**. Assignments and the existing entry/DOI links survive refresh and save/reopen; blank
+removes an assignment, and removing the last restores the ordinary layout. Chapter/section bibliographies,
+custom category ordering/batch assignment, bibliography-title links, and per-source grouped navigation remain.
+
 12. Add a persistent "Citations in this document" panel
 
 This should list:

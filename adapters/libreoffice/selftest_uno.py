@@ -477,6 +477,7 @@ def spike_incremental_rendering(ctx, base, p1, p2):
         entries,
         entry_ids=None,
         entry_links=None,
+        entry_categories=None,
         external_links=False,
         cursor=None,
     ):
@@ -486,6 +487,7 @@ def spike_incremental_rendering(ctx, base, p1, p2):
             entries,
             entry_ids=entry_ids,
             entry_links=entry_links,
+            entry_categories=entry_categories,
             external_links=external_links,
             cursor=cursor,
         )
@@ -1925,6 +1927,139 @@ def spike_custom_bibliography_heading(ctx, base, p1):
     log("spike (P1 #11): OK — custom/default headings refresh and round-trip without changing auto mode")
 
 
+def spike_categorized_bibliography(ctx, base, p1, p2):
+    """P1 item #11: named document-local categories group one bounded bibliography without losing links."""
+    import tempfile
+
+    log("spike (P1 #11): categorized bibliography")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.setString("First CATEGORY-A. Second CATEGORY-B.\n")
+
+    def insertion(needle):
+        descriptor = doc.createSearchDescriptor()
+        descriptor.SearchString = needle
+        return text.createTextCursorByRange(doc.findFirst(descriptor))
+
+    cc.insert_citation(doc, p1, base, cursor=insertion("CATEGORY-A"))
+    cc.insert_citation(doc, p2, base, cursor=insertion("CATEGORY-B"))
+    cc.set_bibliography_external_links(doc, True, base)
+    cc.set_bibliography_category(doc, p1, "Methods", base)
+    cc.set_bibliography_category(doc, p2, "Theory", base)
+    body = text.getString()
+    methods = body.index("Methods\n")
+    vaswani = body.index("Vaswani", methods)
+    theory = body.index("Theory\n", vaswani)
+    devlin = body.index("Devlin", theory)
+    check(methods < vaswani < theory < devlin, f"category grouping/order was not rendered: {body!r}")
+
+    style, locale = cc._get_pref(doc, base)
+    fields = cc.scan_citations_in_order(doc)
+    response = cc.render_document(base, cc.build_render_request(fields, style, locale))
+    raw_entries = response["bibliography_text"].splitlines()
+    raw_ids = response["bibliography_entry_ids"]
+    raw_links = cc.normalize_bibliography_links(raw_entries, response.get("bibliography_links"))
+    entries, entry_ids, links, categories = cc.categorize_bibliography_entries(
+        raw_entries,
+        raw_ids,
+        raw_links,
+        cc.bibliography_categories(doc),
+    )
+    check(categories == ["Methods", "Theory"], f"wrong category alignment: {categories}")
+    check(cc.bibliography_render_is_current(doc, entries, categories), "categorized bibliography was not current")
+    check(
+        cc.bibliography_external_links_are_current(doc, entries, links, True, categories),
+        "categorized bibliography lost DOI links",
+    )
+    check(
+        {entry["paper_id"]: entry["category"] for entry in cc.list_document_citations(doc, base)}
+        == {p1: "Methods", p2: "Theory"},
+        "citations panel data did not expose category assignments",
+    )
+
+    before_invalid = (body, cc.bibliography_categories(doc))
+    try:
+        cc.set_bibliography_category(doc, p1, "x" * (cc.BIBLIOGRAPHY_CATEGORY_MAX + 1), base)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("oversized bibliography category was accepted")
+    check(
+        (text.getString(), cc.bibliography_categories(doc)) == before_invalid,
+        "invalid category mutated the document or category map",
+    )
+
+    fd, save_path = tempfile.mkstemp(suffix=".odt")
+    os.close(fd)
+    try:
+        from com.sun.star.beans import PropertyValue
+
+        save_url = uno.systemPathToFileUrl(save_path)
+        filt = PropertyValue()
+        filt.Name, filt.Value = "FilterName", "writer8"
+        doc.storeToURL(save_url, (filt,))
+        reopened = load_doc(ctx, save_url)
+        check(
+            cc.bibliography_categories(reopened) == {p1: "Methods", p2: "Theory"},
+            "category assignments did not survive save/reopen",
+        )
+        check("Methods\n" in reopened.getText().getString(), "category headings did not survive save/reopen")
+        cc.convert_citation_placement(
+            reopened,
+            "chicago-notes-bibliography",
+            "en-US",
+            "footnote",
+            base,
+        )
+        converted_fields = cc.scan_citations_in_order(reopened)
+        converted_response = cc.render_document(
+            base,
+            cc.build_render_request(converted_fields, "chicago-notes-bibliography", "en-US"),
+        )
+        converted_raw = converted_response["bibliography_text"].splitlines()
+        converted = cc.categorize_bibliography_entries(
+            converted_raw,
+            converted_response["bibliography_entry_ids"],
+            cc.normalize_bibliography_links(converted_raw, converted_response.get("bibliography_links")),
+            cc.bibliography_categories(reopened),
+        )
+        converted_entries, _converted_ids, converted_links, converted_categories = converted
+        check(
+            cc.bibliography_render_is_current(reopened, converted_entries, converted_categories),
+            "placement conversion lost categorized bibliography layout",
+        )
+        check(
+            cc.bibliography_external_links_are_current(
+                reopened,
+                converted_entries,
+                converted_links,
+                True,
+                converted_categories,
+            ),
+            "placement conversion lost categorized bibliography DOI links",
+        )
+
+        cc.set_bibliography_category(reopened, p1, "", base)
+        uncategorized_body = reopened.getText().getString()
+        check(
+            "Theory\n" in uncategorized_body and f"{cc.BIBLIOGRAPHY_UNCATEGORIZED}\n" in uncategorized_body,
+            "removing one category did not retain the work under Other references",
+        )
+        cc.set_bibliography_category(reopened, p2, "", base)
+        plain_body = reopened.getText().getString()
+        check(
+            "Theory\n" not in plain_body and f"{cc.BIBLIOGRAPHY_UNCATEGORIZED}\n" not in plain_body,
+            "removing the final assignment did not restore the uncategorized bibliography layout",
+        )
+        reopened.close(False)
+    finally:
+        try:
+            os.remove(save_path)
+        except OSError:
+            pass
+    log("spike (P1 #11): OK — categories group/reorder, link, persist, and clear safely")
+
+
 def spike_bibliography_links(ctx, base, p1, p2):
     """P1 item #11: stable bibliography targets and opt-in single-work citation links survive an ODT round-trip."""
     import tempfile
@@ -2487,6 +2622,10 @@ def main():
         spike_bibliography_links(ctx, base, p1, p2)
         print("SELFTEST OK", flush=True)
         return 0
+    if os.environ.get("CALLOSUM_UNO_SPIKE") == "bibliography-categories":
+        spike_categorized_bibliography(ctx, base, p1, p2)
+        print("SELFTEST OK", flush=True)
+        return 0
     doc = new_writer(ctx)
     log("Writer open")
     try:
@@ -2680,6 +2819,9 @@ def main():
 
         # P1 item #11: custom per-document bibliography heading, including save/reopen and default reset.
         spike_custom_bibliography_heading(ctx, base, p1)
+
+        # P1 item #11: document-local named categories within the single bounded bibliography.
+        spike_categorized_bibliography(ctx, base, p1, p2)
 
         # P1 item #11: stable bibliography targets + opt-in links for unambiguous single-work citations.
         spike_bibliography_links(ctx, base, p1, p2)

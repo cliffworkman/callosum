@@ -9,6 +9,9 @@ adding an uncited "further reading" work. This is the natural, already-built hom
 bibliography" (matching how Zotero/EndNote unify this), rather than a separate new dialog — a deliberate
 architecture shift from read-only to read-write, flagged here rather than silently absorbed.
 
+Increment 377 also assigns or removes one document-local category for the selected work. Categories group the
+single managed bibliography without changing CSL records or citation text.
+
 A **snapshot at open time, re-fetched after each edit** — not a live-refreshing panel that tracks ongoing
 document edits made outside it: every dialog in this codebase is modal (`.execute()`), and nothing here has
 ever built a non-modal/"stays open while you keep editing" UNO window — the `.oxt` dispatcher
@@ -45,6 +48,8 @@ def _format_row(entry: dict) -> str:
         tags.append(f"{entry['count']}×")
     if entry.get("excluded"):
         tags.append("excluded from bibliography")
+    if entry.get("category"):
+        tags.append(f"category: {entry['category']}")
     if entry.get("retraction_label"):
         tags.append(entry["retraction_label"])
     return f"{entry['row']}  ({', '.join(tags)})"
@@ -82,7 +87,7 @@ def run_citations_panel(doc, base: str):
             pass
 
     dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
-    dm.Width, dm.Height, dm.Title = 420, 290, "Citations in this document"
+    dm.Width, dm.Height, dm.Title = 420, 312, "Citations in this document"
 
     def _label(name, x, y, w, h, text):
         lbl = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
@@ -117,18 +122,23 @@ def run_citations_panel(doc, base: str):
     exclude_btn.Label = "Toggle bibliography exclude"
     dm.insertByName("exclude", exclude_btn)
 
+    category_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    category_btn.PositionX, category_btn.PositionY, category_btn.Width, category_btn.Height = 224, 244, 112, 18
+    category_btn.Label = "Set category…"
+    dm.insertByName("category", category_btn)
+
     add_uncited_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     add_uncited_btn.PositionX, add_uncited_btn.PositionY, add_uncited_btn.Width, add_uncited_btn.Height = (
-        224,
-        244,
-        112,
+        6,
+        266,
+        130,
         18,
     )
     add_uncited_btn.Label = "Add uncited work(s)…"
     dm.insertByName("add_uncited", add_uncited_btn)
 
     close_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
-    close_btn.PositionX, close_btn.PositionY, close_btn.Width, close_btn.Height = 340, 244, 74, 18
+    close_btn.PositionX, close_btn.PositionY, close_btn.Width, close_btn.Height = 340, 266, 74, 18
     close_btn.Label, close_btn.PushButtonType = "Close", 2
     dm.insertByName("close", close_btn)
 
@@ -151,7 +161,7 @@ def run_citations_panel(doc, base: str):
         entries = state["entries"]
         state["visible"] = list(entries) if not needle else [e for e in entries if needle in _format_row(e).lower()]
         results_ctrl.getModel().StringItemList = tuple(_format_row(e) for e in state["visible"])
-        count_lbl_ctrl.getModel().Label = f"{len(state['visible'])} of {len(entries)} cited work(s):"
+        count_lbl_ctrl.getModel().Label = f"{len(state['visible'])} of {len(entries)} document work(s):"
 
     def _reload():
         state["entries"] = cc.list_document_citations(doc, base)
@@ -194,9 +204,30 @@ def run_citations_panel(doc, base: str):
             raise
         _reload()
 
+    def do_set_category():
+        pos = results_ctrl.getSelectedItemPos()
+        if pos is None or pos < 0 or pos >= len(state["visible"]):
+            return
+        entry = state["visible"][pos]
+        value = cc._input_box(
+            doc,
+            "Bibliography category",
+            "Category for this work (blank removes it):",
+            entry.get("category") or "",
+        )
+        if value is None:
+            return
+        try:
+            cc.set_bibliography_category(doc, entry["paper_id"], value, base)
+        except Exception:
+            cc.set_dirty_state(doc, bibliography=True)
+            raise
+        _reload()
+
     _apply_filter()
     filter_ctrl.addTextListener(_TextChangeListener(_apply_filter))
     dialog.getControl("exclude").addActionListener(_ActionListener(do_toggle_exclude))
+    dialog.getControl("category").addActionListener(_ActionListener(do_set_category))
     dialog.getControl("add_uncited").addActionListener(_ActionListener(do_add_uncited))
 
     result = dialog.execute()  # 1 == Go to (PushButtonType), 0/2 == Close

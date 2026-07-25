@@ -115,6 +115,14 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     must remain coherent. Toggle off and confirm the bibliography text is byte-for-byte unchanged, managed
     DOI/URL links are removed, and a hyperlink in ordinary prose remains untouched. Malformed, credentialed,
     non-HTTP(S), oversized, overlapping, or out-of-range link metadata must remain plain.
+18. **Manual Writer categorized bibliography:** create at least three visible bibliography entries, open
+    **Citations in this document…**, and assign two selected works to differently named categories. Confirm
+    category headings sort alphabetically, the active CSL style's entry order remains stable within a category,
+    and unassigned works remain under **Other references**. Verify include-uncited/exclude-cited behavior,
+    internal citation targets, DOI/URL links, refresh, bibliography movement, placement conversion, save/reopen,
+    and failure rollback remain coherent. Submit a blank category to remove one assignment, then remove the final
+    assignment and confirm the exact ordinary uncategorized layout returns. Oversized, multiline/control,
+    reserved **Other references**, excessive, corrupt, or nonnumeric-id metadata must fail without mutation.
 
 ## Pass criteria
 

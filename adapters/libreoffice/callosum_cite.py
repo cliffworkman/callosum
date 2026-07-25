@@ -45,6 +45,12 @@ BIB_BOOKMARK_END = "CALLOSUM_BIBLIOGRAPHY_END"
 BIB_ENTRY_PREFIX = "CALLOSUM_BIB_ENTRY_"  # stable internal-link targets, one per rendered bibliography item
 MAX_BIBLIOGRAPHY_LINKS_PER_ENTRY = 20
 MAX_BIBLIOGRAPHY_EXTERNAL_URL = 2048
+MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS = 1000
+MAX_BIBLIOGRAPHY_CATEGORIES = 50
+BIBLIOGRAPHY_CATEGORY_MAX = 80
+MAX_BIBLIOGRAPHY_CATEGORY_METADATA = 131_072
+MAX_BIBLIOGRAPHY_CATEGORY_PAPER_ID = 20
+BIBLIOGRAPHY_UNCATEGORIZED = "Other references"
 PREF_BIB_AUTO = "CallosumBibAuto"  # document user-property: "0" pauses bibliography rebuilds on refresh (P0 phase 7)
 PREF_CITE_AUTO = "CallosumCiteAuto"  # document user-property: "0" pauses automatic citation formatting (P1 #13)
 PREF_CITE_DIRTY = "CallosumCiteDirty"  # "1" means visible citation text needs an explicit refresh (P1 #13)
@@ -104,6 +110,7 @@ PREF_BIB_UNCITED = "CallosumBibUncited"  # uncited "further reading" works inclu
 PREF_BIB_HEADING = "CallosumBibHeading"  # custom per-document heading; absent/blank means "References"
 PREF_BIB_LINKS = "CallosumBibLinks"  # "1" hyperlinks unambiguous one-work citations to their bibliography entry
 PREF_BIB_EXTERNAL_LINKS = "CallosumBibExternalLinks"  # "1" links DOI/URL text rendered by the current CSL style
+PREF_BIB_CATEGORIES = "CallosumBibCategories"  # JSON object: Callosum paper id -> document-local category label
 DEFAULT_STYLE = "apa"
 DEFAULT_LOCALE = "en-US"
 DEFAULT_NOTE_PLACEMENT = "footnote"
@@ -974,6 +981,80 @@ def _set_id_list(doc, name: str, ids: list[str]) -> None:
         props.addProperty(name, REMOVABLE, value)
 
 
+def normalize_bibliography_category(value: str | None) -> str | None:
+    """Validate one document-local category label; blank deliberately removes an assignment."""
+    raw = str(value or "")
+    category = raw.strip()
+    if not category:
+        return None
+    if len(category) > BIBLIOGRAPHY_CATEGORY_MAX:
+        raise ValueError(f"Bibliography categories must be {BIBLIOGRAPHY_CATEGORY_MAX} characters or fewer.")
+    if not raw.isprintable():
+        raise ValueError("Bibliography categories must be a single line without control characters.")
+    if category.casefold() == BIBLIOGRAPHY_UNCATEGORIZED.casefold():
+        raise ValueError(f"{BIBLIOGRAPHY_UNCATEGORIZED!r} is reserved for entries without a category.")
+    return category
+
+
+def bibliography_categories(doc) -> dict[str, str]:
+    """Read the bounded paper-id/category map; corrupt or excessive metadata degrades to no categories."""
+    raw = _effective_user_prop(doc, PREF_BIB_CATEGORIES)
+    if not raw:
+        return {}
+    if not isinstance(raw, str) or len(raw) > MAX_BIBLIOGRAPHY_CATEGORY_METADATA:
+        return {}
+    try:
+        decoded = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return {}
+    if not isinstance(decoded, dict) or len(decoded) > MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS:
+        return {}
+    categories: dict[str, str] = {}
+    canonical: dict[str, str] = {}
+    for raw_id, raw_category in decoded.items():
+        paper_id = str(raw_id)
+        if not paper_id.isdigit() or len(paper_id) > MAX_BIBLIOGRAPHY_CATEGORY_PAPER_ID:
+            continue
+        try:
+            category = normalize_bibliography_category(raw_category)
+        except ValueError:
+            continue
+        if category is None:
+            continue
+        folded = category.casefold()
+        if folded not in canonical:
+            if len(canonical) >= MAX_BIBLIOGRAPHY_CATEGORIES:
+                return {}
+            canonical[folded] = category
+        categories[paper_id] = canonical[folded]
+    return categories
+
+
+def _set_bibliography_categories(doc, assignments: dict[str, str]) -> None:
+    """Persist a validated deterministic category map, or remove the property when empty."""
+    if len(assignments) > MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS:
+        raise ValueError(f"A document can categorize at most {MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS} works.")
+    normalized: dict[str, str] = {}
+    canonical: dict[str, str] = {}
+    for raw_id, raw_category in assignments.items():
+        paper_id = str(raw_id)
+        if not paper_id.isdigit() or len(paper_id) > MAX_BIBLIOGRAPHY_CATEGORY_PAPER_ID:
+            raise ValueError("Bibliography category assignments require numeric Callosum paper ids.")
+        category = normalize_bibliography_category(raw_category)
+        if category is None:
+            continue
+        folded = category.casefold()
+        if folded not in canonical:
+            if len(canonical) >= MAX_BIBLIOGRAPHY_CATEGORIES:
+                raise ValueError(f"A document can use at most {MAX_BIBLIOGRAPHY_CATEGORIES} bibliography categories.")
+            canonical[folded] = category
+        normalized[paper_id] = canonical[folded]
+    value = json.dumps(dict(sorted(normalized.items())), ensure_ascii=False) if normalized else None
+    if value is not None and len(value) > MAX_BIBLIOGRAPHY_CATEGORY_METADATA:
+        raise ValueError("Bibliography category metadata is too large for one Writer document.")
+    _set_user_prop_value(doc, PREF_BIB_CATEGORIES, value)
+
+
 def _insertion_cursor(doc):
     """A text cursor at the current insertion point (view cursor), else the document end."""
     text = doc.getText()
@@ -1303,16 +1384,89 @@ def bibliography_heading(doc) -> str:
     return normalize_bibliography_heading(_effective_user_prop(doc, PREF_BIB_HEADING))
 
 
-def rendered_bibliography_text(entries: list[str], heading: str = BIB_HEADING) -> str:
+def categorize_bibliography_entries(
+    entries: list[str],
+    entry_ids: list[list[str]],
+    entry_links: list[list[tuple[int, int, str]]],
+    assignments: dict[str, str],
+) -> tuple[list[str], list[list[str]], list[list[tuple[int, int, str]]], list[str | None]]:
+    """Group citeproc-sorted entries by category while preserving citeproc order within every group."""
+    if len(entry_ids) != len(entries):
+        entry_ids = [[] for _entry in entries]
+    if len(entry_links) != len(entries):
+        entry_links = [[] for _entry in entries]
+    categories: list[str | None] = []
+    for ids in entry_ids:
+        paper_ids = [_paper_id_from_item({"id": item_id}) for item_id in ids]
+        assigned = [assignments.get(paper_id or "") for paper_id in paper_ids]
+        categories.append(assigned[0] if assigned and assigned[0] is not None and len(set(assigned)) == 1 else None)
+    if not any(categories):
+        return entries, entry_ids, entry_links, [None for _entry in entries]
+    order = sorted({category for category in categories if category is not None}, key=str.casefold)
+    grouped_indexes = [
+        index
+        for category in [*order, None]
+        for index, entry_category in enumerate(categories)
+        if entry_category == category
+    ]
+    visible_categories = [categories[index] or BIBLIOGRAPHY_UNCATEGORIZED for index in grouped_indexes]
+    return (
+        [entries[index] for index in grouped_indexes],
+        [entry_ids[index] for index in grouped_indexes],
+        [entry_links[index] for index in grouped_indexes],
+        visible_categories,
+    )
+
+
+def bibliography_layout(
+    entries: list[str],
+    categories: list[str | None] | None = None,
+    heading: str = BIB_HEADING,
+) -> tuple[str, list[int]]:
+    """Return exact managed text plus each entry's offset, including deterministic category headings."""
+    if not entries:
+        return "", []
+    aligned = categories if categories is not None and len(categories) == len(entries) else [None for _ in entries]
+    parts = [normalize_bibliography_heading(heading) + "\n"]
+    length = len(parts[0])
+    offsets = []
+    previous_category = None
+    for entry, category in zip(entries, aligned, strict=True):
+        if category is not None and category != previous_category:
+            if previous_category is not None:
+                parts.append("\n")
+                length += 1
+            parts.append(category + "\n")
+            length += len(category) + 1
+        offsets.append(length)
+        parts.append(entry + "\n")
+        length += len(entry) + 1
+        previous_category = category
+    return "".join(parts), offsets
+
+
+def rendered_bibliography_text(
+    entries: list[str],
+    heading: str = BIB_HEADING,
+    categories: list[str | None] | None = None,
+) -> str:
     """The exact plain-text contents `_write_bibliography` places between the managed bookmark pair."""
-    body = "\n".join(entries)
-    return f"{normalize_bibliography_heading(heading)}\n{body}\n" if entries else ""
+    return bibliography_layout(entries, categories, heading)[0]
 
 
-def bibliography_render_is_current(doc, entries: list[str]) -> bool:
+def bibliography_render_is_current(doc, entries: list[str], categories: list[str | None] | None = None) -> bool:
     """Whether an intact managed bibliography already contains the requested rendered plain text."""
     has_start, has_end, current = _managed_bibliography_signature(doc)
-    return has_start and has_end and current == rendered_bibliography_text(entries, bibliography_heading(doc))
+    return (
+        has_start
+        and has_end
+        and current
+        == rendered_bibliography_text(
+            entries,
+            bibliography_heading(doc),
+            categories,
+        )
+    )
 
 
 def bibliography_entry_bookmark(item_id: str) -> str | None:
@@ -1414,14 +1568,14 @@ def bibliography_external_links_are_current(
     entries: list[str],
     entry_links: list[list[tuple[int, int, str]]],
     enabled: bool,
+    categories: list[str | None] | None = None,
 ) -> bool:
     """Compare only citeproc-declared DOI/URL spans; arbitrary prose outside the managed block is never read."""
-    offset = len(bibliography_heading(doc)) + 1
-    for entry, links in zip(entries, entry_links, strict=True):
+    _text, offsets = bibliography_layout(entries, categories, bibliography_heading(doc))
+    for offset, links in zip(offsets, entry_links, strict=True):
         for start, length, url in links:
             if _bibliography_span_url(doc, offset + start, length) != (url if enabled else ""):
                 return False
-        offset += len(entry) + 1
     return True
 
 
@@ -1690,16 +1844,25 @@ def refresh(
             bibliography_entries,
             response.get("bibliography_links", []),
         )
+        bibliography_entries, bibliography_entry_ids, bibliography_entry_links, bibliography_entry_categories = (
+            categorize_bibliography_entries(
+                bibliography_entries,
+                bibliography_entry_ids,
+                bibliography_entry_links,
+                bibliography_categories(doc),
+            )
+        )
         external_links_enabled = bibliography_external_links_enabled(doc)
         apply_bibliography = write_bibliography and (
             bib_cursor is not None
-            or not bibliography_render_is_current(doc, bibliography_entries)
+            or not bibliography_render_is_current(doc, bibliography_entries, bibliography_entry_categories)
             or not bibliography_targets_are_current(doc, bibliography_entry_ids)
             or not bibliography_external_links_are_current(
                 doc,
                 bibliography_entries,
                 bibliography_entry_links,
                 external_links_enabled,
+                bibliography_entry_categories,
             )
         )
         available_ids = {
@@ -1718,6 +1881,7 @@ def refresh(
             bibliography_entries,
             bib_entry_ids=bibliography_entry_ids,
             bib_entry_links=bibliography_entry_links,
+            bib_entry_categories=bibliography_entry_categories,
             bib_external_links=external_links_enabled,
             bib_cursor=bib_cursor,
             write_bibliography=apply_bibliography,
@@ -1819,6 +1983,36 @@ def set_bibliography_external_links(doc, enabled: bool, base: str = DEFAULT_BASE
     return enabled, link_count
 
 
+def set_bibliography_category(
+    doc,
+    paper_id: str,
+    category: str | None,
+    base: str = DEFAULT_BASE,
+) -> str | None:
+    """Assign/remove one work's category and rebuild immediately, restoring the complete map on failure."""
+    paper_id = str(paper_id)
+    if not paper_id.isdigit() or len(paper_id) > MAX_BIBLIOGRAPHY_CATEGORY_PAPER_ID:
+        raise ValueError("Bibliography category assignments require a numeric Callosum paper id.")
+    normalized = normalize_bibliography_category(category)
+    previous = bibliography_categories(doc)
+    updated = dict(previous)
+    if normalized is None:
+        updated.pop(paper_id, None)
+    else:
+        canonical = next(
+            (existing for existing in updated.values() if existing.casefold() == normalized.casefold()),
+            normalized,
+        )
+        updated[paper_id] = canonical
+    _set_bibliography_categories(doc, updated)
+    try:
+        refresh_bibliography(doc, base)
+    except Exception:
+        _set_bibliography_categories(doc, previous)
+        raise
+    return updated.get(paper_id)
+
+
 def refresh_pending(doc, base: str = DEFAULT_BASE) -> dict | None:
     """Refresh exactly the surfaces named by the persisted dirty flags, regardless of automatic-mode settings."""
     citations_pending, bibliography_pending = dirty_state(doc)
@@ -1891,6 +2085,7 @@ def _transactional_apply(
     *,
     bib_entry_ids: list[list[str]] | None = None,
     bib_entry_links: list[list[tuple[int, int, str]]] | None = None,
+    bib_entry_categories: list[str | None] | None = None,
     bib_external_links: bool = False,
     write_bibliography: bool | None = None,
     progress: _RefreshProgress | None = None,
@@ -1954,6 +2149,7 @@ def _transactional_apply(
                 bib_entries,
                 entry_ids=bib_entry_ids,
                 entry_links=bib_entry_links,
+                entry_categories=bib_entry_categories,
                 external_links=bib_external_links,
                 cursor=bib_cursor,
             )
@@ -2013,6 +2209,7 @@ def _write_bibliography(
     entries: list[str],
     entry_ids: list[list[str]] | None = None,
     entry_links: list[list[tuple[int, int, str]]] | None = None,
+    entry_categories: list[str | None] | None = None,
     external_links: bool = False,
     cursor=None,
 ) -> None:
@@ -2078,12 +2275,29 @@ def _write_bibliography(
     start_mark.Name = BIB_BOOKMARK
     text.insertTextContent(cursor, start_mark, False)  # zero-width; cursor stays put
     if entries:
+        cursor.setPropertyValue("HyperLinkURL", "")
         text.insertString(cursor, bibliography_heading(doc) + "\n", False)
         aligned_ids = entry_ids if entry_ids is not None and len(entry_ids) == len(entries) else [[] for _ in entries]
         aligned_links = (
             entry_links if entry_links is not None and len(entry_links) == len(entries) else [[] for _ in entries]
         )
-        for entry, ids, _links in zip(entries, aligned_ids, aligned_links, strict=True):
+        aligned_categories = (
+            entry_categories
+            if entry_categories is not None and len(entry_categories) == len(entries)
+            else [None for _ in entries]
+        )
+        previous_category = None
+        for entry, ids, _links, category in zip(
+            entries,
+            aligned_ids,
+            aligned_links,
+            aligned_categories,
+            strict=True,
+        ):
+            if category is not None and category != previous_category:
+                if previous_category is not None:
+                    text.insertString(cursor, "\n", False)
+                text.insertString(cursor, category + "\n", False)
             for item_id in ids:
                 target_name = bibliography_entry_bookmark(item_id)
                 if target_name is None:
@@ -2093,15 +2307,15 @@ def _write_bibliography(
                 text.insertTextContent(cursor, target, False)
             cursor.setPropertyValue("HyperLinkURL", "")
             text.insertString(cursor, entry + "\n", False)
+            previous_category = category
     end_mark = doc.createInstance("com.sun.star.text.Bookmark")
     end_mark.Name = BIB_BOOKMARK_END
     text.insertTextContent(cursor, end_mark, False)  # placed AFTER the content — no bookmark-gravity ambiguity
     if entries and external_links:
-        offset = len(bibliography_heading(doc)) + 1
-        for entry, links in zip(entries, aligned_links, strict=True):
+        _layout, offsets = bibliography_layout(entries, aligned_categories, bibliography_heading(doc))
+        for offset, links in zip(offsets, aligned_links, strict=True):
             for start, length, url in links:
                 _set_bibliography_span_url(doc, offset + start, length, url)
-            offset += len(entry) + 1
 
 
 def _restore_managed_bibliography(doc, signature: tuple[bool, bool, str]) -> None:
@@ -2645,6 +2859,14 @@ def convert_citation_placement(
         bibliography_entries,
         response.get("bibliography_links", []),
     )
+    bibliography_entries, bibliography_entry_ids, bibliography_entry_links, bibliography_entry_categories = (
+        categorize_bibliography_entries(
+            bibliography_entries,
+            bibliography_entry_ids,
+            bibliography_entry_links,
+            bibliography_categories(doc),
+        )
+    )
     external_links_enabled = bibliography_external_links_enabled(doc)
     write_bibliography = bib_auto_enabled(doc)
     before_snapshot = _conversion_snapshot(doc)
@@ -2686,6 +2908,7 @@ def convert_citation_placement(
                 bibliography_entries,
                 bibliography_entry_ids,
                 bibliography_entry_links,
+                bibliography_entry_categories,
                 external_links_enabled,
             )
         available_ids = {
@@ -2726,13 +2949,18 @@ def convert_citation_placement(
                 if actual_props.get(name) != after_props.get(name)
             )
             verification_failures.append(f"document preferences ({mismatched_props})")
-        if write_bibliography and not bibliography_render_is_current(doc, bibliography_entries):
+        if write_bibliography and not bibliography_render_is_current(
+            doc,
+            bibliography_entries,
+            bibliography_entry_categories,
+        ):
             verification_failures.append("bibliography")
         if write_bibliography and not bibliography_external_links_are_current(
             doc,
             bibliography_entries,
             bibliography_entry_links,
             external_links_enabled,
+            bibliography_entry_categories,
         ):
             verification_failures.append("bibliography DOI/URL links")
         if _tracked_changes_signature(doc) != before_redlines:
@@ -3818,10 +4046,12 @@ def list_document_citations(doc, base: str) -> list[dict]:
     orphaned (no longer in the library — reuses `fetch_csl`'s existing raise-on-missing contract, the same
     signal `diagnose_document` already uses), retraction status (one call per unique paper_id to the
     already-audited, read-only ``GET /papers/{id}/retraction`` — no new endpoint), whether it's currently
-    excluded from the bibliography (`PREF_BIB_EXCLUDE`), and the FIRST occurrence's mark for navigate-to (``None``
-    for an uncited-include entry — there's nowhere in the document to navigate to).
+    excluded from the bibliography (`PREF_BIB_EXCLUDE`), its optional document-local bibliography category, and
+    the FIRST occurrence's mark for navigate-to (``None`` for an uncited-include entry — there's nowhere in the
+    document to navigate to).
 
-    Returns ``[{"paper_id", "row", "count", "orphaned", "retraction_label", "excluded", "uncited", "mark"}, ...]``.
+    Returns ``[{"paper_id", "row", "count", "orphaned", "retraction_label", "excluded", "category", "uncited",
+    "mark"}, ...]``.
     """
     seen: dict[str, dict] = {}
     order: list[str] = []
@@ -3836,6 +4066,7 @@ def list_document_citations(doc, base: str) -> list[dict]:
             seen[paper_id]["count"] += 1
 
     exclude_ids = set(_get_id_list(doc, PREF_BIB_EXCLUDE))
+    categories = bibliography_categories(doc)
     for paper_id in _get_id_list(doc, PREF_BIB_UNCITED):
         if paper_id not in seen:  # already cited normally -- don't duplicate as a separate uncited row
             seen[paper_id] = {"paper_id": paper_id, "count": 0, "mark": None}
@@ -3866,6 +4097,7 @@ def list_document_citations(doc, base: str) -> list[dict]:
                 "orphaned": orphaned,
                 "retraction_label": retraction_label,
                 "excluded": paper_id in exclude_ids,
+                "category": categories.get(paper_id),
                 "uncited": entry["mark"] is None,
                 "mark": entry["mark"],
             }
@@ -3877,10 +4109,11 @@ def citations_panel_interactive(doc, base: str) -> None:
     """Open the "Citations in this document" panel (P1 item #12; bibliography editing P1 item #11, both
     backlog #33/#34): every unique cited work, occurrence count, missing/orphaned + retraction flags, a live
     filter, click-to-navigate, and — from the panel itself — toggling a cited work's bibliography exclusion or
-    adding an uncited "further reading" work. A snapshot re-fetched after every edit made from within the panel
-    (the always-open/live-refreshing version that also tracks edits made OUTSIDE it is a later, deliberately
-    deferred phase; see `citations_panel.py`'s own docstring for why). Opens even with nothing cited yet — that
-    is itself a valid starting point for "Add uncited work(s)…" to build a reading list from scratch."""
+    adding an uncited "further reading" work, and assigning/removing a document-local bibliography category.
+    A snapshot re-fetched after every edit made from within the panel (the always-open/live-refreshing version
+    that also tracks edits made OUTSIDE it is a later, deliberately deferred phase; see `citations_panel.py`'s
+    own docstring for why). Opens even with nothing cited yet — that is itself a valid starting point for
+    "Add uncited work(s)…" to build a reading list from scratch."""
     import os
     import sys
 
