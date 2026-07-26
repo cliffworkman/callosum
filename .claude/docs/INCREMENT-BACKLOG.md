@@ -463,9 +463,15 @@ the Principles + A-A gates before build.)*
   WebPlotDigitizer, don't build it).
 - **#37 Equity & integrity signals — remaining.** The overlooked-work lens shipped (inc 279) and its
   header-density UX follow-up is resolved (Wanted/Gaps/Overlooked + Feed consolidated into Discover → Search,
-  inc 286). Still open: a real field self-citation baseline (= #25); **positive self-correction** (not started);
-  the **2 principle-fraught forensic candidates** (recorded with the no-index/no-accusation reframing, most
-  needs the values layer — A-A no-accusation veto applies directly).
+  inc 286). **Positive self-correction's defensible correction-record slice shipped inc 393:** the existing
+  Crossref/Retraction Watch correction FACT now projects as a read-only system tag, a green library-card badge,
+  and an evidence-linked Details row through the renamed Integrity batch. No badge explicitly means only “not
+  surfaced by these registries.” **Replication remains deferred:** Crossref's controlled relation vocabulary and
+  PubMed's controlled publication types currently provide no replication fact; title/abstract inference would be
+  a candidate, not the promised deterministic badge. Still open: a real field self-citation baseline (= #25);
+  an evidence-grade replication source (if one emerges); null-engagement (likely candidate-class); and the
+  **2 principle-fraught forensic candidates** (recorded with the no-index/no-accusation reframing, most need the
+  values layer — A-A no-accusation veto applies directly).
 - **#38 Research-impact analytics.** [future track — gated] Opt-in, local-first, commons-structured measurement
   of whether Callosum changes how people research. **A.** local usage analytics (zero-egress; buildable-now) vs
   **B.** cross-user impact signal (far-future, gated). Must pass Principles + the A-A values layer (default-deny,

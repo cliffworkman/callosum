@@ -27,8 +27,7 @@ TAG_COLORS = ("red", "orange", "amber", "green", "teal", "blue", "purple", "gray
 #   keyword:{system}     — an auto-derived subject/topic keyword from a metadata source (e.g. ``keyword:crossref``,
 #                          ``keyword:openalex``, ``keyword:pubmed`` — inc 73/306).
 #   agent:{system}       — written by an autonomous agent action (e.g. ``agent:mcp`` — the MCP agent, B1 SP2).
-#   system:{fact}        — RESERVED for backlog #19 (read-only per-paper system-facts, e.g. a retraction flag).
-#                          No producer writes this today; reserved so #19's design doesn't collide with the above.
+#   system:{fact}        — read-only per-paper system-facts (e.g. retraction / evidence-linked correction).
 # A new producer must pick an existing namespace or, if none fits, propose a new one here rather than writing a
 # bare/ad-hoc string — that's the "future producers must follow this" contract.
 TAG_SOURCE_NAMESPACES = ("user", "import", "keyword", "agent", "system")

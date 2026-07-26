@@ -626,7 +626,12 @@ def test_library_header_polish_labels_and_positive_open_data_signal():
     assert "Filled ${done.fields_filled}" in raw
     assert "Last refreshed ${fmtDateTime(lastRun)}" in raw
     assert "function RetractionCheckButton(" in raw
-    assert '"Retractions ↻"' in raw
+    assert '"Integrity ↻"' in raw
+    assert "summary.corrections" in raw
+    assert "function PositiveIntegrityFacts(" in raw
+    assert '"system:self-correction:correction"' in raw
+    assert "p.correction_evidence_linked === true" in raw
+    assert "}, [paperId, refreshKey]);" in raw
     assert "<RetractionCheckButton onDone={onRetractionRan} />" in raw
     assert raw.index("<RetractionCheckButton onDone={onRetractionRan} />") < raw.index(
         "<TextHealthButton onOpen={onOpenTextHealth} />"

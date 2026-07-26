@@ -20,6 +20,7 @@ class PaperListItem(BaseModel):
     cited_by_count: int | None = None
     cited_by_as_of: str | None = None
     retraction_status: str | None = None
+    correction_evidence_linked: bool = False
     read_at: str | None = None
     priority: str | None = None
 

@@ -129,11 +129,11 @@ function RetractionCheckButton({ onDone }) {
   };
   const lastRunText = lastRun ? `Last refreshed ${fmtDateTime(lastRun)}. ` : "";
   const title = summary
-    ? `${lastRunText}${summary.checked} checked · ${summary.flagged} retracted. ${detail || "Retraction Watch mirror refreshed first when available."}`
-    : "Refresh the Retraction Watch mirror when available, then check every DOI for registry retractions. Signal with evidence, not a verdict.";
+    ? `${lastRunText}${summary.checked} checked · ${summary.flagged} retracted · ${summary.corrections || 0} correction record${summary.corrections === 1 ? "" : "s"}. ${detail || "Retraction Watch mirror refreshed first when available."}`
+    : "Refresh the Retraction Watch mirror when available, then check every DOI for registry retractions and explicit correction records. Evidence-linked facts, never a verdict or trust score.";
   return (
     <button className="trash-toggle" onClick={run} disabled={busy} title={title}>
-      {busy ? "Retractions…" : "Retractions ↻"}
+      {busy ? "Integrity…" : "Integrity ↻"}
     </button>
   );
 }

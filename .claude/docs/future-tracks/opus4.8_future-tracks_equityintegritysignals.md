@@ -103,6 +103,12 @@ Never an "integrity score," never an accusation.
 ### 3. Self-correction signal — positive integrity
 *(HACKADEMIA T7.1, repointed to a per-work descriptive badge)*
 
+**Status (2026-07-26, inc 393): correction-record slice shipped.** Crossref/Retraction Watch `update-to`
+correction records now project through the existing FACT as a read-only `system:self-correction:correction` tag,
+a green library-card badge, and an evidence-linked Details row. Replication remains deferred because Crossref's
+controlled relation vocabulary and PubMed's controlled publication types currently provide no replication fact;
+title/abstract inference would be candidate-class and cannot back this deterministic badge.
+
 **What it is.** A **positive** descriptive signal: this work is a registered **replication**, carries
 an **author-issued correction**, or **engages a prior null**. The constructive complement to the
 (planned) retraction signal.

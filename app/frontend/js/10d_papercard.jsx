@@ -51,6 +51,7 @@ function PaperCopyButton({ paperId }) {
 function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly, onReadingChanged }) {
   const unresolved = needsMetadata(p);
   const retracted = p.retraction_status === "retracted";
+  const hasCorrection = p.correction_evidence_linked === true;
   const cardRef = useRef(null);
   // inc 319: scroll + flash this card into view whenever it becomes the selected paper -- covers both a card
   // already on-screen whose isSelected flips true, and a card that mounts fresh already selected (after the
@@ -95,6 +96,8 @@ function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked,
       <div className="paper-foot">
         <span className={"tier " + tierClass(p.processing_tier)}>{tierLabel(p.processing_tier)}</span>
         {retracted && <span className="tier tier-retracted" title="A registry records this paper as retracted — verify the evidence before citing">RETRACTED</span>}
+        {hasCorrection && <span className="tier tier-grounded"
+          title="A registry records an explicit correction for this work — open Details for the linked record">CORRECTION</span>}
         {p.attachment_count > 0 && <span className="chip">{p.attachment_count} file{p.attachment_count > 1 ? "s" : ""}</span>}
         {unresolved && <span className="needs-doi">needs DOI</span>}
         {/* inc 130: findings — a neutral FactMark + the work-state "N to review" badge (zero shows nothing). */}

@@ -549,7 +549,7 @@ function useLibrary(opts) {
     pendingSummarize, summarizePaperIds,
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
     showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged, showMetaFlagged, showBayesFlagged,
-    refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, refreshBayesChip, setFindingsRefresh, setReferenceWarningsRefresh, showTextHealthFilter,
+    refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, refreshBayesChip, findingsRefresh, setFindingsRefresh, setReferenceWarningsRefresh, showTextHealthFilter,
     pcurvePapers, setPcurvePapers, mergeIds, setMergeIds, onMerged,
     critSetIds, setCritSetIds,
   };

@@ -109,9 +109,37 @@ function DetailSection({ title, open, onToggle, children }) {
   );
 }
 
+function PositiveIntegrityFacts({ facts }) {
+  const corrections = (facts || []).filter(f =>
+    f.source === "retraction" && f.payload && f.payload.status === "correction" && f.payload.notice_url
+  );
+  if (!corrections.length) return null;
+  return (
+    <div className="bayes-check-item">
+      <div className="bayes-check-head">
+        <span className="bayes-check-label">Positive integrity</span>
+        <span className="tier tier-grounded">CORRECTION</span>
+      </div>
+      {corrections.map(f => {
+        const p = f.payload || {};
+        return <div className="bayes-check-note" key={f.id}>
+          A registry records an explicit correction for this work
+          {p.date ? ` (${p.date})` : ""}. Sources: {(p.sources || []).join(", ") || "registry metadata"}.
+          {p.notice_url && <> <a className="btn-link" href={p.notice_url}
+            target="_blank" rel="noopener noreferrer">Open correction record</a></>}
+        </div>;
+      })}
+      <div className="lmm-basis">
+        Descriptive metadata only—not a trust score. No badge means Callosum did not find this explicit relation,
+        not that the work has never been corrected.
+      </div>
+    </div>
+  );
+}
+
 // TagsRow (inc-71 + inc-207 color picker) lives in js/25b_tags.jsx; action widgets live in 25a_detail_actions.jsx.
 
-function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsChanged, onQueueChanged, readOnly }) {
+function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsChanged, onQueueChanged, refreshKey, readOnly }) {
   const [state, setState] = useState({ status: "idle" });
   const [savingField, setSavingField] = useState(null);
   const [note, setNote] = useState(null);
@@ -124,9 +152,10 @@ function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsC
   const [mergeOrigin, setMergeOrigin] = useState(null);  // #16: this paper is a merge survivor → offer Un-merge
   const [unmerging, setUnmerging] = useState(false);
   const [usedWips, setUsedWips] = useState([]);
+  const [integrityFacts, setIntegrityFacts] = useState([]);
 
   useEffect(() => {
-    setNote(null); setMergeOrigin(null); setUsedWips([]);
+    setNote(null); setMergeOrigin(null); setUsedWips([]); setIntegrityFacts([]);
     if (paperId == null) { setState({ status: "idle" }); return; }
     let live = true;
     setState({ status: "loading" });
@@ -136,11 +165,12 @@ function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsC
       else setState({ status: "error", error: r.error });
     });
     api(`/papers/${paperId}/merge-origin`).then((r) => { if (live && r.ok) setMergeOrigin(r.data); });
+    api(`/papers/${paperId}/findings`).then((r) => { if (live && r.ok) setIntegrityFacts(r.data.facts || []); });
     if (!readOnly) {
       api(`/wip/papers/${paperId}`).then((r) => { if (live && r.ok) setUsedWips(r.data || []); });
     }
     return () => { live = false; };
-  }, [paperId]);
+  }, [paperId, refreshKey]);
 
   const saveField = useCallback(async (name, value) => {
     if (paperId == null) return { ok: false };
@@ -304,6 +334,8 @@ function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsC
       </div>
 
       <EditableText variant="title" value={p.title} placeholder="Add title" onSave={(t) => saveField("title", t)} />
+
+      <PositiveIntegrityFacts facts={integrityFacts} />
 
       {mergeOrigin && !readOnly && (
         <div className="detail-merge-origin">

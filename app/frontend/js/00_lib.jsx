@@ -100,6 +100,7 @@ function tagSourceGroupLabel(source) {
 // override here instead, the same separation of "stored value" vs. "shown label" tagSourceLabel already does.
 function tagDisplayName(t) {
   if (t && t.name === "system:retraction:retracted") return "Retracted";
+  if (t && t.name === "system:self-correction:correction") return "Correction";
   return t ? t.name : "";
 }
 const PAGE_SIZE = 50;

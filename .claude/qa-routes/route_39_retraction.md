@@ -3,16 +3,17 @@ api: /papers/{paper_id}/retraction, /methods/retraction/run, /methods/retraction
 fe: 10_pdf_layer.jsx, 10b_libmenus.jsx, 08x_methods_critical.jsx
 -->
 
-# ROUTE 39 — Retraction producer (Crossref + OpenAlex → a FACT)
+# ROUTE 39 — Integrity metadata (retractions + evidence-linked corrections)
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust the retraction findings producer — the library-wide check (a Library-header button,
-`RetractionCheckButton`), the "N retracted" chip + filter, the retraction fact + its notice link (now inside
+**Goal:** Exhaust the registry-integrity producer — the library-wide check (the **Integrity ↻** Library-header
+button), the "N retracted" chip + filter, the retraction fact + its notice link (now inside
 **Synthesize → Critique**'s Tier-1 backbone, since the 2026-07-20 retirement of the left-pane Review accordion —
 its dedicated `FactMark` component is gone, but the same fact + evidence link render via Critique's generic
-method-signal list), and the per-paper check status — while preserving FACT-not-candidate, silence≠clean,
-no-accusation, and evidence-carried. Sources are **public DOI metadata** (Crossref + OpenAlex), never the Gemini
-gate.
+method-signal list), the per-paper check status, and the positive correction surface (green card badge +
+evidence-linked Details row + read-only system tag) — while preserving FACT-not-candidate, silence≠clean,
+no-accusation, and evidence-carried. Sources are **public DOI metadata** (Crossref + OpenAlex + Retraction Watch),
+never the Gemini gate.
 
 ## Environment
 
@@ -35,6 +36,9 @@ with engine.begin() as conn:
         ["crossref", "openalex"]), ["crossref", "openalex"]))
     apply_retraction(conn, B, RetractionOutcome("none", sources_checked=["crossref", "openalex"]))
     apply_retraction(conn, C, RetractionOutcome("unchecked"))
+    apply_retraction(conn, D, RetractionOutcome("correction", MergedRetraction(
+        "correction", "Correction", "2024-02-01", None, "10.1/correction",
+        "https://doi.org/10.1/correction", ["crossref"]), ["crossref"]))
 ```
 
 To exercise the **live batch** path, inject deterministic checkers on the running app
@@ -55,6 +59,11 @@ To exercise the **live batch** path, inject deterministic checkers on the runnin
 - **Evidence carried.** A retracted paper's signal row links the **notice** (a doi.org URL, `notice_url` passed
   through verbatim from the stored fact payload — `critical_review.py::_stored_method_signals`, never re-derived)
   and its detail names the flagging source(s).
+- **Positive ≠ virtue score.** A correction badge appears only when the stored correction fact has an openable
+  notice URL. Details names its sources/date and links that record. There is no aggregate integrity/trust score;
+  no badge says only that these registry checks did not surface an explicit linked correction.
+- **Replication is not inferred.** Crossref's controlled relations and PubMed's controlled publication types do
+  not currently supply a replication fact. A title/abstract containing “replication” must not produce this badge.
 - **On-import lifecycle (inc 134/224).** The FACT can also land *without* a manual batch — on scan + citation
   import (134), and on the DOI-bearing enrich/acquire paths (224: OA-acquire, `re-resolve`, `fill-metadata`).
   These auto-checks are best-effort (a source error never breaks the import/enrich), reuse the same
@@ -70,23 +79,30 @@ To exercise the **live batch** path, inject deterministic checkers on the runnin
 ## Steps
 
 1. Baseline screenshot. The library header shows a red **"⚠ N retracted"** chip (from `GET
-   /methods/retraction/summary`) and a **"Retractions ↻"** button (`RetractionCheckButton`, `10b_libmenus.jsx`);
-   a retracted paper's card carries the ◆-fact mark.
+   /methods/retraction/summary`) and an **"Integrity ↻"** button (`RetractionCheckButton`,
+   `10b_libmenus.jsx`); a retracted paper's card carries the ◆-fact mark. The seeded correction paper carries a
+   green **CORRECTION** badge.
 2. Click the chip → the library filters to the retracted paper(s) (`?signal=retraction-retracted`) with a
    non-accusatory banner ("verify before citing"); **clear** restores the full library.
 3. Open the retracted paper → **Synthesize → Critique**. Confirm the Tier-1 backbone's method-signal list shows a
    **"Retraction status"** row (label + a status/reason detail) with a **notice** link (opens doi.org in a new
    tab, `notice_url` passed through from the stored fact) — a plain signal row, NOT a reviewable card.
-4. Click the Library header's **Retractions ↻** button (`POST /methods/retraction/run`, with injected
-   deterministic checkers) → it completes, its tooltip reports "N checked · M retracted", and the chip refreshes.
-5. Adversarial: a 404 on an unknown paper's retraction (`GET /papers/{id}/retraction` — still exposed and tested,
+4. Select the corrected paper. Confirm **Details → Positive integrity** names the sources/date and **Open correction
+   record** points to the exact stored `notice_url`; its caveat says this is descriptive metadata, not a trust
+   score, and that absence is not proof. Confirm **Tags → System facts** shows **Correction**, with no
+   recolor/remove controls; clicking it filters to the corrected paper.
+5. Click the Library header's **Integrity ↻** button (`POST /methods/retraction/run`, with injected deterministic
+   checkers) → it completes, its tooltip reports "N checked · M retracted · K correction records", and the
+   retraction chip, card badge, Details evidence, findings overview, and tag browser refresh without reselecting.
+   A correction outcome lacking `notice_url` may remain a generic stored fact but must produce no green badge/tag.
+6. Adversarial: a 404 on an unknown paper's retraction (`GET /papers/{id}/retraction` — still exposed and tested,
    though no longer called by the frontend post-merge; kept as a minimal, low-risk leftover rather than an
    unplanned backend deletion); double-click the batch button; mobile viewport has no overflow.
 
 ## Pass criteria
 
-- The producer's read surfaces render: chip + filter, the Library header's batch button, and Critique's
-  Tier-1 signal row (label + detail + notice link) for a retracted paper.
+- The producer's read surfaces render: chip + filter, the Library header's batch button, Critique's Tier-1
+  retraction row, and the correction card badge + evidence-linked Details row + System facts tag.
 - FACT-not-candidate; silence≠clean (Tier-1's honest-null message covers a paper with nothing surfaced); chip is
   a filter, not a verdict; the notice link + sources are shown.
 - 0 console/page errors; **0 genai-host requests**.

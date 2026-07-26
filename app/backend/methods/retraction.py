@@ -40,6 +40,10 @@ _NATURE_BY_STATUS = {"retracted": "Retraction", "correction": "Correction", "con
 # `signals_repo.count_retraction_flagged`'s existing definition of "flagged" (not correction/concern).
 RETRACTION_TAG_SOURCE = "system:retraction"
 RETRACTION_TAG_NAME = "system:retraction:retracted"
+# A correction is the positive self-correction slice of the same registry fact. Keep a separate system tag so it
+# is discoverable/filterable without treating it as a retraction or inventing a second network producer.
+SELF_CORRECTION_TAG_SOURCE = "system:self-correction"
+SELF_CORRECTION_TAG_NAME = "system:self-correction:correction"
 
 
 @dataclass(frozen=True)
@@ -82,6 +86,11 @@ class RetractionChecker:
 
     def __call__(self, conn: Connection, paper: Mapping[str, Any]) -> RetractionSignal | None:
         return self.fetch(conn, paper)
+
+
+def is_evidence_linked_correction(outcome: RetractionOutcome) -> bool:
+    """Whether this outcome can support the positive badge: an explicit correction plus an openable record."""
+    return bool(outcome.merged is not None and outcome.merged.status == "correction" and outcome.merged.notice_url)
 
 
 def merge_signals(signals: list[RetractionSignal | None]) -> MergedRetraction | None:
@@ -138,8 +147,8 @@ def detect_retraction(
 
 def apply_retraction(conn: Connection, paper_id: int, outcome: RetractionOutcome) -> None:
     """Persist an outcome: the FACT when flagged (else supersede any prior FACT), the check-status row, and the
-    #19 system-fact tag (retracted only — kept in lockstep so both the batch job and the on-import hook stay
-    covered from this one call site)."""
+    #19 system-fact tags (retracted and positive correction — kept in lockstep so both the batch job and the
+    on-import hook stay covered from this one call site)."""
     checked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     if outcome.merged is not None:
         merged = outcome.merged
@@ -159,6 +168,10 @@ def apply_retraction(conn: Connection, paper_id: int, outcome: RetractionOutcome
         add_tag_to_paper(conn, paper_id, RETRACTION_TAG_NAME, import_source=RETRACTION_TAG_SOURCE)
     else:
         remove_tag_from_paper_by_name(conn, paper_id, RETRACTION_TAG_NAME)
+    if is_evidence_linked_correction(outcome):
+        add_tag_to_paper(conn, paper_id, SELF_CORRECTION_TAG_NAME, import_source=SELF_CORRECTION_TAG_SOURCE)
+    else:
+        remove_tag_from_paper_by_name(conn, paper_id, SELF_CORRECTION_TAG_NAME)
 
 
 def auto_check_retractions(conn: Connection, paper_ids: list[int], *, checkers: list[RetractionChecker]) -> int:

@@ -86,7 +86,7 @@ function App() {
   const {
     libraryBits, setLibRefresh, pendingSummarize, summarizePaperIds,
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
-    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged, showMetaFlagged, showBayesFlagged, showTextHealthFilter, refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, refreshBayesChip, setFindingsRefresh, setReferenceWarningsRefresh,
+    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged, showMetaFlagged, showBayesFlagged, showTextHealthFilter, refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, refreshBayesChip, findingsRefresh, setFindingsRefresh, setReferenceWarningsRefresh,
     pcurvePapers, setPcurvePapers, mergeIds, setMergeIds, onMerged,
     critSetIds, setCritSetIds,
   } = lib;
@@ -343,7 +343,7 @@ function App() {
     // inc 294: a queue change (drag/add/remove) also reloads the library list so each card's priority control
     // re-syncs from the new papers.priority — keeps the Queue strata and the cards showing one source of truth.
     onQueueChanged: () => { setQueueRefresh(n => n + 1); setLibRefresh(n => n + 1); },
-    pendingSummarize, axisRefresh, tagRefresh, queueRefresh, hideUncertainDefault, axisCutoffDefault,
+    pendingSummarize, axisRefresh, tagRefresh, queueRefresh, findingsRefresh, hideUncertainDefault, axisCutoffDefault,
     methodsOpen,  // inc-140: the open METHODS section id, so a section can tell when it's the active one (statcheck auto-run)
     onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
     onShowRetractionFlagged: showRetractionFlagged, onRetractionRan: refreshRetractionChip,

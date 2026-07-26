@@ -20,7 +20,7 @@ from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
-from app.backend.methods.retraction import apply_retraction, detect_retraction
+from app.backend.methods.retraction import apply_retraction, detect_retraction, is_evidence_linked_correction
 from app.backend.persistence.repository import get_paper, list_live_paper_ids
 from app.backend.persistence.retraction_repo import retraction_db_status
 from app.backend.persistence.signals_repo import count_retraction_flagged, get_retraction_status
@@ -69,6 +69,7 @@ class RetractionRunSummary(BaseModel):
     total: int = 0  # live papers
     checked: int = 0  # papers that had a DOI to check
     flagged: int = 0  # papers a registry records as retracted
+    corrections: int = 0  # papers carrying an explicit correction record (positive self-correction signal)
     database_records: int | None = None  # Retraction Watch rows refreshed before the run, when available
     database_refresh_error: str | None = None  # refresh failed; batch continued against the existing mirror
 
@@ -113,7 +114,7 @@ def _run_retraction_all_job(app: FastAPI, job_id: str) -> None:
     jobs.mark_running(job_id)
     try:
         checkers = app.state.retraction_checkers
-        total = checked = flagged = 0
+        total = checked = flagged = corrections = 0
         engine = app.state.engine
         database_records: int | None = None
         database_refresh_error: str | None = None
@@ -146,6 +147,8 @@ def _run_retraction_all_job(app: FastAPI, job_id: str) -> None:
                 checked += 1
             if outcome.merged is not None and outcome.merged.status == "retracted":
                 flagged += 1
+            if is_evidence_linked_correction(outcome):
+                corrections += 1
         jobs.mark_done(
             job_id,
             RetractionRunResponse(
@@ -160,6 +163,7 @@ def _run_retraction_all_job(app: FastAPI, job_id: str) -> None:
                     total=total,
                     checked=checked,
                     flagged=flagged,
+                    corrections=corrections,
                     database_records=database_records,
                     database_refresh_error=database_refresh_error,
                 ),

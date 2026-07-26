@@ -47,8 +47,8 @@ explicitly turn on an AI feature.
   insert/refresh live citations, switch styles, and **suggest citations for a sentence** from your library.
 
 **Open-science & discovery signals** (descriptive, never accusatory — a prompt to look, not a verdict)
-- **statcheck** (recompute reported NHST p-values), **p-curve**, **GRIM/GRIMMER**, and **retraction** checks
-  (Crossref / OpenAlex / a Retraction Watch mirror).
+- **statcheck** (recompute reported NHST p-values), **p-curve**, **GRIM/GRIMMER**, and registry **integrity**
+  checks for retractions plus explicit correction records (Crossref / OpenAlex / a Retraction Watch mirror).
 - A **literature gap-finder** (works cited by / citing several of your papers), a **My Publications** impact
   dashboard with evidence-backed citation gaps, emerging citing topics, and repeated citing-author connections,
   user-defined **semantic axes**, and free-form **tags**.

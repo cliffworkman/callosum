@@ -9,7 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-26 inc 392 — exact Cite attachment navigation -->
+<!-- HELP-DOCS-SYNCED: 2026-07-26 inc 393 — evidence-linked positive correction records -->
+## 2026-07-26 — Increment 393: evidence-linked positive correction records
+
+- **Files:** retraction/integrity producer and batch response, system-fact projection, Library/Details UI + built
+  frontend, focused tests, help/README/QA/security/backlog/future-track/CLAUDE/increment notes.
+- **What changed:** an explicit registry correction with an openable notice now projects as a read-only
+  **Correction** system tag, a green Library-card badge, and a Details evidence row with sources/date/link. The
+  existing metadata batch is labeled **Integrity ↻** and reports both retractions and linked corrections.
+- **Honesty / safety:** no badge means “not surfaced,” never “never corrected”; no score or person-level signal.
+  Correction metadata without an openable record remains a generic fact and receives no green projection.
+  Replication was not inferred because Crossref/PubMed do not expose a suitable controlled fact. No new endpoint,
+  host, database migration, dependency, file surface, LLM, or document egress; the existing paper-list response
+  gains one evidence-linked boolean so an unlinked correction fact cannot receive the green card badge.
+- **Experience:** a deadline-citer walkthrough found and fixed two cheap dead ends before completion: Details now
+  refreshes in place after the batch, and the positive badge requires an openable evidence record.
+- **Verify:** focused backend **59 passed**; frontend assembly **53 passed**; full suite **1636 passed, 1
+  skipped**; Ruff format/check, 404-file line budget, build parity, QA **318/318 API + 1398/1419 FE** (same 21
+  report-only), security audit, and headed 375px/1440px browser checks pass with zero current-run console errors
+  or horizontal overflow. A final two-paper run proved that equal `correction` statuses project differently:
+  the linked record gets the badge/evidence row while the unlinked record gets neither. Required GitHub checks
+  pending push.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-26 inc 392 — exact Cite attachment navigation -->
 ## 2026-07-26 — Increment 392: exact Cite attachment navigation and active PDF identity
 
 - **Files:** citation-suggestion engine/API, Cite card, shared PDF target/response helper, viewer toolbar/responsive

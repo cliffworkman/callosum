@@ -394,6 +394,9 @@ def _paper_list_item(row: Any) -> PaperListItem:
         cited_by_count=row["cited_by_count"] if "cited_by_count" in row.keys() else None,
         cited_by_as_of=_iso_or_none(row["cited_by_as_of"]) if "cited_by_as_of" in row.keys() else None,
         retraction_status=row["retraction_status"] if "retraction_status" in row.keys() else None,
+        correction_evidence_linked=(
+            bool(row["correction_evidence_linked"]) if "correction_evidence_linked" in row.keys() else False
+        ),
         read_at=_iso_or_none(row["read_at"]),
         priority=row["priority"],
     )

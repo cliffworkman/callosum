@@ -24,6 +24,7 @@ from app.backend.persistence.schema import (
     paper_findings,
     paper_tags,
     papers,
+    tags,
 )
 
 # User-set reading priority (inc 220). A personal triage label the user sets BY HAND -- never an AI score/rank
@@ -108,6 +109,19 @@ def _retraction_status_subquery():
         select(open_science_signals.c.status)
         .where(open_science_signals.c.paper_id == papers.c.id, open_science_signals.c.signal_type == "retraction")
         .scalar_subquery()
+    )
+
+
+def _evidence_linked_correction_subquery():
+    """Whether the correction producer projected its evidence-linked, read-only system tag."""
+    return (
+        select(paper_tags.c.paper_id)
+        .select_from(paper_tags.join(tags, tags.c.id == paper_tags.c.tag_id))
+        .where(
+            paper_tags.c.paper_id == papers.c.id,
+            tags.c.name == "system:self-correction:correction",
+        )
+        .exists()
     )
 
 
@@ -305,6 +319,7 @@ def list_papers(
         _cited_by_subquery().label("cited_by_count"),  # inc 210, A2 -- verbatim OpenAlex count + as-of for the chip
         _cited_by_as_of_subquery().label("cited_by_as_of"),
         _retraction_status_subquery().label("retraction_status"),
+        _evidence_linked_correction_subquery().label("correction_evidence_linked"),
     )
     stmt = _paper_filter_clauses(
         conn,

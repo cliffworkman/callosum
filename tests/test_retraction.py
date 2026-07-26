@@ -9,6 +9,8 @@ from app.backend.methods.retraction import (
     RETRACTION_TAG_NAME,
     RETRACTION_TAG_SOURCE,
     RETRACTION_WATCH_CHECKER,
+    SELF_CORRECTION_TAG_NAME,
+    SELF_CORRECTION_TAG_SOURCE,
     RetractionChecker,
     RetractionSignal,
     apply_retraction,
@@ -213,18 +215,55 @@ def test_apply_unretraction_removes_the_system_fact_tag(temp_db_url):
     assert tags == []
 
 
-def test_apply_correction_or_concern_does_not_tag_as_retracted(temp_db_url):
-    # Only status == "retracted" gets the system tag — matches count_retraction_flagged's/SIGNAL_FILTERS' existing
-    # definition of "flagged" (a correction or an expression of concern is a different, lesser status).
+def test_apply_correction_gets_positive_system_fact_tag_but_not_retraction_tag(temp_db_url):
+    # A correction is a separate positive fact, never part of count_retraction_flagged or the retraction filter.
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
         pid = _paper(conn, doi="10.1/x")
         paper = {"id": pid, "doi": "10.1/x", "csl_json": {}}
-        flag = _checker("crossref", RetractionSignal(source="crossref", status="correction"))
+        flag = _checker(
+            "crossref", RetractionSignal(source="crossref", status="correction", notice_doi="10.1/correction")
+        )
         apply_retraction(conn, pid, detect_retraction(conn, paper, checkers=[flag]))
         tags = get_tags_for_paper(conn, pid)
     engine.dispose()
-    assert tags == []
+    assert [(t["name"], t["import_source"]) for t in tags] == [(SELF_CORRECTION_TAG_NAME, SELF_CORRECTION_TAG_SOURCE)]
+
+
+def test_apply_concern_or_clean_removes_positive_correction_tag(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(conn, doi="10.1/x")
+        paper = {"id": pid, "doi": "10.1/x", "csl_json": {}}
+        correction = _checker(
+            "crossref", RetractionSignal(source="crossref", status="correction", notice_doi="10.1/correction")
+        )
+        concern = _checker("crossref", RetractionSignal(source="crossref", status="concern"))
+        apply_retraction(conn, pid, detect_retraction(conn, paper, checkers=[correction]))
+        assert [t["name"] for t in get_tags_for_paper(conn, pid)] == [SELF_CORRECTION_TAG_NAME]
+        apply_retraction(conn, pid, detect_retraction(conn, paper, checkers=[concern]))
+        concern_tags = get_tags_for_paper(conn, pid)
+        apply_retraction(conn, pid, detect_retraction(conn, paper, checkers=[_checker("crossref")]))
+        clean_tags = get_tags_for_paper(conn, pid)
+    engine.dispose()
+    assert concern_tags == []
+    assert clean_tags == []
+
+
+def test_apply_correction_without_openable_record_does_not_get_positive_badge_tag(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(conn, doi="10.1/x")
+        paper = {"id": pid, "doi": "10.1/x", "csl_json": {}}
+        correction = _checker("crossref", RetractionSignal(source="crossref", status="correction"))
+        apply_retraction(conn, pid, detect_retraction(conn, paper, checkers=[correction]))
+        findings = get_paper_findings(conn, pid)
+        tags = get_tags_for_paper(conn, pid)
+    engine.dispose()
+    assert findings["facts"][0]["payload"]["status"] == "correction"
+    assert tags == []  # the registry fact remains, but no evidence-linked positive badge is claimed
+    listed = TestClient(create_app(db_url=temp_db_url)).get("/papers").json()
+    assert next(p for p in listed if p["id"] == pid)["correction_evidence_linked"] is False
 
 
 def test_apply_retraction_reapply_is_idempotent(temp_db_url):
@@ -309,12 +348,15 @@ def test_retraction_endpoints_and_filter(temp_db_url):
     with engine.begin() as conn:
         a = _paper(conn, doi="10.1/retracted", title="A")
         b = _paper(conn, doi="10.1/clean", title="B")
+        c = _paper(conn, doi="10.1/corrected", title="C")
     engine.dispose()
     client = TestClient(create_app(db_url=temp_db_url))
 
     def fake(conn, paper):  # deterministic, offline
         if paper["doi"] == "10.1/retracted":
             return RetractionSignal(source="crossref", status="retracted", notice_doi="10.1/n")
+        if paper["doi"] == "10.1/corrected":
+            return RetractionSignal(source="crossref", status="correction", notice_doi="10.1/c")
         return None
 
     client.app.state.retraction_checkers = [RetractionChecker("crossref", fake)]
@@ -327,7 +369,8 @@ def test_retraction_endpoints_and_filter(temp_db_url):
     run = client.post("/methods/retraction/run")
     assert run.status_code == 202
     done = client.get(f"/methods/retraction/run/{run.json()['job_id']}").json()
-    assert done["status"] == "done" and done["summary"]["flagged"] == 1
+    assert done["status"] == "done"
+    assert done["summary"]["flagged"] == 1 and done["summary"]["corrections"] == 1
 
     # A flagged retracted, B honestly checked-clean
     assert client.get(f"/papers/{a}/retraction").json()["status"] == "retracted"
@@ -344,6 +387,7 @@ def test_retraction_endpoints_and_filter(temp_db_url):
     papers = client.get("/papers").json()
     assert next(p for p in papers if p["id"] == a)["retraction_status"] == "retracted"
     assert next(p for p in papers if p["id"] == b)["retraction_status"] == "none"
+    assert next(p for p in papers if p["id"] == c)["correction_evidence_linked"] is True
     assert client.get(f"/papers/{a}").json()["retraction_status"] == "retracted"
     ids = [p["id"] for p in client.get("/papers?signal=retraction-retracted").json()]
     assert a in ids and b not in ids
@@ -351,6 +395,13 @@ def test_retraction_endpoints_and_filter(temp_db_url):
     # A carries the retraction FACT
     facts = client.get(f"/papers/{a}/findings").json()["facts"]
     assert any(f["payload"]["status"] == "retracted" for f in facts)
+    correction_facts = client.get(f"/papers/{c}/findings").json()["facts"]
+    assert any(
+        f["payload"]["status"] == "correction" and f["payload"]["notice_url"] == "https://doi.org/10.1/c"
+        for f in correction_facts
+    )
+    correction_tags = client.get(f"/papers/{c}").json()["tags"]
+    assert any(tag["name"] == SELF_CORRECTION_TAG_NAME for tag in correction_tags)
 
     assert client.get("/papers/999999/retraction").status_code == 404
 

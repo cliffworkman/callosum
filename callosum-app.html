@@ -2908,6 +2908,7 @@
   }
   function tagDisplayName(t) {
     if (t && t.name === "system:retraction:retracted") return "Retracted";
+    if (t && t.name === "system:self-correction:correction") return "Correction";
     return t ? t.name : "";
   }
   const PAGE_SIZE = 50;
@@ -4216,6 +4217,7 @@
       refreshLmmChip,
       refreshMetaChip,
       refreshBayesChip,
+      findingsRefresh,
       setFindingsRefresh,
       setReferenceWarningsRefresh,
       showTextHealthFilter,
@@ -4656,6 +4658,7 @@
         onOpenPaper: ctx.onOpenPaper,
         onOpenWip: ctx.onOpenWip,
         readOnly: ctx.readOnly,
+        refreshKey: ctx.findingsRefresh,
         onFilterToTag: ctx.onFilterToTag,
         onTagsChanged: ctx.onTagsChanged,
         onQueueChanged: ctx.onQueueChanged
@@ -8406,8 +8409,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       setBusy(false);
     };
     const lastRunText = lastRun ? `Last refreshed ${fmtDateTime(lastRun)}. ` : "";
-    const title = summary ? `${lastRunText}${summary.checked} checked \xB7 ${summary.flagged} retracted. ${detail || "Retraction Watch mirror refreshed first when available."}` : "Refresh the Retraction Watch mirror when available, then check every DOI for registry retractions. Signal with evidence, not a verdict.";
-    return /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: run, disabled: busy, title }, busy ? "Retractions\u2026" : "Retractions \u21BB");
+    const title = summary ? `${lastRunText}${summary.checked} checked \xB7 ${summary.flagged} retracted \xB7 ${summary.corrections || 0} correction record${summary.corrections === 1 ? "" : "s"}. ${detail || "Retraction Watch mirror refreshed first when available."}` : "Refresh the Retraction Watch mirror when available, then check every DOI for registry retractions and explicit correction records. Evidence-linked facts, never a verdict or trust score.";
+    return /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: run, disabled: busy, title }, busy ? "Integrity\u2026" : "Integrity \u21BB");
   }
   async function pollTextReprocess(jobId, setProg) {
     for (let i = 0; i < 1200; i++) {
@@ -8630,6 +8633,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly, onReadingChanged }) {
     const unresolved = needsMetadata(p);
     const retracted = p.retraction_status === "retracted";
+    const hasCorrection = p.correction_evidence_linked === true;
     const cardRef = useRef(null);
     useEffect(() => {
       if (!isSelected || !cardRef.current) return;
@@ -8667,7 +8671,14 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       ),
       /* @__PURE__ */ React.createElement("p", { className: "paper-title" }, p.title || /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "Untitled")),
       /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, unresolved ? /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "metadata not yet resolved") : /* @__PURE__ */ React.createElement(React.Fragment, null, p.authors && p.authors.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, fmtAuthors(p.authors)), p.year && /* @__PURE__ */ React.createElement("span", null, "\xB7 ", p.year), p.venue && /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, "\xB7 ", p.venue))),
-      /* @__PURE__ */ React.createElement("div", { className: "paper-foot" }, /* @__PURE__ */ React.createElement("span", { className: "tier " + tierClass(p.processing_tier) }, tierLabel(p.processing_tier)), retracted && /* @__PURE__ */ React.createElement("span", { className: "tier tier-retracted", title: "A registry records this paper as retracted \u2014 verify the evidence before citing" }, "RETRACTED"), p.attachment_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "chip" }, p.attachment_count, " file", p.attachment_count > 1 ? "s" : ""), unresolved && /* @__PURE__ */ React.createElement("span", { className: "needs-doi" }, "needs DOI"), findings && findings.has_facts && /* @__PURE__ */ React.createElement("span", { className: "fact-mark fact-mark-card", title: "Has a fact finding (e.g. retracted)" }, "\u25C6 fact"), findings && findings.unreviewed_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "finding-badge", title: "Unreviewed candidate findings to review" }, findings.unreviewed_count, " to review"), referenceWarnings && referenceWarnings.active_count > 0 && /* @__PURE__ */ React.createElement(
+      /* @__PURE__ */ React.createElement("div", { className: "paper-foot" }, /* @__PURE__ */ React.createElement("span", { className: "tier " + tierClass(p.processing_tier) }, tierLabel(p.processing_tier)), retracted && /* @__PURE__ */ React.createElement("span", { className: "tier tier-retracted", title: "A registry records this paper as retracted \u2014 verify the evidence before citing" }, "RETRACTED"), hasCorrection && /* @__PURE__ */ React.createElement(
+        "span",
+        {
+          className: "tier tier-grounded",
+          title: "A registry records an explicit correction for this work \u2014 open Details for the linked record"
+        },
+        "CORRECTION"
+      ), p.attachment_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "chip" }, p.attachment_count, " file", p.attachment_count > 1 ? "s" : ""), unresolved && /* @__PURE__ */ React.createElement("span", { className: "needs-doi" }, "needs DOI"), findings && findings.has_facts && /* @__PURE__ */ React.createElement("span", { className: "fact-mark fact-mark-card", title: "Has a fact finding (e.g. retracted)" }, "\u25C6 fact"), findings && findings.unreviewed_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "finding-badge", title: "Unreviewed candidate findings to review" }, findings.unreviewed_count, " to review"), referenceWarnings && referenceWarnings.active_count > 0 && /* @__PURE__ */ React.createElement(
         "button",
         {
           type: "button",
@@ -11540,7 +11551,26 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   function DetailSection({ title, open, onToggle, children }) {
     return /* @__PURE__ */ React.createElement("div", { className: "detail-section" }, /* @__PURE__ */ React.createElement("button", { className: "detail-section-head", onClick: onToggle }, /* @__PURE__ */ React.createElement("span", { className: "detail-section-chevron" }, open ? "\u25BE" : "\u25B8"), " ", title), open && /* @__PURE__ */ React.createElement("div", { className: "detail-section-body" }, children));
   }
-  function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsChanged, onQueueChanged, readOnly }) {
+  function PositiveIntegrityFacts({ facts }) {
+    const corrections = (facts || []).filter(
+      (f) => f.source === "retraction" && f.payload && f.payload.status === "correction" && f.payload.notice_url
+    );
+    if (!corrections.length) return null;
+    return /* @__PURE__ */ React.createElement("div", { className: "bayes-check-item" }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-head" }, /* @__PURE__ */ React.createElement("span", { className: "bayes-check-label" }, "Positive integrity"), /* @__PURE__ */ React.createElement("span", { className: "tier tier-grounded" }, "CORRECTION")), corrections.map((f) => {
+      const p = f.payload || {};
+      return /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note", key: f.id }, "A registry records an explicit correction for this work", p.date ? ` (${p.date})` : "", ". Sources: ", (p.sources || []).join(", ") || "registry metadata", ".", p.notice_url && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement(
+        "a",
+        {
+          className: "btn-link",
+          href: p.notice_url,
+          target: "_blank",
+          rel: "noopener noreferrer"
+        },
+        "Open correction record"
+      )));
+    }), /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "Descriptive metadata only\u2014not a trust score. No badge means Callosum did not find this explicit relation, not that the work has never been corrected."));
+  }
+  function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsChanged, onQueueChanged, refreshKey, readOnly }) {
     const [state, setState] = useState({ status: "idle" });
     const [savingField, setSavingField] = useState(null);
     const [note, setNote] = useState(null);
@@ -11553,10 +11583,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [mergeOrigin, setMergeOrigin] = useState(null);
     const [unmerging, setUnmerging] = useState(false);
     const [usedWips, setUsedWips] = useState([]);
+    const [integrityFacts, setIntegrityFacts] = useState([]);
     useEffect(() => {
       setNote(null);
       setMergeOrigin(null);
       setUsedWips([]);
+      setIntegrityFacts([]);
       if (paperId == null) {
         setState({ status: "idle" });
         return;
@@ -11571,6 +11603,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       api(`/papers/${paperId}/merge-origin`).then((r) => {
         if (live && r.ok) setMergeOrigin(r.data);
       });
+      api(`/papers/${paperId}/findings`).then((r) => {
+        if (live && r.ok) setIntegrityFacts(r.data.facts || []);
+      });
       if (!readOnly) {
         api(`/wip/papers/${paperId}`).then((r) => {
           if (live && r.ok) setUsedWips(r.data || []);
@@ -11579,7 +11614,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       return () => {
         live = false;
       };
-    }, [paperId]);
+    }, [paperId, refreshKey]);
     const saveField = useCallback(async (name, value) => {
       if (paperId == null) return { ok: false };
       setNote(null);
@@ -11723,7 +11758,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         title: "Add this paper to your reading Queue (the Queue tab in the left pane)"
       },
       queuing ? "Adding\u2026" : "+ Reading queue"
-    )), /* @__PURE__ */ React.createElement(EditableText, { variant: "title", value: p.title, placeholder: "Add title", onSave: (t) => saveField("title", t) }), mergeOrigin && !readOnly && /* @__PURE__ */ React.createElement("div", { className: "detail-merge-origin" }, /* @__PURE__ */ React.createElement("span", null, "Merged from ", mergeOrigin.merged_from_titles.map((t) => `\u201C${t}\u201D`).join(", "), "."), /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement(EditableText, { variant: "title", value: p.title, placeholder: "Add title", onSave: (t) => saveField("title", t) }), /* @__PURE__ */ React.createElement(PositiveIntegrityFacts, { facts: integrityFacts }), mergeOrigin && !readOnly && /* @__PURE__ */ React.createElement("div", { className: "detail-merge-origin" }, /* @__PURE__ */ React.createElement("span", null, "Merged from ", mergeOrigin.merged_from_titles.map((t) => `\u201C${t}\u201D`).join(", "), "."), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn-link",
@@ -17414,6 +17449,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       refreshLmmChip,
       refreshMetaChip,
       refreshBayesChip,
+      findingsRefresh,
       setFindingsRefresh,
       setReferenceWarningsRefresh,
       pcurvePapers,
@@ -17659,6 +17695,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       axisRefresh,
       tagRefresh,
       queueRefresh,
+      findingsRefresh,
       hideUncertainDefault,
       axisCutoffDefault,
       methodsOpen,
