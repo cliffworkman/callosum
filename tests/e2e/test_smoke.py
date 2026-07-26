@@ -475,7 +475,8 @@ def test_my_publications_grounded_prospection_reveals_source_evidence(server: st
         author_panel = page.locator('section[aria-labelledby="mypubs-citing-authors-title"]')
         author_panel.wait_for()
         assert "Margaret Hamilton" in author_panel.inner_text()
-        assert "2 of your publications · 2 citing works" in author_panel.locator(".mypubs-topic-change").inner_text()
+        author_counts = " ".join(author_panel.locator(".mypubs-topic-change").inner_text().split())
+        assert "2 of your publications · 2 citing works" in author_counts
         author_domain_a = author_panel.locator(".mypubs-gap-scope-chip", has_text="Domain A")
         with page.expect_request(
             lambda request: "citing-authors" in request.url
