@@ -453,7 +453,7 @@ def test_my_publications_grounded_prospection_reveals_source_evidence(server: st
         assert not anchor.is_visible()
         panel.locator(".mypubs-gap-evidence summary").click()
         assert anchor.is_visible() and "The shared reference" in anchor.inner_text()
-        assert page.get_by_role("button", name="Own publication A", exact=True).is_visible()
+        assert panel.get_by_role("button", name="Own publication A", exact=True).is_visible()
         assert panel.locator('a[href="https://openalex.org/W301"]').count() == 1
 
         topic_panel = page.locator('section[aria-labelledby="mypubs-emerging-topics-title"]')
