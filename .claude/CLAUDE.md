@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 388** (see Increment workflow) with **1609 pytest tests
+It is currently at **Increment 389** (see Increment workflow) with **1613 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -93,10 +93,11 @@ the full per-increment narrative for all other increments now lives in the reloc
   immutable embedded metadata, and real-Writer rollback/save/reopen proof.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
-  bounded OpenAlex candidates, excludes directly cited/already-held works, stores one atomic local snapshot,
+  bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
   and carries every candidate's exact shared references plus clickable source publications. Ordinary dashboard
   reads make no request; visible graph counts order candidates without an opaque score, and coverage/caps are
-  stated.
+  stated. **Inc 389** adds server-validated, multi-domain union scopes with independent bounded snapshots and
+  scope-named coverage while keeping all-publications as the default.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

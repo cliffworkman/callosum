@@ -308,11 +308,14 @@ def test_my_publications_workspace_loads_without_axis_card_button():
 def test_my_publications_citation_gaps_are_grounded_and_explicit_refresh():
     raw = assemble_jsx()
     assert "function MyPubsCitationGaps" in raw
-    assert 'api("/my-publications/citation-gaps")' in raw
-    assert 'apiPost("/my-publications/citation-gaps/refresh", {})' in raw
+    assert "api(listPath)" in raw
+    assert "domain_key=${encodeURIComponent(key)}" in raw
+    assert 'apiPost("/my-publications/citation-gaps/refresh", { domain_keys: selectedKeys })' in raw
+    assert "each scope keeps its own local snapshot" in raw
+    assert "aria-pressed={selectedDomainKeys.has(domain.key)}" in raw
     assert "Why this surfaced" in raw
     assert "Shared references are a retrieval trail" in raw
-    assert "<MyPubsCitationGaps" in raw
+    assert "<MyPubsCitationGaps domains={domains}" in raw
     assert "axisId={resolvedAxisId}" in raw
     assert "axisRefresh={axisRefresh}" in raw
     assert 'title="Open the impact dashboard"' not in raw

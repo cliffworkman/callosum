@@ -314,7 +314,7 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
           </div>}
       </div>
 
-      <MyPubsCitationGaps onSelectPaper={onSelectPaper} onLibraryChanged={onLibraryChanged} />
+      <MyPubsCitationGaps domains={domains} onSelectPaper={onSelectPaper} onLibraryChanged={onLibraryChanged} />
 
       {/* OpenAlex card (r4, footer) — provenance + gap + richer stats + refresh + the missing-works modal trigger (#1/#6/#11/#12) */}
       <section className="openalex-card">

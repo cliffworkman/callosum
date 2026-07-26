@@ -430,14 +430,14 @@ the Principles + A-A gates before build.)*
   **Future goal (recorded 2026-07-24): approximate feature parity for Microsoft Word and Google Docs.**
   Treat this as a later cross-editor adaptation track, not a requirement to hold the active LibreOffice work
   open; preserve each host's native interaction model rather than requiring pixel- or command-for-command parity.
-- **#35 My Publications — Layer 4.** **Started inc 386 (2026-07-25): grounded citation gaps shipped.** The
+- **#35 My Publications — Layer 4.** **Grounded citation gaps shipped inc 386; domain scoping shipped inc 389.** The
   dashboard's explicit-refresh, LLM-free scan finds OpenAlex works that cite reference anchors shared by at least
   two confirmed own publications while excluding works any scanned own publication already cites. Every candidate
   preserves the exact shared references and clickable own-publication evidence, exposes coverage/caps, reads from
-  a local atomic snapshot on ordinary dashboard opens, and remains add-or-dismiss. **Corpus-builder UX follow-up:**
-  scope this prospection scan to one or more existing research domains; that needs a scoped cache/API contract,
-  not just a dropdown. Still open in Layer 4: domain-scoped citation gaps, emerging citing-topics, candidate
-  collaborators, and optional LLM narration over the already-grounded data only.
+  a local atomic snapshot on ordinary dashboard opens, and remains add-or-dismiss. Domain chips now constrain the
+  graph walk to the union of one or more server-validated research domains; all/domain combinations keep separate,
+  bounded snapshots and the coverage names the active scope. Still open in Layer 4: emerging citing-topics,
+  candidate collaborators, and optional LLM narration over the already-grounded data only.
 - **#36 Meta-analysis — the assisted-extraction funnel's next escalations.** The consumer-side reporting auditor,
   the effect-size converter, the extraction workspace (grid + select-in-PDF capture), the dataset loop + exports,
   and the AI-proposes/human-filters funnel are all shipped (SP1/SP2a/SP2b, incs 249–259). **Batch "Draft all

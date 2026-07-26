@@ -3,20 +3,23 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 
 from app.backend.api import create_app
 from app.backend.clustering.axis_assignments import add_manual_assignment, ensure_axis_node
 from app.backend.clustering.axis_scoring import create_axis
+from app.backend.clustering.my_publication_gap_scope import citation_gap_domain_key
 from app.backend.clustering.my_publication_gaps import compute_my_publication_citation_gaps
 from app.backend.clustering.my_publications import CANDIDATE_CONFIDENCE, MY_PUBLICATIONS_KIND
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.my_publication_gap_repo import (
+    MAX_CACHED_SCOPES,
     read_my_publication_citation_gap_cache,
     replace_my_publication_citation_gap_cache,
 )
+from app.backend.persistence.profile_repo import set_research_domains, upsert_profile
 from app.backend.persistence.repository import create_paper
-from app.backend.persistence.schema import cluster_node_papers, my_publication_citation_gap_cache
+from app.backend.persistence.schema import axes, cluster_node_papers, my_publication_citation_gap_cache
 
 
 class _GraphClient:
@@ -26,16 +29,21 @@ class _GraphClient:
         self.work_ids = {
             "10.1/own-a": "W101",
             "10.1/own-b": "W102",
+            "10.1/own-c": "W104",
+            "10.1/own-d": "W105",
             "10.1/unconfirmed": "W103",
         }
         self.references = {
             "10.1/own-a": ["W201", "W202", "W900", "not-an-id"],
             "10.1/own-b": ["W201", "W202"],
+            "10.1/own-c": ["W204"],
+            "10.1/own-d": ["W204"],
             "10.1/unconfirmed": ["W203"],
         }
         self.anchor_meta = {
             "W201": _meta("W201", "10.2/reference-a", "Shared Reference A", 2010),
             "W202": _meta("W202", "10.2/reference-b", "Shared Reference B", 2011),
+            "W204": _meta("W204", "10.2/reference-c", "Domain B Reference", 2012),
         }
         self.citing = {
             "W201": [
@@ -49,6 +57,7 @@ class _GraphClient:
                 _meta("W101", "10.1/own-a", "Own paper", 2020),
                 _meta("W401", "10.3/existing", "Already in library", 2021),
             ],
+            "W204": [_meta("W303", "10.3/domain-b", "Domain B grounded gap", 2025)],
         }
 
     def with_cache_engine(self, _engine):
@@ -134,6 +143,41 @@ def _seed_my_publications(conn) -> tuple[int, int]:
     return own_a, own_b
 
 
+def _seed_scoped_domains(conn) -> tuple[tuple[int, int], tuple[int, int], tuple[str, str]]:
+    own_a, own_b = _seed_my_publications(conn)
+    own_c = create_paper(
+        conn,
+        title="Own publication C",
+        doi="10.1/own-c",
+        csl_json={"title": "Own publication C", "DOI": "10.1/own-c"},
+    )
+    own_d = create_paper(
+        conn,
+        title="Own publication D",
+        doi="10.1/own-d",
+        csl_json={"title": "Own publication D", "DOI": "10.1/own-d"},
+    )
+    axis_id = conn.execute(select(axes.c.id).where(axes.c.kind == MY_PUBLICATIONS_KIND)).scalar_one()
+    add_manual_assignment(conn, axis_id=axis_id, paper_id=own_c)
+    add_manual_assignment(conn, axis_id=axis_id, paper_id=own_d)
+    upsert_profile(conn, display_name="A. Researcher", name_variants=[], orcid=None)
+    set_research_domains(
+        conn,
+        [
+            {"label": "Domain A", "terms": ["alpha"], "paper_ids": [own_a, own_b]},
+            {"label": "Domain B", "terms": ["beta"], "paper_ids": [own_c, own_d]},
+        ],
+    )
+    return (
+        (own_a, own_b),
+        (own_c, own_d),
+        (
+            citation_gap_domain_key([own_a, own_b]),
+            citation_gap_domain_key([own_c, own_d]),
+        ),
+    )
+
+
 def test_compute_citation_gaps_is_grounded_and_excludes_direct_existing_and_unconfirmed(temp_db_url):
     engine = make_engine(temp_db_url)
     graph = _GraphClient()
@@ -196,8 +240,11 @@ def test_empty_citation_gap_snapshot_is_distinct_from_not_computed(temp_db_url):
     assert snapshot["candidates"] == [] and snapshot["computed_at"].startswith("2026-07-25")
 
 
-def _drive_refresh(client: TestClient) -> dict:
-    started = client.post("/my-publications/citation-gaps/refresh", json={})
+def _drive_refresh(client: TestClient, domain_keys: list[str] | None = None) -> dict:
+    started = client.post(
+        "/my-publications/citation-gaps/refresh",
+        json={"domain_keys": domain_keys or []},
+    )
     assert started.status_code == 202
     job_id = started.json()["job_id"]
     result = {}
@@ -258,6 +305,105 @@ def test_citation_gap_api_refresh_is_explicit_cached_and_read_time_filtered(temp
     assert client.get("/my-publications/citation-gaps").json()["candidates"] == []
 
 
+def test_domain_scoped_citation_gap_snapshots_are_independent_and_grounded(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        domain_a_ids, domain_b_ids, (domain_a_key, domain_b_key) = _seed_scoped_domains(conn)
+    engine.dispose()
+    graph = _GraphClient()
+    client = TestClient(create_app(db_url=temp_db_url, openalex_client=graph))
+
+    a_path = f"/my-publications/citation-gaps?domain_key={domain_a_key}"
+    b_path = f"/my-publications/citation-gaps?domain_key={domain_b_key}"
+    assert client.get(a_path).json()["computed_at"] is None
+    assert client.get("/my-publications/citation-gaps").json()["computed_at"] is None
+    assert graph.calls == []
+
+    done_a = _drive_refresh(client, [domain_a_key])
+    assert done_a["status"] == "done"
+    assert done_a["result"]["scope"]["domain_labels"] == ["Domain A"]
+    assert done_a["result"]["coverage"] == {
+        "checked": 2,
+        "with_doi": 2,
+        "total": 2,
+        "library_total": 4,
+        "shared_anchor_count": 2,
+        "publication_cap_reached": False,
+        "scope_kind": "domains",
+        "domain_count": 1,
+        "domain_labels": ["Domain A"],
+        "note": done_a["result"]["coverage"]["note"],
+    }
+    listed_a = client.get(a_path).json()
+    assert [candidate["openalex_work_id"] for candidate in listed_a["candidates"]] == ["W301", "W302"]
+    assert {
+        source["paper_id"]
+        for candidate in listed_a["candidates"]
+        for evidence in candidate["evidence"]
+        for source in evidence["source_papers"]
+    } == set(domain_a_ids)
+    assert client.get(b_path).json()["computed_at"] is None
+    assert client.get("/my-publications/citation-gaps").json()["computed_at"] is None
+
+    calls_before_b = len(graph.calls)
+    assert _drive_refresh(client, [domain_b_key])["status"] == "done"
+    listed_b = client.get(b_path).json()
+    assert [candidate["openalex_work_id"] for candidate in listed_b["candidates"]] == ["W303"]
+    assert {
+        source["paper_id"] for evidence in listed_b["candidates"][0]["evidence"] for source in evidence["source_papers"]
+    } == set(domain_b_ids)
+    b_dois = {value for kind, value in graph.calls[calls_before_b:] if kind in {"work-id", "references"}}
+    assert b_dois == {"10.1/own-c", "10.1/own-d"}
+    assert [candidate["openalex_work_id"] for candidate in client.get(a_path).json()["candidates"]] == [
+        "W301",
+        "W302",
+    ]
+
+    assert _drive_refresh(client, [domain_b_key, domain_a_key])["status"] == "done"
+    union_path = f"/my-publications/citation-gaps?domain_key={domain_a_key}&domain_key={domain_b_key}"
+    listed_union = client.get(union_path).json()
+    assert listed_union["coverage"]["domain_count"] == 2
+    assert set(listed_union["coverage"]["domain_labels"]) == {"Domain A", "Domain B"}
+    assert {candidate["openalex_work_id"] for candidate in listed_union["candidates"]} == {
+        "W301",
+        "W302",
+        "W303",
+    }
+
+
+def test_domain_scope_is_validated_before_refresh_or_cache_read(temp_db_url):
+    assert citation_gap_domain_key([2, 1, 2]) == citation_gap_domain_key([1, 2])
+    client = TestClient(create_app(db_url=temp_db_url, openalex_client=_GraphClient()))
+    invalid = "domain:" + ("f" * 20)
+    assert client.get(f"/my-publications/citation-gaps?domain_key={invalid}").status_code == 422
+    assert (
+        client.post(
+            "/my-publications/citation-gaps/refresh",
+            json={"domain_keys": [invalid]},
+        ).status_code
+        == 422
+    )
+    assert client.get("/my-publications/citation-gaps?domain_key=not-a-domain").status_code == 422
+
+
+def test_scoped_snapshot_cache_is_bounded(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        for index in range(MAX_CACHED_SCOPES + 1):
+            replace_my_publication_citation_gap_cache(
+                conn,
+                [],
+                {"checked": 0},
+                computed_at=f"2026-07-26T00:00:{index:02}+00:00",
+                scope_key=f"test:{index}",
+                scope={"kind": "domains", "domain_keys": [], "domain_labels": [], "paper_ids": []},
+            )
+        keys = list(conn.execute(select(my_publication_citation_gap_cache.c.scope_key)).scalars())
+    engine.dispose()
+    assert len(keys) == MAX_CACHED_SCOPES
+    assert "test:0" not in keys and f"test:{MAX_CACHED_SCOPES}" in keys
+
+
 def test_failed_citation_gap_refresh_preserves_previous_snapshot(temp_db_url):
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
@@ -310,6 +456,8 @@ def test_citation_gap_read_drops_malformed_cached_metadata(temp_db_url):
         conn.execute(
             insert(my_publication_citation_gap_cache).values(
                 id=1,
+                scope_key="all",
+                scope={"kind": "all", "domain_keys": [], "domain_labels": [], "paper_ids": []},
                 candidates=[{"openalex_work_id": "not-an-id"}, "not-an-object"],
                 coverage={"checked": "not-an-integer"},
                 computed_at="2026-07-25T00:00:00+00:00",

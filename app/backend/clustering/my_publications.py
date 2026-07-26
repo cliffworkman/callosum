@@ -18,6 +18,7 @@ from app.backend.clustering.axis_assignments import (
     ensure_axis_node,
     manual_assignment_paper_ids,
 )
+from app.backend.clustering.my_publication_gap_scope import citation_gap_domain_key
 from app.backend.metadata.abstract_display import abstract_plain_text
 from app.backend.persistence.profile_repo import (
     get_decisions,
@@ -343,6 +344,8 @@ def _dashboard_domains(conn: Connection, domains_json: Any, works: list) -> list
     out: list[dict[str, Any]] = []
     for domain in domains_json:
         pids = [int(p) for p in (domain.get("paper_ids") or []) if int(p) in info]
+        if not pids:
+            continue
         citations = 0
         years: list[int] = []
         for pid in pids:
@@ -354,6 +357,7 @@ def _dashboard_domains(conn: Connection, domains_json: Any, works: list) -> list
                 years.append(int(year))
         out.append(
             {
+                "key": citation_gap_domain_key(domain.get("paper_ids") or []),
                 "label": domain.get("label") or "Domain",
                 "terms": list(domain.get("terms") or []),
                 "paper_count": len(pids),

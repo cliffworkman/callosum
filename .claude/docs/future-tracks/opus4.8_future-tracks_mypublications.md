@@ -174,8 +174,11 @@ when any scanned own publication directly cites it, when it is already in the li
 it. The atomic local snapshot preserves each shared reference plus the exact clickable own-publication sources;
 ordinary dashboard reads make no request. Visible shared-reference/source-publication counts order the candidates
 without an opaque score, and coverage text names OpenAlex/cap limits and refuses to treat an empty result as
-completeness. Domain-scoped caching is the recorded corpus-builder follow-up. Emerging citing-topics, candidate
-collaborators, and any narration remain open.
+completeness. **Increment 389 (2026-07-26) completed the corpus-builder follow-up:** one or more existing
+research-domain chips constrain the scan to their confirmed-publication union; stable membership-derived keys are
+validated against the current decomposition; all/domain combinations keep separate atomic snapshots under a
+16-scope local cap; and coverage names the active scope. Emerging citing-topics, candidate collaborators, and any
+narration remain open.
 
 CONSTRAINTS:
 - Additive. Reuse the LibraryFrame tabs, the library card, abstract_clustering, the axis model,

@@ -6,13 +6,14 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
 from fastapi import status as http_status
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import Connection, select
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
+from app.backend.clustering.my_publication_gap_scope import CitationGapScope, resolve_citation_gap_scope
 from app.backend.clustering.my_publication_gaps import compute_my_publication_citation_gaps
 from app.backend.persistence.my_publication_gap_repo import (
     read_my_publication_citation_gap_cache,
@@ -54,21 +55,33 @@ class CitationGapCoverage(BaseModel):
     checked: int = 0
     with_doi: int = 0
     total: int = 0
+    library_total: int = 0
     shared_anchor_count: int = 0
     publication_cap_reached: bool = False
+    scope_kind: Literal["all", "domains"] = "all"
+    domain_count: int = 0
+    domain_labels: list[str] = []
     note: str = ""
+
+
+class CitationGapScopeOut(BaseModel):
+    kind: Literal["all", "domains"] = "all"
+    domain_keys: list[str] = []
+    domain_labels: list[str] = []
 
 
 class CitationGapListResponse(BaseModel):
     candidates: list[CitationGapCandidate] = []
     computed_at: str | None = None
     coverage: CitationGapCoverage | None = None
+    scope: CitationGapScopeOut = CitationGapScopeOut()
 
 
 class CitationGapRefreshResult(BaseModel):
     count: int = 0
     coverage: CitationGapCoverage
     computed_at: str
+    scope: CitationGapScopeOut
 
 
 class CitationGapRefreshResponse(BaseModel):
@@ -78,14 +91,21 @@ class CitationGapRefreshResponse(BaseModel):
     result: CitationGapRefreshResult | None = None
 
 
+class CitationGapRefreshRequest(BaseModel):
+    domain_keys: list[str] = []
+
+
 @router.get("/my-publications/citation-gaps", response_model=CitationGapListResponse)
 def list_my_publication_citation_gaps(
+    domain_key: list[str] = Query(default=[]),
     conn: Connection = Depends(get_connection),
 ) -> CitationGapListResponse:
     """Read the local snapshot only. Opening the dashboard never triggers metadata egress."""
-    snapshot = read_my_publication_citation_gap_cache(conn)
+    scope = _resolve_scope_or_422(conn, domain_key)
+    scope_out = _scope_out(scope)
+    snapshot = read_my_publication_citation_gap_cache(conn, scope_key=scope.key)
     if snapshot is None:
-        return CitationGapListResponse()
+        return CitationGapListResponse(scope=scope_out)
     parsed_candidates: list[dict[str, Any]] = []
     raw_candidates = snapshot.get("candidates")
     for raw in raw_candidates if isinstance(raw_candidates, list) else []:
@@ -109,6 +129,7 @@ def list_my_publication_citation_gaps(
         candidates=[CitationGapCandidate(**candidate) for candidate in candidates],
         computed_at=str(snapshot["computed_at"]),
         coverage=coverage,
+        scope=scope_out,
     )
 
 
@@ -118,11 +139,14 @@ def list_my_publication_citation_gaps(
     status_code=http_status.HTTP_202_ACCEPTED,
 )
 def refresh_my_publication_citation_gaps(
+    payload: CitationGapRefreshRequest,
     background_tasks: BackgroundTasks,
     request: Request,
+    conn: Connection = Depends(get_connection),
 ) -> CitationGapRefreshResponse:
+    scope = _resolve_scope_or_422(conn, payload.domain_keys)
     job_id = request.app.state.my_publication_gap_jobs.create()
-    background_tasks.add_task(_run_refresh, request.app, job_id)
+    background_tasks.add_task(_run_refresh, request.app, job_id, scope)
     return CitationGapRefreshResponse(job_id=job_id, status="pending")
 
 
@@ -142,7 +166,7 @@ def my_publication_citation_gap_refresh_status(
     return CitationGapRefreshResponse(job_id=job_id, status=job.status, detail=job.detail)
 
 
-def _run_refresh(app: FastAPI, job_id: str) -> None:
+def _run_refresh(app: FastAPI, job_id: str, scope: CitationGapScope) -> None:
     jobs: JobStore[CitationGapRefreshResponse] = app.state.my_publication_gap_jobs
     jobs.mark_running(job_id)
     try:
@@ -155,7 +179,14 @@ def _run_refresh(app: FastAPI, job_id: str) -> None:
                 conn,
                 openalex_client=fetch_client,
                 dismissed=dismissed_gaps(conn),
+                paper_ids=scope.paper_ids,
             )
+            coverage = {
+                **coverage,
+                "scope_kind": scope.kind,
+                "domain_count": len(scope.domain_keys),
+                "domain_labels": list(scope.domain_labels),
+            }
         run_write(
             engine,
             lambda conn: replace_my_publication_citation_gap_cache(
@@ -163,12 +194,15 @@ def _run_refresh(app: FastAPI, job_id: str) -> None:
                 candidates,
                 coverage,
                 computed_at=computed_at,
+                scope_key=scope.key,
+                scope=scope.to_dict(),
             ),
         )
         result = CitationGapRefreshResult(
             count=len(candidates),
             coverage=CitationGapCoverage(**coverage),
             computed_at=computed_at,
+            scope=_scope_out(scope),
         )
         jobs.mark_done(job_id, CitationGapRefreshResponse(job_id=job_id, status="done", result=result))
     except Exception as exc:
@@ -247,3 +281,18 @@ def _positive_int(value: Any) -> int | None:
     except (TypeError, ValueError):
         return None
     return parsed if parsed > 0 else None
+
+
+def _resolve_scope_or_422(conn: Connection, domain_keys: list[str]) -> CitationGapScope:
+    try:
+        return resolve_citation_gap_scope(conn, domain_keys)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+def _scope_out(scope: CitationGapScope) -> CitationGapScopeOut:
+    return CitationGapScopeOut(
+        kind=scope.kind,
+        domain_keys=list(scope.domain_keys),
+        domain_labels=list(scope.domain_labels),
+    )

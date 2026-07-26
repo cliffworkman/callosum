@@ -712,11 +712,17 @@ def test_dashboard_includes_domains_sorted_by_citations(temp_db_url):
     with engine.begin() as conn:
         resolve_my_publications(conn, author_client=fake, force=True)
         decompose_domains(conn, model=_ClusterModel(), author_client=fake)
+        persisted = get_profile(conn)["research_domains"]
+        set_research_domains(
+            conn,
+            [*persisted, {"label": "Deleted-paper domain", "terms": ["stale"], "paper_ids": [999999]}],
+        )
         dash = build_dashboard(conn, author_client=fake)
     domains = dash["domains"]
     assert len(domains) == 2
     assert domains[0]["citation_count"] == 150 and domains[1]["citation_count"] == 15  # beta first (impact order)
     assert domains[0]["paper_count"] == 2
+    assert all(domain["key"].startswith("domain:") for domain in domains)
 
 
 def test_domains_endpoint(temp_db_url):

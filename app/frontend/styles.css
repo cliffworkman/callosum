@@ -2391,6 +2391,18 @@
     border: 1px solid var(--accent-line); border-radius: var(--radius-pill); padding: 1px 7px; margin-left: 6px;
   }
   .mypubs-prospection-intro { max-width: 780px; margin: 0 0 10px; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+  .mypubs-gap-scope { margin: 0 0 10px; }
+  .mypubs-gap-scope-label { display: block; margin-bottom: 5px; font-size: 11px; font-weight: 600; color: var(--ink-2); }
+  .mypubs-gap-scope-options { display: flex; flex-wrap: wrap; gap: 5px; }
+  .mypubs-gap-scope-chip {
+    border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--panel); color: var(--ink-2);
+    padding: 4px 9px; font: 500 11.5px/1.2 var(--sans); cursor: pointer;
+  }
+  .mypubs-gap-scope-chip:hover:not(:disabled) { border-color: var(--accent); color: var(--ink); }
+  .mypubs-gap-scope-chip.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .mypubs-gap-scope-chip span { color: var(--ink-3); font-size: 10.5px; }
+  .mypubs-gap-scope-chip:disabled { cursor: default; opacity: .62; }
+  .mypubs-gap-scope-hint { display: block; margin-top: 5px; font-size: 11px; color: var(--ink-3); }
   .mypubs-gap-coverage {
     font-size: 11.5px; line-height: 1.45; color: var(--ink-3); background: var(--panel-2);
     border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 10px;

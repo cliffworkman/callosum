@@ -100,16 +100,20 @@ gap_candidates = Table(
     Index("ix_gap_candidates_scope", "direction", "axis_id"),
 )
 
-# My Publications Layer-4 grounded prospection (inc 386): one bounded, explicit-refresh snapshot. Candidates
-# retain the exact shared references + confirmed own-publication rows that caused them to surface. A single JSON
-# snapshot keeps a genuine empty result distinguishable from "never computed" and makes replacement atomic.
+# My Publications Layer-4 grounded prospection (incs 386/389): bounded, explicit-refresh snapshots keyed by an
+# all-publications or server-validated domain scope. Candidates retain the exact shared references + confirmed
+# own-publication rows that caused them to surface. One row per scope keeps a genuine empty result distinguishable
+# from "never computed" and makes replacement atomic.
 my_publication_citation_gap_cache = Table(
     "my_publication_citation_gap_cache",
     metadata,
     Column("id", Integer, primary_key=True),
+    Column("scope_key", String(80), nullable=False),
+    Column("scope", JSON, nullable=False),
     Column("candidates", JSON, nullable=False),
     Column("coverage", JSON, nullable=False),
     Column("computed_at", String(40), nullable=False),
+    UniqueConstraint("scope_key", name="uq_my_publication_citation_gap_scope_key"),
 )
 
 # Overlooked-work lens persistent cache (backlog #37): one row per surfaced candidate, scoped by axis_id. A refresh

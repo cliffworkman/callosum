@@ -38,7 +38,20 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
 6. Generate domains (`POST /my-publications/domains`, `GET /my-publications/domains/{job_id}`), rename a domain (`POST /my-publications/domains/rename`), and confirm labels are editable signals, not truth.
 7. Generate and edit public summary (`POST /my-publications/summary/generate`, `PUT /my-publications/summary`) with fake generator. Confirm provenance and user-edit state.
 8. Open citing works (`34_mypubs_citing.jsx`). Load citing list (`GET /my-publications/citing/{work_id}`) and import one (`POST /my-publications/citing/import`).
-9. Before any citation-gap action, load `GET /my-publications/citation-gaps`; confirm an uncomputed local snapshot triggers no OpenAlex request. Run `POST /my-publications/citation-gaps/refresh`, poll `GET /my-publications/citation-gaps/refresh/{job_id}`, navigate away mid-job, and return. Confirm each candidate shows its visible shared-reference/source-publication counts; expand **Why this surfaced** and follow every shared reference plus own-publication evidence link. Add one DOI-backed candidate and dismiss another; re-read the cache and confirm both disappear without recomputation. Exercise a no-result fixture and verify it explicitly says this is not a certificate of completeness.
+9. Before any citation-gap action, load `GET /my-publications/citation-gaps`; confirm an uncomputed local snapshot
+   triggers no OpenAlex request. Run `POST /my-publications/citation-gaps/refresh`, poll
+   `GET /my-publications/citation-gaps/refresh/{job_id}`, navigate away mid-job, and return. Confirm each candidate
+   shows its visible shared-reference/source-publication counts; expand **Why this surfaced** and follow every
+   shared reference plus own-publication evidence link. With 2+ generated research domains, select one scope chip:
+   the local read must use `GET /my-publications/citation-gaps?domain_key=...`, **Find scoped gaps** must send only
+   the selected stable domain key(s), coverage must name the selected domain and its scoped publication total, and
+   every evidence source must belong to that domain. Multi-select two domains and confirm the scan uses their union.
+   Switch back to the first domain and confirm its independent cached snapshot returns without OpenAlex work; the
+   all-publications snapshot must also remain intact. Rename a domain and confirm its membership-stable cache remains
+   addressable; re-decompose/change membership and confirm a stale key fails closed with 422 rather than selecting
+   arbitrary papers. Add one DOI-backed candidate and dismiss another; re-read each cache and confirm both disappear
+   without recomputation. Exercise a no-result fixture and verify it explicitly says this is not a certificate of
+   completeness.
 10. Reset My Publications (`DELETE /my-publications`) only at the end of the disposable run; confirm dashboard returns to setup state.
 
 ## Pass criteria
@@ -46,7 +59,9 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
 - Every My Publications panel and endpoint completes through the UI.
 - Hermetic default uses injected fake clients; no genai-host requests with egress unset.
 - Domains, stars, summaries, and citation gaps are transparent signals/user choices, never hidden verdicts.
-- Citation-gap reads are local; only explicit refresh calls OpenAlex. Every candidate reaches exact graph evidence, directly cited/existing works stay excluded, and coverage/caps remain visible.
+- Citation-gap reads are local; only explicit refresh calls OpenAlex. All/domain-union scopes keep independent
+  bounded snapshots, and domain keys are validated against the current server-side decomposition. Every candidate
+  reaches exact graph evidence, directly cited/existing works stay excluded, and scoped coverage/caps remain visible.
 - Mobile viewport has no horizontal overflow.
 
 ## Deposit

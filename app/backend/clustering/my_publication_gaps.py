@@ -66,10 +66,14 @@ def compute_my_publication_citation_gaps(
     *,
     openalex_client,
     dismissed: set[str],
+    paper_ids: set[int] | frozenset[int] | None = None,
     max_candidates: int = MAX_CANDIDATES,
 ) -> tuple[list[MyPublicationCitationGap], dict[str, Any]]:
     """Compute a bounded, evidence-carrying co-citation neighborhood from confirmed own publications."""
-    confirmed = confirmed_member_rows(conn)
+    all_confirmed = confirmed_member_rows(conn)
+    confirmed = (
+        [row for row in all_confirmed if int(row["id"]) in paper_ids] if paper_ids is not None else all_confirmed
+    )
     dismissed_keys = {str(key).strip().casefold() for key in dismissed if str(key).strip()}
     with_doi = [row for row in confirmed if row.get("doi")]
     scoped = with_doi[:MAX_SCANNED_PUBLICATIONS]
@@ -185,6 +189,7 @@ def compute_my_publication_citation_gaps(
         "checked": len(scoped),
         "with_doi": len(with_doi),
         "total": len(confirmed),
+        "library_total": len(all_confirmed),
         "shared_anchor_count": len(selected_anchor_ids),
         "publication_cap_reached": len(with_doi) > len(scoped),
         "note": _COVERAGE_NOTE,

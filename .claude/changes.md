@@ -9,7 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-26 inc 388 — attachment-aware Methods evidence -->
+<!-- HELP-DOCS-SYNCED: 2026-07-26 inc 389 — domain-scoped citation gaps -->
+## 2026-07-26 — Increment 389: domain-scoped My Publications citation gaps
+
+- **Files:** stable domain-scope contract, scoped citation-gap service/API/cache + migration 0053, dashboard
+  selector, backend/migration/frontend/Chromium tests, help/QA/security/backlog/future-track/CLAUDE/increment notes.
+- **What changed:** **My Publications → Citation gaps** can scan all confirmed publications or the union of one
+  or more existing research domains. Each scope keeps an independent atomic snapshot; switching scopes is a local
+  read, and coverage names exactly which publications/domain labels bounded the graph walk.
+- **Boundaries:** the client sends only stable membership-derived domain keys, never arbitrary paper ids or
+  labels. The server validates at most eight keys against the current decomposition before any job/cache access.
+  Existing OpenAlex/candidate/evidence caps and the signal-not-verdict framing are unchanged.
+- **Persistence:** migration 0053 preserves the Increment-386 all-publications snapshot and adds keyed scope
+  metadata. Cache combinations are capped at 16, oldest-first; failed refreshes preserve the prior scoped row.
+- **Safety:** only explicit Find/Refresh performs the existing public DOI/OpenAlex graph egress; dashboard/scope
+  reads remain local. No LLM, dependency, file access, or new external host.
+- **Experience:** a corpus-builder browser pass found the all/domain chips, scoped action, active coverage, and
+  evidence trail direct at desktop and phone width; multi-select is an explicit union.
+- **Verification:** final gate counts are recorded in `INCREMENT-389-NOTES.md`.
+- **Revert:** `git revert` this commit.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-26 inc 388 — attachment-aware Methods evidence -->
 ## 2026-07-26 — Increment 388: attachment-aware Methods evidence navigation
 
 - **Files:** shared Methods evidence anchoring, statcheck/Bayesian/mixed-model/meta-analysis/transparency response

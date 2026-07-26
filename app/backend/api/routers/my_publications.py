@@ -110,6 +110,7 @@ class YearImpact(BaseModel):
 
 
 class Domain(BaseModel):
+    key: str
     label: str
     terms: list[str] = []
     paper_count: int = 0

@@ -211,14 +211,33 @@ def test_my_publications_grounded_citation_gap_reveals_source_evidence(server: s
                     "status": "ok",
                     "name": "Ada Lovelace",
                     "as_of": "2026-07-25T12:00:00",
-                    "metrics": {"works_count": 2, "cited_by_count": 12, "h_index": 2, "i10_index": 1},
+                    "metrics": {"works_count": 4, "cited_by_count": 12, "h_index": 2, "i10_index": 1},
                     "pubs_by_year": [],
                     "counts_by_year": [],
-                    "indexed_works": 2,
-                    "in_library": 2,
+                    "indexed_works": 4,
+                    "in_library": 4,
                     "gap": 0,
                     "research_summary": None,
-                    "domains": [],
+                    "domains": [
+                        {
+                            "key": "domain:aaaaaaaaaaaaaaaaaaaa",
+                            "label": "Domain A",
+                            "terms": ["alpha"],
+                            "paper_count": 2,
+                            "citation_count": 10,
+                            "paper_years": [2022, 2023],
+                            "paper_ids": [1, 2],
+                        },
+                        {
+                            "key": "domain:bbbbbbbbbbbbbbbbbbbb",
+                            "label": "Domain B",
+                            "terms": ["beta"],
+                            "paper_count": 2,
+                            "citation_count": 2,
+                            "paper_years": [2020, 2021],
+                            "paper_ids": [3, 4],
+                        },
+                    ],
                     "missing_works": [],
                     "dismissed_works": [],
                     "openalex_extra": None,
@@ -229,23 +248,36 @@ def test_my_publications_grounded_citation_gap_reveals_source_evidence(server: s
             ),
         )
         page.route(
-            "**/my-publications/citation-gaps",
+            "**/my-publications/citation-gaps*",
             lambda route: route.fulfill(
                 json={
                     "computed_at": "2026-07-25T12:30:00+00:00",
                     "coverage": {
-                        "checked": 2,
-                        "with_doi": 2,
-                        "total": 2,
+                        "checked": 2 if "domain_key=" in route.request.url else 4,
+                        "with_doi": 2 if "domain_key=" in route.request.url else 4,
+                        "total": 2 if "domain_key=" in route.request.url else 4,
+                        "library_total": 4,
                         "shared_anchor_count": 1,
                         "publication_cap_reached": False,
+                        "scope_kind": "domains" if "domain_key=" in route.request.url else "all",
+                        "domain_count": 1 if "domain_key=" in route.request.url else 0,
+                        "domain_labels": ["Domain A"] if "domain_key=" in route.request.url else [],
                         "note": "OpenAlex coverage is partial.",
+                    },
+                    "scope": {
+                        "kind": "domains" if "domain_key=" in route.request.url else "all",
+                        "domain_keys": (["domain:aaaaaaaaaaaaaaaaaaaa"] if "domain_key=" in route.request.url else []),
+                        "domain_labels": ["Domain A"] if "domain_key=" in route.request.url else [],
                     },
                     "candidates": [
                         {
                             "openalex_work_id": "W301",
                             "doi": "10.3/gap",
-                            "title": "A grounded neighboring work",
+                            "title": (
+                                "A domain-scoped neighboring work"
+                                if "domain_key=" in route.request.url
+                                else "A grounded neighboring work"
+                            ),
                             "authors": ["Grace Hopper"],
                             "year": 2025,
                             "shared_reference_count": 1,
@@ -278,6 +310,12 @@ def test_my_publications_grounded_citation_gap_reveals_source_evidence(server: s
         panel.wait_for()
         assert "A grounded neighboring work" in panel.inner_text()
         assert "1 shared reference across 2 of your publications" in panel.inner_text()
+        domain_a = panel.locator(".mypubs-gap-scope-chip", has_text="Domain A")
+        with page.expect_request(lambda request: "domain_key=domain%3Aaaaaaaaaaaaaaaaaaaaa" in request.url):
+            domain_a.click()
+        panel.locator(".mypubs-gap-title", has_text="A domain-scoped neighboring work").wait_for()
+        assert domain_a.get_attribute("aria-pressed") == "true"
+        assert "in Domain A" in panel.locator(".mypubs-gap-coverage").inner_text()
         anchor = panel.locator(".mypubs-gap-anchor")
         assert not anchor.is_visible()
         panel.locator(".mypubs-gap-evidence summary").click()
