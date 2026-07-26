@@ -52,6 +52,7 @@ from app.backend.api.routers import (
     methods,
     methods_bayes,
     methods_retraction,
+    my_publication_citing_authors,
     my_publication_gaps,
     my_publication_topics,
     my_publications,
@@ -163,7 +164,9 @@ def create_app(
     api.state.mypubs_jobs = JobStore()
     api.state.mypubs_domain_jobs = JobStore()
     api.state.my_publication_gap_jobs = JobStore()
+    api.state.my_publication_citing_author_jobs = JobStore()
     api.state.my_publication_topic_jobs = JobStore()
+    api.state.openalex_citing_authors_client = None
     api.state.openalex_citing_topics_client = None
     api.state.library_scan_jobs = JobStore()
     api.state.library_scan_singleflight_lock = Lock()  # one scan/rescan writer at a time
@@ -286,6 +289,7 @@ def create_app(
     api.include_router(wanted.router)
     api.include_router(my_publications.router)
     api.include_router(my_publication_gaps.router)
+    api.include_router(my_publication_citing_authors.router)
     api.include_router(my_publication_topics.router)
     api.include_router(
         paper_enrich.router

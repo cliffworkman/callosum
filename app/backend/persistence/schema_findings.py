@@ -131,6 +131,21 @@ my_publication_emerging_topic_cache = Table(
     UniqueConstraint("scope_key", name="uq_my_publication_emerging_topic_scope_key"),
 )
 
+# My Publications Layer-4 citing-author evidence (inc 391): bounded, explicit-refresh snapshots with stable
+# OpenAlex author ids, visible counts, and exact citing-work/own-publication evidence. The coauthor exclusion is
+# coverage-qualified and computed from the same bounded own-work set.
+my_publication_citing_author_cache = Table(
+    "my_publication_citing_author_cache",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("scope_key", String(80), nullable=False),
+    Column("scope", JSON, nullable=False),
+    Column("authors", JSON, nullable=False),
+    Column("coverage", JSON, nullable=False),
+    Column("computed_at", String(40), nullable=False),
+    UniqueConstraint("scope_key", name="uq_my_publication_citing_author_scope_key"),
+)
+
 # Overlooked-work lens persistent cache (backlog #37): one row per surfaced candidate, scoped by axis_id. A refresh
 # replaces all rows for an axis; GET /overlooked reads here. Identity-agnostic by construction — there is NO author
 # column (the lens measures the work's attention-vs-relevance, never who wrote it). `relevance` and `year_percentile`

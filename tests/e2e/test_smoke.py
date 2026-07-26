@@ -372,6 +372,66 @@ def test_my_publications_grounded_prospection_reveals_source_evidence(server: st
             ),
         )
         page.route(
+            "**/my-publications/citing-authors*",
+            lambda route: route.fulfill(
+                json={
+                    "computed_at": "2026-07-26T12:45:00+00:00",
+                    "coverage": {
+                        "checked": 2 if "domain_key=" in route.request.url else 4,
+                        "with_doi": 2 if "domain_key=" in route.request.url else 4,
+                        "total": 2 if "domain_key=" in route.request.url else 4,
+                        "library_total": 4,
+                        "unresolved_openalex_count": 0,
+                        "start_year": 2020,
+                        "end_year": 2025,
+                        "citing_work_count": 2,
+                        "coauthor_checked_publication_count": 2,
+                        "coauthor_unresolved_publication_count": 0,
+                        "excluded_coauthor_count": 1,
+                        "missing_author_id_count": 0,
+                        "source_authorship_cap_count": 0,
+                        "citing_authorship_cap_count": 0,
+                        "publication_cap_reached": False,
+                        "citing_window_cap_reached": False,
+                        "scope_kind": "domains" if "domain_key=" in route.request.url else "all",
+                        "domain_count": 1 if "domain_key=" in route.request.url else 0,
+                        "domain_labels": ["Domain A"] if "domain_key=" in route.request.url else [],
+                        "note": "Repeated citation connections, not collaboration fit or a recommendation.",
+                    },
+                    "scope": {
+                        "kind": "domains" if "domain_key=" in route.request.url else "all",
+                        "domain_keys": (["domain:aaaaaaaaaaaaaaaaaaaa"] if "domain_key=" in route.request.url else []),
+                        "domain_labels": ["Domain A"] if "domain_key=" in route.request.url else [],
+                    },
+                    "authors": [
+                        {
+                            "author_id": "A900",
+                            "name": "Margaret Hamilton",
+                            "citing_work_count": 2,
+                            "cited_publication_count": 2,
+                            "latest_year": 2025,
+                            "citing_works": [
+                                {
+                                    "openalex_work_id": "W601",
+                                    "doi": "10.6/one",
+                                    "title": "A repeated citation connection",
+                                    "year": 2025,
+                                    "cited_publications": [{"paper_id": 1, "title": "Own publication A"}],
+                                },
+                                {
+                                    "openalex_work_id": "W602",
+                                    "doi": "10.6/two",
+                                    "title": "Another citation connection",
+                                    "year": 2024,
+                                    "cited_publications": [{"paper_id": 2, "title": "Own publication B"}],
+                                },
+                            ],
+                        }
+                    ],
+                }
+            ),
+        )
+        page.route(
             "**/axes",
             lambda route: route.fulfill(json=[{"id": 7, "label": "My Publications", "kind": "my_publications"}]),
         )
@@ -411,6 +471,23 @@ def test_my_publications_grounded_prospection_reveals_source_evidence(server: st
         assert topic_panel.get_by_text("A recent citing work", exact=False).is_visible()
         assert topic_panel.get_by_role("button", name="Own publication A", exact=True).first.is_visible()
         assert topic_panel.locator('a[href="https://openalex.org/W501"]').count() == 1
+
+        author_panel = page.locator('section[aria-labelledby="mypubs-citing-authors-title"]')
+        author_panel.wait_for()
+        assert "Margaret Hamilton" in author_panel.inner_text()
+        assert "2 of your publications · 2 citing works" in author_panel.locator(".mypubs-topic-change").inner_text()
+        author_domain_a = author_panel.locator(".mypubs-gap-scope-chip", has_text="Domain A")
+        with page.expect_request(
+            lambda request: "citing-authors" in request.url
+            and "domain_key=domain%3Aaaaaaaaaaaaaaaaaaaaa" in request.url
+        ):
+            author_domain_a.click()
+        assert author_domain_a.get_attribute("aria-pressed") == "true"
+        author_panel.locator(".mypubs-gap-evidence summary").click()
+        assert author_panel.get_by_text("A repeated citation connection", exact=False).is_visible()
+        assert author_panel.get_by_role("button", name="Own publication A", exact=True).is_visible()
+        assert author_panel.locator('a[href="https://openalex.org/A900"]').count() == 1
+        assert author_panel.locator('a[href="https://openalex.org/W601"]').count() == 1
         page.set_viewport_size({"width": 375, "height": 812})
         page.wait_for_timeout(120)
         _assert_no_document_horizontal_overflow(page, "My Publications grounded prospection / mobile")

@@ -9,7 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-26 inc 390 — grounded emerging citing topics -->
+<!-- HELP-DOCS-SYNCED: 2026-07-26 inc 391 — grounded authors citing your work -->
+## 2026-07-26 — Increment 391: grounded My Publications citing-author connections
+
+- **Files:** OpenAlex author-id/authorship adapter extension, deterministic citing-author service, scoped cache/API
+  + migration 0055, dashboard evidence panel, backend/migration/frontend/Chromium tests, help/README/QA/security/
+  backlog/future-track/CLAUDE/increment notes.
+- **What changed:** **My Publications → Authors citing your work** reuses the bounded six-complete-year citing-work
+  records and surfaces a stable OpenAlex author only when at least two retrieved works together cite at least two
+  confirmed own publications. The user's author id and ids found on checked own-work authorships are excluded.
+  Cards show only the visible publication/work counts and expand to every citing work plus every exact local source
+  publication; all/domain-union scopes keep independent atomic snapshots and ordinary reads remain local-only.
+- **Honesty / safety:** this is a private work-inspection index, never collaboration fit, compatibility,
+  availability, endorsement, or a recommendation of a person. “No coauthorship found” is explicitly bounded to
+  returned OpenAlex authorships. Coverage exposes missing work/authorship/author-id data and every relevant cap;
+  provider failure preserves the prior snapshot. No LLM, new host, dependency, credential, PDF/manuscript egress,
+  file, parser, or executable surface.
+- **Verify:** affected suite **143 passed**; full project suite **1632 passed, 1 skipped**; headed disposable-fixture
+  desktop/mobile walkthrough reached every author/work/publication link and found/fixed the older prospection
+  panels' object-vs-id source-selection bug; Ruff check/format, 404-file line budget, frontend build/assembly,
+  Alembic fresh/model/startup gates, QA **318/318 API + 1398/1419 FE** (same 21 report-only), security audit, and
+  diff hygiene pass. Required GitHub checks pending push.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-26 inc 390 — grounded emerging citing topics -->
 ## 2026-07-26 — Increment 390: grounded My Publications emerging citing topics
 
 - **Files:** bounded OpenAlex citing-window adapter, deterministic topic service, scoped cache/API + migration

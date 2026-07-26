@@ -20,6 +20,7 @@ WORKS_PER_PAGE = 100
 MAX_PAGES = 2
 MAX_WINDOW_WORKS = WORKS_PER_PAGE * MAX_PAGES
 MAX_AUTHORS = 8
+MAX_AUTHOR_RECORDS = 25
 
 
 class CitingTopicWindowUnavailable(RuntimeError):
@@ -145,6 +146,7 @@ def _work_from_obj(work: Any, source_ids: set[str]) -> dict[str, Any] | None:
         return None
     topic = _topic_from_obj(work.get("primary_topic"))
     year = work.get("publication_year")
+    authorships = [value for value in (work.get("authorships") or []) if isinstance(value, dict)]
     return {
         "openalex_work_id": work_id,
         "doi": _normalize_doi(work.get("doi") or (work.get("ids") or {}).get("doi")),
@@ -152,9 +154,11 @@ def _work_from_obj(work: Any, source_ids: set[str]) -> dict[str, Any] | None:
         "year": int(year) if isinstance(year, int) else None,
         "authors": [
             str((authorship.get("author") or {}).get("display_name") or "").strip()
-            for authorship in (work.get("authorships") or [])
-            if isinstance(authorship, dict) and (authorship.get("author") or {}).get("display_name")
+            for authorship in authorships
+            if (authorship.get("author") or {}).get("display_name")
         ][:MAX_AUTHORS],
+        "author_records": normalize_author_records(authorships),
+        "authorship_count": len(authorships),
         "primary_topic": topic,
         "cited_source_work_ids": cited_source_ids,
     }
@@ -183,6 +187,8 @@ def _cached_work(value: dict[str, Any]) -> dict[str, Any]:
         "title": value.get("title"),
         "year": value.get("year"),
         "authors": list(value.get("authors") or [])[:MAX_AUTHORS],
+        "author_records": normalize_author_records(value.get("author_records")),
+        "authorship_count": _bounded_nonnegative_int(value.get("authorship_count")),
         "primary_topic": value.get("primary_topic") if isinstance(value.get("primary_topic"), dict) else None,
         "cited_source_work_ids": list(value.get("cited_source_work_ids") or [])[:MAX_SOURCE_WORKS],
     }
@@ -190,7 +196,28 @@ def _cached_work(value: dict[str, Any]) -> dict[str, Any]:
 
 def _cache_key(work_ids: list[str], start_year: int, end_year: int) -> str:
     identity = "\0".join([str(start_year), str(end_year), *work_ids]).encode()
-    return f"window:v1:{hashlib.sha256(identity).hexdigest()[:32]}"
+    return f"window:v2:{hashlib.sha256(identity).hexdigest()[:32]}"
+
+
+def normalize_author_records(values: Any) -> list[dict[str, str]]:
+    """Keep stable OpenAlex author ids plus display names, bounded in provider order."""
+    records: list[dict[str, str]] = []
+    seen: set[str] = set()
+    if not isinstance(values, list):
+        return records
+    for value in values:
+        author = value.get("author") if isinstance(value, dict) and isinstance(value.get("author"), dict) else value
+        if not isinstance(author, dict):
+            continue
+        author_id = str(author.get("id") or "").rsplit("/", 1)[-1]
+        name = str(author.get("display_name") or author.get("name") or "").strip()
+        if re.fullmatch(r"A\d+", author_id) is None or not name or author_id in seen:
+            continue
+        seen.add(author_id)
+        records.append({"id": author_id, "name": name[:300]})
+        if len(records) == MAX_AUTHOR_RECORDS:
+            break
+    return records
 
 
 def _valid_years(start_year: int, end_year: int) -> bool:
@@ -205,3 +232,11 @@ def _normalize_doi(value: Any) -> str | None:
         if doi.startswith(prefix):
             doi = doi[len(prefix) :]
     return doi or None
+
+
+def _bounded_nonnegative_int(value: Any) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, min(parsed, 100))

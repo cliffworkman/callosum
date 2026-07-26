@@ -67,7 +67,20 @@ def test_my_publications_emerging_topics_is_explicit_grounded_and_scoped():
     assert "Inspect the citing works behind both counts" in raw
     assert "The visible paper-count increase is descriptive evidence, not a forecast." in raw
     assert 'aria-label="Emerging-topic research-domain scope"' in raw
-    assert "onSelectPaper && onSelectPaper({ id: paper.paper_id, title: paper.title })" in raw
+
+
+def test_my_publications_citing_authors_are_evidence_carried_and_not_recommendations():
+    raw = assemble_jsx()
+    assert "function MyPubsCitingAuthors" in raw
+    assert 'apiPost("/my-publications/citing-authors/refresh"' in raw
+    assert "at least two retrieved works" in raw
+    assert "at least two of your confirmed publications" in raw
+    assert "does not infer collaboration fit or recommend a person" in raw
+    assert "Inspect every citing work and publication connection" in raw
+    assert 'aria-label="Citing-author research-domain scope"' in raw
+    assert "<MyPubsCitingAuthors domains={domains} onSelectPaper={onSelectPaper} />" in raw
+    assert "onSelectPaper && onSelectPaper(paper.paper_id)" in raw
+    assert "onSelectPaper({ id: paper.paper_id" not in raw
     assert "<MyPubsEmergingTopics domains={domains} onSelectPaper={onSelectPaper} />" in raw
     css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
     assert ".mypubs-topic-change {" in css

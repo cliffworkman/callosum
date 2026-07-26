@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 390** (see Increment workflow) with **1623 pytest tests
+It is currently at **Increment 391** (see Increment workflow) with **1632 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -100,7 +100,11 @@ the full per-increment narrative for all other increments now lives in the reloc
   scope-named coverage while keeping all-publications as the default. **Inc 390** adds grounded emerging citing
   topics: equal three-year OpenAlex windows, visible recent/earlier counts and differences, exact citing-work plus
   own-publication evidence, the same all/domain-union snapshot posture, and explicit caps/omissions. It is a
-  descriptive signal, never a forecast or importance score.
+  descriptive signal, never a forecast or importance score. **Inc 391** completes deterministic Layer 4 with
+  grounded authors citing your work: stable author ids must appear across at least two retrieved citing works and
+  two own publications; self and checked coauthors are excluded; every visible count opens to exact work/publication
+  evidence; and bounded coauthor coverage is stated. It is a private inspection lead, never inferred collaboration
+  fit or a recommendation of a person. Optional grounded-data narration remains deferred.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**
@@ -471,7 +475,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 386). Each increment of real work
+callosum is built in **numbered increments** (currently at 391). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

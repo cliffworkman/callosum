@@ -81,7 +81,7 @@ class _Fetcher:
                     "doi": "https://doi.org/10.5/recent",
                     "title": "Recent citing work",
                     "publication_year": 2025,
-                    "authorships": [{"author": {"display_name": "C. Author"}}],
+                    "authorships": [{"author": {"id": "https://openalex.org/A501", "display_name": "C. Author"}}],
                     "primary_topic": {
                         "id": "https://openalex.org/T1",
                         "display_name": "Evidence Synthesis",
@@ -161,6 +161,7 @@ def test_openalex_citing_topic_window_is_bounded_normalized_and_cached(temp_db_u
     )
     assert fetcher.calls[0]["per-page"] == "100"
     assert works == cached and capped is cached_capped is False
+    assert works[0]["author_records"] == [{"id": "A501", "name": "C. Author"}]
     assert works[0]["primary_topic"]["id"] == "T1"
     assert works[0]["cited_source_work_ids"] == ["W101"]
     assert invalid == ([], False)

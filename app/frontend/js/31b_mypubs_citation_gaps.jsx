@@ -215,7 +215,7 @@ function MyPubsCitationGaps({ domains, onSelectPaper, onLibraryChanged }) {
                       <React.Fragment key={paper.paper_id}>
                         {index > 0 && <span>, </span>}
                         <button className="axis-link" onClick={() =>
-                          onSelectPaper && onSelectPaper({ id: paper.paper_id, title: paper.title })}>
+                          onSelectPaper && onSelectPaper(paper.paper_id)}>
                           {paper.title}
                         </button>
                       </React.Fragment>

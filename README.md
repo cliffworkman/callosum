@@ -50,7 +50,8 @@ explicitly turn on an AI feature.
 - **statcheck** (recompute reported NHST p-values), **p-curve**, **GRIM/GRIMMER**, and **retraction** checks
   (Crossref / OpenAlex / a Retraction Watch mirror).
 - A **literature gap-finder** (works cited by / citing several of your papers), a **My Publications** impact
-  dashboard, user-defined **semantic axes**, and free-form **tags**.
+  dashboard with evidence-backed citation gaps, emerging citing topics, and repeated citing-author connections,
+  user-defined **semantic axes**, and free-form **tags**.
 
 **Selective, opt-in AI** — used for *generation only* (summaries, axis-term suggestions, a help assistant), **off
 by default**, multi-provider (Gemini / OpenAI / Anthropic / a local OpenAI-compatible endpoint). A loopback **local**

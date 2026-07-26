@@ -184,8 +184,17 @@ only when at least two recent citing works produce a positive visible count diff
 All/domain-union scopes keep independent 16-scope atomic snapshots. Every surfaced count expands to all retrieved
 citing works behind it plus the exact confirmed own publications each cites; coverage exposes unresolved works,
 missing topics, and both source/window caps. Provider failure preserves the prior snapshot, and the UI explicitly
-frames the increase as a bounded description rather than a field-growth forecast or importance score. Candidate
-collaborators and any narration remain open.
+frames the increase as a bounded description rather than a field-growth forecast or importance score. At that
+point candidate collaborators and narration remained open. **Layer 4 slice 3 shipped in Increment 391 (2026-07-26): grounded
+authors citing your work.** Stable OpenAlex author identities surface only when they appear on at least two bounded
+citing works that together cite at least two confirmed own publications. The user's identity and author ids found
+on the checked own-work authorships are excluded; every visible author/publication count expands to every retrieved
+citing work and exact local publication link. The same all/domain-union scopes keep independent 16-scope atomic
+snapshots, and ordinary reads remain local-only. Coverage qualifies the six-complete-year window, unresolved work
+and authorship metadata, missing author ids, and source/window/per-work caps. The UI calls this a private
+work-inspection index, never collaboration fit, compatibility, availability, endorsement, or a recommendation;
+"no coauthorship found" is explicitly limited to checked OpenAlex authorships. **The deterministic Layer 4 is now
+complete.** Optional LLM narration over already-grounded data remains deliberately deferred.
 
 CONSTRAINTS:
 - Additive. Reuse the LibraryFrame tabs, the library card, abstract_clustering, the axis model,

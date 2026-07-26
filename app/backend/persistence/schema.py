@@ -504,8 +504,7 @@ missing_literature_suggestions = Table(
     CheckConstraint("score IS NULL OR (score >= 0 AND score <= 1)", name="missing_lit_score_0_1"),
 )
 
-# Findings / open-science-signals / retraction-mirror / gap-finder tables live in schema_findings (split out to
-# keep this file under the 600-line cap, rule #1). Re-exported here so existing
+# Findings / open-science-signals / retraction-mirror / gap-finder tables live in schema_findings. Re-exported so
 # ``from app.backend.persistence.schema import paper_findings`` imports keep working, and so importing this module
 # registers those tables on the shared ``metadata`` (0001's ``metadata.create_all`` then includes them).
 # Literature Feed tables (inc 187) — same split rationale; re-exported so existing import paths keep working and
@@ -517,6 +516,7 @@ from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     agent_writes,
     gap_candidates,
     my_publication_citation_gap_cache,
+    my_publication_citing_author_cache,
     my_publication_emerging_topic_cache,
     open_science_signals,
     overlooked_candidates,

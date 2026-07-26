@@ -1,12 +1,12 @@
 <!-- qa-coverage
 api: /my-publications*
-fe: 31_mypubs_dashboard.jsx, 31b_mypubs_citation_gaps.jsx, 31c_mypubs_emerging_topics.jsx, 32_mypubs_missing.jsx, 33_mypubs_pubs.jsx, 34_mypubs_citing.jsx
+fe: 31_mypubs_dashboard.jsx, 31b_mypubs_citation_gaps.jsx, 31c_mypubs_emerging_topics.jsx, 31d_mypubs_citing_authors.jsx, 32_mypubs_missing.jsx, 33_mypubs_pubs.jsx, 34_mypubs_citing.jsx
 -->
 
 # ROUTE 57 - My Publications
 
 **Tier:** 2 egress/external
-**Goal:** Exhaust profile, refresh, decisions, dashboard, grounded citation gaps, emerging citing topics, domains, works import/dismiss, summary, starring, citing-paper import, and reset flows.
+**Goal:** Exhaust profile, refresh, decisions, dashboard, grounded citation gaps, emerging citing topics, citing-author evidence, domains, works import/dismiss, summary, starring, citing-paper import, and reset flows.
 
 ## Environment
 
@@ -60,19 +60,32 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
     confirmed own publications they cite. Exercise all/domain-union scopes and confirm independent local snapshots,
     server-validated keys, explicit cap/omission coverage, and no-result language that refuses to imply a static or
     complete landscape. No blended trend/importance score or forecast language is allowed.
-11. Reset My Publications (`DELETE /my-publications`) only at the end of the disposable run; confirm dashboard returns to setup state.
+11. Before any citing-author action, load `GET /my-publications/citing-authors`; confirm an uncomputed local
+    snapshot triggers no OpenAlex request. Run `POST /my-publications/citing-authors/refresh`, poll
+    `GET /my-publications/citing-authors/refresh/{job_id}`, and verify each retained stable OpenAlex author appears
+    on at least two retrieved citing works that together cite at least two exact confirmed own publications. Expand
+    every row and follow the author profile, each citing work, and each local publication link. Confirm the profile
+    author and author ids found on the checked own-work authorships are excluded. Exercise all/domain-union scopes,
+    independent snapshots, stale-key 422s, provider failure preserving the prior snapshot, and cap/missing-id/
+    authorship coverage. The surface must say this is a private work-inspection index, not collaboration fit,
+    compatibility, availability, endorsement, or a recommendation; "no coauthorship found" must remain explicitly
+    bounded to checked OpenAlex authorships.
+12. Reset My Publications (`DELETE /my-publications`) only at the end of the disposable run; confirm dashboard returns to setup state.
 
 ## Pass criteria
 
 - Every My Publications panel and endpoint completes through the UI.
 - Hermetic default uses injected fake clients; no genai-host requests with egress unset.
-- Domains, stars, summaries, citation gaps, and emerging citing topics are transparent signals/user choices, never hidden verdicts.
+- Domains, stars, summaries, citation gaps, emerging citing topics, and citing-author connections are transparent signals/user choices, never hidden verdicts.
 - Citation-gap reads are local; only explicit refresh calls OpenAlex. All/domain-union scopes keep independent
   bounded snapshots, and domain keys are validated against the current server-side decomposition. Every candidate
   reaches exact graph evidence, directly cited/existing works stay excluded, and scoped coverage/caps remain visible.
 - Emerging-topic reads are local; explicit refresh uses two equal complete-year windows. Every visible increase
   reaches the citing works and own-publication links behind both counts, and coverage/caps prevent a forecast or
   completeness reading.
+- Citing-author reads are local; explicit refresh reuses the bounded six-year citing-work records and checks
+  own-work authorships. Both visible eligibility counts reach exact papers, coauthor exclusion is coverage-qualified,
+  and no copy judges or recommends a person.
 - Mobile viewport has no horizontal overflow.
 
 ## Deposit
