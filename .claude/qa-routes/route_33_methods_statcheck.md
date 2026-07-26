@@ -6,9 +6,9 @@ fe: 00_lib.jsx, 06_methods_statcheck.jsx
 # ROUTE 33 - Methods and statcheck
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust per-paper statcheck and library-wide statcheck summary/run surfaces — now consolidated in the
-METHODS pane "Statistics" section (inc 122; relabeled from "Statistics check" 2026-07-21 when the pane was
-regrouped into Details/Data/Statistics/Checklists) — while preserving signal-not-verdict language.
+**Goal:** Exhaust per-paper and library-wide statcheck surfaces, including conservative table-aware extraction
+from supported attachments — consolidated in the METHODS pane "Statistics" section (inc 122; relabeled from
+"Statistics check" 2026-07-21) — while preserving provenance and signal-not-verdict language.
 
 ## Environment
 
@@ -33,22 +33,31 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 ## Steps
 
 1. Open the **METHODS pane → "Statistics"** section. Select a paper, then run its per-paper check ("This paper" → Check statistics; `GET /papers/{paper_id}/statcheck`).
-2. Confirm each row shows the reported statistic (verbatim `raw`), recomputed p value, match status, and counts.
+2. Confirm each prose row shows the reported statistic (verbatim `raw`), recomputed p value, match status, and
+   counts. With a PDF/JATS/XML/HTML/DOCX/ODT fixture containing a clearly headed result table, confirm a
+   **TABLE N · ROW N** source badge appears, the reconstructed `header | row` evidence remains visible, and the
+   coverage line reports attachments/pages/tables/rows/table results. Unlabeled or ambiguous columns must not
+   produce a result.
    **inc 257: the page is now surfaced INLINE on each row** as a **`p. N`** locator (mono, indigo — it was
    tooltip-only before); a test with no attributed page shows a muted **`p. —`** (`.statcheck-page-none`), never a
    fabricated page. Confirm the bounded source/context quote uses the shared `EvidenceQuote` primitive (`00_lib.jsx`):
    precision is visible before the jump, the quote stays inside the row, and any clickable evidence opens source
    evidence rather than acting as a verdict. Assert there is no composite score and no accusation.
-3. Click each row with a location. Confirm coordinate honesty: the inline `p. N` opens that page at **region**
-   precision (page-open, no bbox rect — statcheck has no exact coordinates); a `p. —` row has no page to open. An
-   approximate/null location must never draw a fake exact highlight.
+3. Click each row with a location. Confirm coordinate honesty: prose opens at its existing exact/region/null
+   precision. A PDF table row opens at **region** precision using its retained table-row bbox; it never becomes
+   an exact quote match. A non-PDF table row with no page shows `p. —` and has no page action. An approximate or
+   absent location must never draw a fake exact highlight.
 4. In the same section's "Whole library" block, start library statcheck (Check all papers; `POST /methods/statcheck/run`) and poll (`GET /methods/statcheck/run/{job_id}`). Navigate away mid-run and return.
 5. After completion confirm the summary (`GET /methods/statcheck/summary`) drives the "N with inconsistencies" count and the library "⚠ N flagged" header chip; aggregate counts are transparent filters, not ranks. Click the **"⚠ N flagged" chip** (inc 141) → the library filters to flagged papers, the METHODS **Statistics** section opens, the **top flagged paper is auto-selected**, and its per-test rows **auto-show** (no manual "Check statistics" click) — the citer lands on the specific inconsistent result, not just "which papers".
-6. Directly visit a fake job id and a paper without parseable methods text. Confirm clean empty/error states. Confirm statcheck no longer appears in Settings or the Details pane (it lives only in the METHODS section now).
+6. Directly visit a fake job id and papers with (a) no parseable methods text, (b) an ambiguous/multi-p-value or
+   incomplete table, (c) a malformed supported attachment, and (d) more than eight supported attachments.
+   Confirm clean empty/error states, prose results survive an attachment failure, skipped/truncated coverage is
+   explicit, and work remains bounded. Confirm statcheck no longer appears in Settings or the Details pane.
 
 ## Pass criteria
 
 - Per-paper and library statcheck flows complete.
+- Clearly headed table evidence is attributable; ambiguous rows fail closed; scan caps are visible.
 - 0 console/page errors and 0 genai-host requests.
 - Counts and caveats remain non-accusatory; no hidden composite score.
 - Mobile viewport has no horizontal overflow.

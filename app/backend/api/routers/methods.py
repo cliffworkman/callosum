@@ -1,7 +1,8 @@
 """Deterministic Methods producers (inc 95–97).
 
-`GET /papers/{paper_id}/statcheck` recomputes reported NHST p-values from the paper's extracted text — sync,
-read-only, **local, no egress, no LLM**. A signal, not a verdict (see `methods/statcheck.py`).
+`GET /papers/{paper_id}/statcheck` recomputes reported NHST p-values from extracted prose and conservative,
+explicitly headed table rows — sync, read-only, **local, no egress, no LLM**. A signal, not a verdict (see
+`methods/statcheck.py`).
 
 `POST /methods/statcheck/run` (async, inc 97) batch-checks the whole live library and persists one summary row
 per paper into `open_science_signals`, so the library can be **filtered** to papers with reporting
@@ -15,6 +16,8 @@ from __future__ import annotations
 
 import logging
 from copy import deepcopy
+from dataclasses import replace
+from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request
@@ -25,17 +28,24 @@ from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
+from app.backend.document_tables import TableRowEvidence, extract_document_tables, supports_table_extraction
 from app.backend.methods.effectsize import convert as convert_effect_size
 from app.backend.methods.grim import grim_test, grimmer_test
 from app.backend.methods.pcurve import PcurveResult, run_pcurve
 from app.backend.methods.statcheck import run_statcheck
 from app.backend.pdf_processing.location import locate_quote_for_attachment
 from app.backend.persistence.findings_repo import upsert_findings
-from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
+from app.backend.persistence.repository import (
+    get_attachments_for_paper,
+    get_chunks_for_paper,
+    get_paper,
+    list_live_paper_ids,
+)
 from app.backend.persistence.signals_repo import count_statcheck_flagged, store_statcheck
 from app.backend.persistence.sqlite_retry import run_write
 
 MAX_PCURVE_PAPERS = 1000  # bound the selection a p-curve runs over (rule #4)
+MAX_STATCHECK_TABLE_ATTACHMENTS = 8
 
 router = APIRouter()
 _log = logging.getLogger("callosum.methods")
@@ -53,6 +63,21 @@ class StatcheckResult(BaseModel):
     section: str | None = None
     coordinate_precision: str | None = None
     bbox_json: Any | None = None
+    source_kind: Literal["prose", "table"] = "prose"
+    table_index: int | None = None
+    table_row: int | None = None
+    table_caption: str | None = None
+
+
+class StatcheckCoverage(BaseModel):
+    prose_chunks: int = 0
+    attachments_scanned: int = 0
+    attachments_skipped: int = 0
+    pages_scanned: int = 0
+    tables_scanned: int = 0
+    table_rows_scanned: int = 0
+    table_results: int = 0
+    truncated: bool = False
 
 
 class StatcheckResponse(BaseModel):
@@ -60,22 +85,24 @@ class StatcheckResponse(BaseModel):
     inconsistent: int
     decision_errors: int
     results: list[StatcheckResult]
+    coverage: StatcheckCoverage
 
 
 @router.get("/papers/{paper_id}/statcheck", response_model=StatcheckResponse)
 def paper_statcheck(paper_id: int, conn: Connection = Depends(get_connection)) -> StatcheckResponse:
-    # Deterministic, local recomputation over the paper's extracted text. No chunks (a metadata-only paper) →
-    # checked: 0, an honest "no extractable text" — never an error.
+    # Deterministic, local recomputation over extracted prose plus conservative table evidence. No eligible
+    # evidence → checked: 0, an honest empty result — never an error.
     try:
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    report = run_statcheck(get_chunks_for_paper(conn, paper_id))
+    report, coverage = _run_statcheck_for_paper(conn, paper_id)
     return StatcheckResponse(
         checked=report.checked,
         inconsistent=report.inconsistent,
         decision_errors=report.decision_errors,
         results=[StatcheckResult(**_statcheck_result_payload(conn, r)) for r in report.results],
+        coverage=StatcheckCoverage(**coverage),
     )
 
 
@@ -95,7 +122,7 @@ def _statcheck_result_payload(conn: Connection, result) -> dict[str, Any]:
     page_end = result.page_end or result.page
     precision = "region" if page is not None else None
     bbox_json = _stamp_coordinate_precision(result.chunk_bbox_json, "region") if precision == "region" else None
-    if result.attachment_id is not None and page is not None:
+    if result.source_kind != "table" and result.attachment_id is not None and page is not None:
         try:
             match = locate_quote_for_attachment(conn, int(result.attachment_id), result.raw)
         except Exception:
@@ -122,7 +149,83 @@ def _statcheck_result_payload(conn: Connection, result) -> dict[str, Any]:
         "section": result.section,
         "coordinate_precision": precision,
         "bbox_json": bbox_json,
+        "source_kind": result.source_kind,
+        "table_index": result.table_index,
+        "table_row": result.table_row,
+        "table_caption": result.table_caption,
     }
+
+
+def _run_statcheck_for_paper(conn: Connection, paper_id: int):
+    chunks = get_chunks_for_paper(conn, paper_id)
+    table_rows, coverage = _statcheck_table_rows(conn, paper_id, chunks)
+    report = run_statcheck(chunks, table_rows=table_rows)
+    coverage["table_results"] = sum(1 for result in report.results if result.source_kind == "table")
+    return report, coverage
+
+
+def _statcheck_table_rows(
+    conn: Connection,
+    paper_id: int,
+    chunks: list,
+) -> tuple[list[TableRowEvidence], dict[str, int | bool]]:
+    rows: list[TableRowEvidence] = []
+    coverage: dict[str, int | bool] = {
+        "prose_chunks": len(chunks),
+        "attachments_scanned": 0,
+        "attachments_skipped": 0,
+        "pages_scanned": 0,
+        "tables_scanned": 0,
+        "table_rows_scanned": 0,
+        "table_results": 0,
+        "truncated": False,
+    }
+    page_sections: dict[tuple[int, int], str] = {}
+    for chunk in chunks:
+        attachment_id = chunk.get("attachment_id") if hasattr(chunk, "get") else None
+        page = chunk.get("page_start") if hasattr(chunk, "get") else None
+        section = chunk.get("section") if hasattr(chunk, "get") else None
+        if attachment_id is not None and page is not None and section:
+            page_sections.setdefault((int(attachment_id), int(page)), str(section))
+
+    supported = []
+    for attachment in get_attachments_for_paper(conn, paper_id):
+        path_value = attachment["resolved_path"]
+        content_type = attachment["content_type"]
+        path = Path(str(path_value)) if path_value else None
+        if (
+            attachment["availability"] == "available"
+            and path is not None
+            and path.is_file()
+            and supports_table_extraction(path, content_type)
+        ):
+            supported.append((attachment, path, content_type))
+    if len(supported) > MAX_STATCHECK_TABLE_ATTACHMENTS:
+        coverage["truncated"] = True
+        coverage["attachments_skipped"] = len(supported) - MAX_STATCHECK_TABLE_ATTACHMENTS
+
+    for attachment, path, content_type in supported[:MAX_STATCHECK_TABLE_ATTACHMENTS]:
+        try:
+            extraction = extract_document_tables(path, content_type)
+        except Exception as exc:  # noqa: BLE001 — one malformed attachment never hides other evidence
+            coverage["attachments_skipped"] = int(coverage["attachments_skipped"]) + 1
+            _log.warning("statcheck table scan skipped attachment %s: %s", attachment["id"], exc)
+            continue
+        coverage["attachments_scanned"] = int(coverage["attachments_scanned"]) + 1
+        coverage["pages_scanned"] = int(coverage["pages_scanned"]) + extraction.pages_scanned
+        coverage["tables_scanned"] = int(coverage["tables_scanned"]) + extraction.tables_scanned
+        coverage["table_rows_scanned"] = int(coverage["table_rows_scanned"]) + len(extraction.rows)
+        coverage["truncated"] = bool(coverage["truncated"]) or extraction.truncated
+        attachment_id = int(attachment["id"])
+        rows.extend(
+            replace(
+                row,
+                attachment_id=attachment_id,
+                section=row.section or page_sections.get((attachment_id, int(row.page))) if row.page else row.section,
+            )
+            for row in extraction.rows
+        )
+    return rows, coverage
 
 
 # ── GRIM + GRIMMER (inc 127): an assisted, per-value data-consistency calculator (sync, stateless, no DB/egress).
@@ -354,8 +457,7 @@ def _run_statcheck_all_job(app: FastAPI, job_id: str) -> None:
         with engine.connect() as conn:
             ids = list_live_paper_ids(conn)
 
-        def process(conn, paper_id):  # inc C: one committed transaction per paper — lock released between papers
-            report = run_statcheck(get_chunks_for_paper(conn, paper_id))
+        def persist(conn, paper_id, report):  # inc C: one committed transaction per paper — lock released between
             store_statcheck(
                 conn,
                 paper_id,
@@ -396,7 +498,9 @@ def _run_statcheck_all_job(app: FastAPI, job_id: str) -> None:
         for paper_id in ids:
             total += 1
             try:
-                report = run_write(engine, lambda conn, pid=paper_id: process(conn, pid))
+                with engine.connect() as read_conn:
+                    report, _coverage = _run_statcheck_for_paper(read_conn, paper_id)
+                run_write(engine, lambda conn, pid=paper_id, rep=report: persist(conn, pid, rep))
             except Exception as exc:  # noqa: BLE001 — one bad paper never aborts the batch
                 _log.warning("statcheck batch: skipped paper %s: %s", paper_id, exc)
                 continue

@@ -43,7 +43,7 @@ function StatcheckLibrary({ onShowFlagged, onRan }) {
   const s = run.summary;
   return (
     <div className="statcheck-lib">
-      <div className="settings-sub">Recompute reported APA-style p-values across your whole library (statcheck) — local, no AI. It flags where a reported and recomputed p disagree; usually innocent (typos, rounding, one-tailed tests) — a list to review, not a verdict.</div>
+      <div className="settings-sub">Recompute reported APA-style p-values across your whole library (statcheck) — from running text and clearly headed table rows, local and without AI. It flags where a reported and recomputed p disagree; usually innocent (typos, rounding, one-tailed tests) — a list to review, not a verdict.</div>
       <div className="settings-actions">
         <button className="btn btn-primary" disabled={run.status === "running"} onClick={start}>
           {run.status === "running" ? "Checking…" : "Check all papers"}
@@ -73,7 +73,7 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
     let live = true;
     api(`/papers/${paperId}`).then(r => {
       if (!live || !r.ok) return;
-      setMeta({ title: r.data.title, hasText: (r.data.chunk_count || 0) > 0 });
+      setMeta({ title: r.data.title, hasText: (r.data.chunk_count || 0) > 0 || (r.data.attachment_count || 0) > 0 });
     });
     return () => { live = false; };
   }, [paperId]);
@@ -128,16 +128,27 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
       {!meta
         ? <span className="tag-suggest-empty">loading…</span>
         : !hasText
-          ? <span className="tag-suggest-empty">Process a PDF first — statcheck reads the paper's extracted text.</span>
+          ? <span className="tag-suggest-empty">Process a PDF or supported full-text document first — statcheck needs extracted evidence.</span>
           : state.status === "idle"
-            ? <button className="btn-link" title="Recompute reported p-values from this paper's text — local, no AI" onClick={run}>Check statistics</button>
+            ? <button className="btn-link" title="Recompute reported p-values from prose and clearly headed table rows — local, no AI" onClick={run}>Check statistics</button>
             : null}
       {state.status === "running" && <span className="tag-suggest-empty">checking…</span>}
       {state.status === "error" && <div className="axis-err">Couldn't check: {state.error}</div>}
       {state.status === "done" && d && (d.checked === 0
-        ? <div className="tag-suggest-empty">No APA-format statistics found in the extracted text.</div>
+        ? <div className="tag-suggest-empty">
+            No eligible APA-format statistics were found in running text or clearly headed table rows.
+            {d.coverage && <div className="statcheck-coverage">
+              Scanned {d.coverage.prose_chunks} text block{d.coverage.prose_chunks === 1 ? "" : "s"}
+              {" "}and {d.coverage.table_rows_scanned} row{d.coverage.table_rows_scanned === 1 ? "" : "s"} from{" "}
+              {d.coverage.tables_scanned} detected table{d.coverage.tables_scanned === 1 ? "" : "s"}.
+              {d.coverage.truncated && " A safety cap was reached; coverage is partial."}
+            </div>}
+          </div>
         : <div className="statcheck-result">
-            <div className="statcheck-summary">{d.checked} checked · {d.inconsistent} inconsistent · {d.decision_errors} decision error{d.decision_errors === 1 ? "" : "s"}</div>
+            <div className="statcheck-summary">
+              {d.checked} checked · {d.inconsistent} inconsistent · {d.decision_errors} decision error{d.decision_errors === 1 ? "" : "s"}
+              {d.coverage && d.coverage.table_results > 0 && ` · ${d.coverage.table_results} from tables`}
+            </div>
             <div className="statcheck-list" ref={listRef}>
               {d.results.map((r, i) => (
                 <div key={i} className={"statcheck-item" + (r.consistency !== "consistent" ? " flagged-row" : "")}>
@@ -147,6 +158,10 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
                       : "No page recorded for this test"}
                     onClick={() => open(r, i)}>
                     <span className="statcheck-raw">{r.raw}</span>
+                    {r.source_kind === "table" &&
+                      <span className="statcheck-source" title="Reconstructed only from this explicitly headed table row">
+                        table {r.table_index}{r.table_row ? ` · row ${r.table_row}` : ""}
+                      </span>}
                     {r.context && <EvidenceQuote text={r.context} match={r.raw} label="Context"
                       section={r.section}
                       precision={r.coordinate_precision} hasSourcePage={r.page != null}
@@ -159,12 +174,21 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
                   </button>
                   <EvidenceTrail detector="statcheck" matched={r.raw} precision={r.coordinate_precision}
                     hasSourcePage={r.page != null} page={r.page} section={r.section}
-                    caveat="statcheck recomputes inline APA-style tests only; a signal is a prompt to inspect, not a verdict." />
+                    caveat={r.source_kind === "table"
+                      ? "Reconstructed from the displayed table headers and row; ambiguous rows are skipped. A signal is a prompt to inspect, not a verdict."
+                      : "Recomputed from an inline APA-style test; a signal is a prompt to inspect, not a verdict."} />
                 </div>
               ))}
             </div>
+            {d.coverage && <div className="statcheck-coverage">
+              Table coverage: {d.coverage.tables_scanned} detected table{d.coverage.tables_scanned === 1 ? "" : "s"},{" "}
+              {d.coverage.table_rows_scanned} row{d.coverage.table_rows_scanned === 1 ? "" : "s"} scanned across{" "}
+              {d.coverage.attachments_scanned} attachment{d.coverage.attachments_scanned === 1 ? "" : "s"}.
+              {d.coverage.attachments_skipped > 0 && ` ${d.coverage.attachments_skipped} attachment${d.coverage.attachments_skipped === 1 ? " was" : "s were"} skipped.`}
+              {d.coverage.truncated && " A safety cap was reached; coverage is partial."}
+            </div>}
             <div className="statcheck-caveat">
-              statcheck reads only inline APA-style tests and recomputes each p — it can't see tables, Bayesian stats, or CIs, so a clean result isn't a clean bill. Inconsistencies are common and usually innocent (typos, rounding, one-tailed tests) — a prompt to look, not a verdict.
+              statcheck reads inline APA-style tests plus table rows whose headers unambiguously identify the test, degrees of freedom, statistic, and p-value. Ambiguous/unlabeled tables, Bayesian statistics, and confidence-interval-only results remain invisible, so a clean result isn't a clean bill. Inconsistencies are common and usually innocent (typos, rounding, one-tailed tests) — a prompt to look, not a verdict.
             </div>
           </div>)}
     </div>

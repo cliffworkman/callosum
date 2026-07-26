@@ -454,7 +454,13 @@ def test_statcheck_rows_render_inline_context_evidence():
     assert 'precision: r.coordinate_precision || "region"' in raw
     assert "bboxJson: r.bbox_json || null" in raw
     assert "Open and highlight this reported test" in raw
+    assert 'r.source_kind === "table"' in raw
+    assert 'className="statcheck-source"' in raw
+    assert "d.coverage.table_results" in raw and "d.coverage.table_rows_scanned" in raw
+    assert "Ambiguous/unlabeled tables" in raw
     assert ".statcheck-context" in css
+    assert ".statcheck-source" in css
+    assert ".statcheck-coverage" in css
     assert ".evidence-mark" in css
     assert ".evidence-trail" in css
 

@@ -291,6 +291,88 @@ def test_my_publications_grounded_citation_gap_reveals_source_evidence(server: s
         browser.close()
 
 
+def test_statcheck_table_result_surfaces_provenance_and_coverage(server: str):
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+        page = browser.new_page(viewport={"width": 1366, "height": 900})
+        page.route(
+            "**/papers/*/statcheck",
+            lambda route: route.fulfill(
+                json={
+                    "checked": 1,
+                    "inconsistent": 0,
+                    "decision_errors": 1,
+                    "results": [
+                        {
+                            "raw": "Memory | t(28) | 1.50 | .04",
+                            "context": (
+                                "Table headers: Outcome | Test (df) | Statistic | p-value. "
+                                "Table row: Memory | t(28) | 1.50 | .04."
+                            ),
+                            "test_type": "t",
+                            "reported_p": "p = .04",
+                            "computed_p": 0.144,
+                            "consistency": "decision-error",
+                            "page": 1,
+                            "page_end": 1,
+                            "section": "Results",
+                            "coordinate_precision": "region",
+                            "bbox_json": [
+                                {
+                                    "page": 1,
+                                    "x0": 40,
+                                    "y0": 75,
+                                    "x1": 440,
+                                    "y1": 110,
+                                    "source_kind": "table-row",
+                                    "coordinate_precision": "region",
+                                }
+                            ],
+                            "source_kind": "table",
+                            "table_index": 1,
+                            "table_row": 2,
+                            "table_caption": "Primary outcomes",
+                        }
+                    ],
+                    "coverage": {
+                        "prose_chunks": 4,
+                        "attachments_scanned": 1,
+                        "attachments_skipped": 0,
+                        "pages_scanned": 1,
+                        "tables_scanned": 1,
+                        "table_rows_scanned": 3,
+                        "table_results": 1,
+                        "truncated": False,
+                    },
+                }
+            ),
+        )
+        errors = _mount_app(page, server)
+
+        page.locator(".paper").first.click()
+        statistics = page.locator(".pane-detail .acc-header", has_text="Statistics").first
+        statistics.click()
+        source = page.locator(".statcheck-source")
+        source.wait_for()
+        assert source.inner_text() == "TABLE 1 · ROW 2"
+        assert "1 from tables" in page.locator(".statcheck-summary").inner_text()
+        assert "1 detected table" in page.locator(".statcheck-coverage").inner_text()
+        assert "Memory | t(28) | 1.50 | .04" in page.locator(".statcheck-item").inner_text()
+        assert (
+            "Ambiguous/unlabeled tables"
+            in page.locator(".detail-statcheck .statcheck-result > .statcheck-caveat").inner_text()
+        )
+
+        page.set_viewport_size({"width": 375, "height": 812})
+        page.wait_for_timeout(120)
+        _assert_no_document_horizontal_overflow(page, "table-aware statcheck / mobile")
+        assert errors == []
+        browser.close()
+
+
 def test_tool_panes_resist_visual_drift(server: str):
     with sync_playwright() as p:
         try:

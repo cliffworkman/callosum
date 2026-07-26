@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 386** (see Increment workflow) with **1597 pytest tests
+It is currently at **Increment 387** (see Increment workflow) with **1607 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -34,7 +34,9 @@ the full per-increment narrative for all other increments now lives in the reloc
 - **Vectors:** `sqlite-vec` (in-process, no separate daemon) + sentence-transformers
   (default embed model `all-MiniLM-L6-v2`; `bge-base-en-v1.5` also supported).
 - **Clustering:** scikit-learn agglomerative clustering + local axis scoring.
-- **Methods (deterministic, local, no-LLM):** statcheck NHST p-value recomputation (`scipy.stats`), inc 95.
+- **Methods (deterministic, local, no-LLM):** statcheck NHST p-value recomputation (`scipy.stats`), inc 95;
+  inc 387 conservatively adds clearly headed table rows from local PDF/JATS/XML/HTML/DOCX/ODT attachments
+  without mixing reconstructed rows into prose chunks or embeddings.
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):

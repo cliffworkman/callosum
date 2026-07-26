@@ -1,5 +1,10 @@
 Review of beneficial repos to integrate into/adapt for Callosum: https://lakens.github.io/automated_review_daily_build/
 
+**Status correction (2026-07-25):** the second increment's `DocumentTextProvider` adapters already shipped in
+inc 352, including JATS/XML, HTML, DOCX, ODT, plain text, and TeX. The fifth increment's conservative
+table-aware statcheck slice shipped in inc 387 for PDF/JATS/XML/HTML/DOCX/ODT attachments. RegCheck remains
+auditability-gated; CRediT and the broader DEBIT/duplication/z-curve registry remain separate future work.
+
 Highest-value additions
 1. ODDPub + rtransparent + output-it-forward	Build a local Transparency signals METHODS/findings module. Detect data availability, code availability, repository links, COI, funding, protocol registration, preregistration language, and "upon request" statements. Store as evidence-backed findings and optional read-only system tags, not as author accusations. ODDPub is especially useful because it returns detected categories and sentences, and reports validation on PubMed biomedical papers. rtransparent broadens this to COI, funding, and registration indicators. OIF contributes editable phrase and repository-domain lists.
 
@@ -27,12 +32,14 @@ Tools I would not prioritize
 Concrete integration order
 1. First increment: build methods/transparency.py with ODDPub/rtransparent/OIF-derived detectors over existing chunks. Output evidence rows with kind, status, matched_sentence, source_page, confidence_basis, and detector_credit. Feed them into the existing findings/tag design, especially the open #19 tags-to-system-facts problem.
 
-2. Second increment: add DocumentTextProvider adapters for JATS/XML, DOCX, and HTML. Keep PyMuPDF/Tesseract as primary PDF paths. This is infrastructure, but it unlocks better table/stat extraction, PMC transparency detection, and preregistration comparison.
+2. Second increment: **SHIPPED (inc 352).** `DocumentTextProvider` supports JATS/XML, DOCX, HTML, ODT, plain
+text, and TeX while keeping PyMuPDF/Tesseract as the primary PDF paths.
 
 3. Third increment: spec RegCheck the Callosum way. The failure mode is letting an LLM summarize "deviations" without inspectable evidence. The aligned version is a registration-paper delta table with source-paired quotes and statuses. This likely touches your unresolved "how auditable is auditable enough?" gate.
 
 4. Fourth increment: CRediT builder/extractor. Use tenzing for the builder lineage and ContriBOT for extracting/reading contribution statements from already-published papers. This fits the existing future track directly.
 
-5. Fifth increment: extend statistical consistency checks from "statcheck + GRIM/GRIMMER" toward a registry: DEBIT, table-aware stat extraction, more statcheck forms, and maybe z-curve later. The backlog already identifies more statcheck forms and table results as the remaining open follow-up.
+5. Fifth increment: **PARTIAL.** Comparison-bound forms shipped earlier and conservative table-aware statcheck
+shipped in inc 387. A broader registry (DEBIT, duplication analysis, and perhaps z-curve later) remains.
 
 Bottom line: the biggest missing category is not another inferential-statistics checker. It is transparency and registration alignment. Callosum already has a strong statistical-auditing spine. The most natural next expansion is: "Does this paper make the open-science and preregistration artifacts visible, and how do those artifacts line up with the published report?"

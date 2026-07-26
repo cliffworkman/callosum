@@ -156,7 +156,7 @@ ad-hoc class names are **grouped into** those rules so the recipe isn't re-typed
 Recipe: `--mono`, ~10px, `text-transform:uppercase`, `letter-spacing:.04em`, padded `2px 7px`, pill
 radius. Semantic color **pairs**: verified → `--verified-soft`/`--verified`; flag/uncertain/region →
 `--flag-soft`/`--flag`; neutral → `--line`/`--ink-2`; accent/manual → `--accent-soft`/`--accent`.
-(`.tier*`, `.axis-tier*`, `.sent-badge/.cite-status/.coord`, `.needs-doi`, `.chip`.)
+(`.tier*`, `.axis-tier*`, `.sent-badge/.cite-status/.coord`, `.needs-doi`, `.chip`, `.statcheck-source`.)
 **Narrow exceptions:** red `--danger` is permitted only on the strongest negative **evidence-backed status** pills:
 `.cite-status.contradicted` (inc 203, A9) for a cited source that *actively disagrees* with the claim, and
 `.tier-retracted` (inc 292) for a registry-recorded retraction. Both use `--danger-line`/`--danger`, are

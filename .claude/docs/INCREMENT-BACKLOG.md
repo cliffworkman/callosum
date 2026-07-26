@@ -189,10 +189,6 @@ the Principles + A-A gates before build.)*
   trusted anchor (R BayesFactor / a validated Rouder-2012 quadrature) turns up.
 - **#25 Citation concentration — a real *field* self-citation baseline.** Needs per-field-paper reference
   fetches — a cost/design call. *(Overlaps #37's citation-credit-concentration remediation.)*
-- ✅ **#27 statcheck — more test forms — PARTIALLY CLOSED 2026-07-22.** Test-stat `<`/`>` comparisons (e.g.
-  `F(1,44) < 1, p > .05`) now handled — a p-value-interval consistency check reusing the existing "does a valid
-  value exist" philosophy, never a false flag on an ambiguous case. **Still open:** results reported in tables
-  — a structurally different problem (table-aware extraction), not a regex extension.
 - **#29 Gap-finder — followed-authors as a source.** Blocked on a "followed authors" concept that doesn't exist
   yet; also external-search discovery beyond the library (overlaps #30/Track C).
 - ✅ **#30 Highlight-to-suggest/evaluate (Track C), SP1 + SP2/Stage-3 — CLOSED, corrected 2026-07-22.** This
@@ -464,12 +460,13 @@ the Principles + A-A gates before build.)*
   user exclusion/filtering; thumb auditability; the real field self-citation baseline (= #25 again).
 - **#41 User-authored modules (plugins).** [future track — record only] Deferred record of the idea + open
   questions. Do not build a plugin system until a dedicated design pass.
-- **#44 Lakens-catalog integration — increments 2–5.** Increment 1/1b (the transparency-signals auditor + its
-  persistence/review-queue) shipped (incs 250/251). Remaining: **Increment 2** — `DocumentTextProvider` adapters
-  for JATS/XML, DOCX, HTML (unlocks better table/stat extraction + registration comparison). **Increment 3**
-  (fraught, gated) — **RegCheck**, a registration↔paper delta table, human-verified, behind the auditability
-  gate — an emergent value needing the "how auditable is auditable enough" question answered first. **Increments
-  4–5** overlap existing tracks (CRediT = #26; more statcheck forms = #27; a collection-level z-curve).
+- **#44 Lakens-catalog integration — remaining increments 3–5.** Increment 1/1b (the transparency-signals
+  auditor + persistence/review queue) shipped in 250/251. Increment 2's `DocumentTextProvider` already shipped
+  in inc 352 (`app/backend/document_text.py`: PDF/JATS/XML/HTML/DOCX/ODT/plain/TeX), correcting this stale entry.
+  Increment 5's conservative table-aware statcheck slice shipped in inc 387. Remaining: **Increment 3**
+  (fraught, gated) — **RegCheck**, a registration↔paper delta table, human-verified behind the auditability gate;
+  **Increment 4** overlaps CRediT #26; the rest of **Increment 5** is a broader consistency registry
+  (DEBIT/duplication analysis and perhaps a collection-level z-curve).
 
 ---
 
@@ -525,7 +522,8 @@ plus later reconciliation findings.)*
 - Re-score line-wrapping fix — inc 86
 - More settings → axis cutoff default in Settings — inc 105 *(ongoing: other prefs as they arise)*
 - Open-science signals — statcheck v1 + library lens + header chip (95/97/100); p-curve (126) + GRIM/GRIMMER
-  (127/129) + unified "N to review" facet (133) *(only "more test forms" remains — see #27)*
+  (127/129) + unified "N to review" facet (133); comparison-bound forms (inc 333) + conservative table-aware
+  statcheck for PDF/JATS/XML/HTML/DOCX/ODT attachments (inc 387). **#27 closed.**
 - Citation engine Phase 1/2 + LibreOffice adapter — inc 106/107/108 *(Word + Google Docs adapters — see below)*
 - **Frontend/UX pass — inc 109–116:** brand-asset source move; PDF page-view options fit-width/two-up (was #2);
   editable Translators (part of #5); multi-paper focus query (see #7); button canonicalization; synthesis

@@ -8,8 +8,9 @@ It is a **signal, never a verdict** (PRINCIPLES #2) and **never an accusation** 
 is most often innocent (a typo, rounding, a one-tailed test, an adjusted value), and the recomputation accounts
 for the test statistic's rounding + tries the one-tailed reading so it does not naively flag correct reporting.
 Results carry the **verbatim matched string** + the **page** (PRINCIPLES #8/#1), and coverage is stated honestly
-(#6): this reads only inline APA NHST — tables, Bayesian stats, and CIs are invisible, so a clean result is not a
-clean bill. There is **no composite score** (#7) — only per-test results and transparent counts.
+(#6): this reads inline APA NHST plus conservatively reconstructed, explicitly headed table rows; ambiguous
+tables, Bayesian stats, and CIs remain invisible, so a clean result is not a clean bill. There is **no composite
+score** (#7) — only per-test results and transparent counts.
 """
 
 from __future__ import annotations
@@ -23,9 +24,12 @@ from scipy.stats import f as f_dist
 from scipy.stats import norm
 from scipy.stats import t as t_dist
 
+from app.backend.document_tables import TableRowEvidence
+from app.backend.methods.statcheck_tables import parse_table_stat
+
 ALPHA = 0.05
 MAX_RESULTS = 500  # bound the work on an untrusted/huge text (rule #4)
-STATCHECK_VERSION = "1"
+STATCHECK_VERSION = "2"
 
 # A number: "2.10", ".04", "45", "-2.1". Backlog #27: the test-statistic comparator is no longer required to be
 # "=" -- APA reporting sometimes gives an inequality instead of an exact value (e.g. "F(1,44) < 1, p > .05",
@@ -63,6 +67,10 @@ class StatResult:
     attachment_id: int | None = None
     chunk_bbox_json: object | None = None
     section: str | None = None
+    source_kind: str = "prose"
+    table_index: int | None = None
+    table_row: int | None = None
+    table_caption: str | None = None
 
 
 @dataclass
@@ -209,6 +217,10 @@ def _scan_text(
     attachment_id: int | None = None,
     chunk_bbox_json: object | None = None,
     section: str | None = None,
+    source_kind: str = "prose",
+    table_index: int | None = None,
+    table_row: int | None = None,
+    table_caption: str | None = None,
 ) -> None:
     for test_type, pattern in _PATTERNS:
         for m in pattern.finditer(text):
@@ -254,13 +266,98 @@ def _scan_text(
                     attachment_id=attachment_id,
                     chunk_bbox_json=chunk_bbox_json,
                     section=section,
+                    source_kind=source_kind,
+                    table_index=table_index,
+                    table_row=table_row,
+                    table_caption=table_caption,
                 )
             )
 
 
-def run_statcheck(chunks: list) -> StatcheckReport:
-    """Scan a paper's chunk rows (each carrying `text` + `page_start`) for APA NHST results and recompute each.
-    Per-chunk so every match carries its page; a stat split across a chunk boundary is missed (a v1 caveat)."""
+def _scan_table_row(row: TableRowEvidence, out: list[StatResult]) -> None:
+    if len(out) >= MAX_RESULTS:
+        return
+    if not row.cells or not any(row.cells):
+        return
+
+    # A complete APA result printed inside one cell needs no reconstruction. It is still labeled as table-derived.
+    initial_count = len(out)
+    for cell in row.cells:
+        if not cell:
+            continue
+        _scan_text(
+            cell,
+            row.page,
+            out,
+            attachment_id=row.attachment_id,
+            chunk_bbox_json=list(row.bbox_json) or None,
+            section=row.section,
+            source_kind="table",
+            table_index=row.table_index,
+            table_row=row.row_index,
+            table_caption=row.caption,
+        )
+        if len(out) >= MAX_RESULTS:
+            return
+    if len(out) > initial_count:
+        return
+
+    candidate = parse_table_stat(row)
+    if candidate is None:
+        return
+    try:
+        stat = _to_float(candidate.stat)
+        p_value = _to_float(candidate.p_value)
+    except ValueError:
+        return
+    if candidate.test_type != "z" and candidate.df1 <= 0:
+        return
+    classified = _classify(
+        candidate.test_type,
+        stat,
+        _decimals(candidate.stat),
+        candidate.stat_comparator,
+        candidate.p_comparator,
+        p_value,
+        _decimals(candidate.p_value),
+        candidate.df1,
+        candidate.df2,
+    )
+    if classified is None:
+        return
+    consistency, computed_p = classified
+    header_text = " | ".join(candidate.headers)
+    row_text = " | ".join(candidate.cells)
+    context = f"Table headers: {header_text}. Table row: {row_text}."
+    out.append(
+        StatResult(
+            raw=row_text,
+            context=context[:500],
+            test_type=candidate.test_type,
+            reported_p=f"p {candidate.p_comparator} {candidate.p_value}",
+            computed_p=round(computed_p, 4),
+            consistency=consistency,
+            page=row.page,
+            page_end=row.page,
+            attachment_id=row.attachment_id,
+            chunk_bbox_json=list(row.bbox_json) or None,
+            section=row.section,
+            source_kind="table",
+            table_index=row.table_index,
+            table_row=row.row_index,
+            table_caption=row.caption,
+        )
+    )
+
+
+def run_statcheck(
+    chunks: list, *, table_rows: list[TableRowEvidence] | tuple[TableRowEvidence, ...] = ()
+) -> StatcheckReport:
+    """Scan prose chunks and explicitly headed table rows for APA NHST results, then recompute each.
+
+    Prose remains per-chunk so every match carries its page; a statistic split across a chunk boundary is missed.
+    Table rows are supplied separately so reconstructed structure never enters the prose/embedding corpus.
+    """
     results: list[StatResult] = []
     for chunk in chunks:
         if len(results) >= MAX_RESULTS:
@@ -298,6 +395,25 @@ def run_statcheck(chunks: list) -> StatcheckReport:
             chunk_bbox_json=chunk_bbox_json,
             section=section,
         )
+    for row in table_rows:
+        if len(results) >= MAX_RESULTS:
+            break
+        _scan_table_row(row, results)
+    deduped: list[StatResult] = []
+    seen: set[tuple] = set()
+    for result in results:
+        key = (
+            result.attachment_id,
+            result.page,
+            result.source_kind,
+            result.table_index,
+            result.table_row,
+            result.raw.casefold(),
+        )
+        if key not in seen:
+            seen.add(key)
+            deduped.append(result)
+    results = deduped
     report = StatcheckReport(checked=len(results), results=results)
     report.inconsistent = sum(1 for r in results if r.consistency == "inconsistent")
     report.decision_errors = sum(1 for r in results if r.consistency == "decision-error")

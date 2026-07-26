@@ -9,7 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 386 — My Publications grounded citation gaps -->
+<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 387 — table-aware statcheck -->
+## 2026-07-25 — Increment 387: conservative table-aware statcheck
+
+- **Files:** bounded multi-format table-evidence provider, conservative stat-table interpreter, statcheck
+  method/API/UI integration, backend/frontend/Chromium tests, help/QA/security/backlog/future-track/CLAUDE notes.
+- **What changed:** per-paper and library statcheck now inspect clearly headed result tables in local
+  PDF/JATS/XML/HTML/DOCX/ODT attachments. Results retain header/row text and attachment/page/table/row
+  provenance; the panel labels reconstructed rows and reports scan coverage.
+- **Boundaries:** ambiguous, unlabeled, multi-p-value, and incomplete rows fail closed. Table rows remain
+  ephemeral and separate from prose chunks/embeddings. PDF rows are region evidence, never fabricated exact
+  quotations. P-curve and WIP attachment behavior are unchanged.
+- **Safety:** local/no-egress/no-LLM; no dependency or migration. File/archive/page/table/row/column/cell and
+  per-paper attachment caps are explicit; malformed attachments skip without hiding prose findings.
+- **Experience:** a skeptical-synthesizer browser walkthrough found the reconstructed source and next inspection
+  action clear at desktop and phone width. Persona-agent dispatch was unavailable under the session's
+  no-delegation constraint.
+- **Verification:** final gate counts are recorded in `INCREMENT-387-NOTES.md`.
+- **Revert:** `git revert` this commit.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-25 inc 386 — My Publications grounded citation gaps -->
 ## 2026-07-25 — Increment 386: My Publications grounded citation gaps
 
 - **Files:** bounded co-citation graph service, atomic snapshot schema/repository + migration 0052, async API,

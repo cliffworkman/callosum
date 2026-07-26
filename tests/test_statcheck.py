@@ -1,15 +1,18 @@
-"""Tests for statcheck (inc 95) — deterministic NHST p-value recomputation. Hermetic (no network, no LLM).
+"""Tests for statcheck — deterministic NHST p-value recomputation. Hermetic (no network, no LLM).
 The crux is correctness: a correctly-rounded / one-tailed result must NOT be flagged (no false positives)."""
 
 from __future__ import annotations
 
 from types import SimpleNamespace
 
+import fitz
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.backend.api import create_app
+from app.backend.document_tables import TableRowEvidence
 from app.backend.methods.statcheck import recompute_p, run_statcheck
+from app.backend.pdf_processing.ingest import attach_pdf_to_paper
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper, list_papers
 from app.backend.persistence.schema import open_science_signals
@@ -136,6 +139,84 @@ def test_section_provenance_from_chunk():
     assert rep.results[0].consistency == "consistent"
 
 
+def test_structured_table_row_is_recomputed_with_verbatim_evidence():
+    row = TableRowEvidence(
+        headers=("Outcome", "Test (df)", "Statistic", "p-value"),
+        cells=("Memory", "t(28)", "1.50", ".04"),
+        source_type="jats",
+        table_index=2,
+        row_index=4,
+        caption="Primary outcomes",
+        section="Results",
+    )
+    rep = run_statcheck([], table_rows=[row])
+    assert rep.checked == 1
+    result = rep.results[0]
+    assert result.raw == "Memory | t(28) | 1.50 | .04"
+    assert result.context == (
+        "Table headers: Outcome | Test (df) | Statistic | p-value. Table row: Memory | t(28) | 1.50 | .04."
+    )
+    assert result.consistency == "decision-error"
+    assert result.source_kind == "table"
+    assert (result.table_index, result.table_row, result.table_caption, result.section) == (
+        2,
+        4,
+        "Primary outcomes",
+        "Results",
+    )
+
+
+def test_structured_table_supports_separate_test_df_and_statistic_columns():
+    rows = [
+        TableRowEvidence(
+            headers=("Outcome", "Test", "df", "Statistic", "p"),
+            cells=("Accuracy", "F", "1, 44", "5.20", ".027"),
+            source_type="html",
+            table_index=1,
+            row_index=2,
+        ),
+        TableRowEvidence(
+            headers=("Outcome", "t", "df", "p"),
+            cells=("Memory", "2.10", "28", ".04"),
+            source_type="docx",
+            table_index=1,
+            row_index=2,
+        ),
+    ]
+    rep = run_statcheck([], table_rows=rows)
+    assert [(result.test_type, result.consistency) for result in rep.results] == [
+        ("F", "consistent"),
+        ("t", "consistent"),
+    ]
+
+
+def test_structured_table_skips_ambiguous_or_incomplete_rows():
+    rows = [
+        TableRowEvidence(
+            headers=("Outcome", "Estimate", "p"),
+            cells=("Memory", "2.10", ".04"),
+            source_type="pdf",
+            table_index=1,
+            row_index=2,
+        ),
+        TableRowEvidence(
+            headers=("Outcome", "t", "p"),
+            cells=("Memory", "2.10", ".04"),
+            source_type="pdf",
+            table_index=1,
+            row_index=3,
+        ),
+        TableRowEvidence(
+            headers=("Outcome", "t", "df", "p", "significance"),
+            cells=("Memory", "2.10", "28", ".04", ".08"),
+            source_type="pdf",
+            table_index=1,
+            row_index=4,
+        ),
+    ]
+    assert run_statcheck([], table_rows=rows).checked == 0
+
+
 def test_result_carries_bounded_extracted_text_context():
     text = (
         "Before the model, participants completed the task. "
@@ -197,8 +278,131 @@ def test_statcheck_endpoint(temp_db_url):
         "inconsistent": 0,
         "decision_errors": 0,
         "results": [],
+        "coverage": {
+            "prose_chunks": 0,
+            "attachments_scanned": 0,
+            "attachments_skipped": 0,
+            "pages_scanned": 0,
+            "tables_scanned": 0,
+            "table_rows_scanned": 0,
+            "table_results": 0,
+            "truncated": False,
+        },
     }
     assert client.get("/papers/999999/statcheck").status_code == 404
+
+
+def test_statcheck_endpoint_reads_real_pdf_table_with_row_provenance(temp_db_url, tmp_path):
+    pdf_path = tmp_path / "table-results.pdf"
+    document = fitz.open()
+    page = document.new_page(width=560, height=300)
+    xs = [35, 170, 285, 390, 525]
+    ys = [40, 78, 116, 154]
+    for x in xs:
+        page.draw_line((x, ys[0]), (x, ys[-1]))
+    for y in ys:
+        page.draw_line((xs[0], y), (xs[-1], y))
+    for values, baseline in (
+        (("Outcome", "Test (df)", "Statistic", "p-value"), 63),
+        (("Memory", "t(28)", "1.50", ".04"), 101),
+        (("Attention", "t(28)", "2.10", ".04"), 139),
+    ):
+        for value, x in zip(values, xs, strict=False):
+            page.insert_text((x + 5, baseline), value, fontsize=9)
+    document.save(pdf_path)
+    document.close()
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(
+            conn,
+            title="Table Stats",
+            csl_json={"type": "article-journal", "title": "Table Stats"},
+        )
+        attach_pdf_to_paper(conn, paper_id, pdf_path)
+
+    data = TestClient(create_app(db_url=temp_db_url)).get(f"/papers/{paper_id}/statcheck").json()
+    table_results = [result for result in data["results"] if result["source_kind"] == "table"]
+    assert data["coverage"] == {
+        "prose_chunks": data["coverage"]["prose_chunks"],
+        "attachments_scanned": 1,
+        "attachments_skipped": 0,
+        "pages_scanned": 1,
+        "tables_scanned": 1,
+        "table_rows_scanned": 2,
+        "table_results": 2,
+        "truncated": False,
+    }
+    assert [(result["raw"], result["consistency"]) for result in table_results] == [
+        ("Memory | t(28) | 1.50 | .04", "decision-error"),
+        ("Attention | t(28) | 2.10 | .04", "consistent"),
+    ]
+    assert all(result["coordinate_precision"] == "region" for result in table_results)
+    assert all(result["page"] == 1 and result["table_index"] == 1 for result in table_results)
+    assert [result["table_row"] for result in table_results] == [2, 3]
+    assert all(result["bbox_json"][0]["source_kind"] == "table-row" for result in table_results)
+
+
+def test_statcheck_endpoint_keeps_prose_when_table_attachment_is_malformed(temp_db_url, tmp_path):
+    bad_pdf = tmp_path / "broken.pdf"
+    bad_pdf.write_bytes(b"not a pdf")
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(conn, title="Mixed evidence", csl_json={"title": "Mixed evidence"})
+        attachment_id = create_attachment(
+            conn,
+            paper_id=paper_id,
+            storage_mode="managed",
+            availability="available",
+            resolved_path=str(bad_pdf),
+            content_type="application/pdf",
+        )
+        create_chunk(
+            conn,
+            paper_id=paper_id,
+            attachment_id=attachment_id,
+            text="t(28) = 2.10, p = .04",
+            page_start=1,
+            page_end=1,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="fixture",
+            extraction_version="1",
+            chunking_strategy="fixture",
+            chunk_version="fixture",
+            source_attachment_checksum="fixture",
+        )
+    data = TestClient(create_app(db_url=temp_db_url)).get(f"/papers/{paper_id}/statcheck").json()
+    assert data["checked"] == 1 and data["results"][0]["source_kind"] == "prose"
+    assert data["coverage"]["attachments_scanned"] == 0
+    assert data["coverage"]["attachments_skipped"] == 1
+
+
+def test_statcheck_table_attachment_scan_is_capped_and_reported(temp_db_url, tmp_path):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(conn, title="Many tables", csl_json={"title": "Many tables"})
+        for index in range(9):
+            path = tmp_path / f"table-{index}.html"
+            path.write_text(
+                """
+                <table><tr><th>Outcome</th><th>t</th><th>df</th><th>p</th></tr>
+                <tr><td>Memory</td><td>2.10</td><td>28</td><td>.04</td></tr></table>
+                """,
+                encoding="utf-8",
+            )
+            create_attachment(
+                conn,
+                paper_id=paper_id,
+                storage_mode="managed",
+                availability="available",
+                resolved_path=str(path),
+                content_type="text/html",
+            )
+    data = TestClient(create_app(db_url=temp_db_url)).get(f"/papers/{paper_id}/statcheck").json()
+    assert data["checked"] == 8
+    assert data["coverage"]["attachments_scanned"] == 8
+    assert data["coverage"]["attachments_skipped"] == 1
+    assert data["coverage"]["truncated"] is True
 
 
 def test_statcheck_endpoint_exposes_exact_anchor_when_pdf_locator_matches_page(temp_db_url, monkeypatch):
@@ -360,6 +564,39 @@ def test_statcheck_batch_run_then_filter(temp_db_url):
     assert [p["title"] for p in flagged] == ["Bad Stats"]  # only the inconsistent paper, never a rank
     assert client.get("/methods/statcheck/summary").json()["flagged"] == 1  # drives the library "N flagged" chip
     assert client.get("/methods/statcheck/run/nope").status_code == 404
+
+
+def test_statcheck_batch_persists_table_only_inconsistency(temp_db_url, tmp_path):
+    table_path = tmp_path / "table-only.html"
+    table_path.write_text(
+        """
+        <table><tr><th>Outcome</th><th>t</th><th>df</th><th>p</th></tr>
+        <tr><td>Memory</td><td>1.50</td><td>28</td><td>.04</td></tr></table>
+        """,
+        encoding="utf-8",
+    )
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(conn, title="Table-only Stats", csl_json={"title": "Table-only Stats"})
+        create_attachment(
+            conn,
+            paper_id=paper_id,
+            storage_mode="managed",
+            availability="available",
+            resolved_path=str(table_path),
+            content_type="text/html",
+        )
+    client = TestClient(create_app(db_url=temp_db_url))
+    job_id = client.post("/methods/statcheck/run").json()["job_id"]
+    result = {}
+    for _ in range(30):
+        result = client.get(f"/methods/statcheck/run/{job_id}").json()
+        if result["status"] in ("done", "error"):
+            break
+    assert result["status"] == "done"
+    assert result["summary"] == {"total": 1, "checked": 1, "flagged": 1}
+    flagged = client.get("/papers", params={"signal": "statcheck-inconsistent"}).json()
+    assert [paper["id"] for paper in flagged] == [paper_id]
 
 
 def test_statcheck_batch_commits_per_paper_partial_progress(temp_db_url, monkeypatch):

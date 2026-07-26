@@ -52,7 +52,7 @@ def test_statcheck_run_is_snapshot_bound_reviewable_and_hash_invalidated(temp_db
     assert run.status_code == 200
     payload = run.json()
     assert payload["tool_id"] == "statcheck"
-    assert payload["tool_version"] == "1"
+    assert payload["tool_version"] == "2"
     assert payload["validity"] == "current-with-findings"
     assert "No surfaced inconsistency never means" in payload["coverage"]
     assert payload["structured_result_json"]["checked"] == 1
