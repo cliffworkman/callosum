@@ -9,7 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-26 inc 389 — domain-scoped citation gaps -->
+<!-- HELP-DOCS-SYNCED: 2026-07-26 inc 390 — grounded emerging citing topics -->
+## 2026-07-26 — Increment 390: grounded My Publications emerging citing topics
+
+- **Files:** bounded OpenAlex citing-window adapter, deterministic topic service, scoped cache/API + migration
+  0054, dashboard evidence panel, backend/migration/frontend/Chromium tests, help/QA/security/backlog/future-track/
+  CLAUDE/increment notes.
+- **What changed:** **My Publications → Emerging citing topics** compares OpenAlex primary topics in the last
+  three complete calendar years with the preceding three. A topic needs at least two recent citing works and a
+  positive visible count difference; expanding it reaches every retrieved work behind both counts and the exact
+  confirmed own publications each cites.
+- **Scope/cache:** All publications and server-validated multi-domain unions keep independent atomic local
+  snapshots under the existing 16-scope cap. Ordinary reads and scope switches remain local-only.
+- **Boundaries:** at most 50 resolved own works feed two equally capped 200-work windows, and at most six topics
+  surface. Coverage names both windows, unresolved works, missing primary topics, and all caps. The increase is a
+  bounded description, never a field-growth forecast, quality judgment, importance rank, or opaque score.
+- **Safety:** only explicit Find/Refresh performs fixed-host public-metadata egress. Provider/partial-window failure
+  preserves the prior snapshot; no LLM, dependency, file access, credential, or new external host is introduced.
+- **Experience:** a corpus-builder browser pass found the count comparison, domain scope, citing-work trail, and
+  own-publication source direct at desktop and phone width, with zero console/page errors.
+- **Verification:** final gate counts are recorded in `INCREMENT-390-NOTES.md`.
+- **Revert:** `git revert` this commit.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-26 inc 389 — domain-scoped citation gaps -->
 ## 2026-07-26 — Increment 389: domain-scoped My Publications citation gaps
 
 - **Files:** stable domain-scope contract, scoped citation-gap service/API/cache + migration 0053, dashboard

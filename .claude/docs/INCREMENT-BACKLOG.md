@@ -430,14 +430,19 @@ the Principles + A-A gates before build.)*
   **Future goal (recorded 2026-07-24): approximate feature parity for Microsoft Word and Google Docs.**
   Treat this as a later cross-editor adaptation track, not a requirement to hold the active LibreOffice work
   open; preserve each host's native interaction model rather than requiring pixel- or command-for-command parity.
-- **#35 My Publications — Layer 4.** **Grounded citation gaps shipped inc 386; domain scoping shipped inc 389.** The
+- **#35 My Publications — Layer 4.** **Grounded citation gaps shipped inc 386; domain scoping shipped inc 389;
+  emerging citing topics shipped inc 390.** The
   dashboard's explicit-refresh, LLM-free scan finds OpenAlex works that cite reference anchors shared by at least
   two confirmed own publications while excluding works any scanned own publication already cites. Every candidate
   preserves the exact shared references and clickable own-publication evidence, exposes coverage/caps, reads from
   a local atomic snapshot on ordinary dashboard opens, and remains add-or-dismiss. Domain chips now constrain the
   graph walk to the union of one or more server-validated research domains; all/domain combinations keep separate,
-  bounded snapshots and the coverage names the active scope. Still open in Layer 4: emerging citing-topics,
-  candidate collaborators, and optional LLM narration over the already-grounded data only.
+  bounded snapshots and the coverage names the active scope. A second explicit-refresh panel now compares
+  OpenAlex primary topics across the last three complete years and the preceding three, surfacing only a visible
+  positive citing-work count difference backed by every retrieved citing work and the exact own publications it
+  cites. Equal-window/source caps, DOI/topic omissions, and domain scope remain explicit; it is a bounded
+  description, never a forecast or importance score. Still open in Layer 4: candidate collaborators and optional
+  LLM narration over the already-grounded data only.
 - **#36 Meta-analysis — the assisted-extraction funnel's next escalations.** The consumer-side reporting auditor,
   the effect-size converter, the extraction workspace (grid + select-in-PDF capture), the dataset loop + exports,
   and the AI-proposes/human-filters funnel are all shipped (SP1/SP2a/SP2b, incs 249–259). **Batch "Draft all

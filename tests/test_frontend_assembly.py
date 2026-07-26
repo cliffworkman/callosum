@@ -59,6 +59,21 @@ def test_every_js_chunk_is_included():
         assert text in raw, f"{chunk.name} is missing from the assembled frontend"
 
 
+def test_my_publications_emerging_topics_is_explicit_grounded_and_scoped():
+    raw = assemble_jsx()
+    assert "function MyPubsEmergingTopics({ domains, onSelectPaper })" in raw
+    assert 'apiPost("/my-publications/emerging-citing-topics/refresh"' in raw
+    assert "No local snapshot for {scopeLabel}" in raw
+    assert "Inspect the citing works behind both counts" in raw
+    assert "The visible paper-count increase is descriptive evidence, not a forecast." in raw
+    assert 'aria-label="Emerging-topic research-domain scope"' in raw
+    assert "onSelectPaper && onSelectPaper({ id: paper.paper_id, title: paper.title })" in raw
+    assert "<MyPubsEmergingTopics domains={domains} onSelectPaper={onSelectPaper} />" in raw
+    css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
+    assert ".mypubs-topic-change {" in css
+    assert "@media (max-width: 520px)" in css
+
+
 def test_workbench_batch_drafting_preserves_candidate_review_gate():
     src = (FRONTEND_DIR / "js" / "45_workbench.jsx").read_text(encoding="utf-8")
     css = (FRONTEND_DIR / "styles.css").read_text(encoding="utf-8")

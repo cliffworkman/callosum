@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 389** (see Increment workflow) with **1613 pytest tests
+It is currently at **Increment 390** (see Increment workflow) with **1623 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -97,7 +97,10 @@ the full per-increment narrative for all other increments now lives in the reloc
   and carries every candidate's exact shared references plus clickable source publications. Ordinary dashboard
   reads make no request; visible graph counts order candidates without an opaque score, and coverage/caps are
   stated. **Inc 389** adds server-validated, multi-domain union scopes with independent bounded snapshots and
-  scope-named coverage while keeping all-publications as the default.
+  scope-named coverage while keeping all-publications as the default. **Inc 390** adds grounded emerging citing
+  topics: equal three-year OpenAlex windows, visible recent/earlier counts and differences, exact citing-work plus
+  own-publication evidence, the same all/domain-union snapshot posture, and explicit caps/omissions. It is a
+  descriptive signal, never a forecast or importance score.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

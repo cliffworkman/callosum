@@ -1,12 +1,12 @@
 <!-- qa-coverage
 api: /my-publications*
-fe: 31_mypubs_dashboard.jsx, 31b_mypubs_citation_gaps.jsx, 32_mypubs_missing.jsx, 33_mypubs_pubs.jsx, 34_mypubs_citing.jsx
+fe: 31_mypubs_dashboard.jsx, 31b_mypubs_citation_gaps.jsx, 31c_mypubs_emerging_topics.jsx, 32_mypubs_missing.jsx, 33_mypubs_pubs.jsx, 34_mypubs_citing.jsx
 -->
 
 # ROUTE 57 - My Publications
 
 **Tier:** 2 egress/external
-**Goal:** Exhaust profile, refresh, decisions, dashboard, grounded citation gaps, domains, works import/dismiss, summary, starring, citing-paper import, and reset flows.
+**Goal:** Exhaust profile, refresh, decisions, dashboard, grounded citation gaps, emerging citing topics, domains, works import/dismiss, summary, starring, citing-paper import, and reset flows.
 
 ## Environment
 
@@ -52,16 +52,27 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
    arbitrary papers. Add one DOI-backed candidate and dismiss another; re-read each cache and confirm both disappear
    without recomputation. Exercise a no-result fixture and verify it explicitly says this is not a certificate of
    completeness.
-10. Reset My Publications (`DELETE /my-publications`) only at the end of the disposable run; confirm dashboard returns to setup state.
+10. Before any emerging-topic action, load `GET /my-publications/emerging-citing-topics`; confirm an uncomputed
+    local snapshot triggers no OpenAlex request. Run `POST /my-publications/emerging-citing-topics/refresh`, poll
+    `GET /my-publications/emerging-citing-topics/refresh/{job_id}`, and confirm the panel compares the last three
+    complete calendar years with the preceding three. Each surfaced primary topic must show a recent count, earlier
+    count, and plain increase; expand it and verify every count resolves to the retrieved citing works plus the exact
+    confirmed own publications they cite. Exercise all/domain-union scopes and confirm independent local snapshots,
+    server-validated keys, explicit cap/omission coverage, and no-result language that refuses to imply a static or
+    complete landscape. No blended trend/importance score or forecast language is allowed.
+11. Reset My Publications (`DELETE /my-publications`) only at the end of the disposable run; confirm dashboard returns to setup state.
 
 ## Pass criteria
 
 - Every My Publications panel and endpoint completes through the UI.
 - Hermetic default uses injected fake clients; no genai-host requests with egress unset.
-- Domains, stars, summaries, and citation gaps are transparent signals/user choices, never hidden verdicts.
+- Domains, stars, summaries, citation gaps, and emerging citing topics are transparent signals/user choices, never hidden verdicts.
 - Citation-gap reads are local; only explicit refresh calls OpenAlex. All/domain-union scopes keep independent
   bounded snapshots, and domain keys are validated against the current server-side decomposition. Every candidate
   reaches exact graph evidence, directly cited/existing works stay excluded, and scoped coverage/caps remain visible.
+- Emerging-topic reads are local; explicit refresh uses two equal complete-year windows. Every visible increase
+  reaches the citing works and own-publication links behind both counts, and coverage/caps prevent a forecast or
+  completeness reading.
 - Mobile viewport has no horizontal overflow.
 
 ## Deposit

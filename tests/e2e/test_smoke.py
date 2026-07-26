@@ -197,7 +197,7 @@ def _walk_accordion_sections(page, pane_selector: str, label: str) -> None:
         _assert_tool_panes_do_not_overflow(page, f"{label} / {section_label}")
 
 
-def test_my_publications_grounded_citation_gap_reveals_source_evidence(server: str):
+def test_my_publications_grounded_prospection_reveals_source_evidence(server: str):
     with sync_playwright() as p:
         try:
             browser = p.chromium.launch()
@@ -299,6 +299,79 @@ def test_my_publications_grounded_citation_gap_reveals_source_evidence(server: s
             ),
         )
         page.route(
+            "**/my-publications/emerging-citing-topics*",
+            lambda route: route.fulfill(
+                json={
+                    "computed_at": "2026-07-26T12:30:00+00:00",
+                    "coverage": {
+                        "checked": 2 if "domain_key=" in route.request.url else 4,
+                        "with_doi": 2 if "domain_key=" in route.request.url else 4,
+                        "total": 2 if "domain_key=" in route.request.url else 4,
+                        "library_total": 4,
+                        "recent_start_year": 2023,
+                        "recent_end_year": 2025,
+                        "previous_start_year": 2020,
+                        "previous_end_year": 2022,
+                        "recent_work_count": 2,
+                        "previous_work_count": 1,
+                        "missing_primary_topic_count": 0,
+                        "publication_cap_reached": False,
+                        "recent_window_cap_reached": False,
+                        "previous_window_cap_reached": False,
+                        "scope_kind": "domains" if "domain_key=" in route.request.url else "all",
+                        "domain_count": 1 if "domain_key=" in route.request.url else 0,
+                        "domain_labels": ["Domain A"] if "domain_key=" in route.request.url else [],
+                        "note": "Counts describe bounded OpenAlex records, not a forecast.",
+                    },
+                    "scope": {
+                        "kind": "domains" if "domain_key=" in route.request.url else "all",
+                        "domain_keys": (["domain:aaaaaaaaaaaaaaaaaaaa"] if "domain_key=" in route.request.url else []),
+                        "domain_labels": ["Domain A"] if "domain_key=" in route.request.url else [],
+                    },
+                    "topics": [
+                        {
+                            "topic_id": "T101",
+                            "name": "Evidence synthesis",
+                            "subfield": "Research methods",
+                            "field": "Social sciences",
+                            "domain": "Social sciences",
+                            "recent_count": 2,
+                            "previous_count": 1,
+                            "increase": 1,
+                            "recent_works": [
+                                {
+                                    "openalex_work_id": "W501",
+                                    "doi": "10.5/recent",
+                                    "title": "A recent citing work",
+                                    "year": 2025,
+                                    "authors": ["Grace Hopper"],
+                                    "cited_publications": [{"paper_id": 1, "title": "Own publication A"}],
+                                },
+                                {
+                                    "openalex_work_id": "W502",
+                                    "doi": "10.5/recent-b",
+                                    "title": "Another recent citing work",
+                                    "year": 2024,
+                                    "authors": ["Katherine Johnson"],
+                                    "cited_publications": [{"paper_id": 2, "title": "Own publication B"}],
+                                },
+                            ],
+                            "previous_works": [
+                                {
+                                    "openalex_work_id": "W401",
+                                    "doi": "10.5/earlier",
+                                    "title": "An earlier citing work",
+                                    "year": 2022,
+                                    "authors": ["Dorothy Vaughan"],
+                                    "cited_publications": [{"paper_id": 1, "title": "Own publication A"}],
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ),
+        )
+        page.route(
             "**/axes",
             lambda route: route.fulfill(json=[{"id": 7, "label": "My Publications", "kind": "my_publications"}]),
         )
@@ -306,7 +379,7 @@ def test_my_publications_grounded_citation_gap_reveals_source_evidence(server: s
         errors = _mount_app(page, server)
 
         page.get_by_role("tab", name="My Publications", exact=True).click()
-        panel = page.locator(".mypubs-prospection")
+        panel = page.locator('section[aria-labelledby="mypubs-citation-gaps-title"]')
         panel.wait_for()
         assert "A grounded neighboring work" in panel.inner_text()
         assert "1 shared reference across 2 of your publications" in panel.inner_text()
@@ -322,9 +395,25 @@ def test_my_publications_grounded_citation_gap_reveals_source_evidence(server: s
         assert anchor.is_visible() and "The shared reference" in anchor.inner_text()
         assert page.get_by_role("button", name="Own publication A", exact=True).is_visible()
         assert panel.locator('a[href="https://openalex.org/W301"]').count() == 1
+
+        topic_panel = page.locator('section[aria-labelledby="mypubs-emerging-topics-title"]')
+        topic_panel.wait_for()
+        assert "Evidence synthesis" in topic_panel.inner_text()
+        assert "+1" in topic_panel.locator(".mypubs-topic-change").inner_text()
+        topic_domain_a = topic_panel.locator(".mypubs-gap-scope-chip", has_text="Domain A")
+        with page.expect_request(
+            lambda request: "emerging-citing-topics" in request.url
+            and "domain_key=domain%3Aaaaaaaaaaaaaaaaaaaaa" in request.url
+        ):
+            topic_domain_a.click()
+        assert topic_domain_a.get_attribute("aria-pressed") == "true"
+        topic_panel.locator(".mypubs-gap-evidence summary").click()
+        assert topic_panel.get_by_text("A recent citing work", exact=False).is_visible()
+        assert topic_panel.get_by_role("button", name="Own publication A", exact=True).first.is_visible()
+        assert topic_panel.locator('a[href="https://openalex.org/W501"]').count() == 1
         page.set_viewport_size({"width": 375, "height": 812})
         page.wait_for_timeout(120)
-        _assert_no_document_horizontal_overflow(page, "My Publications citation gaps / mobile")
+        _assert_no_document_horizontal_overflow(page, "My Publications grounded prospection / mobile")
         assert errors == []
         browser.close()
 

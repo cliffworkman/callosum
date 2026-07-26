@@ -2424,6 +2424,23 @@
   .mypubs-gap-anchor { margin: 6px 0 0 14px; line-height: 1.45; }
   .mypubs-gap-anchor > a { color: var(--ink-2); font-weight: 600; }
   .mypubs-gap-caveat { margin: 7px 0 0 14px; color: var(--ink-3); font-style: italic; }
+  /* inc 390: emerging citing topics reuse the grounded-prospection/scope/evidence grammar above. */
+  .mypubs-topic-list { display: flex; flex-direction: column; }
+  .mypubs-topic-card { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .mypubs-topic-card-main { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .mypubs-topic-card-main > div:first-child { min-width: 0; flex: 1; }
+  .mypubs-topic-hierarchy { margin-top: 2px; color: var(--ink-3); font-size: 11px; }
+  .mypubs-topic-change { flex: 0 0 auto; display: flex; align-items: baseline; gap: 6px; color: var(--ink-2); font-family: var(--mono); }
+  .mypubs-topic-change b { color: var(--accent); font-size: 16px; }
+  .mypubs-topic-change span { font-size: 11.5px; }
+  .mypubs-topic-period { margin: 8px 0 0 14px; }
+  .mypubs-topic-period-title { color: var(--ink-3); font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .mypubs-topic-work { margin-top: 5px; line-height: 1.4; color: var(--ink-3); }
+  .mypubs-topic-work > a { color: var(--ink-2); font-weight: 600; }
+  .mypubs-topic-cites { margin: 1px 0 0 10px; color: var(--ink-3); }
+  @media (max-width: 520px) {
+    .mypubs-topic-card-main { align-items: flex-start; flex-direction: column; gap: 4px; }
+  }
   /* Star key publications (inc 84) — ★ uses --accent (selection), not amber (--flag is status). */
   .axis-star { border: none; background: none; cursor: pointer; font-size: 13px; line-height: 1; color: var(--ink-3); padding: 0 2px; }
   .axis-star:hover { color: var(--accent); }

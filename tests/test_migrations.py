@@ -37,6 +37,16 @@ def test_alembic_check_reports_no_model_drift(tmp_path):
     command.check(cfg)
 
 
+def test_emerging_citing_topic_snapshot_table_is_at_head(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'migration-emerging-topics.sqlite'}"
+    cfg = _config_for(db_url)
+    command.upgrade(cfg, "head")
+    engine = create_engine(db_url)
+    columns = {column["name"] for column in inspect(engine).get_columns("my_publication_emerging_topic_cache")}
+    assert columns == {"id", "scope_key", "scope", "topics", "coverage", "computed_at"}
+    engine.dispose()
+
+
 def test_wip_tool_run_migration_upgrades_an_existing_0050_database(tmp_path):
     db_url = f"sqlite:///{tmp_path / 'migration-wip-tool-runs.sqlite'}"
     cfg = _config_for(db_url)

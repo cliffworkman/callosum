@@ -177,8 +177,15 @@ without an opaque score, and coverage text names OpenAlex/cap limits and refuses
 completeness. **Increment 389 (2026-07-26) completed the corpus-builder follow-up:** one or more existing
 research-domain chips constrain the scan to their confirmed-publication union; stable membership-derived keys are
 validated against the current decomposition; all/domain combinations keep separate atomic snapshots under a
-16-scope local cap; and coverage names the active scope. Emerging citing-topics, candidate collaborators, and any
-narration remain open.
+16-scope local cap; and coverage names the active scope. **Layer 4 slice 2 shipped in Increment 390 (2026-07-26):
+grounded emerging citing topics.** One bounded OpenAlex union query per equal three-year window follows at most 50
+confirmed own-work ids, assigns each retrieved citing work only to its OpenAlex primary topic, and surfaces a topic
+only when at least two recent citing works produce a positive visible count difference from the preceding window.
+All/domain-union scopes keep independent 16-scope atomic snapshots. Every surfaced count expands to all retrieved
+citing works behind it plus the exact confirmed own publications each cites; coverage exposes unresolved works,
+missing topics, and both source/window caps. Provider failure preserves the prior snapshot, and the UI explicitly
+frames the increase as a bounded description rather than a field-growth forecast or importance score. Candidate
+collaborators and any narration remain open.
 
 CONSTRAINTS:
 - Additive. Reuse the LibraryFrame tabs, the library card, abstract_clustering, the axis model,
