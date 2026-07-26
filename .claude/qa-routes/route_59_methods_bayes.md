@@ -67,13 +67,16 @@ genai-host request regardless). Register listeners before navigation.
 3. Confirm a **reproduces** row shows `reported BF₁₀ = …` + `recomputed … (paired|two-sample|correlation)` + a green
    pill; a **couldn't reproduce** row shows the amber pill + the recomputed candidate(s). A **correlation** `r(df)`
    BF has a single recomputed value (`(correlation)`), no paired/two-sample fork.
-4. Click a per-BF row -> the PDF opens at that page at **region** precision (no exact rect).
+4. Click a per-BF row -> the PDF opens at that page at **region** precision (no exact rect). With a multi-PDF
+   paper whose matched row lives in the secondary PDF, confirm the request includes that PDF's `attachment_id`
+   and does not open the primary.
 5. Confirm the **default-prior caveat** (r ≈ 0.71; a different prior → an expected mismatch; inline-only coverage;
    "not a verdict or an accusation").
 6. **SP2 — Reporting checklist.** For a Bayesian paper, confirm the **Reporting checklist** below the recompute: rows
    for **Prior stated**, **Convergence diagnostics**, **Prior sensitivity/robustness**, each `✓ present` / `not found`
-   / `n/a` / `⚠ check` (coherence). A present/coherence row shows the **matched evidence snippet** (opens its page at
-   region precision). Confirm the guidelines-credit (BARG/WAMBS/JASP) + the "not detected in the text, not a verdict"
+   / `n/a` / `⚠ check` (coherence). A present/coherence row shows the **matched evidence snippet** (opens its page
+   at region precision in the PDF attachment that supplied the evidence). Confirm the guidelines-credit
+   (BARG/WAMBS/JASP) + the "not detected in the text, not a verdict"
    caveat. Confirm convergence is **n/a** for a closed-form BF paper (no MCMC).
    - **SP4 — Advisory notes (if present).** A Bayesian paper that mentions a "confidence interval" (with no "credible
      interval"), or a BF₀₁ near "support for the alternative", shows an **Advisory** block — clearly demarcated from
@@ -97,7 +100,7 @@ genai-host request regardless). Register listeners before navigation.
 ## Pass criteria
 
 - The auditor recomputes reported default BFs, shows reproduce/couldn't-reproduce with the recomputed value + prior,
-  and routes each row to its page at region precision.
+  and routes each row to its page at region precision in the evidence-bearing PDF attachment.
 - 0 console/page errors; **0 genai-host requests** (local).
 - No per-paper/per-author judgment, no score/rank; a mismatch is "couldn't reproduce under the default prior".
 - No-chunks / no-BF / unknown-id fail closed honestly; mobile viewport has no horizontal overflow.

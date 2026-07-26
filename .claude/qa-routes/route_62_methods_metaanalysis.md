@@ -71,6 +71,8 @@ genai-host request regardless). Register listeners before navigation.
    and the **search & selection** check is `n/a` for a within-study mini-meta (the precondition scoping — no flag on
    every meta-analysis).
 5. Click a present check's evidence snippet -> the PDF opens at that page at **region** precision (no exact rect).
+   With a multi-PDF paper whose evidence lives in the secondary PDF, confirm the request includes that PDF's
+   `attachment_id` and does not open the primary.
 6. Confirm the honest-scope caveat ("reporting completeness, not analysis correctness; never pools/models/re-computes/
    scores/accuses").
 7. Confirm the **credit** block (Higgins/Egger/Duval & Tweedie/Sterne/DerSimonian & Laird/IntHout/Viechtbauer/
@@ -90,7 +92,7 @@ genai-host request regardless). Register listeners before navigation.
 ## Pass criteria
 
 - The auditor flags reporting presence/absence across the 7 checks, each with a grounded/cited recommendation, and
-  routes present-check evidence to its page at region precision.
+  routes present-check evidence to its page at region precision in the evidence-bearing PDF attachment.
 - 0 console/page errors; **0 genai-host requests** (local).
 - No verdict/score/rank/accusation; no re-analysis shown; search & selection is precondition-scoped (n/a for a
   mini-meta); "not found" ≠ "missing".

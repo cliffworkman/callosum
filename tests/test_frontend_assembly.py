@@ -451,8 +451,8 @@ def test_statcheck_rows_render_inline_context_evidence():
     assert "page={r.page} section={r.section}" in raw
     assert 'className="statcheck-item-main"' in raw
     assert 'className="statcheck-context"' in raw
-    assert 'precision: r.coordinate_precision || "region"' in raw
-    assert "bboxJson: r.bbox_json || null" in raw
+    assert "methodEvidenceTarget(paperId, title, r" in raw
+    assert "attachmentId: evidence.attachment_id ?? null" in raw
     assert "Open and highlight this reported test" in raw
     assert 'r.source_kind === "table"' in raw
     assert 'className="statcheck-source"' in raw

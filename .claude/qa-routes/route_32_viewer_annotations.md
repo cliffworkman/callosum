@@ -15,7 +15,9 @@ each button's click to its own attachment id; a synthesis citation (00_lib.jsx's
 attachment its evidence text came from (only when that attachment is a real PDF — a citation from a non-PDF
 supplementary-text attachment still degrades to the primary, unchanged from before). Coordinate honesty is the
 reason this matters: two PDF renderings of "the same paper" aren't guaranteed to share page geometry, so opening
-the wrong attachment could draw an exact bbox on the wrong document. -->
+the wrong attachment could draw an exact bbox on the wrong document. Page-anchored Methods evidence uses the
+same PDF-only attachment contract for statcheck, Bayesian, mixed-model, meta-analysis, and transparency results;
+GRIM/GRIMMER inputs and external reference-integrity records have no source attachment to route. -->
 
 
 # ROUTE 32 - Viewer and annotations
@@ -53,7 +55,9 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    - **inc 144 (Close reader):** with ≥1 highlight, the Notes panel head shows **Copy** + **Export .md** — they assemble a Markdown digest of the paper's highlights + notes (`# title`, `**p.N** — <highlighted text>`, a note as a `> blockquote`). Copy → the digest is on the clipboard; Export → a `*-notes.md` download. Frontend-only (no endpoint); the buttons appear only when there are highlights.
    - **inc 215 (minimap):** with ≥1 highlight and the Notes panel **closed**, a thin `.pdf-minimap` gutter shows one `.pdf-minimap-tick` per highlight, positioned by page fraction `((page-1+0.5)/numPages)` and tinted by the highlight's color. Clicking a tick jumps to + flashes that highlight (`jumpToAnnotation` — no fabricated coordinates; page-fraction is an honest navigation aid). Opening the Notes panel hides the minimap (the panel supersedes it). Frontend-only (no endpoint).
 6. Try an oversized note, invalid color, negative/non-finite bbox, and missing anchor text through the UI or API-backed form state. Confirm 422-class handling, not a crash.
-7. Exercise citation jumps from any visible page-routing source (synthesis citation, detail-pane Files, statcheck rows in the METHODS "Statistics" section): `exact` draws a bbox, `region` scrolls and shows approximate note, `null` opens page without a rect.
+7. Exercise citation jumps from any visible page-routing source (synthesis citation, detail-pane Files, statcheck
+   rows, and Bayesian/mixed-model/meta-analysis/transparency evidence in METHODS): `exact` draws a bbox, `region`
+   scrolls and shows approximate note, `null` opens page without a rect.
 8. **Per-attachment serving (#5).** Merge two papers that each have a local PDF (route_24's merge flow), so the
    survivor has 2 PDF attachments (Details -> Files shows 2 buttons). Click each Files button and confirm the
    *correct, distinguishable* document opens each time — not just "a PDF opens" (a regression here would silently
@@ -62,6 +66,10 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    primary) — the coordinate-honesty case this backlog item exists for. Confirm a citation from a non-PDF
    supplementary-text source (if present in the fixture) still degrades to opening the paper's primary PDF (page 1,
    no highlight) rather than a "no local PDF" error.
+9. With the same multi-PDF survivor, place page-anchored Methods evidence in the non-primary PDF and click a
+   statcheck, Bayesian, mixed-model, meta-analysis, or transparency evidence item. Confirm the request includes
+   that PDF's `attachment_id` and the exact attachment opens at its honest exact/region precision. For Methods
+   evidence originating in a non-PDF attachment, confirm no non-PDF id is sent to the PDF route.
 
 ## Pass criteria
 
@@ -72,6 +80,8 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - Each Files-list button opens its own specific attachment; a citation sourced from a non-primary attachment opens
   that attachment, never the primary; a non-PDF-sourced citation still degrades to the primary (never a false
   "no local PDF").
+- Page-anchored Methods evidence from a secondary PDF opens that PDF; non-PDF evidence never falsely targets the
+  PDF route with its attachment id.
 
 ## Deposit
 

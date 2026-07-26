@@ -68,9 +68,13 @@
   its own attachment; a citation now opens the exact (PDF) attachment its evidence came from rather than always
   the primary — a real coordinate-honesty gap found and fixed in the same pass (a non-PDF supplementary-text
   attachment's citations still degrade to the primary, gated via `_is_pdf_attachment`, never surfaced as a
-  broken 404). See `INCREMENT-316-NOTES.md`. **Remaining, filed as a follow-up, not urgent:** the same
-  attachment-awareness for methods-evidence targets (statcheck/GRIM/Bayes/LMM/meta-analysis/transparency/
-  reference-integrity) and `37_cite.jsx`'s citation object — same latent risk class, safe-by-omission today.
+  broken 404). See `INCREMENT-316-NOTES.md`. **Methods follow-up CLOSED inc 388:** page-anchored statcheck,
+  Bayesian, mixed-model, meta-analysis, and transparency evidence now opens its evidence-bearing PDF attachment;
+  non-PDF evidence ids are omitted from the PDF route. GRIM/GRIMMER is user-entered and stateless, while
+  reference-integrity signals describe external reference records, so neither has a source attachment to route.
+  **Remaining, filed as a follow-up, not urgent:** `37_cite.jsx`'s local suggestion object still omits the matched
+  chunk's attachment, and the viewer does not visibly name a non-primary active attachment in its tab/toolbar.
+  Both are safe-by-omission today.
 - ✅ **QA runs 20260702/03 remaining re-triage — CLOSED inc 317.** Every Critical/High/Medium/Low from routes
   24/27/30/32 re-verified live against a fresh fixture, not assumed. Route 30's Critical (PATCH/tag/cite 500s) +
   its downstream Highs/Mediums — **confirmed fixed** (the SQLite write-lock arc, incs 272–281). The 3

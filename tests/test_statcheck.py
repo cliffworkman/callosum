@@ -319,7 +319,7 @@ def test_statcheck_endpoint_reads_real_pdf_table_with_row_provenance(temp_db_url
             title="Table Stats",
             csl_json={"type": "article-journal", "title": "Table Stats"},
         )
-        attach_pdf_to_paper(conn, paper_id, pdf_path)
+        attachment_id = attach_pdf_to_paper(conn, paper_id, pdf_path)["attachment_id"]
 
     data = TestClient(create_app(db_url=temp_db_url)).get(f"/papers/{paper_id}/statcheck").json()
     table_results = [result for result in data["results"] if result["source_kind"] == "table"]
@@ -338,6 +338,7 @@ def test_statcheck_endpoint_reads_real_pdf_table_with_row_provenance(temp_db_url
         ("Attention | t(28) | 2.10 | .04", "consistent"),
     ]
     assert all(result["coordinate_precision"] == "region" for result in table_results)
+    assert all(result["attachment_id"] == attachment_id for result in table_results)
     assert all(result["page"] == 1 and result["table_index"] == 1 for result in table_results)
     assert [result["table_row"] for result in table_results] == [2, 3]
     assert all(result["bbox_json"][0]["source_kind"] == "table-row" for result in table_results)
@@ -446,6 +447,7 @@ def test_statcheck_endpoint_exposes_exact_anchor_when_pdf_locator_matches_page(t
     data = TestClient(create_app(db_url=temp_db_url)).get(f"/papers/{paper_id}/statcheck").json()
     result = data["results"][0]
     assert result["coordinate_precision"] == "exact"
+    assert result["attachment_id"] == attachment_id
     assert result["bbox_json"][0]["coordinate_precision"] == "exact"
     assert result["bbox_json"][0]["page"] == 7
 

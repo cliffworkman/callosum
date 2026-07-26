@@ -23,7 +23,7 @@ from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
-from app.backend.methods.evidence_anchors import anchor_evidence
+from app.backend.methods.evidence_anchors import anchor_evidence, pdf_attachment_ids_for_chunks
 from app.backend.methods.metaanalysis import apply_meta_analysis, audit_meta_analysis
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
 from app.backend.persistence.signals_repo import count_meta_flagged
@@ -42,6 +42,7 @@ class MetaCheckOut(BaseModel):
     page_end: int | None = None
     coordinate_precision: str | None = None
     bbox_json: Any | None = None
+    attachment_id: int | None = None
     note: str | None = None
     explainer: str
     basis: str
@@ -59,6 +60,7 @@ def paper_meta_analysis(paper_id: int, request: Request, conn: Connection = Depe
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
     chunks = get_chunks_for_paper(conn, paper_id)
+    pdf_attachment_ids = pdf_attachment_ids_for_chunks(conn, chunks)
     report = audit_meta_analysis(chunks)
     response = MetaResponse(
         is_meta_analysis=report.is_meta_analysis,
@@ -69,7 +71,7 @@ def paper_meta_analysis(paper_id: int, request: Request, conn: Connection = Depe
                 status=c.status,
                 evidence=c.evidence,
                 page=c.page,
-                **anchor_evidence(conn, chunks, c.evidence, c.page),
+                **anchor_evidence(conn, chunks, c.evidence, c.page, pdf_attachment_ids=pdf_attachment_ids),
                 note=c.note,
                 explainer=c.explainer,
                 basis=c.basis,

@@ -24,7 +24,7 @@ from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
-from app.backend.methods.evidence_anchors import anchor_evidence
+from app.backend.methods.evidence_anchors import anchor_evidence, pdf_attachment_ids_for_chunks
 from app.backend.methods.lmm import apply_lmm, audit_lmm
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
 from app.backend.persistence.signals_repo import count_lmm_flagged
@@ -43,6 +43,7 @@ class LmmCheckOut(BaseModel):
     page_end: int | None = None
     coordinate_precision: str | None = None
     bbox_json: Any | None = None
+    attachment_id: int | None = None
     note: str | None = None
     explainer: str
     basis: str
@@ -60,6 +61,7 @@ def paper_lmm(paper_id: int, request: Request, conn: Connection = Depends(get_co
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
     chunks = get_chunks_for_paper(conn, paper_id)
+    pdf_attachment_ids = pdf_attachment_ids_for_chunks(conn, chunks)
     report = audit_lmm(chunks)
     response = LmmResponse(
         is_lmm=report.is_lmm,
@@ -70,7 +72,7 @@ def paper_lmm(paper_id: int, request: Request, conn: Connection = Depends(get_co
                 status=c.status,
                 evidence=c.evidence,
                 page=c.page,
-                **anchor_evidence(conn, chunks, c.evidence, c.page),
+                **anchor_evidence(conn, chunks, c.evidence, c.page, pdf_attachment_ids=pdf_attachment_ids),
                 note=c.note,
                 explainer=c.explainer,
                 basis=c.basis,

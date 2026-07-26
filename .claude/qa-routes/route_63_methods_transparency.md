@@ -77,6 +77,8 @@ genai-host request regardless). Register listeners before navigation.
 4. Confirm **Registration** is `n/a` for a non-trial paper (precondition scoping — no flag on every paper), and
    **Available upon request** is `n/a` when the phrase is absent.
 5. Click a present check's evidence snippet -> the PDF opens at that page at **region** precision (no exact rect).
+   With a multi-PDF paper whose evidence lives in the secondary PDF, confirm the request includes that PDF's
+   `attachment_id` and does not open the primary.
 6. Confirm the honest-scope caveat (reported disclosures, not a judgment of openness; "not detected" ≠ "absent";
    never a score/accusation; upon-request = a weaker signal, not a concern).
 7. Confirm the **credit** block (ODDPub — Riedel et al. 2020; rtransparent — Serghiou et al. 2021; preregistration —
@@ -98,7 +100,7 @@ genai-host request regardless). Register listeners before navigation.
 ## Pass criteria
 
 - The auditor detects disclosure presence/absence across the 7 checks, each with the in-context basis, and routes
-  present-check evidence to its page at region precision.
+  present-check evidence to its page at region precision in the evidence-bearing PDF attachment.
 - 0 console/page errors; **0 genai-host requests** (local).
 - No verdict/score/rank/accusation; "not detected" ≠ "absent"; registration + upon-request are precondition-scoped
   (n/a where inapplicable); the upon-request row reads as a weak signal, not a flag.

@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 387 — table-aware statcheck -->
+<!-- HELP-DOCS-SYNCED: 2026-07-26 inc 388 — attachment-aware Methods evidence -->
+## 2026-07-26 — Increment 388: attachment-aware Methods evidence navigation
+
+- **Files:** shared Methods evidence anchoring, statcheck/Bayesian/mixed-model/meta-analysis/transparency response
+  models, shared frontend source target, API/browser tests, help/QA/security/backlog/CLAUDE/increment notes.
+- **What changed:** page-anchored Methods evidence now carries its PDF attachment id through the API and shared
+  viewer target, so evidence found in a secondary PDF opens that exact attachment at its honest exact/region
+  precision instead of silently opening the primary PDF.
+- **Boundaries:** only database-owned, PDF-typed attachment ids are exposed to the PDF route. Non-PDF evidence
+  omits the id and retains the existing primary-PDF degradation; GRIM/GRIMMER and external reference-integrity
+  rows have no source attachment. The Cite pane's separate suggestion object remains a filed follow-up.
+- **Safety:** local/no-egress/no-LLM; no dependency, migration, persistence, or new endpoint. The existing PDF
+  route still scopes the attachment to the selected paper and resolves its path from the database.
+- **Experience:** a skeptical synthesizer's multi-PDF path now lands in the evidence-bearing supplement. The
+  viewer still labels the paper rather than the active attachment, recorded as low-priority follow-up.
+- **Verification:** final gate counts are recorded in `INCREMENT-388-NOTES.md`.
+- **Revert:** `git revert` this commit.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-25 inc 387 — table-aware statcheck -->
 ## 2026-07-25 — Increment 387: conservative table-aware statcheck
 
 - **Files:** bounded multi-format table-evidence provider, conservative stat-table interpreter, statcheck

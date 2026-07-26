@@ -69,6 +69,8 @@ genai-host request regardless). Register listeners before navigation.
 4. Confirm **ICC** is `n/a` on a paper with no clustering claim, and the **missing-data sensitivity** check is `n/a`
    unless the paper is longitudinal with dropout (the precondition scoping — no flag on every LMM).
 5. Click a present check's evidence snippet -> the PDF opens at that page at **region** precision (no exact rect).
+   With a multi-PDF paper whose evidence lives in the secondary PDF, confirm the request includes that PDF's
+   `attachment_id` and does not open the primary.
 6. Confirm the honest-scope caveat ("reporting completeness, not analysis correctness; never a verdict, never a
    score, never an accusation").
 7. Confirm the **credit** block (Barr/Matuschek/Luke/Bates/Nakagawa & Schielzeth/FDA E9(R1)/Troendle/Cro/
@@ -90,7 +92,7 @@ genai-host request regardless). Register listeners before navigation.
 ## Pass criteria
 
 - The auditor flags reporting presence/absence across the 7 checks, each with a grounded/cited recommendation, and
-  routes present-check evidence to its page at region precision.
+  routes present-check evidence to its page at region precision in the evidence-bearing PDF attachment.
 - 0 console/page errors; **0 genai-host requests** (local).
 - No verdict/score/rank/accusation; ICC + missing-data are precondition-scoped (n/a when not applicable);
   "not found" ≠ "missing".

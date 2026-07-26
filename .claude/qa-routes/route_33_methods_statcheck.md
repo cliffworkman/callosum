@@ -46,7 +46,9 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 3. Click each row with a location. Confirm coordinate honesty: prose opens at its existing exact/region/null
    precision. A PDF table row opens at **region** precision using its retained table-row bbox; it never becomes
    an exact quote match. A non-PDF table row with no page shows `p. —` and has no page action. An approximate or
-   absent location must never draw a fake exact highlight.
+   absent location must never draw a fake exact highlight. In a multi-PDF paper whose result came from the
+   secondary PDF, confirm the source request includes `?attachment_id=<secondary id>` and opens that PDF rather
+   than the primary.
 4. In the same section's "Whole library" block, start library statcheck (Check all papers; `POST /methods/statcheck/run`) and poll (`GET /methods/statcheck/run/{job_id}`). Navigate away mid-run and return.
 5. After completion confirm the summary (`GET /methods/statcheck/summary`) drives the "N with inconsistencies" count and the library "⚠ N flagged" header chip; aggregate counts are transparent filters, not ranks. Click the **"⚠ N flagged" chip** (inc 141) → the library filters to flagged papers, the METHODS **Statistics** section opens, the **top flagged paper is auto-selected**, and its per-test rows **auto-show** (no manual "Check statistics" click) — the citer lands on the specific inconsistent result, not just "which papers".
 6. Directly visit a fake job id and papers with (a) no parseable methods text, (b) an ambiguous/multi-p-value or
@@ -58,6 +60,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 
 - Per-paper and library statcheck flows complete.
 - Clearly headed table evidence is attributable; ambiguous rows fail closed; scan caps are visible.
+- Located prose/table evidence from a secondary PDF opens that exact attachment.
 - 0 console/page errors and 0 genai-host requests.
 - Counts and caveats remain non-accusatory; no hidden composite score.
 - Mobile viewport has no horizontal overflow.

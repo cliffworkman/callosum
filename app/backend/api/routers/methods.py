@@ -30,6 +30,7 @@ from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
 from app.backend.document_tables import TableRowEvidence, extract_document_tables, supports_table_extraction
 from app.backend.methods.effectsize import convert as convert_effect_size
+from app.backend.methods.evidence_anchors import pdf_attachment_ids
 from app.backend.methods.grim import grim_test, grimmer_test
 from app.backend.methods.pcurve import PcurveResult, run_pcurve
 from app.backend.methods.statcheck import run_statcheck
@@ -63,6 +64,7 @@ class StatcheckResult(BaseModel):
     section: str | None = None
     coordinate_precision: str | None = None
     bbox_json: Any | None = None
+    attachment_id: int | None = None
     source_kind: Literal["prose", "table"] = "prose"
     table_index: int | None = None
     table_row: int | None = None
@@ -97,11 +99,12 @@ def paper_statcheck(paper_id: int, conn: Connection = Depends(get_connection)) -
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
     report, coverage = _run_statcheck_for_paper(conn, paper_id)
+    pdf_ids = pdf_attachment_ids(conn, (result.attachment_id for result in report.results))
     return StatcheckResponse(
         checked=report.checked,
         inconsistent=report.inconsistent,
         decision_errors=report.decision_errors,
-        results=[StatcheckResult(**_statcheck_result_payload(conn, r)) for r in report.results],
+        results=[StatcheckResult(**_statcheck_result_payload(conn, r, pdf_ids)) for r in report.results],
         coverage=StatcheckCoverage(**coverage),
     )
 
@@ -117,7 +120,7 @@ def _stamp_coordinate_precision(bbox_json: Any | None, precision: str) -> Any | 
     return copied
 
 
-def _statcheck_result_payload(conn: Connection, result) -> dict[str, Any]:
+def _statcheck_result_payload(conn: Connection, result, pdf_ids: set[int]) -> dict[str, Any]:
     page = result.page
     page_end = result.page_end or result.page
     precision = "region" if page is not None else None
@@ -149,6 +152,7 @@ def _statcheck_result_payload(conn: Connection, result) -> dict[str, Any]:
         "section": result.section,
         "coordinate_precision": precision,
         "bbox_json": bbox_json,
+        "attachment_id": int(result.attachment_id) if result.attachment_id in pdf_ids else None,
         "source_kind": result.source_kind,
         "table_index": result.table_index,
         "table_row": result.table_row,

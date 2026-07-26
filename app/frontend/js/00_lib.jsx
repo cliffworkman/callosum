@@ -481,6 +481,7 @@ function methodEvidenceTarget(paperId, paperTitle, evidence, key) {
     bboxJson: evidence.bbox_json || null,
     status: evidence.status || evidence.consistency || "",
     quote: evidence.evidence || evidence.raw || "",
+    attachmentId: evidence.attachment_id ?? null,
   };
 }
 

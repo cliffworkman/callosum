@@ -320,6 +320,7 @@ def test_statcheck_table_result_surfaces_provenance_and_coverage(server: str):
                             "page_end": 1,
                             "section": "Results",
                             "coordinate_precision": "region",
+                            "attachment_id": 777,
                             "bbox_json": [
                                 {
                                     "page": 1,
@@ -369,6 +370,11 @@ def test_statcheck_table_result_surfaces_provenance_and_coverage(server: str):
         page.set_viewport_size({"width": 375, "height": 812})
         page.wait_for_timeout(120)
         _assert_no_document_horizontal_overflow(page, "table-aware statcheck / mobile")
+        page.set_viewport_size({"width": 1366, "height": 900})
+        page.route("**/papers/*/pdf?attachment_id=777", lambda route: route.fulfill(status=404))
+        with page.expect_request(lambda request: "attachment_id=777" in request.url) as source_request:
+            page.locator(".statcheck-item-main").click()
+        assert "attachment_id=777" in source_request.value.url
         assert errors == []
         browser.close()
 

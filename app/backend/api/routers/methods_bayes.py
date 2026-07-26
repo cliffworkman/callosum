@@ -26,7 +26,7 @@ from sqlalchemy.exc import NoResultFound
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
 from app.backend.methods.bayes import DEFAULT_R, apply_bayes, audit_completeness, run_bayes
-from app.backend.methods.evidence_anchors import anchor_evidence
+from app.backend.methods.evidence_anchors import anchor_evidence, pdf_attachment_ids_for_chunks
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
 from app.backend.persistence.signals_repo import count_bayes_flagged
 from app.backend.persistence.sqlite_retry import run_write
@@ -47,6 +47,7 @@ class BayesResult(BaseModel):
     page_end: int | None = None
     coordinate_precision: str | None = None
     bbox_json: Any | None = None
+    attachment_id: int | None = None
 
 
 class BayesCompletenessItem(BaseModel):
@@ -58,6 +59,7 @@ class BayesCompletenessItem(BaseModel):
     page_end: int | None = None
     coordinate_precision: str | None = None
     bbox_json: Any | None = None
+    attachment_id: int | None = None
     note: str | None = None
 
 
@@ -70,6 +72,7 @@ class BayesAdvisoryNote(BaseModel):
     page_end: int | None = None
     coordinate_precision: str | None = None
     bbox_json: Any | None = None
+    attachment_id: int | None = None
 
 
 class BayesCompletenessOut(BaseModel):
@@ -95,6 +98,7 @@ def paper_bayes(paper_id: int, request: Request, conn: Connection = Depends(get_
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
     chunks = get_chunks_for_paper(conn, paper_id)
+    pdf_attachment_ids = pdf_attachment_ids_for_chunks(conn, chunks)
     report = run_bayes(chunks)
     completeness = audit_completeness(chunks)
     response = BayesResponse(
@@ -111,7 +115,7 @@ def paper_bayes(paper_id: int, request: Request, conn: Connection = Depends(get_
                 consistency=r.consistency,
                 matched_design=r.matched_design,
                 page=r.page,
-                **anchor_evidence(conn, chunks, r.raw, r.page),
+                **anchor_evidence(conn, chunks, r.raw, r.page, pdf_attachment_ids=pdf_attachment_ids),
             )
             for r in report.results
         ],
@@ -125,7 +129,7 @@ def paper_bayes(paper_id: int, request: Request, conn: Connection = Depends(get_
                     evidence=i.evidence,
                     page=i.page,
                     note=i.note,
-                    **anchor_evidence(conn, chunks, i.evidence, i.page),
+                    **anchor_evidence(conn, chunks, i.evidence, i.page, pdf_attachment_ids=pdf_attachment_ids),
                 )
                 for i in completeness.items
             ],
@@ -136,7 +140,7 @@ def paper_bayes(paper_id: int, request: Request, conn: Connection = Depends(get_
                     note=a.note,
                     evidence=a.evidence,
                     page=a.page,
-                    **anchor_evidence(conn, chunks, a.evidence, a.page),
+                    **anchor_evidence(conn, chunks, a.evidence, a.page, pdf_attachment_ids=pdf_attachment_ids),
                 )
                 for a in completeness.advisories
             ],

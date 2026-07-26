@@ -101,22 +101,10 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
     return () => clearTimeout(t);
   }, [state.status]);
   const open = (r, idx) => {
-    if (!onOpenPaper || !r || r.page == null) return;
-    onOpenPaper(
-      { id: paperId, title: meta ? meta.title : "" },
-      {
-        id: `statcheck:${paperId}:${idx}:${r.coordinate_precision || "region"}`,
-        paperId,
-        paperTitle: meta ? meta.title : "",
-        page: r.page,
-        pageEnd: r.page_end || r.page,
-        section: r.section || null,
-        precision: r.coordinate_precision || "region",
-        bboxJson: r.bbox_json || null,
-        status: r.consistency,
-        quote: r.raw || "",
-      },
-    );
+    if (!onOpenPaper) return;
+    const title = meta ? meta.title : "";
+    const target = methodEvidenceTarget(paperId, title, r, `statcheck:${paperId}:${idx}`);
+    if (target) onOpenPaper({ id: paperId, title }, target);
   };
   const label = (c) => c === "consistent" ? "consistent" : c === "decision-error" ? "decision error" : "inconsistent";
   if (paperId == null) return <div className="tag-suggest-empty">Select a paper to check its statistical reporting.</div>;
