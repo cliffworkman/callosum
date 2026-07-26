@@ -22,7 +22,7 @@ from sqlalchemy import Connection, select
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.retrieval import RetrievalHit, search_similar
 from app.backend.embeddings.vector_store import VectorStore
-from app.backend.persistence.schema import chunks, papers
+from app.backend.persistence.schema import attachments, chunks, papers
 from app.backend.summarization.verification import Stance, StanceScorer, default_stance_scorer
 
 MAX_TEXT_LEN = 4000  # cap the untrusted draft span (resource bound)
@@ -44,6 +44,7 @@ class Suggestion:
     page_end: int | None
     bbox_json: object | None
     coordinate_precision: str
+    attachment_id: int | None
     stance: Stance | None
 
 
@@ -88,7 +89,8 @@ def suggest_citations(
     suggestions: list[Suggestion] = []
     for hit in ranked:
         assert hit.chunk_id is not None  # filtered above
-        chunk_text = _chunk_text(conn, hit.chunk_id)
+        chunk = _chunk_evidence(conn, hit.chunk_id)
+        chunk_text = str(chunk.get("text") or "")
         meta = _paper_meta(conn, hit.paper_id)
         stance = scorer.classify_stance(sentence=query, passage=chunk_text) if scorer is not None else None
         suggestions.append(
@@ -104,15 +106,38 @@ def suggest_citations(
                 page_end=hit.page_end,
                 bbox_json=_stamp_region(hit.bbox_json),
                 coordinate_precision="region",
+                attachment_id=_pdf_attachment_id(chunk),
                 stance=stance,
             )
         )
     return suggestions
 
 
-def _chunk_text(conn: Connection, chunk_id: int) -> str:
-    row = conn.execute(select(chunks.c.text).where(chunks.c.id == chunk_id)).first()
-    return str(row[0]) if row and row[0] is not None else ""
+def _chunk_evidence(conn: Connection, chunk_id: int) -> dict:
+    row = (
+        conn.execute(
+            select(
+                chunks.c.text,
+                chunks.c.attachment_id,
+                attachments.c.content_type,
+                attachments.c.attachment_type,
+            )
+            .select_from(chunks.outerjoin(attachments, attachments.c.id == chunks.c.attachment_id))
+            .where(chunks.c.id == chunk_id)
+        )
+        .mappings()
+        .first()
+    )
+    return dict(row) if row is not None else {}
+
+
+def _pdf_attachment_id(chunk: dict) -> int | None:
+    attachment_id = chunk.get("attachment_id")
+    content_type = str(chunk.get("content_type") or "").strip().lower()
+    attachment_type = str(chunk.get("attachment_type") or "").strip().lower()
+    if attachment_id is None or (content_type != "application/pdf" and attachment_type != "pdf"):
+        return None
+    return int(attachment_id)
 
 
 def _paper_meta(conn: Connection, paper_id: int) -> dict:

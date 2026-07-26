@@ -153,7 +153,7 @@ The PDF viewer is for close reading, source checking, and annotation. Open a PDF
 
 The toolbar shows:
 
-- The paper title.
+- The paper title and the active local PDF filename, so a primary article and supplement are distinguishable.
 - Zoom out and zoom in controls.
 - The current page number.
 - A **Notes** button with the number of saved annotations.
@@ -300,7 +300,10 @@ To use it:
   - a **stance** pill — **supports** (green), **contrasts** (amber), or **mentions** (grey) — read from a local language model over the matched passage. If the model can't be loaded, the card says "stance unavailable" rather than guessing.
   - a **match** score (relevance to your sentence — a ranking aid, **not** a correctness claim).
   - the **verbatim quote** from the matched passage — the evidence; read it to decide whether the paper really fits.
-- **Open source region** opens that paper's PDF at the page so you can read the passage in context (the match is a passage *region*, not an exact highlight).
+- **Open source region** opens the exact PDF attachment that supplied the matched passage, at its page, so a
+  supplement is not silently replaced by the primary article. The match is a passage *region*, not an exact
+  highlight. If the matched text came from a non-PDF attachment, the card instead offers **Open primary PDF** and
+  deliberately applies no source-page coordinates to that different file.
 - **Copy BibTeX** puts the paper's citation on your clipboard to drop into a reference manager or your manuscript.
 - To widen the pool, turn on **Also search beyond my library** before clicking **Suggest**. Callosum sends only the draft sentence/description you pasted to public metadata providers such as Crossref, PubMed, and OpenAlex, then shows outside-library candidates in a separate section. It also uses the top local library matches as OpenAlex graph anchors, so an outside-library candidate may be labeled as **cited by**, **cites**, or **related to** a locally relevant paper. These candidates are based on public metadata, abstracts, and graph relationships; if stance is shown, it is **abstract-level** and weaker than full-text library evidence.
 - Outside-library candidates can be added as metadata-only library records with **Add to library**. A public metadata miss is not evidence that no relevant paper exists.

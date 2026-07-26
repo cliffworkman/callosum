@@ -511,6 +511,20 @@ def test_synthesis_quotes_open_existing_pdf_highlight_route():
     assert ".coord.page" in css
 
 
+def test_cite_suggestions_open_the_matched_pdf_and_viewer_names_the_active_file():
+    raw = assemble_jsx()
+    css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
+    assert "attachment_id: s.attachment_id" in raw
+    assert "page_start: opensMatchedPdf ? s.page_start : null" in raw
+    assert '{opensMatchedPdf ? "Open source region" : "Open primary PDF"}' in raw
+    assert "function responseFilename(response)" in raw
+    assert 'response.headers.get("content-disposition")' in raw
+    assert "filename: responseFilename(res)" in raw
+    assert 'className="pdf-filename"' in raw
+    assert ".pdf-source-title" in css and ".pdf-filename" in css
+    assert ".app.mobile .pdf-source-title { flex: 1 0 100%; width: 100%; }" in css
+
+
 def test_synthesis_section_filter_is_retrieval_only_control():
     raw = assemble_jsx()
     css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")

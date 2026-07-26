@@ -1,5 +1,4 @@
 // buildAnnotationDigest (the highlights/notes Markdown digest) lives in 00_lib.jsx (a pure util; relocated inc 175).
-
 function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf }) {
   const [state, setState] = useState({ status: "loading" });
   const [scale, setScale] = useState(1.15);
@@ -74,7 +73,7 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
       }
       let res;
       try {
-        // #5: an explicit attachmentId (a Files-list click, or a citation from a non-primary post-merge attachment) opens that specific file instead of the paper's primary.
+        // #5: explicit attachmentId opens that file instead of the paper's primary.
         res = await fetch(API_BASE + `/papers/${paperId}/pdf` + (target?.attachmentId != null ? `?attachment_id=${target.attachmentId}` : ""), { headers: { "Accept": "application/pdf" } });
       } catch (e) {
         if (!cancelled) setState({ status: "error", error: `Could not reach the ${API_LABEL}. Is uvicorn running?` });
@@ -91,14 +90,13 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
           baseWidthRef.current = (await doc.getPage(1)).getViewport({ scale: 1 }).width;
         } catch (e) { baseWidthRef.current = 0; }
         if (cancelled || token !== tokenRef.current) return;
-        setState({ status: "ready", numPages: doc.numPages });
+        setState({ status: "ready", numPages: doc.numPages, filename: responseFilename(res) });
       } catch (e) {
         if (!cancelled && token === tokenRef.current) setState({ status: "error", error: "This file could not be rendered as a PDF." });
       }
     })();
     return () => { cancelled = true; };
   }, [paperId, target?.attachmentId]);
-
   // Load this paper's user highlights once per paper. Reset any transient UI.
   useEffect(() => {
     let cancelled = false;
@@ -510,7 +508,10 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
   return (
     <div className="pdf-viewer">
       <div className="pdf-toolbar">
-        <span className="pdf-title" title={title}>{title}</span>
+        <div className="pdf-source-title">
+          <span className="pdf-title" title={title}>{title}</span>
+          {state.filename && <span className="pdf-filename" title={"Active local PDF: " + state.filename}>{state.filename}</span>}
+        </div>
         <span className="pdf-spacer"></span>
         {state.status === "ready" &&
           <>

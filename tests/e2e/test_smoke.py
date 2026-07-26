@@ -584,6 +584,70 @@ def test_statcheck_table_result_surfaces_provenance_and_coverage(server: str):
         browser.close()
 
 
+def test_cite_opens_the_matched_pdf_attachment_and_names_it(server: str):
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+        page = browser.new_page(viewport={"width": 1366, "height": 900})
+        page.route(
+            "**/citations/suggest",
+            lambda route: route.fulfill(
+                json={
+                    "suggestions": [
+                        {
+                            "paper_id": 1,
+                            "title": "Facial Anomaly Perception",
+                            "year": 2024,
+                            "author": "Lovelace",
+                            "match_score": 0.91,
+                            "chunk_id": 991,
+                            "quote": "Facial anomalies influence social judgments.",
+                            "page_start": 1,
+                            "page_end": 1,
+                            "coordinate_precision": "region",
+                            "bbox_json": None,
+                            "attachment_id": 777,
+                            "stance": None,
+                        }
+                    ],
+                    "beyond_library_suggestions": [],
+                    "source_coverage": [],
+                }
+            ),
+        )
+        page.route(
+            "**/papers/1/pdf?attachment_id=777",
+            lambda route: route.fulfill(
+                path=str(PROJECT_ROOT / "tests" / "fixtures" / "seed.pdf"),
+                content_type="application/pdf",
+                headers={"Content-Disposition": 'inline; filename="social-perception-supplement.pdf"'},
+            ),
+        )
+        errors = _mount_app(page, server)
+
+        page.get_by_role("tab", name="Work", exact=True).click()
+        page.get_by_role("tab", name="Cite", exact=True).click()
+        page.locator(".cite-pane textarea").fill("Facial anomalies influence social judgments.")
+        page.locator(".cite-pane .synth-actions button").click()
+        card = page.locator(".cite-card", has_text="Facial Anomaly Perception")
+        card.wait_for()
+        with page.expect_request(lambda request: "attachment_id=777" in request.url):
+            card.get_by_role("button", name="Open source region", exact=True).click()
+        page.locator(".pdf-filename", has_text="social-perception-supplement.pdf").wait_for()
+        page.locator(".pdf-region-note").wait_for()
+        assert page.locator(".pdf-highlight").count() == 0
+        page.set_viewport_size({"width": 375, "height": 812})
+        page.locator(".pdf-filename", has_text="social-perception-supplement.pdf").wait_for(state="visible")
+        _assert_no_document_horizontal_overflow(page, "Cite exact attachment / mobile")
+        filename_box = page.locator(".pdf-filename").bounding_box()
+        assert filename_box is not None and filename_box["width"] >= 80
+        assert page.locator(".pdf-toolbar").evaluate("el => el.scrollWidth <= el.clientWidth + 2")
+        assert errors == []
+        browser.close()
+
+
 def test_tool_panes_resist_visual_drift(server: str):
     with sync_playwright() as p:
         try:

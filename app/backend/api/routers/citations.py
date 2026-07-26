@@ -446,6 +446,7 @@ class SuggestionResponse(BaseModel):
     page_end: int | None = None
     coordinate_precision: str
     bbox_json: Any | None = None
+    attachment_id: int | None = None
     stance: StanceResponse | None = None
 
 
@@ -541,6 +542,7 @@ def _suggestion_response(item: Suggestion) -> SuggestionResponse:
         page_end=item.page_end,
         coordinate_precision=item.coordinate_precision,
         bbox_json=item.bbox_json,
+        attachment_id=item.attachment_id,
         stance=stance,
     )
 

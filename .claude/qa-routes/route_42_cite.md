@@ -27,8 +27,10 @@ The seeded `social-perception`/facial papers give a real semantic match for the 
   Gemini/LLM gate; it must never fire unless the checkbox is explicitly checked, and default-unchecked-on-open
   is itself a Critical assertion (see `.claude/security-audits/2026-07-11_beyond-library-citation-suggest.md`).
 - **Coordinate honesty (Critical).** A suggestion's evidence is a chunk -> `region` precision. "Open source
-  region" must scroll to the page + show the region note, never draw an exact bbox rect. An approximate location
-  shown as an exact highlight is **Critical**.
+  region" must open the PDF attachment that supplied that chunk, scroll to the page + show the region note, and
+  never draw an exact bbox rect. A non-PDF match may open the primary PDF only without transferring the source
+  page/coordinates. An approximate location shown as an exact highlight, or coordinates applied to the wrong
+  attachment, is **Critical**.
 - **Signal not verdict.** The stance is a labeled signal shown WITH its quote + confidence — never a bare
   verdict. The match score is labeled a relevance/ranking aid, never a correctness claim or a hidden composite.
   Beyond-library cards must show a `reason`/relationship label per candidate, never a bare/citation-count score
@@ -59,7 +61,11 @@ The seeded `social-perception`/facial papers give a real semantic match for the 
    pill (supports/contrasts/mentions, or "stance n/a"), a `match NN` pill, and the verbatim quote. Confirm no
    request to any public-metadata provider fired (the checkbox is unchecked).
 3. Confirm the ranking note ("a ranking aid, not a correctness claim") and the per-card region note are present.
-4. Click **Open source region** on a suggestion -> the PDF opens at the page with a region note, NO exact rect.
+4. Click **Open source region** on a suggestion backed by a secondary PDF -> the request carries that matched
+   attachment id, the PDF opens at the page with a region note and NO exact rect, and the viewer toolbar names the
+   active file. At `375x812`, confirm the filename remains readable and neither the toolbar nor document overflows.
+   Repeat with a non-PDF matched attachment: the button reads **Open primary PDF**, the request omits the matched
+   attachment id, and no source page/region overlay is applied to the different file.
 5. Check **"Also search beyond my library"**, submit again -> confirm the request body carries
    `include_beyond_library: true` and beyond-library cards now render, each showing: title/author/year/journal, a
    `relationship_label` line when OpenAlex graph evidence exists (e.g. "Cited by a locally relevant paper: …"),
@@ -77,7 +83,8 @@ The seeded `social-perception`/facial papers give a real semantic match for the 
 
 - Suggestions render with stance + quote + match score; the empty/oversized/whitespace paths fail cleanly in
   both checkbox states.
-- "Open source region" honors region precision (no exact rect).
+- "Open source region" honors both source attachment and region precision (no exact rect); non-PDF fallback never
+  carries coordinates to the primary PDF, and the active filename is legible without overflow.
 - The beyond-library checkbox defaults OFF, and toggling it is the ONLY thing that triggers metadata-provider
   egress; every beyond-library card shows an inspectable reason/relationship label, never a bare score.
 - 0 console/page errors and **0 genai-host requests** (the whole flow — in-library AND beyond-library — never

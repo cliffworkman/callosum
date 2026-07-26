@@ -19,7 +19,7 @@ from app.backend.embeddings.pipeline import embed_chunks
 from app.backend.embeddings.vector_store import InMemoryVectorStore
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import soft_delete_paper
-from app.backend.persistence.schema import papers
+from app.backend.persistence.schema import attachments, papers
 from app.backend.summarization.verification import NLIStanceScorer, Stance, _stance_from_scores
 from tests.api_helpers import ApiFakeEmbeddingModel, _seed_summarization_library
 
@@ -66,6 +66,7 @@ def test_suggest_ranks_by_best_chunk_one_per_paper(temp_db_url: str) -> None:
     assert suggestions[0].match_score > suggestions[1].match_score
     assert "Facial anomalies" in suggestions[0].quote
     assert suggestions[0].title == "API Summarization Facial Paper"
+    assert suggestions[0].attachment_id == ids["facial_attachment_id"]
 
 
 def test_suggest_evidence_is_region_precision_never_exact(temp_db_url: str) -> None:
@@ -82,6 +83,24 @@ def test_suggest_evidence_is_region_precision_never_exact(temp_db_url: str) -> N
     assert top.coordinate_precision == "region"  # a chunk match is region-level, never a fabricated exact rect
     # the stamped bbox carries the same honest precision
     assert all(item.get("coordinate_precision") == "region" for item in top.bbox_json)
+
+
+def test_suggest_omits_non_pdf_attachment_from_source_target(temp_db_url: str) -> None:
+    ids = _seed_summarization_library(temp_db_url)
+    model, store = ApiFakeEmbeddingModel(), InMemoryVectorStore()
+    _embed_all(temp_db_url, model, store)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        conn.execute(
+            update(attachments)
+            .where(attachments.c.id == ids["facial_attachment_id"])
+            .values(content_type="text/html", attachment_type="html")
+        )
+        suggestions = suggest_citations(conn, text=FACIAL_QUERY, model=model, vector_store=store, evaluate=False)
+    engine.dispose()
+
+    top = next(item for item in suggestions if item.paper_id == ids["facial_paper_id"])
+    assert top.attachment_id is None
 
 
 def test_suggest_evaluate_attaches_injected_stance_else_none(temp_db_url: str) -> None:
@@ -201,6 +220,7 @@ def test_suggest_endpoint_returns_suggestions_with_stance(temp_db_url: str) -> N
     top = suggestions[0]
     assert top["title"] == "API Summarization Facial Paper"
     assert top["coordinate_precision"] == "region"
+    assert top["attachment_id"] is not None
     assert top["stance"]["label"] == "support"
     assert "Facial anomalies" in top["quote"]
 

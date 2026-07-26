@@ -72,9 +72,10 @@
   Bayesian, mixed-model, meta-analysis, and transparency evidence now opens its evidence-bearing PDF attachment;
   non-PDF evidence ids are omitted from the PDF route. GRIM/GRIMMER is user-entered and stateless, while
   reference-integrity signals describe external reference records, so neither has a source attachment to route.
-  **Remaining, filed as a follow-up, not urgent:** `37_cite.jsx`'s local suggestion object still omits the matched
-  chunk's attachment, and the viewer does not visibly name a non-primary active attachment in its tab/toolbar.
-  Both are safe-by-omission today.
+  **Cite/viewer follow-up CLOSED inc 392:** `37_cite.jsx` now retains the matched chunk's PDF attachment and opens
+  that exact file at region precision; a non-PDF match falls back to the primary PDF without carrying source-page
+  coordinates across files. The viewer toolbar reads the served filename from its existing response header and
+  names the active PDF at desktop and phone widths. The attachment-routing loose end is complete.
 - ✅ **QA runs 20260702/03 remaining re-triage — CLOSED inc 317.** Every Critical/High/Medium/Low from routes
   24/27/30/32 re-verified live against a fresh fixture, not assumed. Route 30's Critical (PATCH/tag/cite 500s) +
   its downstream Highs/Mediums — **confirmed fixed** (the SQLite write-lock arc, incs 272–281). The 3

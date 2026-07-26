@@ -58,13 +58,15 @@ function FormattedCiteButton({ paperId, style }) {
 
 function SuggestionCard({ s, onOpenCitation, style }) {
   const stance = s.stance;
-  const canOpen = onOpenCitation && s.paper_id != null && (s.page_start != null || s.page_end != null);
+  const canOpen = onOpenCitation && s.paper_id != null;
+  const opensMatchedPdf = s.attachment_id != null;
   const open = (event) => {
     event.preventDefault();
     onOpenCitation({
       paper_id: s.paper_id, paper_title: s.title, chunk_id: s.chunk_id,
-      page_start: s.page_start, page_end: s.page_end,
+      page_start: opensMatchedPdf ? s.page_start : null, page_end: opensMatchedPdf ? s.page_end : null,
       coordinate_precision: s.coordinate_precision, bbox_json: s.bbox_json, quote: s.quote,
+      attachment_id: s.attachment_id,
     });
   };
   const meta = [s.author, s.year].filter(Boolean).join(" · ");
@@ -84,7 +86,10 @@ function SuggestionCard({ s, onOpenCitation, style }) {
       </div>
       <div className="quote">“{s.quote}”</div>
       <div className="cite-card-foot">
-        {canOpen && <button className="btn btn-ghost" onClick={open}>Open source region</button>}
+        {canOpen && <button className="btn btn-ghost" onClick={open}
+          title={opensMatchedPdf ? "Open the PDF attachment that supplied this matched passage" : "The matched attachment is not an openable PDF; open this paper's primary PDF without applying its source-page coordinates"}>
+          {opensMatchedPdf ? "Open source region" : "Open primary PDF"}
+        </button>}
         <FormattedCiteButton paperId={s.paper_id} style={style} />
         <CiteCopyButton paperId={s.paper_id} />
         {stance

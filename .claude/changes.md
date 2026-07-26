@@ -9,7 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-26 inc 391 — grounded authors citing your work -->
+<!-- HELP-DOCS-SYNCED: 2026-07-26 inc 392 — exact Cite attachment navigation -->
+## 2026-07-26 — Increment 392: exact Cite attachment navigation and active PDF identity
+
+- **Files:** citation-suggestion engine/API, Cite card, shared PDF target/response helper, viewer toolbar/responsive
+  CSS + built frontend, backend/frontend/Chromium tests, help/README/design/QA/security/backlog/CLAUDE/increment
+  notes.
+- **What changed:** Work → Cite now retains the PDF attachment belonging to its matched chunk and opens that exact
+  file before applying region-level page navigation. A non-PDF match instead offers **Open primary PDF** with its
+  source page/coordinates deliberately removed. The PDF toolbar names the active served file beside the paper title.
+- **Honesty / safety:** the new value is one optional database-owned integer already scoped by the existing PDF
+  route; no path is accepted or exposed. The filename comes from the route's existing inline response header.
+  Retrieval/ranking/stance are unchanged, and there is no new endpoint, write, migration, dependency, egress, or
+  LLM use.
+- **Experience:** a deadline-citer desktop/phone walkthrough reached a named supplement with the exact attachment
+  request, region note, and zero exact overlays/errors. The first phone pass caught a nearly collapsed filename;
+  source identity now owns a full first toolbar row on mobile, measuring ~197px with zero toolbar/document overflow.
+- **Verify:** affected suite **150 passed**; post-responsive frontend assembly **53 passed**; Ruff check/format,
+  404-file line budget, build parity, QA **318/318 API + 1398/1419 FE** (same 21 report-only), and full project
+  suite **1634 passed, 1 skipped**. Required GitHub checks pending push.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-26 inc 391 — grounded authors citing your work -->
 ## 2026-07-26 — Increment 391: grounded My Publications citing-author connections
 
 - **Files:** OpenAlex author-id/authorship adapter extension, deterministic citing-author service, scoped cache/API

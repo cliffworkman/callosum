@@ -33,7 +33,7 @@ explicitly turn on an AI feature.
   circumvention.
 
 **Read & annotate**
-- In-browser PDF viewer (pdf.js) with zoom, fit-width / two-up, highlights + notes, a searchable/filterable Notes
+- In-browser PDF viewer (pdf.js) with visible active-file identity, zoom, fit-width / two-up, highlights + notes, a searchable/filterable Notes
   panel, next/prev-mark navigation, remembered scroll position, and a distraction-free reading mode.
 
 **Verified synthesis (the whole point of this project)**

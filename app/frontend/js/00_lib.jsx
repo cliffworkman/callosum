@@ -485,6 +485,16 @@ function methodEvidenceTarget(paperId, paperTitle, evidence, key) {
   };
 }
 
+function responseFilename(response) {
+  const value = response && response.headers ? response.headers.get("content-disposition") || "" : "";
+  const encoded = value.match(/filename\*=UTF-8''([^;]+)/i);
+  if (encoded) {
+    try { return decodeURIComponent(encoded[1]).slice(0, 200); } catch (e) { /* fall through */ }
+  }
+  const plain = value.match(/filename="?([^";]+)"?/i);
+  return plain ? plain[1].trim().slice(0, 200) : "";
+}
+
 function normalizeBboxes(bboxJson) {
   if (!bboxJson) return [];
   let raw = bboxJson;

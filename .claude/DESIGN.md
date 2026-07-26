@@ -204,6 +204,12 @@ shown only when the Notes panel is closed. Each highlight is a `.pdf-minimap-tic
 `var(--radius-sm)` corners, `--accent` hover outline. Tokens only; no raw hex. It's a navigation aid (page-level,
 not pixel), so it never touches the inc-34/35 render-core geometry.
 
+### PDF active-source identity (inc 392)
+The PDF toolbar pairs the serif paper title with the active local filename in quiet mono metadata. The filename
+comes from the existing served response header, not a client path or a second metadata request. On phone widths,
+`.pdf-source-title` owns a full first toolbar row so the filename remains readable; controls wrap below it without
+horizontal overflow. This is provenance chrome, not a new status color or badge.
+
 ### Status / provenance accents
 Connection LED, synthesis "running" pulse, the provenance box (`.prov`: `--accent-soft` bg + accent border
 + accent bold) — indigo = provenance. Verified green / flagged amber on summary sentences (left border 3px).

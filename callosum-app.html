@@ -2132,10 +2132,19 @@
     flex: 0 0 auto; display: flex; align-items: center; gap: 12px;
     padding: 9px 14px; background: var(--panel-2); border-bottom: 1px solid var(--line);
   }
+  .pdf-source-title { flex: 0 1 auto; min-width: 0; overflow: hidden; display: flex; align-items: baseline; gap: 8px; }
   .pdf-title {
-    font-family: var(--serif); font-size: 14px; font-weight: 600; color: var(--ink);
+    min-width: 0; font-family: var(--serif); font-size: 14px; font-weight: 600; color: var(--ink);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
+  .pdf-filename {
+    flex: 0 1 auto; min-width: 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: var(--mono); font-size: 10px; font-weight: 400; color: var(--ink-3);
+  }
+  .app.mobile .pdf-toolbar { flex-wrap: wrap; gap: 6px 8px; padding: 7px 10px; }
+  .app.mobile .pdf-source-title { flex: 1 0 100%; width: 100%; }
+  .app.mobile .pdf-title { flex: 0 1 42%; }
+  .app.mobile .pdf-filename { flex: 1 1 0; max-width: none; }
   .pdf-spacer { flex: 1 1 auto; }
   /* inc 255 (SP2a-2): the "select the value to anchor" prompt shown while a workbench cell is armed — amber status. */
   .pdf-armed-note {
@@ -3237,6 +3246,18 @@
       quote: evidence.evidence || evidence.raw || "",
       attachmentId: evidence.attachment_id ?? null
     };
+  }
+  function responseFilename(response) {
+    const value = response && response.headers ? response.headers.get("content-disposition") || "" : "";
+    const encoded = value.match(/filename\*=UTF-8''([^;]+)/i);
+    if (encoded) {
+      try {
+        return decodeURIComponent(encoded[1]).slice(0, 200);
+      } catch (e) {
+      }
+    }
+    const plain = value.match(/filename="?([^";]+)"?/i);
+    return plain ? plain[1].trim().slice(0, 200) : "";
   }
   function normalizeBboxes(bboxJson) {
     if (!bboxJson) return [];
@@ -12866,7 +12887,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
             baseWidthRef.current = 0;
           }
           if (cancelled || token !== tokenRef.current) return;
-          setState({ status: "ready", numPages: doc.numPages });
+          setState({ status: "ready", numPages: doc.numPages, filename: responseFilename(res) });
         } catch (e) {
           if (!cancelled && token === tokenRef.current) setState({ status: "error", error: "This file could not be rendered as a PDF." });
         }
@@ -13260,7 +13281,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       window.addEventListener("keydown", onKey);
       return () => window.removeEventListener("keydown", onKey);
     }, [stepMark]);
-    return /* @__PURE__ */ React.createElement("div", { className: "pdf-viewer" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-toolbar" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-title", title }, title), /* @__PURE__ */ React.createElement("span", { className: "pdf-spacer" }), state.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom" }, /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(-0.2), title: "Zoom out" }, "\u2212"), /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom-val" }, Math.round(scale * 100), "%"), /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(0.2), title: "Zoom in" }, "+")), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "pdf-viewer" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-toolbar" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-source-title" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-title", title }, title), state.filename && /* @__PURE__ */ React.createElement("span", { className: "pdf-filename", title: "Active local PDF: " + state.filename }, state.filename)), /* @__PURE__ */ React.createElement("span", { className: "pdf-spacer" }), state.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom" }, /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(-0.2), title: "Zoom out" }, "\u2212"), /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom-val" }, Math.round(scale * 100), "%"), /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(0.2), title: "Zoom in" }, "+")), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "pdf-annot-toggle" + (pageView === "width" ? " active" : ""),
@@ -16778,22 +16799,32 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
   }
   function SuggestionCard({ s, onOpenCitation, style }) {
     const stance = s.stance;
-    const canOpen = onOpenCitation && s.paper_id != null && (s.page_start != null || s.page_end != null);
+    const canOpen = onOpenCitation && s.paper_id != null;
+    const opensMatchedPdf = s.attachment_id != null;
     const open = (event) => {
       event.preventDefault();
       onOpenCitation({
         paper_id: s.paper_id,
         paper_title: s.title,
         chunk_id: s.chunk_id,
-        page_start: s.page_start,
-        page_end: s.page_end,
+        page_start: opensMatchedPdf ? s.page_start : null,
+        page_end: opensMatchedPdf ? s.page_end : null,
         coordinate_precision: s.coordinate_precision,
         bbox_json: s.bbox_json,
-        quote: s.quote
+        quote: s.quote,
+        attachment_id: s.attachment_id
       });
     };
     const meta = [s.author, s.year].filter(Boolean).join(" \xB7 ");
-    return /* @__PURE__ */ React.createElement("div", { className: "cite-card" }, /* @__PURE__ */ React.createElement("div", { className: "cite-card-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cite-title" }, s.title || "Paper " + s.paper_id), meta && /* @__PURE__ */ React.createElement("div", { className: "cite-meta" }, meta)), /* @__PURE__ */ React.createElement("div", { className: "cite-pills" }, stance ? /* @__PURE__ */ React.createElement("span", { className: "cite-stance " + stance.label, title: "NLI stance over the matched passage" }, stance.label) : /* @__PURE__ */ React.createElement("span", { className: "cite-stance unknown", title: "The local NLI model couldn't be loaded" }, "stance n/a"), /* @__PURE__ */ React.createElement("span", { className: "cite-match", title: "Relevance of this passage to your sentence (a ranking aid, not a correctness claim)" }, "match ", s.match_score.toFixed(2)))), /* @__PURE__ */ React.createElement("div", { className: "quote" }, "\u201C", s.quote, "\u201D"), /* @__PURE__ */ React.createElement("div", { className: "cite-card-foot" }, canOpen && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: open }, "Open source region"), /* @__PURE__ */ React.createElement(FormattedCiteButton, { paperId: s.paper_id, style }), /* @__PURE__ */ React.createElement(CiteCopyButton, { paperId: s.paper_id }), stance ? /* @__PURE__ */ React.createElement("span", { className: "cite-conf" }, "stance confidence ", stance.confidence.toFixed(2)) : /* @__PURE__ */ React.createElement("span", { className: "cite-conf cite-conf-warn" }, "stance unavailable \u2014 local model not loaded")));
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-card" }, /* @__PURE__ */ React.createElement("div", { className: "cite-card-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cite-title" }, s.title || "Paper " + s.paper_id), meta && /* @__PURE__ */ React.createElement("div", { className: "cite-meta" }, meta)), /* @__PURE__ */ React.createElement("div", { className: "cite-pills" }, stance ? /* @__PURE__ */ React.createElement("span", { className: "cite-stance " + stance.label, title: "NLI stance over the matched passage" }, stance.label) : /* @__PURE__ */ React.createElement("span", { className: "cite-stance unknown", title: "The local NLI model couldn't be loaded" }, "stance n/a"), /* @__PURE__ */ React.createElement("span", { className: "cite-match", title: "Relevance of this passage to your sentence (a ranking aid, not a correctness claim)" }, "match ", s.match_score.toFixed(2)))), /* @__PURE__ */ React.createElement("div", { className: "quote" }, "\u201C", s.quote, "\u201D"), /* @__PURE__ */ React.createElement("div", { className: "cite-card-foot" }, canOpen && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-ghost",
+        onClick: open,
+        title: opensMatchedPdf ? "Open the PDF attachment that supplied this matched passage" : "The matched attachment is not an openable PDF; open this paper's primary PDF without applying its source-page coordinates"
+      },
+      opensMatchedPdf ? "Open source region" : "Open primary PDF"
+    ), /* @__PURE__ */ React.createElement(FormattedCiteButton, { paperId: s.paper_id, style }), /* @__PURE__ */ React.createElement(CiteCopyButton, { paperId: s.paper_id }), stance ? /* @__PURE__ */ React.createElement("span", { className: "cite-conf" }, "stance confidence ", stance.confidence.toFixed(2)) : /* @__PURE__ */ React.createElement("span", { className: "cite-conf cite-conf-warn" }, "stance unavailable \u2014 local model not loaded")));
   }
   function BeyondSaveButton({ item }) {
     const [state, setState] = useState(item.in_library ? "saved" : "idle");
