@@ -21,6 +21,10 @@ on:
       - "requirements.txt"
       - ".github/workflows/desktop-shell-linux.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-linux-shell:
     runs-on: ubuntu-latest

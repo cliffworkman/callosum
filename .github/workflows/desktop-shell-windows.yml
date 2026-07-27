@@ -21,6 +21,10 @@ on:
       - "requirements.txt"
       - ".github/workflows/desktop-shell-windows.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-windows-shell:
     runs-on: windows-latest

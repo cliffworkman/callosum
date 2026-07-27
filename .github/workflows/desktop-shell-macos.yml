@@ -23,6 +23,10 @@ on:
       - "requirements.txt"
       - ".github/workflows/desktop-shell-macos.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-macos-shell:
     runs-on: macos-latest # Apple Silicon (arm64) as of this writing
