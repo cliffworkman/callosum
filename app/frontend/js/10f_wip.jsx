@@ -24,6 +24,7 @@ function WipRootSetup({ roots, scanning, onAdd, onRescan }) {
   const [path, setPath] = useState("");
   const [mode, setMode] = useState("folder");
   const [error, setError] = useState("");
+  const [browsing, setBrowsing] = useState(false);
   const submit = async (event) => {
     event.preventDefault();
     setError("");
@@ -45,6 +46,7 @@ function WipRootSetup({ roots, scanning, onAdd, onRescan }) {
         <form className="wip-root-form" onSubmit={submit}>
           <input value={path} onChange={event => setPath(event.target.value)}
             placeholder="Full path to a manuscript folder or a folder of WIPs" aria-label="WIP folder path" />
+          <button type="button" className="btn-ghost" onClick={() => setBrowsing(true)}>Browse…</button>
           <select className="lib-sort" value={mode} onChange={event => setMode(event.target.value)}>
             <option value="folder">This folder is one manuscript</option>
             <option value="children">Immediate subfolders are manuscripts</option>
@@ -53,6 +55,10 @@ function WipRootSetup({ roots, scanning, onAdd, onRescan }) {
           <button type="button" className="btn-ghost" onClick={() => setExpanded(false)}>Cancel</button>
           {error && <div className="wip-root-error">{error}</div>}
         </form>}
+      {browsing &&
+        <FolderBrowserModal initialPath={path.trim() || undefined}
+          onCancel={() => setBrowsing(false)}
+          onSelect={chosen => { setPath(chosen); setBrowsing(false); }} />}
     </div>
   );
 }

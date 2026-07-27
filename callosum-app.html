@@ -720,13 +720,28 @@
   .lockout-body p { margin: 0; }
   .lockout-actions { display: flex; gap: 8px; }
   .lockout-step { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
-  .lockout-path { display: block; margin-top: 5px; font-family: var(--mono); font-size: 11px; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 6px 8px; word-break: break-all; }
+  .lockout-path, .folder-browser-path { display: block; margin-top: 5px; font-family: var(--mono); font-size: 11px; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 6px 8px; word-break: break-all; }
   .lockout-hint { margin-top: 6px; font-size: 11px; color: var(--ink-3); line-height: 1.45; }
   .lockout-hint .btn-link { font-size: 11px; }
   .lockout-msg { margin-top: 10px; font-size: 11.5px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 6px 9px; }
   .lockout-msg.ok { color: var(--verified); background: var(--verified-soft); border-color: var(--verified); }   /* success (green), not the amber error tint */
   .lockout-foot { margin-top: 12px; font-size: 11px; color: var(--ink-3); line-height: 1.45; }
   .lockout-foot code, .lockout-step code { font-family: var(--mono); font-size: 10.5px; }
+  /* inc 397: generic in-app folder-browser modal (WipRootSetup + WipRelink "Browse…") -- neutral utility
+     chrome (plain --hover/--accent row hover), not WIP-context teal. */
+  .folder-browser-modal { display: flex; flex-direction: column; max-height: 80vh; }
+  .folder-browser-list {
+    flex: 1 1 auto; min-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
+    margin: 8px 0; padding: 4px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  }
+  .folder-browser-row {
+    display: flex; align-items: center; gap: 7px; width: 100%; border: 0; background: transparent;
+    color: var(--ink-2); font: 12px var(--sans); text-align: left; padding: 6px 8px;
+    border-radius: var(--radius-sm); cursor: pointer;
+  }
+  .folder-browser-row:hover { background: var(--hover); color: var(--accent); }
+  .folder-browser-row:disabled { opacity: .4; cursor: default; background: transparent; color: var(--ink-3); }
+  .folder-browser-up { border-bottom: 1px solid var(--line); border-radius: 0; font-weight: 600; margin-bottom: 2px; }
   /* inc 126: p-curve modal (collection-level evidential-value check). Tokens only. */
   .pcurve-modal { width: min(560px, 94vw); }
   .pcurve-framing { font-size: 12px; color: var(--ink-2); line-height: 1.5; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius-sm); padding: 8px 10px; margin: 4px 0 10px; }
@@ -1844,7 +1859,7 @@
   .wip-roots-summary { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 11px; }
   .wip-roots-summary span:first-child { margin-right: auto; }
   .wip-root-form {
-    display: grid; grid-template-columns: minmax(180px, 1fr) auto auto auto; align-items: center; gap: 7px;
+    display: grid; grid-template-columns: minmax(180px, 1fr) auto auto auto auto; align-items: center; gap: 7px;
     margin-top: 8px; padding: 9px; border: 1px solid var(--wip-line); border-radius: var(--radius);
     background: var(--wip-soft);
   }
@@ -1902,7 +1917,7 @@
   .wip-location > div:first-child { display: grid; gap: 3px; min-width: 0; }
   .wip-location span { color: var(--ink-3); font-size: 10.5px; }
   .wip-location code { color: var(--ink-2); font: 10.5px var(--mono); overflow-wrap: anywhere; }
-  .wip-location form { display: grid; grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
+  .wip-location form { display: grid; grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) auto auto; gap: 7px; }
   .wip-location input {
     min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius);
     background: var(--panel); color: var(--ink); padding: 7px 9px;
@@ -8809,6 +8824,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [path, setPath] = useState("");
     const [mode, setMode] = useState("folder");
     const [error, setError] = useState("");
+    const [browsing, setBrowsing] = useState(false);
     const submit = async (event) => {
       event.preventDefault();
       setError("");
@@ -8828,7 +8844,17 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         placeholder: "Full path to a manuscript folder or a folder of WIPs",
         "aria-label": "WIP folder path"
       }
-    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: mode, onChange: (event) => setMode(event.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "folder" }, "This folder is one manuscript"), /* @__PURE__ */ React.createElement("option", { value: "children" }, "Immediate subfolders are manuscripts")), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !path.trim() }, "Add"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-ghost", onClick: () => setExpanded(false) }, "Cancel"), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error)));
+    ), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-ghost", onClick: () => setBrowsing(true) }, "Browse\u2026"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: mode, onChange: (event) => setMode(event.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "folder" }, "This folder is one manuscript"), /* @__PURE__ */ React.createElement("option", { value: "children" }, "Immediate subfolders are manuscripts")), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !path.trim() }, "Add"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-ghost", onClick: () => setExpanded(false) }, "Cancel"), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error)), browsing && /* @__PURE__ */ React.createElement(
+      FolderBrowserModal,
+      {
+        initialPath: path.trim() || void 0,
+        onCancel: () => setBrowsing(false),
+        onSelect: (chosen) => {
+          setPath(chosen);
+          setBrowsing(false);
+        }
+      }
+    ));
   }
   function WipCard({ manuscript, selected, onSelect, onOpen, onMenu }) {
     return /* @__PURE__ */ React.createElement(
@@ -9235,6 +9261,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [path, setPath] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
+    const [browsing, setBrowsing] = useState(false);
     const submit = async (event) => {
       event.preventDefault();
       if (!path.trim()) return;
@@ -9261,7 +9288,18 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         value: path,
         onChange: (event) => setPath(event.target.value)
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", disabled: busy || !path.trim() }, busy ? "Relinking\u2026" : "Relink")), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error));
+    ), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-ghost", onClick: () => setBrowsing(true) }, "Browse\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", disabled: busy || !path.trim() }, busy ? "Relinking\u2026" : "Relink")), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error), browsing && /* @__PURE__ */ React.createElement(
+      FolderBrowserModal,
+      {
+        title: "Choose the relocated manuscript folder",
+        initialPath: path.trim() || manuscript.root_path || void 0,
+        onCancel: () => setBrowsing(false),
+        onSelect: (chosen) => {
+          setPath(chosen);
+          setBrowsing(false);
+        }
+      }
+    ));
   }
   const WIP_EMPTY_FILTERS = {
     manuscriptType: "",
@@ -9532,6 +9570,56 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       /* @__PURE__ */ React.createElement("button", { role: "menuitem", onClick: () => update({ state: manuscript.state === "archived" ? "active" : "archived" }) }, manuscript.state === "archived" ? "Restore to active" : "Archive manuscript"),
       /* @__PURE__ */ React.createElement("button", { role: "menuitem", onClick: rescan }, "Rescan files")
     );
+  }
+  function FolderBrowserModal({ title = "Choose a folder", initialPath, onCancel, onSelect }) {
+    const [path, setPath] = useState(null);
+    const [parent, setParent] = useState(null);
+    const [entries, setEntries] = useState([]);
+    const [truncated, setTruncated] = useState(false);
+    const [listError, setListError] = useState("");
+    const [navError, setNavError] = useState("");
+    const [fatalError, setFatalError] = useState("");
+    const [loading, setLoading] = useState(true);
+    const load = (target) => {
+      setLoading(true);
+      const query = target ? `?path=${encodeURIComponent(target)}` : "";
+      api(`/wip/browse-dirs${query}`).then((r) => {
+        setLoading(false);
+        if (!r.ok) {
+          if (path === null) setFatalError(r.error || "Could not open this folder.");
+          else setNavError(r.error || "Could not open that folder.");
+          return;
+        }
+        setPath(r.data.path);
+        setParent(r.data.parent);
+        setEntries(r.data.entries || []);
+        setTruncated(!!r.data.truncated);
+        setListError(r.data.error || "");
+        setNavError("");
+      });
+    };
+    useEffect(() => {
+      load(initialPath || void 0);
+    }, []);
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onCancel }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal folder-browser-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, title), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onCancel }, "\xD7")), fatalError && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, fatalError), !fatalError && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "folder-browser-path", title: path || "" }, path || "Loading\u2026"), navError && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, navError), /* @__PURE__ */ React.createElement("div", { className: "folder-browser-list" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "folder-browser-row folder-browser-up",
+        disabled: !parent || loading,
+        onClick: () => load(parent)
+      },
+      "\u2B06 Up one level"
+    ), listError && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, listError), !listError && !loading && entries.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No subfolders here."), entries.map((entry) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: entry.path,
+        className: "folder-browser-row",
+        disabled: loading,
+        onClick: () => load(entry.path)
+      },
+      "\u{1F4C1} ",
+      entry.name
+    ))), truncated && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Showing the first ", entries.length, " folders only.")), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onCancel }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !path || loading, onClick: () => onSelect(path) }, "Select this folder"))));
   }
   function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
     const [title, setTitle] = useState(initialTitle || "");

@@ -10,7 +10,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
 from app.backend.api.job_store import JobStore
@@ -39,7 +39,7 @@ from app.backend.persistence.wip_repo import (
     update_watch_root,
 )
 from app.backend.wip.content import ContentIdentityError
-from app.backend.wip.discovery import inspect_manuscript, inspect_watch_root
+from app.backend.wip.discovery import SKIP_DIRECTORY_NAMES, inspect_manuscript, inspect_watch_root
 from app.backend.wip.paths import path_key, trusted_child
 
 router = APIRouter(prefix="/wip", dependencies=[Depends(require_local_wip)])
@@ -102,6 +102,56 @@ def _clean_exclusions(values: list[str]) -> list[str]:
     if any("/" in value or "\\" in value or value in {".", ".."} for value in clean):
         raise HTTPException(status_code=422, detail="Excluded children must be immediate folder names.")
     return clean
+
+
+class BrowseDirEntry(BaseModel):
+    name: str
+    path: str
+
+
+class BrowseDirsResponse(BaseModel):
+    path: str
+    parent: str | None
+    entries: list[BrowseDirEntry]
+    truncated: bool
+    error: str | None = None
+
+
+MAX_BROWSE_ENTRIES = 1000
+
+
+@router.get("/browse-dirs", response_model=BrowseDirsResponse)
+def browse_dirs(path: str | None = Query(default=None, max_length=4096)) -> BrowseDirsResponse:
+    base = Path(path).expanduser() if path else Path.home()
+    try:
+        resolved = base.resolve(strict=False)
+    except OSError as exc:
+        raise HTTPException(status_code=422, detail=f"Could not resolve this path: {exc}") from exc
+    if not resolved.is_dir():
+        raise HTTPException(status_code=422, detail="Folder not found — enter an existing directory path.")
+    parent = str(resolved.parent) if resolved.parent != resolved else None
+
+    entries: list[BrowseDirEntry] = []
+    listing_error: str | None = None
+    truncated = False
+    try:
+        children = sorted(resolved.iterdir(), key=lambda item: item.name.casefold())
+    except OSError as exc:
+        children = []
+        listing_error = f"Could not list this folder's contents: {type(exc).__name__}: {exc}"
+    for child in children:
+        try:
+            if child.is_symlink() or child.name in SKIP_DIRECTORY_NAMES or not child.is_dir():
+                continue
+        except OSError:
+            continue  # one unreadable child is skipped, not fatal to the whole listing
+        if len(entries) >= MAX_BROWSE_ENTRIES:
+            truncated = True
+            break
+        entries.append(BrowseDirEntry(name=child.name, path=str(child)))
+    return BrowseDirsResponse(
+        path=str(resolved), parent=parent, entries=entries, truncated=truncated, error=listing_error
+    )
 
 
 @router.get("/watch-roots")

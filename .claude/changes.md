@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-27 — Increment 398: WIP folder-picker (universal in-app folder browser)
+
+- **Files:** `app/backend/api/routers/wip.py`, `app/frontend/js/10j_wip_folder_browser.jsx` (new),
+  `app/frontend/js/{10f_wip.jsx,10g_wip_relink.jsx}`, `app/frontend/styles.css`,
+  `tests/test_wip_api.py`, `.claude/qa-routes/route_75_wip_workspace.md`,
+  `.claude/security-audits/2026-07-27_wip-folder-browser.md` (new), `callosum-app.html`.
+- **What:** replaces raw path-pasting on WIP's "Add location" and "Relink folder" with a themed,
+  server-driven in-app folder browser (click down through subfolders, "Select this folder") — a new
+  read-only `GET /wip/browse-dirs` endpoint on the existing `/wip` router (inherits the router's
+  `require_local_wip` gate automatically) backs one new shared `FolderBrowserModal` component wired to
+  both call sites.
+- **Why:** Cliff asked for a folder-picker so users aren't forced to copy/paste paths. Chose a
+  universal in-app browser over a native Tauri dialog specifically because callosum also runs as a
+  plain browser tab, which can never get a real filesystem path from a native OS picker — confirmed
+  with Cliff before building.
+- **Revert:** `git revert` this increment's commit(s); fully additive (new endpoint + new component),
+  no existing endpoint/schema changed.
+
 ## 2026-07-27 — Increment 397: "More checks" removal, METHODS text-wrap fix, unthemed CSL buttons
 
 - **Files:** `app/frontend/js/09_placeholders.jsx` (deleted), `app/frontend/js/35d_citation_styles.jsx`,

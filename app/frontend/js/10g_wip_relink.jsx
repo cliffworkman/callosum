@@ -3,6 +3,7 @@ function WipRelink({ manuscript, onRelinked }) {
   const [path, setPath] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [browsing, setBrowsing] = useState(false);
   const submit = async (event) => {
     event.preventDefault();
     if (!path.trim()) return;
@@ -29,8 +30,14 @@ function WipRelink({ manuscript, onRelinked }) {
     {editing && <form onSubmit={submit}>
       <input aria-label="New manuscript folder" placeholder="Full path to the relocated manuscript folder"
         value={path} onChange={event => setPath(event.target.value)} />
+      <button type="button" className="btn-ghost" onClick={() => setBrowsing(true)}>Browse…</button>
       <button className="btn-primary" disabled={busy || !path.trim()}>{busy ? "Relinking…" : "Relink"}</button>
     </form>}
     {error && <div className="wip-root-error">{error}</div>}
+    {browsing &&
+      <FolderBrowserModal title="Choose the relocated manuscript folder"
+        initialPath={path.trim() || manuscript.root_path || undefined}
+        onCancel={() => setBrowsing(false)}
+        onSelect={chosen => { setPath(chosen); setBrowsing(false); }} />}
   </div>;
 }

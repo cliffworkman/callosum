@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
@@ -190,3 +191,98 @@ def test_wip_routes_deny_remote_forwarded_and_read_only_access(
     assert client.get("/wip/manuscripts", headers={"x-forwarded-for": "203.0.113.5"}).status_code == 403
     monkeypatch.setenv("CALLOSUM_READ_ONLY", "1")
     assert client.get("/wip/manuscripts").status_code == 403
+    assert client.get("/wip/browse-dirs").status_code == 403
+
+
+def test_browse_dirs_lists_subfolders_and_supports_navigation(temp_db_url: str, tmp_path: Path) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    root = tmp_path / "Library"
+    (root / "Papers").mkdir(parents=True)
+    (root / "Manuscripts").mkdir()
+    (root / "notes.txt").write_text("not a folder", encoding="utf-8")
+    (root / "__pycache__").mkdir()  # in SKIP_DIRECTORY_NAMES -- must never be listed
+
+    at_root = client.get("/wip/browse-dirs", params={"path": str(root)})
+    assert at_root.status_code == 200
+    body = at_root.json()
+    assert body["path"] == str(root)
+    assert body["parent"] == str(root.parent)
+    assert body["truncated"] is False
+    assert body["error"] is None
+    names = {entry["name"] for entry in body["entries"]}
+    assert names == {"Papers", "Manuscripts"}  # neither the file nor __pycache__ appear
+
+    into_child = client.get("/wip/browse-dirs", params={"path": str(root / "Papers")})
+    assert into_child.json()["parent"] == str(root)
+
+    default = client.get("/wip/browse-dirs")
+    assert default.status_code == 200
+    assert default.json()["path"] == str(Path.home().resolve())
+
+
+def test_browse_dirs_root_has_no_parent(tmp_path_factory, temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    fs_root = Path(tmp_path_factory.getbasetemp().anchor)  # e.g. "C:\\" on Windows, "/" on POSIX
+    result = client.get("/wip/browse-dirs", params={"path": str(fs_root)})
+    assert result.status_code == 200
+    assert result.json()["parent"] is None
+
+
+def test_browse_dirs_skips_symlinks(temp_db_url: str, tmp_path: Path) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    root = tmp_path / "WithLink"
+    target = tmp_path / "LinkTarget"
+    root.mkdir()
+    target.mkdir()
+    try:
+        (root / "shortcut").symlink_to(target, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlink creation not permitted in this test environment (e.g. unprivileged Windows)")
+    (root / "real").mkdir()
+    result = client.get("/wip/browse-dirs", params={"path": str(root)})
+    names = {entry["name"] for entry in result.json()["entries"]}
+    assert names == {"real"}
+
+
+def test_browse_dirs_caps_entries_and_flags_truncated(temp_db_url: str, tmp_path: Path) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    root = tmp_path / "Big"
+    root.mkdir()
+    for index in range(1005):
+        (root / f"folder-{index:04d}").mkdir()
+    result = client.get("/wip/browse-dirs", params={"path": str(root)})
+    body = result.json()
+    assert len(body["entries"]) == 1000
+    assert body["truncated"] is True
+
+
+def test_browse_dirs_reports_unreadable_folder_without_crashing(temp_db_url: str, tmp_path: Path, monkeypatch) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    root = tmp_path / "Locked"
+    root.mkdir()
+    real_iterdir = Path.iterdir
+
+    def fake_iterdir(self):
+        if str(self) == str(root):
+            raise PermissionError("Permission denied")
+        return real_iterdir(self)
+
+    monkeypatch.setattr(Path, "iterdir", fake_iterdir)
+    result = client.get("/wip/browse-dirs", params={"path": str(root)})
+    assert result.status_code == 200
+    body = result.json()
+    assert body["entries"] == []
+    assert body["truncated"] is False
+    assert "Permission denied" in body["error"]
+    assert body["parent"] == str(root.parent)  # "Up one level" still usable
+
+
+def test_browse_dirs_rejects_missing_or_non_directory_path(temp_db_url: str, tmp_path: Path) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    missing = client.get("/wip/browse-dirs", params={"path": str(tmp_path / "does-not-exist")})
+    assert missing.status_code == 422
+
+    a_file = tmp_path / "file.txt"
+    a_file.write_text("x", encoding="utf-8")
+    not_a_dir = client.get("/wip/browse-dirs", params={"path": str(a_file)})
+    assert not_a_dir.status_code == 422
