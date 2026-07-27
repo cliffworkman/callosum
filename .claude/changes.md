@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-27 — Increment 396: post-install feedback — scrollbars, stale Library/WIP cards, desktop icon
+
+- **Files:** `app/frontend/js/{40_app.jsx,05_panes.jsx,25_detail.jsx,10f_wip.jsx}`,
+  `app/frontend/styles.css`, `.claude/DESIGN.md`, `app/desktop-shell/packaging/logo_squared_1024.png`
+  (new), `app/desktop-shell/src-tauri/icons/*` (regenerated), `callosum-app.html`.
+- **What:** (1) editing a paper's Detail-pane fields or a WIP manuscript's structure/tasks/
+  references/checks now refreshes its Library/WIP card immediately (wired to the existing
+  `libRefresh`/WIP-card refresh-counter idiom, previously only reached by queue changes); a fresh
+  import/scan/bundle-import/Discover-save also resets to library page 1, since the default
+  oldest-first sort otherwise lands a new paper off the visible page. (2) Cross-browser scrollbar
+  styling (invisible at rest, hint on panel-hover, full color on thumb-hover, theme-aware tokens) —
+  fixed a same-session bug where the rest-state lived on `html` alone, so its `:hover` (always true —
+  the pointer is always somewhere inside `html`'s box) leaked its reveal color to every descendant via
+  CSS inheritance regardless of which panel was actually hovered. (3) desktop app icon replaced with
+  callosum's own brain/neuron mark (from `.claude/media/logo_dm.png`, confirmed transparent) via
+  `npx tauri icon`.
+- **Why:** Cliff launched the real packaged Windows build and reported all three from hands-on use —
+  the stale-card bug especially, since the installed app has no obvious way to force a refresh.
+- **Revert:** `git revert` this increment's commit(s); each fix is independent and additive (no schema/
+  backend change).
+
 ## 2026-07-27 — Increment 395: real CI verification (screenshots) on all 3 platforms + Linux target
 
 - **Files:** `.github/workflows/desktop-shell-{windows,macos,linux}.yml` (windows/linux new, macos

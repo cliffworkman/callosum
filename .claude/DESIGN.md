@@ -234,6 +234,26 @@ cue is deliberately *subtle* (per §A7); the curated axis is the umbrella "Axis"
 List rows + cards darken to a warm neutral on hover (`.axis:hover`, `.cluster:hover`, `.frame-tab:hover`,
 `.history-row:hover` → `#ece9e0`; `.paper:hover` → `#faf8f3` — *two different hovers, see Pass-2*).
 
+### Scrollbars (cross-browser, inc 396)
+Firefox's own overlay-scrollbar UA styling (invisible at rest, a thin hint on hovering the scrollable
+panel, brighter on directly hovering the thumb) is the reference behavior — Chromium/WebView2 has no
+native equivalent (always-visible, unstyled by default), so it's reproduced explicitly in `styles.css`
+via the standard properties + `::-webkit-scrollbar` family, applied globally rather than per-panel
+(no per-surface differentiation was wanted). Thumb-at-rest → `--line-2` (control-border weight);
+thumb-on-hover → `--ink-3` (muted-but-visible ink) — never `--accent` (indigo stays
+provenance/primary-only, per §4 below). Both tokens already flip light/dark automatically through the
+existing `:root`/`:root[data-theme="dark"]` mechanism, so this recipe needed no dark-mode block of
+its own.
+
+**Gotcha, fixed same increment:** `scrollbar-color` is an *inherited* property, and `:hover` matches every
+ancestor of the actual hover point (a child's box sits inside every ancestor's box) — so `html:hover` is
+true almost continuously (the pointer is always somewhere inside `html`'s box while the page is in view).
+Setting the rest-state on `html` alone meant its `:hover` reveal color inherited down through every
+descendant unconditionally, regardless of which panel was actually under the pointer — every scrollbar
+everywhere showed the hover-hint permanently. Fix: set the rest-state on `*` (universal) instead of `html`,
+so every element gets its own explicit value and nothing depends on inheriting through the always-hovering
+root; `*:hover` then only wins for the element the pointer is actually within (or a descendant of).
+
 ### Feedback — long async ops get a progress bar (a standing rule)
 **Any user-triggered async operation that can take more than ~1s shows the indeterminate `ProgressBar`** while
 it is pending — never a frozen-looking idle control. The shared component is `<ProgressBar />` (an indeterminate

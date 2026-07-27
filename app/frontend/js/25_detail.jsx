@@ -139,7 +139,7 @@ function PositiveIntegrityFacts({ facts }) {
 
 // TagsRow (inc-71 + inc-207 color picker) lives in js/25b_tags.jsx; action widgets live in 25a_detail_actions.jsx.
 
-function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsChanged, onQueueChanged, refreshKey, readOnly }) {
+function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsChanged, onQueueChanged, onLibraryChanged, refreshKey, readOnly }) {
   const [state, setState] = useState({ status: "idle" });
   const [savingField, setSavingField] = useState(null);
   const [note, setNote] = useState(null);
@@ -178,10 +178,12 @@ function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsC
     setSavingField(name);
     const r = await apiPatch(`/papers/${paperId}`, { [name]: value });
     setSavingField(null);
-    if (r.ok && r.data) setState({ status: "ready", paper: r.data });
-    else setNote({ kind: "err", text: "Couldn't save " + name + " — " + (r.error || "error") });
+    if (r.ok && r.data) {
+      setState({ status: "ready", paper: r.data });
+      if (onLibraryChanged) onLibraryChanged();
+    } else setNote({ kind: "err", text: "Couldn't save " + name + " — " + (r.error || "error") });
     return r;
-  }, [paperId]);
+  }, [paperId, onLibraryChanged]);
 
   const reresolve = useCallback(async (source = "crossref") => {
     if (paperId == null) return;
@@ -192,6 +194,7 @@ function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsC
     setResolving(null);
     if (r.ok && r.data) {
       setState({ status: "ready", paper: r.data });
+      if (onLibraryChanged) onLibraryChanged();
       // A hit lands the source's provenance (crossref → "crossref"; pmid/arxiv → "openalex"); anything else is a miss.
       const expected = source === "crossref" ? "crossref" : "openalex";
       const srcName = source === "crossref" ? "Crossref" : "OpenAlex";
@@ -203,7 +206,7 @@ function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsC
     } else {
       setNote({ kind: "err", text: r.error || "Re-fetch failed." });
     }
-  }, [paperId, state]);
+  }, [paperId, state, onLibraryChanged]);
 
   // inc 217: multi-pass GAP-FILL of this one paper — recover a missing DOI then fill ONLY empty fields from
   // Crossref/OpenAlex. Never overwrites a typed value (distinct from the force-overwrite 🔎 re-resolve).
@@ -215,6 +218,7 @@ function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsC
     setFilling(false);
     if (r.ok && r.data) {
       setState({ status: "ready", paper: r.data.paper });
+      if (onLibraryChanged) onLibraryChanged();
       const n = (r.data.filled_fields || []).length;
       setNote(n
         ? { kind: "ok", text: `Filled ${n} missing field${n === 1 ? "" : "s"}: ${r.data.filled_fields.join(", ")}.` }
@@ -224,7 +228,7 @@ function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsC
     } else {
       setNote({ kind: "err", text: r.error || "Couldn't fill metadata." });
     }
-  }, [paperId]);
+  }, [paperId, onLibraryChanged]);
 
   const reprocessPdf = useCallback(async () => {
     if (paperId == null) return;
@@ -235,11 +239,12 @@ function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsC
     if (r.ok && r.data) {
       const refreshed = await api(`/papers/${paperId}`);
       if (refreshed.ok) setState({ status: "ready", paper: refreshed.data });
+      if (onLibraryChanged) onLibraryChanged();
       setNote({ kind: "ok", text: `Reprocessed PDF text: ${r.data.chunks_created} chunk${r.data.chunks_created === 1 ? "" : "s"} created.` });
     } else {
       setNote({ kind: "err", text: r.error || "Couldn't reprocess PDF text." });
     }
-  }, [paperId]);
+  }, [paperId, onLibraryChanged]);
 
   // #16: reverse the merge this record is the survivor of — restore the merged-away copies with their moved data.
   const unmergeNow = useCallback(async () => {
@@ -276,8 +281,11 @@ function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsC
 
   const onAcquired = useCallback(() => {
     if (paperId == null) return;
-    api(`/papers/${paperId}`).then((r) => { if (r.ok) setState({ status: "ready", paper: r.data }); });
-  }, [paperId]);
+    api(`/papers/${paperId}`).then((r) => {
+      if (r.ok) setState({ status: "ready", paper: r.data });
+      if (onLibraryChanged) onLibraryChanged();
+    });
+  }, [paperId, onLibraryChanged]);
 
   const saveAuthors = useCallback((text) => {
     const list = text == null ? [] : text.split("\n").map((s) => s.trim()).filter(Boolean);

@@ -412,7 +412,11 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
     });
     setSaving(false);
   };
-  const reload = () => setNonce(value => value + 1);
+  // Structure/Tasks/References/Checks/file-role mutations only need this component's own sub-fetch effect to
+  // re-run (setNonce) -- but the WIP browser's card list (file/task/finding/check counts) reads from a separate,
+  // higher-level refresh counter (wip.refresh) that only the overview form's save() and WipRelink previously
+  // bumped. Call onRelinked here too so every WIP mutation, not just those two, keeps the card list in sync.
+  const reload = () => { setNonce(value => value + 1); if (onRelinked) onRelinked(); };
   const overview = <>
     <WipRelink manuscript={draft} onRelinked={row => {
       setDraft(row);

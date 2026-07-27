@@ -343,6 +343,9 @@ function App() {
     // inc 294: a queue change (drag/add/remove) also reloads the library list so each card's priority control
     // re-syncs from the new papers.priority — keeps the Queue strata and the cards showing one source of truth.
     onQueueChanged: () => { setQueueRefresh(n => n + 1); setLibRefresh(n => n + 1); },
+    // a Detail-pane edit (field save, re-resolve, fill-metadata, reprocess, acquire) changes what the paper's
+    // own Library card shows — reload the list the same way onQueueChanged already does.
+    onLibraryChanged: () => setLibRefresh(n => n + 1),
     pendingSummarize, axisRefresh, tagRefresh, queueRefresh, findingsRefresh, hideUncertainDefault, axisCutoffDefault,
     methodsOpen,  // inc-140: the open METHODS section id, so a section can tell when it's the active one (statcheck auto-run)
     onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
@@ -362,7 +365,10 @@ function App() {
   // onDiscoverSaved; Work → Meta-Analyze: Workbench via the capture trio + onOpenPdf).
   const workspaceCtx = {
     ...paneCtx,
-    onDiscoverSaved: () => setLibRefresh(n => n + 1),
+    // inc 396: a newly-saved paper sorts to the tail of the default (oldest-first "added") order, so a plain
+    // refresh alone can silently land it off the currently-viewed page -- reset to page 1 too, same as every
+    // filter-change action in useLibrary already does (03_library.jsx's onSearchFieldChange etc.).
+    onDiscoverSaved: () => { setLibRefresh(n => n + 1); libraryBits.onPage(0); },
     onOpenCreditBuilder: openCreditBuilder,  // backlog #26 (F1): PUBLISHERS ("Journals") → the CRediT builder
     onOpenWanted: () => setWantedOpen(true),
     onOpenGaps: () => setGapsOpen(true),
@@ -468,12 +474,14 @@ function App() {
       {pcurvePapers &&
         <PcurveModal paperIds={pcurvePapers} onClose={() => setPcurvePapers(null)} onOpenPaper={openPdf} onChanged={() => setLibRefresh(n => n + 1)} />}
       {scanOpen &&
-        <ScanModal onClose={() => setScanOpen(false)} onScanned={() => setLibRefresh(n => n + 1)} onShowUnsorted={showNeedsReview} />}
+        <ScanModal onClose={() => setScanOpen(false)}
+          onScanned={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }} onShowUnsorted={showNeedsReview} />}
       {importOpen &&
-        <ImportModal onClose={() => setImportOpen(false)} onImported={() => setLibRefresh(n => n + 1)} />}
+        <ImportModal onClose={() => setImportOpen(false)}
+          onImported={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }} />}
       {bundleImportOpen &&
         <BundleImportModal onClose={() => setBundleImportOpen(false)}
-          onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); }} />}
+          onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }} />}
       {authLocked && <AccessLockOverlay />}
     </React.Fragment>
   );

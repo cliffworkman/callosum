@@ -57,7 +57,8 @@ registerPaneSection({
     ? <DetailContent paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} onOpenWip={ctx.onOpenWip}
         readOnly={ctx.readOnly}
         refreshKey={ctx.findingsRefresh}
-        onFilterToTag={ctx.onFilterToTag} onTagsChanged={ctx.onTagsChanged} onQueueChanged={ctx.onQueueChanged} />
+        onFilterToTag={ctx.onFilterToTag} onTagsChanged={ctx.onTagsChanged} onQueueChanged={ctx.onQueueChanged}
+        onLibraryChanged={ctx.onLibraryChanged} />
     : <div className="axis-hint">Select a paper to see its details.</div>,
 });
 

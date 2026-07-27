@@ -128,6 +128,32 @@
   }
   #root { height: 100vh; }
 
+  /* Scrollbars (inc 396, DESIGN.md "Scrollbars"): reproduce Firefox's own quiet overlay-scrollbar
+     behavior (invisible at rest, a thin hint on hovering the scrollable panel, brighter on hovering
+     the thumb itself) on Chromium/WebView2 too, which has no native equivalent. Applied globally
+     (no per-panel differentiation was wanted) via the standard properties for Firefox and the
+     ::-webkit-scrollbar family for Chromium. Tokens only, per rule #8 — never --accent (indigo stays
+     provenance/primary-only). */
+  html { scrollbar-width: thin; }
+  /* scrollbar-color is an inherited property and html:hover is always true (the pointer is always
+     somewhere inside html's box) -- an earlier version of this rule set the rest-state on `html` alone,
+     so its :hover reveal color inherited down to every descendant unconditionally, regardless of which
+     panel was actually hovered. Setting the rest-state on `*` gives every element its own explicit value,
+     so nothing depends on inheriting through the always-hovering root -- `*:hover` below then only wins
+     for whichever element the pointer is actually within (or a descendant of). */
+  * { scrollbar-color: transparent transparent; }
+  *:hover { scrollbar-color: var(--line-2) transparent; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *:hover::-webkit-scrollbar-thumb { background: var(--line-2); background-clip: content-box; }
+  *::-webkit-scrollbar-thumb:hover { background: var(--ink-3); background-clip: content-box; }
+
   .app {
     display: grid;
     /* columns are driven by App state (drag-resizable + collapsible side panels); this is a fallback */
@@ -4661,7 +4687,8 @@
         refreshKey: ctx.findingsRefresh,
         onFilterToTag: ctx.onFilterToTag,
         onTagsChanged: ctx.onTagsChanged,
-        onQueueChanged: ctx.onQueueChanged
+        onQueueChanged: ctx.onQueueChanged,
+        onLibraryChanged: ctx.onLibraryChanged
       }
     ) : /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to see its details.")
   });
@@ -9115,7 +9142,10 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       });
       setSaving(false);
     };
-    const reload = () => setNonce((value) => value + 1);
+    const reload = () => {
+      setNonce((value) => value + 1);
+      if (onRelinked) onRelinked();
+    };
     const overview = /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(WipRelink, { manuscript: draft, onRelinked: (row) => {
       setDraft(row);
       if (onRelinked) onRelinked();
@@ -11570,7 +11600,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       )));
     }), /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "Descriptive metadata only\u2014not a trust score. No badge means Callosum did not find this explicit relation, not that the work has never been corrected."));
   }
-  function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsChanged, onQueueChanged, refreshKey, readOnly }) {
+  function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsChanged, onQueueChanged, onLibraryChanged, refreshKey, readOnly }) {
     const [state, setState] = useState({ status: "idle" });
     const [savingField, setSavingField] = useState(null);
     const [note, setNote] = useState(null);
@@ -11621,10 +11651,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       setSavingField(name);
       const r = await apiPatch(`/papers/${paperId}`, { [name]: value });
       setSavingField(null);
-      if (r.ok && r.data) setState({ status: "ready", paper: r.data });
-      else setNote({ kind: "err", text: "Couldn't save " + name + " \u2014 " + (r.error || "error") });
+      if (r.ok && r.data) {
+        setState({ status: "ready", paper: r.data });
+        if (onLibraryChanged) onLibraryChanged();
+      } else setNote({ kind: "err", text: "Couldn't save " + name + " \u2014 " + (r.error || "error") });
       return r;
-    }, [paperId]);
+    }, [paperId, onLibraryChanged]);
     const reresolve = useCallback(async (source = "crossref") => {
       if (paperId == null) return;
       setNote(null);
@@ -11634,6 +11666,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       setResolving(null);
       if (r.ok && r.data) {
         setState({ status: "ready", paper: r.data });
+        if (onLibraryChanged) onLibraryChanged();
         const expected = source === "crossref" ? "crossref" : "openalex";
         const srcName = source === "crossref" ? "Crossref" : "OpenAlex";
         const idLabel = source === "crossref" ? "DOI" : source === "pmid" ? "PMID" : "arXiv ID";
@@ -11642,7 +11675,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       } else {
         setNote({ kind: "err", text: r.error || "Re-fetch failed." });
       }
-    }, [paperId, state]);
+    }, [paperId, state, onLibraryChanged]);
     const fillMetadata = useCallback(async () => {
       if (paperId == null) return;
       setNote(null);
@@ -11651,12 +11684,13 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       setFilling(false);
       if (r.ok && r.data) {
         setState({ status: "ready", paper: r.data.paper });
+        if (onLibraryChanged) onLibraryChanged();
         const n = (r.data.filled_fields || []).length;
         setNote(n ? { kind: "ok", text: `Filled ${n} missing field${n === 1 ? "" : "s"}: ${r.data.filled_fields.join(", ")}.` } : { kind: "warn", text: r.data.still_missing_doi ? "No DOI found and nothing to fill from public sources." : "Nothing missing to fill \u2014 this record is already complete." });
       } else {
         setNote({ kind: "err", text: r.error || "Couldn't fill metadata." });
       }
-    }, [paperId]);
+    }, [paperId, onLibraryChanged]);
     const reprocessPdf = useCallback(async () => {
       if (paperId == null) return;
       setNote(null);
@@ -11666,11 +11700,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       if (r.ok && r.data) {
         const refreshed = await api(`/papers/${paperId}`);
         if (refreshed.ok) setState({ status: "ready", paper: refreshed.data });
+        if (onLibraryChanged) onLibraryChanged();
         setNote({ kind: "ok", text: `Reprocessed PDF text: ${r.data.chunks_created} chunk${r.data.chunks_created === 1 ? "" : "s"} created.` });
       } else {
         setNote({ kind: "err", text: r.error || "Couldn't reprocess PDF text." });
       }
-    }, [paperId]);
+    }, [paperId, onLibraryChanged]);
     const unmergeNow = useCallback(async () => {
       if (!mergeOrigin) return;
       setNote(null);
@@ -11707,8 +11742,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       if (paperId == null) return;
       api(`/papers/${paperId}`).then((r) => {
         if (r.ok) setState({ status: "ready", paper: r.data });
+        if (onLibraryChanged) onLibraryChanged();
       });
-    }, [paperId]);
+    }, [paperId, onLibraryChanged]);
     const saveAuthors = useCallback((text) => {
       const list = text == null ? [] : text.split("\n").map((s) => s.trim()).filter(Boolean);
       return saveField("authors", list);
@@ -17690,6 +17726,9 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setQueueRefresh((n) => n + 1);
         setLibRefresh((n) => n + 1);
       },
+      // a Detail-pane edit (field save, re-resolve, fill-metadata, reprocess, acquire) changes what the paper's
+      // own Library card shows — reload the list the same way onQueueChanged already does.
+      onLibraryChanged: () => setLibRefresh((n) => n + 1),
       pendingSummarize,
       axisRefresh,
       tagRefresh,
@@ -17726,7 +17765,13 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     };
     const workspaceCtx = {
       ...paneCtx,
-      onDiscoverSaved: () => setLibRefresh((n) => n + 1),
+      // inc 396: a newly-saved paper sorts to the tail of the default (oldest-first "added") order, so a plain
+      // refresh alone can silently land it off the currently-viewed page -- reset to page 1 too, same as every
+      // filter-change action in useLibrary already does (03_library.jsx's onSearchFieldChange etc.).
+      onDiscoverSaved: () => {
+        setLibRefresh((n) => n + 1);
+        libraryBits.onPage(0);
+      },
       onOpenCreditBuilder: openCreditBuilder,
       // backlog #26 (F1): PUBLISHERS ("Journals") → the CRediT builder
       onOpenWanted: () => setWantedOpen(true),
@@ -17847,13 +17892,33 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onChanged: () => setLibRefresh((n) => n + 1),
         context: textHealthContext
       }
-    ), gapsOpen && /* @__PURE__ */ React.createElement(GapsModal, { onClose: () => setGapsOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), overlookedOpen && /* @__PURE__ */ React.createElement(OverlookedLensModal, { onClose: () => setOverlookedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), scanOpen && /* @__PURE__ */ React.createElement(ScanModal, { onClose: () => setScanOpen(false), onScanned: () => setLibRefresh((n) => n + 1), onShowUnsorted: showNeedsReview }), importOpen && /* @__PURE__ */ React.createElement(ImportModal, { onClose: () => setImportOpen(false), onImported: () => setLibRefresh((n) => n + 1) }), bundleImportOpen && /* @__PURE__ */ React.createElement(
+    ), gapsOpen && /* @__PURE__ */ React.createElement(GapsModal, { onClose: () => setGapsOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), overlookedOpen && /* @__PURE__ */ React.createElement(OverlookedLensModal, { onClose: () => setOverlookedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), scanOpen && /* @__PURE__ */ React.createElement(
+      ScanModal,
+      {
+        onClose: () => setScanOpen(false),
+        onScanned: () => {
+          setLibRefresh((n) => n + 1);
+          libraryBits.onPage(0);
+        },
+        onShowUnsorted: showNeedsReview
+      }
+    ), importOpen && /* @__PURE__ */ React.createElement(
+      ImportModal,
+      {
+        onClose: () => setImportOpen(false),
+        onImported: () => {
+          setLibRefresh((n) => n + 1);
+          libraryBits.onPage(0);
+        }
+      }
+    ), bundleImportOpen && /* @__PURE__ */ React.createElement(
       BundleImportModal,
       {
         onClose: () => setBundleImportOpen(false),
         onImported: () => {
           setLibRefresh((n) => n + 1);
           setAxisRefresh((n) => n + 1);
+          libraryBits.onPage(0);
         }
       }
     ), authLocked && /* @__PURE__ */ React.createElement(AccessLockOverlay, null));

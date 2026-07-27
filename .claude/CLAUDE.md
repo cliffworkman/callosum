@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 395** (see Increment workflow) with **1636 pytest tests
+It is currently at **Increment 396** (see Increment workflow) with **1636 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -157,8 +157,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   instead of the milder unidentified-developer flow — fixed by re-signing the whole bundle
   (`codesign --force --deep`) after resources are placed, then wrapping the `.dmg` by hand. No code
   signing/notarization (real Apple/Microsoft certs) on any platform yet — see `app/desktop-shell/
-  FIRST-LAUNCH-NOTE.md` for the SmartScreen/Gatekeeper mitigation. See `INCREMENT-394-NOTES.md` /
-  `INCREMENT-395-NOTES.md`.
+  FIRST-LAUNCH-NOTE.md` for the SmartScreen/Gatekeeper mitigation. **Inc 396** replaced the default
+  Tauri placeholder icon with callosum's own brain/neuron mark (`src-tauri/icons/*` regenerated via
+  `npx tauri icon` from a squared, transparent `logo_dm.png`) across window/taskbar/installer, and
+  fixed two post-install UX bugs surfaced by real desktop use: Library/WIP cards not refreshing after
+  an edit (a Detail/WIP mutation now bumps the same `libRefresh`/WIP-card refresh counter the queue
+  already did) and a new import landing off the visible page (ingest paths now reset to page 1, since
+  the default sort is oldest-first). See `INCREMENT-394-NOTES.md` / `INCREMENT-395-NOTES.md` /
+  `INCREMENT-396-NOTES.md`.
 
 > **README:** brought current in **inc 178** (the contributor front door — accurate feature list + the
 > `npm install`/`build_frontend` step + privacy/security notes). Shipped as a **draft pending the maintainer's
@@ -495,7 +501,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 393). Each increment of real work
+callosum is built in **numbered increments** (currently at 396). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

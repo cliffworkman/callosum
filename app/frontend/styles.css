@@ -104,6 +104,32 @@
   }
   #root { height: 100vh; }
 
+  /* Scrollbars (inc 396, DESIGN.md "Scrollbars"): reproduce Firefox's own quiet overlay-scrollbar
+     behavior (invisible at rest, a thin hint on hovering the scrollable panel, brighter on hovering
+     the thumb itself) on Chromium/WebView2 too, which has no native equivalent. Applied globally
+     (no per-panel differentiation was wanted) via the standard properties for Firefox and the
+     ::-webkit-scrollbar family for Chromium. Tokens only, per rule #8 — never --accent (indigo stays
+     provenance/primary-only). */
+  html { scrollbar-width: thin; }
+  /* scrollbar-color is an inherited property and html:hover is always true (the pointer is always
+     somewhere inside html's box) -- an earlier version of this rule set the rest-state on `html` alone,
+     so its :hover reveal color inherited down to every descendant unconditionally, regardless of which
+     panel was actually hovered. Setting the rest-state on `*` gives every element its own explicit value,
+     so nothing depends on inheriting through the always-hovering root -- `*:hover` below then only wins
+     for whichever element the pointer is actually within (or a descendant of). */
+  * { scrollbar-color: transparent transparent; }
+  *:hover { scrollbar-color: var(--line-2) transparent; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *:hover::-webkit-scrollbar-thumb { background: var(--line-2); background-clip: content-box; }
+  *::-webkit-scrollbar-thumb:hover { background: var(--ink-3); background-clip: content-box; }
+
   .app {
     display: grid;
     /* columns are driven by App state (drag-resizable + collapsible side panels); this is a fallback */
