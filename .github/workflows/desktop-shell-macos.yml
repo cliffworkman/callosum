@@ -132,7 +132,10 @@ jobs:
           open "$INSTALLED" &
           disown
           sleep 6
-          screencapture -x /tmp/1-after-open-while-quarantined.png
+          # plain screencapture hit macOS's Screen Recording TCC permission wall on a real run
+          # (captured a permission-request dialog instead of the real window) -- try sudo first,
+          # since root sometimes has a separate, already-granted TCC profile on these runners.
+          sudo screencapture -x /tmp/1-after-open-while-quarantined.png || screencapture -x /tmp/1-after-open-while-quarantined.png || true
           if pgrep -f "$APP_NAME" >/dev/null; then
             echo "UNEXPECTED: process launched despite quarantine"
           else
@@ -160,7 +163,7 @@ jobs:
             sleep 3
           done
           sleep 2 # give the webview a moment to actually paint the loaded page
-          screencapture -x /tmp/2-running-window.png
+          sudo screencapture -x /tmp/2-running-window.png || screencapture -x /tmp/2-running-window.png || true
           if [ "$ready" != "1" ]; then
             echo "::warning::backend never reported healthy within the wait budget — screenshot may show only the splash"
           fi
