@@ -40,6 +40,18 @@ echo "Installing real project dependencies (torch is large)..."
 # no functional code. Pruned here too for consistency with the Windows/macOS builds.
 find "$RUNTIME_DIR" -type d -path "*/dist-info/licenses/third_party" -print -exec rm -rf {} + 2>/dev/null || true
 
+# torch/bin/ ships its own internal C++ test-suite executables (test_api, TCPStoreTest, test_lazy,
+# ...) — never invoked by `import torch`, and Linux-only linuxdeploy insists on resolving every
+# binary's full dynamic-link dependency closure before it'll bundle anything. A real run confirmed
+# one of these test binaries has a broken/relative rpath linuxdeploy can't follow ("ERROR: Could not
+# find dependency: libtorch.so"). Pruned on Linux only — Windows/macOS bundling never walks the
+# dependency graph this way, so it's not a problem there and there's no reason to touch a working build.
+TORCH_BIN=$(find "$RUNTIME_DIR/lib/python3.11/site-packages/torch" -maxdepth 1 -type d -name "bin" || true)
+if [ -n "$TORCH_BIN" ]; then
+  echo "Pruning torch's internal C++ test binaries: $TORCH_BIN"
+  rm -rf "$TORCH_BIN"
+fi
+
 echo "Smoke-testing the bundle (required, blocking)..."
 python3 "$SCRIPT_DIR/smoke_test_backend.py" \
   --python "$PYTHON_BIN" \

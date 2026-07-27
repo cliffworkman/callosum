@@ -84,6 +84,9 @@ jobs:
 
       - name: "Verify: mount the real .dmg, simulate Gatekeeper, screenshot the real running window"
         id: verify
+        timeout-minutes: 10 # a real run showed `open` on a quarantined app can hang indefinitely
+        # waiting on a Gatekeeper dialog nobody can click in headless CI — see the backgrounded
+        # `open` calls below for the actual fix; this is a defense-in-depth ceiling on top of it.
         run: |
           set -x
           DMG=$(ls app/desktop-shell/src-tauri/target/release/bundle/dmg/*.dmg)
@@ -106,7 +109,13 @@ jobs:
           spctl -a -vvv "$INSTALLED" 2>&1 | tee /tmp/spctl-quarantined.log || true
 
           echo "--- attempting a plain 'open' (~ a real double-click) while quarantined ---"
-          open "$INSTALLED" || true
+          # Backgrounded deliberately: a real run showed a plain foreground `open` on a quarantined,
+          # unsigned app hang for 25+ minutes — `open` normally returns immediately, but here it
+          # appears to block on the Gatekeeper dialog itself, which nobody is present to click in a
+          # headless CI shell. Backgrounding means the script keeps moving regardless of whether/how
+          # that dialog ever resolves; pgrep below still tells us whether the app actually launched.
+          open "$INSTALLED" &
+          disown
           sleep 6
           screencapture -x /tmp/1-after-open-while-quarantined.png
           if pgrep -f "$APP_NAME" >/dev/null; then
@@ -122,7 +131,8 @@ jobs:
           echo "--- spctl assessment AFTER the trust override ---"
           spctl -a -vvv "$INSTALLED" 2>&1 | tee /tmp/spctl-trusted.log || true
 
-          open "$INSTALLED"
+          open "$INSTALLED" &
+          disown
           echo "--- waiting for the real backend to report healthy ---"
           ready=0
           for i in $(seq 1 40); do
