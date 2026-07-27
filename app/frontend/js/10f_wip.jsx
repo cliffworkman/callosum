@@ -300,6 +300,33 @@ function WipReferences({ manuscriptId, references, onReload, onOpenPaper }) {
   );
 }
 
+// inc 403: a compact, read-only history of Discover > Funding runs made against this manuscript (tagged via
+// research_funding_profiles.source_kind/source_id -- see funding.py's _run_funding_job). Reuses the same
+// .wip-checkpoint-* recipe WipChecks' "Content checkpoints" list already uses -- one visual language, no new CSS.
+// Full results/reload live in Discover > Funding itself (its own "Recent runs" history already lists every run,
+// WIP-sourced or not); this is a scoped view for "what has been searched for this manuscript," not a duplicate UI.
+function WipFundingRuns({ runs }) {
+  if (!runs || runs.length === 0) return null;
+  return <section className="wip-work-view">
+    <div className="wip-checkpoint-heading">
+      <h3>Funding searches</h3>
+      <p>Run from Discover → Funding while this manuscript was active. Open Discover → Funding's Recent runs for full results.</p>
+    </div>
+    {runs.map(run => {
+      const counts = run.result_counts || {};
+      return <div className="wip-checkpoint-row" key={run.run_id}>
+        <div>
+          <strong>{run.title || "Funding search"}</strong>
+          <small>{counts.opportunities || 0} open · {counts.recurring_schemes || 0} recurring · {counts.prospects || 0} prospects</small>
+        </div>
+        <div className="wip-checkpoint-state">
+          <time>{wipWhen(run.created_at)}</time>
+        </div>
+      </div>;
+    })}
+  </section>;
+}
+
 function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace = false, externalRefresh }) {
   const [files, setFiles] = useState([]);
   const [activity, setActivity] = useState([]);
@@ -308,6 +335,7 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
   const [references, setReferences] = useState([]);
   const [snapshots, setSnapshots] = useState([]);
   const [checks, setChecks] = useState({ tools: [], runs: [] });
+  const [fundingRuns, setFundingRuns] = useState([]);
   const [tab, setTab] = useState("overview");
   const [nonce, setNonce] = useState(0);
   const [draft, setDraft] = useState(manuscript || {});
@@ -323,7 +351,8 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
       api(`/wip/manuscripts/${manuscript.id}/references`),
       api(`/wip/manuscripts/${manuscript.id}/snapshots`),
       api(`/wip/manuscripts/${manuscript.id}/checks`),
-    ]).then(([fileResult, activityResult, sectionResult, taskResult, referenceResult, snapshotResult, checkResult]) => {
+      api(`/wip/manuscripts/${manuscript.id}/funding-runs`),
+    ]).then(([fileResult, activityResult, sectionResult, taskResult, referenceResult, snapshotResult, checkResult, fundingResult]) => {
       if (fileResult.ok) setFiles(fileResult.data || []);
       if (activityResult.ok) setActivity(activityResult.data || []);
       if (sectionResult.ok) setSections(sectionResult.data || []);
@@ -331,6 +360,7 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
       if (referenceResult.ok) setReferences(referenceResult.data || []);
       if (snapshotResult.ok) setSnapshots(snapshotResult.data || []);
       if (checkResult.ok) setChecks(checkResult.data || { tools: [], runs: [] });
+      if (fundingResult.ok) setFundingRuns(fundingResult.data.runs || []);
     });
     // externalRefresh (the shared wip.refresh counter) picks up a run/disposition change made from a concurrently
     // mounted sibling view of the same manuscript (e.g. the Methods-panel Statistics section, inc 402) -- both
@@ -426,8 +456,10 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
         {tab === "files" && fileView}
         {tab === "references" && <WipReferences manuscriptId={manuscript.id} references={references}
           onReload={reload} onOpenPaper={onOpenPaper} />}
-        {tab === "checks" && <WipChecks manuscriptId={manuscript.id} snapshots={snapshots}
-          checks={checks} onReload={reload} />}
+        {tab === "checks" && <>
+          <WipChecks manuscriptId={manuscript.id} snapshots={snapshots} checks={checks} onReload={reload} />
+          <WipFundingRuns runs={fundingRuns} />
+        </>}
         {tab === "activity" && activityView}
       </> : <>
         {overview}

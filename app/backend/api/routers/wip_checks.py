@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.backend.api.wip_security import require_local_wip
+from app.backend.funding.run_report import funding_run_summaries
 from app.backend.methods.statcheck import run_statcheck
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.persistence.wip_checks_repo import (
@@ -86,6 +87,18 @@ def statcheck_run(manuscript_id: int, request: Request) -> dict:
         return store_statcheck_run(conn, prepared, int(snapshot["id"]), report)
 
     return run_write(request.app.state.engine, persist)
+
+
+@router.get("/manuscripts/{manuscript_id}/funding-runs")
+def funding_runs_list(manuscript_id: int, request: Request) -> dict:
+    # inc 403: Discover > Funding tags a run's research_funding_profiles.source_kind/source_id when it's run
+    # against a WIP manuscript (funding.py's _run_funding_job) -- this just reads that same table back, scoped
+    # to this manuscript, so the run history is visible from the manuscript's own workspace tab too.
+    with request.app.state.engine.connect() as conn:
+        if get_manuscript(conn, manuscript_id) is None:
+            raise HTTPException(status_code=404, detail="WIP manuscript not found")
+        runs = funding_run_summaries(conn, limit=25, source_kind="wip-manuscript", source_id=str(manuscript_id))
+    return {"runs": runs}
 
 
 @router.patch("/findings/{finding_id}")

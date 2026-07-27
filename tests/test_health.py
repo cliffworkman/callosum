@@ -182,6 +182,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         "/wip/manuscripts/{manuscript_id}/sections",
         "/wip/manuscripts/{manuscript_id}/tasks",
         "/wip/manuscripts/{manuscript_id}/references",
+        "/wip/manuscripts/{manuscript_id}/funding-runs",
         "/wip/papers/{paper_id}",
     }
     allowed_mutation_routes = {

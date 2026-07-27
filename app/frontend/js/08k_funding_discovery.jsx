@@ -103,6 +103,9 @@ function fundingSaveViewPrefs(prefs) {
 
 function FundingDiscoveryPanel({ ctx }) {
   const initialViewPrefs = fundingLoadViewPrefs();
+  // inc 403: a WIP manuscript has no papers.id, so ctx.selectedPaper stays null while one is active -- mode
+  // already falls through to "manual" for free; this just also seeds the manual fields from the manuscript.
+  const manuscript = ctx.researchContext && ctx.researchContext.kind === "manuscript" ? ctx.researchContext.entity : null;
   const [mode, setMode] = useState(ctx.selectedPaper != null ? "paper" : "manual");
   const [description, setDescription] = useState("");
   const [field, setField] = useState("");
@@ -148,9 +151,18 @@ function FundingDiscoveryPanel({ ctx }) {
     fundingSaveViewPrefs({ triageOnly, showLowerProspects, resultFilter, resultSort });
   }, [triageOnly, showLowerProspects, resultFilter, resultSort]);
 
+  // Seed (never clobber) the manual fields from the active manuscript -- a convenience starter, freely editable.
+  useEffect(() => {
+    if (!manuscript) return;
+    setDescription(prev => prev.trim() ? prev : [manuscript.display_title, manuscript.notes].filter(Boolean).join("\n\n"));
+    setField(prev => prev.trim() ? prev : (manuscript.target_journal || ""));
+  }, [manuscript && manuscript.id]);
+
   const run = async () => {
     const body = mode === "paper"
       ? { paper_id: ctx.selectedPaper, llm_triage: llmTriage }
+      : manuscript
+      ? { description: description, field: field, llm_triage: llmTriage, manuscript_id: manuscript.id }
       : { description: description, field: field, llm_triage: llmTriage };
     setState({ status: "running", progress: null });
     setTriageState({ status: "idle" });
@@ -159,7 +171,12 @@ function FundingDiscoveryPanel({ ctx }) {
     const poll = (jid) => api(`/funding-discovery/run/${jid}`).then(r => {
       if (!r.ok) { setState({ status: "error", error: r.error }); return; }
       const d = r.data;
-      if (d.status === "done") { setState({ status: "done", report: d.report }); refreshRuns(); }
+      if (d.status === "done") {
+        setState({ status: "done", report: d.report });
+        refreshRuns();
+        // Let the manuscript's own WIP tab (Checks) pick up this run without a manual reload.
+        if (manuscript && ctx.onReloadWip) ctx.onReloadWip();
+      }
       else if (d.status === "error") setState({ status: "error", error: d.detail || "Funding Discovery failed." });
       else { setState({ status: "running", progress: d.progress }); setTimeout(() => poll(jid), 1400); }
     });
@@ -232,6 +249,7 @@ function FundingDiscoveryPanel({ ctx }) {
           ? <div className="tag-suggest-empty">Select a paper in the library, or describe the research instead.</div>
           : <div className="pub-input-note">Building a funding profile from <b>{meta ? meta.title : "the selected paper"}</b>. Full PDFs are not sent to providers.</div>
         : <div className="pub-input">
+            {manuscript && <div className="pub-input-note">Pre-filled from <b>{manuscript.display_title}</b> — edit freely; a search doesn't require your manuscript text.</div>}
             <textarea className="settings-input" rows={4} placeholder="Paste an abstract or describe the research…" value={description} onChange={e => setDescription(e.target.value)} />
             <input className="settings-input" placeholder="Short field / discipline context" value={field} onChange={e => setField(e.target.value)} />
             <div className="settings-sub">Provider queries use minimized structured facets, not full manuscript text.</div>

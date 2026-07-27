@@ -19,7 +19,13 @@ from app.backend.persistence.schema import (
 )
 
 
-def funding_run_summaries(conn: Connection, limit: int = 10) -> list[dict[str, Any]]:
+def funding_run_summaries(
+    conn: Connection,
+    limit: int = 10,
+    *,
+    source_kind: str | None = None,
+    source_id: str | None = None,
+) -> list[dict[str, Any]]:
     annotated = (
         select(
             funding_search_runs.c.id.label("run_id"),
@@ -34,25 +40,28 @@ def funding_run_summaries(conn: Connection, limit: int = 10) -> list[dict[str, A
         .group_by(funding_search_runs.c.id)
         .subquery()
     )
-    rows = (
-        conn.execute(
-            select(
-                funding_search_runs.c.id,
-                funding_search_runs.c.created_at,
-                funding_search_runs.c.provider_statuses_json,
-                funding_search_runs.c.result_counts_json,
-                research_funding_profiles.c.source_kind,
-                research_funding_profiles.c.source_id,
-                research_funding_profiles.c.title,
-                annotated.c.llm_annotated_count,
-            )
-            .outerjoin(research_funding_profiles, funding_search_runs.c.profile_id == research_funding_profiles.c.id)
-            .outerjoin(annotated, funding_search_runs.c.id == annotated.c.run_id)
-            .order_by(desc(funding_search_runs.c.id))
-            .limit(max(1, min(int(limit), 25)))
+    query = (
+        select(
+            funding_search_runs.c.id,
+            funding_search_runs.c.created_at,
+            funding_search_runs.c.provider_statuses_json,
+            funding_search_runs.c.result_counts_json,
+            research_funding_profiles.c.source_kind,
+            research_funding_profiles.c.source_id,
+            research_funding_profiles.c.title,
+            annotated.c.llm_annotated_count,
         )
-        .mappings()
-        .all()
+        .outerjoin(research_funding_profiles, funding_search_runs.c.profile_id == research_funding_profiles.c.id)
+        .outerjoin(annotated, funding_search_runs.c.id == annotated.c.run_id)
+    )
+    # inc 403: scope to a specific source (e.g. a WIP manuscript's own runs) -- both filters share one profile row,
+    # so pairing them is what actually identifies "this manuscript's runs", not source_kind alone.
+    if source_kind is not None:
+        query = query.where(research_funding_profiles.c.source_kind == source_kind)
+    if source_id is not None:
+        query = query.where(research_funding_profiles.c.source_id == source_id)
+    rows = (
+        conn.execute(query.order_by(desc(funding_search_runs.c.id)).limit(max(1, min(int(limit), 25)))).mappings().all()
     )
     return [
         {

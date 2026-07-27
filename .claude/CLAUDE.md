@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 402** (see Increment workflow) with **1653 pytest tests
+It is currently at **Increment 403** (see Increment workflow) with **1658 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -51,7 +51,11 @@ the full per-increment narrative for all other increments now lives in the reloc
   the WIP tab's own Checks sub-tab) in the Methods panel's Statistics section too, branching on
   `ctx.researchContext.kind === "manuscript"` (the same pattern the Details section already used) — a
   WIP manuscript has no `papers.id`, so `ctx.selectedPaper` stays null for it by design; the two concurrent
-  surfaces stay in sync via the existing `wip.refresh` counter, now also exposed as `ctx.wipRefresh`.
+  surfaces stay in sync via the existing `wip.refresh` counter, now also exposed as `ctx.wipRefresh`; inc 403
+  extends the same WIP integration to Discover > Funding — a run made against a manuscript (its already-existing
+  paper-free "Describe research" mode, now pre-filled from the manuscript) tags
+  `research_funding_profiles.source_kind="wip-manuscript"` (an already-generic column, no schema change) and
+  surfaces in the manuscript's own Checks tab via a new scoped `GET /wip/manuscripts/{id}/funding-runs`.
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):
@@ -512,7 +516,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 402). Each increment of real work
+callosum is built in **numbered increments** (currently at 403). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

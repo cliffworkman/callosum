@@ -34,6 +34,7 @@ from app.backend.funding.saved_repo import (
     update_saved_item,
 )
 from app.backend.funding.triage_repo import persist_llm_triage_annotations
+from app.backend.persistence.wip_repo import get_manuscript
 
 MAX_RESEARCH_TEXT_CHARS = 20000
 MAX_LLM_CONTEXT_CHARS = 20000
@@ -43,6 +44,8 @@ router = APIRouter(tags=["funding-discovery"])
 
 class FundingRunRequest(BaseModel):
     paper_id: int | None = None
+    manuscript_id: int | None = None  # inc 403: a WIP manuscript has no papers.id -- tags provenance on the
+    # existing freeform "description" path rather than being a third exclusive mode (see funding_run's validation).
     description: str | None = None
     field: str | None = None
     llm_triage: bool = False
@@ -79,7 +82,10 @@ class UpdateSavedFundingItemRequest(BaseModel):
 @router.post("/funding-discovery/run", response_model=FundingRunResponse, status_code=http_status.HTTP_202_ACCEPTED)
 def funding_run(body: FundingRunRequest, background_tasks: BackgroundTasks, request: Request) -> FundingRunResponse:
     has_paper = body.paper_id is not None
+    has_manuscript = body.manuscript_id is not None
     has_text = bool((body.description or "").strip())
+    if has_paper and has_manuscript:
+        raise HTTPException(status_code=422, detail="Provide either a paper_id or a manuscript_id, not both.")
     if has_paper and has_text:
         raise HTTPException(status_code=422, detail="Provide either a paper_id or a research description, not both.")
     if not has_paper and not has_text:
@@ -91,6 +97,10 @@ def funding_run(body: FundingRunRequest, background_tasks: BackgroundTasks, requ
             profile = profile_from_paper(conn, int(body.paper_id))
         if profile is None:
             raise HTTPException(status_code=404, detail="Paper not found")
+    if has_manuscript:
+        with request.app.state.engine.connect() as conn:
+            if get_manuscript(conn, int(body.manuscript_id)) is None:
+                raise HTTPException(status_code=404, detail="WIP manuscript not found")
     job_id = request.app.state.funding_jobs.create()
     background_tasks.add_task(_run_funding_job, request.app, job_id, body)
     return FundingRunResponse(job_id=job_id, status="pending")
@@ -273,6 +283,17 @@ def _run_funding_job(app: FastAPI, job_id: str, body: FundingRunRequest) -> None
                     jobs.mark_error(job_id, "Paper not found")
                     return
                 research_context = _paper_research_context(conn, int(body.paper_id))
+            elif body.manuscript_id is not None:
+                research_context = _manual_research_context(body)
+                manuscript = get_manuscript(conn, int(body.manuscript_id))
+                manuscript_title = (manuscript or {}).get("display_title")
+                profile = profile_from_text(
+                    body.description or "",
+                    field=body.field or "",
+                    source_kind="wip-manuscript",
+                    source_id=str(body.manuscript_id),
+                    title=manuscript_title,
+                )
             else:
                 research_context = _manual_research_context(body)
                 profile = profile_from_text(

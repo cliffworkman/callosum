@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-27 — Increment 403: wire Discover > Funding to WIP manuscripts
+
+- **Files:** `app/backend/api/routers/{funding.py,wip_checks.py}`, `app/backend/funding/run_report.py`,
+  `app/frontend/js/{08k_funding_discovery.jsx,10f_wip.jsx}`, `tests/{test_wip_funding.py (new),
+  test_health.py}`, `.claude/qa-routes/route_75_wip_workspace.md`,
+  `.claude/security-audits/2026-07-27_wip-funding-discovery.md` (new), `callosum-app.html`.
+- **What:** Discover > Funding's already-existing paper-free "Describe research" mode now attributes a
+  run to the active WIP manuscript (tags `research_funding_profiles.source_kind="wip-manuscript"` — an
+  already-generic column, zero schema change) and pre-fills the description from the manuscript's
+  title/notes. A new scoped `GET /wip/manuscripts/{id}/funding-runs` surfaces that manuscript's own
+  funding-search history in its Checks tab, kept in sync with the live Discover > Funding panel via the
+  inc-402 `wip.refresh` cross-sync mechanism. Second of three "quick win" WIP-integration increments.
+- **Why:** Cliff asked to wire Discover > Funding to work against active WIP manuscripts and have the
+  results visible from the manuscript's own workspace tab.
+- **Revert:** `git revert` this increment's commit(s); fully additive (new optional request field, new
+  endpoint, new frontend list) — the existing paper/manual Funding paths are untouched.
+
 ## 2026-07-27 — Increment 402: surface WIP statcheck in the Methods panel's Statistics section
 
 - **Files:** `app/frontend/js/{10f_wip.jsx,10k_wip_checks.jsx (new),06_methods_statcheck.jsx,
