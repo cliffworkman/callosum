@@ -1,12 +1,26 @@
 name: Desktop shell (Linux)
 
-# Builds the Tauri desktop shell as a Linux AppImage + .deb (x86_64) and verifies the AppImage on the
-# runner: ubuntu-latest has NO display server by default (unlike the Windows/macOS runners, which keep
-# a real interactive session) — this workflow starts a virtual framebuffer (Xvfb) specifically so the
-# real app can actually render, and screenshots it. This is new platform scope (backlog #21 originally
-# targeted only Windows/macOS for the one known adopter) — added because Cliff wants a Linux build to
-# exist, not because a specific user is waiting on it; treat any Linux-specific rough edges here as
-# genuinely less proven than the Windows/macOS paths.
+# Builds the Tauri desktop shell as a Linux .deb (x86_64) and verifies it on the runner. This is new
+# platform scope (backlog #21 originally targeted only Windows/macOS for the one known adopter) --
+# added because Cliff wants a Linux build to exist, not because a specific user is waiting on it;
+# treat any Linux-specific rough edges here as genuinely less proven than the Windows/macOS paths.
+#
+# .deb only, not AppImage: Tauri's AppImage bundler shells out to linuxdeploy, which walks the FULL
+# ELF dependency graph of every bundled binary before it'll package anything. Against this project's
+# actual dependency stack (a complete embedded CPython + torch/scipy/numpy/scikit-learn) that surfaced
+# an escalating series of real, separate failures on real runs: linuxdeploy is itself an AppImage
+# needing FUSE (ubuntu-latest doesn't reliably have it); torch's default wheel links the NVIDIA
+# driver's libcuda.so.1, absent on any GPU-less machine; torch bundles its own internal C++ test-suite
+# binaries with rpaths linuxdeploy can't always follow; and scipy/scikit-learn each vendor their own
+# uniquely-hashed copies of libgfortran/libquadmath (a standard auditwheel pattern) that don't
+# cross-resolve the way linuxdeploy expects. The .deb bundler is a separate, much simpler pipeline
+# (declare dependencies, copy files) that doesn't do any of this — it sidesteps the whole class of
+# problem rather than chasing it fix-by-fix, and .deb is genuinely what most desktop Linux users can
+# install directly anyway (Debian/Ubuntu and derivatives).
+#
+# ubuntu-latest has NO display server by default (unlike the Windows/macOS runners, which keep a real
+# interactive session) — this workflow starts a virtual framebuffer (Xvfb) specifically so the real
+# app can actually render, and screenshots it.
 #
 # Not on push/PR — this is a slow, heavy build (portable CPython + the full ML dependency tree) that
 # doesn't need to run on every commit. Trigger manually or when the shell/packaging itself changes.
@@ -40,7 +54,6 @@ jobs:
             curl \
             wget \
             file \
-            libfuse2 \
             libxdo-dev \
             libssl-dev \
             libayatana-appindicator3-dev \
@@ -85,38 +98,31 @@ jobs:
         working-directory: app/desktop-shell
         run: npm install
 
-      - name: Build the AppImage + .deb
+      - name: Build the .deb
         working-directory: app/desktop-shell
-        # linuxdeploy (which Tauri shells out to for AppImage bundling) is itself distributed as an
-        # AppImage, which needs FUSE to self-mount — GitHub's ubuntu-latest runners don't reliably
-        # have that available, so ask it to extract-and-run instead. --verbose surfaces linuxdeploy's
-        # own output if this still fails, rather than Tauri's generic "failed to run linuxdeploy".
-        env:
-          APPIMAGE_EXTRACT_AND_RUN: "1"
-        run: npx tauri build --verbose
+        run: npx tauri build
 
-      - name: Upload installer artifacts
+      - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:
           name: callosum-linux-x86_64
-          path: |
-            app/desktop-shell/src-tauri/target/release/bundle/appimage/*.AppImage
-            app/desktop-shell/src-tauri/target/release/bundle/deb/*.deb
+          path: app/desktop-shell/src-tauri/target/release/bundle/deb/*.deb
           if-no-files-found: error
 
-      - name: "Verify: run the real AppImage under Xvfb, screenshot the real running window"
+      - name: "Verify: install the real .deb, run it under Xvfb, screenshot the real running window"
         id: verify
+        timeout-minutes: 10
         run: |
           set -x
+          DEB=$(ls app/desktop-shell/src-tauri/target/release/bundle/deb/*.deb)
+          sudo dpkg -i "$DEB"
+
           Xvfb :99 -screen 0 1280x900x24 &
           export DISPLAY=:99
           sleep 2
 
-          APPIMAGE=$(ls app/desktop-shell/src-tauri/target/release/bundle/appimage/*.AppImage)
-          chmod +x "$APPIMAGE"
-          # --appimage-extract-and-run sidesteps FUSE, which isn't reliably available in CI sandboxes.
-          "$APPIMAGE" --appimage-extract-and-run &
-          APP_PID=$!
+          callosum-shell &
+          disown
 
           ready=0
           for i in $(seq 1 40); do
@@ -135,7 +141,6 @@ jobs:
             echo "::warning::backend never reported healthy within the wait budget — screenshot may show only the splash"
           fi
 
-          kill $APP_PID 2>/dev/null || true
           pkill -f callosum-shell 2>/dev/null || true
 
       - name: Upload verification screenshot
