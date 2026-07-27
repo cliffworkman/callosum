@@ -1,0 +1,68 @@
+name: Desktop shell (macOS)
+
+# Builds the Tauri desktop shell's macOS .dmg — arm64-only (see app/desktop-shell's increment notes
+# for why Intel Macs are out of scope for now). This is genuinely the only verification the macOS
+# build gets before it reaches a real user: there is no Mac hardware to manually click through it on.
+# The backend-only smoke test below is REQUIRED (blocking) — it proves the real dependency stack
+# (torch/PyMuPDF/scikit-learn/sqlite-vec, arm64 wheels) actually imports and serves on real macOS
+# arm64 hardware, even though nobody has seen the resulting window open. It does NOT prove Gatekeeper
+# lets the app open, or that the webview loads — those remain unverified pre-shipment.
+#
+# Not on push/PR — this is a slow, heavy build (portable CPython + the full ML dependency tree) that
+# doesn't need to run on every commit. Trigger manually or when the shell/packaging itself changes.
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - "app/desktop-shell/**"
+      - "app/backend/**"
+      - "requirements.txt"
+      - ".github/workflows/desktop-shell-macos.yml"
+
+jobs:
+  build-macos-shell:
+    runs-on: macos-latest # Apple Silicon (arm64) as of this writing
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install frontend build toolchain + build callosum-app.html
+        run: |
+          npm install
+          python3 tools/build_frontend.py
+
+      - name: Stage callosum source into resources/callosum-src
+        run: python3 app/desktop-shell/packaging/stage_source.py
+
+      - name: Build portable Python runtime + install real dependencies (arm64)
+        run: bash app/desktop-shell/packaging/build_python_macos.sh
+
+      - name: "Backend smoke test (REQUIRED — see file header for what this does and doesn't prove)"
+        run: |
+          python3 app/desktop-shell/packaging/smoke_test_backend.py \
+            --python app/desktop-shell/resources/python-runtime/bin/python3 \
+            --source app/desktop-shell/resources/callosum-src
+
+      - name: Install Tauri CLI
+        working-directory: app/desktop-shell
+        run: npm install
+
+      - name: Build the .dmg
+        working-directory: app/desktop-shell
+        run: npx tauri build
+
+      - name: Upload .dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: callosum-macos-arm64
+          path: app/desktop-shell/src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error

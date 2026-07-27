@@ -46,7 +46,7 @@ function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, select
         {wip.enabled && <button
           className={"frame-tab frame-tab-wip" + (activeTab === "wip" ? " active" : "")}
           onClick={() => onActivate("wip")}
-        ><span className="wip-badge">WIP</span> Work in progress</button>}
+        >WIP</button>}
         {selectedPaperTab &&
           <button
             className="frame-tab frame-tab-selected"

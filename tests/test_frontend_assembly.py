@@ -283,7 +283,7 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
     css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
 
     library_tab = raw.index(">Library</button>")
-    wip_tab = raw.index("> Work in progress</button>")
+    wip_tab = raw.index(">WIP</button>")
     selected_paper_tab = raw.index("{selectedPaperTab &&", library_tab)
     assert library_tab < wip_tab < selected_paper_tab
     assert 'onClick={() => onActivate("wip")}' in raw

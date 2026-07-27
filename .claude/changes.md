@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-27 — Increment 394: Tauri desktop shell (Windows verified end-to-end, macOS CI-only)
+
+- **Files:** `app/desktop-shell/` (new — `src-tauri/src/{backend.rs,lib.rs,main.rs}`, `tauri.conf.json`,
+  `Info.plist`, `capabilities/default.json`, `splash/`, `packaging/{stage_source.py,
+  build_python_windows.ps1,build_python_macos.sh,smoke_test_backend.py}`, `FIRST-LAUNCH-NOTE.md`,
+  `README.md`), `.github/workflows/desktop-shell-macos.yml` (new), `tools/check_line_budget.py`
+  (directory-pruning fix), `.gitignore`, `app/frontend/js/30c_frame.jsx` + `tests/
+  test_frontend_assembly.py` (unrelated small fix, same session).
+- **What:** a Tauri v2 shell that spawns callosum's own FastAPI backend (bundled portable CPython +
+  real deps, not PyInstaller freezing) and shows the real UI once healthy — click-to-install
+  packaging for the first external adopter. Built, installed via the real NSIS installer, and
+  verified end-to-end on Windows (spawn/health/full frontend API cascade/cleanup/single-instance) via
+  process inspection. macOS: CI workflow only, not run yet. Also collapsed the redundant "WIP" badge +
+  "Work in progress" text on the WIP tab button down to just "WIP" (too wide).
+- **Why:** backlog #21, targeting a hard 2-day deadline for a non-technical user's first install.
+- **Revert:** `git revert` this increment's commit(s); the desktop-shell subsystem is fully additive
+  (no existing files changed besides the tab-label fix and the line-budget tool's exclusion list).
+
 <!-- HELP-DOCS-SYNCED: 2026-07-26 inc 393 — evidence-linked positive correction records -->
 ## 2026-07-26 — Increment 393: evidence-linked positive correction records
 

@@ -74,3 +74,9 @@ qa_routes.zip
 # per-OS setup lives in the README) ---
 /run-callosum.ps1
 /run-callosum.sh
+
+# --- Tauri desktop shell (backlog #21) — generated build-time payload, not source. The portable
+# Python runtime + staged callosum source are produced by app/desktop-shell/packaging/*, not hand-
+# written; Cargo/Tauri's own target/gen output is covered by src-tauri/.gitignore. ---
+app/desktop-shell/resources/
+

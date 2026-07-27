@@ -15,12 +15,20 @@ Usage:  python tools/check_line_budget.py            # check, exit 1 on any viol
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 CAP = 600
 ROOTS = (Path("app"), Path("integrations"))
 SUFFIXES = (".py", ".jsx")
+# Generated/vendored, gitignored — not authored application source. app/desktop-shell/resources/
+# holds a build-time-bundled portable Python + its full pip-installed dependency tree (thousands of
+# vendored .py files from torch/transformers/etc.) plus a copy of the staged source tree; src-tauri/
+# target/ is Cargo's build output (tens of thousands of intermediate files). Pruned from the walk
+# itself (not just filtered after) — an os.walk lets us skip descending entirely, since merely
+# filtering rglob's output would still pay the cost of traversing gigabytes of generated content.
+EXCLUDE_DIR_NAMES = {"resources", "target", "node_modules"}
 
 
 def _line_count(path: Path) -> int:
@@ -34,9 +42,12 @@ def collect() -> list[tuple[int, Path]]:
     for root in ROOTS:
         if not root.exists():
             continue
-        for path in root.rglob("*"):
-            if path.suffix in SUFFIXES and path.is_file():
-                sizes.append((_line_count(path), path))
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d not in EXCLUDE_DIR_NAMES]
+            for name in filenames:
+                path = Path(dirpath, name)
+                if path.suffix in SUFFIXES:
+                    sizes.append((_line_count(path), path))
     sizes.sort(key=lambda t: t[0], reverse=True)
     return sizes
 
