@@ -3,10 +3,12 @@ name: Desktop shell (macOS)
 # Builds the Tauri desktop shell's macOS .dmg — arm64-only (see app/desktop-shell's increment notes
 # for why Intel Macs are out of scope for now). This is genuinely the only verification the macOS
 # build gets before it reaches a real user: there is no Mac hardware to manually click through it on.
-# The backend-only smoke test below is REQUIRED (blocking) — it proves the real dependency stack
-# (torch/PyMuPDF/scikit-learn/sqlite-vec, arm64 wheels) actually imports and serves on real macOS
-# arm64 hardware, even though nobody has seen the resulting window open. It does NOT prove Gatekeeper
-# lets the app open, or that the webview loads — those remain unverified pre-shipment.
+# build_python_macos.sh's OWN last step runs the backend smoke test and is REQUIRED (blocking, via
+# `set -euo pipefail`) — it proves the real dependency stack (torch/PyMuPDF/scikit-learn/sqlite-vec,
+# arm64 wheels) actually imports and serves on real macOS arm64 hardware, even though nobody has seen
+# the resulting window open. It does NOT prove Gatekeeper lets the app open, or that the webview
+# loads — those remain unverified pre-shipment. (A separate, redundant workflow step re-running the
+# same script was removed here after a real run — the internal check already gates the build.)
 #
 # Not on push/PR — this is a slow, heavy build (portable CPython + the full ML dependency tree) that
 # doesn't need to run on every commit. Trigger manually or when the shell/packaging itself changes.
@@ -52,14 +54,8 @@ jobs:
       - name: Stage callosum source into resources/callosum-src
         run: python3 app/desktop-shell/packaging/stage_source.py
 
-      - name: Build portable Python runtime + install real dependencies (arm64)
+      - name: "Build portable Python runtime + install real deps + smoke test (arm64, REQUIRED — blocking)"
         run: bash app/desktop-shell/packaging/build_python_macos.sh
-
-      - name: "Backend smoke test (REQUIRED — see file header for what this does and doesn't prove)"
-        run: |
-          python3 app/desktop-shell/packaging/smoke_test_backend.py \
-            --python app/desktop-shell/resources/python-runtime/bin/python3 \
-            --source app/desktop-shell/resources/callosum-src
 
       - name: Install Tauri CLI
         working-directory: app/desktop-shell
