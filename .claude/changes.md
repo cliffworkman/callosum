@@ -9,6 +9,28 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-27 — Increment 400: cache statcheck results per paper, explicit Rescan
+
+- **Files:** `app/backend/api/routers/{methods.py,methods_statcheck_cache.py (new)}`,
+  `app/backend/persistence/{statcheck_cache_repo.py (new),schema_findings.py,schema_jobs.py (new),schema.py}`,
+  `app/backend/api/app.py`, `alembic/versions/0056_paper_statcheck_cache.py` (new),
+  `app/frontend/js/{06_methods_statcheck.jsx,40_app.jsx}`, `app/frontend/styles.css`,
+  `tests/{test_statcheck_cache.py (new),test_health.py}`,
+  `.claude/qa-routes/route_33_methods_statcheck.md`,
+  `.claude/security-audits/2026-07-27_statcheck-cache.md` (new), `callosum-app.html`.
+- **What:** the METHODS "Statistics" per-paper check no longer recomputes live on every paper
+  selection — it now shows a cached result (a new `paper_statcheck_cache` table storing the exact
+  itemized, bbox-bearing payload) with a permanent, explicit Rescan control and an "as of `<date>`"
+  line. A content-fingerprint mismatch (the paper was reprocessed since) surfaces as a passive amber
+  hint beside the unchanged cached result — never blocking it or auto-refreshing. The "Check all
+  papers" batch job now warms this cache for free. (Also split `jobs`/`job_errors` out of
+  `schema.py` into a new `schema_jobs.py`, an unrelated pre-existing 600-line-cap breach the new
+  table's import happened to trip.)
+- **Why:** Cliff suspected most published papers' statcheck results won't change often and asked for
+  a cache with an explicit rescan instead of a silent live recompute on every panel open.
+- **Revert:** `git revert` this increment's commit(s); fully additive (new table/endpoints/component
+  logic), the existing live `GET /papers/{id}/statcheck` endpoint is untouched.
+
 ## 2026-07-27 — Increment 399: WIP — remove watched locations + manuscript cards
 
 - **Files:** `app/backend/api/routers/wip.py`, `app/backend/persistence/wip_repo.py`,

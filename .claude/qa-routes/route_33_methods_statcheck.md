@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: GET /papers/{paper_id}/statcheck, /methods/statcheck*
+api: GET /papers/{paper_id}/statcheck, GET /papers/{paper_id}/statcheck/cached, POST /papers/{paper_id}/statcheck/rescan, /methods/statcheck*
 fe: 00_lib.jsx, 06_methods_statcheck.jsx
 -->
 
@@ -32,7 +32,11 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 
 ## Steps
 
-1. Open the **METHODS pane → "Statistics"** section. Select a paper, then run its per-paper check ("This paper" → Check statistics; `GET /papers/{paper_id}/statcheck`).
+1. Open the **METHODS pane → "Statistics"** section. **Inc 400: selecting a paper shows its CACHED result
+   immediately (`GET /papers/{paper_id}/statcheck/cached`) — confirm this never fires a live recompute.** For a
+   never-checked paper, run its per-paper check ("This paper" → Check statistics → `POST .../rescan`); the
+   control **stays visible permanently** afterward, now labeled "Rescan," alongside an "as of &lt;date&gt;" line.
+   Switch to a different paper and back — confirm the same cached result reappears instantly with no spinner.
 2. Confirm each prose row shows the reported statistic (verbatim `raw`), recomputed p value, match status, and
    counts. With a PDF/JATS/XML/HTML/DOCX/ODT fixture containing a clearly headed result table, confirm a
    **TABLE N · ROW N** source badge appears, the reconstructed `header | row` evidence remains visible, and the
@@ -50,8 +54,13 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    secondary PDF, confirm the source request includes `?attachment_id=<secondary id>` and opens that PDF rather
    than the primary.
 4. In the same section's "Whole library" block, start library statcheck (Check all papers; `POST /methods/statcheck/run`) and poll (`GET /methods/statcheck/run/{job_id}`). Navigate away mid-run and return.
-5. After completion confirm the summary (`GET /methods/statcheck/summary`) drives the "N with inconsistencies" count and the library "⚠ N flagged" header chip; aggregate counts are transparent filters, not ranks. Click the **"⚠ N flagged" chip** (inc 141) → the library filters to flagged papers, the METHODS **Statistics** section opens, the **top flagged paper is auto-selected**, and its per-test rows **auto-show** (no manual "Check statistics" click) — the citer lands on the specific inconsistent result, not just "which papers".
-6. Directly visit a fake job id and papers with (a) no parseable methods text, (b) an ambiguous/multi-p-value or
+5. After completion confirm the summary (`GET /methods/statcheck/summary`) drives the "N with inconsistencies" count and the library "⚠ N flagged" header chip; aggregate counts are transparent filters, not ranks. Click the **"⚠ N flagged" chip** (inc 141) → the library filters to flagged papers, the METHODS **Statistics** section opens, the **top flagged paper is auto-selected**, and its per-test rows **auto-show** (no manual "Check statistics" click) — the citer lands on the specific inconsistent result, not just "which papers". **Inc 400: this now works because the batch run warms the per-paper cache for every paper it touches (flagged and clean alike) — confirm the auto-shown rows come from that cache (an "as of" line matching the batch's run time), not a fresh recompute fired by opening the section.**
+6. **Inc 400 staleness hint.** After a per-paper check, reprocess that paper's PDF (Detail pane). Reopen
+   Statistics for it — confirm an amber "may be stale — paper reprocessed since" hint appears **beside** the
+   still-displayed OLD result (never blocking it, never auto-refreshing). Click Rescan → hint clears, "as of"
+   updates, and the newly recomputed rows display. Confirm the stale hint never appears for a paper that hasn't
+   changed since its last check.
+7. Directly visit a fake job id and papers with (a) no parseable methods text, (b) an ambiguous/multi-p-value or
    incomplete table, (c) a malformed supported attachment, and (d) more than eight supported attachments.
    Confirm clean empty/error states, prose results survive an attachment failure, skipped/truncated coverage is
    explicit, and work remains bounded. Confirm statcheck no longer appears in Settings or the Details pane.

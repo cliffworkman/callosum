@@ -36,7 +36,6 @@ PROCESSING_VERSION_TYPES = (
     "summary",
     "verification",
 )
-JOB_STATUSES = ("queued", "running", "succeeded", "failed", "cancelled")
 
 
 papers = Table(
@@ -461,32 +460,6 @@ my_publication_decisions = Table(
     UniqueConstraint("paper_id", name="uq_my_publication_decisions_paper_id"),
 )
 
-jobs = Table(
-    "jobs",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("job_type", String(100), nullable=False),
-    Column("status", String(50), nullable=False),
-    Column("input_json", JSON),
-    Column("output_json", JSON),
-    Column("progress_json", JSON),
-    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
-    Column("started_at", DateTime),
-    Column("finished_at", DateTime),
-    enum_check("status", JOB_STATUSES, "job_status_valid"),
-)
-
-job_errors = Table(
-    "job_errors",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("job_id", ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False),
-    Column("message", Text, nullable=False),
-    Column("details_json", JSON),
-    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
-    Index("ix_job_errors_job_id", "job_id"),
-)
-
 missing_literature_suggestions = Table(
     "missing_literature_suggestions",
     metadata,
@@ -522,6 +495,7 @@ from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     overlooked_candidates,
     paper_citation_counts,
     paper_findings,
+    paper_statcheck_cache,
     retraction_records,
 )
 
@@ -540,6 +514,9 @@ from app.backend.persistence.schema_funding import (  # noqa: E402,F401
     saved_funding_items,
     saved_funding_refresh_events,
 )
+
+# Generic async-job bookkeeping (inc 400 split — schema.py crossed the 600-line cap).
+from app.backend.persistence.schema_jobs import JOB_STATUSES, job_errors, jobs  # noqa: E402,F401
 
 # Reversible-library-merge bookkeeping (backlog #17/#16) — same split rationale.
 from app.backend.persistence.schema_merge import (  # noqa: E402,F401

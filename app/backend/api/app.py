@@ -52,6 +52,7 @@ from app.backend.api.routers import (
     methods,
     methods_bayes,
     methods_retraction,
+    methods_statcheck_cache,
     my_publication_citing_authors,
     my_publication_gaps,
     my_publication_topics,
@@ -299,6 +300,9 @@ def create_app(
     api.include_router(papers.router)
     api.include_router(paper_files.router)  # /papers/{id}/pdf — split out of papers.py (inc 91)
     api.include_router(methods.router)  # /papers/{id}/statcheck — deterministic Methods producers (inc 95)
+    api.include_router(
+        methods_statcheck_cache.router
+    )  # /papers/{id}/statcheck/cached,/rescan — per-paper cache, split from methods.py (inc 400)
     api.include_router(
         methods_retraction.router
     )  # /methods/retraction/* — retraction findings, split from methods.py (inc 261)

@@ -44,6 +44,7 @@ from app.backend.persistence.repository import (
 )
 from app.backend.persistence.signals_repo import count_statcheck_flagged, store_statcheck
 from app.backend.persistence.sqlite_retry import run_write
+from app.backend.persistence.statcheck_cache_repo import compute_content_fingerprint, store_statcheck_cache
 
 MAX_PCURVE_PAPERS = 1000  # bound the selection a p-curve runs over (rule #4)
 MAX_STATCHECK_TABLE_ATTACHMENTS = 8
@@ -461,13 +462,26 @@ def _run_statcheck_all_job(app: FastAPI, job_id: str) -> None:
         with engine.connect() as conn:
             ids = list_live_paper_ids(conn)
 
-        def persist(conn, paper_id, report):  # inc C: one committed transaction per paper — lock released between
+        def persist(conn, paper_id, report, coverage):  # inc C: one committed txn/paper — lock released between
             store_statcheck(
                 conn,
                 paper_id,
                 checked=report.checked,
                 inconsistent=report.inconsistent,
                 decision_errors=report.decision_errors,
+            )
+            # inc 400: warm the per-paper cache too, for free — the batch already computed this exact report, so
+            # the Detail-pane "Statistics" section can show it immediately with zero live recompute.
+            pdf_ids = pdf_attachment_ids(conn, (r.attachment_id for r in report.results))
+            store_statcheck_cache(
+                conn,
+                paper_id,
+                checked=report.checked,
+                inconsistent=report.inconsistent,
+                decision_errors=report.decision_errors,
+                results_json=[_statcheck_result_payload(conn, r, pdf_ids) for r in report.results],
+                coverage_json=coverage,
+                content_fingerprint=compute_content_fingerprint(conn, paper_id),
             )
             # inc 133: also emit a CANDIDATE finding for the unified review queue (a prompt to look, reviewable —
             # coexists with the signal above, which is the persistent fact). Clean → supersede any prior one.
@@ -503,8 +517,8 @@ def _run_statcheck_all_job(app: FastAPI, job_id: str) -> None:
             total += 1
             try:
                 with engine.connect() as read_conn:
-                    report, _coverage = _run_statcheck_for_paper(read_conn, paper_id)
-                run_write(engine, lambda conn, pid=paper_id, rep=report: persist(conn, pid, rep))
+                    report, coverage = _run_statcheck_for_paper(read_conn, paper_id)
+                run_write(engine, lambda conn, pid=paper_id, rep=report, cov=coverage: persist(conn, pid, rep, cov))
             except Exception as exc:  # noqa: BLE001 — one bad paper never aborts the batch
                 _log.warning("statcheck batch: skipped paper %s: %s", paper_id, exc)
                 continue

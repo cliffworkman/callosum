@@ -347,7 +347,6 @@ function App() {
     // own Library card shows — reload the list the same way onQueueChanged already does.
     onLibraryChanged: () => setLibRefresh(n => n + 1),
     pendingSummarize, axisRefresh, tagRefresh, queueRefresh, findingsRefresh, hideUncertainDefault, axisCutoffDefault,
-    methodsOpen,  // inc-140: the open METHODS section id, so a section can tell when it's the active one (statcheck auto-run)
     onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
     onShowRetractionFlagged: showRetractionFlagged, onRetractionRan: refreshRetractionChip,
     onShowTransparencyReview: showTransparencyReview, onTransparencyRan: refreshTransparencyChip,  // inc 251

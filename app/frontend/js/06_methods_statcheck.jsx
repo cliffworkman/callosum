@@ -63,9 +63,13 @@ function StatcheckLibrary({ onShowFlagged, onRan }) {
 // Per-paper check (moved from StatcheckRow in 25_detail.jsx, inc 95). The section gets only the paper id via ctx,
 // so it self-fetches the paper's title + chunk_count (statcheck needs extracted text). Each row routes to its
 // page at region precision (page-open, never a fake exact highlight — coordinate-honesty contract).
-function StatcheckPaper({ paperId, onOpenPaper, active }) {
+// inc 400: shows the CACHED result on selection (no live recompute) with a permanent, explicit Rescan control and
+// an "as of <date>" line — on the premise that a published paper's statistics rarely change. A content-fingerprint
+// mismatch (the paper was reprocessed since) surfaces as a passive amber hint beside the still-shown old result;
+// it never blocks display or auto-triggers a recompute.
+function StatcheckPaper({ paperId, onOpenPaper }) {
   const [meta, setMeta] = useState(null);          // { title, hasText } | null
-  const [state, setState] = useState({ status: "idle" });  // idle | running | done | error
+  const [state, setState] = useState({ status: "idle" });  // idle | loading | empty | cached | running | error
   const listRef = useRef(null);
   useEffect(() => {
     setState({ status: "idle" }); setMeta(null);
@@ -77,22 +81,27 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
     });
     return () => { live = false; };
   }, [paperId]);
-  const run = async () => {
-    setState({ status: "running" });
-    const r = await api(`/papers/${paperId}/statcheck`);
-    setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
-  };
-  // inc-140 build-first: when this section is the OPEN one, auto-run the check so a (flagged) paper's per-test
-  // rows show with no extra click — the experience-pass gap. Gated on `active` (sections are mount-but-hidden, so
-  // a hidden section never runs); re-runs per paper (the meta-reset effect above puts status back to idle).
+  // Fetches the cached result on paper select -- never recomputes. Replaces the old inc-140 auto-run-on-open.
   useEffect(() => {
-    if (active && meta && meta.hasText && state.status === "idle") run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, meta]);
+    if (paperId == null) return undefined;
+    let live = true;
+    setState({ status: "loading" });
+    api(`/papers/${paperId}/statcheck/cached`).then(r => {
+      if (!live) return;
+      if (!r.ok) { setState({ status: "error", error: r.error }); return; }
+      setState(r.data.cached ? { status: "cached", data: r.data } : { status: "empty" });
+    });
+    return () => { live = false; };
+  }, [paperId]);
+  const rescan = async () => {
+    setState(s => ({ ...s, status: "running" }));
+    const r = await apiPost(`/papers/${paperId}/statcheck/rescan`, {});
+    setState(r.ok ? { status: "cached", data: r.data } : { status: "error", error: r.error });
+  };
   // inc 154: once a check finishes, scroll the FIRST inconsistent row into view + flash it — so the flagged-chip
   // path (inc 141) lands the citer on the specific result that doesn't recompute, not just the list of all tests.
   useEffect(() => {
-    if (state.status !== "done" || !listRef.current) return;
+    if (state.status !== "cached" || !listRef.current) return;
     const row = listRef.current.querySelector(".statcheck-item.flagged-row");
     if (!row) return;
     row.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -117,12 +126,24 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
         ? <span className="tag-suggest-empty">loading…</span>
         : !hasText
           ? <span className="tag-suggest-empty">Process a PDF or supported full-text document first — statcheck needs extracted evidence.</span>
-          : state.status === "idle"
-            ? <button className="btn-link" title="Recompute reported p-values from prose and clearly headed table rows — local, no AI" onClick={run}>Check statistics</button>
-            : null}
-      {state.status === "running" && <span className="tag-suggest-empty">checking…</span>}
+          : (state.status === "empty" || state.status === "cached") &&
+            <div className="statcheck-actions">
+              <button className="btn-link" disabled={state.status === "running"}
+                title="Recompute reported p-values from prose and clearly headed table rows — local, no AI"
+                onClick={rescan}>
+                {state.status === "running" ? "Checking…" : state.status === "cached" ? "Rescan" : "Check statistics"}
+              </button>
+              {state.status === "cached" && d.computed_at &&
+                <span className="statcheck-asof" title={`Last checked ${d.computed_at}`}>as of {d.computed_at.slice(0, 10)}</span>}
+              {state.status === "cached" && d.stale &&
+                <span className="statcheck-stale-hint" title="This paper's extracted text or attachments changed since this check ran. Rescan to refresh — this cached result is unchanged until you do.">
+                  may be stale — paper reprocessed since
+                </span>}
+            </div>}
+      {state.status === "loading" && <span className="tag-suggest-empty">loading…</span>}
+      {state.status === "running" && !state.data && <span className="tag-suggest-empty">checking…</span>}
       {state.status === "error" && <div className="axis-err">Couldn't check: {state.error}</div>}
-      {state.status === "done" && d && (d.checked === 0
+      {state.status === "cached" && d && (d.checked === 0
         ? <div className="tag-suggest-empty">
             No eligible APA-format statistics were found in running text or clearly headed table rows.
             {d.coverage && <div className="statcheck-coverage">
@@ -200,7 +221,7 @@ function StatcheckSection({ ctx }) {
       <p className="eyebrow">Whole library</p>
       <StatcheckLibrary onShowFlagged={ctx.onShowStatcheckFlagged} onRan={ctx.onStatcheckRan} />
       <p className="eyebrow">This paper</p>
-      <StatcheckPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={ctx.methodsOpen === "statcheck"} />
+      <StatcheckPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} />
       <StatcheckCredit />
     </div>
   );

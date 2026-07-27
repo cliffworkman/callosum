@@ -1382,6 +1382,12 @@
   .paper-url-error { margin-top: 6px; }
   /* statcheck — recomputed-p-value reporting signal (inc 95). Reuses the .cite-status pill (green/amber). */
   .detail-statcheck { margin: 14px 0 4px; }
+  /* inc 400: the cached-result action row — a permanent Check/Rescan control (never disappears, unlike the old
+     one-shot auto-run button) plus the "as of <date>" attribution and the amber (--flag) stale hint, per
+     DESIGN.md's fixed amber = unresolved/uncertain/region-status semantic (rule #8). */
+  .statcheck-actions { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; margin: 4px 0; }
+  .statcheck-asof { font-size: 10.5px; color: var(--ink-3); }
+  .statcheck-stale-hint { font-size: 10.5px; color: var(--flag); }
   .statcheck-summary { font-family: var(--mono); font-size: 11px; color: var(--ink-2); margin: 6px 0; }
   .statcheck-list { display: flex; flex-direction: column; gap: 4px; }
   .statcheck-item {

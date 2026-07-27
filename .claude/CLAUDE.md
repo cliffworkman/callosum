@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 399** (see Increment workflow) with **1642 pytest tests
+It is currently at **Increment 400** (see Increment workflow) with **1648 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -40,7 +40,10 @@ the full per-increment narrative for all other increments now lives in the reloc
   attachment with page-anchored statcheck/Bayesian/LMM/meta-analysis/transparency source jumps; inc 392 closes
   the same gap for Work → Cite suggestions and visibly names the active local PDF in the viewer toolbar; inc 393
   gives explicit registry correction records their positive, evidence-linked surface and system-fact tag without
-  inferring replication or turning absence into a certificate.
+  inferring replication or turning absence into a certificate; inc 400 caches the per-paper statcheck result
+  (`paper_statcheck_cache`, storing the itemized bbox-bearing payload verbatim so a cached redisplay is
+  byte-identical to a live run) instead of recomputing on every paper selection, with an explicit Rescan control
+  and a passive content-fingerprint "may be stale" hint that never blocks the cached result or auto-refreshes it.
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):
@@ -501,7 +504,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 399). Each increment of real work
+callosum is built in **numbered increments** (currently at 400). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

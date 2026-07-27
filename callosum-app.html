@@ -1406,6 +1406,12 @@
   .paper-url-error { margin-top: 6px; }
   /* statcheck — recomputed-p-value reporting signal (inc 95). Reuses the .cite-status pill (green/amber). */
   .detail-statcheck { margin: 14px 0 4px; }
+  /* inc 400: the cached-result action row — a permanent Check/Rescan control (never disappears, unlike the old
+     one-shot auto-run button) plus the "as of <date>" attribution and the amber (--flag) stale hint, per
+     DESIGN.md's fixed amber = unresolved/uncertain/region-status semantic (rule #8). */
+  .statcheck-actions { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; margin: 4px 0; }
+  .statcheck-asof { font-size: 10.5px; color: var(--ink-3); }
+  .statcheck-stale-hint { font-size: 10.5px; color: var(--flag); }
   .statcheck-summary { font-family: var(--mono); font-size: 11px; color: var(--ink-2); margin: 6px 0; }
   .statcheck-list { display: flex; flex-direction: column; gap: 4px; }
   .statcheck-item {
@@ -4801,7 +4807,7 @@
     const s = run.summary;
     return /* @__PURE__ */ React.createElement("div", { className: "statcheck-lib" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Recompute reported APA-style p-values across your whole library (statcheck) \u2014 from running text and clearly headed table rows, local and without AI. It flags where a reported and recomputed p disagree; usually innocent (typos, rounding, one-tailed tests) \u2014 a list to review, not a verdict."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: run.status === "running", onClick: start }, run.status === "running" ? "Checking\u2026" : "Check all papers")), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Recomputing statistics\u2026" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Check failed: ", run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.checked, " paper", s.checked === 1 ? "" : "s", " with statistics checked \xB7 ", /* @__PURE__ */ React.createElement("b", null, s.flagged), " with inconsistencies.", s.flagged > 0 && onShowFlagged && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onShowFlagged }, "Show flagged papers"))));
   }
-  function StatcheckPaper({ paperId, onOpenPaper, active }) {
+  function StatcheckPaper({ paperId, onOpenPaper }) {
     const [meta, setMeta] = useState(null);
     const [state, setState] = useState({ status: "idle" });
     const listRef = useRef(null);
@@ -4818,16 +4824,29 @@
         live = false;
       };
     }, [paperId]);
-    const run = async () => {
-      setState({ status: "running" });
-      const r = await api(`/papers/${paperId}/statcheck`);
-      setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
+    useEffect(() => {
+      if (paperId == null) return void 0;
+      let live = true;
+      setState({ status: "loading" });
+      api(`/papers/${paperId}/statcheck/cached`).then((r) => {
+        if (!live) return;
+        if (!r.ok) {
+          setState({ status: "error", error: r.error });
+          return;
+        }
+        setState(r.data.cached ? { status: "cached", data: r.data } : { status: "empty" });
+      });
+      return () => {
+        live = false;
+      };
+    }, [paperId]);
+    const rescan = async () => {
+      setState((s) => ({ ...s, status: "running" }));
+      const r = await apiPost(`/papers/${paperId}/statcheck/rescan`, {});
+      setState(r.ok ? { status: "cached", data: r.data } : { status: "error", error: r.error });
     };
     useEffect(() => {
-      if (active && meta && meta.hasText && state.status === "idle") run();
-    }, [active, meta]);
-    useEffect(() => {
-      if (state.status !== "done" || !listRef.current) return;
+      if (state.status !== "cached" || !listRef.current) return;
       const row = listRef.current.querySelector(".statcheck-item.flagged-row");
       if (!row) return;
       row.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -4845,7 +4864,16 @@
     if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to check its statistical reporting.");
     const hasText = meta ? meta.hasText : false;
     const d = state.data;
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF or supported full-text document first \u2014 statcheck needs extracted evidence.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Recompute reported p-values from prose and clearly headed table rows \u2014 local, no AI", onClick: run }, "Check statistics") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "checking\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && (d.checked === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No eligible APA-format statistics were found in running text or clearly headed table rows.", d.coverage && /* @__PURE__ */ React.createElement("div", { className: "statcheck-coverage" }, "Scanned ", d.coverage.prose_chunks, " text block", d.coverage.prose_chunks === 1 ? "" : "s", " ", "and ", d.coverage.table_rows_scanned, " row", d.coverage.table_rows_scanned === 1 ? "" : "s", " from", " ", d.coverage.tables_scanned, " detected table", d.coverage.tables_scanned === 1 ? "" : "s", ".", d.coverage.truncated && " A safety cap was reached; coverage is partial.")) : /* @__PURE__ */ React.createElement("div", { className: "statcheck-result" }, /* @__PURE__ */ React.createElement("div", { className: "statcheck-summary" }, d.checked, " checked \xB7 ", d.inconsistent, " inconsistent \xB7 ", d.decision_errors, " decision error", d.decision_errors === 1 ? "" : "s", d.coverage && d.coverage.table_results > 0 && ` \xB7 ${d.coverage.table_results} from tables`), /* @__PURE__ */ React.createElement("div", { className: "statcheck-list", ref: listRef }, d.results.map((r, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "statcheck-item" + (r.consistency !== "consistent" ? " flagged-row" : "") }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF or supported full-text document first \u2014 statcheck needs extracted evidence.") : (state.status === "empty" || state.status === "cached") && /* @__PURE__ */ React.createElement("div", { className: "statcheck-actions" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-link",
+        disabled: state.status === "running",
+        title: "Recompute reported p-values from prose and clearly headed table rows \u2014 local, no AI",
+        onClick: rescan
+      },
+      state.status === "running" ? "Checking\u2026" : state.status === "cached" ? "Rescan" : "Check statistics"
+    ), state.status === "cached" && d.computed_at && /* @__PURE__ */ React.createElement("span", { className: "statcheck-asof", title: `Last checked ${d.computed_at}` }, "as of ", d.computed_at.slice(0, 10)), state.status === "cached" && d.stale && /* @__PURE__ */ React.createElement("span", { className: "statcheck-stale-hint", title: "This paper's extracted text or attachments changed since this check ran. Rescan to refresh \u2014 this cached result is unchanged until you do." }, "may be stale \u2014 paper reprocessed since")), state.status === "loading" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026"), state.status === "running" && !state.data && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "checking\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "cached" && d && (d.checked === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No eligible APA-format statistics were found in running text or clearly headed table rows.", d.coverage && /* @__PURE__ */ React.createElement("div", { className: "statcheck-coverage" }, "Scanned ", d.coverage.prose_chunks, " text block", d.coverage.prose_chunks === 1 ? "" : "s", " ", "and ", d.coverage.table_rows_scanned, " row", d.coverage.table_rows_scanned === 1 ? "" : "s", " from", " ", d.coverage.tables_scanned, " detected table", d.coverage.tables_scanned === 1 ? "" : "s", ".", d.coverage.truncated && " A safety cap was reached; coverage is partial.")) : /* @__PURE__ */ React.createElement("div", { className: "statcheck-result" }, /* @__PURE__ */ React.createElement("div", { className: "statcheck-summary" }, d.checked, " checked \xB7 ", d.inconsistent, " inconsistent \xB7 ", d.decision_errors, " decision error", d.decision_errors === 1 ? "" : "s", d.coverage && d.coverage.table_results > 0 && ` \xB7 ${d.coverage.table_results} from tables`), /* @__PURE__ */ React.createElement("div", { className: "statcheck-list", ref: listRef }, d.results.map((r, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "statcheck-item" + (r.consistency !== "consistent" ? " flagged-row" : "") }, /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -4888,7 +4916,7 @@
     return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " statcheck \u2014 Nuijten, Hartgerink, van Assen, Epskamp & Wicherts (2016), ", /* @__PURE__ */ React.createElement("i", null, "Behavior Research Methods"), " 48:1205\u20131226.", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [STATCHECK_CSL] }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python (the ", /* @__PURE__ */ React.createElement("i", null, "statcheck"), " R package is by Nuijten & Epskamp) \u2014 credited, not reused. Surfaced via D. Lakens' automated-review catalog."));
   }
   function StatcheckSection({ ctx }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Whole library"), /* @__PURE__ */ React.createElement(StatcheckLibrary, { onShowFlagged: ctx.onShowStatcheckFlagged, onRan: ctx.onStatcheckRan }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(StatcheckPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active: ctx.methodsOpen === "statcheck" }), /* @__PURE__ */ React.createElement(StatcheckCredit, null));
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Whole library"), /* @__PURE__ */ React.createElement(StatcheckLibrary, { onShowFlagged: ctx.onShowStatcheckFlagged, onRan: ctx.onStatcheckRan }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(StatcheckPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper }), /* @__PURE__ */ React.createElement(StatcheckCredit, null));
   }
   registerPaneSection({
     id: "statcheck",
@@ -17862,8 +17890,6 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       findingsRefresh,
       hideUncertainDefault,
       axisCutoffDefault,
-      methodsOpen,
-      // inc-140: the open METHODS section id, so a section can tell when it's the active one (statcheck auto-run)
       onShowStatcheckFlagged: showStatcheckFlagged,
       onStatcheckRan: refreshStatcheckChip,
       onShowRetractionFlagged: showRetractionFlagged,

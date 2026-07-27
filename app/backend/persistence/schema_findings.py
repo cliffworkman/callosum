@@ -181,6 +181,26 @@ paper_citation_counts = Table(
     Column("retrieved_at", DateTime, nullable=False, server_default=func.current_timestamp()),
 )
 
+# Per-paper cached statcheck result (inc 400): the METHODS "Statistics" per-paper check used to recompute live on
+# every panel open; this caches the exact itemized result (results_json/coverage_json are the verbatim
+# StatcheckResult/StatcheckCoverage payloads, INCLUDING bbox_json/coordinate_precision) so a cached redisplay is
+# byte-identical to a fresh run -- the coordinate honesty contract (invariant #2) must survive the round-trip
+# exactly. content_fingerprint is compared at read time to produce a passive "may be stale" hint; it never gates
+# or blocks display (silence is not a certificate, but neither is a stale flag a verdict). One row per paper,
+# OR-REPLACEd by a rescan.
+paper_statcheck_cache = Table(
+    "paper_statcheck_cache",
+    metadata,
+    Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), primary_key=True),
+    Column("checked", Integer, nullable=False),
+    Column("inconsistent", Integer, nullable=False),
+    Column("decision_errors", Integer, nullable=False),
+    Column("results_json", JSON, nullable=False),
+    Column("coverage_json", JSON, nullable=False),
+    Column("content_fingerprint", String(64), nullable=False),
+    Column("computed_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+)
+
 # B1 SP2 (agent writes): the audit log of every MCP-agent write — action + target + enough detail to undo,
 # backing the Settings "AI agent activity" review + one-click revert (migration 0029, additive/guarded). NOT a
 # FK to papers — the audit history outlives a purged paper. `detail_json` carries the args + created/affected ids.
