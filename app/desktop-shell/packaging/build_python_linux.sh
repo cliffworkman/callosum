@@ -26,6 +26,12 @@ rm "$RESOURCES_DIR/python-runtime.tar.gz"
 PYTHON_BIN="$RUNTIME_DIR/bin/python3"
 
 echo "Installing real project dependencies (torch is large)..."
+# See build_python_windows.ps1's matching comment: callosum never uses GPU acceleration, so the
+# CPU-only torch build goes in first. On Linux this isn't just size — the default CUDA build declares
+# a hard dynamic-link dependency on the NVIDIA driver's libcuda.so.1, which doesn't exist at all on
+# this GPU-less runner; linuxdeploy insists on resolving every dependency before bundling and hard-
+# fails on it (a real run confirmed this: "ERROR: Could not find dependency: libcuda.so.1").
+"$PYTHON_BIN" -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 "$PYTHON_BIN" -m pip install --no-cache-dir -r "$PROJECT_ROOT/requirements.txt"
 "$PYTHON_BIN" -m pip install --no-cache-dir keyring  # hard dependency in the packaged build
 

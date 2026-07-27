@@ -26,6 +26,10 @@ rm "$RESOURCES_DIR/python-runtime.tar.gz"
 PYTHON_BIN="$RUNTIME_DIR/bin/python3"
 
 echo "Installing real project dependencies (torch is large)..."
+# See build_python_windows.ps1's matching comment: callosum never uses GPU acceleration, so the
+# CPU-only torch build goes in first (smaller, and avoids a hard dynamic-link dependency on the
+# NVIDIA driver that doesn't exist on a GPU-less machine at all).
+"$PYTHON_BIN" -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 "$PYTHON_BIN" -m pip install --no-cache-dir -r "$PROJECT_ROOT/requirements.txt"
 "$PYTHON_BIN" -m pip install --no-cache-dir keyring  # hard dependency in the packaged build
 

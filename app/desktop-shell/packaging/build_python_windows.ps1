@@ -36,6 +36,16 @@ $PythonExe = Join-Path $RuntimeDir "python.exe"
 $Requirements = Join-Path $ProjectRoot "requirements.txt"
 
 Write-Host "Installing real project dependencies (this takes a while — torch is large)..."
+# callosum never uses GPU acceleration anywhere (the embedding models are small enough to run fine
+# on CPU, and this is a desktop app for an arbitrary user's machine, not a GPU workstation) — install
+# the CPU-only torch build FIRST so the resolver treats it as already satisfying sentence-
+# transformers' bare `torch>=1.11.0` and never reaches for the CUDA default. This isn't just smaller
+# (~120MB vs 700MB+): the default build also declares a hard dynamic-link dependency on the NVIDIA
+# driver's libcuda.so.1, which doesn't exist at all on a GPU-less machine — harmless on Windows
+# (nothing resolves it ahead of time) but it hard-fails Linux's linuxdeploy bundling step, which
+# insists on resolving every dependency before it'll even try to run. One index picked for all three
+# platform build scripts, not patched in only where it happened to break.
+& $PythonExe -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 & $PythonExe -m pip install --no-cache-dir -r $Requirements
 & $PythonExe -m pip install --no-cache-dir keyring  # hard dependency in the packaged build — see CLAUDE.md rule #2 / BYOK
 
@@ -47,12 +57,26 @@ Write-Host "Installing real project dependencies (this takes a while — torch i
 # this subtree specifically (torch's own top-level LICENSE in dist-info is untouched) is the fix —
 # flagged here rather than done silently, since it IS a real (if narrow) licensing-completeness
 # tradeoff, not just cleanup.
-Get-ChildItem $RuntimeDir -Recurse -Directory -Filter "third_party" -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -match '\\dist-info\\licenses\\third_party$' } |
-    ForEach-Object {
-        Write-Host "Pruning deeply-nested vendored license tree: $($_.FullName)"
-        Remove-Item -Recurse -Force $_.FullName
+# Target the known shape directly (site-packages/torch-*.dist-info/licenses/third_party) with a
+# SHALLOW, single-level listing rather than Get-ChildItem -Recurse over the whole runtime tree — a
+# real run showed the recursive scan silently missing this on Windows (almost certainly the same
+# class of path-length issue this prune exists to fix in the first place: enumerating 250+ char paths
+# is exactly where a deep recursive walk is most likely to trip). This only ever needs to look one
+# level into site-packages, so there's no need to walk deep at all.
+$SitePackages = Join-Path $RuntimeDir "Lib\site-packages"
+Get-ChildItem $SitePackages -Directory -Filter "torch-*.dist-info" | ForEach-Object {
+    $ThirdParty = Join-Path $_.FullName "licenses\third_party"
+    if (Test-Path $ThirdParty) {
+        Write-Host "Pruning deeply-nested vendored license tree: $ThirdParty"
+        # The \\?\ extended-length-path prefix is the actual documented Windows mechanism for
+        # bypassing MAX_PATH, regardless of tool — use it explicitly rather than hoping a plain
+        # Remove-Item silently succeeds on paths this deep (a real run showed it doesn't).
+        Remove-Item -LiteralPath "\\?\$ThirdParty" -Recurse -Force
+        if (Test-Path $ThirdParty) {
+            throw "failed to prune $ThirdParty — the NSIS build will hit the same path-length abort"
+        }
     }
+}
 
 Write-Host "Smoke-testing the bundle..."
 python (Join-Path $PSScriptRoot "smoke_test_backend.py") --python $PythonExe --source (Join-Path $ProjectRoot "app/desktop-shell/resources/callosum-src")
