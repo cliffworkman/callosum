@@ -51,6 +51,7 @@ from app.backend.api.routers import (
     metaanalysis,
     methods,
     methods_bayes,
+    methods_grim_saved,
     methods_retraction,
     methods_statcheck_cache,
     my_publication_citing_authors,
@@ -303,6 +304,9 @@ def create_app(
     api.include_router(
         methods_statcheck_cache.router
     )  # /papers/{id}/statcheck/cached,/rescan — per-paper cache, split from methods.py (inc 400)
+    api.include_router(
+        methods_grim_saved.router
+    )  # /papers/{id}/grim-checks — saved GRIM/GRIMMER checks, split from methods.py (inc 401)
     api.include_router(
         methods_retraction.router
     )  # /methods/retraction/* — retraction findings, split from methods.py (inc 261)

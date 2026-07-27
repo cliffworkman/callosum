@@ -778,6 +778,15 @@
   .grim-k { font-family: var(--mono); font-size: 11px; color: var(--ink-3); width: 64px; }
   .grim-near { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
   .grim-caveat { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin: 6px 0; }
+  /* inc 401: the saved-checks log — a small per-paper list of past GRIM/GRIMMER checks, recalled whenever this
+     section is open for that paper. */
+  .grim-saved-list { margin: 10px 0; display: flex; flex-direction: column; gap: 2px; }
+  .grim-saved-item {
+    display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: var(--radius-sm);
+    background: var(--panel-2); font-size: 11px;
+  }
+  .grim-saved-desc { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+  .grim-saved-date { color: var(--ink-3); white-space: nowrap; }
   /* inc 252: the effect-size converter form + result (mirrors the .grim-* recipe; tokens only). */
   .es-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 8px 0; }
   .es-form label { display: flex; flex-direction: column; font-size: 10px; color: var(--ink-3); gap: 2px; }
@@ -4940,10 +4949,27 @@
     issued: { "date-parts": [[2017]] },
     DOI: "10.1177/1948550616673876"
   };
-  function GrimSection() {
+  function GrimSection({ ctx }) {
+    const paperId = ctx.selectedPaper;
     const [f, setF] = useState({ mean: "", sd: "", n: "", items: "1" });
     const [state, setState] = useState({ status: "idle" });
+    const [saved, setSaved] = useState({ status: "idle", checks: [] });
     const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+    useEffect(() => {
+      setF({ mean: "", sd: "", n: "", items: "1" });
+      setState({ status: "idle" });
+    }, [paperId]);
+    useEffect(() => {
+      setSaved({ status: "idle", checks: [] });
+      if (paperId == null) return void 0;
+      let live = true;
+      api(`/papers/${paperId}/grim-checks`).then((r) => {
+        if (live && r.ok) setSaved({ status: "done", checks: r.data.checks });
+      });
+      return () => {
+        live = false;
+      };
+    }, [paperId]);
     const run = async () => {
       const n = parseInt(f.n, 10);
       const items = parseInt(f.items || "1", 10);
@@ -4954,10 +4980,32 @@
       const r = await apiPost("/methods/grim", body);
       setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
     };
+    const save = async () => {
+      if (paperId == null) return;
+      const n = parseInt(f.n, 10);
+      const items = parseInt(f.items || "1", 10);
+      const body = { mean: f.mean.trim(), n, items: Number.isFinite(items) ? items : 1 };
+      if (f.sd.trim()) body.sd = f.sd.trim();
+      const r = await apiPost(`/papers/${paperId}/grim-checks`, body);
+      if (r.ok) setSaved((s) => ({ status: "done", checks: [r.data, ...s.checks] }));
+    };
+    const removeSaved = async (checkId) => {
+      const r = await apiDelete(`/papers/${paperId}/grim-checks/${checkId}`);
+      if (r.ok) setSaved((s) => ({ ...s, checks: s.checks.filter((c) => c.id !== checkId) }));
+    };
     const d = state.data;
-    return /* @__PURE__ */ React.createElement("div", { className: "grim-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Check whether a reported mean (and SD) of ", /* @__PURE__ */ React.createElement("b", null, "integer-scale"), " data \u2014 counts or Likert-type items \u2014 is mathematically possible for the sample size. Enter a value you're reading; local, no AI."), /* @__PURE__ */ React.createElement("div", { className: "grim-form" }, /* @__PURE__ */ React.createElement("label", null, "Mean ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.mean, onChange: set("mean"), placeholder: "3.45", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "SD ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.sd, onChange: set("sd"), placeholder: "(optional)", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "N ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.n, onChange: set("n"), placeholder: "50", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "items ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.items, onChange: set("items"), title: "scale items averaged per score; 1 for a single integer measure" })), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: state.status === "running" || !f.mean.trim() || !f.n.trim(), onClick: run }, "Check")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, null), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && /* @__PURE__ */ React.createElement("div", { className: "grim-result" }, /* @__PURE__ */ React.createElement("div", { className: "grim-line" }, /* @__PURE__ */ React.createElement("span", { className: "grim-k" }, "GRIM"), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (d.grim.consistent ? "verified" : "flagged") }, d.grim.consistent ? "consistent" : "impossible"), !d.grim.consistent && /* @__PURE__ */ React.createElement("span", { className: "grim-near" }, "nearest possible: ", d.grim.nearest.join(" / "))), d.grim.no_power && /* @__PURE__ */ React.createElement("div", { className: "grim-caveat" }, "N is large for this precision \u2014 GRIM has little power here (most means are achievable)."), d.grimmer && /* @__PURE__ */ React.createElement("div", { className: "grim-line" }, /* @__PURE__ */ React.createElement("span", { className: "grim-k" }, "GRIMMER"), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (d.grimmer.consistent ? "verified" : "flagged") }, d.grimmer.consistent ? "consistent" : "impossible")), /* @__PURE__ */ React.createElement("div", { className: "grim-caveat" }, "GRIM/GRIMMER assume integer-scale data \u2014 they don't apply to continuous measures. An inconsistency is a prompt to look, not a verdict or an accusation.")), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " GRIM \u2014 Brown & Heathers (2017); GRIMMER \u2014 Anaya (2016) / Allard (2018).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [GRIM_CSL] }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; cf. the ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " package (Lukas Jung). Surfaced via D. Lakens' automated-review catalog.")));
+    return /* @__PURE__ */ React.createElement("div", { className: "grim-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Check whether a reported mean (and SD) of ", /* @__PURE__ */ React.createElement("b", null, "integer-scale"), " data \u2014 counts or Likert-type items \u2014 is mathematically possible for the sample size. Enter a value you're reading; local, no AI."), /* @__PURE__ */ React.createElement("div", { className: "grim-form" }, /* @__PURE__ */ React.createElement("label", null, "Mean ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.mean, onChange: set("mean"), placeholder: "3.45", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "SD ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.sd, onChange: set("sd"), placeholder: "(optional)", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "N ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.n, onChange: set("n"), placeholder: "50", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "items ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.items, onChange: set("items"), title: "scale items averaged per score; 1 for a single integer measure" })), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: state.status === "running" || !f.mean.trim() || !f.n.trim(), onClick: run }, "Check")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, null), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && /* @__PURE__ */ React.createElement("div", { className: "grim-result" }, /* @__PURE__ */ React.createElement("div", { className: "grim-line" }, /* @__PURE__ */ React.createElement("span", { className: "grim-k" }, "GRIM"), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (d.grim.consistent ? "verified" : "flagged") }, d.grim.consistent ? "consistent" : "impossible"), !d.grim.consistent && /* @__PURE__ */ React.createElement("span", { className: "grim-near" }, "nearest possible: ", d.grim.nearest.join(" / "))), d.grim.no_power && /* @__PURE__ */ React.createElement("div", { className: "grim-caveat" }, "N is large for this precision \u2014 GRIM has little power here (most means are achievable)."), d.grimmer && /* @__PURE__ */ React.createElement("div", { className: "grim-line" }, /* @__PURE__ */ React.createElement("span", { className: "grim-k" }, "GRIMMER"), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (d.grimmer.consistent ? "verified" : "flagged") }, d.grimmer.consistent ? "consistent" : "impossible")), /* @__PURE__ */ React.createElement("div", { className: "grim-caveat" }, "GRIM/GRIMMER assume integer-scale data \u2014 they don't apply to continuous measures. An inconsistency is a prompt to look, not a verdict or an accusation."), paperId != null && /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: save }, "Save this check")), paperId != null && saved.checks.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "grim-saved-list" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Saved checks \u2014 this paper"), saved.checks.map((c) => /* @__PURE__ */ React.createElement("div", { className: "grim-saved-item", key: c.id }, /* @__PURE__ */ React.createElement("span", { className: "grim-saved-desc" }, c.label || `mean ${c.mean}${c.sd ? ` / SD ${c.sd}` : ""} / N ${c.n}`), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (c.grim.consistent ? "verified" : "flagged") }, c.grim.consistent ? "consistent" : "impossible"), /* @__PURE__ */ React.createElement("small", { className: "grim-saved-date" }, c.created_at ? c.created_at.slice(0, 10) : ""), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-icon",
+        title: "Remove this saved check",
+        "aria-label": "Remove this saved check",
+        onClick: () => removeSaved(c.id)
+      },
+      "\xD7"
+    )))), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " GRIM \u2014 Brown & Heathers (2017); GRIMMER \u2014 Anaya (2016) / Allard (2018).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [GRIM_CSL] }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; cf. the ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " package (Lukas Jung). Surfaced via D. Lakens' automated-review catalog.")));
   }
-  registerPaneSection({ id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true, render: () => /* @__PURE__ */ React.createElement(GrimSection, null) });
+  registerPaneSection({ id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true, render: (ctx) => /* @__PURE__ */ React.createElement(GrimSection, { ctx }) });
   const CITATION_EQUITY_CSL = [
     {
       type: "article-journal",

@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /methods/grim
+api: /methods/grim, GET/POST /papers/{paper_id}/grim-checks, DELETE /papers/{paper_id}/grim-checks/{check_id}
 fe: 07_methods_grim.jsx
 -->
 
@@ -42,6 +42,16 @@ genai-host request regardless). Register listeners before navigation.
 4. Enter a large-N case -> the **no-power** caveat appears (GRIM consistent but uninformative).
 5. Confirm the **credit** block (Brown & Heathers 2017; GRIMMER Anaya/Allard) + a working **＋ add to library**.
 6. Adversarial: n=0 / non-numeric -> 422-class, no crash; items>1 + SD -> GRIMMER "not supported", GRIM still runs.
+7. **Inc 401 saved checks (paper-aware now — `ctx.selectedPaper`, previously not threaded in at all).** With a
+   paper selected, run a Check, then click **"Save this check"** (`POST /papers/{paper_id}/grim-checks` —
+   confirm the server RE-COMPUTES the verdict from the raw mean/SD/N/items rather than trusting whatever the
+   live "Check" already showed). Confirm the saved entry appears in a list below the form with its label (or a
+   default "mean/SD/N" description), consistent/impossible pill, and date. Switch to a different paper and back
+   — confirm the saved list is correctly scoped (empty for the new paper, the same entries reappear for the
+   original). Delete a saved entry (×) — confirm it's removed and stays removed after a hard refresh
+   (`DELETE /papers/{paper_id}/grim-checks/{check_id}`). Running "Check" WITHOUT clicking Save must never add
+   anything to the saved list (scratch values stay scratch). Confirm the whole Data section — saved list
+   included — is absent under `CALLOSUM_READ_ONLY=1` (unchanged `hideInReadOnly`).
 
 ## Pass criteria
 
@@ -49,6 +59,8 @@ genai-host request regardless). Register listeners before navigation.
 - 0 console/page errors; **0 genai-host requests** (local).
 - No per-paper/per-author judgment, no score/rank; "impossible" is a prompt, not a verdict.
 - Bad inputs fail closed (422-class); mobile viewport has no horizontal overflow.
+- Saved checks are correctly paper-scoped, survive a refresh, and are removable; a saved verdict always matches
+  a fresh server-side recomputation of the same inputs (never a trusted client-side value).
 
 ## Deposit
 

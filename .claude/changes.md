@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-27 — Increment 401: save GRIM/GRIMMER checks per paper
+
+- **Files:** `app/backend/persistence/{schema_grim_checks.py (new),schema.py,grim_checks_repo.py (new)}`,
+  `app/backend/api/routers/methods_grim_saved.py` (new), `app/backend/api/app.py`,
+  `alembic/versions/0057_paper_grim_checks.py` (new), `app/frontend/js/07_methods_grim.jsx`,
+  `app/frontend/styles.css`, `tests/{test_grim_saved.py (new),test_health.py}`,
+  `.claude/qa-routes/route_37_methods_grim.md`,
+  `.claude/security-audits/2026-07-27_grim-saved-checks.md` (new), `callosum-app.html`.
+- **What:** GRIM/GRIMMER becomes paper-aware (it previously received no `ctx` at all) and gains a
+  "Save this check" action that persists the entered mean/SD/N/items plus a **server-recomputed**
+  verdict to a small per-paper log (`paper_grim_checks`), shown whenever the Data section is open for
+  that paper; a saved check can be removed. Live verification surfaced and fixed a real bug: the
+  live-Check form/result weren't reset on a paper switch, so a stale entry (and its Save button) kept
+  showing against whichever paper was newly selected — risking a save attributed to the wrong paper.
+- **Why:** Cliff asked to save GRIM results, attached to the specific paper, and recalled whenever the
+  Data section is open while that paper is selected — most reported means are worth checking once, not
+  re-typing every time the paper is revisited.
+- **Revert:** `git revert` this increment's commit(s); fully additive (new table/endpoints/component
+  logic), the existing stateless `POST /methods/grim` calculator is untouched.
+
 ## 2026-07-27 — Increment 400: cache statcheck results per paper, explicit Rescan
 
 - **Files:** `app/backend/api/routers/{methods.py,methods_statcheck_cache.py (new)}`,

@@ -754,6 +754,15 @@
   .grim-k { font-family: var(--mono); font-size: 11px; color: var(--ink-3); width: 64px; }
   .grim-near { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
   .grim-caveat { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin: 6px 0; }
+  /* inc 401: the saved-checks log — a small per-paper list of past GRIM/GRIMMER checks, recalled whenever this
+     section is open for that paper. */
+  .grim-saved-list { margin: 10px 0; display: flex; flex-direction: column; gap: 2px; }
+  .grim-saved-item {
+    display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: var(--radius-sm);
+    background: var(--panel-2); font-size: 11px;
+  }
+  .grim-saved-desc { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+  .grim-saved-date { color: var(--ink-3); white-space: nowrap; }
   /* inc 252: the effect-size converter form + result (mirrors the .grim-* recipe; tokens only). */
   .es-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 8px 0; }
   .es-form label { display: flex; flex-direction: column; font-size: 10px; color: var(--ink-3); gap: 2px; }

@@ -515,6 +515,9 @@ from app.backend.persistence.schema_funding import (  # noqa: E402,F401
     saved_funding_refresh_events,
 )
 
+# Per-paper saved GRIM/GRIMMER checks (inc 401) — an append-only user-curated log.
+from app.backend.persistence.schema_grim_checks import paper_grim_checks  # noqa: E402,F401
+
 # Generic async-job bookkeeping (inc 400 split — schema.py crossed the 600-line cap).
 from app.backend.persistence.schema_jobs import JOB_STATUSES, job_errors, jobs  # noqa: E402,F401
 

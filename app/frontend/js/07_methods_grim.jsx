@@ -18,10 +18,35 @@ const GRIM_CSL = {
   DOI: "10.1177/1948550616673876",
 };
 
-function GrimSection() {
+// inc 401: paper-aware now (ctx wasn't threaded in before) — a "Save this check" action persists the entered
+// inputs + the server-recomputed verdict to a small per-paper log, recalled whenever this section is open for
+// that paper. The live "Check" result stays scratch/ephemeral unless explicitly saved, so trying values doesn't
+// clutter the saved list.
+function GrimSection({ ctx }) {
+  const paperId = ctx.selectedPaper;
   const [f, setF] = useState({ mean: "", sd: "", n: "", items: "1" });
   const [state, setState] = useState({ status: "idle" }); // idle | running | done | error
+  const [saved, setSaved] = useState({ status: "idle", checks: [] });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
+  // Reset the scratch form + live result on every paper switch -- otherwise a stale entered value (and its
+  // "Save this check" button) keeps showing against whichever paper is now selected, risking a save attributed
+  // to the wrong paper.
+  useEffect(() => {
+    setF({ mean: "", sd: "", n: "", items: "1" });
+    setState({ status: "idle" });
+  }, [paperId]);
+
+  useEffect(() => {
+    setSaved({ status: "idle", checks: [] });
+    if (paperId == null) return undefined;
+    let live = true;
+    api(`/papers/${paperId}/grim-checks`).then(r => {
+      if (live && r.ok) setSaved({ status: "done", checks: r.data.checks });
+    });
+    return () => { live = false; };
+  }, [paperId]);
+
   const run = async () => {
     const n = parseInt(f.n, 10);
     const items = parseInt(f.items || "1", 10);
@@ -31,6 +56,19 @@ function GrimSection() {
     if (f.sd.trim()) body.sd = f.sd.trim();
     const r = await apiPost("/methods/grim", body);
     setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
+  };
+  const save = async () => {
+    if (paperId == null) return;
+    const n = parseInt(f.n, 10);
+    const items = parseInt(f.items || "1", 10);
+    const body = { mean: f.mean.trim(), n, items: Number.isFinite(items) ? items : 1 };
+    if (f.sd.trim()) body.sd = f.sd.trim();
+    const r = await apiPost(`/papers/${paperId}/grim-checks`, body);
+    if (r.ok) setSaved(s => ({ status: "done", checks: [r.data, ...s.checks] }));
+  };
+  const removeSaved = async (checkId) => {
+    const r = await apiDelete(`/papers/${paperId}/grim-checks/${checkId}`);
+    if (r.ok) setSaved(s => ({ ...s, checks: s.checks.filter(c => c.id !== checkId) }));
   };
   const d = state.data;
   return (
@@ -59,6 +97,19 @@ function GrimSection() {
               <span className={"cite-status " + (d.grimmer.consistent ? "verified" : "flagged")}>{d.grimmer.consistent ? "consistent" : "impossible"}</span>
             </div>}
           <div className="grim-caveat">GRIM/GRIMMER assume integer-scale data — they don't apply to continuous measures. An inconsistency is a prompt to look, not a verdict or an accusation.</div>
+          {paperId != null && <button className="btn-link" onClick={save}>Save this check</button>}
+        </div>}
+      {paperId != null && saved.checks.length > 0 &&
+        <div className="grim-saved-list">
+          <p className="eyebrow">Saved checks — this paper</p>
+          {saved.checks.map(c =>
+            <div className="grim-saved-item" key={c.id}>
+              <span className="grim-saved-desc">{c.label || `mean ${c.mean}${c.sd ? ` / SD ${c.sd}` : ""} / N ${c.n}`}</span>
+              <span className={"cite-status " + (c.grim.consistent ? "verified" : "flagged")}>{c.grim.consistent ? "consistent" : "impossible"}</span>
+              <small className="grim-saved-date">{c.created_at ? c.created_at.slice(0, 10) : ""}</small>
+              <button className="btn-icon" title="Remove this saved check" aria-label="Remove this saved check"
+                onClick={() => removeSaved(c.id)}>×</button>
+            </div>)}
         </div>}
       <div className="method-credit">
         <b>Method:</b> GRIM — Brown &amp; Heathers (2017); GRIMMER — Anaya (2016) / Allard (2018).{" "}
@@ -69,4 +120,4 @@ function GrimSection() {
   );
 }
 
-registerPaneSection({ id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true, render: () => <GrimSection /> });
+registerPaneSection({ id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true, render: (ctx) => <GrimSection ctx={ctx} /> });
