@@ -488,6 +488,37 @@ the Principles + A-A gates before build.)*
   (fraught, gated) — **RegCheck**, a registration↔paper delta table, human-verified behind the auditability gate;
   **Increment 4** overlaps CRediT #26; the rest of **Increment 5** is a broader consistency registry
   (DEBIT/duplication analysis and perhaps a collection-level z-curve).
+- **#48 WIP integration — remaining tools (Checklists / Critique / Meta-Reference).** Incs 402–404 wired the
+  three tractable tools (Statistics/statcheck, Discover > Funding, Discover > Journals) to WIP manuscripts —
+  see `INCREMENT-402/403/404-NOTES.md` for the exact mechanism (branch on `ctx.researchContext.kind ===
+  "manuscript"` in `06_methods_statcheck.jsx`'s precedent; a small per-tool receipt table or an already-generic
+  provenance column, never the full result cache, surfaced in `WipDetails`'s Checks tab via `10f_wip.jsx`).
+  Three pieces remain, each scoped by today's research:
+  - **Checklists** (Bayes/LMM/meta-analysis/transparency, the 2×2 tab group in `05_panes.jsx`/`08d/08f/08g/
+    08h_methods_*.jsx`) — **zero WIP backend exists**; each needs its own on-demand-extraction-to-findings
+    pipeline mirroring `wip_checks.py`'s statcheck shape (`extract_content_identity` → duck-typed chunks → the
+    existing pure computation → a `wip_findings` row). Transparency is the best first target (closest in shape
+    to statcheck: local pattern-detection over prose, no external calls) as a template for the other three —
+    four separate builds, not one.
+  - **Synthesize > Critique** (`08x_methods_critical.jsx`/`critical_review.py`) — deeply coupled to `papers`/
+    `chunks`/`embeddings`/`open_science_signals`/`paper_findings`/`critical_review_candidates`, all FK'd to
+    `papers.id`; no freeform mode exists in the UI. Needs a parallel text-extraction-driven "stored signals"
+    source (WIP's own `wip_findings`, not `paper_findings`) and either reuse of the existing embeddings/vector
+    search (`find_contested_claims` doesn't strictly require the source itself to be embedded — feasible) or a
+    new WIP-scoped candidate table mirroring `critical_review_candidates`. A genuine new feature, not a wiring
+    task.
+  - **Work > Meta-Reference** (`37b_meta_reference.jsx` composing `08j_reference_integrity.jsx` +
+    `08b_methods_citation_equity.jsx` + `08c_methods_citation_context.jsx`) — reference-integrity and
+    citation-concentration are moderately tractable by running the existing per-reference detectors against the
+    manuscript's own `wip_references`-linked library papers (already real, DOI'd `papers` rows) instead of
+    resolving the manuscript's own citation graph, but `reference_instances.citing_paper_id` is a NOT NULL FK to
+    `papers.id` today, so even this half needs a migration (a nullable second FK, or a
+    `wip_reference_instances` table mirroring the `wip_findings`/`wip_tool_runs` pattern). **Citation-context is
+    out of scope for WIP permanently as designed** — "how this manuscript is cited" needs the manuscript's own
+    DOI indexed in Semantic Scholar's citation graph, which an unpublished draft cannot have; when this is
+    eventually built, omit that sub-tool for WIP with a plain explanatory note plus a forward-looking hint that
+    it becomes available once the manuscript is later linked to its own published `papers.id` record (Cliff's
+    call, recorded 2026-07-27).
 
 ---
 
