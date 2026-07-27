@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-27 — Increment 402: surface WIP statcheck in the Methods panel's Statistics section
+
+- **Files:** `app/frontend/js/{10f_wip.jsx,10k_wip_checks.jsx (new),06_methods_statcheck.jsx,
+  10h_wip_filters.jsx,40_app.jsx,30c_frame.jsx,05_panes.jsx}`, `tests/test_frontend_assembly.py`,
+  `.claude/qa-routes/route_75_wip_workspace.md`, `callosum-app.html`.
+- **What:** the Methods panel's "Statistics" section now works for an active WIP manuscript, not just
+  a Library paper — it reuses the already-working WIP statcheck backend/UI (`wip_checks.py`,
+  previously visible only inside the WIP tab's own "Checks" sub-tab), branching on
+  `ctx.researchContext.kind === "manuscript"` the same way the "Details" section already does. The two
+  concurrently-mounted surfaces (the Methods-panel section and the WIP tab's own Checks tab) now stay
+  in sync via a newly-exposed `wip.refresh` counter threaded through as `ctx.wipRefresh`. No backend
+  change. First of three "quick win" increments (402-404) from a larger WIP-integration request; the
+  other three tools asked for (Checklists, Critique, Meta-Reference) were found to need substantial new
+  backend features and were filed to the backlog instead — see `INCREMENT-402-NOTES.md`.
+- **Why:** Cliff asked to wire WIP manuscripts into the Statistics/Checklists Methods-panel sections
+  plus several other tools, so the WIP workspace's checks are usable and visible in the same familiar
+  place Library papers already use, "finally earning its keep."
+- **Revert:** `git revert` this increment's commit(s); purely additive/routing — the existing WIP Checks
+  tab and Library-paper Statistics section are both reused verbatim, untouched in their own logic.
+
 ## 2026-07-27 — Increment 401: save GRIM/GRIMMER checks per paper
 
 - **Files:** `app/backend/persistence/{schema_grim_checks.py (new),schema.py,grim_checks_repo.py (new)}`,

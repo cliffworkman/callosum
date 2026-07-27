@@ -1,7 +1,7 @@
 <!-- qa-coverage
 api: GET /wip/watch-roots, POST /wip/watch-roots, PATCH /wip/watch-roots/{root_id}, DELETE /wip/watch-roots/{root_id}, POST /wip/watch-roots/{root_id}/scan, POST /wip/rescan, GET /wip/scan/{job_id}, GET /wip/browse-dirs, GET /wip/manuscripts, GET /wip/manuscripts/{manuscript_id}, PATCH /wip/manuscripts/{manuscript_id}, DELETE /wip/manuscripts/{manuscript_id}, POST /wip/manuscripts/{manuscript_id}/relink, GET /wip/manuscripts/{manuscript_id}/files, PATCH /wip/manuscripts/{manuscript_id}/files/{file_id}, POST /wip/manuscripts/{manuscript_id}/files/{file_id}/open, POST /wip/manuscripts/{manuscript_id}/files/{file_id}/reveal, GET /wip/manuscripts/{manuscript_id}/activity, GET /wip/manuscripts/{manuscript_id}/snapshots, POST /wip/manuscripts/{manuscript_id}/snapshots, GET /wip/manuscripts/{manuscript_id}/checks, POST /wip/manuscripts/{manuscript_id}/checks/statcheck, PATCH /wip/findings/{finding_id}, GET /wip/manuscripts/{manuscript_id}/sections, POST /wip/manuscripts/{manuscript_id}/sections, PATCH /wip/manuscripts/{manuscript_id}/sections/{section_id}, DELETE /wip/manuscripts/{manuscript_id}/sections/{section_id}, PUT /wip/manuscripts/{manuscript_id}/sections/order, GET /wip/manuscripts/{manuscript_id}/tasks, POST /wip/manuscripts/{manuscript_id}/tasks, PATCH /wip/manuscripts/{manuscript_id}/tasks/{task_id}, DELETE /wip/manuscripts/{manuscript_id}/tasks/{task_id}, GET /wip/manuscripts/{manuscript_id}/references, POST /wip/manuscripts/{manuscript_id}/references, DELETE /wip/manuscripts/{manuscript_id}/references/{paper_id}, GET /wip/papers/{paper_id}
 api: GET /watch-roots, POST /watch-roots, PATCH /watch-roots/{root_id}, DELETE /watch-roots/{root_id}, POST /watch-roots/{root_id}/scan, POST /rescan, GET /scan/{job_id}, GET /browse-dirs, GET /manuscripts, GET /manuscripts/{manuscript_id}, PATCH /manuscripts/{manuscript_id}, DELETE /manuscripts/{manuscript_id}, POST /manuscripts/{manuscript_id}/relink, GET /manuscripts/{manuscript_id}/files, PATCH /manuscripts/{manuscript_id}/files/{file_id}, POST /manuscripts/{manuscript_id}/files/{file_id}/open, POST /manuscripts/{manuscript_id}/files/{file_id}/reveal, GET /manuscripts/{manuscript_id}/activity, GET /manuscripts/{manuscript_id}/snapshots, POST /manuscripts/{manuscript_id}/snapshots, GET /manuscripts/{manuscript_id}/checks, POST /manuscripts/{manuscript_id}/checks/statcheck, PATCH /findings/{finding_id}, GET /manuscripts/{manuscript_id}/sections, POST /manuscripts/{manuscript_id}/sections, PATCH /manuscripts/{manuscript_id}/sections/{section_id}, DELETE /manuscripts/{manuscript_id}/sections/{section_id}, PUT /manuscripts/{manuscript_id}/sections/order, GET /manuscripts/{manuscript_id}/tasks, POST /manuscripts/{manuscript_id}/tasks, PATCH /manuscripts/{manuscript_id}/tasks/{task_id}, DELETE /manuscripts/{manuscript_id}/tasks/{task_id}, GET /manuscripts/{manuscript_id}/references, POST /manuscripts/{manuscript_id}/references, DELETE /manuscripts/{manuscript_id}/references/{paper_id}
-fe: 04b_workspaces.jsx, 05_panes.jsx, 10f_wip.jsx, 10g_wip_relink.jsx, 10h_wip_filters.jsx, 10i_wip_context.jsx, 10j_wip_folder_browser.jsx, 25_detail.jsx, 30c_frame.jsx, 40_app.jsx
+fe: 04b_workspaces.jsx, 05_panes.jsx, 06_methods_statcheck.jsx, 10f_wip.jsx, 10g_wip_relink.jsx, 10h_wip_filters.jsx, 10i_wip_context.jsx, 10j_wip_folder_browser.jsx, 10k_wip_checks.jsx, 25_detail.jsx, 30c_frame.jsx, 40_app.jsx
 -->
 
 # ROUTE 75 - WIP manuscript workspace
@@ -61,6 +61,15 @@ and page-error listeners before navigation.
     Right-click a manuscript card → "Remove manuscript"; confirm the `window.confirm` guard names the manuscript
     and warns the action is permanent; confirm cancelling leaves it untouched, while confirming removes the card
     immediately and it does not reappear after a Rescan (proving it doesn't merely hide — it's gone from the DB).
+18. **Inc 402: the Methods panel's "Statistics" section, wired to WIP.** With a WIP manuscript open, expand
+    Methods → **Statistics** (not Details) and confirm it shows the same Deterministic-checks/Content-checkpoints
+    UI as the manuscript's own **Checks** tab (not "Select a paper…" — `ctx.selectedPaper` stays null for a
+    manuscript by design; this section now branches on `ctx.researchContext.kind` instead). Run statcheck (or, for
+    a manuscript with no primary file, confirm the honest "Select a primary manuscript file…" 422 message appears
+    inline rather than a crash). Confirm a run/disposition change made from *either* the Methods-panel Statistics
+    section or the manuscript's own Checks tab is reflected in the other without a manual page reload (the shared
+    `wip.refresh` counter). Switch to a Library paper and confirm its own Statistics section (whole-library batch +
+    per-paper cached result) is pixel-identical to before — this section's non-manuscript branch is untouched.
 
 ## Pass criteria
 

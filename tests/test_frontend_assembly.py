@@ -289,7 +289,7 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
     assert 'onClick={() => onActivate("wip")}' in raw
     assert "<WipBrowser wip={wip} onOpen={onOpenWip} />" in raw
     assert "<WipDetails manuscript={t.manuscript} onUpdate={wip.updateManuscript}" in raw
-    assert "onRelinked={wip.reload} onOpenPaper={onOpenPdf} workspace />" in raw
+    assert "onRelinked={wip.reload} onOpenPaper={onOpenPdf} workspace externalRefresh={wip.refresh} />" in raw
     assert '["overview", "structure", "tasks", "files", "references", "checks", "activity"]' in raw
     assert "Create checkpoint" in raw
     assert "Run statcheck" in raw

@@ -52,7 +52,7 @@ registerPaneSection({
   id: "details", label: "Details", paneId: "methods", order: 10,
   render: (ctx) => ctx.researchContext && ctx.researchContext.kind === "manuscript"
     ? <WipDetails manuscript={ctx.researchContext.entity} onUpdate={ctx.onUpdateWip}
-        onRelinked={ctx.onReloadWip} onOpenPaper={ctx.onOpenPaper} />
+        onRelinked={ctx.onReloadWip} onOpenPaper={ctx.onOpenPaper} externalRefresh={ctx.wipRefresh} />
     : ctx.selectedPaper != null
     ? <DetailContent paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} onOpenWip={ctx.onOpenWip}
         readOnly={ctx.readOnly}

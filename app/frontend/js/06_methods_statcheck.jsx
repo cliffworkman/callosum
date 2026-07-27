@@ -227,7 +227,12 @@ function StatcheckSection({ ctx }) {
   );
 }
 
+// inc 402: a WIP manuscript has no papers.id, so ctx.selectedPaper is always null while one is active
+// (40_app.jsx) -- branch on researchContext.kind exactly like the "Details" section (05_panes.jsx) does,
+// delegating to the WIP-specific statcheck surface (10k_wip_checks.jsx) rather than a paper-shaped component.
 registerPaneSection({
   id: "statcheck", label: "Statistics", paneId: "methods", order: 30, hideInReadOnly: true,
-  render: (ctx) => <StatcheckSection ctx={ctx} />,
+  render: (ctx) => ctx.researchContext && ctx.researchContext.kind === "manuscript"
+    ? <WipStatcheckSection manuscript={ctx.researchContext.entity} ctx={ctx} />
+    : <StatcheckSection ctx={ctx} />,
 });

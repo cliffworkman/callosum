@@ -108,7 +108,7 @@ function useWipWorkspace({ enabled }) {
     ...state, enabled, query, setQuery, stage, setStage, workspaceState, setWorkspaceState, sort, filters, setFilters,
     setSort: value => { setSort(value); _saveLayout("callosum.wip.sort", value); },
     selectedId, setSelectedId, selected, scanning, rescan, addRoot, updateManuscript, deleteManuscript, deleteRoot,
-    reload: () => setRefresh(n => n + 1),
+    refresh, reload: () => setRefresh(n => n + 1),
   };
 }
 

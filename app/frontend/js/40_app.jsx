@@ -336,7 +336,7 @@ function App() {
     readOnly,  // B5 SP2: hide write controls in every section when the instance is read-only
     conn, researchContext, selectedPaper: contextPaperId, onSelectPaper: setSelected, onOpenPaper: openPdf,
     onOpenWip: openWip, onActivateWipTab: activateWipTab,
-    onUpdateWip: wip.updateManuscript, onReloadWip: wip.reload,
+    onUpdateWip: wip.updateManuscript, onReloadWip: wip.reload, wipRefresh: wip.refresh,
     onOpenCitation: openCitation, onSaveHighlight: saveCitationHighlight,
     onFilterToTag: filterToTag, onFilterToAxis: filterToAxis, onEnterFocus: enterFocus,
     onTagsChanged: () => setTagRefresh(n => n + 1),

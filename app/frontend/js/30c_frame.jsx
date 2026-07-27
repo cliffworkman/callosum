@@ -147,7 +147,7 @@ function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, select
       {wipTabs.map(t => (
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>
           <WipDetails manuscript={t.manuscript} onUpdate={wip.updateManuscript}
-            onRelinked={wip.reload} onOpenPaper={onOpenPdf} workspace />
+            onRelinked={wip.reload} onOpenPaper={onOpenPdf} workspace externalRefresh={wip.refresh} />
         </div>
       ))}
       {tabs.map(t => (
