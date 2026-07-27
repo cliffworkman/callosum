@@ -1,0 +1,140 @@
+name: Desktop shell (Windows)
+
+# Builds the Tauri desktop shell's Windows NSIS installer and then actually verifies it on the
+# runner's real interactive desktop session: installs it silently (the same /S a real user's
+# installer run performs, minus the click), launches it, waits for the real bundled backend to
+# report healthy, and screenshots the real running window. Windows GitHub-hosted runners keep a
+# real interactive session specifically so GUI apps can be exercised this way — this is the closest
+# thing to a human click-through available without asking Cliff to do it by hand each time, but it
+# is still not a human's eyes on the screen; treat the uploaded screenshot as evidence to review.
+#
+# Not on push/PR — this is a slow, heavy build (portable CPython + the full ML dependency tree) that
+# doesn't need to run on every commit. Trigger manually or when the shell/packaging itself changes.
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - "app/desktop-shell/**"
+      - "app/backend/**"
+      - "requirements.txt"
+      - ".github/workflows/desktop-shell-windows.yml"
+
+jobs:
+  build-windows-shell:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/desktop-shell/src-tauri
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install project dependencies (needed just to import app.backend for build_frontend.py)
+        run: uv sync --locked
+
+      - name: Install frontend build toolchain + build callosum-app.html
+        run: |
+          npm install
+          uv run python tools/build_frontend.py
+
+      - name: Stage callosum source into resources/callosum-src
+        run: python app/desktop-shell/packaging/stage_source.py
+
+      - name: "Build portable Python runtime + install real deps + smoke test (REQUIRED — blocking)"
+        run: pwsh app/desktop-shell/packaging/build_python_windows.ps1
+
+      - name: Install Tauri CLI
+        working-directory: app/desktop-shell
+        run: npm install
+
+      - name: Build the NSIS installer
+        working-directory: app/desktop-shell
+        run: npx tauri build
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: callosum-windows-x64
+          path: app/desktop-shell/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+      - name: "Verify: silent-install the real installer, launch it, screenshot the real running window"
+        id: verify
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $installer = Get-ChildItem "app/desktop-shell/src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1
+
+          Write-Host "Running the real installer silently: $($installer.FullName) /S"
+          Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait
+
+          $installed = "$env:LOCALAPPDATA\Callosum\callosum-shell.exe"
+          if (-not (Test-Path $installed)) { throw "installer did not produce $installed" }
+
+          Write-Host "Launching the installed app for real"
+          Start-Process -FilePath $installed
+
+          $ready = $false
+          $port = $null
+          for ($i = 0; $i -lt 40; $i++) {
+            $proc = Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+              Where-Object { $_.CommandLine -match "Callosum.*uvicorn.*--port (\d+)" }
+            if ($proc) {
+              $port = [regex]::Match($proc.CommandLine, "--port (\d+)").Groups[1].Value
+              try {
+                $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$port/health" -UseBasicParsing -TimeoutSec 2
+                if ($resp.StatusCode -eq 200) { $ready = $true; Write-Host "healthy on port $port after $($i*3)s"; break }
+              } catch {}
+            }
+            Start-Sleep -Seconds 3
+          }
+          Start-Sleep -Seconds 2  # let the webview actually paint
+
+          # Screenshot the real desktop via .NET — no extra tool/dependency needed on windows-latest.
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+          $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+          $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+          $bitmap.Save("$env:RUNNER_TEMP\running-window.png")
+
+          if (-not $ready) {
+            Write-Host "::warning::backend never reported healthy within the wait budget — screenshot may show only the splash"
+          }
+
+          # Verify closing the app actually cleans up the spawned backend (Job Object working).
+          Get-Process -Name "callosum-shell" -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Seconds 3
+          $orphan = Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+            Where-Object { $_.CommandLine -match "Callosum.*uvicorn" }
+          if ($orphan) {
+            Write-Host "::error::backend process survived the shell being killed — Job Object cleanup did not work"
+            Stop-Process -Id $orphan.ProcessId -Force -ErrorAction SilentlyContinue
+          } else {
+            Write-Host "confirmed: no orphaned backend process after killing the shell"
+          }
+
+      - name: Upload verification screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: callosum-windows-verification
+          path: ${{ runner.temp }}\running-window.png
+          if-no-files-found: warn

@@ -1,14 +1,14 @@
 name: Desktop shell (macOS)
 
 # Builds the Tauri desktop shell's macOS .dmg — arm64-only (see app/desktop-shell's increment notes
-# for why Intel Macs are out of scope for now). This is genuinely the only verification the macOS
-# build gets before it reaches a real user: there is no Mac hardware to manually click through it on.
-# build_python_macos.sh's OWN last step runs the backend smoke test and is REQUIRED (blocking, via
-# `set -euo pipefail`) — it proves the real dependency stack (torch/PyMuPDF/scikit-learn/sqlite-vec,
-# arm64 wheels) actually imports and serves on real macOS arm64 hardware, even though nobody has seen
-# the resulting window open. It does NOT prove Gatekeeper lets the app open, or that the webview
-# loads — those remain unverified pre-shipment. (A separate, redundant workflow step re-running the
-# same script was removed here after a real run — the internal check already gates the build.)
+# for why Intel Macs are out of scope for now) — and then actually verifies it on the runner's real
+# macOS session: mounts the real .dmg, installs it, tags it with a quarantine attribute (simulating a
+# real "downloaded from the internet" file, since GitHub's own build step doesn't apply one), checks
+# what Gatekeeper actually does with an unsigned app, gets past it, and screenshots the real running
+# window once the backend is healthy. This is the closest thing to a human click-through available
+# without real Mac hardware — real WindowServer session, real screenshots, real Gatekeeper behavior —
+# but it is still not a human's eyes on the screen; treat the uploaded screenshots as evidence to
+# review, not as a substitute for actually trying the installer yourself.
 #
 # Not on push/PR — this is a slow, heavy build (portable CPython + the full ML dependency tree) that
 # doesn't need to run on every commit. Trigger manually or when the shell/packaging itself changes.
@@ -31,6 +31,12 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts (this build takes ~4-5 min cold; iteration on the verify
+          steps below shouldn't pay that twice)
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/desktop-shell/src-tauri
 
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
@@ -71,3 +77,75 @@ jobs:
           name: callosum-macos-arm64
           path: app/desktop-shell/src-tauri/target/release/bundle/dmg/*.dmg
           if-no-files-found: error
+
+      - name: "Verify: mount the real .dmg, simulate Gatekeeper, screenshot the real running window"
+        id: verify
+        run: |
+          set -x
+          DMG=$(ls app/desktop-shell/src-tauri/target/release/bundle/dmg/*.dmg)
+          MOUNT=/tmp/callosum-mount
+          mkdir -p "$MOUNT"
+          hdiutil attach "$DMG" -nobrowse -mountpoint "$MOUNT"
+
+          APP_SRC=$(find "$MOUNT" -maxdepth 1 -name "*.app")
+          APP_NAME=$(basename "$APP_SRC")
+          cp -R "$APP_SRC" /Applications/
+          hdiutil detach "$MOUNT"
+          INSTALLED="/Applications/$APP_NAME"
+
+          # GitHub's own checkout/build never applies a quarantine flag, but a real download (email,
+          # Slack, a browser) does -- tag it manually so this test faces the same Gatekeeper posture
+          # the labmate actually will, not the more lenient "locally built" posture.
+          xattr -w com.apple.quarantine "0083;$(printf '%08x' "$(date +%s)");Google Chrome;" "$INSTALLED"
+
+          echo "--- spctl assessment WITH quarantine (what a fresh download looks like) ---"
+          spctl -a -vvv "$INSTALLED" 2>&1 | tee /tmp/spctl-quarantined.log || true
+
+          echo "--- attempting a plain 'open' (~ a real double-click) while quarantined ---"
+          open "$INSTALLED" || true
+          sleep 6
+          screencapture -x /tmp/1-after-open-while-quarantined.png
+          if pgrep -f "$APP_NAME" >/dev/null; then
+            echo "UNEXPECTED: process launched despite quarantine"
+          else
+            echo "CONFIRMED: Gatekeeper blocked the plain-open attempt, as FIRST-LAUNCH-NOTE.md describes"
+          fi
+
+          # The documented workaround is Finder's right-click -> Open, which clears the OS's distrust
+          # of this specific file the same way removing the quarantine attribute does; this is the
+          # closest scriptable proxy to that gesture available in a non-interactive CI shell.
+          xattr -d com.apple.quarantine "$INSTALLED"
+          echo "--- spctl assessment AFTER the trust override ---"
+          spctl -a -vvv "$INSTALLED" 2>&1 | tee /tmp/spctl-trusted.log || true
+
+          open "$INSTALLED"
+          echo "--- waiting for the real backend to report healthy ---"
+          ready=0
+          for i in $(seq 1 40); do
+            PORT=$(ps aux | grep -oE "uvicorn app\.backend\.api\.app:app --host 127\.0\.0\.1 --port [0-9]+" | grep -oE "[0-9]+$" | head -1 || true)
+            if [ -n "$PORT" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/health" || true)" = "200" ]; then
+              echo "healthy on port $PORT after $((i*3))s"
+              ready=1
+              break
+            fi
+            sleep 3
+          done
+          sleep 2 # give the webview a moment to actually paint the loaded page
+          screencapture -x /tmp/2-running-window.png
+          if [ "$ready" != "1" ]; then
+            echo "::warning::backend never reported healthy within the wait budget — screenshot may show only the splash"
+          fi
+
+          pkill -f "$APP_NAME" || true
+
+      - name: Upload verification screenshots + Gatekeeper logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: callosum-macos-verification
+          path: |
+            /tmp/1-after-open-while-quarantined.png
+            /tmp/2-running-window.png
+            /tmp/spctl-quarantined.log
+            /tmp/spctl-trusted.log
+          if-no-files-found: warn
