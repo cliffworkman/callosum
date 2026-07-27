@@ -71,9 +71,24 @@ jobs:
         working-directory: app/desktop-shell
         run: npm install
 
-      - name: Build the .dmg
+      - name: Build the .app (dmg wrapping happens after re-signing below)
         working-directory: app/desktop-shell
         run: npx tauri build
+
+      - name: "Re-sign the .app AFTER resources are bundled (real run found the default ad-hoc sign happens before bundle.resources is copied in, leaving spctl reporting \"code has no resources but signature indicates they must be present\" — Gatekeeper then reports the app as \"damaged\" instead of the milder unidentified-developer warning)"
+        run: |
+          set -x
+          APP=$(find app/desktop-shell/src-tauri/target/release/bundle/macos -maxdepth 1 -name "*.app")
+          codesign --force --deep --sign - "$APP"
+          echo "--- spctl assessment of the freshly re-signed .app (no quarantine yet) ---"
+          spctl -a -vvv "$APP" 2>&1 || true
+
+      - name: Wrap the re-signed .app into a .dmg
+        run: |
+          APP=$(find app/desktop-shell/src-tauri/target/release/bundle/macos -maxdepth 1 -name "*.app")
+          mkdir -p app/desktop-shell/src-tauri/target/release/bundle/dmg
+          hdiutil create -volname "Callosum" -srcfolder "$APP" -ov -format UDZO \
+            "app/desktop-shell/src-tauri/target/release/bundle/dmg/Callosum_0.1.0_aarch64.dmg"
 
       - name: Upload .dmg artifact
         uses: actions/upload-artifact@v4
