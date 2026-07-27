@@ -63,6 +63,20 @@ environment variables overridden.
   gets started, not just packaging, and worth remembering if a future increment gives the shell any
   additional capability beyond "spawn and supervise this one fixed process."
 
+## Known transitive vulnerability, accepted (checked, not ignored)
+
+Pushing `Cargo.lock` tripped GitHub Dependabot alert #17: `glib` 0.18.5 (transitive, pulled in by
+`tao`/`wry`'s Linux GTK bindings) has a known unsoundness issue (`GHSA-wrw7-89jp-8q8g`, fixed in
+0.20.0). Checked directly: `cargo update -p glib` reports "Locking 0 packages to latest compatible
+versions" — 0.18.5 is already the newest version the current `tauri`/`tao`/`wry` releases allow;
+reaching 0.20.0 requires upgrading the whole Tauri stack, which is not a change to make casually two
+days before a handoff deadline. Two mitigating factors: (1) this shell only targets Windows and
+macOS — the vulnerable code is GTK/glib bindings that exist in the dependency tree for Linux support
+but never execute in either shipped binary; (2) it's an iterator-soundness bug, not a demonstrated
+remote-exploit path. Accepted for this increment; revisit when bumping Tauri itself becomes its own
+scoped piece of work (the same posture this project already holds for the pre-existing, separately-
+triaged pytest tmpdir-handling advisory).
+
 ## Negative-path checks actually run (not just described)
 
 - Killed the shell process directly (not via its own window-close path) and confirmed the spawned
