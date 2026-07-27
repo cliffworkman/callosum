@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-27 — Increment 399: WIP — remove watched locations + manuscript cards
+
+- **Files:** `app/backend/api/routers/wip.py`, `app/backend/persistence/wip_repo.py`,
+  `app/frontend/js/{10f_wip.jsx,10h_wip_filters.jsx,10i_wip_context.jsx}`, `app/frontend/styles.css`,
+  `tests/test_wip_api.py`, `.claude/security-audits/2026-07-27_wip-manuscript-delete.md` (new),
+  `.claude/qa-routes/route_75_wip_workspace.md`, `callosum-app.html`.
+- **What:** adds `DELETE /wip/manuscripts/{id}` (needs no schema change — every child table already
+  cascades) + a "Remove manuscript" context-menu action, and a watch-root list UI (path/mode/🗑 delete)
+  behind the existing "N watched locations" summary, which previously had no way to view or manage the
+  underlying roots at all.
+- **Why:** Cliff wanted to un-watch a mistakenly-added folder and remove a duplicate manuscript card.
+  Investigation found a real latent bug this also closes: deleting a watch-root already correctly
+  preserves its manuscripts, but with no manuscript-level delete anywhere, an orphaned manuscript could
+  never again be synced or removed — a permanent "ghost" row with no cleanup path until now.
+- **Revert:** `git revert` this increment's commit(s); fully additive (one new endpoint + new frontend
+  wiring), no existing endpoint/schema changed.
+
 ## 2026-07-27 — Increment 398: WIP folder-picker (universal in-app folder browser)
 
 - **Files:** `app/backend/api/routers/wip.py`, `app/frontend/js/10j_wip_folder_browser.jsx` (new),

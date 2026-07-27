@@ -24,6 +24,7 @@ from app.backend.persistence.wip_provenance_repo import (
 from app.backend.persistence.wip_repo import (
     add_activity,
     create_watch_root,
+    delete_manuscript,
     delete_watch_root,
     get_file,
     get_manuscript,
@@ -311,6 +312,14 @@ def manuscript_get(manuscript_id: int, request: Request) -> dict:
     if manuscript is None:
         raise HTTPException(status_code=404, detail="WIP manuscript not found")
     return manuscript
+
+
+@router.delete("/manuscripts/{manuscript_id}", status_code=204)
+def manuscript_delete(manuscript_id: int, request: Request) -> Response:
+    deleted = run_write(request.app.state.engine, lambda conn: delete_manuscript(conn, manuscript_id))
+    if not deleted:
+        raise HTTPException(status_code=404, detail="WIP manuscript not found")
+    return Response(status_code=204)
 
 
 @router.patch("/manuscripts/{manuscript_id}")

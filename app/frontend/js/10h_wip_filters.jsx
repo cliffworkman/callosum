@@ -88,11 +88,26 @@ function useWipWorkspace({ enabled }) {
     return result;
   }, []);
 
+  const deleteManuscript = useCallback(async (id) => {
+    const result = await apiDelete(`/wip/manuscripts/${id}`);
+    if (result.ok) {
+      setRefresh(n => n + 1);
+      setSelectedId(current => (current === id ? null : current));
+    }
+    return result;
+  }, []);
+
+  const deleteRoot = useCallback(async (id) => {
+    const result = await apiDelete(`/wip/watch-roots/${id}`);
+    if (result.ok) setRefresh(n => n + 1);
+    return result;
+  }, []);
+
   const selected = state.manuscripts.find(item => item.id === selectedId) || null;
   return {
     ...state, enabled, query, setQuery, stage, setStage, workspaceState, setWorkspaceState, sort, filters, setFilters,
     setSort: value => { setSort(value); _saveLayout("callosum.wip.sort", value); },
-    selectedId, setSelectedId, selected, scanning, rescan, addRoot, updateManuscript,
+    selectedId, setSelectedId, selected, scanning, rescan, addRoot, updateManuscript, deleteManuscript, deleteRoot,
     reload: () => setRefresh(n => n + 1),
   };
 }

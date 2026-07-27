@@ -19,8 +19,9 @@ function wipWhen(value) {
   return date.toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-function WipRootSetup({ roots, scanning, onAdd, onRescan }) {
+function WipRootSetup({ roots, scanning, onAdd, onRescan, onDeleteRoot }) {
   const [expanded, setExpanded] = useState(false);
+  const [rootsShown, setRootsShown] = useState(false);
   const [path, setPath] = useState("");
   const [mode, setMode] = useState("folder");
   const [error, setError] = useState("");
@@ -33,15 +34,32 @@ function WipRootSetup({ roots, scanning, onAdd, onRescan }) {
     setPath("");
     setExpanded(false);
   };
+  const removeRoot = async (root) => {
+    if (!window.confirm(`Stop watching "${root.path}"? Manuscripts already found here are kept, just no longer tracked by this location.`)) return;
+    await onDeleteRoot(root.id);
+  };
   return (
     <div className="wip-roots">
       <div className="wip-roots-summary">
-        <span>{roots.length} watched {roots.length === 1 ? "location" : "locations"}</span>
+        <button className="wip-roots-toggle" disabled={roots.length === 0} onClick={() => setRootsShown(value => !value)}>
+          {roots.length} watched {roots.length === 1 ? "location" : "locations"}
+        </button>
         <button className="btn-ghost" onClick={() => setExpanded(value => !value)}>+ Add location</button>
         <button className="btn-ghost" disabled={scanning || roots.length === 0} onClick={onRescan}>
           {scanning ? "Scanning…" : "Rescan"}
         </button>
       </div>
+      {rootsShown && roots.length > 0 &&
+        <div className="wip-roots-list">
+          {roots.map(root => (
+            <div className="wip-roots-row" key={root.id}>
+              <code title={root.path}>{root.path}</code>
+              <span className="wip-roots-mode">{root.discovery_mode === "children" ? "subfolders" : "one manuscript"}</span>
+              <button className="btn-icon" title="Stop watching this location" aria-label={`Stop watching ${root.path}`}
+                onClick={() => removeRoot(root)}>🗑</button>
+            </div>
+          ))}
+        </div>}
       {expanded &&
         <form className="wip-root-form" onSubmit={submit}>
           <input value={path} onChange={event => setPath(event.target.value)}
@@ -123,7 +141,8 @@ function WipBrowser({ wip, onOpen }) {
           <p className="eyebrow">Work in progress</p>
           <span className="wip-mode-label"><span className="wip-badge">WIP</span> Unpublished manuscripts</span>
         </div>
-        <WipRootSetup roots={wip.roots} scanning={wip.scanning} onAdd={wip.addRoot} onRescan={wip.rescan} />
+        <WipRootSetup roots={wip.roots} scanning={wip.scanning} onAdd={wip.addRoot} onRescan={wip.rescan}
+          onDeleteRoot={wip.deleteRoot} />
         <WipFilters wip={wip} />
         {wip.status === "ready" && <div className="list-meta">{wip.manuscripts.length} shown</div>}
       </div>
@@ -140,7 +159,7 @@ function WipBrowser({ wip, onOpen }) {
         <WipCard key={item.id} manuscript={item} selected={wip.selectedId === item.id}
           onSelect={wip.setSelectedId} onOpen={onOpen} onMenu={openMenu} />)}
       <WipContextMenu menu={menu} onClose={() => setMenu(null)} onOpen={onOpen}
-        onUpdate={wip.updateManuscript} onRescan={wip.rescan} />
+        onUpdate={wip.updateManuscript} onRescan={wip.rescan} onDelete={wip.deleteManuscript} />
     </div>
   );
 }

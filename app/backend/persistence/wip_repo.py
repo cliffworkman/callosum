@@ -68,6 +68,13 @@ def delete_watch_root(conn: Connection, root_id: int) -> bool:
     return bool(conn.execute(delete(wip_watch_roots).where(wip_watch_roots.c.id == root_id)).rowcount)
 
 
+def delete_manuscript(conn: Connection, manuscript_id: int) -> bool:
+    """Fully remove a manuscript and everything under it (files/tasks/sections/references/findings/
+    checkpoints) -- every child table's FK to wip_manuscripts.id is ondelete=CASCADE, so this one
+    delete is complete; no manual per-table cleanup is needed."""
+    return bool(conn.execute(delete(wip_manuscripts).where(wip_manuscripts.c.id == manuscript_id)).rowcount)
+
+
 def reconcile_watch_root(conn: Connection, root: dict, inspection: ScanInspection) -> dict[str, int]:
     root_id = int(root["id"])
     current = {

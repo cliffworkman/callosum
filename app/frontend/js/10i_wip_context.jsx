@@ -1,6 +1,6 @@
 // Entity-specific manuscript context actions. Every item delegates to an existing WIP operation; actions that
 // require evidence/result feedback stay in the full workspace rather than becoming silent card shortcuts.
-function WipContextMenu({ menu, onClose, onOpen, onUpdate, onRescan }) {
+function WipContextMenu({ menu, onClose, onOpen, onUpdate, onRescan, onDelete }) {
   useEffect(() => {
     if (!menu) return undefined;
     const close = () => onClose();
@@ -17,7 +17,7 @@ function WipContextMenu({ menu, onClose, onOpen, onUpdate, onRescan }) {
   if (!menu) return null;
   const manuscript = menu.manuscript;
   const left = Math.max(8, Math.min(menu.x, window.innerWidth - 218));
-  const top = Math.max(8, Math.min(menu.y, window.innerHeight - 245));
+  const top = Math.max(8, Math.min(menu.y, window.innerHeight - 285));
   const update = async values => {
     const result = await onUpdate(manuscript.id, values);
     if (result && result.ok) onClose();
@@ -25,6 +25,11 @@ function WipContextMenu({ menu, onClose, onOpen, onUpdate, onRescan }) {
   const rescan = async () => {
     onClose();
     await onRescan();
+  };
+  const remove = async () => {
+    onClose();
+    if (!window.confirm(`Remove "${manuscript.display_title}" from WIP? This deletes its tasks, notes, checks, and activity history, and cannot be undone. The manuscript's own files on disk are untouched.`)) return;
+    await onDelete(manuscript.id);
   };
   return <div className="wip-context-menu" role="menu" aria-label="Manuscript actions"
     style={{ left, top }} onMouseDown={event => event.stopPropagation()}
@@ -43,5 +48,7 @@ function WipContextMenu({ menu, onClose, onOpen, onUpdate, onRescan }) {
       {manuscript.state === "archived" ? "Restore to active" : "Archive manuscript"}
     </button>
     <button role="menuitem" onClick={rescan}>Rescan files</button>
+    <hr className="wip-context-menu-divider" />
+    <button role="menuitem" className="wip-context-menu-danger" onClick={remove}>Remove manuscript</button>
   </div>;
 }

@@ -112,6 +112,15 @@ def test_watch_root_validation_pause_and_delete_preserves_manuscript(temp_db_url
     preserved = client.get(f"/wip/manuscripts/{manuscripts[0]['id']}").json()
     assert preserved["uid"] == manuscripts[0]["uid"]
 
+    # Orphaned (watch_root_id set NULL by the delete above) but must still be fully removable, and its
+    # cascade-deleted children (a task here) must go with it -- the permanent-ghost gap this closes.
+    manuscript_id = manuscripts[0]["id"]
+    task = client.post(f"/wip/manuscripts/{manuscript_id}/tasks", json={"title": "Fix intro"}).json()
+    assert client.get(f"/wip/manuscripts/{manuscript_id}/tasks").json() == [task]
+    assert client.delete(f"/wip/manuscripts/{manuscript_id}").status_code == 204
+    assert client.get(f"/wip/manuscripts/{manuscript_id}").status_code == 404
+    assert client.delete(f"/wip/manuscripts/{manuscript_id}").status_code == 404  # already gone
+
 
 def test_missing_manuscript_relinks_without_losing_identity_or_workflow(temp_db_url: str, tmp_path: Path) -> None:
     original = tmp_path / "Original draft"
@@ -188,6 +197,7 @@ def test_wip_routes_deny_remote_forwarded_and_read_only_access(
         ).status_code
         == 403
     )
+    assert client.delete("/wip/manuscripts/1", headers={"host": "example.com"}).status_code == 403
     assert client.get("/wip/manuscripts", headers={"x-forwarded-for": "203.0.113.5"}).status_code == 403
     monkeypatch.setenv("CALLOSUM_READ_ONLY", "1")
     assert client.get("/wip/manuscripts").status_code == 403

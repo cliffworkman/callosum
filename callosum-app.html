@@ -1857,7 +1857,19 @@
   .wip-facets select { flex: 0 1 auto; }
   .wip-roots { margin-top: 6px; }
   .wip-roots-summary { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 11px; }
-  .wip-roots-summary span:first-child { margin-right: auto; }
+  .wip-roots-toggle {
+    margin-right: auto; border: none; background: none; padding: 0; cursor: pointer;
+    color: inherit; font: inherit; font-family: var(--sans);
+  }
+  .wip-roots-toggle:hover:not(:disabled) { color: var(--ink); text-decoration: underline; }
+  .wip-roots-toggle:disabled { cursor: default; }
+  .wip-roots-list { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+  .wip-roots-row {
+    display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: var(--radius-sm);
+    background: var(--panel-2); font-size: 11px;
+  }
+  .wip-roots-row code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); font-family: var(--mono); font-size: 10.5px; }
+  .wip-roots-mode { color: var(--ink-3); white-space: nowrap; }
   .wip-root-form {
     display: grid; grid-template-columns: minmax(180px, 1fr) auto auto auto auto; align-items: center; gap: 7px;
     margin-top: 8px; padding: 9px; border: 1px solid var(--wip-line); border-radius: var(--radius);
@@ -1882,6 +1894,8 @@
   }
   .wip-context-menu button { cursor: pointer; }
   .wip-context-menu button:hover { background: var(--wip-soft); color: var(--wip); }
+  .wip-context-menu-divider { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; }
+  .wip-context-menu-danger:hover { background: var(--panel-2); color: var(--danger); }
   .wip-context-menu label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; }
   .wip-context-menu select {
     min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
@@ -8819,8 +8833,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     if (Number.isNaN(date.getTime())) return String(value);
     return date.toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
   }
-  function WipRootSetup({ roots, scanning, onAdd, onRescan }) {
+  function WipRootSetup({ roots, scanning, onAdd, onRescan, onDeleteRoot }) {
     const [expanded, setExpanded] = useState(false);
+    const [rootsShown, setRootsShown] = useState(false);
     const [path, setPath] = useState("");
     const [mode, setMode] = useState("folder");
     const [error, setError] = useState("");
@@ -8836,7 +8851,20 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       setPath("");
       setExpanded(false);
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "wip-roots" }, /* @__PURE__ */ React.createElement("div", { className: "wip-roots-summary" }, /* @__PURE__ */ React.createElement("span", null, roots.length, " watched ", roots.length === 1 ? "location" : "locations"), /* @__PURE__ */ React.createElement("button", { className: "btn-ghost", onClick: () => setExpanded((value) => !value) }, "+ Add location"), /* @__PURE__ */ React.createElement("button", { className: "btn-ghost", disabled: scanning || roots.length === 0, onClick: onRescan }, scanning ? "Scanning\u2026" : "Rescan")), expanded && /* @__PURE__ */ React.createElement("form", { className: "wip-root-form", onSubmit: submit }, /* @__PURE__ */ React.createElement(
+    const removeRoot = async (root) => {
+      if (!window.confirm(`Stop watching "${root.path}"? Manuscripts already found here are kept, just no longer tracked by this location.`)) return;
+      await onDeleteRoot(root.id);
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "wip-roots" }, /* @__PURE__ */ React.createElement("div", { className: "wip-roots-summary" }, /* @__PURE__ */ React.createElement("button", { className: "wip-roots-toggle", disabled: roots.length === 0, onClick: () => setRootsShown((value) => !value) }, roots.length, " watched ", roots.length === 1 ? "location" : "locations"), /* @__PURE__ */ React.createElement("button", { className: "btn-ghost", onClick: () => setExpanded((value) => !value) }, "+ Add location"), /* @__PURE__ */ React.createElement("button", { className: "btn-ghost", disabled: scanning || roots.length === 0, onClick: onRescan }, scanning ? "Scanning\u2026" : "Rescan")), rootsShown && roots.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "wip-roots-list" }, roots.map((root) => /* @__PURE__ */ React.createElement("div", { className: "wip-roots-row", key: root.id }, /* @__PURE__ */ React.createElement("code", { title: root.path }, root.path), /* @__PURE__ */ React.createElement("span", { className: "wip-roots-mode" }, root.discovery_mode === "children" ? "subfolders" : "one manuscript"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-icon",
+        title: "Stop watching this location",
+        "aria-label": `Stop watching ${root.path}`,
+        onClick: () => removeRoot(root)
+      },
+      "\u{1F5D1}"
+    )))), expanded && /* @__PURE__ */ React.createElement("form", { className: "wip-root-form", onSubmit: submit }, /* @__PURE__ */ React.createElement(
       "input",
       {
         value: path,
@@ -8897,7 +8925,16 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       wip.setSelectedId(manuscript.id);
       setMenu({ manuscript, x: position ? position.x : event.clientX, y: position ? position.y : event.clientY });
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body wip-browser" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Work in progress"), /* @__PURE__ */ React.createElement("span", { className: "wip-mode-label" }, /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"), " Unpublished manuscripts")), /* @__PURE__ */ React.createElement(WipRootSetup, { roots: wip.roots, scanning: wip.scanning, onAdd: wip.addRoot, onRescan: wip.rescan }), /* @__PURE__ */ React.createElement(WipFilters, { wip }), wip.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, wip.manuscripts.length, " shown")), wip.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "state" }, "Loading work in progress\u2026"), wip.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Can't load WIP."), /* @__PURE__ */ React.createElement("br", null), wip.error), wip.status === "ready" && wip.manuscripts.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, wip.roots.length ? "No manuscripts match this view." : "Add a manuscript location."), wip.roots.length ? "Change the stage or state filters, or rescan the watched locations." : "Choose one manuscript folder, or a parent whose immediate subfolders are manuscripts."), wip.status === "ready" && wip.manuscripts.map((item) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body wip-browser" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Work in progress"), /* @__PURE__ */ React.createElement("span", { className: "wip-mode-label" }, /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"), " Unpublished manuscripts")), /* @__PURE__ */ React.createElement(
+      WipRootSetup,
+      {
+        roots: wip.roots,
+        scanning: wip.scanning,
+        onAdd: wip.addRoot,
+        onRescan: wip.rescan,
+        onDeleteRoot: wip.deleteRoot
+      }
+    ), /* @__PURE__ */ React.createElement(WipFilters, { wip }), wip.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, wip.manuscripts.length, " shown")), wip.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "state" }, "Loading work in progress\u2026"), wip.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Can't load WIP."), /* @__PURE__ */ React.createElement("br", null), wip.error), wip.status === "ready" && wip.manuscripts.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, wip.roots.length ? "No manuscripts match this view." : "Add a manuscript location."), wip.roots.length ? "Change the stage or state filters, or rescan the watched locations." : "Choose one manuscript folder, or a parent whose immediate subfolders are manuscripts."), wip.status === "ready" && wip.manuscripts.map((item) => /* @__PURE__ */ React.createElement(
       WipCard,
       {
         key: item.id,
@@ -8914,7 +8951,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onClose: () => setMenu(null),
         onOpen,
         onUpdate: wip.updateManuscript,
-        onRescan: wip.rescan
+        onRescan: wip.rescan,
+        onDelete: wip.deleteManuscript
       }
     ));
   }
@@ -9394,6 +9432,19 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       if (result.ok) setRefresh((n) => n + 1);
       return result;
     }, []);
+    const deleteManuscript = useCallback(async (id) => {
+      const result = await apiDelete(`/wip/manuscripts/${id}`);
+      if (result.ok) {
+        setRefresh((n) => n + 1);
+        setSelectedId((current) => current === id ? null : current);
+      }
+      return result;
+    }, []);
+    const deleteRoot = useCallback(async (id) => {
+      const result = await apiDelete(`/wip/watch-roots/${id}`);
+      if (result.ok) setRefresh((n) => n + 1);
+      return result;
+    }, []);
     const selected = state.manuscripts.find((item) => item.id === selectedId) || null;
     return {
       ...state,
@@ -9418,6 +9469,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       rescan,
       addRoot,
       updateManuscript,
+      deleteManuscript,
+      deleteRoot,
       reload: () => setRefresh((n) => n + 1)
     };
   }
@@ -9523,7 +9576,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       }
     ), active && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => wip.setFilters(WIP_EMPTY_FILTERS) }, "Clear filters")));
   }
-  function WipContextMenu({ menu, onClose, onOpen, onUpdate, onRescan }) {
+  function WipContextMenu({ menu, onClose, onOpen, onUpdate, onRescan, onDelete }) {
     useEffect(() => {
       if (!menu) return void 0;
       const close = () => onClose();
@@ -9542,7 +9595,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     if (!menu) return null;
     const manuscript = menu.manuscript;
     const left = Math.max(8, Math.min(menu.x, window.innerWidth - 218));
-    const top = Math.max(8, Math.min(menu.y, window.innerHeight - 245));
+    const top = Math.max(8, Math.min(menu.y, window.innerHeight - 285));
     const update = async (values) => {
       const result = await onUpdate(manuscript.id, values);
       if (result && result.ok) onClose();
@@ -9550,6 +9603,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const rescan = async () => {
       onClose();
       await onRescan();
+    };
+    const remove = async () => {
+      onClose();
+      if (!window.confirm(`Remove "${manuscript.display_title}" from WIP? This deletes its tasks, notes, checks, and activity history, and cannot be undone. The manuscript's own files on disk are untouched.`)) return;
+      await onDelete(manuscript.id);
     };
     return /* @__PURE__ */ React.createElement(
       "div",
@@ -9568,7 +9626,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       /* @__PURE__ */ React.createElement("label", null, "Stage", /* @__PURE__ */ React.createElement("select", { value: manuscript.stage, onChange: (event) => update({ stage: event.target.value }) }, WIP_STAGES.map((item) => /* @__PURE__ */ React.createElement("option", { key: item[0], value: item[0] }, item[1])))),
       ["active", "paused"].includes(manuscript.state) && /* @__PURE__ */ React.createElement("button", { role: "menuitem", onClick: () => update({ state: manuscript.state === "paused" ? "active" : "paused" }) }, manuscript.state === "paused" ? "Resume tracking" : "Pause tracking"),
       /* @__PURE__ */ React.createElement("button", { role: "menuitem", onClick: () => update({ state: manuscript.state === "archived" ? "active" : "archived" }) }, manuscript.state === "archived" ? "Restore to active" : "Archive manuscript"),
-      /* @__PURE__ */ React.createElement("button", { role: "menuitem", onClick: rescan }, "Rescan files")
+      /* @__PURE__ */ React.createElement("button", { role: "menuitem", onClick: rescan }, "Rescan files"),
+      /* @__PURE__ */ React.createElement("hr", { className: "wip-context-menu-divider" }),
+      /* @__PURE__ */ React.createElement("button", { role: "menuitem", className: "wip-context-menu-danger", onClick: remove }, "Remove manuscript")
     );
   }
   function FolderBrowserModal({ title = "Choose a folder", initialPath, onCancel, onSelect }) {

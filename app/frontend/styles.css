@@ -1833,7 +1833,19 @@
   .wip-facets select { flex: 0 1 auto; }
   .wip-roots { margin-top: 6px; }
   .wip-roots-summary { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 11px; }
-  .wip-roots-summary span:first-child { margin-right: auto; }
+  .wip-roots-toggle {
+    margin-right: auto; border: none; background: none; padding: 0; cursor: pointer;
+    color: inherit; font: inherit; font-family: var(--sans);
+  }
+  .wip-roots-toggle:hover:not(:disabled) { color: var(--ink); text-decoration: underline; }
+  .wip-roots-toggle:disabled { cursor: default; }
+  .wip-roots-list { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+  .wip-roots-row {
+    display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: var(--radius-sm);
+    background: var(--panel-2); font-size: 11px;
+  }
+  .wip-roots-row code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); font-family: var(--mono); font-size: 10.5px; }
+  .wip-roots-mode { color: var(--ink-3); white-space: nowrap; }
   .wip-root-form {
     display: grid; grid-template-columns: minmax(180px, 1fr) auto auto auto auto; align-items: center; gap: 7px;
     margin-top: 8px; padding: 9px; border: 1px solid var(--wip-line); border-radius: var(--radius);
@@ -1858,6 +1870,8 @@
   }
   .wip-context-menu button { cursor: pointer; }
   .wip-context-menu button:hover { background: var(--wip-soft); color: var(--wip); }
+  .wip-context-menu-divider { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; }
+  .wip-context-menu-danger:hover { background: var(--panel-2); color: var(--danger); }
   .wip-context-menu label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; }
   .wip-context-menu select {
     min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
