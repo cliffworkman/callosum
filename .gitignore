@@ -83,4 +83,6 @@ app/desktop-shell/resources/
 # real distribution channel is a GitHub Actions artifact / release, not a committed binary).
 app/desktop-shell/dist-windows/
 app/desktop-shell/dist-macos/
+# Downloaded CI verification screenshots/logs (diagnostic, reviewed locally each run, not source).
+app/desktop-shell/ci-screenshots/
 

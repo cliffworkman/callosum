@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 394** (see Increment workflow) with **1636 pytest tests
+It is currently at **Increment 395** (see Increment workflow) with **1636 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -142,18 +142,23 @@ the full per-increment narrative for all other increments now lives in the reloc
   **Run `npm install` once, then re-run `python tools/build_frontend.py` after editing anything under
   `app/frontend/`.**
 - **HTTP client:** httpx (external metadata/discovery APIs).
-- **Desktop packaging (backlog #21, inc 394):** `app/desktop-shell/` — a Tauri v2 shell that spawns
-  callosum's own FastAPI/uvicorn backend as a child process (a bundled portable CPython + this
-  project's real dependencies via `bundle.resources`, not PyInstaller/Nuitka freezing) and shows the
-  real UI in a native window once `GET /health` returns 200. Windows: built, installed via the real
-  NSIS installer, and verified end-to-end (process spawn, health poll, the real frontend's full
-  startup API cascade, Job-Object cleanup on close, single-instance) via process/network inspection —
-  no GUI-automation tool exists in this environment, so the actual on-screen appearance is **not**
-  visually confirmed and still needs a human click-through. macOS: `.github/workflows/
-  desktop-shell-macos.yml` builds an arm64-only `.dmg` on `macos-latest` with a required blocking
-  backend-smoke-test step; genuinely unverified beyond that (no Mac hardware in this environment). No
-  code signing/notarization on either platform yet — see `app/desktop-shell/FIRST-LAUNCH-NOTE.md`
-  for the SmartScreen/Gatekeeper mitigation. See `INCREMENT-394-NOTES.md`.
+- **Desktop packaging (backlog #21, incs 394-395):** `app/desktop-shell/` — a Tauri v2 shell that
+  spawns callosum's own FastAPI/uvicorn backend as a child process (a bundled portable CPython + this
+  project's real dependencies via `bundle.resources`, CPU-only torch, not PyInstaller/Nuitka freezing)
+  and shows the real UI in a native window once `GET /health` returns 200. **All three platforms now
+  have a CI workflow that builds AND actually verifies the real installer** (`.github/workflows/
+  desktop-shell-{windows,macos,linux}.yml`) — Windows/macOS runners keep a real interactive desktop
+  session, so these mount/install the real artifact, launch it for real, and screenshot the actual
+  running window (not just process/log inspection); Linux (arm64→x86_64 `.deb` only — its AppImage
+  bundler fought the embedded ML stack across four separate failures, not worth chasing further, see
+  inc 395 notes) runs under Xvfb since `ubuntu-latest` has no display server by default. **A real,
+  structural macOS bug was found and fixed this way**: Tauri's default ad-hoc signing happened before
+  `bundle.resources` was copied in, so Gatekeeper reported the app as "damaged" (no override at all)
+  instead of the milder unidentified-developer flow — fixed by re-signing the whole bundle
+  (`codesign --force --deep`) after resources are placed, then wrapping the `.dmg` by hand. No code
+  signing/notarization (real Apple/Microsoft certs) on any platform yet — see `app/desktop-shell/
+  FIRST-LAUNCH-NOTE.md` for the SmartScreen/Gatekeeper mitigation. See `INCREMENT-394-NOTES.md` /
+  `INCREMENT-395-NOTES.md`.
 
 > **README:** brought current in **inc 178** (the contributor front door — accurate feature list + the
 > `npm install`/`build_frontend` step + privacy/security notes). Shipped as a **draft pending the maintainer's

@@ -9,6 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-27 — Increment 395: real CI verification (screenshots) on all 3 platforms + Linux target
+
+- **Files:** `.github/workflows/desktop-shell-{windows,macos,linux}.yml` (windows/linux new, macos
+  extended), `app/desktop-shell/src-tauri/{tauri.macos.conf.json,tauri.linux.conf.json}`,
+  `app/desktop-shell/packaging/build_python_{windows,macos,linux}.sh`,
+  `app/desktop-shell/FIRST-LAUNCH-NOTE.md`, `.gitignore`.
+- **What:** all three platforms now build AND actually install/launch the real installer on
+  GitHub-hosted runners, screenshotting the real running window (Windows/macOS keep a real
+  interactive desktop session; Linux runs under Xvfb). Added Linux as a genuine new target (`.deb`
+  only — AppImage fought the embedded ML stack across four escalating failures, dropped rather than
+  chased further). Switched to CPU-only torch on all three (never uses GPU acceleration; also
+  shrinks the bundle and removes a hard NVIDIA-driver dependency that broke Linux bundling).
+- **Why:** Cliff asked whether GitHub's runners could actually test the installers on every rebuild,
+  not just build them, and asked for Linux as a genuine third target.
+- **The important find:** a real screenshot of the actual Gatekeeper dialog on macOS showed
+  "Callosum is damaged and can't be opened" (no override at all) instead of the documented
+  unidentified-developer flow. `spctl` explained why: the app was ad-hoc signed *before*
+  `bundle.resources` was copied in, invalidating the signature. Fixed by re-signing the whole bundle
+  after resources are placed and wrapping the `.dmg` by hand — verified via `spctl`'s verdict
+  improving from the pathological message to the standard "rejected."
+- **Revert:** `git revert` this increment's commits; fully additive to the inc-394 desktop-shell
+  subsystem (workflow/config/script changes only, no application code touched).
+
 ## 2026-07-27 — Increment 394: Tauri desktop shell (Windows verified end-to-end, macOS CI-only)
 
 - **Files:** `app/desktop-shell/` (new — `src-tauri/src/{backend.rs,lib.rs,main.rs}`, `tauri.conf.json`,

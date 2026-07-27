@@ -92,3 +92,24 @@ triaged pytest tmpdir-handling advisory).
 No new remote-facing attack surface, no injection vector, no secret-handling change, no egress-gate
 change. The one real behavioral shift (auto-launching a backend process without an explicit terminal
 command) is mitigated by a fixed, non-user-influenced command line and loopback-only networking.
+
+## Addendum (2026-07-27, same day): CI verification workflows + Linux target
+
+Added `.github/workflows/desktop-shell-{windows,macos,linux}.yml`, which build the real installer and
+then actually install/launch it (silent NSIS install, mounted-and-quarantine-tagged `.dmg`, `sudo
+dpkg -i`) on **ephemeral GitHub-hosted runners** — never on a persistent or shared machine, never
+touching production infrastructure. The `sudo` usage (Linux system deps, `dpkg -i`, one `screencapture`
+attempt on macOS) is scoped to these throwaway runner VMs, destroyed at job end; no new secret,
+credential, or persistent state is introduced. The macOS quarantine-attribute tagging is applied to a
+locally-built copy on the runner itself, purely to test Gatekeeper's real posture — it never touches a
+real downloaded file or a real user's machine. No change to the shell's own runtime security posture
+(the section above still holds); this addendum covers only the new build/test infrastructure.
+
+Also fixed a real bug in this pass (not a new risk, a correction): the default Tauri macOS build
+signed the `.app` *before* copying in `bundle.resources`, leaving an invalid signature (`spctl`:
+"code has no resources but signature indicates they must be present") that Gatekeeper reported as
+"damaged" rather than the expected "unidentified developer." Re-signing after resources are placed
+(`codesign --force --deep --sign -`) restores the normal, expected verdict (`spctl`: "rejected") —
+a correctness fix for the existing ad-hoc-signing posture, not a new security surface.
+
+**Security Audit (addendum): PASS**
