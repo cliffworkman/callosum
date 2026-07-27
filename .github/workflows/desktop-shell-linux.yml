@@ -1,0 +1,136 @@
+name: Desktop shell (Linux)
+
+# Builds the Tauri desktop shell as a Linux AppImage + .deb (x86_64) and verifies the AppImage on the
+# runner: ubuntu-latest has NO display server by default (unlike the Windows/macOS runners, which keep
+# a real interactive session) — this workflow starts a virtual framebuffer (Xvfb) specifically so the
+# real app can actually render, and screenshots it. This is new platform scope (backlog #21 originally
+# targeted only Windows/macOS for the one known adopter) — added because Cliff wants a Linux build to
+# exist, not because a specific user is waiting on it; treat any Linux-specific rough edges here as
+# genuinely less proven than the Windows/macOS paths.
+#
+# Not on push/PR — this is a slow, heavy build (portable CPython + the full ML dependency tree) that
+# doesn't need to run on every commit. Trigger manually or when the shell/packaging itself changes.
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - "app/desktop-shell/**"
+      - "app/backend/**"
+      - "requirements.txt"
+      - ".github/workflows/desktop-shell-linux.yml"
+
+jobs:
+  build-linux-shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Tauri's Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            xvfb \
+            imagemagick
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/desktop-shell/src-tauri
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install project dependencies (needed just to import app.backend for build_frontend.py)
+        run: uv sync --locked
+
+      - name: Install frontend build toolchain + build callosum-app.html
+        run: |
+          npm install
+          uv run python tools/build_frontend.py
+
+      - name: Stage callosum source into resources/callosum-src
+        run: python3 app/desktop-shell/packaging/stage_source.py
+
+      - name: "Build portable Python runtime + install real deps + smoke test (x86_64, REQUIRED — blocking)"
+        run: bash app/desktop-shell/packaging/build_python_linux.sh
+
+      - name: Install Tauri CLI
+        working-directory: app/desktop-shell
+        run: npm install
+
+      - name: Build the AppImage + .deb
+        working-directory: app/desktop-shell
+        run: npx tauri build
+
+      - name: Upload installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: callosum-linux-x86_64
+          path: |
+            app/desktop-shell/src-tauri/target/release/bundle/appimage/*.AppImage
+            app/desktop-shell/src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+
+      - name: "Verify: run the real AppImage under Xvfb, screenshot the real running window"
+        id: verify
+        run: |
+          set -x
+          Xvfb :99 -screen 0 1280x900x24 &
+          export DISPLAY=:99
+          sleep 2
+
+          APPIMAGE=$(ls app/desktop-shell/src-tauri/target/release/bundle/appimage/*.AppImage)
+          chmod +x "$APPIMAGE"
+          # --appimage-extract-and-run sidesteps FUSE, which isn't reliably available in CI sandboxes.
+          "$APPIMAGE" --appimage-extract-and-run &
+          APP_PID=$!
+
+          ready=0
+          for i in $(seq 1 40); do
+            PORT=$(ps aux | grep -oE "uvicorn app\.backend\.api\.app:app --host 127\.0\.0\.1 --port [0-9]+" | grep -oE "[0-9]+$" | head -1 || true)
+            if [ -n "$PORT" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/health" || true)" = "200" ]; then
+              echo "healthy on port $PORT after $((i*3))s"
+              ready=1
+              break
+            fi
+            sleep 3
+          done
+          sleep 2  # let the webview actually paint
+
+          import -window root /tmp/running-window.png
+          if [ "$ready" != "1" ]; then
+            echo "::warning::backend never reported healthy within the wait budget — screenshot may show only the splash"
+          fi
+
+          kill $APP_PID 2>/dev/null || true
+          pkill -f callosum-shell 2>/dev/null || true
+
+      - name: Upload verification screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: callosum-linux-verification
+          path: /tmp/running-window.png
+          if-no-files-found: warn
