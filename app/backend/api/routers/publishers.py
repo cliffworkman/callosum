@@ -27,6 +27,9 @@ from app.backend.embeddings.models import SentenceTransformerEmbeddingModel
 from app.backend.metadata.abstract_display import abstract_plain_text
 from app.backend.methods.publishers import MAX_PROFILES, build_profiles
 from app.backend.persistence.schema import papers
+from app.backend.persistence.sqlite_retry import run_write
+from app.backend.persistence.wip_checks_repo import record_journal_run
+from app.backend.persistence.wip_repo import get_manuscript
 from integrations.doaj.journals import DoajJournalsClient
 from integrations.openalex.adapter import OpenAlexClient
 from integrations.openalex.sources import OpenAlexSourcesClient
@@ -41,6 +44,8 @@ router = APIRouter(tags=["publishers"])
 
 class PublishersRequest(BaseModel):
     paper_id: int | None = None
+    manuscript_id: int | None = None  # inc 404: tags a receipt (never the full report) to a WIP manuscript;
+    # paired with abstract+subject, not a third exclusive mode -- see publishers_run's validation.
     abstract: str | None = None
     subject: str | None = None
     weighting: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -95,7 +100,10 @@ class PublishersResponse(BaseModel):
 def publishers_run(body: PublishersRequest, background_tasks: BackgroundTasks, request: Request) -> PublishersResponse:
     # Exactly one input mode: a library paper (its stored abstract + primary_topic), or a pasted abstract + subject.
     has_paper = body.paper_id is not None
+    has_manuscript = body.manuscript_id is not None
     has_pasted = bool((body.abstract or "").strip()) and bool((body.subject or "").strip())
+    if has_paper and has_manuscript:
+        raise HTTPException(status_code=422, detail="Provide either a paper_id or a manuscript_id, not both.")
     if has_paper and (body.abstract or body.subject):
         raise HTTPException(status_code=422, detail="Provide either a paper_id or an abstract+subject, not both.")
     if not has_paper and not has_pasted:
@@ -109,6 +117,10 @@ def publishers_run(body: PublishersRequest, background_tasks: BackgroundTasks, r
             raise HTTPException(status_code=404, detail="Paper not found")
         if not row["doi"]:
             raise HTTPException(status_code=422, detail="This paper has no DOI, so OpenAlex can't resolve its topic.")
+    if has_manuscript:
+        with request.app.state.engine.connect() as conn:
+            if get_manuscript(conn, int(body.manuscript_id)) is None:
+                raise HTTPException(status_code=404, detail="WIP manuscript not found")
     job_id = request.app.state.publishers_jobs.create()
     background_tasks.add_task(_run_publishers_job, request.app, job_id, body)
     return PublishersResponse(job_id=job_id, status="pending")
@@ -190,6 +202,19 @@ def _run_publishers_job(app: FastAPI, job_id: str, body: PublishersRequest) -> N
             weighting=report.weighting,
             topic_id=topic_id,
         )
+        if body.manuscript_id is not None:
+            manuscript_id = int(body.manuscript_id)
+            run_write(
+                app.state.engine,
+                lambda conn: record_journal_run(
+                    conn,
+                    manuscript_id,
+                    topic_id=topic_id,
+                    weighting=report.weighting,
+                    considered=report.considered,
+                    shown=report.shown,
+                ),
+            )
         jobs.mark_done(job_id, PublishersResponse(job_id=job_id, status="done", report=model))
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")

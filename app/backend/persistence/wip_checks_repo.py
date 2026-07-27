@@ -7,10 +7,10 @@ from datetime import datetime
 from importlib.metadata import PackageNotFoundError, version
 from uuid import uuid4
 
-from sqlalchemy import Connection, func, insert, select, update
+from sqlalchemy import Connection, desc, func, insert, select, update
 
 from app.backend.methods.statcheck import STATCHECK_VERSION, StatcheckReport
-from app.backend.persistence.schema import tool_runs, wip_findings, wip_tool_runs
+from app.backend.persistence.schema import tool_runs, wip_findings, wip_journal_runs, wip_tool_runs
 from app.backend.persistence.wip_provenance_repo import PreparedSnapshot, list_snapshots
 from app.backend.persistence.wip_repo import add_activity
 
@@ -190,3 +190,41 @@ def _callosum_version() -> str:
         return version("callosum")
     except PackageNotFoundError:
         return "dev"
+
+
+def record_journal_run(
+    conn: Connection,
+    manuscript_id: int,
+    *,
+    topic_id: str | None,
+    weighting: float,
+    considered: int,
+    shown: int,
+) -> None:
+    # inc 404: a receipt only (topic/weighting/counts) -- never the ranked profile list itself, matching
+    # publishers.py's "ephemeral job result" design for the paper/abstract paths this doesn't touch.
+    conn.execute(
+        insert(wip_journal_runs).values(
+            manuscript_id=manuscript_id,
+            topic_id=topic_id,
+            weighting=weighting,
+            considered=considered,
+            shown=shown,
+        )
+    )
+
+
+def list_journal_runs(conn: Connection, manuscript_id: int, limit: int = 25) -> list[dict]:
+    rows = conn.execute(
+        select(wip_journal_runs)
+        .where(wip_journal_runs.c.manuscript_id == manuscript_id)
+        .order_by(desc(wip_journal_runs.c.id))
+        .limit(max(1, min(int(limit), 25)))
+    ).mappings()
+    result = []
+    for row in rows:
+        data = dict(row)
+        if isinstance(data.get("created_at"), datetime):
+            data["created_at"] = data["created_at"].isoformat()
+        result.append(data)
+    return result

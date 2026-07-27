@@ -5555,6 +5555,7 @@
     return /* @__PURE__ */ React.createElement("div", { className: "pub-card" }, /* @__PURE__ */ React.createElement("div", { className: "pub-card-title" }, p.homepage_url ? /* @__PURE__ */ React.createElement("a", { href: p.homepage_url, target: "_blank", rel: "noopener noreferrer" }, p.display_name || "Untitled journal") : p.display_name || "Untitled journal"), /* @__PURE__ */ React.createElement("div", { className: "pub-card-facts" }, /* @__PURE__ */ React.createElement("span", { className: "pub-oa", title: "Open-access category, from OpenAlex/DOAJ (a labeled fact, not a verdict)" }, OA_LABEL[p.oa_color] || p.oa_color), /* @__PURE__ */ React.createElement("span", { className: "pub-fit", title: "callosum's own local embedding cosine between your abstract and this journal's scope \u2014 a topical match, not a recommendation" }, "topical fit ", Number(p.fit).toFixed(2))), /* @__PURE__ */ React.createElement("div", { className: "pub-card-row" }, /* @__PURE__ */ React.createElement("b", null, "Cost:"), " ", apcText, p.apc_waiver ? " \xB7 waiver policy available" : ""), p.license && p.license.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-card-row" }, /* @__PURE__ */ React.createElement("b", null, "License:"), " ", p.license.join(", ")), (p.two_year_mean_citedness != null || p.h_index != null) && /* @__PURE__ */ React.createElement("div", { className: "pub-card-row" }, /* @__PURE__ */ React.createElement("b", null, "Open impact:"), " ", p.two_year_mean_citedness != null ? `2-yr mean citedness ${Number(p.two_year_mean_citedness).toFixed(1)}` : "", p.h_index != null ? `${p.two_year_mean_citedness != null ? " \xB7 " : ""}h-index ${p.h_index}` : "", " ", /* @__PURE__ */ React.createElement("span", { className: "pub-caveat" }, "(one fact among many; impact metrics carry a Matthew-effect bias)")), p.legitimacy_signals && p.legitimacy_signals.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-chips" }, p.legitimacy_signals.map((s, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: "pub-chip" }, s))), weightingOn && p.elevated_for && p.elevated_for.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-elevated", title: "Goods this journal offers that your open-science weighting rewarded \u2014 never a mark against the others" }, "Elevated for: ", p.elevated_for.join(", ")), (doajUrl || oaUrl) && /* @__PURE__ */ React.createElement("div", { className: "pub-sources" }, "Sources:", " ", oaUrl && /* @__PURE__ */ React.createElement("a", { href: oaUrl, target: "_blank", rel: "noopener noreferrer" }, "OpenAlex"), doajUrl && /* @__PURE__ */ React.createElement(React.Fragment, null, oaUrl ? " \xB7 " : "", /* @__PURE__ */ React.createElement("a", { href: doajUrl, target: "_blank", rel: "noopener noreferrer" }, "DOAJ"))));
   }
   function PublishersPanel({ ctx }) {
+    const manuscript = ctx.researchContext && ctx.researchContext.kind === "manuscript" ? ctx.researchContext.entity : null;
     const [status, setStatus] = useState(null);
     const [meta, setMeta] = useState(null);
     const [mode, setMode] = useState(null);
@@ -5581,8 +5582,14 @@
       };
     }, [ctx.selectedPaper]);
     useEffect(() => {
-      if (mode == null && status) setMode(ctx.selectedPaper != null ? "paper" : "abstract");
+      if (status && (mode == null || mode === "paper" && ctx.selectedPaper == null)) {
+        setMode(ctx.selectedPaper != null ? "paper" : "abstract");
+      }
     }, [status, ctx.selectedPaper]);
+    useEffect(() => {
+      if (!manuscript) return;
+      setAbstract((prev) => prev.trim() ? prev : [manuscript.display_title, manuscript.notes].filter(Boolean).join("\n\n"));
+    }, [manuscript && manuscript.id]);
     if (!status) return null;
     if (!status.publisher_defaults_set) return /* @__PURE__ */ React.createElement(PublishersGate, { onSaved: loadStatus });
     const breadth = PUB_BREADTHS.find((x) => x.id === status.publisher_breadth) || PUB_BREADTHS[1];
@@ -5615,7 +5622,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           setSubject(input.subject || "");
         }
       }
-      const body = input.kind === "paper" ? { paper_id: input.paperId, weighting: w, top_k: breadth.topK } : { abstract: input.abstract, subject: input.subject, weighting: w, top_k: breadth.topK };
+      const body = input.kind === "paper" ? { paper_id: input.paperId, weighting: w, top_k: breadth.topK } : manuscript ? { abstract: input.abstract, subject: input.subject, weighting: w, top_k: breadth.topK, manuscript_id: manuscript.id } : { abstract: input.abstract, subject: input.subject, weighting: w, top_k: breadth.topK };
       setLastRunInput(input);
       setState({ status: "running", progress: null });
       const poll = (jobId) => api(`/methods/publishers/run/${jobId}`).then((r2) => {
@@ -5624,8 +5631,10 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           return;
         }
         const d = r2.data;
-        if (d.status === "done") setState({ status: "done", report: d.report });
-        else if (d.status === "error") setState({ status: "error", error: d.detail || "Search failed." });
+        if (d.status === "done") {
+          setState({ status: "done", report: d.report });
+          if (manuscript && ctx.onReloadWip) ctx.onReloadWip();
+        } else if (d.status === "error") setState({ status: "error", error: d.detail || "Search failed." });
         else {
           setState({ status: "running", progress: d.progress });
           setTimeout(() => poll(jobId), 1500);
@@ -5660,7 +5669,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         title: "Build the contribution statement most journals now require, in Work \u2192 CRediT"
       },
       "Once you've picked a journal, build your CRediT statement \u2192"
-    ), /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter pub-mode", role: "group", "aria-label": "Input" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "tags-srcfilter-btn" + (mode === "paper" ? " on" : ""), onClick: () => setMode("paper") }, "Selected paper"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "tags-srcfilter-btn" + (mode === "abstract" ? " on" : ""), onClick: () => setMode("abstract") }, "Paste an abstract")), mode === "paper" ? ctx.selectedPaper == null ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper in the library, or paste an abstract instead.") : meta && !meta.hasDoi ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so its research topic can't be resolved \u2014 paste its abstract + a subject instead.") : /* @__PURE__ */ React.createElement("div", { className: "pub-input-note" }, "Matching ", /* @__PURE__ */ React.createElement("b", null, meta ? meta.title : "the selected paper"), " against candidate journals in its field.") : /* @__PURE__ */ React.createElement("div", { className: "pub-input" }, /* @__PURE__ */ React.createElement("textarea", { className: "settings-input", rows: 4, placeholder: "Paste your abstract\u2026", value: abstract, onChange: (e) => setAbstract(e.target.value) }), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "Subject / field (e.g. cognitive neuroscience)", value: subject, onChange: (e) => setSubject(e.target.value) }), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "The abstract is embedded locally and never sent; only the subject term (a coarse public keyword) is used to gather candidate journals.")), state.status !== "running" && /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !canRun, onClick: () => run() }, state.status === "done" ? "Search again" : "Find journals"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: "", onChange: (e) => {
+    ), /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter pub-mode", role: "group", "aria-label": "Input" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "tags-srcfilter-btn" + (mode === "paper" ? " on" : ""), onClick: () => setMode("paper") }, "Selected paper"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "tags-srcfilter-btn" + (mode === "abstract" ? " on" : ""), onClick: () => setMode("abstract") }, "Paste an abstract")), mode === "paper" ? ctx.selectedPaper == null ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper in the library, or paste an abstract instead.") : meta && !meta.hasDoi ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so its research topic can't be resolved \u2014 paste its abstract + a subject instead.") : /* @__PURE__ */ React.createElement("div", { className: "pub-input-note" }, "Matching ", /* @__PURE__ */ React.createElement("b", null, meta ? meta.title : "the selected paper"), " against candidate journals in its field.") : /* @__PURE__ */ React.createElement("div", { className: "pub-input" }, manuscript && /* @__PURE__ */ React.createElement("div", { className: "pub-input-note" }, "Pre-filled from ", /* @__PURE__ */ React.createElement("b", null, manuscript.display_title), " \u2014 edit freely; add a subject to search."), /* @__PURE__ */ React.createElement("textarea", { className: "settings-input", rows: 4, placeholder: "Paste your abstract\u2026", value: abstract, onChange: (e) => setAbstract(e.target.value) }), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "Subject / field (e.g. cognitive neuroscience)", value: subject, onChange: (e) => setSubject(e.target.value) }), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "The abstract is embedded locally and never sent; only the subject term (a coarse public keyword) is used to gather candidate journals.")), state.status !== "running" && /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !canRun, onClick: () => run() }, state.status === "done" ? "Search again" : "Find journals"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: "", onChange: (e) => {
       const h = history[Number(e.target.value)];
       if (h) run(null, h);
     }, title: "Recall and re-run a recent Journals search" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Recent journal searches"), history.map((h, i) => /* @__PURE__ */ React.createElement("option", { key: `${h.kind}-${h.paperId || h.subject}-${i}`, value: i }, historyLabel(h)))), /* @__PURE__ */ React.createElement(
@@ -6998,6 +7007,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       return () => {
         live = false;
       };
+    }, [ctx.selectedPaper]);
+    useEffect(() => {
+      if (mode === "paper" && ctx.selectedPaper == null) setMode("manual");
     }, [ctx.selectedPaper]);
     useEffect(() => {
       fundingSaveViewPrefs({ triageOnly, showLowerProspects, resultFilter, resultSort });
@@ -9195,6 +9207,10 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       return /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-row", key: run.run_id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, run.title || "Funding search"), /* @__PURE__ */ React.createElement("small", null, counts.opportunities || 0, " open \xB7 ", counts.recurring_schemes || 0, " recurring \xB7 ", counts.prospects || 0, " prospects")), /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-state" }, /* @__PURE__ */ React.createElement("time", null, wipWhen(run.created_at))));
     }));
   }
+  function WipJournalRuns({ runs }) {
+    if (!runs || runs.length === 0) return null;
+    return /* @__PURE__ */ React.createElement("section", { className: "wip-work-view" }, /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-heading" }, /* @__PURE__ */ React.createElement("h3", null, "Journal searches"), /* @__PURE__ */ React.createElement("p", null, "Run from Discover \u2192 Journals while this manuscript was active. Re-run there to see the full ranked list.")), runs.map((run) => /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-row", key: run.id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, run.topic_id || "Journal search"), /* @__PURE__ */ React.createElement("small", null, run.shown, " of ", run.considered, " candidates shown \xB7 weighting ", run.weighting)), /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-state" }, /* @__PURE__ */ React.createElement("time", null, wipWhen(run.created_at))))));
+  }
   function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace = false, externalRefresh }) {
     const [files, setFiles] = useState([]);
     const [activity, setActivity] = useState([]);
@@ -9204,6 +9220,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [snapshots, setSnapshots] = useState([]);
     const [checks, setChecks] = useState({ tools: [], runs: [] });
     const [fundingRuns, setFundingRuns] = useState([]);
+    const [journalRuns, setJournalRuns] = useState([]);
     const [tab, setTab] = useState("overview");
     const [nonce, setNonce] = useState(0);
     const [draft, setDraft] = useState(manuscript || {});
@@ -9221,8 +9238,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         api(`/wip/manuscripts/${manuscript.id}/references`),
         api(`/wip/manuscripts/${manuscript.id}/snapshots`),
         api(`/wip/manuscripts/${manuscript.id}/checks`),
-        api(`/wip/manuscripts/${manuscript.id}/funding-runs`)
-      ]).then(([fileResult, activityResult, sectionResult, taskResult, referenceResult, snapshotResult, checkResult, fundingResult]) => {
+        api(`/wip/manuscripts/${manuscript.id}/funding-runs`),
+        api(`/wip/manuscripts/${manuscript.id}/journal-runs`)
+      ]).then(([fileResult, activityResult, sectionResult, taskResult, referenceResult, snapshotResult, checkResult, fundingResult, journalResult]) => {
         if (fileResult.ok) setFiles(fileResult.data || []);
         if (activityResult.ok) setActivity(activityResult.data || []);
         if (sectionResult.ok) setSections(sectionResult.data || []);
@@ -9231,6 +9249,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         if (snapshotResult.ok) setSnapshots(snapshotResult.data || []);
         if (checkResult.ok) setChecks(checkResult.data || { tools: [], runs: [] });
         if (fundingResult.ok) setFundingRuns(fundingResult.data.runs || []);
+        if (journalResult.ok) setJournalRuns(journalResult.data.runs || []);
       });
     }, [manuscript && manuscript.id, manuscript && manuscript.updated_at, nonce, externalRefresh]);
     if (!manuscript) return /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a WIP manuscript to see its details.");
@@ -9346,7 +9365,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onReload: reload,
         onOpenPaper
       }
-    ), tab === "checks" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(WipChecks, { manuscriptId: manuscript.id, snapshots, checks, onReload: reload }), /* @__PURE__ */ React.createElement(WipFundingRuns, { runs: fundingRuns })), tab === "activity" && activityView) : /* @__PURE__ */ React.createElement(React.Fragment, null, overview, /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Files"), fileView), /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Recent activity"), activityView)));
+    ), tab === "checks" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(WipChecks, { manuscriptId: manuscript.id, snapshots, checks, onReload: reload }), /* @__PURE__ */ React.createElement(WipFundingRuns, { runs: fundingRuns }), /* @__PURE__ */ React.createElement(WipJournalRuns, { runs: journalRuns })), tab === "activity" && activityView) : /* @__PURE__ */ React.createElement(React.Fragment, null, overview, /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Files"), fileView), /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Recent activity"), activityView)));
   }
   function WipRelink({ manuscript, onRelinked }) {
     const [editing, setEditing] = useState(false);

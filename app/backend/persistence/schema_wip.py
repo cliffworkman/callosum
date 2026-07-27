@@ -131,6 +131,9 @@ wip_activity_events = Table(
 Index("ix_wip_activity_manuscript_time", wip_activity_events.c.manuscript_id, wip_activity_events.c.created_at)
 
 # Workflow tables share this concern and are re-exported here so schema.py needs one compact registration import.
+# inc 404: a lightweight per-manuscript Journals search receipt (topic/weighting/counts only, never the full
+# ranked profile list -- see schema_wip_journal_runs.py's own docstring for why).
+from app.backend.persistence.schema_wip_journal_runs import wip_journal_runs  # noqa: E402,F401
 from app.backend.persistence.schema_wip_provenance import (  # noqa: E402,F401
     wip_findings,
     wip_snapshots,

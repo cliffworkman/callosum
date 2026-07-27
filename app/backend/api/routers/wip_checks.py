@@ -12,6 +12,7 @@ from app.backend.funding.run_report import funding_run_summaries
 from app.backend.methods.statcheck import run_statcheck
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.persistence.wip_checks_repo import (
+    list_journal_runs,
     list_tool_runs,
     store_statcheck_run,
     update_finding_disposition,
@@ -98,6 +99,17 @@ def funding_runs_list(manuscript_id: int, request: Request) -> dict:
         if get_manuscript(conn, manuscript_id) is None:
             raise HTTPException(status_code=404, detail="WIP manuscript not found")
         runs = funding_run_summaries(conn, limit=25, source_kind="wip-manuscript", source_id=str(manuscript_id))
+    return {"runs": runs}
+
+
+@router.get("/manuscripts/{manuscript_id}/journal-runs")
+def journal_runs_list(manuscript_id: int, request: Request) -> dict:
+    # inc 404: publishers.py records a receipt here only when its request carried this manuscript_id -- the
+    # paper/abstract paths never write to this table, so this list is purely additive to that existing feature.
+    with request.app.state.engine.connect() as conn:
+        if get_manuscript(conn, manuscript_id) is None:
+            raise HTTPException(status_code=404, detail="WIP manuscript not found")
+        runs = list_journal_runs(conn, manuscript_id)
     return {"runs": runs}
 
 

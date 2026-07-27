@@ -146,6 +146,11 @@ function FundingDiscoveryPanel({ ctx }) {
     api(`/papers/${ctx.selectedPaper}`).then(r => { if (live && r.ok) setMeta({ title: r.data.title }); });
     return () => { live = false; };
   }, [ctx.selectedPaper]);
+  // Corrects a stale "paper" mode left from an earlier paper selection once no paper is selected anymore (e.g.
+  // a WIP manuscript became active instead), so mode never dead-ends on an unusable "Select a paper" empty state.
+  useEffect(() => {
+    if (mode === "paper" && ctx.selectedPaper == null) setMode("manual");
+  }, [ctx.selectedPaper]);
 
   useEffect(() => {
     fundingSaveViewPrefs({ triageOnly, showLowerProspects, resultFilter, resultSort });

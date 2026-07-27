@@ -327,6 +327,28 @@ function WipFundingRuns({ runs }) {
   </section>;
 }
 
+// inc 404: a compact, read-only history of Discover > Journals runs made against this manuscript -- a receipt
+// only (topic/weighting/counts), never the full ranked profile list (re-run in Discover > Journals for that).
+// Reuses the same .wip-checkpoint-* recipe as WipChecks/WipFundingRuns -- one visual language, no new CSS.
+function WipJournalRuns({ runs }) {
+  if (!runs || runs.length === 0) return null;
+  return <section className="wip-work-view">
+    <div className="wip-checkpoint-heading">
+      <h3>Journal searches</h3>
+      <p>Run from Discover → Journals while this manuscript was active. Re-run there to see the full ranked list.</p>
+    </div>
+    {runs.map(run => <div className="wip-checkpoint-row" key={run.id}>
+      <div>
+        <strong>{run.topic_id || "Journal search"}</strong>
+        <small>{run.shown} of {run.considered} candidates shown · weighting {run.weighting}</small>
+      </div>
+      <div className="wip-checkpoint-state">
+        <time>{wipWhen(run.created_at)}</time>
+      </div>
+    </div>)}
+  </section>;
+}
+
 function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace = false, externalRefresh }) {
   const [files, setFiles] = useState([]);
   const [activity, setActivity] = useState([]);
@@ -336,6 +358,7 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
   const [snapshots, setSnapshots] = useState([]);
   const [checks, setChecks] = useState({ tools: [], runs: [] });
   const [fundingRuns, setFundingRuns] = useState([]);
+  const [journalRuns, setJournalRuns] = useState([]);
   const [tab, setTab] = useState("overview");
   const [nonce, setNonce] = useState(0);
   const [draft, setDraft] = useState(manuscript || {});
@@ -352,7 +375,8 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
       api(`/wip/manuscripts/${manuscript.id}/snapshots`),
       api(`/wip/manuscripts/${manuscript.id}/checks`),
       api(`/wip/manuscripts/${manuscript.id}/funding-runs`),
-    ]).then(([fileResult, activityResult, sectionResult, taskResult, referenceResult, snapshotResult, checkResult, fundingResult]) => {
+      api(`/wip/manuscripts/${manuscript.id}/journal-runs`),
+    ]).then(([fileResult, activityResult, sectionResult, taskResult, referenceResult, snapshotResult, checkResult, fundingResult, journalResult]) => {
       if (fileResult.ok) setFiles(fileResult.data || []);
       if (activityResult.ok) setActivity(activityResult.data || []);
       if (sectionResult.ok) setSections(sectionResult.data || []);
@@ -361,6 +385,7 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
       if (snapshotResult.ok) setSnapshots(snapshotResult.data || []);
       if (checkResult.ok) setChecks(checkResult.data || { tools: [], runs: [] });
       if (fundingResult.ok) setFundingRuns(fundingResult.data.runs || []);
+      if (journalResult.ok) setJournalRuns(journalResult.data.runs || []);
     });
     // externalRefresh (the shared wip.refresh counter) picks up a run/disposition change made from a concurrently
     // mounted sibling view of the same manuscript (e.g. the Methods-panel Statistics section, inc 402) -- both
@@ -459,6 +484,7 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
         {tab === "checks" && <>
           <WipChecks manuscriptId={manuscript.id} snapshots={snapshots} checks={checks} onReload={reload} />
           <WipFundingRuns runs={fundingRuns} />
+          <WipJournalRuns runs={journalRuns} />
         </>}
         {tab === "activity" && activityView}
       </> : <>

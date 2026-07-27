@@ -157,6 +157,9 @@ function PubProfileCard({ p, weightingOn }) {
 }
 
 function PublishersPanel({ ctx }) {
+  // inc 404: a WIP manuscript has no papers.id, so ctx.selectedPaper stays null while one is active -- mode
+  // already falls through to "abstract" for free; this seeds the manual fields and tags the run.
+  const manuscript = ctx.researchContext && ctx.researchContext.kind === "manuscript" ? ctx.researchContext.entity : null;
   const [status, setStatus] = useState(null);       // GET /settings (holds the prefs + the gate flag)
   const [meta, setMeta] = useState(null);           // selected paper { title, hasDoi } | null
   const [mode, setMode] = useState(null);           // "paper" | "abstract" (defaulted once status/paper is known)
@@ -175,9 +178,18 @@ function PublishersPanel({ ctx }) {
     api(`/papers/${ctx.selectedPaper}`).then(r => { if (live && r.ok) setMeta({ title: r.data.title, hasDoi: !!r.data.doi }); });
     return () => { live = false; };
   }, [ctx.selectedPaper]);
-  useEffect(() => {  // default the input mode: a selected paper → "paper", else "abstract"
-    if (mode == null && status) setMode(ctx.selectedPaper != null ? "paper" : "abstract");
+  useEffect(() => {  // default/redirect the input mode: a selected paper → "paper", else "abstract" -- also
+    // corrects a stale "paper" mode left from an earlier paper selection once no paper is selected anymore (e.g.
+    // a WIP manuscript became active instead), so mode never dead-ends on an unusable "Select a paper" empty state.
+    if (status && (mode == null || (mode === "paper" && ctx.selectedPaper == null))) {
+      setMode(ctx.selectedPaper != null ? "paper" : "abstract");
+    }
   }, [status, ctx.selectedPaper]);
+  // Seed (never clobber) the manual fields from the active manuscript -- a convenience starter, freely editable.
+  useEffect(() => {
+    if (!manuscript) return;
+    setAbstract(prev => prev.trim() ? prev : [manuscript.display_title, manuscript.notes].filter(Boolean).join("\n\n"));
+  }, [manuscript && manuscript.id]);
 
   if (!status) return null;
   if (!status.publisher_defaults_set) return <PublishersGate onSaved={loadStatus} />;
@@ -217,13 +229,19 @@ function PublishersPanel({ ctx }) {
     }
     const body = input.kind === "paper"
       ? { paper_id: input.paperId, weighting: w, top_k: breadth.topK }
+      : manuscript
+      ? { abstract: input.abstract, subject: input.subject, weighting: w, top_k: breadth.topK, manuscript_id: manuscript.id }
       : { abstract: input.abstract, subject: input.subject, weighting: w, top_k: breadth.topK };
     setLastRunInput(input);
     setState({ status: "running", progress: null });
     const poll = (jobId) => api(`/methods/publishers/run/${jobId}`).then(r => {
       if (!r.ok) { setState({ status: "error", error: r.error }); return; }
       const d = r.data;
-      if (d.status === "done") setState({ status: "done", report: d.report });
+      if (d.status === "done") {
+        setState({ status: "done", report: d.report });
+        // Let the manuscript's own WIP tab (Checks) pick up this run's receipt without a manual reload.
+        if (manuscript && ctx.onReloadWip) ctx.onReloadWip();
+      }
       else if (d.status === "error") setState({ status: "error", error: d.detail || "Search failed." });
       else { setState({ status: "running", progress: d.progress }); setTimeout(() => poll(jobId), 1500); }
     });
@@ -276,6 +294,7 @@ function PublishersPanel({ ctx }) {
               ? <div className="tag-suggest-empty">This paper has no DOI, so its research topic can't be resolved — paste its abstract + a subject instead.</div>
               : <div className="pub-input-note">Matching <b>{meta ? meta.title : "the selected paper"}</b> against candidate journals in its field.</div>)
         : <div className="pub-input">
+            {manuscript && <div className="pub-input-note">Pre-filled from <b>{manuscript.display_title}</b> — edit freely; add a subject to search.</div>}
             <textarea className="settings-input" rows={4} placeholder="Paste your abstract…" value={abstract} onChange={e => setAbstract(e.target.value)} />
             <input className="settings-input" placeholder="Subject / field (e.g. cognitive neuroscience)" value={subject} onChange={e => setSubject(e.target.value)} />
             <div className="settings-sub">The abstract is embedded locally and never sent; only the subject term (a coarse public keyword) is used to gather candidate journals.</div>

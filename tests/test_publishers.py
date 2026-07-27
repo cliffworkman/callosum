@@ -9,6 +9,7 @@ closed journals) appears, and **the abstract is never in any outbound request**.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -367,3 +368,77 @@ def test_abstract_never_transmitted(temp_db_url):
     outbound = " ".join(rec_sources + rec_doaj)
     assert token not in outbound  # the abstract text is never in a topic/works/sources/DOAJ request
     assert rec_sources  # sanity: requests were actually made (topic + works + sources)
+
+
+# --- WIP manuscript wiring (inc 404) ------------------------------------------
+
+
+def _poll_scan(client: TestClient, job_id: str) -> None:
+    for _ in range(30):
+        result = client.get(f"/wip/scan/{job_id}").json()
+        if result["status"] in {"done", "error"}:
+            assert result["status"] == "done"
+            return
+    raise AssertionError("scan did not finish")
+
+
+def _manuscript(client: TestClient, folder: Path) -> int:
+    folder.mkdir()
+    (folder / "draft.txt").write_text("An early idea.", encoding="utf-8")
+    root = client.post("/wip/watch-roots", json={"path": str(folder), "discovery_mode": "folder"}).json()
+    scan = client.post(f"/wip/watch-roots/{root['id']}/scan").json()
+    _poll_scan(client, scan["job_id"])
+    return client.get("/wip/manuscripts").json()[0]["id"]
+
+
+def test_manuscript_run_persists_a_receipt_and_lists_for_the_manuscript(temp_db_url, tmp_path: Path):
+    client = _endpoint_app(temp_db_url)
+    manuscript_id = _manuscript(client, tmp_path / "Draft")
+
+    _, done = _drive(
+        client, {"abstract": "memory attention in the brain", "subject": "neuroscience", "manuscript_id": manuscript_id}
+    )
+    assert done["status"] == "done", done
+    rep = done["report"]
+
+    runs = client.get(f"/wip/manuscripts/{manuscript_id}/journal-runs")
+    assert runs.status_code == 200
+    listed = runs.json()["runs"]
+    assert len(listed) == 1
+    assert listed[0]["topic_id"] == rep["topic_id"]
+    assert listed[0]["considered"] == rep["considered"]
+    assert listed[0]["shown"] == rep["shown"]
+    assert listed[0]["weighting"] == rep["weighting"]
+
+
+def test_manuscript_run_rejects_paper_id_and_manuscript_id_together(temp_db_url):
+    client = _endpoint_app(temp_db_url)
+    r = client.post("/methods/publishers/run", json={"paper_id": 1, "manuscript_id": 1})
+    assert r.status_code == 422
+
+
+def test_manuscript_run_404s_for_a_missing_manuscript(temp_db_url):
+    client = _endpoint_app(temp_db_url)
+    r = client.post(
+        "/methods/publishers/run",
+        json={"abstract": "memory attention", "subject": "neuroscience", "manuscript_id": 999999},
+    )
+    assert r.status_code == 404
+
+
+def test_journal_runs_list_404s_for_a_missing_manuscript_and_is_scoped(temp_db_url, tmp_path: Path):
+    client = _endpoint_app(temp_db_url)
+    assert client.get("/wip/manuscripts/999999/journal-runs").status_code == 404
+
+    manuscript_a = _manuscript(client, tmp_path / "DraftA")
+    manuscript_b = _manuscript(client, tmp_path / "DraftB")
+    _drive(client, {"abstract": "memory attention", "subject": "neuroscience", "manuscript_id": manuscript_a})
+
+    assert len(client.get(f"/wip/manuscripts/{manuscript_a}/journal-runs").json()["runs"]) == 1
+    assert client.get(f"/wip/manuscripts/{manuscript_b}/journal-runs").json()["runs"] == []
+
+
+def test_wip_journal_runs_route_remains_local_only(temp_db_url):
+    client = TestClient(create_app(db_url=temp_db_url))
+    headers = {"host": "example.com"}
+    assert client.get("/wip/manuscripts/1/journal-runs", headers=headers).status_code == 403

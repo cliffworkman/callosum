@@ -9,6 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-27 — Increment 404: wire Discover > Journals to WIP manuscripts
+
+- **Files:** `app/backend/persistence/{schema_wip_journal_runs.py (new),schema_wip.py,schema.py,
+  wip_checks_repo.py}`, `app/backend/api/routers/{publishers.py,wip_checks.py}`,
+  `alembic/versions/0058_wip_journal_runs.py` (new), `app/frontend/js/{08e_methods_publishers.jsx,
+  08k_funding_discovery.jsx,10f_wip.jsx}`, `tests/{test_publishers.py,test_health.py}`,
+  `.claude/qa-routes/route_75_wip_workspace.md`,
+  `.claude/security-audits/2026-07-27_wip-journal-discovery.md` (new), `callosum-app.html`.
+- **What:** Discover > Journals' already-existing paper-free "Paste an abstract" mode now attributes a
+  run to the active WIP manuscript, pre-fills the abstract from the manuscript's title/notes, and
+  persists a small receipt (`wip_journal_runs`: topic/weighting/counts only — never the full ranked
+  profile list, so this doesn't reverse Journals' deliberate "ephemeral job result; no table" design for
+  the paper/abstract paths) surfaced in the manuscript's own Checks tab. Third and last of the "quick
+  win" WIP-integration increments; Checklists/Critique/Meta-Reference recorded as backlog #48. Live
+  verification found and fixed a real bug shared by Funding (inc 403) and Journals: their input mode
+  only initialized once and never self-corrected when it went stale (e.g. staying stuck on "Selected
+  paper" after a WIP manuscript replaced the paper context) — both now correct automatically.
+- **Why:** Cliff asked to wire Discover > Journals to work against active WIP manuscripts and have the
+  results visible from the manuscript's own workspace tab, completing the three-increment plan.
+- **Revert:** `git revert` this increment's commit(s); fully additive (new table/endpoint/request field)
+  — the existing paper/abstract Journals paths are untouched; the mode-staleness fix is a pure
+  correctness fix with no user-visible regression risk.
+
 ## 2026-07-27 — Increment 403: wire Discover > Funding to WIP manuscripts
 
 - **Files:** `app/backend/api/routers/{funding.py,wip_checks.py}`, `app/backend/funding/run_report.py`,
