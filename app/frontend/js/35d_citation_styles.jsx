@@ -364,7 +364,7 @@ function CitationStylesSettings() {
       <div className="citation-style-install-row">
         <input ref={fileInputRef} type="file" accept=".csl,application/xml,text/xml"
           onChange={installFile} hidden />
-        <button type="button" className="btn" disabled={installBusy}
+        <button type="button" className="btn btn-ghost" disabled={installBusy}
           onClick={() => fileInputRef.current && fileInputRef.current.click()}>
           {installBusy ? "Validating…" : "Install .csl"}
         </button>
@@ -372,7 +372,7 @@ function CitationStylesSettings() {
           <input className="settings-input" type="url" aria-label="Citation style URL"
             placeholder="https://…/style.csl" value={urlInput}
             onChange={event => setUrlInput(event.target.value)} />
-          <button type="submit" className="btn" disabled={!urlInput.trim() || !!remoteBusy}>
+          <button type="submit" className="btn btn-ghost" disabled={!urlInput.trim() || !!remoteBusy}>
             {remoteBusy === "url" ? "Importing…" : "Import URL"}
           </button>
         </form>
@@ -517,20 +517,20 @@ function CitationStylesSettings() {
               </span>
               <div className="citation-style-personal-actions">
                 {selected.custom && selected.independent &&
-                  <button type="button" className="btn" disabled={busy} onClick={() => setEditorStyle(selected)}>
+                  <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setEditorStyle(selected)}>
                     Edit source
                   </button>}
-                <button type="button" className="btn" disabled={busy}
+                <button type="button" className="btn btn-ghost" disabled={busy}
                   onClick={() => duplicateSelected(!(selected.custom && selected.independent))}>
                   {selected.custom && selected.independent ? "Duplicate" : "Duplicate to edit"}
                 </button>
                 {["repository", "url"].includes(selected.provenance?.source_type) &&
-                  <button type="button" className="btn" disabled={busy} onClick={checkSelectedUpdate}>
+                  <button type="button" className="btn btn-ghost" disabled={busy} onClick={checkSelectedUpdate}>
                     {busy ? "Checking…" : "Check for updates"}
                   </button>}
                 {selected.custom &&
                   <>
-                    <button type="button" className="btn" disabled={busy} onClick={downloadSelected}>
+                    <button type="button" className="btn btn-ghost" disabled={busy} onClick={downloadSelected}>
                       Download .csl
                     </button>
                     <button type="button" className="btn btn-ghost danger"

@@ -401,7 +401,12 @@ def test_stale_discover_placeholder_is_removed_from_theory_accordion():
     assert '{ id: "discover", label: "Discover", paneId: "theory"' not in raw
     assert 'label: "Beyond library"' not in raw
     assert 'title="Beyond library"' not in raw
-    assert "Discover/Search (inc 184) + Feed (inc 188/297) now ship in the Discover workspace" in raw
+    # inc 397: 09_placeholders.jsx (the file the Discover-removal comment used to live in) was deleted outright
+    # once its last remaining "coming soon" stub (Statistics' "More checks") was cleared -- zero callers left, so
+    # the whole scaffold + its .coming-soon* CSS went with it (rule #5), rather than a comment-only husk file.
+    assert "ComingSoon" not in raw
+    assert "coming-soon" not in raw
+    assert "More checks" not in raw
 
 
 def test_meta_reference_list_sits_before_journal_search_with_accessible_review_controls():
@@ -855,10 +860,13 @@ def test_padding_sweep_ws_pad_on_six_workspace_tabs_only():
     # guard for the exact double-padding collision the fix was designed to avoid.
     assert 'className="grim-section"' in raw  # GRIM's own accordion section, unchanged
     assert 'className="statcheck-section"' in raw  # statcheck/Bayes/LMM/transparency/meta-analysis, unchanged
-    # The same promotion left .settings-sub's 300px cap (correct in the narrow Settings/accordion home) wrapping
+    # The same promotion left .settings-sub's 300px cap (correct in the narrow Settings-sidebar home) wrapping
     # text at under half the available width in these same wide tabs -- relaxed via the same ws-pad/wb-pane
-    # markers, never touching the bare .settings-sub rule the narrow accordion contexts still rely on.
-    assert ".ws-pad .settings-sub, .wb-pane .settings-sub { max-width: none" in css
+    # markers. inc 397 extended this to .acc-body too: the METHODS accordion's own Checklists/Statistics/Data
+    # intro paragraphs (e.g. statcheck's "WHOLE LIBRARY" blurb) reuse .settings-sub and were wrapping at 300px
+    # inside a much wider pane -- the bare .settings-sub rule itself (still 300px) is untouched; only these three
+    # wider containers override it back to uncapped.
+    assert ".ws-pad .settings-sub, .wb-pane .settings-sub, .acc-body .settings-sub { max-width: none" in css
 
 
 def test_sync_settings_ui_wired_and_honest():

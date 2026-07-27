@@ -272,12 +272,6 @@
      (not a bare .pane-tabs-checklists) so its specificity beats .tags-srcfilter's `display: flex` regardless of
      the two rules' source order. */
   .pane-tabs.pane-tabs-checklists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
-  /* inc 163: honest "Coming soon" roadmap stubs (planned THEORY/METHODS sections + tabs); inert, clearly labeled */
-  .coming-soon { padding: 6px 2px 10px; }
-  .coming-soon-badge { display: inline-block; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius-pill); padding: 1px 8px; }
-  .coming-soon-title { font-size: 13px; font-weight: 600; color: var(--ink); margin: 8px 0 4px; }
-  .coming-soon-body { font-size: 12px; color: var(--ink-2); line-height: 1.5; margin: 0 0 6px; }
-  .coming-soon-builds { font-size: 11px; color: var(--ink-3); margin: 0; }
 
   /* resizable + collapsible divider between a side panel and the center (drag to resize, click to collapse) */
   .divider { position: relative; height: 100%; display: flex; align-items: center; justify-content: center; }
@@ -1714,8 +1708,11 @@
   /* .settings-sub's 300px cap (below) is correct in its narrow Settings/accordion home but wraps prematurely once
      reused for a top-level intro or wide-control caption inside a .ws-pad workspace tab (or .wb-pane's own nested
      Effect-Size subsection, which doesn't carry .ws-pad itself — same double-padding-avoidance reasoning as
-     above). Matches .wb-intro/.method-credit's existing uncapped behavior in these same wide panes. */
-  .ws-pad .settings-sub, .wb-pane .settings-sub { max-width: none; }
+     above). Matches .wb-intro/.method-credit's existing uncapped behavior in these same wide panes. Also the
+     METHODS accordion body (.acc-body): the Checklists/Statistics/Data intro paragraphs (e.g. the statcheck
+     "WHOLE LIBRARY" blurb) reuse .settings-sub too and were wrapping at 300px inside a much wider pane — this
+     selector was long overdue to include it (inc 397). */
+  .ws-pad .settings-sub, .wb-pane .settings-sub, .acc-body .settings-sub { max-width: none; }
 
   /* inc 280 (stage 3): a center-rendered utility view (Help, Settings) — the former modal body, filling the slot. */
   .workspace-view { flex: 1 1 auto; min-height: 0; padding: 16px 22px; }
@@ -7802,25 +7799,6 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       }
     ))))));
   }
-  function ComingSoon({ title, body, builds }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "coming-soon" }, /* @__PURE__ */ React.createElement("span", { className: "coming-soon-badge" }, "Coming soon"), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-title" }, title), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-body" }, body), builds && /* @__PURE__ */ React.createElement("p", { className: "coming-soon-builds" }, builds));
-  }
-  registerPaneTab(
-    { id: "statcheck", label: "Statistics", paneId: "methods", order: 30 },
-    {
-      id: "statcheck-more",
-      label: "More checks",
-      order: 20,
-      render: () => /* @__PURE__ */ React.createElement(
-        ComingSoon,
-        {
-          title: "More test forms + p-curve, here",
-          body: "Additional NHST forms (test-statistic comparisons, results reported in tables) and the collection-level p-curve will live alongside statcheck.",
-          builds: "Extends the inc-95 statcheck engine. (Backlog #27)"
-        }
-      )
-    }
-  );
   const _CSL_TYPE_LABELS = {
     "article-journal": "Journal article",
     "article": "Article",
@@ -16512,7 +16490,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       "button",
       {
         type: "button",
-        className: "btn",
+        className: "btn btn-ghost",
         disabled: installBusy,
         onClick: () => fileInputRef.current && fileInputRef.current.click()
       },
@@ -16527,7 +16505,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         value: urlInput,
         onChange: (event) => setUrlInput(event.target.value)
       }
-    ), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn", disabled: !urlInput.trim() || !!remoteBusy }, remoteBusy === "url" ? "Importing\u2026" : "Import URL"))), /* @__PURE__ */ React.createElement("div", { className: "citation-style-browser" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label", htmlFor: "citation-style-search" }, "Find a citation style"), /* @__PURE__ */ React.createElement("form", { className: "citation-style-search-form", onSubmit: searchRepository }, /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-ghost", disabled: !urlInput.trim() || !!remoteBusy }, remoteBusy === "url" ? "Importing\u2026" : "Import URL"))), /* @__PURE__ */ React.createElement("div", { className: "citation-style-browser" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label", htmlFor: "citation-style-search" }, "Find a citation style"), /* @__PURE__ */ React.createElement("form", { className: "citation-style-search-form", onSubmit: searchRepository }, /* @__PURE__ */ React.createElement(
       "input",
       {
         id: "citation-style-search",
@@ -16640,16 +16618,16 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onClick: () => update({ set_default: true, mark_used: true }, "Application default saved.")
       },
       selected.application_default ? "Application default" : "Use as application default"
-    )), /* @__PURE__ */ React.createElement("span", { className: "settings-sub citation-style-default-note" }, "New word-processor documents inherit this application default. Existing documents keep their embedded style and locale."), /* @__PURE__ */ React.createElement("div", { className: "citation-style-personal-actions" }, selected.custom && selected.independent && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn", disabled: busy, onClick: () => setEditorStyle(selected) }, "Edit source"), /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement("span", { className: "settings-sub citation-style-default-note" }, "New word-processor documents inherit this application default. Existing documents keep their embedded style and locale."), /* @__PURE__ */ React.createElement("div", { className: "citation-style-personal-actions" }, selected.custom && selected.independent && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost", disabled: busy, onClick: () => setEditorStyle(selected) }, "Edit source"), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
-        className: "btn",
+        className: "btn btn-ghost",
         disabled: busy,
         onClick: () => duplicateSelected(!(selected.custom && selected.independent))
       },
       selected.custom && selected.independent ? "Duplicate" : "Duplicate to edit"
-    ), ["repository", "url"].includes(selected.provenance?.source_type) && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn", disabled: busy, onClick: checkSelectedUpdate }, busy ? "Checking\u2026" : "Check for updates"), selected.custom && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn", disabled: busy, onClick: downloadSelected }, "Download .csl"), /* @__PURE__ */ React.createElement(
+    ), ["repository", "url"].includes(selected.provenance?.source_type) && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost", disabled: busy, onClick: checkSelectedUpdate }, busy ? "Checking\u2026" : "Check for updates"), selected.custom && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost", disabled: busy, onClick: downloadSelected }, "Download .csl"), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",

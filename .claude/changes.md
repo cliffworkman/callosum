@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-27 — Increment 397: "More checks" removal, METHODS text-wrap fix, unthemed CSL buttons
+
+- **Files:** `app/frontend/js/09_placeholders.jsx` (deleted), `app/frontend/js/35d_citation_styles.jsx`,
+  `app/frontend/styles.css`, `.claude/DESIGN.md`, `tests/test_frontend_assembly.py`, `callosum-app.html`.
+- **What:** (1) removed the redundant "More checks" tab on Statistics — a pure inert `ComingSoon` stub
+  (no logic, no button) and the last remaining "coming soon" placeholder anywhere in the codebase, so
+  the whole scaffold file + its dead CSS went with it rather than leaving a comment-only husk. (2) Fixed
+  a long-standing text-wrap bug: the 4 Checklists + Statistics + Data intro paragraphs share
+  `.settings-sub`, whose 300px cap (correct in its original narrow Settings-sidebar home) was already
+  documented — but never actually added — as needing an override inside the METHODS accordion
+  (`.acc-body`); added the missing selector. (3) Fixed 6 buttons in the citation-style Settings panel
+  ("Install .csl", "Import URL", "Edit source", "Duplicate"/"Duplicate to edit", "Check for updates",
+  "Download .csl") that used bare `className="btn"` with no variant, so they rendered as native
+  unstyled browser buttons regardless of theme — added the missing `btn-ghost` variant.
+- **Why:** Cliff flagged all three from hands-on use: the Statistics stub as unnecessary clutter, the
+  text-wrap as a long-standing pet peeve, and the unthemed buttons from a Settings screenshot.
+- **Revert:** `git revert` this increment's commit(s); each fix is independent, frontend-only, and
+  additive/subtractive with no schema or backend change.
+
 ## 2026-07-27 — Increment 396: post-install feedback — scrollbars, stale Library/WIP cards, desktop icon
 
 - **Files:** `app/frontend/js/{40_app.jsx,05_panes.jsx,25_detail.jsx,10f_wip.jsx}`,

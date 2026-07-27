@@ -522,9 +522,11 @@ other headers. `.acc-body` uses `padding: 2px 14px 14px` to align with the heade
 **"Coming soon" placeholders (inc 163) — honest roadmap stubs.** Planned-but-unbuilt sections, tabs, or workspace
 tabs may be scaffolded only when the capability is genuinely backlog-tracked, placed by the mode-vs-lens rule above,
 and framed with the principle language it will ship with. A placeholder must be inert: no controls, no data, no
-fake result. "Silence is not a certificate" applies to the roadmap too. Recipe: `<ComingSoon title body builds/>`
-from `09_placeholders.jsx` plus the `.coming-soon*` CSS (`--accent-soft` badge, muted body, tokens only). Remove a
-stub in the same increment its real feature lands.
+fake result. "Silence is not a certificate" applies to the roadmap too. Recipe: a `<ComingSoon title body builds/>`
+component + `.coming-soon*` CSS (`--accent-soft` badge, muted body, tokens only). Remove a stub in the same
+increment its real feature lands — **inc 397 removed the last one** ("More checks" on Statistics, a redundant
+placeholder for p-curve/statcheck extensions that already have real homes), so `09_placeholders.jsx` and its CSS
+are gone (rule #5 — zero remaining callers); recreate both from this recipe if a new stub is ever needed.
 
 **AI-usage and findings contracts.** The AI's job is to make verification cheap, **never to substitute for it**. For
 any AI feature ask: *where did the judgment go?* It must land on a checkable computation or on the human, never hide
