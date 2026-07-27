@@ -40,6 +40,7 @@ jobs:
             curl \
             wget \
             file \
+            libfuse2 \
             libxdo-dev \
             libssl-dev \
             libayatana-appindicator3-dev \
@@ -86,7 +87,13 @@ jobs:
 
       - name: Build the AppImage + .deb
         working-directory: app/desktop-shell
-        run: npx tauri build
+        # linuxdeploy (which Tauri shells out to for AppImage bundling) is itself distributed as an
+        # AppImage, which needs FUSE to self-mount — GitHub's ubuntu-latest runners don't reliably
+        # have that available, so ask it to extract-and-run instead. --verbose surfaces linuxdeploy's
+        # own output if this still fails, rather than Tauri's generic "failed to run linuxdeploy".
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: npx tauri build --verbose
 
       - name: Upload installer artifacts
         uses: actions/upload-artifact@v4
