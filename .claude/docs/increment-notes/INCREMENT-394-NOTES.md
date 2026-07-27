@@ -1,8 +1,10 @@
-# Increment 394 — Tauri desktop shell: click-to-install packaging (Windows working, macOS CI-only)
+# Increment 394 — Tauri desktop shell: click-to-install packaging (Windows + macOS both building)
 
 **Date:** 2026-07-27
-**Status:** Windows path fully built and verified end-to-end. macOS path built (CI workflow) but
-genuinely unverified — no Mac hardware available in this environment.
+**Status:** Windows: fully built and verified end-to-end (real installer, real process/network
+inspection). macOS: CI produces a real, working `.dmg` (`Callosum_0.1.0_aarch64.dmg`, 348MB) — the
+backend genuinely imports and serves on real Apple Silicon hardware — but nobody has opened the
+resulting window; that gap can't be closed in this environment (no Mac hardware).
 
 ## Context
 
@@ -92,6 +94,31 @@ directory before you can filter its contents) to `os.walk` with in-place `dirnam
 excluding `resources`/`target`/`node_modules` by bare directory name — verified no legitimate
 directory under `app/`/`integrations/` collides with any of those three names first.
 
+**Three more real bugs, found only by actually running the macOS CI workflow (not by reading the
+YAML):**
+1. `tools/build_frontend.py` imports `app.backend.api.frontend`, which transitively imports the whole
+   backend (`fastapi` etc.) — the workflow never installed the project's own Python dependencies on
+   the runner before that step, so the very first real run failed immediately with
+   `ModuleNotFoundError: No module named 'fastapi'`. Fixed by adding the same `uv sync --locked` step
+   `ci.yml` already uses, before the frontend build.
+2. A separate, *redundant* workflow step re-invoked `smoke_test_backend.py` right after
+   `build_python_macos.sh` had already run that exact script internally as its own last, blocking
+   step (confirmed passing: `OK: http://127.0.0.1:.../health -> 200`) — the duplicate step failed
+   with a `FileNotFoundError` on a path that had demonstrably existed a fraction of a second earlier.
+   Rather than chase that mystery, the redundant step was simply deleted — the script's own internal
+   check (`set -euo pipefail`) already gates the build correctly.
+3. The base `tauri.conf.json`'s `bundle.targets` was hardcoded to `["nsis"]` (deliberately narrowed
+   from `"all"` to skip a slower Windows MSI build) — on macOS this left **nothing** for the bundler
+   to build against, so `tauri build` silently finished after compiling the Rust binary with no
+   `.dmg` ever produced, and `actions/upload-artifact` then failed with "no files found." Fixed with
+   a `tauri.macos.conf.json` platform override (Tauri v2 auto-merges `tauri.<platform>.conf.json`)
+   setting `bundle.targets: ["dmg"]` for macOS only, leaving the Windows-only base config untouched.
+
+After all three fixes, the workflow ran clean end-to-end: Rust release build, portable arm64 CPython
++ every real dependency installed, the internal backend smoke test passing on real Apple Silicon
+hardware, and a genuine 348MB `Callosum_0.1.0_aarch64.dmg` uploaded as a build artifact — downloaded
+locally to `app/desktop-shell/dist-macos/` (gitignored, not committed — a real binary, not source).
+
 **Verified end-to-end on this machine (Windows), not just built:**
 - Standalone backend smoke test (no Tauri): portable CPython 3.11 + every real dependency
   (`torch==2.13.0`, `sentence-transformers`, `PyMuPDF`, `scikit-learn`, `sqlite-vec`, etc.) installed
@@ -130,11 +157,13 @@ reboot of this shared working machine, which wasn't taken unilaterally. Worth ru
 the installer to someone whose machine may lack VC++ redistributables this dev machine already has.
 
 **macOS is genuinely unverified beyond CI's backend-only smoke test** (see the workflow file's own
-header comment) — no Mac hardware exists in this environment. It proves the real dependency stack
-(torch/PyMuPDF/scikit-learn, arm64 wheels) imports and serves; it does not prove Gatekeeper lets the
-app open or that the webview loads. **arm64-only is a deliberate bet**, confirmed with Cliff given
-the labmate's Mac architecture is unknown — an Intel Mac cannot run this build at all (a hard crash,
-not friction).
+header comment) — no Mac hardware exists in this environment. CI proves the real dependency stack
+(torch/PyMuPDF/scikit-learn, arm64 wheels) imports and serves, and that a real `.dmg` gets produced;
+it does not prove Gatekeeper lets the app open or that the webview loads — a human on real macOS
+hardware still needs to open `Callosum_0.1.0_aarch64.dmg` at least once before this is trusted beyond
+"the backend and the bundling both genuinely work." **arm64-only is a deliberate bet**, confirmed
+with Cliff given the labmate's Mac architecture is unknown — an Intel Mac cannot run this build at
+all (a hard crash, not friction).
 
 ## Files changed
 
@@ -159,5 +188,6 @@ not friction).
 - Manual end-to-end run against the real installed NSIS build: confirmed working per the section
   above — install, spawn, health, real-UI-load, cleanup, single-instance all verified via process/
   network inspection. No visual/GUI confirmation possible in this environment (flagged, not claimed).
-- macOS: CI workflow written, not yet run (needs a push + `workflow_dispatch` to actually exercise
-  GitHub's `macos-latest` runner) — genuinely unverified beyond that.
+- macOS: CI workflow run for real (`gh run view 30258079449`, all 12 steps green) after fixing the
+  three bugs above — produced and uploaded a genuine `Callosum_0.1.0_aarch64.dmg` (348MB), downloaded
+  locally. No human has opened it on real Mac hardware yet.
