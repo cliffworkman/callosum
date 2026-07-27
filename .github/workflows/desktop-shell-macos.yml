@@ -30,15 +30,24 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          python-version: "3.11"
+
       - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm
 
+      - name: Install project dependencies (needed just to import app.backend for build_frontend.py)
+        run: uv sync --locked
+
       - name: Install frontend build toolchain + build callosum-app.html
         run: |
           npm install
-          python3 tools/build_frontend.py
+          uv run python tools/build_frontend.py
 
       - name: Stage callosum source into resources/callosum-src
         run: python3 app/desktop-shell/packaging/stage_source.py
