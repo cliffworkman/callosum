@@ -280,6 +280,7 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
                 verifier_config=config,
                 support_scorer=support_scorer,
                 overview_generator=_overview_generator(api),
+                on_progress=lambda i, n, label: jobs.mark_progress(job_id, i, n, label),
             )
             response = _persisted_summary_response(conn, summary_id=result.summary_id, job_id=job_id)
         jobs.mark_done(job_id, response)

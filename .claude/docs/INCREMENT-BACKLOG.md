@@ -695,17 +695,16 @@ plus later reconciliation findings.)*
   collection with watched-folder discovery, workflow/files/tasks/references/activity, exact content checkpoints,
   snapshot-bound deterministic checks/findings, reverse Library navigation, dedicated facets/context actions, and
   tab reorder parity. The canonical design source now lives in `future-tracks/`.
-- **#50 "Status" menu — cross-feature async-job popover.** Phase 1 (inc 406): a click-toggle popover
-  after Help/Settings aggregating every `JobStore` on `api.state` (~30 features) via reflection, with
-  real progress/ETA where a job reports it and an honest indeterminate spinner where it doesn't; per-row
-  dismiss + clear-all-finished + a 1-hour auto-expiry backstop. **Phase 2 Wave 1 (inc 407, CLOSED):**
-  audited every "library refresh"-style job for real-progress coverage — citation-count refresh, metadata
-  enrichment, library scan, library import, and bundle import already had it; the one gap
-  (`retraction_jobs`, the library-wide retraction batch) got a one-line `mark_progress` fix, live-verified
-  against a disposable instance. **Phase 2 Wave 2 (Ask real progress) remains open, design recorded** in
-  `.claude/backups/plans/2026-07-28_status-phase2-waves.md`: leave retrieval+generation indeterminate (the
-  LLM call is a single opaque blocking request — no sub-progress signal, and a cache hit would make a naive
-  ETA misleading), instrument only the per-candidate/per-citation verification loop
-  (`app/backend/summarization/pipeline.py:108-114`) once its count is known post-generation. `dedup_jobs`
-  stays deliberately indeterminate too (no per-item loop exposed to the router — would need restructuring
-  the duplicate-detection algorithm itself, not a trivial add). Revisit Wave 2 when wanted, no urgency.
+- ✅ **#50 "Status" menu — cross-feature async-job popover — CLOSED 2026-07-28 (incs 406-408).** Phase 1
+  (inc 406): a click-toggle popover after Help/Settings aggregating every `JobStore` on `api.state` (~30
+  features) via reflection, with real progress/ETA where a job reports it and an honest indeterminate
+  spinner where it doesn't; per-row dismiss + clear-all-finished + a 1-hour auto-expiry backstop. Phase 2
+  Wave 1 (inc 407): audited every "library refresh"-style job for real-progress coverage — citation-count
+  refresh, metadata enrichment, library scan, library import, and bundle import already had it; the one
+  gap (`retraction_jobs`) got a one-line `mark_progress` fix. Phase 2 Wave 2 (inc 408): Ask's per-candidate
+  verification loop now reports real progress/ETA (retrieval + the LLM generation call stay indeterminate
+  on purpose — a single opaque blocking request has no sub-progress signal, and a cache hit would make a
+  naive ETA misleading), live-verified end-to-end with a real Gemini call against a disposable instance.
+  **`dedup_jobs` remains the one deliberately-indeterminate job in the app** (no per-item loop exposed to
+  the router without restructuring the duplicate-detection algorithm itself) — an honest gap, not an
+  oversight; revisit only if that algorithm changes for other reasons.

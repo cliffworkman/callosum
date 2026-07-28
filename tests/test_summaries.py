@@ -68,6 +68,43 @@ def test_summarize_query_job_completes_with_verified_citation_payload(temp_db_ur
     assert citation["bbox_json"][0]["coordinate_precision"] == "region"
 
 
+def test_summarize_job_reports_real_progress_during_verification(temp_db_url: str) -> None:
+    """inc 408: Ask's job now reports real per-claim progress once verification starts (retrieval + generation
+    stay indeterminate — no sub-progress signal for a single opaque LLM call). End-to-end through the real
+    /summarize endpoint + JobStore, not just the pipeline function directly."""
+    seeded = _seed_summarization_library(temp_db_url)
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="Facial anomalies influence social judgments.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=seeded["facial_chunk_id"], quote="Facial anomalies influence social judgments."
+                    )
+                ],
+            ),
+            CandidateSummarySentence(
+                text="Facial anomalies influence social judgments, restated.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=seeded["facial_chunk_id"], quote="Facial anomalies influence social judgments."
+                    )
+                ],
+            ),
+        ]
+    )
+    app = _summarization_app(temp_db_url, generator=generator)
+    client = TestClient(app)
+
+    started = client.post("/summarize", json={"scope_type": "papers", "paper_ids": [seeded["facial_paper_id"]]})
+    job_id = started.json()["job_id"]
+    assert client.get(f"/summarize/{job_id}").json()["status"] == "done"
+
+    job = app.state.summary_jobs.get(job_id)
+    assert job.progress is not None
+    assert (job.progress.current, job.progress.total, job.progress.label) == (2, 2, "Verifying claim")
+
+
 def test_summarize_papers_and_cluster_scopes_validate_and_run(temp_db_url: str) -> None:
     seeded = _seed_summarization_library(temp_db_url)
     generator = FakeSummaryGenerator(

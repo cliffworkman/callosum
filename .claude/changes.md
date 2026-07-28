@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-28 — Increment 408: Status Phase 2 Wave 2 — real progress for Synthesize > Ask
+
+- **Files:** `app/backend/summarization/pipeline.py`, `app/backend/api/routers/summaries.py`,
+  `tests/test_summarization.py`, `tests/test_summaries.py`,
+  `.claude/docs/increment-notes/INCREMENT-408-NOTES.md` (new).
+- **What:** `summarize_scope` gained an optional `on_progress` callback, called once per candidate
+  sentence during the verification loop (converted from a nested list comprehension to an explicit
+  loop) — real progress/ETA in Status for the one stage that's genuinely instrumentable.
+  Retrieval + the LLM generation call stay indeterminate on purpose (a single opaque blocking
+  request has no sub-progress signal, and a cache hit would make a naive ETA misleading).
+- **Why:** the second half of backlog #50's Phase 2 — Ask was the flagship example that started
+  the whole "Status" request and the one pipeline that genuinely needed new instrumentation.
+- **Revert:** remove the `on_progress` parameter from `summarize_scope` and its call site in
+  `_run_summarize_job`; revert the verification loop to the nested list comprehension.
+
 ## 2026-07-28 — Increment 407: Status Phase 2 Wave 1 — library-refresh progress coverage
 
 - **Files:** `app/backend/api/routers/methods_retraction.py`, `tests/test_retraction.py`,

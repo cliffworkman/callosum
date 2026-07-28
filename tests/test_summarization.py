@@ -425,6 +425,72 @@ def test_each_confidence_component_must_pass_for_verified_status(tmp_path: Path)
     assert [sentence.flagged for sentence in result.sentences] == [False, True, True]
 
 
+def test_on_progress_reports_one_call_per_candidate_only_during_verification(tmp_path: Path) -> None:
+    """inc 408: retrieval + generation stay un-instrumented (no real sub-progress signal available for a single
+    opaque LLM call) — on_progress must fire exactly once per candidate, only once verification starts."""
+    engine = _migrated_engine(tmp_path)
+    model = SummaryFakeEmbeddingModel()
+    vector_store = InMemoryVectorStore()
+    calls: list[tuple[int, int, str]] = []
+
+    with engine.begin() as conn:
+        fixture = _ingest_summary_fixture(conn, tmp_path)
+        generator = FakeSummaryGenerator(
+            sentences=[
+                CandidateSummarySentence(
+                    text="Alpha beta evidence supports the claim.",
+                    citations=[
+                        CandidateCitation(
+                            chunk_id=fixture["alpha_chunk_id"], quote="Alpha beta evidence supports the claim."
+                        )
+                    ],
+                ),
+                CandidateSummarySentence(
+                    text="Banana orchard material is unrelated.",
+                    citations=[
+                        CandidateCitation(
+                            chunk_id=fixture["banana_chunk_id"], quote="Banana orchard material is unrelated."
+                        )
+                    ],
+                ),
+            ]
+        )
+        summarize_scope(
+            conn,
+            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+            generator=generator,
+            model=model,
+            vector_store=vector_store,
+            support_scorer=EmbeddingSupportScorer(model),
+            on_progress=lambda i, n, label: calls.append((i, n, label)),
+        )
+
+    assert calls == [(1, 2, "Verifying claim"), (2, 2, "Verifying claim")]
+
+
+def test_on_progress_is_optional_and_never_called_with_zero_candidates(tmp_path: Path) -> None:
+    engine = _migrated_engine(tmp_path)
+    model = SummaryFakeEmbeddingModel()
+    vector_store = InMemoryVectorStore()
+    calls: list[tuple[int, int, str]] = []
+
+    with engine.begin() as conn:
+        fixture = _ingest_summary_fixture(conn, tmp_path)
+        generator = FakeSummaryGenerator(sentences=[])
+        result = summarize_scope(
+            conn,
+            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+            generator=generator,
+            model=model,
+            vector_store=vector_store,
+            support_scorer=EmbeddingSupportScorer(model),
+            on_progress=lambda i, n, label: calls.append((i, n, label)),
+        )
+
+    assert result.sentences == []
+    assert calls == []
+
+
 def test_gemini_generator_refuses_data_egress_before_sdk_call() -> None:
     generator = GeminiSummaryGenerator(config=GeminiConfig(data_egress_enabled=False))
 

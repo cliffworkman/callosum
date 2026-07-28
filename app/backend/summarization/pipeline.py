@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -94,6 +95,7 @@ def summarize_scope(
     verifier_config: VerificationConfig | None = None,
     support_scorer: SupportScorer | None = None,
     overview_generator: OverviewGenerator | None = None,
+    on_progress: Callable[[int, int, str], None] | None = None,
 ) -> SummaryPersistenceResult:
     source_chunks = _source_chunks_for_scope(conn, scope=scope, model=model, vector_store=vector_store, top_k=top_k)
     # Pass conn so the cache wrapper can read/write llm_cache on this same transaction (a second SQLite
@@ -105,13 +107,21 @@ def summarize_scope(
         config=verifier_config,
         support_scorer=support_scorer,
     )
-    verification_rows = [
-        [
-            verifier.verify(conn, sentence=candidate.text, citation=citation, source_chunks=source_chunks)
-            for citation in candidate.citations
-        ]
-        for candidate in candidates
-    ]
+    # inc 408: real per-claim progress for the ONE genuinely instrumentable stage. Retrieval + generation above
+    # stay un-instrumented on purpose — the LLM call is a single opaque blocking request with no sub-progress
+    # signal, and a cache hit would make a naive elapsed-time ETA misleading — so `on_progress` is only ever
+    # called here, once N (the candidate count) is known.
+    total_candidates = len(candidates)
+    verification_rows: list[list[VerificationResult]] = []
+    for index, candidate in enumerate(candidates, start=1):
+        verification_rows.append(
+            [
+                verifier.verify(conn, sentence=candidate.text, citation=citation, source_chunks=source_chunks)
+                for citation in candidate.citations
+            ]
+        )
+        if on_progress is not None:
+            on_progress(index, total_candidates, "Verifying claim")
     summary_status = (
         "verified" if all(all(item.verified for item in row) and row for row in verification_rows) else "flagged"
     )
