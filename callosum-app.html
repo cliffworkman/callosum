@@ -183,8 +183,12 @@
   /* inc 406: "Status" — a click-toggle popover of active/recent async jobs, NOT a workspace (04c_status.jsx). The
      toggle reuses .menubar-item for a consistent look; only the badge + popover need new rules. Badge uses
      --accent/--accent-soft (provenance/primary semantics, like .finding-badge) — never green/amber/red, which
-     are reserved for citation-verification status (rule #8). Anchored right (not left, like .add-menu-pop) since
-     Status sits at the far right of the bar and a left-anchored popover would overflow the viewport. */
+     are reserved for citation-verification status (rule #8). `.menubar` sets `overflow-y: hidden` (it needs
+     horizontal-only scroll for the workspace tab strip), which would silently clip a locally-`position:absolute`
+     popover hanging below it — so unlike `.add-menu-pop`, this one is rendered via `ReactDOM.createPortal` into
+     `document.body` and positioned with inline `top`/`right` (computed from the toggle button's rect at open
+     time), landing outside the clipping ancestor entirely. The CSS below only supplies the box's look; `position:
+     fixed` + its coordinates are set inline per-open. */
   .status-menu { position: relative; display: inline-flex; }
   .status-menu-toggle { display: inline-flex; align-items: center; gap: 5px; }
   .status-badge {
@@ -192,7 +196,7 @@
     border-radius: var(--radius-pill); padding: 1px 6px; line-height: 1.4; min-width: 14px; text-align: center;
   }
   .status-menu-pop {
-    position: absolute; top: calc(100% + 5px); right: 0; z-index: 20;
+    z-index: 45;
     display: flex; flex-direction: column; width: 280px; max-height: 360px; overflow-y: auto;
     background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); padding: 4px 0;
@@ -4671,7 +4675,9 @@
   function StatusMenu() {
     const [open, setOpen] = useState(false);
     const [jobs, setJobs] = useState([]);
-    const ref = useRef(null);
+    const [pos, setPos] = useState(null);
+    const toggleRef = useRef(null);
+    const popRef = useRef(null);
     const load = useCallback(() => {
       api("/status/jobs").then((r) => {
         if (r.ok) setJobs(r.data.jobs);
@@ -4685,11 +4691,20 @@
     useEffect(() => {
       if (!open) return;
       const onDoc = (e) => {
-        if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+        if (toggleRef.current && toggleRef.current.contains(e.target)) return;
+        if (popRef.current && popRef.current.contains(e.target)) return;
+        setOpen(false);
       };
       document.addEventListener("mousedown", onDoc);
       return () => document.removeEventListener("mousedown", onDoc);
     }, [open]);
+    const toggle = () => {
+      if (!open && toggleRef.current) {
+        const r = toggleRef.current.getBoundingClientRect();
+        setPos({ top: r.bottom + 5, right: Math.max(8, window.innerWidth - r.right) });
+      }
+      setOpen((o) => !o);
+    };
     const dismiss = (job) => {
       setJobs((js) => js.filter((j) => j.job_id !== job.job_id));
       apiPost(`/status/jobs/${job.store}/${job.job_id}/dismiss`, {});
@@ -4699,16 +4714,20 @@
       apiPost("/status/jobs/clear-finished", {});
     };
     const hasFinished = jobs.some((j) => j.status === "done" || j.status === "error");
-    return /* @__PURE__ */ React.createElement("span", { className: "status-menu", ref }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("span", { className: "status-menu" }, /* @__PURE__ */ React.createElement(
       "button",
       {
+        ref: toggleRef,
         className: "menubar-item status-menu-toggle" + (open ? " active" : ""),
-        onClick: () => setOpen((o) => !o),
+        onClick: toggle,
         title: "Active and recently-finished processes"
       },
       "Status",
       jobs.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "status-badge" }, jobs.length)
-    ), open && /* @__PURE__ */ React.createElement("div", { className: "status-menu-pop" }, jobs.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "status-empty" }, "Nothing running.") : jobs.map((j) => /* @__PURE__ */ React.createElement(StatusJobRow, { key: j.store + ":" + j.job_id, job: j, onDismiss: dismiss })), hasFinished && /* @__PURE__ */ React.createElement("button", { className: "status-clear-finished", onClick: clearFinished }, "Clear all finished")));
+    ), open && pos && ReactDOM.createPortal(
+      /* @__PURE__ */ React.createElement("div", { className: "status-menu-pop", ref: popRef, style: { position: "fixed", top: pos.top, right: pos.right } }, jobs.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "status-empty" }, "Nothing running.") : jobs.map((j) => /* @__PURE__ */ React.createElement(StatusJobRow, { key: j.store + ":" + j.job_id, job: j, onDismiss: dismiss })), hasFinished && /* @__PURE__ */ React.createElement("button", { className: "status-clear-finished", onClick: clearFinished }, "Clear all finished")),
+      document.body
+    ));
   }
   function creditItems(items) {
     return Array.isArray(items) ? items : [items];

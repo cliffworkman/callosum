@@ -57,6 +57,29 @@ proxies `state.foo = x` into a private `_state` dict via `__setattr__` rather th
 `State` is iterable/subscriptable over its real keys (`__iter__`/`__getitem__`), which is what
 the fixed version actually walks: `{name: state[name] for name in state if isinstance(...)}`.
 
+## Addendum — real bug caught by live user testing (same day)
+
+Cliff tried it live and reported: "the status menu option looks great! it doesn't seem to be
+opening anything on click, though." Root cause: `.menubar` sets `overflow-x: auto; overflow-y:
+hidden` (needed for its horizontal workspace-tab-strip scroll) — an ancestor `overflow-y: hidden`
+silently clips a locally `position: absolute` child that extends below its box, **regardless** of
+the child's own positioning scheme. `.status-menu-pop` hangs below the toggle button, so it was
+rendering into the DOM (the click handler worked fine) but was invisible, clipped by `.menubar`'s
+own box. `.add-menu-pop`'s identical-looking pattern works fine elsewhere because it lives in the
+library header, not inside `.menubar`.
+
+Fixed by portaling the popover to `document.body` via `ReactDOM.createPortal`, positioned with
+inline `position: fixed` + coordinates computed from the toggle button's `getBoundingClientRect()`
+at open time — landing outside the clipping ancestor entirely, the standard fix for this class of
+bug. This surfaced a second latent bug: the outside-click-close handler only checked the toggle
+button's ref, so once the popover lived in a different DOM subtree (via the portal), clicking
+*inside* it (a row's `×`, or "Clear all finished") would immediately count as "outside" and close
+it. Fixed by checking both the toggle ref and a second ref on the portaled popover itself.
+
+`app/frontend/styles.css`'s `.status-menu-pop` rule dropped `position`/`top`/`right` (now inline,
+computed) and its z-index moved from 20 (a local-popover value) to 45 (matching other
+`position: fixed` popovers in the app, now that it's a body-level element).
+
 ## Manual verification script
 
 1. Start the app, open the browser.

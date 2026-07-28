@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-28 — Increment 406 fix: Status popover clipped by `.menubar`'s `overflow-y: hidden`
+
+- **Files:** `app/frontend/js/04c_status.jsx`, `app/frontend/styles.css`,
+  `.claude/docs/increment-notes/INCREMENT-406-NOTES.md`.
+- **What:** portaled `.status-menu-pop` to `document.body` (`ReactDOM.createPortal`, inline
+  `position: fixed` computed from the toggle button's rect) instead of a locally
+  `position: absolute` child; fixed the outside-click handler to also recognize clicks inside the
+  now-portaled popover.
+- **Why:** Cliff clicked "Status" live and reported nothing opened. `.menubar` sets
+  `overflow-y: hidden` for its horizontal tab-strip scroll, which silently clips any
+  locally-absolute popover hanging below it — the click handler worked, the popover was just
+  invisible.
+- **Revert:** restore the pre-portal version from commit `7581935`.
+
 ## 2026-07-28 — Increment 406: "Status" menu — cross-feature async-job popover
 
 - **Files:** `app/backend/api/job_store.py`, `app/backend/api/routers/status.py` (new),

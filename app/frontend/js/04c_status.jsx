@@ -30,7 +30,9 @@ function StatusJobRow({ job, onDismiss }) {
 function StatusMenu() {
   const [open, setOpen] = useState(false);
   const [jobs, setJobs] = useState([]);
-  const ref = useRef(null);
+  const [pos, setPos] = useState(null);  // {top, right} in viewport px, computed from the toggle button
+  const toggleRef = useRef(null);
+  const popRef = useRef(null);
 
   const load = useCallback(() => {
     api("/status/jobs").then(r => { if (r.ok) setJobs(r.data.jobs); });
@@ -44,10 +46,24 @@ function StatusMenu() {
 
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    // The popover is portaled to document.body (see the CSS comment above), so it sits OUTSIDE toggleRef's DOM
+    // subtree — a click inside it (e.g. a row's × or "Clear all finished") must not count as "outside."
+    const onDoc = (e) => {
+      if (toggleRef.current && toggleRef.current.contains(e.target)) return;
+      if (popRef.current && popRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
+
+  const toggle = () => {
+    if (!open && toggleRef.current) {
+      const r = toggleRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 5, right: Math.max(8, window.innerWidth - r.right) });
+    }
+    setOpen(o => !o);
+  };
 
   const dismiss = (job) => {
     setJobs(js => js.filter(j => j.job_id !== job.job_id));  // optimistic — the next poll reconciles either way
@@ -61,20 +77,22 @@ function StatusMenu() {
   const hasFinished = jobs.some(j => j.status === "done" || j.status === "error");
 
   return (
-    <span className="status-menu" ref={ref}>
-      <button className={"menubar-item status-menu-toggle" + (open ? " active" : "")}
-        onClick={() => setOpen(o => !o)} title="Active and recently-finished processes">
+    <span className="status-menu">
+      <button ref={toggleRef} className={"menubar-item status-menu-toggle" + (open ? " active" : "")}
+        onClick={toggle} title="Active and recently-finished processes">
         Status
         {jobs.length > 0 && <span className="status-badge">{jobs.length}</span>}
       </button>
-      {open &&
-        <div className="status-menu-pop">
+      {open && pos && ReactDOM.createPortal(
+        <div className="status-menu-pop" ref={popRef} style={{ position: "fixed", top: pos.top, right: pos.right }}>
           {jobs.length === 0
             ? <div className="status-empty">Nothing running.</div>
             : jobs.map(j => <StatusJobRow key={j.store + ":" + j.job_id} job={j} onDismiss={dismiss} />)}
           {hasFinished &&
             <button className="status-clear-finished" onClick={clearFinished}>Clear all finished</button>}
-        </div>}
+        </div>,
+        document.body
+      )}
     </span>
   );
 }
