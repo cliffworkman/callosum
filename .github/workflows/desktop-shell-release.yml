@@ -50,6 +50,14 @@ jobs:
           name: callosum-linux-x86_64
           path: dist
 
+      - name: Create version-independent aliases (Tauri bakes the version into each installer's own
+          filename, so a direct .../releases/latest/download/<file> link would silently 404 on the
+          next release without these stable-named copies alongside the real, versioned assets)
+        run: |
+          cp dist/*.exe dist/Callosum-windows-x64-setup.exe
+          cp dist/*.dmg dist/Callosum-macos-arm64.dmg
+          cp dist/*.deb dist/Callosum-linux-amd64.deb
+
       - name: Read the annotated tag's own message as the release body
         id: tagmsg
         run: |

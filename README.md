@@ -24,14 +24,14 @@ explicitly turn on an AI feature.
 
 ## Download
 
-No Python, no command line — grab the installer for your platform from the
-**[latest release](https://github.com/cliffworkman/callosum/releases/latest)**:
+No Python, no command line — grab the installer for your platform (also on the
+[latest release](https://github.com/cliffworkman/callosum/releases/latest) page):
 
 | Platform | Installer |
 |---|---|
-| Windows | `.exe` (NSIS installer) |
-| macOS (Apple Silicon) | `.dmg` — Intel Macs aren't supported yet |
-| Linux | `.deb` (Debian/Ubuntu and derivatives) |
+| Windows | [Download `.exe`](https://github.com/cliffworkman/callosum/releases/latest/download/Callosum-windows-x64-setup.exe) (NSIS installer) |
+| macOS (Apple Silicon) | [Download `.dmg`](https://github.com/cliffworkman/callosum/releases/latest/download/Callosum-macos-arm64.dmg) — Intel Macs aren't supported yet |
+| Linux | [Download `.deb`](https://github.com/cliffworkman/callosum/releases/latest/download/Callosum-linux-amd64.deb) (Debian/Ubuntu and derivatives) |
 
 These builds are **unsigned** (no paid Apple/Microsoft developer certificate yet), so your OS will show
 a one-time trust warning on first launch — that's expected, not a red flag. See
