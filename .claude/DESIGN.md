@@ -472,6 +472,15 @@ row deliberately does NOT use `ProgressBar` — its animated sweep would mislead
 job that's finished, so `.status-row-done` is a static text line instead. `.status-row-error` gets a `--danger`
 left border (the retraction-chip precedent: red for a negative *fact*, not only for destructive actions).
 
+**Desktop-shell auto-updater notice recipe (`04d_update.jsx`).** `.update-toast`/`.update-pill` — a neutral
+"something's ready" notice, not an error, so it deliberately does **not** reuse `.pdf-toast`'s red/cream error
+tone; it uses `--panel`/`--line-2` for the body and `--accent`/`--accent-soft`/`--accent-line` (the Status
+badge's exact family) for the primary action/collapsed pill — indigo for provenance/primary, never a
+verification-status color (rule #8). Bottom-**right**, `.pdf-toast` stays bottom-center, so the two can never
+visually collide. No portal: mounted at `40_app.jsx`'s top level, the same unclipped spot every other modal
+there already relies on (unlike Status, which specifically needed a portal to escape `.menubar`'s
+`overflow-y: hidden` — this component was never inside that ancestor to begin with).
+
 **Library PDF tab recipe (inc 290).** Inside the Library workspace, the tab strip order is fixed as: **Library**,
 then the optional selected-paper tab, then open PDF tabs. The selected-paper tab is a transient "selected, not
 opened" affordance: dashed `--accent` border + `--accent-soft` fill (same pending/drop-target semantics as §4), no

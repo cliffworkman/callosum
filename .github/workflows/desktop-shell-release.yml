@@ -17,12 +17,16 @@ on:
 jobs:
   build-windows:
     uses: ./.github/workflows/desktop-shell-windows.yml
+    secrets: inherit # the TAURI_SIGNING_* pair, so this platform's updater artifact gets signed
 
   build-macos:
     uses: ./.github/workflows/desktop-shell-macos.yml
+    secrets: inherit # same as above
 
   build-linux:
     uses: ./.github/workflows/desktop-shell-linux.yml
+    # No secrets needed: Linux has no silent auto-update path (see updater.rs's header comment) —
+    # nothing here is ever signed.
 
   publish:
     # Only runs once all three platforms have actually succeeded -- never publishes a partial release.
@@ -50,6 +54,18 @@ jobs:
           name: callosum-linux-x86_64
           path: dist
 
+      - uses: actions/download-artifact@v4
+        continue-on-error: true # absent if the signing secrets aren't set yet — see the latest.json step below
+        with:
+          name: callosum-windows-x64-updater
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: callosum-macos-arm64-updater
+          path: dist
+
       - name: Create version-independent aliases (Tauri bakes the version into each installer's own
           filename, so a direct .../releases/latest/download/<file> link would silently 404 on the
           next release without these stable-named copies alongside the real, versioned assets)
@@ -66,6 +82,34 @@ jobs:
             git tag -l --format='%(contents)' "${{ github.ref_name }}"
             echo 'CALLOSUM_RELEASE_BODY_EOF'
           } >> "$GITHUB_OUTPUT"
+
+      - name: "Build latest.json for the in-app auto-updater (Windows/macOS only — see updater.rs for why Linux has no silent-update path). Gracefully skipped, not a release-blocking failure, if the updater artifacts are missing — e.g. before Cliff has set the two TAURI_SIGNING_* repo secrets."
+        env:
+          NOTES: ${{ steps.tagmsg.outputs.body }}
+        run: |
+          set -e
+          WIN_ZIP=$(ls dist/*.nsis.zip 2>/dev/null | head -1 || true)
+          WIN_SIG=$(ls dist/*.nsis.zip.sig 2>/dev/null | head -1 || true)
+          MAC_TGZ=$(ls dist/*.app.tar.gz 2>/dev/null | head -1 || true)
+          MAC_SIG=$(ls dist/*.app.tar.gz.sig 2>/dev/null | head -1 || true)
+          if [ -z "$WIN_ZIP" ] || [ -z "$WIN_SIG" ] || [ -z "$MAC_TGZ" ] || [ -z "$MAC_SIG" ]; then
+            echo "::warning::updater artifacts missing (TAURI_SIGNING_PRIVATE_KEY/_PASSWORD repo secrets not set yet?) — this release will publish WITHOUT latest.json, so the in-app auto-updater won't see it. Set the two secrets, then the next release will include it automatically."
+            exit 0
+          fi
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          jq -n \
+            --arg version "$TAG_VERSION" \
+            --arg notes "$NOTES" \
+            --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg win_url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$(basename "$WIN_ZIP")" \
+            --arg win_sig "$(cat "$WIN_SIG")" \
+            --arg mac_url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$(basename "$MAC_TGZ")" \
+            --arg mac_sig "$(cat "$MAC_SIG")" \
+            '{version: $version, notes: $notes, pub_date: $pub_date, platforms: {
+               "windows-x86_64": {signature: $win_sig, url: $win_url},
+               "darwin-aarch64": {signature: $mac_sig, url: $mac_url}
+            }}' > dist/latest.json
+          echo "wrote dist/latest.json for $TAG_VERSION"
 
       - name: Publish the GitHub Release
         # SHA-pinned (not the mutable @v2 tag) since this step runs with contents: write.

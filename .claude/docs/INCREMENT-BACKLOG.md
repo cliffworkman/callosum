@@ -179,26 +179,23 @@
   installers, and (release-engineering pass, 2026-07-28) installers now publish as real, public GitHub
   Releases on a version tag rather than only ephemeral CI artifacts. The OS-keychain half shipped inc 152.
   Remaining desktop-adjacent work continues under **#49** below (the in-app auto-updater) rather than here.
-- **#49 In-app auto-updater for the desktop shell.** [infra — scoped, not built] The release-engineering pass
-  (2026-07-28) shipped tag-gated GitHub Releases (`.github/workflows/desktop-shell-release.yml`) as the
-  *distribution* half; this is the remaining *in-app update-checking* half, deliberately scoped low-resolution
-  and deferred as its own increment (not needed for the initial public launch):
-  - Add `tauri-plugin-updater` (Rust dep in `src-tauri/Cargo.toml` + `capabilities/default.json` grants
-    `updater:default`) + a small frontend affordance: check on launch (and/or periodically while running),
-    surface a non-blocking "Update available" banner — **never silent-install**; the user clicks "Update now"
-    (the plugin's `download_and_install()`, which relaunches the app). Matches the pre-beta trust posture —
-    colleagues should never be surprised by the app changing under them mid-task.
-  - Generate a Tauri/minisign updater signing keypair (`npx tauri signer generate`) — **the maintainer runs
-    this himself**, not something to generate/store on his behalf sight-unseen (the private key + password
-    are real secrets). Public key → `tauri.conf.json`'s new `plugins.updater.pubkey`; private key + password →
-    GitHub Actions secrets (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`).
-  - Extend `desktop-shell-release.yml`'s `publish` job to sign each build (producing `.sig` files) and
-    generate a `latest.json` manifest (version/notes/pub_date + a per-platform `{url, signature}` map),
-    attached to the same release; point `tauri.conf.json`'s `updater.endpoints` at the release's stable
-    `.../releases/latest/download/latest.json`.
-  - Tauri's updater signature scheme (minisign) is independent of OS code-signing — should work identically
-    to today's manual-install trust story on both platforms, but needs empirical verification once built (an
-    unsigned macOS `.app` being replaced in-place by the updater is untested territory).
+- ✅ **#49 In-app auto-updater for the desktop shell — CODE SHIPPED 2026-07-28 (inc 409), pending
+  Cliff's own secret-setup + a rehearsal release before it's live.** Triggered urgently by the first
+  real bug reports (two Mac colleagues) landing the same day. Windows/macOS: periodic check (launch +
+  every 6h) via `tauri-plugin-updater`, silent background download, a non-blocking "Restart now" toast
+  (`04d_update.jsx`) — never forced, matches the Spotify model Cliff asked for. Linux (`.deb`-only;
+  Tauri's updater plugin needs AppImage, which this project deliberately abandoned) gets a simpler
+  "Open release page" fallback instead of silent install. `tauri-plugin-process` turned out to be
+  unnecessary — `AppHandle::request_restart()` is a core Tauri method. CI (`desktop-shell-{windows,
+  macos,release}.yml`) now signs builds and publishes a `latest.json` manifest. Full design + the
+  real verified API details in `INCREMENT-409-NOTES.md` and the security audit.
+  **Still open, not code — Cliff's own next steps:** (1) set the two `TAURI_SIGNING_PRIVATE_KEY`/
+  `_PASSWORD` GitHub secrets himself (`gh secret set`, from his own machine — the public key is
+  already embedded in `tauri.conf.json`, generated and handed over earlier this session); (2) run the
+  recommended throwaway `v0.3.0-rc1`→`rc2` rehearsal cycle (a real signed release, a scratch library —
+  never his real 209-paper one) to prove the full check→download→ready→install→relaunch loop end to
+  end before trusting it with real testers, since the released `v0.2.0` has no updater code in it at
+  all and can't be the "from" version for a real test.
 
 ---
 

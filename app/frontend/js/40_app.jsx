@@ -482,6 +482,7 @@ function App() {
         <BundleImportModal onClose={() => setBundleImportOpen(false)}
           onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }} />}
       {authLocked && <AccessLockOverlay />}
+      <UpdateNotice />
     </React.Fragment>
   );
 

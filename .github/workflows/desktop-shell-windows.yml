@@ -13,7 +13,12 @@ name: Desktop shell (Windows)
 
 on:
   workflow_dispatch: {}
-  workflow_call: {} # called by desktop-shell-release.yml on a pushed version tag; branch-push path below unaffected
+  workflow_call: # called by desktop-shell-release.yml on a pushed version tag; branch-push path below unaffected
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: false
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: false
   push:
     branches: [main]
     paths:
@@ -89,6 +94,14 @@ jobs:
 
       - name: Build the NSIS installer
         working-directory: app/desktop-shell
+        env:
+          # Present on every build (not just tag-triggered releases) so a broken signing setup is
+          # caught on an ordinary commit, not discovered only when a real release is cut. Tauri's
+          # bundler signs the createUpdaterArtifacts output (tauri.conf.json) automatically when
+          # these are set — no separate signing step needed. Empty/unset on a fork's branch-push
+          # (no access to the real secrets) just means an unsigned build with no updater artifact.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npx tauri build
 
       - name: Upload installer artifact
@@ -97,6 +110,15 @@ jobs:
           name: callosum-windows-x64
           path: app/desktop-shell/src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
+
+      - name: Upload updater artifact (signed .nsis.zip + .sig, for the in-app auto-updater)
+        uses: actions/upload-artifact@v4
+        with:
+          name: callosum-windows-x64-updater
+          path: |
+            app/desktop-shell/src-tauri/target/release/bundle/nsis/*.nsis.zip
+            app/desktop-shell/src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
+          if-no-files-found: warn # absent on an unsigned build (a fork's branch-push, no secrets) — not an error there
 
       - name: "Verify: silent-install the real installer, launch it, screenshot the real running window"
         id: verify

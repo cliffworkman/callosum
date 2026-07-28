@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-28 — Increment 409: in-app auto-updater for the desktop shell (backlog #49)
+
+- **Files:** `app/desktop-shell/src-tauri/{Cargo.toml,src/lib.rs,src/updater.rs (new),tauri.conf.json,
+  tauri.linux.conf.json,capabilities/default.json}`, `app/frontend/js/{04d_update.jsx (new),40_app.jsx}`,
+  `app/frontend/styles.css`, `.claude/DESIGN.md`, `.github/workflows/desktop-shell-{windows,macos,
+  release}.yml`, `.claude/security-audits/2026-07-28_desktop-shell-auto-updater.md` (new),
+  `.claude/docs/increment-notes/INCREMENT-409-NOTES.md` (new).
+- **What:** Windows/macOS check for updates (on launch + every 6h), silently download in the
+  background, and show a non-blocking "Restart now" toast only once ready — never forced. Linux
+  (no silent-update support in Tauri's updater plugin — `.deb`-only, AppImage abandoned) gets an
+  "Open release page" notice instead. CI now signs builds and publishes a `latest.json` manifest.
+- **Why:** the first real bug reports (two Mac colleagues) just landed; Cliff needs to ship patches
+  without asking testers to manually re-download and reinstall every time, or risk losing them to
+  exactly that friction.
+- **Revert:** remove the `updater` module/wiring from `lib.rs`/`Cargo.toml`, the `plugins.updater`
+  block from `tauri.conf.json`, `04d_update.jsx` + its mount in `40_app.jsx`, and the CI signing/
+  `latest.json` steps from the three workflow files.
+
 ## 2026-07-28 — Increment 408: Status Phase 2 Wave 2 — real progress for Synthesize > Ask
 
 - **Files:** `app/backend/summarization/pipeline.py`, `app/backend/api/routers/summaries.py`,

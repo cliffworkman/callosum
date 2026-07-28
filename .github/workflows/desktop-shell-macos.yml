@@ -15,7 +15,12 @@ name: Desktop shell (macOS)
 
 on:
   workflow_dispatch: {}
-  workflow_call: {} # called by desktop-shell-release.yml on a pushed version tag; branch-push path below unaffected
+  workflow_call: # called by desktop-shell-release.yml on a pushed version tag; branch-push path below unaffected
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: false
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: false
   push:
     branches: [main]
     paths:
@@ -92,6 +97,15 @@ jobs:
 
       - name: Build the .app (dmg wrapping happens after re-signing below)
         working-directory: app/desktop-shell
+        env:
+          # Present on every build, same reasoning as the Windows workflow. Tauri's own
+          # createUpdaterArtifacts packaging (tauri.conf.json) would sign a .app.tar.gz here too, but
+          # it isn't trusted — see the next step, which regenerates it AFTER the re-sign below instead,
+          # since it's unconfirmed whether Tauri's own packaging step runs before or after
+          # bundle.resources is copied in (the exact ordering bug the re-sign step already exists to
+          # fix once).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npx tauri build
 
       - name: "Re-sign the .app AFTER resources are bundled (real run found the default ad-hoc sign happens before bundle.resources is copied in, leaving spctl reporting \"code has no resources but signature indicates they must be present\" — Gatekeeper then reports the app as \"damaged\" instead of the milder unidentified-developer warning)"
@@ -101,6 +115,20 @@ jobs:
           codesign --force --deep --sign - "$APP"
           echo "--- spctl assessment of the freshly re-signed .app (no quarantine yet) ---"
           spctl -a -vvv "$APP" 2>&1 || true
+
+      - name: "Regenerate the updater artifact from the correctly-resigned .app (don't trust Tauri's own createUpdaterArtifacts output — its sequencing relative to the resign step above is unconfirmed)"
+        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        working-directory: app/desktop-shell
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -x
+          APP=$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name "*.app")
+          VERSION=$(jq -r '.version' src-tauri/tauri.conf.json)
+          ARTIFACT="src-tauri/target/release/bundle/macos/Callosum_${VERSION}_aarch64.app.tar.gz"
+          tar -czf "$ARTIFACT" -C "$(dirname "$APP")" "$(basename "$APP")"
+          npx tauri signer sign "$ARTIFACT"
 
       - name: Wrap the re-signed .app into a .dmg
         run: |
@@ -116,6 +144,15 @@ jobs:
           name: callosum-macos-arm64
           path: app/desktop-shell/src-tauri/target/release/bundle/dmg/*.dmg
           if-no-files-found: error
+
+      - name: Upload updater artifact (signed .app.tar.gz + .sig, for the in-app auto-updater)
+        uses: actions/upload-artifact@v4
+        with:
+          name: callosum-macos-arm64-updater
+          path: |
+            app/desktop-shell/src-tauri/target/release/bundle/macos/*.app.tar.gz
+            app/desktop-shell/src-tauri/target/release/bundle/macos/*.app.tar.gz.sig
+          if-no-files-found: warn # absent on an unsigned build (a fork's branch-push, no secrets) — not an error there
 
       - name: "Verify: mount the real .dmg, simulate Gatekeeper, screenshot the real running window"
         id: verify

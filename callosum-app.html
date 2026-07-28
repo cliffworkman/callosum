@@ -2410,6 +2410,27 @@
     background: #43210f; color: #ffe9dc; border: 1px solid rgba(179,38,30,.5);
     border-radius: 8px; font-size: 12.5px; line-height: 1.4; box-shadow: 0 6px 22px rgba(0,0,0,.3);
   }
+  /* Desktop-shell auto-updater notice (04d_update.jsx) — a neutral "something's ready" notice, not
+     an error, so it gets its own recipe rather than reusing .pdf-toast's red/cream error tone.
+     --accent (provenance/primary) for the primary action, matching the Status badge's semantics
+     (never green/amber/red, which are reserved for citation-verification status, rule #8).
+     Bottom-right (not .pdf-toast's bottom-center) so the two never visually collide; no portal
+     needed — mounted at 40_app.jsx's top level, the same unclipped spot every other modal here
+     already relies on. */
+  .update-toast {
+    position: fixed; right: 18px; bottom: 22px; z-index: 50;
+    display: flex; align-items: center; gap: 10px; max-width: min(420px, 90vw);
+    padding: 10px 14px; background: var(--panel); border: 1px solid var(--line-2);
+    border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    font-size: 12.5px; color: var(--ink);
+  }
+  .update-toast-text { flex: 1; white-space: nowrap; }
+  .update-pill {
+    position: fixed; right: 18px; bottom: 22px; z-index: 50;
+    font-family: var(--sans); font-size: 12px; font-weight: 600; cursor: pointer;
+    color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    border-radius: var(--radius-pill); padding: 6px 13px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  }
   .pdf-region-note {
     position: absolute; left: 12px; top: 12px; z-index: 2;
     max-width: min(360px, calc(100% - 24px)); padding: 7px 9px;
@@ -4728,6 +4749,29 @@
       /* @__PURE__ */ React.createElement("div", { className: "status-menu-pop", ref: popRef, style: { position: "fixed", top: pos.top, right: pos.right } }, jobs.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "status-empty" }, "Nothing running.") : jobs.map((j) => /* @__PURE__ */ React.createElement(StatusJobRow, { key: j.store + ":" + j.job_id, job: j, onDismiss: dismiss })), hasFinished && /* @__PURE__ */ React.createElement("button", { className: "status-clear-finished", onClick: clearFinished }, "Clear all finished")),
       document.body
     ));
+  }
+  function UpdateNotice() {
+    const [ready, setReady] = useState(null);
+    const [dismissed, setDismissed] = useState(false);
+    useEffect(() => {
+      if (!("__TAURI__" in window)) return;
+      let unlisten;
+      window.__TAURI__.event.listen("update-ready", (e) => setReady(e.payload)).then((f) => {
+        unlisten = f;
+      });
+      return () => {
+        if (unlisten) unlisten();
+      };
+    }, []);
+    if (!ready) return null;
+    const act = () => window.__TAURI__.core.invoke(
+      ready.action === "restart" ? "install_update_now" : "open_release_page"
+    );
+    const label = ready.action === "restart" ? "Restart now" : "Open release page";
+    if (dismissed) {
+      return /* @__PURE__ */ React.createElement("button", { className: "update-pill", onClick: () => setDismissed(false), title: `Update ready \u2014 v${ready.version}` }, "Update ready");
+    }
+    return /* @__PURE__ */ React.createElement("div", { className: "update-toast", role: "status" }, /* @__PURE__ */ React.createElement("span", { className: "update-toast-text" }, "Update ready \u2014 v", ready.version), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: act }, label), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setDismissed(true) }, "Later"));
   }
   function creditItems(items) {
     return Array.isArray(items) ? items : [items];
@@ -18301,7 +18345,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           libraryBits.onPage(0);
         }
       }
-    ), authLocked && /* @__PURE__ */ React.createElement(AccessLockOverlay, null));
+    ), authLocked && /* @__PURE__ */ React.createElement(AccessLockOverlay, null), /* @__PURE__ */ React.createElement(UpdateNotice, null));
     const readOnlyBadge = readOnly ? /* @__PURE__ */ React.createElement("div", { className: "read-only-badge", title: "This callosum instance rejects changes \u2014 reading only." }, "\u{1F512} Read-only") : null;
     if (mobile) {
       const activeEl = mobilePane === "theory" ? sidebarEl : mobilePane === "methods" ? detailEl : centerEl;

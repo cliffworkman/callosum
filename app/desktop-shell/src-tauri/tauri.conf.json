@@ -27,6 +27,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -41,6 +42,15 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVERjNBMzE4MEMzMzI0QkEKUldTNkpETU1HS1B6N1FNNnlXeGZvdjNnTnBaN1l1dDZDR0tqbDRKN0lTNWR0NWo1bzNKQ1djZHcK",
+      "endpoints": ["https://github.com/cliffworkman/callosum/releases/latest/download/latest.json"],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

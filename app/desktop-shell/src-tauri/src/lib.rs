@@ -1,7 +1,9 @@
 mod backend;
+mod updater;
 
 use backend::{kill_backend, resolved_paths, spawn_backend, wait_for_health, BackendState};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use updater::UpdateState;
 
 /// Resolve paths, spawn the backend, poll it healthy, then swap the splash window for the real
 /// callosum UI. Shared between first launch (`setup()`) and the splash page's Retry button.
@@ -74,11 +76,19 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BackendState::default())
-        .invoke_handler(tauri::generate_handler![retry_backend])
+        .manage(UpdateState::default())
+        .invoke_handler(tauri::generate_handler![
+            retry_backend,
+            updater::install_update_now,
+            updater::open_release_page
+        ])
         .setup(|app| {
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(start_backend_and_show_main(handle));
+            let handle2 = app.handle().clone();
+            tauri::async_runtime::spawn(updater::run_periodic_check(handle2));
             Ok(())
         })
         .build(tauri::generate_context!())

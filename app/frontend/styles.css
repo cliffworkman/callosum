@@ -2386,6 +2386,27 @@
     background: #43210f; color: #ffe9dc; border: 1px solid rgba(179,38,30,.5);
     border-radius: 8px; font-size: 12.5px; line-height: 1.4; box-shadow: 0 6px 22px rgba(0,0,0,.3);
   }
+  /* Desktop-shell auto-updater notice (04d_update.jsx) — a neutral "something's ready" notice, not
+     an error, so it gets its own recipe rather than reusing .pdf-toast's red/cream error tone.
+     --accent (provenance/primary) for the primary action, matching the Status badge's semantics
+     (never green/amber/red, which are reserved for citation-verification status, rule #8).
+     Bottom-right (not .pdf-toast's bottom-center) so the two never visually collide; no portal
+     needed — mounted at 40_app.jsx's top level, the same unclipped spot every other modal here
+     already relies on. */
+  .update-toast {
+    position: fixed; right: 18px; bottom: 22px; z-index: 50;
+    display: flex; align-items: center; gap: 10px; max-width: min(420px, 90vw);
+    padding: 10px 14px; background: var(--panel); border: 1px solid var(--line-2);
+    border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    font-size: 12.5px; color: var(--ink);
+  }
+  .update-toast-text { flex: 1; white-space: nowrap; }
+  .update-pill {
+    position: fixed; right: 18px; bottom: 22px; z-index: 50;
+    font-family: var(--sans); font-size: 12px; font-weight: 600; cursor: pointer;
+    color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    border-radius: var(--radius-pill); padding: 6px 13px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  }
   .pdf-region-note {
     position: absolute; left: 12px; top: 12px; z-index: 2;
     max-width: min(360px, calc(100% - 24px)); padding: 7px 9px;
