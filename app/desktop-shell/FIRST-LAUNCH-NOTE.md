@@ -1,5 +1,8 @@
 # Before you open Callosum for the first time
 
+Download the installer for your platform from the
+[latest release](https://github.com/cliffworkman/callosum/releases/latest) (scroll to "Assets").
+
 Callosum isn't published through an app store yet, so your computer doesn't recognize it as coming
 from a "known" publisher. That's not a sign anything is wrong — here's exactly what you'll see and
 what to click.
@@ -33,14 +36,17 @@ If neither of those dialogs shows an "Open"/"Run anyway" option, go to **System 
 Anyway** button.
 
 **If it instead says "Callosum is damaged and can't be opened" with only Move-to-Trash/Cancel and
-no way to proceed at all** — don't trash it, that's not actually true; it's a sign the copy you
-have needs a fresh download from me. Let me know rather than troubleshooting it yourself.
+no way to proceed at all** — don't trash it, that's not actually true; it's a sign the copy you have
+is corrupted (a bad download, not a bad app). Grab a fresh copy from the
+[latest release](https://github.com/cliffworkman/callosum/releases/latest) and try again; let me
+know if it still happens.
 
 ## On Linux
 
 You'll get a `.deb` file. Double-click it to open it with your software installer, or from a
-terminal: `sudo dpkg -i Callosum_0.1.0_amd64.deb`. There's no Gatekeeper/SmartScreen-style warning
-on Linux — it should just install and add Callosum to your applications menu.
+terminal: `sudo dpkg -i Callosum_*_amd64.deb` (match the filename you downloaded). There's no
+Gatekeeper/SmartScreen-style warning on Linux — it should just install and add Callosum to your
+applications menu.
 
 ## Why this happens
 

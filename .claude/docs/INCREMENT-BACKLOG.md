@@ -171,15 +171,34 @@
   `e2e-smoke`) to the pre-existing "Callosum Rules" ruleset via the GitHub API — his admin bypass keeps his own
   direct-push workflow unchanged; a PR-required rule stays deferred until a second contributor is active. **#20
   is now fully closed.**
-- **#21 Packaging & distribution (post-V1).** [exploratory] A Tauri desktop shell (`app/desktop-shell/`
-  placeholder); an OS keychain for `GOOGLE_API_KEY` (+ future secrets) for a non-technical desktop user; desktop
-  distribution + GROBID service ops (when Track C Stage-4 section-scoping lands — SP2/Stage-3 shipped inc
-  271/272 and doesn't need GROBID). **Explored 2026-07-23 (inc 343), still open:** research doc +
-  hands-on spike (`.claude/docs/future-tracks/desktop-packaging-tauri.md`) — the OS-keychain half is already
-  mostly done (inc 152); a bare Tauri shell **confirmed working** against the real, already-running backend.
-  The actual remaining engineering is bundling the Python backend + its ML stack (torch alone: 1.19 GB) into a
-  Tauri sidecar — recommends evaluating an ONNX Runtime embedding-backend swap first, on its own merits, before
-  any packaging build starts.
+- **#21 Packaging & distribution (post-V1) — CLOSED, superseded by #49.** [exploratory → shipped] This entry
+  had drifted stale: the Tauri desktop shell described here as a "placeholder"/research spike is now fully
+  built and shipping — the Python+ML stack bundling problem this entry worried about was solved (incs
+  394-396: a bundled portable CPython + real deps via `bundle.resources`, CPU-only torch, not a sidecar/ONNX
+  swap after all), all three platforms (Windows/macOS/Linux) have working CI that builds AND verifies real
+  installers, and (release-engineering pass, 2026-07-28) installers now publish as real, public GitHub
+  Releases on a version tag rather than only ephemeral CI artifacts. The OS-keychain half shipped inc 152.
+  Remaining desktop-adjacent work continues under **#49** below (the in-app auto-updater) rather than here.
+- **#49 In-app auto-updater for the desktop shell.** [infra — scoped, not built] The release-engineering pass
+  (2026-07-28) shipped tag-gated GitHub Releases (`.github/workflows/desktop-shell-release.yml`) as the
+  *distribution* half; this is the remaining *in-app update-checking* half, deliberately scoped low-resolution
+  and deferred as its own increment (not needed for the initial public launch):
+  - Add `tauri-plugin-updater` (Rust dep in `src-tauri/Cargo.toml` + `capabilities/default.json` grants
+    `updater:default`) + a small frontend affordance: check on launch (and/or periodically while running),
+    surface a non-blocking "Update available" banner — **never silent-install**; the user clicks "Update now"
+    (the plugin's `download_and_install()`, which relaunches the app). Matches the pre-beta trust posture —
+    colleagues should never be surprised by the app changing under them mid-task.
+  - Generate a Tauri/minisign updater signing keypair (`npx tauri signer generate`) — **the maintainer runs
+    this himself**, not something to generate/store on his behalf sight-unseen (the private key + password
+    are real secrets). Public key → `tauri.conf.json`'s new `plugins.updater.pubkey`; private key + password →
+    GitHub Actions secrets (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`).
+  - Extend `desktop-shell-release.yml`'s `publish` job to sign each build (producing `.sig` files) and
+    generate a `latest.json` manifest (version/notes/pub_date + a per-platform `{url, signature}` map),
+    attached to the same release; point `tauri.conf.json`'s `updater.endpoints` at the release's stable
+    `.../releases/latest/download/latest.json`.
+  - Tauri's updater signature scheme (minisign) is independent of OS code-signing — should work identically
+    to today's manual-install trust story on both platforms, but needs empirical verification once built (an
+    unsigned macOS `.app` being replaced in-place by the updater is untested territory).
 
 ---
 

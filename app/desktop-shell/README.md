@@ -4,10 +4,17 @@ A Tauri v2 wrapper that launches callosum's own FastAPI/uvicorn backend as a chi
 its real UI in a native window — a click-to-install path for a non-technical user, with no separate
 Python install required.
 
-Tracked under **"Packaging & distribution (post-V1)"** (Theme 4, backlog #21) in
-`.claude/docs/INCREMENT-BACKLOG.md`. Design background: `.claude/docs/future-tracks/
+Originally tracked under **"Packaging & distribution (post-V1)"** (backlog #21, now closed — this
+shell is built and shipping) in `.claude/docs/INCREMENT-BACKLOG.md`; the in-app auto-updater is the
+remaining piece, tracked as backlog **#49**. Design background: `.claude/docs/future-tracks/
 desktop-packaging-tauri.md` (the 2026-07-23 feasibility research + throwaway spike) and the
 increment notes for the increment that actually built this.
+
+**Getting an installer:** every tagged release publishes Windows/macOS/Linux installers to
+[GitHub Releases](https://github.com/cliffworkman/callosum/releases/latest) — see
+`FIRST-LAUNCH-NOTE.md` for the first-run trust dialogs (unsigned build, no app-store distribution
+yet). `.github/workflows/desktop-shell-release.yml` is what publishes them, fired only by a pushed
+version tag (see `.claude/CLAUDE.md`'s Backup & snapshot protocol §5 for the release ritual).
 
 ## How it works
 
@@ -54,8 +61,8 @@ npx tauri build
 ## Known, deliberate limits (see the increment notes for the full writeup)
 
 - **No code signing or notarization on either platform.** `FIRST-LAUNCH-NOTE.md` is the mitigation —
-  a plain-language explanation of the SmartScreen/Gatekeeper click-through, handed off alongside the
-  installer.
+  a plain-language explanation of the SmartScreen/Gatekeeper click-through, linked from the release
+  and the download page.
 - **macOS is arm64-only.** An Intel Mac cannot run this build at all (not just friction — it won't
   launch). This was a deliberate bet given the 2-day build window; revisit if it matters.
 - **The macOS build is never manually verified before shipping** — there's no Mac hardware available

@@ -713,6 +713,34 @@ callosum is a **git repo** (remote `origin` → `github.com/cliffworkman/callosu
    cleared. For any plan worth continuing, copy it to
    `.claude/backups/plans/YYYY-MM-DD_<short-description>.md` and keep it updated. On startup,
    check there when the user asks to continue earlier work.
+5. **Cutting a public desktop-shell release (inc "release engineering," 2026-07-28).** Item #1's
+   "commit + push to `main` by default" is unchanged and still happens every session — but since real
+   colleagues now run real installers, **`main` moving is not the same event as a release reaching
+   anyone.** A release is a separate, deliberate act, gated on a **version tag**:
+   - Bump the three desktop-shell version fields **in lockstep** — `app/desktop-shell/src-tauri/
+     tauri.conf.json`, `src-tauri/Cargo.toml`, `app/desktop-shell/package.json` (+ their lockfiles) —
+     to the new `X.Y.Z`. **Never bump `pyproject.toml` for this** — it's inert Python-package metadata
+     with its own independent lifecycle, unrelated to the desktop shell's version.
+   - Commit + push that bump to `main` exactly like any other change; confirm the three
+     `desktop-shell-{windows,macos,linux}.yml` CI runs (they trigger on this push same as always) are
+     green.
+   - `git tag -a vX.Y.Z -m "<real release notes — this message becomes the GitHub Release body>"`,
+     then `git push origin vX.Y.Z`. **The tag push is the only thing that ever reaches colleagues** —
+     it fires `.github/workflows/desktop-shell-release.yml`, which rebuilds all three platforms fresh
+     (as reusable-workflow calls into the same three files, not a separate build path) and, only once
+     all three succeed, publishes one public GitHub Release with all three installers attached. A fast
+     preflight step in each platform workflow hard-fails before the expensive build if the tag's
+     version disagrees with the three files above — the guardrail against tagging without bumping or
+     bumping without tagging.
+   - No separate `CHANGELOG.md` — the annotated tag's own message *is* the release's changelog entry
+     (extracted verbatim as the GitHub Release body), so there's exactly one place release notes live,
+     not two that can drift apart. Revisit only if a colleague specifically wants an offline/in-repo
+     changelog file.
+   - `README.md`'s Download section and `www/index.html` link at GitHub's stable `.../releases/latest/
+     download/<file>` URLs — these never need editing on subsequent releases; only bump-and-tag when
+     shipping something new. The in-app auto-updater (Tauri's updater plugin + a signing keypair +
+     background check-for-updates) is a deliberate, separate later increment — not built yet; see
+     `INCREMENT-BACKLOG.md` for the sketch.
 
 ---
 

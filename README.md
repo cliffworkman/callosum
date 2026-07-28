@@ -22,6 +22,25 @@ explicitly turn on an AI feature.
 
 *See more of the app: [a full screenshot tour](www/showcase.html) · [the project page](www/index.html).*
 
+## Download
+
+No Python, no command line — grab the installer for your platform from the
+**[latest release](https://github.com/cliffworkman/callosum/releases/latest)**:
+
+| Platform | Installer |
+|---|---|
+| Windows | `.exe` (NSIS installer) |
+| macOS (Apple Silicon) | `.dmg` — Intel Macs aren't supported yet |
+| Linux | `.deb` (Debian/Ubuntu and derivatives) |
+
+These builds are **unsigned** (no paid Apple/Microsoft developer certificate yet), so your OS will show
+a one-time trust warning on first launch — that's expected, not a red flag. See
+[`FIRST-LAUNCH-NOTE.md`](app/desktop-shell/FIRST-LAUNCH-NOTE.md) for exactly what you'll see and what to
+click.
+
+Prefer to run from source, want a platform not listed above, or planning to contribute? See
+**Build from source** below.
+
 ## What it does today
 
 **Library & metadata**
@@ -58,10 +77,11 @@ by default**, multi-provider (Gemini / OpenAI / Anthropic / a local OpenAI-compa
 model runs with **zero egress**. Verification is always local and never delegated to the LLM — the model doesn't
 get a vote on whether its own citations are correct.
 
-## Quickstart
+## Build from source
 
-Requires **Python 3.11+** and **Node.js** (the frontend build + the local citation engine). The shell examples
-show PowerShell (Windows) and bash (macOS/Linux).
+For a platform not covered by the installers above, or if you'd rather run from source / contribute.
+Requires **Python 3.11+** and **Node.js** (the frontend build + the local citation engine). The shell
+examples show PowerShell (Windows) and bash (macOS/Linux).
 
 ```bash
 # 1. clone + a virtual environment
@@ -223,7 +243,9 @@ limits than a bigger one that quietly oversells itself.
 
 - Pre-1.0, single-user-focused; no auth for general/hosted deployment (the opt-in token targets the local tunnel).
 - First run needs internet to fetch the local models.
-- Node.js is required for the citation engine and the frontend build.
+- Node.js is required for the citation engine and the frontend build (source path only).
+- Desktop installers are unsigned (no paid Apple/Microsoft developer certificate yet — see
+  [`FIRST-LAUNCH-NOTE.md`](app/desktop-shell/FIRST-LAUNCH-NOTE.md)); the macOS build is Apple Silicon only.
 - AI summary quality depends on your chosen provider; **verification of citations is always local and runs on every
   result**, so a weaker model affects draft quality and coverage, never which citations are accepted.
 
