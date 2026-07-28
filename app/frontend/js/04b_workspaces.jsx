@@ -1,6 +1,8 @@
 // Workspaces (the menu bar) — a SECOND navigation dimension above the THEORY/METHODS side accordions. Where the
 // accordions are *lenses on the current paper* (05_panes.jsx), a workspace is *what you're doing right now*:
-// My Publications | Library | Synthesize | Discover | Work (primary) + Help | Settings (right-aligned utilities).
+// My Publications | Library | Synthesize | Discover | Work (primary) + Help | Settings | Status (right-aligned
+// utilities). Status (04c_status.jsx, inc 406) is NOT a registered workspace — it's a click-toggle popover of
+// active/recent async jobs, rendered directly after the Help/Settings utility buttons in MenuBar below.
 // Sections-are-data, exactly like 05_panes.jsx: a workspace self-registers with an order; it holds EITHER a single
 // `render` (My Publications, Help, Settings) OR >=2 sub-tabs (Discover: Feed|Search|Journals|Funding; Work:
 // Cite|Meta-Reference|CRediT|Meta-Analyze — citing, reference-list analysis, credit statements, and meta-analysis
@@ -84,7 +86,10 @@ function MenuBar({ active, onActivate, readOnly, mobile }) {
   return (
     <div className="menubar">
       <nav className="menubar-nav" role="tablist" aria-label="Workspaces">{primary.map(item)}</nav>
-      <div className="menubar-utils">{utils.map(item)}</div>
+      <div className="menubar-utils">
+        {utils.map(item)}
+        <StatusMenu />
+      </div>
     </div>
   );
 }

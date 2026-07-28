@@ -455,7 +455,22 @@ The active workspace persists at `callosum.workspace`, and each workspace tab pe
 
 On phone-width screens (inc 302), that same center-pane menu bar renders as a compact **Workspace** `<select>`
 instead of the desktop horizontal tab strip. It switches the same visible workspaces/utilities and stays separate
-from the bottom `.mobile-nav`, which only chooses the visible region: Library / Panels / Details.
+from the bottom `.mobile-nav`, which only chooses the visible region: Library / Panels / Details. **Status
+(04c_status.jsx, inc 406) is not part of this `<select>`** — it's a live-polling popover, not a navigable
+workspace, so on phone-width it's simply not shown yet (a deliberate Phase-1 scope cut, not an oversight).
+
+**"Status" popover recipe (inc 406).** The first hover/click popover anchored to the menu bar itself (distinct
+from `.add-menu-pop`'s library-header dropdowns, §above): `.status-menu-toggle` reuses `.menubar-item` for a
+consistent look, so it reads as one more utility button beside Help/Settings rather than a new visual language.
+`.status-menu-pop` is **right-anchored** (`right: 0`, not `.add-menu-pop`'s `left: 0`), because Status sits at
+the far right of the bar and a left-anchored popover would run off the viewport edge. The count badge
+(`.status-badge`) reuses `.finding-badge`'s exact recipe (`--accent`/`--accent-soft`/`--accent-line`, `radius-pill`)
+— indigo for "N processes," never green/amber/red, which are reserved for citation-verification status (rule #8).
+Each row's progress reuses `ProgressBar` (10_pdf_layer.jsx) unmodified for `running`/`pending` jobs (real fill+ETA
+when the job reports progress, the existing indeterminate sweep otherwise — never a faked percentage); a `done`
+row deliberately does NOT use `ProgressBar` — its animated sweep would misleadingly read as still-working for a
+job that's finished, so `.status-row-done` is a static text line instead. `.status-row-error` gets a `--danger`
+left border (the retraction-chip precedent: red for a negative *fact*, not only for destructive actions).
 
 **Library PDF tab recipe (inc 290).** Inside the Library workspace, the tab strip order is fixed as: **Library**,
 then the optional selected-paper tab, then open PDF tabs. The selected-paper tab is a transient "selected, not

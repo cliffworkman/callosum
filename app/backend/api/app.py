@@ -70,6 +70,7 @@ from app.backend.api.routers import (
     saved_searches,
     settings,
     settings_providers,
+    status,
     summaries,
     sync,
     tags,
@@ -349,6 +350,7 @@ def create_app(
     api.include_router(settings.router)  # /settings — BYOK: Gemini key + egress consent from the UI (inc 146)
     api.include_router(settings_providers.router)  # /settings/providers — unified custom-provider roster (inc 256)
     api.include_router(access.router)  # /access/recover — in-app recovery from a remote-access lockout (inc 254)
+    api.include_router(status.router)  # /status/jobs — cross-feature async-job aggregator (inc 406)
     api.include_router(
         agent.router
     )  # /agent/* — gated MCP agent writes: tag/axis/reference/note + audit + revert (SP2)

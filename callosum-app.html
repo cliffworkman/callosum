@@ -179,6 +179,41 @@
   }
   .menubar-item:hover { background: var(--hover); color: var(--ink); }
   .menubar-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; border-color: var(--accent-line); }
+
+  /* inc 406: "Status" — a click-toggle popover of active/recent async jobs, NOT a workspace (04c_status.jsx). The
+     toggle reuses .menubar-item for a consistent look; only the badge + popover need new rules. Badge uses
+     --accent/--accent-soft (provenance/primary semantics, like .finding-badge) — never green/amber/red, which
+     are reserved for citation-verification status (rule #8). Anchored right (not left, like .add-menu-pop) since
+     Status sits at the far right of the bar and a left-anchored popover would overflow the viewport. */
+  .status-menu { position: relative; display: inline-flex; }
+  .status-menu-toggle { display: inline-flex; align-items: center; gap: 5px; }
+  .status-badge {
+    font-size: 10px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    border-radius: var(--radius-pill); padding: 1px 6px; line-height: 1.4; min-width: 14px; text-align: center;
+  }
+  .status-menu-pop {
+    position: absolute; top: calc(100% + 5px); right: 0; z-index: 20;
+    display: flex; flex-direction: column; width: 280px; max-height: 360px; overflow-y: auto;
+    background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); padding: 4px 0;
+  }
+  .status-empty { padding: 12px 14px; font-size: 12px; color: var(--ink-3); font-style: italic; }
+  .status-row { padding: 7px 14px; border-bottom: 1px solid var(--line); }
+  .status-row:last-of-type { border-bottom: none; }
+  .status-row-error { border-left: 2px solid var(--danger); padding-left: 12px; }
+  .status-row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .status-row-label { font-size: 12px; color: var(--ink); font-weight: 600; }
+  .status-row-dismiss { border: none; background: none; cursor: pointer; color: var(--ink-3); font-size: 14px; line-height: 1; padding: 0 0 0 8px; opacity: .55; }
+  .status-row-dismiss:hover { opacity: 1; color: var(--danger); }
+  .status-row .progress { padding: 4px 0 0; }
+  .status-row-done { font-size: 11.5px; color: var(--ink-2); padding-top: 2px; }
+  .status-row-error-detail { font-size: 11.5px; color: var(--danger); padding-top: 2px; }
+  .status-clear-finished {
+    margin: 4px 14px 2px; padding: 6px 10px; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    background: var(--panel-2); color: var(--ink-2); font-family: var(--sans); font-size: 11.5px; cursor: pointer;
+  }
+  .status-clear-finished:hover { color: var(--accent); border-color: var(--accent-line); }
+
   .menubar-mobile { gap: 8px; padding: 7px 10px; }
   .mobile-workspace-label {
     flex: 0 0 auto; font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--ink-3);
@@ -4505,7 +4540,7 @@
       },
       w.label
     );
-    return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item)));
+    return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item), /* @__PURE__ */ React.createElement(StatusMenu, null)));
   }
   function WorkspacePaperCue({ ctx }) {
     if (!ctx) return null;
@@ -4620,6 +4655,61 @@
   });
   registerWorkspace({ id: "help", label: "Help", order: 100, utility: true });
   registerWorkspace({ id: "settings", label: "Settings", order: 110, utility: true });
+  function StatusJobRow({ job, onDismiss }) {
+    const finished = job.status === "done" || job.status === "error";
+    return /* @__PURE__ */ React.createElement("div", { className: "status-row" + (job.status === "error" ? " status-row-error" : "") }, /* @__PURE__ */ React.createElement("div", { className: "status-row-head" }, /* @__PURE__ */ React.createElement("span", { className: "status-row-label" }, job.label), finished && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "status-row-dismiss",
+        title: "Dismiss",
+        "aria-label": `Dismiss ${job.label}`,
+        onClick: () => onDismiss(job)
+      },
+      "\xD7"
+    )), job.status === "error" ? /* @__PURE__ */ React.createElement("div", { className: "status-row-error-detail" }, job.detail || "Failed.") : job.status === "done" ? /* @__PURE__ */ React.createElement("div", { className: "status-row-done" }, job.progress ? `${job.progress.label} \u2014 ${job.progress.current} / ${job.progress.total}` : "Done") : /* @__PURE__ */ React.createElement(ProgressBar, { label: "Working\u2026", progress: job.progress }));
+  }
+  function StatusMenu() {
+    const [open, setOpen] = useState(false);
+    const [jobs, setJobs] = useState([]);
+    const ref = useRef(null);
+    const load = useCallback(() => {
+      api("/status/jobs").then((r) => {
+        if (r.ok) setJobs(r.data.jobs);
+      });
+    }, []);
+    useEffect(() => {
+      load();
+      const id = setInterval(load, open ? 2e3 : 12e3);
+      return () => clearInterval(id);
+    }, [open, load]);
+    useEffect(() => {
+      if (!open) return;
+      const onDoc = (e) => {
+        if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      };
+      document.addEventListener("mousedown", onDoc);
+      return () => document.removeEventListener("mousedown", onDoc);
+    }, [open]);
+    const dismiss = (job) => {
+      setJobs((js) => js.filter((j) => j.job_id !== job.job_id));
+      apiPost(`/status/jobs/${job.store}/${job.job_id}/dismiss`, {});
+    };
+    const clearFinished = () => {
+      setJobs((js) => js.filter((j) => j.status !== "done" && j.status !== "error"));
+      apiPost("/status/jobs/clear-finished", {});
+    };
+    const hasFinished = jobs.some((j) => j.status === "done" || j.status === "error");
+    return /* @__PURE__ */ React.createElement("span", { className: "status-menu", ref }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "menubar-item status-menu-toggle" + (open ? " active" : ""),
+        onClick: () => setOpen((o) => !o),
+        title: "Active and recently-finished processes"
+      },
+      "Status",
+      jobs.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "status-badge" }, jobs.length)
+    ), open && /* @__PURE__ */ React.createElement("div", { className: "status-menu-pop" }, jobs.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "status-empty" }, "Nothing running.") : jobs.map((j) => /* @__PURE__ */ React.createElement(StatusJobRow, { key: j.store + ":" + j.job_id, job: j, onDismiss: dismiss })), hasFinished && /* @__PURE__ */ React.createElement("button", { className: "status-clear-finished", onClick: clearFinished }, "Clear all finished")));
+  }
   function creditItems(items) {
     return Array.isArray(items) ? items : [items];
   }

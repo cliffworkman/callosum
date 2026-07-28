@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-28 — Increment 406: "Status" menu — cross-feature async-job popover
+
+- **Files:** `app/backend/api/job_store.py`, `app/backend/api/routers/status.py` (new),
+  `app/backend/api/app.py`, `app/frontend/js/04c_status.jsx` (new), `app/frontend/js/04b_workspaces.jsx`,
+  `app/frontend/styles.css`, `.claude/DESIGN.md`, `tests/test_status.py` (new), `tests/test_job_store.py`,
+  `.claude/security-audits/2026-07-28_status-jobs.md` (new),
+  `.claude/docs/increment-notes/INCREMENT-406-NOTES.md` (new).
+- **What:** a "Status" item after Help/Settings on the menu bar — click to open a popover listing
+  every active/recently-finished async job across the ~30 independent `JobStore`s the app already
+  keeps, with real progress+ETA where available and an honest indeterminate spinner where not.
+  Dismiss per-row or clear all finished; a 1-hour auto-expiry backstop on top of manual dismiss.
+- **Why:** requested 2026-07-28 (backlog #50) — no single place existed to see what's running
+  across features (Ask, a Meta-Analysis refresh, a cited-by refresh, ...) at once.
+- **Revert:** remove the `status` router/import from `app.py`, delete `routers/status.py` and
+  `js/04c_status.jsx`, revert the `job_store.py`/`04b_workspaces.jsx`/`styles.css` edits.
+
 ## 2026-07-28 — Increment 405: fix PDF viewer Two-up mode flicker (regression)
 
 - **Files:** `app/frontend/styles.css`, `.claude/DESIGN.md`,

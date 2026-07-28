@@ -695,3 +695,9 @@ plus later reconciliation findings.)*
   collection with watched-folder discovery, workflow/files/tasks/references/activity, exact content checkpoints,
   snapshot-bound deterministic checks/findings, reverse Library navigation, dedicated facets/context actions, and
   tab reorder parity. The canonical design source now lives in `future-tracks/`.
+- **#50 "Status" menu — cross-feature async-job popover, Phase 1 — inc 406.** A click-toggle popover
+  after Help/Settings aggregating every `JobStore` on `api.state` (~30 features) via reflection, with
+  real progress/ETA where a job reports it and an honest indeterminate spinner where it doesn't; per-row
+  dismiss + clear-all-finished + a 1-hour auto-expiry backstop. **Phase 2 (real per-pipeline progress for
+  Ask, statcheck-all, meta-analysis refresh, axis scoring/suggest, dedup scan) remains open — revisit if
+  wanted, no urgency.**

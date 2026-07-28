@@ -17,18 +17,36 @@ def test_mark_progress_sets_running_with_determinate_progress() -> None:
     assert (job.progress.current, job.progress.total, job.progress.label) == (3, 10, "Embedding papers")
 
 
-def test_done_and_error_carry_no_progress() -> None:
+def test_mark_done_carries_forward_the_last_known_progress() -> None:
+    # inc 406: previously mark_done discarded progress entirely — a finished job's row couldn't say what it
+    # was partway through. Now it's preserved unless a caller passes a different snapshot explicitly.
     store: JobStore = JobStore()
     job_id = store.create()
-    store.mark_progress(job_id, 5, 5, "x")  # mid-run progress …
-    store.mark_done(job_id, {"ok": True})  # … is cleared once the job finishes
+    store.mark_progress(job_id, 5, 5, "x")
+    store.mark_done(job_id, {"ok": True})
     done = store.get(job_id)
-    assert done is not None and done.status == "done" and done.progress is None
+    assert done is not None and done.status == "done"
+    assert done.progress is not None and (done.progress.current, done.progress.total) == (5, 5)
+    assert done.finished_at is not None
 
+
+def test_mark_done_accepts_an_explicit_progress_override() -> None:
+    store: JobStore = JobStore()
+    job_id = store.create()
+    store.mark_progress(job_id, 5, 5, "x")
+    override = JobProgress(current=1, total=1, label="final tally")
+    store.mark_done(job_id, {"ok": True}, progress=override)
+    assert store.get(job_id).progress == override
+
+
+def test_mark_error_carries_no_progress_but_stamps_finished_at() -> None:
+    store: JobStore = JobStore()
     other = store.create()
+    store.mark_progress(other, 5, 5, "x")
     store.mark_error(other, "boom")
     err = store.get(other)
     assert err is not None and err.status == "error" and err.progress is None
+    assert err.finished_at is not None
 
 
 def test_started_at_is_stamped_once_and_preserved_across_progress() -> None:

@@ -38,6 +38,7 @@ class Job(Generic[R]):
     detail: str | None = None
     progress: JobProgress | None = None
     started_at: float | None = None  # monotonic clock when the job began running (inc 225 — for the ETA)
+    finished_at: float | None = None  # monotonic clock when the job reached done/error (inc 406 — for expiry)
 
     def eta_seconds(self) -> int | None:
         """Rough seconds-remaining = elapsed-so-far × the remaining fraction (inc 225). None until there's both a
@@ -83,14 +84,50 @@ class JobStore(Generic[R]):
         prev = self._jobs.get(job_id)
         return prev.started_at if prev is not None and prev.started_at is not None else time.monotonic()
 
-    def mark_done(self, job_id: str, result: R) -> None:
+    def mark_done(self, job_id: str, result: R, progress: JobProgress | None = None) -> None:
+        """Marks a job complete. Preserves the job's last known progress (e.g. a final "142 / 142") unless a
+        different snapshot is passed — previously this always discarded it, which meant a finished job's row
+        had no memory of what it was partway through (inc 406, for the cross-feature Status popover)."""
         with self._lock:
-            self._jobs[job_id] = Job(status="done", result=result)
+            prev = self._jobs.get(job_id)
+            final_progress = progress if progress is not None else (prev.progress if prev is not None else None)
+            self._jobs[job_id] = Job(
+                status="done",
+                result=result,
+                progress=final_progress,
+                started_at=prev.started_at if prev is not None else None,
+                finished_at=time.monotonic(),
+            )
 
     def mark_error(self, job_id: str, detail: str) -> None:
         with self._lock:
-            self._jobs[job_id] = Job(status="error", detail=detail)
+            prev = self._jobs.get(job_id)
+            self._jobs[job_id] = Job(
+                status="error",
+                detail=detail,
+                started_at=prev.started_at if prev is not None else None,
+                finished_at=time.monotonic(),
+            )
 
     def get(self, job_id: str) -> Job[R] | None:
         with self._lock:
             return self._jobs.get(job_id)
+
+    def list_all(self) -> list[tuple[str, Job[R]]]:
+        """Thread-safe snapshot of every job in this store (inc 406 — the cross-feature status aggregator)."""
+        with self._lock:
+            return list(self._jobs.items())
+
+    def dismiss(self, job_id: str) -> bool:
+        """Removes a job the user has acknowledged. Returns whether it existed (inc 406)."""
+        with self._lock:
+            return self._jobs.pop(job_id, None) is not None
+
+    def prune_finished_older_than(self, seconds: float) -> None:
+        """Drops done/error jobs whose finished_at is older than `seconds` ago — a lazy sweep-on-read backstop
+        against unbounded growth in a long session, on top of the user's own explicit dismiss (inc 406)."""
+        cutoff = time.monotonic() - seconds
+        with self._lock:
+            stale = [jid for jid, job in self._jobs.items() if job.finished_at is not None and job.finished_at < cutoff]
+            for jid in stale:
+                del self._jobs[jid]

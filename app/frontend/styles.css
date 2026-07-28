@@ -155,6 +155,41 @@
   }
   .menubar-item:hover { background: var(--hover); color: var(--ink); }
   .menubar-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; border-color: var(--accent-line); }
+
+  /* inc 406: "Status" — a click-toggle popover of active/recent async jobs, NOT a workspace (04c_status.jsx). The
+     toggle reuses .menubar-item for a consistent look; only the badge + popover need new rules. Badge uses
+     --accent/--accent-soft (provenance/primary semantics, like .finding-badge) — never green/amber/red, which
+     are reserved for citation-verification status (rule #8). Anchored right (not left, like .add-menu-pop) since
+     Status sits at the far right of the bar and a left-anchored popover would overflow the viewport. */
+  .status-menu { position: relative; display: inline-flex; }
+  .status-menu-toggle { display: inline-flex; align-items: center; gap: 5px; }
+  .status-badge {
+    font-size: 10px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    border-radius: var(--radius-pill); padding: 1px 6px; line-height: 1.4; min-width: 14px; text-align: center;
+  }
+  .status-menu-pop {
+    position: absolute; top: calc(100% + 5px); right: 0; z-index: 20;
+    display: flex; flex-direction: column; width: 280px; max-height: 360px; overflow-y: auto;
+    background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); padding: 4px 0;
+  }
+  .status-empty { padding: 12px 14px; font-size: 12px; color: var(--ink-3); font-style: italic; }
+  .status-row { padding: 7px 14px; border-bottom: 1px solid var(--line); }
+  .status-row:last-of-type { border-bottom: none; }
+  .status-row-error { border-left: 2px solid var(--danger); padding-left: 12px; }
+  .status-row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .status-row-label { font-size: 12px; color: var(--ink); font-weight: 600; }
+  .status-row-dismiss { border: none; background: none; cursor: pointer; color: var(--ink-3); font-size: 14px; line-height: 1; padding: 0 0 0 8px; opacity: .55; }
+  .status-row-dismiss:hover { opacity: 1; color: var(--danger); }
+  .status-row .progress { padding: 4px 0 0; }
+  .status-row-done { font-size: 11.5px; color: var(--ink-2); padding-top: 2px; }
+  .status-row-error-detail { font-size: 11.5px; color: var(--danger); padding-top: 2px; }
+  .status-clear-finished {
+    margin: 4px 14px 2px; padding: 6px 10px; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    background: var(--panel-2); color: var(--ink-2); font-family: var(--sans); font-size: 11.5px; cursor: pointer;
+  }
+  .status-clear-finished:hover { color: var(--accent); border-color: var(--accent-line); }
+
   .menubar-mobile { gap: 8px; padding: 7px 10px; }
   .mobile-workspace-label {
     flex: 0 0 auto; font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--ink-3);
