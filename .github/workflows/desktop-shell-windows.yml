@@ -98,11 +98,20 @@ jobs:
           # Present on every build (not just tag-triggered releases) so a broken signing setup is
           # caught on an ordinary commit, not discovered only when a real release is cut. Tauri's
           # bundler signs the createUpdaterArtifacts output (tauri.conf.json) automatically when
-          # these are set — no separate signing step needed. Empty/unset on a fork's branch-push
-          # (no access to the real secrets) just means an unsigned build with no updater artifact.
+          # these are set. A real run found that GitHub Actions sets the env var to an EMPTY STRING
+          # (not absent) when the secret doesn't exist yet, and Tauri's bundler treats "present but
+          # empty" as "a key was given" — it tries to decode "" as a real key and fails the whole
+          # build, rather than silently skipping signing. So the script below explicitly removes
+          # both vars first if they're blank, restoring genuine absence (an unsigned build, no
+          # updater artifact) instead of a hard failure.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri build
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            Remove-Item Env:\TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+            Remove-Item Env:\TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
+          }
+          npx tauri build
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4

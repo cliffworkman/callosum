@@ -103,10 +103,17 @@ jobs:
           # it isn't trusted — see the next step, which regenerates it AFTER the re-sign below instead,
           # since it's unconfirmed whether Tauri's own packaging step runs before or after
           # bundle.resources is copied in (the exact ordering bug the re-sign step already exists to
-          # fix once).
+          # fix once). A real run found GitHub Actions sets these to an EMPTY STRING (not absent) when
+          # the secret doesn't exist yet, and Tauri's bundler treats "present but empty" as "a key was
+          # given" — it tries to decode "" and fails the whole build. The script below restores genuine
+          # absence when blank, instead of a hard failure.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri build
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            unset TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+          fi
+          npx tauri build
 
       - name: "Re-sign the .app AFTER resources are bundled (real run found the default ad-hoc sign happens before bundle.resources is copied in, leaving spctl reporting \"code has no resources but signature indicates they must be present\" — Gatekeeper then reports the app as \"damaged\" instead of the milder unidentified-developer warning)"
         run: |
