@@ -116,14 +116,19 @@ jobs:
           echo "--- spctl assessment of the freshly re-signed .app (no quarantine yet) ---"
           spctl -a -vvv "$APP" 2>&1 || true
 
-      - name: "Regenerate the updater artifact from the correctly-resigned .app (don't trust Tauri's own createUpdaterArtifacts output — its sequencing relative to the resign step above is unconfirmed)"
-        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+      - name: "Regenerate the updater artifact from the correctly-resigned .app (skipped gracefully if unsigned; don't trust Tauri's own createUpdaterArtifacts output either way — its sequencing relative to the resign step above is unconfirmed)"
         working-directory: app/desktop-shell
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           set -x
+          # The `secrets` context can't be referenced in a step `if:` (a GitHub Actions parse-time
+          # restriction — "Unrecognized named-value: 'secrets'"), so the skip check lives here instead.
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::warning::TAURI_SIGNING_PRIVATE_KEY not set — skipping the updater-artifact regen (unsigned build, no repo secrets configured yet)"
+            exit 0
+          fi
           APP=$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name "*.app")
           VERSION=$(jq -r '.version' src-tauri/tauri.conf.json)
           ARTIFACT="src-tauri/target/release/bundle/macos/Callosum_${VERSION}_aarch64.app.tar.gz"
