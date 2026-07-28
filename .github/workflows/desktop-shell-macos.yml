@@ -103,17 +103,24 @@ jobs:
           # it isn't trusted — see the next step, which regenerates it AFTER the re-sign below instead,
           # since it's unconfirmed whether Tauri's own packaging step runs before or after
           # bundle.resources is copied in (the exact ordering bug the re-sign step already exists to
-          # fix once). A real run found GitHub Actions sets these to an EMPTY STRING (not absent) when
-          # the secret doesn't exist yet, and Tauri's bundler treats "present but empty" as "a key was
-          # given" — it tries to decode "" and fails the whole build. The script below restores genuine
-          # absence when blank, instead of a hard failure.
+          # fix once). Two real failure modes found by actually running this before the signing
+          # secrets existed: (1) GitHub Actions sets these to an EMPTY STRING (not absent) when the
+          # secret doesn't exist — Tauri treats "present but empty" as "a key was given" and fails
+          # trying to decode "". (2) tauri.conf.json already has a REAL public key baked in — even
+          # with the env vars genuinely absent, Tauri demands a matching private key unconditionally
+          # ("A public key has been found, but no private key"). So when unsigned, override
+          # bundle.createUpdaterArtifacts to false for this build only (via `-c`, not editing
+          # tauri.conf.json) — an honestly-unsigned build, not a hard failure. Stops firing once the
+          # two secrets are set.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            unset TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            npx tauri build
+          else
+            echo "No signing key configured yet -- building unsigned, no updater artifact"
+            npx tauri build -c '{"bundle":{"createUpdaterArtifacts":false}}'
           fi
-          npx tauri build
 
       - name: "Re-sign the .app AFTER resources are bundled (real run found the default ad-hoc sign happens before bundle.resources is copied in, leaving spctl reporting \"code has no resources but signature indicates they must be present\" — Gatekeeper then reports the app as \"damaged\" instead of the milder unidentified-developer warning)"
         run: |
