@@ -254,6 +254,17 @@ everywhere showed the hover-hint permanently. Fix: set the rest-state on `*` (un
 so every element gets its own explicit value and nothing depends on inheriting through the always-hovering
 root; `*:hover` then only wins for the element the pointer is actually within (or a descendant of).
 
+**Reserved gutter on `.pdf-scroll` (inc 405).** The PDF viewer's fit-width/two-up mode
+(`30_viewer.jsx`) measures `.pdf-scroll`'s `clientWidth` to compute the page-fit `scale`, then
+re-renders every page at that scale — which changes the scroller's content height. If the
+vertical scrollbar toggles on/off as a result, `clientWidth` itself shifts, feeding a *different*
+`scale` back into the same measurement: an unbounded oscillation (visible as a flicker between
+single- and two-up layout). `.pdf-scroll` carries `scrollbar-gutter: stable` so the gutter is
+always reserved and `clientWidth` never depends on whether a scrollbar is actually showing —
+this is the one exception to the "global, not per-panel" scrollbar styling above, and it's
+layout-only (Firefox/Chromium; WKWebView's overlay scrollbars on macOS never reserved width to
+begin with, so the mechanism doesn't apply there).
+
 ### Feedback — long async ops get a progress bar (a standing rule)
 **Any user-triggered async operation that can take more than ~1s shows the indeterminate `ProgressBar`** while
 it is pending — never a frozen-looking idle control. The shared component is `<ProgressBar />` (an indeterminate

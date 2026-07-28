@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-28 — Increment 405: fix PDF viewer Two-up mode flicker (regression)
+
+- **Files:** `app/frontend/styles.css`, `.claude/DESIGN.md`,
+  `.claude/docs/increment-notes/INCREMENT-405-NOTES.md` (new).
+- **What:** added `scrollbar-gutter: stable` to `.pdf-scroll` so its `clientWidth` no longer
+  shifts when its native scrollbar toggles on/off.
+- **Why:** the viewer's fit-width/two-up effect derives `scale` from `.pdf-scroll`'s
+  `clientWidth`; the scrollbar's own on/off toggle (driven by the effect's own re-renders) fed
+  back into that measurement, causing an unbounded oscillation between single- and two-up
+  layout — user-reported via a screen recording, root-caused by frame-by-frame inspection.
+  Latent since two-up's introduction (`53fd37b`); today's inc-396 scrollbar-width CSS
+  (`a37a855`) changed the exact pixel delta this borderline calculation is sensitive to, making
+  it newly visible as a "worked before" regression.
+- **Revert:** remove the `scrollbar-gutter: stable` declaration from `.pdf-scroll` in
+  `app/frontend/styles.css`.
+
 ## 2026-07-27 — Increment 404: wire Discover > Journals to WIP manuscripts
 
 - **Files:** `app/backend/persistence/{schema_wip_journal_runs.py (new),schema_wip.py,schema.py,

@@ -2229,7 +2229,10 @@
   .pdf-zoom button:hover { border-color: var(--accent); color: var(--accent); }
   .pdf-zoom-val { font-family: var(--mono); font-size: 11px; color: var(--ink-3); min-width: 38px; text-align: center; }
   .pdf-pageind { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
-  .pdf-scroll { flex: 1 1 auto; min-height: 0; min-width: 0; overflow: auto; background: var(--panel-2); }
+  /* scrollbar-gutter: stable (inc 405): fit-width/two-up derives `scale` from this element's clientWidth
+     (30_viewer.jsx) -- without a reserved gutter, the vertical scrollbar toggling on/off as content height
+     changes shifts clientWidth, which fed back into scale and oscillated indefinitely. See DESIGN.md. */
+  .pdf-scroll { flex: 1 1 auto; min-height: 0; min-width: 0; overflow: auto; scrollbar-gutter: stable; background: var(--panel-2); }
   /* Viewer body row: the page scroller + an optional annotation panel beside it. */
   .pdf-body { flex: 1 1 auto; min-height: 0; display: flex; }
   /* inc 215: a thin highlight minimap beside the scroller — one tick per highlight at its page fraction. */
