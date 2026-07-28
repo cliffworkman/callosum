@@ -27,6 +27,7 @@ name: Desktop shell (Linux)
 
 on:
   workflow_dispatch: {}
+  workflow_call: {} # called by desktop-shell-release.yml on a pushed version tag; branch-push path below unaffected
   push:
     branches: [main]
     paths:
@@ -36,7 +37,10 @@ on:
       - ".github/workflows/desktop-shell-linux.yml"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # A hardcoded literal, not ${{ github.workflow }} -- when called via workflow_call from
+  # desktop-shell-release.yml, github.workflow can resolve to the CALLER's name, which would collide all
+  # three platforms' concurrency groups and cancel each other out via cancel-in-progress.
+  group: desktop-linux-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -44,6 +48,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: "Guard: on a tag push, the tag version must match tauri.conf.json/Cargo.toml/package.json"
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          set -e
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CONF=$(jq -r '.version' app/desktop-shell/src-tauri/tauri.conf.json)
+          CARGO=$(grep -m1 '^version' app/desktop-shell/src-tauri/Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+          PKG=$(jq -r '.version' app/desktop-shell/package.json)
+          if [ "$TAG_VERSION" != "$CONF" ] || [ "$TAG_VERSION" != "$CARGO" ] || [ "$TAG_VERSION" != "$PKG" ]; then
+            echo "::error::tag v$TAG_VERSION does not match tauri.conf.json=$CONF, Cargo.toml=$CARGO, package.json=$PKG"
+            exit 1
+          fi
+          echo "tag v$TAG_VERSION matches tauri.conf.json/Cargo.toml/package.json"
 
       - name: Install Tauri's Linux system dependencies
         run: |

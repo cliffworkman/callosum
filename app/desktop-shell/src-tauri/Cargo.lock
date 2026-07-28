@@ -370,7 +370,7 @@ dependencies = [
 
 [[package]]
 name = "callosum-shell"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "libc",
  "reqwest 0.12.28",

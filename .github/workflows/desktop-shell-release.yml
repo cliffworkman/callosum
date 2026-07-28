@@ -1,0 +1,70 @@
+name: Desktop shell (release)
+
+# Fires only on a pushed version tag (vX.Y.Z) -- the deliberate "cut a release" act. Calls the three
+# existing platform workflows as reusable workflows (their own build/verify logic is untouched, not
+# duplicated), then -- only if all three succeed -- publishes ONE GitHub Release for the tag with all
+# three installers attached. An ordinary push to main never reaches this file at all; the branch-push
+# path in desktop-shell-{windows,macos,linux}.yml is completely unaffected by this addition.
+#
+# Deliberately no `paths:` filter here: GitHub's paths filter diffs commits since the last matching push,
+# which is unreliable for a tag pushed after its commit already landed on main via the normal branch push
+# -- a pushed tag is already the deliberate act, so this trigger is intentionally unconditional.
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build-windows:
+    uses: ./.github/workflows/desktop-shell-windows.yml
+
+  build-macos:
+    uses: ./.github/workflows/desktop-shell-macos.yml
+
+  build-linux:
+    uses: ./.github/workflows/desktop-shell-linux.yml
+
+  publish:
+    # Only runs once all three platforms have actually succeeded -- never publishes a partial release.
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # the repo's default GITHUB_TOKEN is read-only; this is the one job that needs write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # full history so `git tag -l --format` below can read the annotated tag's message
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: callosum-windows-x64
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: callosum-macos-arm64
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: callosum-linux-x86_64
+          path: dist
+
+      - name: Read the annotated tag's own message as the release body
+        id: tagmsg
+        run: |
+          {
+            echo 'body<<CALLOSUM_RELEASE_BODY_EOF'
+            git tag -l --format='%(contents)' "${{ github.ref_name }}"
+            echo 'CALLOSUM_RELEASE_BODY_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish the GitHub Release
+        # SHA-pinned (not the mutable @v2 tag) since this step runs with contents: write.
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Callosum ${{ github.ref_name }}
+          body: ${{ steps.tagmsg.outputs.body }}
+          generate_release_notes: true
+          files: dist/**
