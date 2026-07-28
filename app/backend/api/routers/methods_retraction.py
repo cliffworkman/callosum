@@ -142,7 +142,9 @@ def _run_retraction_all_job(app: FastAPI, job_id: str) -> None:
                 outcome = run_write(engine, lambda conn, pid=paper_id: process(conn, pid))
             except Exception as exc:  # noqa: BLE001 — one bad paper never aborts the batch
                 _log.warning("retraction batch: skipped paper %s: %s", paper_id, exc)
+                jobs.mark_progress(job_id, total, len(ids), "Checking retractions")
                 continue
+            jobs.mark_progress(job_id, total, len(ids), "Checking retractions")
             if outcome.status_kind != "unchecked":
                 checked += 1
             if outcome.merged is not None and outcome.merged.status == "retracted":

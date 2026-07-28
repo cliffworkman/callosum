@@ -695,9 +695,17 @@ plus later reconciliation findings.)*
   collection with watched-folder discovery, workflow/files/tasks/references/activity, exact content checkpoints,
   snapshot-bound deterministic checks/findings, reverse Library navigation, dedicated facets/context actions, and
   tab reorder parity. The canonical design source now lives in `future-tracks/`.
-- **#50 "Status" menu — cross-feature async-job popover, Phase 1 — inc 406.** A click-toggle popover
+- **#50 "Status" menu — cross-feature async-job popover.** Phase 1 (inc 406): a click-toggle popover
   after Help/Settings aggregating every `JobStore` on `api.state` (~30 features) via reflection, with
   real progress/ETA where a job reports it and an honest indeterminate spinner where it doesn't; per-row
-  dismiss + clear-all-finished + a 1-hour auto-expiry backstop. **Phase 2 (real per-pipeline progress for
-  Ask, statcheck-all, meta-analysis refresh, axis scoring/suggest, dedup scan) remains open — revisit if
-  wanted, no urgency.**
+  dismiss + clear-all-finished + a 1-hour auto-expiry backstop. **Phase 2 Wave 1 (inc 407, CLOSED):**
+  audited every "library refresh"-style job for real-progress coverage — citation-count refresh, metadata
+  enrichment, library scan, library import, and bundle import already had it; the one gap
+  (`retraction_jobs`, the library-wide retraction batch) got a one-line `mark_progress` fix, live-verified
+  against a disposable instance. **Phase 2 Wave 2 (Ask real progress) remains open, design recorded** in
+  `.claude/backups/plans/2026-07-28_status-phase2-waves.md`: leave retrieval+generation indeterminate (the
+  LLM call is a single opaque blocking request — no sub-progress signal, and a cache hit would make a naive
+  ETA misleading), instrument only the per-candidate/per-citation verification loop
+  (`app/backend/summarization/pipeline.py:108-114`) once its count is known post-generation. `dedup_jobs`
+  stays deliberately indeterminate too (no per-item loop exposed to the router — would need restructuring
+  the duplicate-detection algorithm itself, not a trivial add). Revisit Wave 2 when wanted, no urgency.

@@ -368,9 +368,16 @@ def test_retraction_endpoints_and_filter(temp_db_url):
     # library-wide batch
     run = client.post("/methods/retraction/run")
     assert run.status_code == 202
-    done = client.get(f"/methods/retraction/run/{run.json()['job_id']}").json()
+    job_id = run.json()["job_id"]
+    done = client.get(f"/methods/retraction/run/{job_id}").json()
     assert done["status"] == "done"
     assert done["summary"]["flagged"] == 1 and done["summary"]["corrections"] == 1
+
+    # inc 407: the batch reports real per-paper progress (Status popover coverage) — mark_done (inc 406)
+    # carries the last known progress forward, so the finished job still shows it was 3/3.
+    job = client.app.state.retraction_jobs.get(job_id)
+    assert job.progress is not None
+    assert (job.progress.current, job.progress.total, job.progress.label) == (3, 3, "Checking retractions")
 
     # A flagged retracted, B honestly checked-clean
     assert client.get(f"/papers/{a}/retraction").json()["status"] == "retracted"

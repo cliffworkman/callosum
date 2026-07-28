@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-28 — Increment 407: Status Phase 2 Wave 1 — library-refresh progress coverage
+
+- **Files:** `app/backend/api/routers/methods_retraction.py`, `tests/test_retraction.py`,
+  `.claude/docs/increment-notes/INCREMENT-407-NOTES.md` (new).
+- **What:** added `mark_progress` to the library-wide retraction batch's per-paper loop — the
+  one gap found in an audit of every "library refresh"-style job (citation-count refresh,
+  metadata enrichment, library scan, library import, and bundle import already had real
+  progress; nothing else needed building).
+- **Why:** Cliff asked to fold "library refreshes (citations & metadata)" into the next Status
+  wave; auditing first (rather than assuming work was needed) found it was already done except
+  for this one adjacent batch job.
+- **Revert:** remove the two `jobs.mark_progress(...)` calls from `_run_retraction_all_job`'s
+  loop and the added assertion in `test_retraction_endpoints_and_filter`.
+
 ## 2026-07-28 — Increment 406 fix: Status popover clipped by `.menubar`'s `overflow-y: hidden`
 
 - **Files:** `app/frontend/js/04c_status.jsx`, `app/frontend/styles.css`,
