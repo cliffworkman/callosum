@@ -122,6 +122,41 @@ All three platforms (Windows, macOS, Linux) are green as of this addendum, still
 not yet set) — confirming the whole pipeline builds and verifies cleanly end-to-end even before
 Cliff's own remaining manual step.
 
+## Addendum 2 — v0.3.0 shipped for real the same night, two more real bugs found and fixed live
+
+Cliff set both `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD` GitHub secrets the same session, and — since
+the feature is genuinely low-stakes right now (his own words: "n = 3 max, including me," and
+nobody's been told to update yet) — chose to skip a throwaway rc1/rc2 rehearsal and ship the real
+`v0.3.0` directly (the version bump: `chore(release)` commit, tag `v0.3.0`, real release notes).
+The full tag-triggered release pipeline ran clean end to end — all three platforms, real signing,
+`latest.json` published — but two more real bugs surfaced only by inspecting the actually-published
+release, both fixed live before calling it done:
+
+1. **The release body showed the last commit's message, not the annotated tag's message.** `git
+   tag -l --format='%(contents)' "${{ github.ref_name }}"` didn't return the real tag body on the
+   runner the way it does locally — not yet root-caused (a `actions/checkout` tag-fetching
+   nuance is the leading suspect). Worked around by hand for this release
+   (`gh release edit --notes-file` with the real tag message read locally); the underlying
+   workflow step is unchanged and will need a real fix before the next release, or every future
+   release body will have the same problem.
+2. **macOS's `latest.json` pointed at the wrong artifact.** `createUpdaterArtifacts: true`
+   produces its OWN auto-signed `Callosum.app.tar.gz` (no version/arch in the name) *in addition
+   to* the manually-regenerated, trusted `Callosum_0.3.0_aarch64.app.tar.gz` this workflow
+   deliberately creates instead (see the main entry above — the ordering-relative-to-resign
+   question was never resolved, just designed around). `ls dist/*.app.tar.gz | head -1` picked the
+   untrusted one alphabetically. Fixed live: rebuilt `latest.json` by hand from the already-correct
+   published signature, deleted the stray untrusted asset from the release, and fixed
+   `desktop-shell-macos.yml` to delete Tauri's own auto-generated artifact right after the manual
+   regen, so this can't recur on the next real release.
+
+**v0.3.0 is now live and correct** (verified: `latest.json`'s macOS entry points at
+`Callosum_0.3.0_aarch64.app.tar.gz` with its matching signature; the release body is the real
+release notes). Cliff's own current install is a `v0.2.0` copy with no updater code — it (and
+his two testers') will need one final manual reinstall to cross into `v0.3.0`; every release
+after this one should update itself. **Not yet done**: a real live test of the actual update
+*mechanism* (does a running v0.3.0 detect and offer a hypothetical v0.3.1) — that only happens
+naturally whenever the next real patch ships.
+
 ## Pytest / build gates
 
 `pytest tests/test_frontend_assembly.py -q` → 53 passed.

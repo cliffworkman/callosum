@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-28 — Increment 409, v0.3.0 shipped live: two more real bugs found + fixed
+
+- **Files:** `.github/workflows/desktop-shell-macos.yml`, `.claude/docs/increment-notes/
+  INCREMENT-409-NOTES.md`, `.claude/docs/INCREMENT-BACKLOG.md`, plus the live `v0.3.0` GitHub
+  Release's `latest.json`/body assets (patched by hand via `gh release edit`/`gh release upload`).
+- **What:** shipped `v0.3.0` for real (Cliff set the signing secrets + chose to skip a rehearsal
+  given low stakes). Found and fixed live: macOS's `latest.json` pointed at Tauri's own untrusted
+  auto-signed artifact instead of the manually-regenerated trusted one (workflow fixed so this
+  can't recur); the release body pulled the wrong git message (worked around by hand for this
+  release, the underlying workflow bug is still open — see backlog #49).
+- **Why:** the only way to find these was to actually publish a real release and inspect it.
+- **Revert:** n/a — `v0.3.0` is live; see the increment notes addendum for full detail.
+
 ## 2026-07-28 — Increment 409 follow-up: real CI fixes (secrets-in-if:, reqwest json feature, unsigned-build handling)
 
 - **Files:** `.github/workflows/desktop-shell-{windows,macos}.yml`, `app/desktop-shell/src-tauri/

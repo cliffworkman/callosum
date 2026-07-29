@@ -179,8 +179,17 @@
   installers, and (release-engineering pass, 2026-07-28) installers now publish as real, public GitHub
   Releases on a version tag rather than only ephemeral CI artifacts. The OS-keychain half shipped inc 152.
   Remaining desktop-adjacent work continues under **#49** below (the in-app auto-updater) rather than here.
-- ✅ **#49 In-app auto-updater for the desktop shell — CODE SHIPPED 2026-07-28 (inc 409), pending
-  Cliff's own secret-setup + a rehearsal release before it's live.** Triggered urgently by the first
+- ✅ **#49 In-app auto-updater for the desktop shell — LIVE 2026-07-28 (inc 409).** `v0.3.0`
+  shipped for real the same night (Cliff set the GitHub secrets + chose to skip a throwaway
+  rehearsal since stakes are low — "n = 3 max, including me"). **One real follow-up bug still
+  open, not code-fixed yet:** the release body pulls from the last commit's message instead of
+  the annotated tag's own message (`git tag -l --format='%(contents)'` didn't return what it does
+  locally — a `checkout`-on-a-tag-push nuance, not yet root-caused) — worked around by hand for
+  v0.3.0 (`gh release edit --notes-file`), but `desktop-shell-release.yml`'s own step is
+  unchanged, so **the next real release will have the same wrong-body problem until this is
+  fixed**. A second real bug (macOS `latest.json` pointing at Tauri's own untrusted auto-signed
+  artifact instead of the manually-regenerated trusted one) WAS fixed in the workflow itself
+  (`desktop-shell-macos.yml` now deletes the untrusted one before upload) — that one won't recur. Triggered urgently by the first
   real bug reports (two Mac colleagues) landing the same day. Windows/macOS: periodic check (launch +
   every 6h) via `tauri-plugin-updater`, silent background download, a non-blocking "Restart now" toast
   (`04d_update.jsx`) — never forced, matches the Spotify model Cliff asked for. Linux (`.deb`-only;
