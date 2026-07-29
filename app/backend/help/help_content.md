@@ -456,6 +456,7 @@ Outcomes:
 
 - **A copy was imported.** The PDF is saved into your local library, named like the rest of your library (`Authors - Year - Venue.pdf`), and opens in the viewer with its OA label.
 - **No authorized open-access copy found.** No source had a free, authorized PDF. Callosum will not fetch anything paywalled.
+- **A download failed.** A source did point to a copy, but the download itself didn't succeed — some publishers block automated downloads (an HTTP error) or serve something that isn't actually a PDF. Callosum reports the error rather than silently treating the paper as unavailable; try again later, or fall back to **Get via my library** or your own browser.
 
 Privacy: acquisition is local-first. The PDF is stored on your machine, not on any server. The only things that leave your computer are ordinary metadata lookups to the public open-access databases above (plus the download of the copy they point to) — this is normal public lookup, **not** the Gemini data-egress gate, and it never sends your library text to an LLM.
 

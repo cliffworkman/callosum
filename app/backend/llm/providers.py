@@ -227,6 +227,21 @@ def _responses_text(data: dict) -> str:
     return "".join(parts)
 
 
+# Known-status friendly lead-ins (inc 413) — a wrong/expired key, a rate limit, or a provider outage produced
+# the same raw-JSON-dump text as the "no key at all" case the pre-check in complete() catches; this covers the
+# cases that still reach the network. Unclassified statuses keep today's plain "HTTP {code}: {body}" — we only
+# guess a friendly interpretation for codes we're confident about, never for an arbitrary custom provider's
+# unknown error shape. The raw detail is always appended, never hidden (evidence always shown, invariant #4).
+def _friendly_status_prefix(status: int) -> str | None:
+    if status in (401, 403):
+        return "Authentication failed for this provider — check the saved API key in Settings."
+    if status == 429:
+        return "Rate limited by the provider — wait a moment and try again."
+    if 500 <= status < 600:
+        return "The provider is temporarily unavailable — try again shortly."
+    return None
+
+
 def _post(url: str, payload: dict, headers: dict, api_key: str | None, http_client) -> dict:
     import httpx
 
@@ -243,7 +258,9 @@ def _post(url: str, payload: dict, headers: dict, api_key: str | None, http_clie
             body = exc.response.text[:200]
         except Exception:
             pass
-        raise ProviderError(_redact(f"HTTP {exc.response.status_code}: {body}", api_key)) from exc
+        detail = f"HTTP {exc.response.status_code}: {body}"
+        friendly = _friendly_status_prefix(exc.response.status_code)
+        raise ProviderError(_redact(f"{friendly} ({detail})" if friendly else detail, api_key)) from exc
     except Exception as exc:  # noqa: BLE001 — network / decode failures
         raise ProviderError(_redact(str(exc), api_key)) from exc
 

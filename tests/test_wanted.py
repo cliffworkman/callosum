@@ -8,6 +8,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
+from app.backend.acquisition.fetch import OaFetchError
 from app.backend.acquisition.registry import OaLocation
 from app.backend.acquisition.wanted import run_recheck
 from app.backend.api import create_app
@@ -204,6 +205,43 @@ def test_recheck_error_does_not_abort_run(temp_db_url):
     summary = run_recheck(engine, reg, download=dl, import_=_FakeImport())
 
     assert summary["checked"] == 2 and summary["errors"] == 1 and len(summary["acquired"]) == 1
+
+
+def test_recheck_error_preserves_exception_message(temp_db_url):
+    """The bulk path must not collapse a raised exception to just its class name — the single-paper acquire
+    endpoint already preserves the full message; the bulk path previously discarded it, making every one of
+    OaFetchError's several distinct messages indistinguishable in the Wanted list (inc 414)."""
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        wid = wanted_repo.add_wanted(conn, doi="10.1/boom")
+    reg = _FakeRegistry({"10.1/boom": _loc(url="https://oa.example/boom.pdf")})
+
+    class _RaisingDownload:
+        def __call__(self, location):
+            raise OaFetchError("downloaded bytes are not a PDF (missing %PDF- header)")
+
+    run_recheck(engine, reg, download=_RaisingDownload(), import_=_FakeImport())
+
+    with engine.begin() as conn:
+        row = wanted_repo.get_wanted(conn, wid)
+    assert row["last_result"] == "error: OaFetchError: downloaded bytes are not a PDF (missing %PDF- header)"
+
+
+def test_recheck_error_caps_result_length(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        wid = wanted_repo.add_wanted(conn, doi="10.1/boom")
+    reg = _FakeRegistry({"10.1/boom": _loc(url="https://oa.example/boom.pdf")})
+
+    class _RaisingDownload:
+        def __call__(self, location):
+            raise RuntimeError("x" * 500)
+
+    run_recheck(engine, reg, download=_RaisingDownload(), import_=_FakeImport())
+
+    with engine.begin() as conn:
+        row = wanted_repo.get_wanted(conn, wid)
+    assert len(row["last_result"]) <= 100
 
 
 # --- endpoints --------------------------------------------------------------------------------------------

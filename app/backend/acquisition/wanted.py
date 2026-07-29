@@ -26,6 +26,7 @@ from app.backend.persistence.repository import create_paper
 logger = logging.getLogger("callosum.acquisition.wanted")
 
 MAX_RECHECK_PER_RUN = 200  # politeness/resource cap; logged (never silent) if it truncates a run
+_MAX_RESULT_LEN = 100  # matches wanted_items.last_result's declared width (schema.py)
 
 
 def run_recheck(
@@ -91,8 +92,13 @@ def run_recheck(
                 }
             )
         except Exception as exc:  # per-item; one bad item never aborts the run
+            # Preserve the message (not just the exception class), matching the single-paper acquire
+            # endpoint's detail (routers/acquisition.py) — the bulk path was collapsing every one of
+            # OaFetchError's several distinct causes (not-a-PDF, HTTP 403, oversize, ...) to the same
+            # indistinguishable "error: OaFetchError" (inc 414).
+            detail = f"error: {type(exc).__name__}: {exc}"[:_MAX_RESULT_LEN]
             with engine.begin() as conn:
-                wanted_repo.mark_checked(conn, row["id"], result=f"error: {type(exc).__name__}")
+                wanted_repo.mark_checked(conn, row["id"], result=detail)
             summary["errors"] += 1
     return summary
 

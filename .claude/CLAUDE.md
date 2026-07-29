@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 412** (see Increment workflow) with **1683 pytest tests
+It is currently at **Increment 414** (see Increment workflow) with **1695 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -161,6 +161,10 @@ the full per-increment narrative for all other increments now lives in the reloc
   before any network call with a friendly local message (mirroring `/settings/test-key`'s existing pre-check)
   instead of letting a raw provider auth error (e.g. Anthropic's bare "x-api-key header is required" JSON)
   reach the user — fixed at the one shared seam, so every LLM feature benefits without a per-router change.
+  **Inc 413** extends this to real (not just missing) provider rejections that only surface once the network
+  call actually happens: `_post()` now classifies 401/403 ("check the saved API key"), 429 ("rate limited"),
+  and 5xx ("temporarily unavailable") with a friendly lead-in, always keeping the raw `HTTP {code}: {body}`
+  detail appended rather than hidden (invariant #4); an unclassified status keeps the original plain format.
 - **Frontend:** modular source under `app/frontend/` (`index.html` shell + `styles.css` +
   ordered `js/*.jsx` React chunks, React/ReactDOM + pdf.js via CDN), assembled by
   `app/backend/api/frontend.py`: the JSX chunks are concatenated and **precompiled to plain JS by
@@ -541,7 +545,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 412). Each increment of real work
+callosum is built in **numbered increments** (currently at 414). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

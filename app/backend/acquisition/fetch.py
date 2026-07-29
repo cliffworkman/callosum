@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Any, Protocol
 from uuid import uuid4
@@ -20,6 +21,7 @@ import httpx
 from sqlalchemy import Connection
 
 from app.backend.acquisition.registry import OaLocation, _require_safe_https
+from app.backend.app_settings import resolved_mailto
 from app.backend.metadata.enrichment import enrich_paper_metadata_from_crossref
 from app.backend.pdf_processing.ingest import attach_pdf_to_paper
 from app.backend.persistence.acquisition_repo import set_attachment_oa_labels
@@ -62,10 +64,14 @@ def download_oa_pdf(location: OaLocation, *, fetcher: PdfFetcher | None = None, 
         raise OaFetchError(f"downloaded PDF did not open: {exc}") from exc
     if page_count < 1:
         raise OaFetchError("downloaded PDF has no pages")
-    temp_dir = PROJECT_ROOT / ".local" / "acquire-tmp"
-    temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_dir = _acquire_temp_dir()
     temp_path = temp_dir / f"oa-{uuid4().hex}.pdf"  # name from uuid, never from metadata
-    temp_path.write_bytes(data)
+    try:
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_path.write_bytes(data)
+    except OSError as exc:
+        temp_path.unlink(missing_ok=True)  # in case a partial file was left (e.g. disk-full mid-write)
+        raise OaFetchError(f"could not save the downloaded PDF to a temp location: {exc}") from exc
     return temp_path
 
 
@@ -119,6 +125,19 @@ def library_dir() -> Path:
     OA-acquired PDFs land, and the **default-watched** library folder the rescan always includes (inc 160)."""
     configured = os.environ.get("CALLOSUM_LIBRARY_DIR")
     return Path(configured) if configured else (PROJECT_ROOT / "library")
+
+
+def _acquire_temp_dir() -> Path:
+    """Where a downloaded-but-not-yet-imported PDF's bytes land before ``import_oa_pdf`` moves them into the
+    library (or a failed/aborted request discards them) — NEVER ``PROJECT_ROOT``-relative (unlike
+    ``library_dir()``'s dev-convenience default). In the packaged desktop app the whole source tree ships
+    read-only inside the signed bundle, so a repo-relative scratch path raised a bare, unwrapped ``OSError``
+    there (inc 414 — a real user bug report). ``tempfile.gettempdir()`` is writable on every OS regardless of
+    install location or code-signing — the same principle ``app_settings.settings_path()`` already uses (a
+    home-dir fallback, never ``__file__``-relative). ``CALLOSUM_OA_TEMP_DIR`` is an optional override, mainly
+    useful for tests — never required for correctness."""
+    override = os.environ.get("CALLOSUM_OA_TEMP_DIR")
+    return Path(override) if override else Path(tempfile.gettempdir()) / "callosum-acquire-tmp"
 
 
 # --- managed filename: mirror the existing library convention "Authors - Year - Venue.pdf" -----------------
@@ -190,14 +209,31 @@ def _unique_path(directory: Path, filename: str) -> Path:
         n += 1
 
 
-def _httpx_pdf_fetcher(url: str, *, timeout: float, max_bytes: int) -> bytes:
+def _pdf_fetch_headers() -> dict[str, str]:
+    """The honest client identity every raw-PDF GET sends — the same 'Callosum/x.y (local-first reference
+    manager)[; mailto:...]' string every other external fetcher in this app already sends (the Crossref/
+    OpenAlex adapters). NEVER a browser User-Agent — this is identifying politely, not paywall circumvention.
+    httpx's bare default UA is a common trigger for a publisher WAF (inc 414: nature.com) to return an HTML
+    interstitial (not a %PDF- header) or an outright 403 to an unidentified client."""
+    user_agent = "Callosum/0.1 (local-first reference manager)"
+    mailto = resolved_mailto("CALLOSUM_OA_MAILTO")
+    if mailto:
+        user_agent = f"{user_agent}; mailto:{mailto}"
+    return {"User-Agent": user_agent}
+
+
+def _httpx_pdf_fetcher(url: str, *, timeout: float, max_bytes: int, client: httpx.Client | None = None) -> bytes:
     """Stream an https GET, following redirects manually so every hop is re-validated https + non-IP host
-    (SSRF guard), and enforcing the byte cap mid-stream."""
+    (SSRF guard), enforcing the byte cap mid-stream, and sending an honest identifying User-Agent on every hop.
+    ``client`` is an optional test-injection seam; production always builds its own."""
     current = url
-    with httpx.Client(timeout=timeout, follow_redirects=False) as client:
+    headers = _pdf_fetch_headers()
+    owned_client = client is None
+    http = client or httpx.Client(timeout=timeout, follow_redirects=False)
+    try:
         for _ in range(6):
             _require_safe_https(current)
-            with client.stream("GET", current) as response:
+            with http.stream("GET", current, headers=headers) as response:
                 if response.is_redirect:
                     location_header = response.headers.get("location")
                     if not location_header:
@@ -214,4 +250,7 @@ def _httpx_pdf_fetcher(url: str, *, timeout: float, max_bytes: int) -> bytes:
                         raise OaFetchError(f"download exceeds the {max_bytes}-byte cap")
                     chunks.append(chunk)
                 return b"".join(chunks)
-    raise OaFetchError("too many redirects")
+        raise OaFetchError("too many redirects")
+    finally:
+        if owned_client:
+            http.close()

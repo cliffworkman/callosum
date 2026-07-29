@@ -9,6 +9,41 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-29 inc 414 — a third Acquire-OA-copy outcome (a download can fail) -->
+## 2026-07-29 — Increment 414: three OA-acquisition bug fixes (temp-dir crash, WAF-blocked downloads, bulk-error detail)
+
+- **Files:** `app/backend/acquisition/fetch.py`, `app/backend/acquisition/wanted.py`, `tests/
+  test_acquisition.py`, `tests/test_wanted.py`, `.env.example`, `app/backend/help/help_content.md`,
+  `.claude/security-audits/2026-06-20_oa-acquisition.md`, `.claude/docs/increment-notes/
+  INCREMENT-414-NOTES.md`.
+- **What:** a fourth bug report (same colleague) — "Acquire OA copy" repeatedly failed, and bulk Wanted
+  re-checks showed uniform, undetailed errors. Three independent root causes fixed: (1) the temp-staging
+  directory was `PROJECT_ROOT`-relative, resolving inside the packaged macOS app's read-only bundle — a
+  hard crash on every attempt there, now `tempfile.gettempdir()`-based with an optional
+  `CALLOSUM_OA_TEMP_DIR` override; (2) the actual PDF-download step sent no identifying header at all,
+  unlike every other external fetcher in this app, likely triggering WAF blocks (the reported nature.com
+  403 / non-PDF response) — now sends the same honest `Callosum/x.y (...)[; mailto:...]` identity via a
+  new `CALLOSUM_OA_MAILTO`; (3) the bulk Wanted path discarded the exception message, collapsing several
+  distinct failure causes to the same indistinguishable `"error: OaFetchError"` — now preserves the
+  message (capped to the column's declared 100-char width).
+- **Why:** bug 1 was a severe, packaging-specific crash; bug 2 was a legitimate "identify politely" gap
+  (never browser-UA spoofing); bug 3 was masking whatever fraction of failures remain after 1/2 are fixed.
+- **Revert:** restore the `PROJECT_ROOT`-based temp dir, drop the header helper, and restore the bare
+  `f"error: {type(exc).__name__}"` in `wanted.py` — see the increment notes for exact prior code.
+
+## 2026-07-29 — Increment 413: friendly classification for real provider HTTP errors (401/403/429/5xx)
+
+- **Files:** `app/backend/llm/providers.py`, `tests/test_providers.py`, `.claude/docs/increment-notes/
+  INCREMENT-413-NOTES.md`.
+- **What:** a direct follow-up to inc 411 — the missing-key pre-check can't catch a *wrong* key, a rate
+  limit, or a provider outage, since those only surface once the network call actually happens. `_post()`
+  now classifies 401/403 ("check the saved API key"), 429 ("rate limited"), and 5xx ("temporarily
+  unavailable") with a friendly lead-in, appending the raw `HTTP {code}: {body}` detail after it rather
+  than hiding it; every other status keeps the plain, unclassified format unchanged.
+- **Why:** the same raw-JSON-dump problem Bella hit for a missing key would recur identically for a wrong
+  one — fixed once at the shared `_post()` seam so every provider/caller benefits.
+- **Revert:** remove `_friendly_status_prefix` and its call in `_post`'s `HTTPStatusError` branch.
+
 ## 2026-07-29 — Increment 412: axis-review list no longer jumps to the top on ✓/✕
 
 - **Files:** `app/frontend/js/15_axes.jsx`, `app/frontend/js/15b_axis_card.jsx`, `.claude/docs/
@@ -40,7 +75,7 @@ are the design diary; this is the chronological "what & why" record.
   illegible raw provider error instead of an actionable local message.
 - **Revert:** remove the `requires_egress(config) and not key` guard block in `complete()`.
 
-<!-- HELP-DOCS-SYNCED: 2026-07-29 inc 410 — ORCID→name fallback + the OpenAlex/ORCID-linking help note -->
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-29 inc 410 — ORCID→name fallback + the OpenAlex/ORCID-linking help note -->
 ## 2026-07-29 — Increment 410: ORCID→name fallback for My Publications author resolution
 
 - **Files:** `integrations/openalex/author.py`, `app/frontend/js/35a_mypubs.jsx`,

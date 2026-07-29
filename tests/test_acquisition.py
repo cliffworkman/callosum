@@ -5,8 +5,10 @@ and the managed-filename convention. Hermetic: injected fetchers, no real networ
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 
 import fitz
+import httpx
 import pytest
 from sqlalchemy import select
 
@@ -120,6 +122,98 @@ def test_download_rejects_oversized(monkeypatch):
     monkeypatch.setattr(fetch_mod, "MAX_OA_PDF_BYTES", 4)
     with pytest.raises(OaFetchError):
         download_oa_pdf(_gold_location(), fetcher=lambda url, *, timeout, max_bytes: _minimal_pdf_bytes())
+
+
+# --- temp-dir resolution (inc 414): never PROJECT_ROOT-relative — a packaged, code-signed app ships its
+# source tree read-only, and a repo-relative scratch path crashed every acquire there with a bare OSError. ----
+
+
+def test_download_uses_system_temp_dir_not_project_root(monkeypatch, tmp_path):
+    """A hostile/unwritable PROJECT_ROOT (as it is inside a packaged macOS app bundle) must not break the
+    download — the temp dir must never be derived from where the code lives."""
+    fake_root = tmp_path / "readonly-bundle-resources"  # deliberately never created
+    monkeypatch.setattr(fetch_mod, "PROJECT_ROOT", fake_root)
+    pdf = _minimal_pdf_bytes()
+    path = download_oa_pdf(_gold_location(), fetcher=lambda url, *, timeout, max_bytes: pdf)
+    try:
+        assert path.exists()
+        assert fake_root not in path.parents
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def test_download_temp_dir_env_override(monkeypatch, tmp_path):
+    custom = tmp_path / "custom-tmp"
+    monkeypatch.setenv("CALLOSUM_OA_TEMP_DIR", str(custom))
+    pdf = _minimal_pdf_bytes()
+    path = download_oa_pdf(_gold_location(), fetcher=lambda url, *, timeout, max_bytes: pdf)
+    try:
+        assert path.parent == custom
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def test_download_wraps_temp_write_oserror(monkeypatch, tmp_path):
+    """A real filesystem failure (disk full, permissions, the packaged-bundle case) must surface as
+    OaFetchError — matching download_oa_pdf's own documented promise — never a bare, unclassified OSError."""
+    monkeypatch.setenv("CALLOSUM_OA_TEMP_DIR", str(tmp_path / "custom-tmp"))
+    monkeypatch.setattr(Path, "write_bytes", lambda self, data: (_ for _ in ()).throw(OSError("disk full")))
+    pdf = _minimal_pdf_bytes()
+    with pytest.raises(OaFetchError, match="could not save"):
+        download_oa_pdf(_gold_location(), fetcher=lambda url, *, timeout, max_bytes: pdf)
+
+
+# --- PDF-download headers (inc 414): an identifying User-Agent — never a browser spoof — on the one fetch
+# step that previously sent none, unlike every other external fetcher in this app. ----------------------------
+
+
+def _mock_client(handler):
+    return httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=False)
+
+
+def test_pdf_fetcher_sends_identifying_user_agent():
+    captured = {}
+
+    def handler(request):
+        captured["headers"] = request.headers
+        return httpx.Response(200, content=_minimal_pdf_bytes())
+
+    with _mock_client(handler) as client:
+        fetch_mod._httpx_pdf_fetcher(
+            "https://example.test/paper.pdf", timeout=5, max_bytes=fetch_mod.MAX_OA_PDF_BYTES, client=client
+        )
+    ua = captured["headers"].get("user-agent", "")
+    assert ua.startswith("Callosum/") and "Mozilla" not in ua  # honest identity, never a browser spoof
+
+
+def test_pdf_fetcher_appends_mailto_when_configured(monkeypatch):
+    monkeypatch.setenv("CALLOSUM_OA_MAILTO", "you@example.org")
+    captured = {}
+
+    def handler(request):
+        captured["headers"] = request.headers
+        return httpx.Response(200, content=_minimal_pdf_bytes())
+
+    with _mock_client(handler) as client:
+        fetch_mod._httpx_pdf_fetcher(
+            "https://example.test/paper.pdf", timeout=5, max_bytes=fetch_mod.MAX_OA_PDF_BYTES, client=client
+        )
+    assert captured["headers"]["user-agent"].endswith("; mailto:you@example.org")
+
+
+def test_pdf_fetcher_still_raises_on_403_with_header_present():
+    captured = {}
+
+    def handler(request):
+        captured["headers"] = request.headers
+        return httpx.Response(403)
+
+    with _mock_client(handler) as client:
+        with pytest.raises(OaFetchError, match="HTTP 403"):
+            fetch_mod._httpx_pdf_fetcher(
+                "https://example.test/paper.pdf", timeout=5, max_bytes=fetch_mod.MAX_OA_PDF_BYTES, client=client
+            )
+    assert captured["headers"]["user-agent"].startswith("Callosum/")  # the header addition changes no error path
 
 
 # --- import_oa_pdf: managed storage, labeling, local-only ---------------------------------------------------

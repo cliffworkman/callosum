@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+import httpx
 import pytest
 
 from app.backend import app_settings
@@ -157,6 +158,59 @@ def test_complete_blocks_before_network_when_no_key_for_cloud_provider():
 
     with pytest.raises(ProviderError, match="No API key"):
         complete(_Cfg("anthropic", api_key=None), "PROMPT", http_client=_Boom())
+
+
+class _FakeErrorResp:
+    """A response whose raise_for_status() raises like a real httpx.HTTPStatusError (inc 413 — classifying a
+    real provider rejection: wrong/expired key, rate limit, outage — as opposed to _FakeResp above, which
+    always succeeds)."""
+
+    def __init__(self, status_code, text=""):
+        self.status_code, self.text = status_code, text
+
+    def raise_for_status(self):
+        raise httpx.HTTPStatusError(f"{self.status_code}", request=None, response=self)
+
+    def json(self):
+        return {}
+
+
+class _FakeErrorClient:
+    def __init__(self, status_code, text=""):
+        self._resp = _FakeErrorResp(status_code, text)
+
+    def post(self, url, json=None, headers=None, timeout=None):
+        return self._resp
+
+
+def test_complete_gives_friendly_message_for_wrong_key_401():
+    """A WRONG (not missing) key still reaches the network and gets a real 401 — the pre-check in complete()
+    can't catch this ahead of time, but the response should still lead with a friendly interpretation rather
+    than the raw provider JSON, with the raw detail kept (not hidden) after it."""
+    raw = '{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}'
+    client = _FakeErrorClient(401, raw)
+    with pytest.raises(ProviderError) as exc:
+        complete(_Cfg("anthropic", api_key="sk-wrong"), "PROMPT", http_client=client)
+    msg = str(exc.value)
+    assert "Authentication failed" in msg and "check the saved API key" in msg
+    assert "HTTP 401" in msg and "authentication_error" in msg  # raw detail still present, not hidden
+
+
+def test_complete_gives_friendly_message_for_429():
+    with pytest.raises(ProviderError, match="Rate limited"):
+        complete(_Cfg("openai", api_key="sk-oai"), "PROMPT", http_client=_FakeErrorClient(429, "slow down"))
+
+
+def test_complete_gives_friendly_message_for_5xx():
+    with pytest.raises(ProviderError, match="temporarily unavailable"):
+        complete(_Cfg("anthropic", api_key="sk-ant"), "PROMPT", http_client=_FakeErrorClient(503, "overloaded"))
+
+
+def test_complete_keeps_plain_format_for_an_unclassified_status():
+    """No friendly guess for a status we're not confident about — stays the plain, honest raw format."""
+    with pytest.raises(ProviderError) as exc:
+        complete(_Cfg("openai", api_key="sk-oai"), "PROMPT", http_client=_FakeErrorClient(400, "bad request"))
+    assert str(exc.value) == "HTTP 400: bad request"
 
 
 def test_complete_local_nonloopback_is_rejected():

@@ -43,3 +43,24 @@ a URL; the imported copy is a local `managed` attachment (nothing transits a ser
 closed; the resolve path caches via `external_api_cache` (polite-pool `mailto`). The legally-ambiguous lane is
 **absent** (not built or scaffolded). **Follow-up (Increment B):** CORE needs a free key + T&C
 (`CALLOSUM_CORE_API_KEY`); pin + `pip-audit` any new dep introduced then.
+
+## Addendum (2026-07-29, inc 414) — three real bug fixes to this same download path
+
+Three real user-reported failures were fixed in this download path: (1) the actual PDF-download step
+(`_httpx_pdf_fetcher`) sent no identifying header at all, unlike every other external fetcher in this app —
+now sends the same honest `"Callosum/x.y (local-first reference manager)[; mailto:...]"` identity
+(`_pdf_fetch_headers`, a new `CALLOSUM_OA_MAILTO` env var). This is **identifying politely, not paywall
+circumvention** — never a browser User-Agent, no attempt to spoof or evade; the same politeness pattern this
+audit's own scope already covers for the OpenAlex `mailto`. (2) The temp-staging directory
+(`download_oa_pdf`'s scratch file, before `import_oa_pdf` moves it into the library) was derived from
+`PROJECT_ROOT` (`Path(__file__).resolve().parents[3]`), which resolves inside the packaged desktop app's
+read-only, code-signed bundle — a real crash on every acquire attempt there. Now uses `tempfile.gettempdir()`
+(writable on every OS regardless of install location), with an optional `CALLOSUM_OA_TEMP_DIR` override; the
+write is also now wrapped so any future filesystem failure surfaces as `OaFetchError`, never a bare unclassified
+`OSError` (closing a real gap against this file's own documented "leaves no temp file behind" promise). (3) The
+bulk Wanted re-check path (`acquisition/wanted.py`) was discarding the exception *message* on failure, keeping
+only the class name — now preserves the message (capped to the `last_result` column's declared 100-char width).
+This is diagnostic text only (an exception message describing why a *public* OA download failed) — never
+library content, never sent anywhere new; the fetch destinations, OA-only structural guarantee, SSRF guard, and
+size/magic-byte validation are all unchanged. No new endpoint, no new external destination, no new dependency —
+none of the audit-gate triggers fire fresh. **Security Audit: PASS (unchanged verdict; addendum only).**
