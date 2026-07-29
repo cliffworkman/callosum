@@ -195,6 +195,10 @@
   .status-clear-finished:hover { color: var(--accent); border-color: var(--accent-line); }
 
   .menubar-mobile { gap: 8px; padding: 7px 10px; }
+  /* inc 413: the mobile menu bar's Feedback control sits after the workspace <select>; it must not squeeze the
+     select on a 375px viewport, so it keeps its intrinsic width and the select takes the rest. */
+  .menubar-mobile .mobile-workspace-select { flex: 1 1 auto; min-width: 0; }
+  .menubar-mobile .menubar-item { flex: 0 0 auto; }
   .mobile-workspace-label {
     flex: 0 0 auto; font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--ink-3);
     text-transform: uppercase; letter-spacing: .04em;
@@ -2920,3 +2924,60 @@
   .funding-evidence-meta small, .funding-evidence-meta a { font-size: 11px; }
   .funding-evidence-meta a { color: var(--accent); text-decoration: none; }
   .funding-evidence-meta a:hover { text-decoration: underline; }
+
+  /* ---- inc 413: in-app feedback (bug report / feature request) ----
+     The entry point is a plain .menubar-item beside Help/Settings/Status — no new button recipe. Below is only
+     what the modal itself needs: the kind switch, the screenshot panel, and the diagnostics table (mono, like
+     every other inspectable payload in the app). Reuses the .axis-modal shell + .settings-input / .btn-*.
+     Every color is a token, so dark mode follows for free. */
+  .fb-modal { width: min(600px, 95vw); max-height: 88vh; overflow: auto; }
+  .fb-hidden { visibility: hidden; }          /* while getDisplayMedia runs, so the form isn't in its own shot */
+  .fb-form, .fb-done { display: flex; flex-direction: column; gap: 12px; }
+  .fb-kinds { display: flex; gap: 8px; }
+  .fb-kind {
+    flex: 1; border: 1px solid var(--line-2); background: var(--bg); color: var(--ink-2);
+    border-radius: var(--radius); font: inherit; font-size: 12.5px; padding: 8px 10px; cursor: pointer;
+  }
+  .fb-kind:hover { border-color: var(--accent); color: var(--accent); }
+  .fb-kind.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .fb-label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--ink-2); }
+  /* The settings-field recipe caps its help text at 300px for a narrow column; the reporter is wider, so let it
+     use the full width rather than a ragged half-width paragraph. */
+  .fb-modal .settings-sub { max-width: none; }
+  .fb-label-text { font-size: 12px; color: var(--ink-2); }
+  .fb-optional { color: var(--ink-3); font-weight: 400; }
+  .fb-textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
+  .fb-textarea-sm { min-height: 62px; }
+  .fb-shot { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); padding: 10px; }
+  .fb-shot-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .fb-shot-actions { display: flex; gap: 6px; }
+  .fb-shot-preview {
+    display: block; width: 100%; max-height: 220px; object-fit: contain;
+    border: 1px solid var(--line-2); border-radius: var(--radius-sm); background: var(--panel);
+  }
+  .fb-note { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; margin: 0; }
+  .fb-diag { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+  .fb-check { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--ink-2); line-height: 1.45; }
+  .fb-diag-toggle { align-self: flex-start; font-size: 11.5px; }
+  .fb-diag-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); }
+  .fb-diag-table td { border-top: 1px solid var(--line); padding: 3px 6px; vertical-align: top; }
+  .fb-diag-table td:first-child { color: var(--ink-3); white-space: nowrap; width: 42%; }
+  .fb-diag-wrap { word-break: break-all; }
+  .fb-error {
+    font-size: 11.5px; color: var(--flag-ink); background: var(--flag-soft);
+    border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 7px 9px;
+  }
+  .fb-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .fb-actions a.btn { text-decoration: none; display: inline-block; }
+  .fb-done-lead { font-size: 12.5px; color: var(--ink-2); line-height: 1.55; margin: 0; }
+  .fb-path {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-2); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 9px; word-break: break-all;
+  }
+  .fb-details { font-size: 12px; color: var(--ink-2); }
+  .fb-details summary { cursor: pointer; color: var(--accent); }
+  .fb-pre {
+    font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 9px 10px; margin: 8px 0 0;
+    max-height: 240px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+  }

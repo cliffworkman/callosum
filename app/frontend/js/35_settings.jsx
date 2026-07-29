@@ -513,6 +513,10 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
           </div>
         </SettingsCard>
 
+        <SettingsCard title="Feedback">
+          <FeedbackSettings />
+        </SettingsCard>
+
       </div>
     </div>
   );

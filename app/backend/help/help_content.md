@@ -1319,6 +1319,18 @@ WIP is local-only. It is hidden from read-only/remote views, excluded from cross
 AI provider by these workspace features. A teal treatment plus a visible **WIP** badge distinguishes unpublished
 manuscripts from papers in tabs, Details, and Synthesize/Discover/Work context cues.
 
+<!-- section: reporting-a-bug -->
+## Reporting a bug or requesting a feature
+**Feedback** in the menu bar — beside Help, Settings, and Status — opens the reporter. Pick **Something's broken** or **I'd like a feature**, give it a title and a description (a bug also gets a **Steps to reproduce** box), and optionally attach a screenshot. It opens over whatever you were looking at rather than navigating away, so the thing you're reporting stays on screen.
+
+**Screenshots.** **Take screenshot** uses your browser's own capture — it asks which window or tab to share, and Callosum hides its own dialog first so it isn't in the shot. You can also take one with your usual key combination and **paste** (⌘/Ctrl-V) or **drag** it straight into the panel. Large images are scaled down before they are saved.
+
+**Diagnostics.** A report can carry a small block of facts about your setup: versions, the database revision, which provider is selected, whether data egress and remote access are on, your browser and window size. Click **Show what's attached** to read it before you submit — what you see is exactly what is written, nothing more. It never includes your API key, your database or library paths, or anything from your papers. Untick the box to leave it out entirely.
+
+**What happens when you submit.** Callosum writes the report to **your own machine** — a folder under `~/.callosum/feedback/` holding `report.md` and the screenshot — and then offers **Open email draft**, which hands it to your mail client with the subject and body already filled in. **Callosum sends nothing itself.** You read the draft, attach the screenshot from the folder shown (mail clients can't be handed an attachment from a link), and press send. **Copy report** and **Copy folder path** are there if you'd rather paste it somewhere else, such as an issue tracker.
+
+**Where it goes.** The destination address is **blank until you set one** — Callosum ships with no address baked in. Set it in **Settings → Feedback**, or in the reporter itself the first time. Until you do, reports are still saved to disk; you just aren't offered a draft.
+
 <!-- section: privacy-and-data-egress -->
 ## Privacy and data egress
 Callosum is local-first by design. Your PDFs, extracted text, chunks, embeddings, search, axis scoring, duplicate scanning, clustering, and citation verification run on your machine.

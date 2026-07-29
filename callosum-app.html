@@ -219,6 +219,10 @@
   .status-clear-finished:hover { color: var(--accent); border-color: var(--accent-line); }
 
   .menubar-mobile { gap: 8px; padding: 7px 10px; }
+  /* inc 413: the mobile menu bar's Feedback control sits after the workspace <select>; it must not squeeze the
+     select on a 375px viewport, so it keeps its intrinsic width and the select takes the rest. */
+  .menubar-mobile .mobile-workspace-select { flex: 1 1 auto; min-width: 0; }
+  .menubar-mobile .menubar-item { flex: 0 0 auto; }
   .mobile-workspace-label {
     flex: 0 0 auto; font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--ink-3);
     text-transform: uppercase; letter-spacing: .04em;
@@ -2944,6 +2948,63 @@
   .funding-evidence-meta small, .funding-evidence-meta a { font-size: 11px; }
   .funding-evidence-meta a { color: var(--accent); text-decoration: none; }
   .funding-evidence-meta a:hover { text-decoration: underline; }
+
+  /* ---- inc 413: in-app feedback (bug report / feature request) ----
+     The entry point is a plain .menubar-item beside Help/Settings/Status — no new button recipe. Below is only
+     what the modal itself needs: the kind switch, the screenshot panel, and the diagnostics table (mono, like
+     every other inspectable payload in the app). Reuses the .axis-modal shell + .settings-input / .btn-*.
+     Every color is a token, so dark mode follows for free. */
+  .fb-modal { width: min(600px, 95vw); max-height: 88vh; overflow: auto; }
+  .fb-hidden { visibility: hidden; }          /* while getDisplayMedia runs, so the form isn't in its own shot */
+  .fb-form, .fb-done { display: flex; flex-direction: column; gap: 12px; }
+  .fb-kinds { display: flex; gap: 8px; }
+  .fb-kind {
+    flex: 1; border: 1px solid var(--line-2); background: var(--bg); color: var(--ink-2);
+    border-radius: var(--radius); font: inherit; font-size: 12.5px; padding: 8px 10px; cursor: pointer;
+  }
+  .fb-kind:hover { border-color: var(--accent); color: var(--accent); }
+  .fb-kind.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .fb-label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--ink-2); }
+  /* The settings-field recipe caps its help text at 300px for a narrow column; the reporter is wider, so let it
+     use the full width rather than a ragged half-width paragraph. */
+  .fb-modal .settings-sub { max-width: none; }
+  .fb-label-text { font-size: 12px; color: var(--ink-2); }
+  .fb-optional { color: var(--ink-3); font-weight: 400; }
+  .fb-textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
+  .fb-textarea-sm { min-height: 62px; }
+  .fb-shot { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); padding: 10px; }
+  .fb-shot-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .fb-shot-actions { display: flex; gap: 6px; }
+  .fb-shot-preview {
+    display: block; width: 100%; max-height: 220px; object-fit: contain;
+    border: 1px solid var(--line-2); border-radius: var(--radius-sm); background: var(--panel);
+  }
+  .fb-note { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; margin: 0; }
+  .fb-diag { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+  .fb-check { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--ink-2); line-height: 1.45; }
+  .fb-diag-toggle { align-self: flex-start; font-size: 11.5px; }
+  .fb-diag-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); }
+  .fb-diag-table td { border-top: 1px solid var(--line); padding: 3px 6px; vertical-align: top; }
+  .fb-diag-table td:first-child { color: var(--ink-3); white-space: nowrap; width: 42%; }
+  .fb-diag-wrap { word-break: break-all; }
+  .fb-error {
+    font-size: 11.5px; color: var(--flag-ink); background: var(--flag-soft);
+    border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 7px 9px;
+  }
+  .fb-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .fb-actions a.btn { text-decoration: none; display: inline-block; }
+  .fb-done-lead { font-size: 12.5px; color: var(--ink-2); line-height: 1.55; margin: 0; }
+  .fb-path {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-2); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 9px; word-break: break-all;
+  }
+  .fb-details { font-size: 12px; color: var(--ink-2); }
+  .fb-details summary { cursor: pointer; color: var(--accent); }
+  .fb-pre {
+    font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 9px 10px; margin: 8px 0 0;
+    max-height: 240px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+  }
 </style>
 </head>
 <body>
@@ -4552,7 +4613,7 @@
         },
         /* @__PURE__ */ React.createElement("optgroup", { label: "Workspaces" }, primary.map((w) => /* @__PURE__ */ React.createElement("option", { key: w.id, value: w.id }, w.label))),
         utils.length > 0 && /* @__PURE__ */ React.createElement("optgroup", { label: "Utilities" }, utils.map((w) => /* @__PURE__ */ React.createElement("option", { key: w.id, value: w.id }, w.label)))
-      ));
+      ), /* @__PURE__ */ React.createElement(FeedbackMenuItem, { workspace: active }));
     }
     const item = (w) => /* @__PURE__ */ React.createElement(
       "button",
@@ -4565,7 +4626,7 @@
       },
       w.label
     );
-    return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item), /* @__PURE__ */ React.createElement(StatusMenu, null)));
+    return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item), /* @__PURE__ */ React.createElement(StatusMenu, null), /* @__PURE__ */ React.createElement(FeedbackMenuItem, { workspace: active })));
   }
   function WorkspacePaperCue({ ctx }) {
     if (!ctx) return null;
@@ -11162,6 +11223,303 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     });
     return /* @__PURE__ */ React.createElement("div", { className: "workspace-view scroll help-view" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Help & tips"), state.status === "loading" && /* @__PURE__ */ React.createElement("p", { className: "help-empty" }, "Loading help\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("p", { className: "help-empty" }, "Couldn't load help: ", state.error), state.status === "ready" && state.sections.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "help-empty" }, "No help content yet."), ready && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(HelpChat, { titleById }), /* @__PURE__ */ React.createElement("div", { className: "help-layout" }, /* @__PURE__ */ React.createElement("nav", { className: "help-toc" }, state.sections.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.id, className: "help-toc-item", onClick: () => flashHelpSection(s.id) }, s.title))), /* @__PURE__ */ React.createElement("div", { className: "help-content" }, state.sections.map((s) => /* @__PURE__ */ React.createElement("section", { key: s.id, id: "help-" + s.id, className: "help-section" }, /* @__PURE__ */ React.createElement("h4", { className: "help-section-title" }, s.title), /* @__PURE__ */ React.createElement("div", { className: "help-body", dangerouslySetInnerHTML: { __html: s.html } })))))));
   }
+  const FEEDBACK_MAX_IMAGE_EDGE = 1600;
+  const FEEDBACK_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+  function feedbackClientDiagnostics(extra) {
+    const d = {
+      user_agent: navigator.userAgent || "",
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      screen: `${window.screen ? window.screen.width : "?"}x${window.screen ? window.screen.height : "?"} @${window.devicePixelRatio || 1}x`,
+      language: navigator.language || "",
+      theme: document.documentElement.getAttribute("data-theme") || "light",
+      page: window.location.pathname + window.location.search
+    };
+    return Object.assign(d, extra || {});
+  }
+  function _encodeFrame(source, width, height) {
+    const scale = Math.min(1, FEEDBACK_MAX_IMAGE_EDGE / Math.max(width || 1, height || 1));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+    const png = canvas.toDataURL("image/png");
+    if (png.length * 0.75 <= FEEDBACK_MAX_IMAGE_BYTES) return png;
+    return canvas.toDataURL("image/jpeg", 0.82);
+  }
+  async function captureFeedbackScreenshot() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      throw new Error("This browser can't capture a screenshot. Take one with your usual key combination, then paste or drop it here.");
+    }
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: "browser" },
+        audio: false,
+        preferCurrentTab: true
+      });
+    } catch (e) {
+      if (e && e.name === "NotAllowedError") throw new Error("Screen capture was dismissed. You can also paste or drop an image here.");
+      throw new Error("Couldn't start screen capture: " + (e && e.message || "unknown error"));
+    }
+    try {
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.muted = true;
+      await video.play();
+      await new Promise((r) => setTimeout(r, 250));
+      if (!video.videoWidth) throw new Error("The capture produced no frame. Try again, or paste an image.");
+      return _encodeFrame(video, video.videoWidth, video.videoHeight);
+    } finally {
+      stream.getTracks().forEach((t) => t.stop());
+    }
+  }
+  function readFeedbackImageFile(file) {
+    return new Promise((resolve, reject) => {
+      if (!file || !/^image\//.test(file.type || "")) {
+        reject(new Error("That isn't an image file."));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Couldn't read that image."));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("Couldn't decode that image."));
+        img.onload = () => {
+          try {
+            resolve(_encodeFrame(img, img.naturalWidth, img.naturalHeight));
+          } catch (e) {
+            reject(e);
+          }
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  function FeedbackDestinationRow({ config, onSaved }) {
+    const [email, setEmail] = useState(config && config.destination_email || "");
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    useEffect(() => {
+      setEmail(config && config.destination_email || "");
+    }, [config && config.destination_email]);
+    const save = async () => {
+      setBusy(true);
+      setMsg("");
+      const r = await apiPut("/feedback/config", { set_destination_email: true, destination_email: email.trim() });
+      setBusy(false);
+      if (!r.ok) {
+        setMsg("Couldn't save: " + (r.error || "error"));
+        return;
+      }
+      setMsg(email.trim() ? "Saved." : "Cleared.");
+      if (onSaved) onSaved(r.data);
+    };
+    const fromEnv = config && config.destination_source === "env";
+    return /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Send feedback to", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The address your bug reports and feature requests are addressed to. callosum ships with none set \u2014 it only ever opens a draft in your mail client, so nothing is sent until you press send.", fromEnv ? " Currently set by the CALLOSUM_FEEDBACK_EMAIL environment variable." : "")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "email",
+        autoComplete: "off",
+        placeholder: "maintainer@example.com",
+        value: email,
+        onChange: (e) => setEmail(e.target.value),
+        onKeyDown: (e) => {
+          if (e.key === "Enter") save();
+        }
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: save }, busy ? "Saving\u2026" : "Save")), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
+  }
+  function FeedbackSettings() {
+    const [config, setConfig] = useState(null);
+    useEffect(() => {
+      api("/feedback/config").then((r) => {
+        if (r.ok) setConfig(r.data);
+      });
+    }, []);
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Feedback"), /* @__PURE__ */ React.createElement(FeedbackDestinationRow, { config, onSaved: setConfig }), config && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Reports are written to ", /* @__PURE__ */ React.createElement("code", null, config.feedback_dir), "."));
+  }
+  function FeedbackMenuItem({ workspace }) {
+    const [open, setOpen] = useState(false);
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "menubar-item",
+        onClick: () => setOpen(true),
+        title: "Report a bug or request a feature"
+      },
+      "Feedback"
+    ), open && /* @__PURE__ */ React.createElement(FeedbackModal, { onClose: () => setOpen(false), viewContext: { workspace: workspace || "" } }));
+  }
+  function FeedbackModal({ onClose, viewContext }) {
+    const [kind, setKind] = useState("bug");
+    const [title, setTitle] = useState("");
+    const [body, setBody] = useState("");
+    const [steps, setSteps] = useState("");
+    const [replyTo, setReplyTo] = useState("");
+    const [shot, setShot] = useState(null);
+    const [config, setConfig] = useState(null);
+    const [includeDiag, setIncludeDiag] = useState(true);
+    const [showDiag, setShowDiag] = useState(false);
+    const [capturing, setCapturing] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState("");
+    const [result, setResult] = useState(null);
+    const [copied, setCopied] = useState("");
+    useEffect(() => {
+      api("/feedback/config").then((r) => {
+        if (r.ok) setConfig(r.data);
+      });
+    }, []);
+    useEffect(() => {
+      api("/settings").then((r) => {
+        if (r.ok && r.data.contact_email) setReplyTo(r.data.contact_email);
+      });
+    }, []);
+    useEffect(() => {
+      const onKey = (e) => {
+        if (e.key === "Escape") onClose();
+      };
+      window.addEventListener("keydown", onKey);
+      return () => window.removeEventListener("keydown", onKey);
+    }, [onClose]);
+    const capture = async () => {
+      setErr("");
+      setCapturing(true);
+      try {
+        await new Promise((r) => setTimeout(r, 60));
+        setShot(await captureFeedbackScreenshot());
+      } catch (e) {
+        setErr(e && e.message || "Screenshot failed.");
+      } finally {
+        setCapturing(false);
+      }
+    };
+    const takeFile = async (file) => {
+      setErr("");
+      try {
+        setShot(await readFeedbackImageFile(file));
+      } catch (e) {
+        setErr(e && e.message || "Couldn't read that image.");
+      }
+    };
+    const onPaste = (e) => {
+      const item = Array.from(e.clipboardData && e.clipboardData.items || []).find((i) => /^image\//.test(i.type));
+      if (item) {
+        e.preventDefault();
+        takeFile(item.getAsFile());
+      }
+    };
+    const onDrop = (e) => {
+      e.preventDefault();
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) takeFile(file);
+    };
+    const submit = async () => {
+      if (!title.trim() || !body.trim()) {
+        setErr("A title and a description are both required.");
+        return;
+      }
+      setBusy(true);
+      setErr("");
+      const r = await apiPost("/feedback", {
+        kind,
+        title: title.trim(),
+        body: body.trim(),
+        steps: kind === "bug" && steps.trim() ? steps.trim() : null,
+        reply_to: replyTo.trim() || null,
+        include_diagnostics: includeDiag,
+        client_diagnostics: includeDiag ? feedbackClientDiagnostics(viewContext) : {},
+        screenshot: shot
+      });
+      setBusy(false);
+      if (!r.ok) {
+        setErr(r.error || "Couldn't save the report.");
+        return;
+      }
+      setResult(r.data);
+    };
+    const copy = (text, what) => {
+      navigator.clipboard.writeText(text).then(() => {
+        setCopied(what);
+        setTimeout(() => setCopied(""), 1600);
+      });
+    };
+    const diag = config && config.diagnostics || {};
+    const destination = config && config.destination_email || "";
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay" + (capturing ? " fb-hidden" : ""), onClick: onClose }, /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "axis-modal fb-modal",
+        onClick: (e) => e.stopPropagation(),
+        onPaste,
+        onDragOver: (e) => e.preventDefault(),
+        onDrop,
+        role: "dialog",
+        "aria-modal": "true",
+        "aria-label": "Send feedback"
+      },
+      /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, result ? "Report saved" : "Report a bug or request a feature"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose, "aria-label": "Close" }, "\xD7")),
+      result ? /* @__PURE__ */ React.createElement("div", { className: "fb-done" }, /* @__PURE__ */ React.createElement("p", { className: "fb-done-lead" }, "Your report was written to this machine. Nothing has been sent yet \u2014 opening the draft below hands it to your mail client, where you can read it before sending."), /* @__PURE__ */ React.createElement("div", { className: "fb-path" }, result.report_path), result.screenshot_path && /* @__PURE__ */ React.createElement("p", { className: "fb-note" }, "The screenshot is saved beside it as ", /* @__PURE__ */ React.createElement("b", null, result.screenshot_path.split(/[\\/]/).pop()), " \u2014 mail clients can't be handed an attachment from a link, so attach it to the draft yourself."), /* @__PURE__ */ React.createElement("div", { className: "fb-actions" }, result.mailto_url ? /* @__PURE__ */ React.createElement("a", { className: "btn btn-primary", href: result.mailto_url }, "Open email draft") : /* @__PURE__ */ React.createElement("span", { className: "fb-note" }, "No destination address is set, so there's no draft to open \u2014 set one below (or in Settings) and the next report will offer it. Your report is safe on disk either way."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => copy(result.report_markdown, "report") }, copied === "report" ? "Copied" : "Copy report"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => copy(result.directory, "path") }, copied === "path" ? "Copied" : "Copy folder path")), !result.mailto_url && /* @__PURE__ */ React.createElement(FeedbackDestinationRow, { config, onSaved: setConfig }), /* @__PURE__ */ React.createElement("details", { className: "fb-details" }, /* @__PURE__ */ React.createElement("summary", null, "What was written"), /* @__PURE__ */ React.createElement("pre", { className: "fb-pre" }, result.report_markdown)), /* @__PURE__ */ React.createElement("div", { className: "fb-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: onClose }, "Done"))) : /* @__PURE__ */ React.createElement("div", { className: "fb-form" }, /* @__PURE__ */ React.createElement("div", { className: "fb-kinds", role: "radiogroup", "aria-label": "Report type" }, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "fb-kind" + (kind === "bug" ? " active" : ""),
+          role: "radio",
+          "aria-checked": kind === "bug",
+          onClick: () => setKind("bug")
+        },
+        "Something's broken"
+      ), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "fb-kind" + (kind === "feature" ? " active" : ""),
+          role: "radio",
+          "aria-checked": kind === "feature",
+          onClick: () => setKind("feature")
+        },
+        "I'd like a feature"
+      )), /* @__PURE__ */ React.createElement("label", { className: "fb-label" }, "Title", /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          className: "settings-input",
+          value: title,
+          autoFocus: true,
+          maxLength: 200,
+          placeholder: kind === "bug" ? "The PDF renders blank in two-up view" : "Let me sort the library by date added",
+          onChange: (e) => setTitle(e.target.value)
+        }
+      )), /* @__PURE__ */ React.createElement("label", { className: "fb-label" }, kind === "bug" ? "What happened" : "What you'd like", /* @__PURE__ */ React.createElement(
+        "textarea",
+        {
+          className: "settings-input fb-textarea",
+          value: body,
+          maxLength: 2e4,
+          placeholder: kind === "bug" ? "What you expected, and what you got instead." : "What you're trying to do, and where it gets in your way.",
+          onChange: (e) => setBody(e.target.value)
+        }
+      )), kind === "bug" && /* @__PURE__ */ React.createElement("label", { className: "fb-label" }, /* @__PURE__ */ React.createElement("span", { className: "fb-label-text" }, "Steps to reproduce ", /* @__PURE__ */ React.createElement("span", { className: "fb-optional" }, "optional")), /* @__PURE__ */ React.createElement(
+        "textarea",
+        {
+          className: "settings-input fb-textarea fb-textarea-sm",
+          value: steps,
+          maxLength: 8e3,
+          placeholder: "1. Open a paper\n2. Switch to two-up\n3. \u2026",
+          onChange: (e) => setSteps(e.target.value)
+        }
+      )), /* @__PURE__ */ React.createElement("div", { className: "fb-shot" }, /* @__PURE__ */ React.createElement("div", { className: "fb-shot-head" }, /* @__PURE__ */ React.createElement("span", { className: "fb-label-text" }, "Screenshot ", /* @__PURE__ */ React.createElement("span", { className: "fb-optional" }, "optional")), /* @__PURE__ */ React.createElement("div", { className: "fb-shot-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: capture }, shot ? "Retake" : "Take screenshot"), shot && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost danger", onClick: () => setShot(null) }, "Remove"))), shot ? /* @__PURE__ */ React.createElement("img", { className: "fb-shot-preview", src: shot, alt: "Attached screenshot preview" }) : /* @__PURE__ */ React.createElement("p", { className: "fb-note" }, "Your browser will ask which window or tab to capture. You can also paste (\u2318/Ctrl-V) or drag an image straight into this panel.")), /* @__PURE__ */ React.createElement("label", { className: "fb-label" }, /* @__PURE__ */ React.createElement("span", { className: "fb-label-text" }, "Your email ", /* @__PURE__ */ React.createElement("span", { className: "fb-optional" }, "optional \u2014 so a reply can reach you")), /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          className: "settings-input",
+          type: "email",
+          value: replyTo,
+          autoComplete: "off",
+          placeholder: "you@example.com",
+          onChange: (e) => setReplyTo(e.target.value)
+        }
+      )), /* @__PURE__ */ React.createElement("div", { className: "fb-diag" }, /* @__PURE__ */ React.createElement("label", { className: "fb-check" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: includeDiag, onChange: (e) => setIncludeDiag(e.target.checked) }), /* @__PURE__ */ React.createElement("span", null, "Attach diagnostics \u2014 versions and settings only. No library content, no file paths, no API key.")), /* @__PURE__ */ React.createElement("button", { className: "btn-link fb-diag-toggle", onClick: () => setShowDiag((v) => !v) }, showDiag ? "Hide" : "Show", " what's attached"), showDiag && /* @__PURE__ */ React.createElement("table", { className: "fb-diag-table" }, /* @__PURE__ */ React.createElement("tbody", null, Object.keys(diag).map((k) => /* @__PURE__ */ React.createElement("tr", { key: k }, /* @__PURE__ */ React.createElement("td", null, k), /* @__PURE__ */ React.createElement("td", null, diag[k]))), Object.entries(feedbackClientDiagnostics(viewContext)).map(([k, v]) => /* @__PURE__ */ React.createElement("tr", { key: "c" + k }, /* @__PURE__ */ React.createElement("td", null, "client.", k), /* @__PURE__ */ React.createElement("td", { className: "fb-diag-wrap" }, v)))))), err && /* @__PURE__ */ React.createElement("div", { className: "fb-error" }, err), /* @__PURE__ */ React.createElement("p", { className: "fb-note" }, destination ? /* @__PURE__ */ React.createElement(React.Fragment, null, "This is saved to your machine, then opened as a draft to ", /* @__PURE__ */ React.createElement("b", null, destination), " in your mail client. callosum sends nothing itself.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "No destination address is set yet. Your report will still be saved to this machine, and you can set an address in Settings \u2192 Feedback.")), /* @__PURE__ */ React.createElement("div", { className: "fb-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy || !title.trim() || !body.trim(), onClick: submit }, busy ? "Saving\u2026" : "Save report"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: onClose }, "Cancel")))
+    ));
+  }
   function _dupConfLabel(c) {
     return Math.round((c || 0) * 100) + "%";
   }
@@ -15857,7 +16215,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onChange: (e) => onAxisCutoffDefault(Number(e.target.value)),
         "aria-label": "Default axis cutoff"
       }
-    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Citation styles", id: "citation-styles" }, /* @__PURE__ */ React.createElement(CitationStylesSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null))))));
+    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Citation styles", id: "citation-styles" }, /* @__PURE__ */ React.createElement(CitationStylesSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Feedback" }, /* @__PURE__ */ React.createElement(FeedbackSettings, null))));
   }
   function MyPubsSettings({ onRefreshed }) {
     const [name, setName] = useState("");

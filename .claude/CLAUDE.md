@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 412** (see Increment workflow) with **1683 pytest tests
+It is currently at **Increment 413** (see Increment workflow) with **1689 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -174,6 +174,16 @@ the full per-increment narrative for all other increments now lives in the reloc
   **Run `npm install` once, then re-run `python tools/build_frontend.py` after editing anything under
   `app/frontend/`.**
 - **HTTP client:** httpx (external metadata/discovery APIs).
+- **In-app feedback (inc 413):** the menu bar's **Feedback** item (beside Help/Settings/Status) opens a
+  bug-report / feature-request reporter (`app/backend/feedback/` + `routers/feedback.py` +
+  `js/18b_feedback.jsx`). It adds **no egress channel**: `POST /feedback` writes a bundle (`report.md` + an
+  optional screenshot) to `~/.callosum/feedback/<stamp>_<kind>_<slug>/` and returns a **prefilled `mailto:`
+  URL** — the user's own mail client sends it, from a draft they read first. The destination address is
+  **blank by default** (Settings → Feedback; env fallback `CALLOSUM_FEEDBACK_EMAIL`), and an unset address
+  still saves the report. Attached diagnostics are versions/posture only (no key, no DB or library path, no
+  library content), **previewable before submit** via `GET /feedback/config` and opt-out. Deliberately a
+  **modal, not a utility workspace** (a report is about the screen you're on) — the `StatusMenu` MenuBar
+  exception. Audit `2026-07-29_feedback-reporter.md` PASS; QA route 76.
 - **Desktop packaging (backlog #21, incs 394-395):** `app/desktop-shell/` — a Tauri v2 shell that
   spawns callosum's own FastAPI/uvicorn backend as a child process (a bundled portable CPython + this
   project's real dependencies via `bundle.resources`, CPU-only torch, not PyInstaller/Nuitka freezing)
