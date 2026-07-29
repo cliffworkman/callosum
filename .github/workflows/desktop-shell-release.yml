@@ -36,8 +36,6 @@ jobs:
       contents: write # the repo's default GITHUB_TOKEN is read-only; this is the one job that needs write
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0 # full history so `git tag -l --format` below can read the annotated tag's message
 
       - uses: actions/download-artifact@v4
         with:
@@ -68,10 +66,28 @@ jobs:
 
       - name: Read the annotated tag's own message as the release body
         id: tagmsg
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -e
+          # `git tag -l --format='%(contents)'` against the local checkout returned the LAST COMMIT's message,
+          # not the annotated tag's own message (confirmed live on v0.3.0 and v0.3.1 -- the exact runner-side
+          # mechanism was never pinned down, but the GitHub API confirms the tag object itself is correct on
+          # GitHub's side). Querying the API directly is authoritative and sidesteps whatever actions/checkout
+          # does locally with tag refs, instead of trusting local git state a second time.
+          tag_json=$(gh api "repos/${{ github.repository }}/git/refs/tags/${{ github.ref_name }}")
+          obj_type=$(echo "$tag_json" | jq -r '.object.type')
+          obj_sha=$(echo "$tag_json" | jq -r '.object.sha')
+          if [ "$obj_type" = "tag" ]; then
+            body=$(gh api "repos/${{ github.repository }}/git/tags/$obj_sha" --jq '.message')
+          else
+            # A lightweight tag (not how this project's release ritual creates tags) -- fall back to the
+            # commit message rather than fail the whole release.
+            body=$(gh api "repos/${{ github.repository }}/git/commits/$obj_sha" --jq '.message')
+          fi
           {
             echo 'body<<CALLOSUM_RELEASE_BODY_EOF'
-            git tag -l --format='%(contents)' "${{ github.ref_name }}"
+            echo "$body"
             echo 'CALLOSUM_RELEASE_BODY_EOF'
           } >> "$GITHUB_OUTPUT"
 
