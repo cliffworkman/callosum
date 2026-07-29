@@ -66,14 +66,6 @@ jobs:
           name: callosum-macos-arm64-updater
           path: dist
 
-      - name: Create version-independent aliases (Tauri bakes the version into each installer's own
-          filename, so a direct .../releases/latest/download/<file> link would silently 404 on the
-          next release without these stable-named copies alongside the real, versioned assets)
-        run: |
-          cp dist/*.exe dist/Callosum-windows-x64-setup.exe
-          cp dist/*.dmg dist/Callosum-macos-arm64.dmg
-          cp dist/*.deb dist/Callosum-linux-amd64.deb
-
       - name: Read the annotated tag's own message as the release body
         id: tagmsg
         run: |
@@ -83,16 +75,18 @@ jobs:
             echo 'CALLOSUM_RELEASE_BODY_EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: "Build latest.json for the in-app auto-updater (Windows/macOS only — see updater.rs for why Linux has no silent-update path). Gracefully skipped, not a release-blocking failure, if the updater artifacts are missing — e.g. before Cliff has set the two TAURI_SIGNING_* repo secrets."
+      - name: "Build latest.json for the in-app auto-updater (Windows/macOS only — see updater.rs for why Linux has no silent-update path). Gracefully skipped, not a release-blocking failure, if the updater artifacts are missing — e.g. before Cliff has set the two TAURI_SIGNING_* repo secrets. Runs BEFORE the alias-creation step below so dist/*.exe unambiguously matches the one real, versioned installer (the alias copy doesn't exist yet)."
         env:
           NOTES: ${{ steps.tagmsg.outputs.body }}
         run: |
           set -e
-          WIN_ZIP=$(ls dist/*.nsis.zip 2>/dev/null | head -1 || true)
-          WIN_SIG=$(ls dist/*.nsis.zip.sig 2>/dev/null | head -1 || true)
+          # Confirmed via a real signed run: Tauri's NSIS updater signs the installer .exe directly —
+          # there is no separate .nsis.zip artifact (despite some docs describing one).
+          WIN_EXE=$(ls dist/*.exe 2>/dev/null | head -1 || true)
+          WIN_SIG=$(ls dist/*.exe.sig 2>/dev/null | head -1 || true)
           MAC_TGZ=$(ls dist/*.app.tar.gz 2>/dev/null | head -1 || true)
           MAC_SIG=$(ls dist/*.app.tar.gz.sig 2>/dev/null | head -1 || true)
-          if [ -z "$WIN_ZIP" ] || [ -z "$WIN_SIG" ] || [ -z "$MAC_TGZ" ] || [ -z "$MAC_SIG" ]; then
+          if [ -z "$WIN_EXE" ] || [ -z "$WIN_SIG" ] || [ -z "$MAC_TGZ" ] || [ -z "$MAC_SIG" ]; then
             echo "::warning::updater artifacts missing (TAURI_SIGNING_PRIVATE_KEY/_PASSWORD repo secrets not set yet?) — this release will publish WITHOUT latest.json, so the in-app auto-updater won't see it. Set the two secrets, then the next release will include it automatically."
             exit 0
           fi
@@ -101,7 +95,7 @@ jobs:
             --arg version "$TAG_VERSION" \
             --arg notes "$NOTES" \
             --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg win_url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$(basename "$WIN_ZIP")" \
+            --arg win_url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$(basename "$WIN_EXE")" \
             --arg win_sig "$(cat "$WIN_SIG")" \
             --arg mac_url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$(basename "$MAC_TGZ")" \
             --arg mac_sig "$(cat "$MAC_SIG")" \
@@ -110,6 +104,14 @@ jobs:
                "darwin-aarch64": {signature: $mac_sig, url: $mac_url}
             }}' > dist/latest.json
           echo "wrote dist/latest.json for $TAG_VERSION"
+
+      - name: Create version-independent aliases (Tauri bakes the version into each installer's own
+          filename, so a direct .../releases/latest/download/<file> link would silently 404 on the
+          next release without these stable-named copies alongside the real, versioned assets)
+        run: |
+          cp dist/*.exe dist/Callosum-windows-x64-setup.exe
+          cp dist/*.dmg dist/Callosum-macos-arm64.dmg
+          cp dist/*.deb dist/Callosum-linux-amd64.deb
 
       - name: Publish the GitHub Release
         # SHA-pinned (not the mutable @v2 tag) since this step runs with contents: write.

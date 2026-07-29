@@ -125,13 +125,11 @@ jobs:
           path: app/desktop-shell/src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
 
-      - name: Upload updater artifact (signed .nsis.zip + .sig, for the in-app auto-updater)
+      - name: Upload updater artifact (the .exe's own .sig — Tauri's NSIS updater signs the installer directly, confirmed via a real run; it does NOT produce a separate .nsis.zip the way some docs describe. The .exe itself is already uploaded above.)
         uses: actions/upload-artifact@v4
         with:
           name: callosum-windows-x64-updater
-          path: |
-            app/desktop-shell/src-tauri/target/release/bundle/nsis/*.nsis.zip
-            app/desktop-shell/src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
+          path: app/desktop-shell/src-tauri/target/release/bundle/nsis/*.exe.sig
           if-no-files-found: warn # absent on an unsigned build (a fork's branch-push, no secrets) — not an error there
 
       - name: "Verify: silent-install the real installer, launch it, screenshot the real running window"
