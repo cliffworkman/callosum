@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-28 — Increment 409 follow-up: real CI fixes (secrets-in-if:, reqwest json feature, unsigned-build handling)
+
+- **Files:** `.github/workflows/desktop-shell-{windows,macos}.yml`, `app/desktop-shell/src-tauri/
+  Cargo.toml`, `.claude/docs/increment-notes/INCREMENT-409-NOTES.md`.
+- **What:** four real bugs found only by actually pushing (none reproducible from local Windows-only
+  `cargo check`): an invalid `secrets`-context step `if:` that made GitHub reject the macOS workflow
+  file outright; a missing `reqwest` `"json"` feature that broke the Linux-only compile path; and an
+  unsigned-build handling bug (empty-string env vars, then a baked-in pubkey demanding a real private
+  key) that took two attempts to actually fix — resolved by passing `-c '{"bundle":
+  {"createUpdaterArtifacts":false}}'` to `tauri build` only when unsigned.
+- **Why:** the only way to actually validate platform-conditional (`cfg(target_os = "linux")`, etc.)
+  Rust code and the real GitHub Actions signing pipeline is to push and watch it run for real.
+- **Revert:** see the increment notes addendum for each fix's exact prior state.
+
 ## 2026-07-28 — Increment 409: in-app auto-updater for the desktop shell (backlog #49)
 
 - **Files:** `app/desktop-shell/src-tauri/{Cargo.toml,src/lib.rs,src/updater.rs (new),tauri.conf.json,

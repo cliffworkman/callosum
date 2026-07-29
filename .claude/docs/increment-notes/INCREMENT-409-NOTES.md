@@ -87,6 +87,41 @@ builds, a scratch library — never his real one — to prove the full check→d
 relaunch loop and confirm the library survives, since the currently-released `v0.2.0` has no
 updater code in it at all and can never be the "from" version for a real test).
 
+## Addendum — four real CI bugs found only by actually pushing (same day)
+
+Local verification (`cargo check`/`cargo test` on Windows) came back clean, but that only proves
+the Windows-compiled code paths — the platform-conditional (`#[cfg(target_os = "linux")]`, `#[cfg
+(any(target_os = "macos", windows))]`) code can't be fully exercised from one dev machine. Pushing
+immediately surfaced four real issues across the three CI runs, each found from actual job logs
+and fixed same-session:
+
+1. **macOS workflow failed to even parse** ("Unrecognized named-value: 'secrets'") — GitHub
+   Actions doesn't allow the `secrets` context in a step-level `if:` condition. Fixed by moving the
+   skip-when-unsigned check into the shell script itself (checking the already-injected env var)
+   instead of a workflow-level `if:`.
+2. **Linux failed to compile**: `reqwest::Response::json()` needs the crate's `"json"` feature,
+   never enabled. Confirmed: this code is `target_os = "linux"`-gated, so the earlier "0 errors"
+   `cargo check` on this Windows machine never actually compiled it — a real gap in that
+   verification, only caught by CI running on a real Linux runner. Fixed by adding `"json"` to
+   `Cargo.toml`'s `reqwest` features.
+3. **Windows/macOS builds failed**: GitHub Actions sets a referenced secret's env var to an
+   **empty string** (not absent) when the secret doesn't exist yet — Tauri's bundler treated
+   "present but empty" as "a key was given" and tried to decode `""`, failing the whole build
+   rather than skipping signing. First fix attempt: `unset`/`Remove-Item Env:\` the vars when
+   blank.
+4. **Still failed after fix #3**: `tauri.conf.json` already has a real public key baked in
+   (`plugins.updater.pubkey`) — even with the env vars genuinely absent, Tauri demands a matching
+   private key unconditionally ("A public key has been found, but no private key"), since a pubkey
+   with no private key ever available is a broken config, not "signing is optional." **Real fix**:
+   when unsigned, pass `-c '{"bundle":{"createUpdaterArtifacts":false}}'` to `tauri build` for that
+   build only (never editing `tauri.conf.json` itself) — an honestly-unsigned build with no updater
+   artifact, not a hard failure. This branch stops firing the moment Cliff sets the two real GitHub
+   secrets.
+
+All three platforms (Windows, macOS, Linux) are green as of this addendum, still unsigned (secrets
+not yet set) — confirming the whole pipeline builds and verifies cleanly end-to-end even before
+Cliff's own remaining manual step.
+
 ## Pytest / build gates
 
 `pytest tests/test_frontend_assembly.py -q` → 53 passed.
