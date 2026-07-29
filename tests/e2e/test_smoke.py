@@ -49,10 +49,17 @@ def server(tmp_path_factory):
     command.upgrade(config, "head")
     _seed_library(db_url)
 
+    # Isolate app-settings.json and pre-complete onboarding (inc 416): without this, a CI
+    # runner with no prior ~/.callosum/app-settings.json shows the first-run wizard overlay,
+    # which blocks every pre-existing smoke test's clicks on the app underneath.
+    settings_path = tmp_path_factory.mktemp("e2e") / "app-settings.json"
+    settings_path.write_text('{"onboarding_completed": true}', encoding="utf-8")
+
     port = _free_port()
     env = {
         **os.environ,
         "CALLOSUM_DB_URL": db_url,
+        "CALLOSUM_SETTINGS_PATH": str(settings_path),
         "PYTHONPATH": str(PROJECT_ROOT),
     }
     proc = subprocess.Popen(
