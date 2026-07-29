@@ -10,6 +10,21 @@ are the design diary; this is the chronological "what & why" record.
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
 <!-- HELP-DOCS-SYNCED: 2026-07-29 inc 414 — a third Acquire-OA-copy outcome (a download can fail) -->
+## 2026-07-29 — v0.3.1 shipped; release-body bug recurred and was root-caused for real this time
+
+- **Files:** `.github/workflows/desktop-shell-release.yml`, `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/increment-notes/INCREMENT-409-NOTES.md`, plus the live `v0.3.1` release's body
+  (patched by hand via `gh release edit --notes-file`, same as v0.3.0).
+- **What:** bumped the desktop shell to 0.3.1 (incs 410-414's bug fixes) and shipped it — all
+  three platform CI checks green, tag pushed, release published. The known-but-unfixed release-
+  body bug from v0.3.0 recurred identically, confirming it as a real persistent workflow bug.
+  Root-caused this time: the tag-message step now queries the GitHub API directly for the tag
+  object's own message instead of reading local git ref state after `actions/checkout`.
+- **Why:** the same bug recurring on the very next release proved the earlier "just work around
+  it" call was wrong — worth fixing properly since a third recurrence was avoidable.
+- **Revert:** restore the `git tag -l --format='%(contents)'`-based step — see the increment
+  notes addendum for the exact prior code.
+
 ## 2026-07-29 — Increment 414: three OA-acquisition bug fixes (temp-dir crash, WAF-blocked downloads, bulk-error detail)
 
 - **Files:** `app/backend/acquisition/fetch.py`, `app/backend/acquisition/wanted.py`, `tests/

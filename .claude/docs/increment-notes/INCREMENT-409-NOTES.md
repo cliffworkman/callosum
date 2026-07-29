@@ -157,6 +157,30 @@ after this one should update itself. **Not yet done**: a real live test of the a
 *mechanism* (does a running v0.3.0 detect and offer a hypothetical v0.3.1) — that only happens
 naturally whenever the next real patch ships.
 
+## Addendum 3 — the release-body bug recurred on v0.3.1 (2026-07-29), root-caused and fixed for real
+
+`v0.3.1` (a bug-fix release — incs 410-414) surfaced the exact same release-body bug flagged as
+still-open in Addendum 2: the GitHub Release body showed the last commit's message
+("chore(release): bump desktop shell to 0.3.1...") instead of the annotated tag's own message.
+Recurring identically confirmed this was a real, persistent bug in `desktop-shell-release.yml`
+itself, not a one-off fluke — worth actually root-causing this time instead of working around it
+again. Confirmed via the GitHub API (`gh api repos/.../git/refs/tags/v0.3.1` →
+`object.type: "tag"`, then `gh api repos/.../git/tags/<sha> --jq .message`) that the tag object
+itself is stored correctly on GitHub's side with the real message — the bug is specific to
+however `actions/checkout` materializes the tag locally on the runner (the exact mechanism was
+still not worth chasing further once a clean fix was available). Fixed by replacing the local
+`git tag -l --format='%(contents)'` read with the same two GitHub API calls used to confirm the
+diagnosis — authoritative, and no longer dependent on local git ref state at all. This also fixes
+`latest.json`'s `notes` field, which read from the same (previously wrong) output.
+`fetch-depth: 0` was removed from the job's checkout step too, since it existed only to support
+the now-replaced git command.
+
+Manually corrected `v0.3.1`'s already-published release body by hand
+(`gh release edit --notes-file`) the same way `v0.3.0`'s was; the workflow fix itself will be
+proven for real on whatever release ships next (per Cliff's own plan: reinstall v0.3.1, make one
+more change, ship v0.3.2, and use that as the live test of the in-app updater actually detecting
+and offering an update — the "not yet done" item from Addendum 2 above).
+
 ## Pytest / build gates
 
 `pytest tests/test_frontend_assembly.py -q` → 53 passed.
