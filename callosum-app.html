@@ -207,6 +207,11 @@
   .status-row-error { border-left: 2px solid var(--danger); padding-left: 12px; }
   .status-row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .status-row-label { font-size: 12px; color: var(--ink); font-weight: 600; }
+  /* inc 415: a navigable row's label is a real <button> — the .btn-link reset (DESIGN.md §"link" recipe)
+     plus indigo (provenance/primary, per DESIGN.md's own "Status … indigo for 'N processes'" note) so a
+     clickable destination reads as such, distinct from a plain non-clickable label. */
+  .status-row-label-link { border: none; background: none; padding: 0; font-family: var(--sans); text-align: left; color: var(--accent); cursor: pointer; }
+  .status-row-label-link:hover { text-decoration: underline; }
   .status-row-dismiss { border: none; background: none; cursor: pointer; color: var(--ink-3); font-size: 14px; line-height: 1; padding: 0 0 0 8px; opacity: .55; }
   .status-row-dismiss:hover { opacity: 1; color: var(--danger); }
   .status-row .progress { padding: 4px 0 0; }
@@ -4536,7 +4541,7 @@
   function getWorkspace(id) {
     return WORKSPACES.find((w) => w.id === id) || null;
   }
-  function MenuBar({ active, onActivate, readOnly, mobile }) {
+  function MenuBar({ active, onActivate, readOnly, mobile, onStatusNavigate }) {
     const all = workspaces(readOnly);
     const primary = all.filter((w) => !w.utility);
     const utils = all.filter((w) => w.utility);
@@ -4565,7 +4570,7 @@
       },
       w.label
     );
-    return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item), /* @__PURE__ */ React.createElement(StatusMenu, null)));
+    return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item), /* @__PURE__ */ React.createElement(StatusMenu, { onNavigate: onStatusNavigate })));
   }
   function WorkspacePaperCue({ ctx }) {
     if (!ctx) return null;
@@ -4680,9 +4685,19 @@
   });
   registerWorkspace({ id: "help", label: "Help", order: 100, utility: true });
   registerWorkspace({ id: "settings", label: "Settings", order: 110, utility: true });
-  function StatusJobRow({ job, onDismiss }) {
+  const STATUS_NAVIGABLE_STORES = /* @__PURE__ */ new Set(["meta_jobs", "citation_count_jobs", "summary_jobs"]);
+  function StatusJobRow({ job, onDismiss, onNavigate }) {
     const finished = job.status === "done" || job.status === "error";
-    return /* @__PURE__ */ React.createElement("div", { className: "status-row" + (job.status === "error" ? " status-row-error" : "") }, /* @__PURE__ */ React.createElement("div", { className: "status-row-head" }, /* @__PURE__ */ React.createElement("span", { className: "status-row-label" }, job.label), finished && /* @__PURE__ */ React.createElement(
+    const navigable = STATUS_NAVIGABLE_STORES.has(job.store);
+    return /* @__PURE__ */ React.createElement("div", { className: "status-row" + (job.status === "error" ? " status-row-error" : "") }, /* @__PURE__ */ React.createElement("div", { className: "status-row-head" }, navigable ? /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "status-row-label status-row-label-link",
+        onClick: () => onNavigate(job),
+        title: `Open ${job.label}`
+      },
+      job.label
+    ) : /* @__PURE__ */ React.createElement("span", { className: "status-row-label" }, job.label), finished && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "status-row-dismiss",
@@ -4693,7 +4708,7 @@
       "\xD7"
     )), job.status === "error" ? /* @__PURE__ */ React.createElement("div", { className: "status-row-error-detail" }, job.detail || "Failed.") : job.status === "done" ? /* @__PURE__ */ React.createElement("div", { className: "status-row-done" }, job.progress ? `${job.progress.label} \u2014 ${job.progress.current} / ${job.progress.total}` : "Done") : /* @__PURE__ */ React.createElement(ProgressBar, { label: "Working\u2026", progress: job.progress }));
   }
-  function StatusMenu() {
+  function StatusMenu({ onNavigate }) {
     const [open, setOpen] = useState(false);
     const [jobs, setJobs] = useState([]);
     const [pos, setPos] = useState(null);
@@ -4734,6 +4749,10 @@
       setJobs((js) => js.filter((j) => j.status !== "done" && j.status !== "error"));
       apiPost("/status/jobs/clear-finished", {});
     };
+    const navigate = (job) => {
+      setOpen(false);
+      if (onNavigate) onNavigate(job);
+    };
     const hasFinished = jobs.some((j) => j.status === "done" || j.status === "error");
     return /* @__PURE__ */ React.createElement("span", { className: "status-menu" }, /* @__PURE__ */ React.createElement(
       "button",
@@ -4746,7 +4765,7 @@
       "Status",
       jobs.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "status-badge" }, jobs.length)
     ), open && pos && ReactDOM.createPortal(
-      /* @__PURE__ */ React.createElement("div", { className: "status-menu-pop", ref: popRef, style: { position: "fixed", top: pos.top, right: pos.right } }, jobs.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "status-empty" }, "Nothing running.") : jobs.map((j) => /* @__PURE__ */ React.createElement(StatusJobRow, { key: j.store + ":" + j.job_id, job: j, onDismiss: dismiss })), hasFinished && /* @__PURE__ */ React.createElement("button", { className: "status-clear-finished", onClick: clearFinished }, "Clear all finished")),
+      /* @__PURE__ */ React.createElement("div", { className: "status-menu-pop", ref: popRef, style: { position: "fixed", top: pos.top, right: pos.right } }, jobs.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "status-empty" }, "Nothing running.") : jobs.map((j) => /* @__PURE__ */ React.createElement(StatusJobRow, { key: j.store + ":" + j.job_id, job: j, onDismiss: dismiss, onNavigate: navigate })), hasFinished && /* @__PURE__ */ React.createElement("button", { className: "status-clear-finished", onClick: clearFinished }, "Clear all finished")),
       document.body
     ));
   }
@@ -11412,7 +11431,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     if (!selected.length) return "all sections";
     return selected.map(sectionLabel).join(" + ");
   }
-  function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, onOpenTextHealth, settingsNonce, readOnly, onCriticalReviewSources }) {
+  function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requestedSummary, onOpenSettings, onOpenTextHealth, settingsNonce, readOnly, onCriticalReviewSources }) {
     const [query, setQuery] = useState("");
     const [sectionFilter, setSectionFilter] = useState({});
     const [state, setState] = useState({ status: "idle" });
@@ -11547,6 +11566,10 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         else setState({ status: "error", error: r.error });
       });
     }, []);
+    useEffect(() => {
+      if (!requestedSummary || requestedSummary.summaryId == null) return;
+      loadSummary(requestedSummary.summaryId);
+    }, [requestedSummary ? requestedSummary.nonce : null]);
     const [reverifying, setReverifying] = useState(false);
     const reverify = useCallback((summaryId) => {
       if (reverifying) return;
@@ -11758,6 +11781,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onOpenCitation: ctx.onOpenCitation,
         onSaveHighlight: ctx.onSaveHighlight,
         pendingSummarize: ctx.pendingSummarize,
+        requestedSummary: ctx.requestedSummary,
         onOpenSettings: ctx.onOpenSettings,
         settingsNonce: ctx.settingsNonce,
         onOpenTextHealth: ctx.onOpenTextHealth,
@@ -17855,6 +17879,11 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const requestWorkspaceTab = useCallback((wsId, tabId) => {
       setWorkspaceTabRequest((prev) => ({ wsId, tabId, nonce: (prev ? prev.nonce : 0) + 1 }));
     }, []);
+    const [requestedSummary, setRequestedSummary] = useState(null);
+    const openSynthesisSummary = useCallback((summaryId) => {
+      openSynthesisWorkspace();
+      if (summaryId != null) setRequestedSummary((prev) => ({ summaryId, nonce: (prev ? prev.nonce : 0) + 1 }));
+    }, [openSynthesisWorkspace]);
     const [annoRefresh, setAnnoRefresh] = useState(0);
     const [queueRefresh, setQueueRefresh] = useState(0);
     const [tagRefresh, setTagRefresh] = useState(0);
@@ -18010,6 +18039,21 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       selectWorkspace("work");
       if (mobile) setMobilePane("library");
     }, [mobile, requestWorkspaceTab, selectWorkspace, setMobilePane]);
+    const onStatusNavigate = useCallback((job) => {
+      if (job.store === "meta_jobs") {
+        showMetaFlagged();
+        return;
+      }
+      if (job.store === "citation_count_jobs") {
+        gotoLibrary("library");
+        libraryBits.onSortChange("citations_desc");
+        return;
+      }
+      if (job.store === "summary_jobs") {
+        openSynthesisSummary(job.nav && job.nav.summary_id != null ? job.nav.summary_id : null);
+        return;
+      }
+    }, [showMetaFlagged, gotoLibrary, libraryBits, openSynthesisSummary]);
     const openCreditBuilder = useCallback(() => {
       requestWorkspaceTab("work", "credit");
       selectWorkspace("work");
@@ -18213,12 +18257,14 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       selectedOpenPaperTab: wipModeActive ? null : selectedOpenPaperTab,
       onActivatePaperTab: activatePaperTab,
       workspaceTabRequest,
+      requestedSummary,
+      // inc 415: Status-popover → reopen a specific saved synthesis (SynthesisPane only)
       capture,
       onArmCapture: armCapture,
       onCaptureApplied: clearCapture
     };
     const sidebarEl = /* @__PURE__ */ React.createElement(Sidebar, { conn, ctx: paneCtx, theoryOpen, onTheoryOpen: setTheoryOpen });
-    const centerEl = /* @__PURE__ */ React.createElement("div", { className: "workspace-frame" }, !readingMode && /* @__PURE__ */ React.createElement(MenuBar, { active: activeWorkspace, onActivate: selectWorkspace, readOnly, mobile }), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
+    const centerEl = /* @__PURE__ */ React.createElement("div", { className: "workspace-frame" }, !readingMode && /* @__PURE__ */ React.createElement(MenuBar, { active: activeWorkspace, onActivate: selectWorkspace, readOnly, mobile, onStatusNavigate }), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
       LibraryFrame,
       {
         libraryProps: {

@@ -44,6 +44,14 @@ function App() {
   const requestWorkspaceTab = useCallback((wsId, tabId) => {
     setWorkspaceTabRequest(prev => ({ wsId, tabId, nonce: (prev ? prev.nonce : 0) + 1 }));
   }, []);
+  // inc 415: Status-popover click-through for a finished Ask job → reopen that EXACT saved synthesis (not
+  // just the Ask tab in general). Mirrors workspaceTabRequest's nonce idiom so a repeat click on the same
+  // job still re-fires the effect in SynthesisPane.
+  const [requestedSummary, setRequestedSummary] = useState(null);
+  const openSynthesisSummary = useCallback((summaryId) => {
+    openSynthesisWorkspace();
+    if (summaryId != null) setRequestedSummary(prev => ({ summaryId, nonce: (prev ? prev.nonce : 0) + 1 }));
+  }, [openSynthesisWorkspace]);
   // Bumped after a synthesis highlight is saved, so an already-open PdfViewer refetches its annotations (PdfViewer).
   const [annoRefresh, setAnnoRefresh] = useState(0);
   const [queueRefresh, setQueueRefresh] = useState(0);  // inc 219: bump to reload the Queue tab after add/remove
@@ -194,6 +202,14 @@ function App() {
     selectWorkspace("work");
     if (mobile) setMobilePane("library");
   }, [mobile, requestWorkspaceTab, selectWorkspace, setMobilePane]);
+  // inc 415: Status-popover click-through, keyed on which JobStore the row belongs to. Reuses each
+  // destination's existing navigation function verbatim — a 4th job kind just needs one more branch here
+  // (plus, if it has a specific entity to reopen, a `nav` payload published at its own mark_done() call).
+  const onStatusNavigate = useCallback((job) => {
+    if (job.store === "meta_jobs") { showMetaFlagged(); return; }
+    if (job.store === "citation_count_jobs") { gotoLibrary("library"); libraryBits.onSortChange("citations_desc"); return; }
+    if (job.store === "summary_jobs") { openSynthesisSummary(job.nav && job.nav.summary_id != null ? job.nav.summary_id : null); return; }
+  }, [showMetaFlagged, gotoLibrary, libraryBits, openSynthesisSummary]);
   // backlog #26 (F1 discoverability): jump from PUBLISHERS ("Where to submit") to the CRediT builder — both
   // already operate on the same globally-selected paper, so no re-select is needed, just a workspace/tab switch.
   const openCreditBuilder = useCallback(() => {
@@ -378,6 +394,7 @@ function App() {
     selectedOpenPaperTab: wipModeActive ? null : selectedOpenPaperTab,
     onActivatePaperTab: activatePaperTab,
     workspaceTabRequest,
+    requestedSummary,  // inc 415: Status-popover → reopen a specific saved synthesis (SynthesisPane only)
     capture, onArmCapture: armCapture, onCaptureApplied: clearCapture,
   };
 
@@ -392,7 +409,7 @@ function App() {
   const centerEl = (
     <div className="workspace-frame">
       {/* inc 301: hide the menu bar in read mode (the focused reader); the reader's own Reading toggle exits it. */}
-      {!readingMode && <MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} mobile={mobile} />}
+      {!readingMode && <MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} mobile={mobile} onStatusNavigate={onStatusNavigate} />}
       <div className="workspace-slot" style={{ display: activeWorkspace === "library" ? "flex" : "none" }}>
         <LibraryFrame
           libraryProps={{

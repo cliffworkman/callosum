@@ -183,6 +183,11 @@
   .status-row-error { border-left: 2px solid var(--danger); padding-left: 12px; }
   .status-row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .status-row-label { font-size: 12px; color: var(--ink); font-weight: 600; }
+  /* inc 415: a navigable row's label is a real <button> — the .btn-link reset (DESIGN.md §"link" recipe)
+     plus indigo (provenance/primary, per DESIGN.md's own "Status … indigo for 'N processes'" note) so a
+     clickable destination reads as such, distinct from a plain non-clickable label. */
+  .status-row-label-link { border: none; background: none; padding: 0; font-family: var(--sans); text-align: left; color: var(--accent); cursor: pointer; }
+  .status-row-label-link:hover { text-decoration: underline; }
   .status-row-dismiss { border: none; background: none; cursor: pointer; color: var(--ink-3); font-size: 14px; line-height: 1; padding: 0 0 0 8px; opacity: .55; }
   .status-row-dismiss:hover { opacity: 1; color: var(--danger); }
   .status-row .progress { padding: 4px 0 0; }

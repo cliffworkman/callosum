@@ -63,3 +63,34 @@ does not create a new one.
 constrained to a pre-filtered map of actual `JobStore` instances and can never resolve an
 arbitrary `api.state` attribute; no new dependency, no new file/DB/network surface; covered by
 17 tests including the specific negative path the design was built to prevent.
+
+## Addendum (2026-07-29, inc 415) — click-to-navigate: a narrow, opt-in `nav` field, not `job.result`
+
+Status rows became clickable, navigating the user to a job's destination (Library filtered to
+the papers a meta-analysis/citation-count batch found, or a specific saved synthesis for a
+finished Ask job). This needed a new field, `Job.nav: dict[str, Any] | None`, which a job's own
+`mark_done()` call may optionally populate — e.g. `{"summary_id": 42}` — and `StatusJob` (the
+response model this router builds) now includes it.
+
+**`job.result` is still never read here** — `_to_status_job()` gains exactly one new line
+(`nav=job.nav`); there is no code path from `nav` back to `result`, so this audit's central claim
+("aggregates existing exposure, creates none") still holds by construction, not by discipline.
+
+**One genuine new residual risk, named rather than hand-waved:** unlike `result` (mechanically
+never serialized here), `nav` is a caller-controlled `dict[str, Any]` — a future router *could*
+stuff something oversized or sensitive into it. This is a **convention**, not a schema-enforced
+guarantee (the same posture `JOB_LABELS` already has): `nav` should only ever carry small ids
+that are already independently reachable via that job's own per-feature status/detail endpoint —
+never secrets, file paths, or free text. Today's one real call site (`summaries.py`) publishes
+exactly `{"summary_id": int}`, and `summary_id` is already returned by that job's own
+`GET /summarize/{job_id}` polling endpoint once done — so this aggregates existing exposure, the
+same standard the rest of this audit holds to.
+
+Covered by `test_mark_done_accepts_an_optional_nav_payload`/`test_mark_done_without_nav_leaves_it_none`
+(`tests/test_job_store.py`), `test_status_job_nav_is_none_when_the_job_never_published_one`/
+`test_status_job_surfaces_a_published_nav_payload` (`tests/test_status.py`), and a real end-to-end
+proof that the pipeline's actual `summary_id` and the published `nav` never drift apart
+(`tests/test_summaries.py`).
+
+**Security Audit: PASS** (unchanged verdict; this addendum documents the one new field and its
+convention).

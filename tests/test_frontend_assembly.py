@@ -172,12 +172,13 @@ def test_workspace_menubar_structure_present():
     assert 'activeWorkspace === "library"' in raw and 'activeWorkspace === "profile"' in raw
     assert 'activeWorkspace === "synthesis"' in raw and 'activeWorkspace === "work"' in raw
     assert 'activeWorkspace === "extract"' not in raw and 'selectWorkspace("extract")' not in raw
-    assert "function MenuBar({ active, onActivate, readOnly, mobile })" in raw
+    assert "function MenuBar({ active, onActivate, readOnly, mobile, onStatusNavigate })" in raw
     assert 'className="menubar menubar-mobile"' in raw
     assert 'id="mobile-workspace-select"' in raw
     assert '<optgroup label="Workspaces">' in raw and '<optgroup label="Utilities">' in raw
     assert (
-        "<MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} mobile={mobile} />" in raw
+        "<MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} mobile={mobile} onStatusNavigate={onStatusNavigate} />"
+        in raw
     )
     assert 'id: "synthesis", label: "Synthesize", order: 30' in raw
     assert 'id: "ask", label: "Ask", order: 10' in raw

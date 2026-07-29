@@ -5,12 +5,22 @@
 // Mirrors AddMenu/SavedSearchMenu's click-toggle-popover pattern (10b_libmenus.jsx) rather than inventing a
 // new interaction; reuses ProgressBar (10_pdf_layer.jsx) unmodified for each row.
 
-function StatusJobRow({ job, onDismiss }) {
+// inc 415: which job stores' rows get a clickable destination at all — App owns what "navigate" actually
+// means per store (onStatusNavigate, 40_app.jsx); this is only the allowlist deciding whether a row gets the
+// affordance, so a job kind nobody's wired a destination for yet renders an honest, non-clickable label
+// instead of a dead click.
+const STATUS_NAVIGABLE_STORES = new Set(["meta_jobs", "citation_count_jobs", "summary_jobs"]);
+
+function StatusJobRow({ job, onDismiss, onNavigate }) {
   const finished = job.status === "done" || job.status === "error";
+  const navigable = STATUS_NAVIGABLE_STORES.has(job.store);
   return (
     <div className={"status-row" + (job.status === "error" ? " status-row-error" : "")}>
       <div className="status-row-head">
-        <span className="status-row-label">{job.label}</span>
+        {navigable
+          ? <button className="status-row-label status-row-label-link" onClick={() => onNavigate(job)}
+              title={`Open ${job.label}`}>{job.label}</button>
+          : <span className="status-row-label">{job.label}</span>}
         {finished &&
           <button className="status-row-dismiss" title="Dismiss" aria-label={`Dismiss ${job.label}`}
             onClick={() => onDismiss(job)}>×</button>}
@@ -27,7 +37,7 @@ function StatusJobRow({ job, onDismiss }) {
   );
 }
 
-function StatusMenu() {
+function StatusMenu({ onNavigate }) {
   const [open, setOpen] = useState(false);
   const [jobs, setJobs] = useState([]);
   const [pos, setPos] = useState(null);  // {top, right} in viewport px, computed from the toggle button
@@ -73,6 +83,10 @@ function StatusMenu() {
     setJobs(js => js.filter(j => j.status !== "done" && j.status !== "error"));
     apiPost("/status/jobs/clear-finished", {});
   };
+  const navigate = (job) => {
+    setOpen(false);
+    if (onNavigate) onNavigate(job);
+  };
 
   const hasFinished = jobs.some(j => j.status === "done" || j.status === "error");
 
@@ -87,7 +101,7 @@ function StatusMenu() {
         <div className="status-menu-pop" ref={popRef} style={{ position: "fixed", top: pos.top, right: pos.right }}>
           {jobs.length === 0
             ? <div className="status-empty">Nothing running.</div>
-            : jobs.map(j => <StatusJobRow key={j.store + ":" + j.job_id} job={j} onDismiss={dismiss} />)}
+            : jobs.map(j => <StatusJobRow key={j.store + ":" + j.job_id} job={j} onDismiss={dismiss} onNavigate={navigate} />)}
           {hasFinished &&
             <button className="status-clear-finished" onClick={clearFinished}>Clear all finished</button>}
         </div>,

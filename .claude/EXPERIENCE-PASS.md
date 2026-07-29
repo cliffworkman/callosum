@@ -118,6 +118,18 @@ together as feature areas land; a good persona is concrete enough that an agent 
 - **Stranded by:** a cramped or misaligned page that fights close reading; highlights that don't persist or don't
   return them to the spot; notes that are hard to retrieve.
 
+### Multi-tasker *(inc 415)*
+- **Who / when:** callosum's flagship operations (synthesis, meta-analysis checks, citation-count refresh) are
+  slow, so they kick off several at once and go do something else in the app while waiting.
+- **Goal in the moment:** know roughly how long each thing will take, keep working elsewhere, and get back to
+  *exactly* what finished with as few clicks as possible — without having to remember where a result would land
+  or hunt for it once it's ready.
+- **Reaches for:** the Status popover's progress/ETA per job (sets the expectation), then a click straight from
+  that same list to the finished (or still-running) thing's actual location.
+- **Stranded by:** a job that finishes with no way back to its result except retracing which tab/filter/paper it
+  came from; a click that lands somewhere generic instead of the specific outcome; a job kind that *looks*
+  clickable but silently does nothing.
+
 *(Add personas as features land — e.g. a "collaborator" handing a library to a co-author. Each gets: who/when ·
 goal-in-the-moment · reaches-for · stranded-by.)*
 

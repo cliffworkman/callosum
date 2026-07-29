@@ -21,6 +21,8 @@ used for labels — never used to resolve an arbitrary attribute off ``api.state
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
@@ -105,6 +107,9 @@ class StatusJob(BaseModel):
     status: str
     detail: str | None = None
     progress: StatusProgress | None = None
+    # inc 415: a narrow, opt-in navigation hint (e.g. {"summary_id": 42}) a job may publish at mark_done()
+    # time — NOT job.result, which stays deliberately unread here (inc 406 audit). Most jobs never set it.
+    nav: dict[str, Any] | None = None
 
 
 class StatusResponse(BaseModel):
@@ -123,7 +128,13 @@ def _to_status_job(store_name: str, job_id: str, job: Job) -> StatusJob:
         )
     label = JOB_LABELS.get(store_name, _prettify(store_name))
     return StatusJob(
-        store=store_name, job_id=job_id, label=label, status=job.status, detail=job.detail, progress=progress
+        store=store_name,
+        job_id=job_id,
+        label=label,
+        status=job.status,
+        detail=job.detail,
+        progress=progress,
+        nav=job.nav,
     )
 
 

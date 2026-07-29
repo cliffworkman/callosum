@@ -58,6 +58,11 @@ def test_summarize_query_job_completes_with_verified_citation_payload(temp_db_ur
     assert citation["paper_id"] == seeded["facial_paper_id"]
     assert citation["paper_title"] == "API Summarization Facial Paper"
     assert citation["page_start"] == 1
+
+    # inc 415: the real pipeline's freshly-created summary_id must match what gets published as the
+    # Status-navigation hint — a synthetic JobStore-only test wouldn't catch the two drifting apart.
+    status_row = next(j for j in client.get("/status/jobs").json()["jobs"] if j["job_id"] == body["job_id"])
+    assert status_row["nav"] == {"summary_id": payload["summary_id"]}
     assert citation["page_end"] == 1
     assert citation["quote"] == "Facial anomalies influence social judgments."
     assert citation["retrieval_confidence"] == pytest.approx(1.0)

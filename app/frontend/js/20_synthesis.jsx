@@ -55,7 +55,7 @@ function sectionFilterSummary(sections) {
   return selected.map(sectionLabel).join(" + ");
 }
 
-function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, onOpenTextHealth, settingsNonce, readOnly, onCriticalReviewSources }) {
+function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requestedSummary, onOpenSettings, onOpenTextHealth, settingsNonce, readOnly, onCriticalReviewSources }) {
   const [query, setQuery] = useState("");
   const [sectionFilter, setSectionFilter] = useState({});
   const [state, setState] = useState({ status: "idle" });
@@ -208,6 +208,14 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
       else setState({ status: "error", error: r.error });
     });
   }, []);
+
+  // inc 415: Status-popover click-through for a FINISHED Ask job → reopen that exact saved synthesis.
+  // Nonce-gated exactly like the pendingSummarize effect above (and workspaceTabRequest's own idiom), so a
+  // repeat click on the same job re-fires even though summaryId itself hasn't changed.
+  useEffect(() => {
+    if (!requestedSummary || requestedSummary.summaryId == null) return;
+    loadSummary(requestedSummary.summaryId);
+  }, [requestedSummary ? requestedSummary.nonce : null]);
 
   // B2 SP3: re-verify an imported (relayed) synthesis against MY library → convert it in place to native.
   const [reverifying, setReverifying] = useState(false);
@@ -571,6 +579,6 @@ registerWorkspace({
 registerWorkspaceTab({ id: "synthesis" }, {
   id: "ask", label: "Ask", order: 10, hideInReadOnly: false,
   render: (ctx) => <SynthesisPane onOpenCitation={ctx.onOpenCitation} onSaveHighlight={ctx.onSaveHighlight}
-    pendingSummarize={ctx.pendingSummarize} onOpenSettings={ctx.onOpenSettings} settingsNonce={ctx.settingsNonce}
+    pendingSummarize={ctx.pendingSummarize} requestedSummary={ctx.requestedSummary} onOpenSettings={ctx.onOpenSettings} settingsNonce={ctx.settingsNonce}
     onOpenTextHealth={ctx.onOpenTextHealth} readOnly={ctx.readOnly} onCriticalReviewSources={ctx.onCriticalReviewSources} />,
 });

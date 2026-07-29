@@ -39,6 +39,21 @@ def test_mark_done_accepts_an_explicit_progress_override() -> None:
     assert store.get(job_id).progress == override
 
 
+def test_mark_done_accepts_an_optional_nav_payload() -> None:
+    # inc 415: a job may publish a narrow navigation hint (e.g. {"summary_id": 42}) — never job.result.
+    store: JobStore = JobStore()
+    job_id = store.create()
+    store.mark_done(job_id, {"ok": True}, nav={"summary_id": 7})
+    assert store.get(job_id).nav == {"summary_id": 7}
+
+
+def test_mark_done_without_nav_leaves_it_none() -> None:
+    store: JobStore = JobStore()
+    job_id = store.create()
+    store.mark_done(job_id, {"ok": True})
+    assert store.get(job_id).nav is None
+
+
 def test_mark_error_carries_no_progress_but_stamps_finished_at() -> None:
     store: JobStore = JobStore()
     other = store.create()

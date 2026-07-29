@@ -10,6 +10,26 @@ are the design diary; this is the chronological "what & why" record.
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
 <!-- HELP-DOCS-SYNCED: 2026-07-29 inc 414 — a third Acquire-OA-copy outcome (a download can fail) -->
+## 2026-07-29 — Increment 415: Status popover click-to-navigate
+
+- **Files:** `app/backend/api/job_store.py`, `app/backend/api/routers/status.py`, `app/backend/api/
+  routers/summaries.py`, `app/frontend/js/04c_status.jsx`, `app/frontend/js/04b_workspaces.jsx`,
+  `app/frontend/js/40_app.jsx`, `app/frontend/js/20_synthesis.jsx`, `app/frontend/styles.css`,
+  `tests/test_job_store.py`, `tests/test_status.py`, `tests/test_summaries.py`, `tests/
+  test_frontend_assembly.py`, `.claude/qa-routes/route_76_status_navigation.md` (new),
+  `.claude/security-audits/2026-07-28_status-jobs.md`, `.claude/EXPERIENCE-PASS.md`.
+- **What:** clicking a Status-popover row now navigates to that job's destination — meta-analysis →
+  Library filtered to flagged papers, citation-count refresh → Library sorted "Most cited",
+  Synthesize > Ask → reopens the exact finished synthesis (or the Ask tab in general while still
+  running, honestly, since a running job's synthesis id doesn't exist yet). A new narrow `Job.nav`
+  field lets a job optionally publish a small navigation hint at `mark_done()` time; `job.result`
+  stays deliberately unread, per the original inc-406 audit. Also closed a real pre-existing gap:
+  Status has had zero QA-route coverage since it shipped — added one.
+- **Why:** callosum's flagship operations are slow; a click straight from "it's done" to the actual
+  result (instead of hunting for where it landed) makes the wait feel less annoying.
+- **Revert:** drop `Job.nav`/`StatusJob.nav`, the `summaries.py` `mark_done` call-site change, and the
+  frontend click/dispatch plumbing — see the increment notes for the exact prior shape of each file.
+
 ## 2026-07-29 — v0.3.1 shipped; release-body bug recurred and was root-caused for real this time
 
 - **Files:** `.github/workflows/desktop-shell-release.yml`, `.claude/docs/INCREMENT-BACKLOG.md`,

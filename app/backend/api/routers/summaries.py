@@ -283,7 +283,9 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
                 on_progress=lambda i, n, label: jobs.mark_progress(job_id, i, n, label),
             )
             response = _persisted_summary_response(conn, summary_id=result.summary_id, job_id=job_id)
-        jobs.mark_done(job_id, response)
+        # inc 415: publish the finished synthesis id as a small Status-navigation hint (see job_store.Job.nav)
+        # so a Status-popover click can reopen this exact synthesis, not just the Ask tab in general.
+        jobs.mark_done(job_id, response, nav={"summary_id": result.summary_id})
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
 

@@ -14,7 +14,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from threading import Lock
-from typing import Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 from uuid import uuid4
 
 JobStatus = Literal["pending", "running", "done", "error"]
@@ -39,6 +39,10 @@ class Job(Generic[R]):
     progress: JobProgress | None = None
     started_at: float | None = None  # monotonic clock when the job began running (inc 225 — for the ETA)
     finished_at: float | None = None  # monotonic clock when the job reached done/error (inc 406 — for expiry)
+    # inc 415: a narrow, opt-in navigation hint a job may publish at mark_done() time (e.g.
+    # {"summary_id": 42}) — NOT `result`, which the Status aggregator deliberately never reads (inc 406
+    # audit). Small, already-independently-reachable ids only; most job kinds never set this.
+    nav: dict[str, Any] | None = None
 
     def eta_seconds(self) -> int | None:
         """Rough seconds-remaining = elapsed-so-far × the remaining fraction (inc 225). None until there's both a
@@ -84,10 +88,13 @@ class JobStore(Generic[R]):
         prev = self._jobs.get(job_id)
         return prev.started_at if prev is not None and prev.started_at is not None else time.monotonic()
 
-    def mark_done(self, job_id: str, result: R, progress: JobProgress | None = None) -> None:
+    def mark_done(
+        self, job_id: str, result: R, progress: JobProgress | None = None, nav: dict[str, Any] | None = None
+    ) -> None:
         """Marks a job complete. Preserves the job's last known progress (e.g. a final "142 / 142") unless a
         different snapshot is passed — previously this always discarded it, which meant a finished job's row
-        had no memory of what it was partway through (inc 406, for the cross-feature Status popover)."""
+        had no memory of what it was partway through (inc 406, for the cross-feature Status popover). `nav`
+        (inc 415) is an optional small navigation hint (see `Job.nav`) — most callers omit it."""
         with self._lock:
             prev = self._jobs.get(job_id)
             final_progress = progress if progress is not None else (prev.progress if prev is not None else None)
@@ -97,6 +104,7 @@ class JobStore(Generic[R]):
                 progress=final_progress,
                 started_at=prev.started_at if prev is not None else None,
                 finished_at=time.monotonic(),
+                nav=nav,
             )
 
     def mark_error(self, job_id: str, detail: str) -> None:
