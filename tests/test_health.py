@@ -76,6 +76,18 @@ def test_health_reports_onboarding_completed_and_reflects_settings_change(temp_d
     assert client.get("/health").json()["onboarding_completed"] is True
 
 
+def test_health_app_version_reflects_env_and_is_none_outside_the_desktop_shell(temp_db_url: str, monkeypatch) -> None:
+    # The desktop shell sets CALLOSUM_APP_VERSION when it spawns this backend as a child process
+    # (backend.rs); a plain uvicorn/dev run or the remote-access tunnel never sets it, so app_version
+    # is honestly None rather than falling back to verification_version (an unrelated internal
+    # pipeline-version constant the connection tooltip used to show by mistake).
+    monkeypatch.delenv("CALLOSUM_APP_VERSION", raising=False)
+    assert TestClient(create_app(db_url=temp_db_url)).get("/health").json()["app_version"] is None
+
+    monkeypatch.setenv("CALLOSUM_APP_VERSION", "0.3.2")
+    assert TestClient(create_app(db_url=temp_db_url)).get("/health").json()["app_version"] == "0.3.2"
+
+
 def test_frontend_root_serves_configured_html_file(temp_db_url: str, tmp_path: Path) -> None:
     frontend = tmp_path / "callosum-app.html"
     frontend.write_text("<!doctype html><html><head><title>Callosum</title></head><body>Callosum shell</body></html>")

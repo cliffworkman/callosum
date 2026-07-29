@@ -79,3 +79,46 @@ library-preservation guarantee is architecturally untouched by this change (thou
 its own empirical proof, tracked as a verification item, not a security gap). The one dependency
 originally scoped (`tauri-plugin-process`) turned out to be unnecessary and was dropped rather than
 added speculatively.
+
+## Addendum 2026-07-29 — v0.3.2 live-release follow-up (progress visibility + on-demand check)
+
+Three small additions made right after v0.3.2's release, prompted by watching the real update
+mechanism run live for the first time: (1) the connection tooltip now shows the desktop shell's
+real `app_version` instead of accidentally showing `verification_version` (an unrelated internal
+NLI-pipeline constant — a pre-existing display bug, not a new surface); (2) the silent download now
+emits `update-downloading`/`update-progress` events so the Status popover shows a real in-progress
+row instead of a black box; (3) a new Settings → Desktop app → "Check for updates" button
+(`check_for_updates_now` Tauri command) triggers an on-demand check instead of waiting for the
+periodic 6h cycle.
+
+**Threat delta: none of these open a new egress channel or trust boundary.**
+- `app_version`: `backend.rs` sets `CALLOSUM_APP_VERSION` (the shell's own already-known version
+  string, from `app.package_info()` — never user input) as a plain env var on the uvicorn child
+  process it already spawns; `health.py` reads it back with `os.getenv`. No new process boundary,
+  no secret, no external call — a version string crossing a parent→child env var it already
+  controls.
+- `check_for_updates_now`: takes no arguments from the webview and reuses the exact same
+  `check_desktop`/`check_linux` functions the already-audited periodic loop calls — same HTTPS-only
+  endpoints, same signature-verification path, same "no library/user data in the request" property
+  above. The only behavioral change is *when* the check runs (on click vs. every 6h) and that the
+  *result* (not just a side effect) is now returned to the caller via the command's return value —
+  itself just `{version}` / `{detail}` strings already present in this feature's existing payloads,
+  never anything new.
+- `update-downloading`/`update-progress` events: purely local Tauri IPC (Rust process → its own
+  webview), carrying only `{version, downloaded, total}` — no new network call, no new data
+  entering or leaving the machine. Throttled to ~256KB-or-completion steps so the webview isn't
+  flooded with an event per network chunk.
+- A new `downloading: Mutex<Option<String>>` guard on `UpdateState` (Windows/macOS) prevents a
+  manual click from starting a second concurrent download while the periodic loop's own download is
+  already in flight — closes a real (if unlikely) race the original single-shot design didn't need
+  to consider before an on-demand trigger existed.
+
+**Verification:** `cargo check` + `cargo test` both clean against the full updated `updater.rs`/
+`backend.rs`/`lib.rs` (4/4 existing unit tests still pass, no new Rust tests needed — the new logic
+is either a straightforward env-var passthrough or a thin reuse of already-tested check functions).
+Python: `pytest tests/test_health.py tests/test_frontend_assembly.py -q` — 65 passed, including a
+new test asserting `app_version` is `None` outside the desktop shell and reflects
+`CALLOSUM_APP_VERSION` when set, and a new test asserting the Status/Settings surfaces exist without
+duplicating the toast's install-trigger logic. Full suite: 1707 passed, 1 skipped.
+
+**Verdict unchanged: PASS.**

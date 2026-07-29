@@ -172,13 +172,13 @@ def test_workspace_menubar_structure_present():
     assert 'activeWorkspace === "library"' in raw and 'activeWorkspace === "profile"' in raw
     assert 'activeWorkspace === "synthesis"' in raw and 'activeWorkspace === "work"' in raw
     assert 'activeWorkspace === "extract"' not in raw and 'selectWorkspace("extract")' not in raw
-    assert "function MenuBar({ active, onActivate, readOnly, mobile, onStatusNavigate })" in raw
+    assert "function MenuBar({ active, onActivate, readOnly, mobile, onStatusNavigate, desktopUpdate })" in raw
     assert 'className="menubar menubar-mobile"' in raw
     assert 'id="mobile-workspace-select"' in raw
     assert '<optgroup label="Workspaces">' in raw and '<optgroup label="Utilities">' in raw
     assert (
-        "<MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} mobile={mobile} onStatusNavigate={onStatusNavigate} />"
-        in raw
+        "<MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} mobile={mobile} "
+        "onStatusNavigate={onStatusNavigate} desktopUpdate={desktopUpdate} />" in raw
     )
     assert 'id: "synthesis", label: "Synthesize", order: 30' in raw
     assert 'id: "ask", label: "Ask", order: 10' in raw
@@ -1106,6 +1106,42 @@ def test_my_pubs_settings_gates_actions_until_profile_loads():
     for guarded in ("persistProfile", "save", "addVariant", "removeVariant", "runRefresh"):
         fn_body = src.split(f"const {guarded} = async", 1)[1].split("\n", 3)[0:3]
         assert any("if (loading) return" in line for line in fn_body), guarded
+
+
+def test_connection_tooltip_shows_app_version_not_verification_version():
+    # Follow-up to v0.3.2: the brand-logo tooltip's version suffix used to fall back to
+    # verification_version (the local NLI/quote-verification pipeline's own internal version
+    # constant, unrelated to the app's release number) because /health had no real app-version
+    # field at all. Now it reads the new app_version field exclusively.
+    raw = assemble_jsx()
+    assert "version: (r.data && r.data.app_version) || null" in raw
+    assert "r.data.verification_version" not in raw
+
+
+def test_desktop_update_progress_surfaces_in_status_popover_and_settings():
+    # Follow-up to v0.3.2: the auto-updater (updater.rs) lives entirely in the Tauri/Rust process — never a
+    # backend JobStore — so its download-in-progress state can only ever reach the Status popover as a
+    # frontend-only synthetic row built from the shared useDesktopUpdate hook (also read by the toast).
+    raw = assemble_jsx()
+    assert "function useDesktopUpdate()" in raw
+    for event in ("update-downloading", "update-progress", "update-ready"):
+        assert f'"{event}"' in raw
+
+    # Status popover: the synthetic row is built from live desktopUpdate state, never registered as
+    # navigable (the toast already owns the restart action — no second, driftable trigger).
+    assert "function desktopUpdateStatusJob(update)" in raw
+    assert 'const DESKTOP_UPDATE_STORE = "desktop_update";' in raw
+    assert "STATUS_NAVIGABLE_STORES = new Set([" in raw
+    navigable_line = next(line for line in raw.splitlines() if "STATUS_NAVIGABLE_STORES = new Set([" in line)
+    assert "desktop_update" not in navigable_line
+    assert "desktopUpdate" in raw.split("function StatusMenu(", 1)[1].split("\n", 1)[0]
+
+    # Settings: an on-demand "Check for updates" button, desktop-shell-only (returns null without Tauri).
+    assert "function DesktopUpdateSettings(" in raw
+    assert '!("__TAURI__" in window)) return null' in raw
+    assert "Check for updates" in raw
+    assert 'invoke("check_for_updates_now")' in raw
+    assert '<SettingsCard title="Desktop app">' in raw
 
 
 def test_built_artifact_is_in_sync():

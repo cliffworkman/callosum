@@ -52,7 +52,7 @@ function workspaceTabs(w, readOnly) {
 function getWorkspace(id) { return WORKSPACES.find(w => w.id === id) || null; }
 
 // The global top bar: brand + the primary workspace switcher + right-aligned utilities (Help/Settings).
-function MenuBar({ active, onActivate, readOnly, mobile, onStatusNavigate }) {
+function MenuBar({ active, onActivate, readOnly, mobile, onStatusNavigate, desktopUpdate }) {
   const all = workspaces(readOnly);
   const primary = all.filter(w => !w.utility);
   const utils = all.filter(w => w.utility);
@@ -88,7 +88,7 @@ function MenuBar({ active, onActivate, readOnly, mobile, onStatusNavigate }) {
       <nav className="menubar-nav" role="tablist" aria-label="Workspaces">{primary.map(item)}</nav>
       <div className="menubar-utils">
         {utils.map(item)}
-        <StatusMenu onNavigate={onStatusNavigate} />
+        <StatusMenu onNavigate={onStatusNavigate} desktopUpdate={desktopUpdate} />
       </div>
     </div>
   );

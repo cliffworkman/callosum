@@ -18,7 +18,8 @@ async fn start_backend_and_show_main(app: AppHandle) {
 
     emit_status(&app, "starting", "Starting Callosum… this can take a minute the first time.");
 
-    let (mut handle, port) = match spawn_backend(&paths) {
+    let app_version = app.package_info().version.to_string();
+    let (mut handle, port) = match spawn_backend(&paths, &app_version) {
         Ok(v) => v,
         Err(e) => {
             emit_status(&app, "failed", &e.detail());
@@ -82,7 +83,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             retry_backend,
             updater::install_update_now,
-            updater::open_release_page
+            updater::open_release_page,
+            updater::check_for_updates_now
         ])
         .setup(|app| {
             let handle = app.handle().clone();

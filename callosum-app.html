@@ -4554,7 +4554,7 @@
   function getWorkspace(id) {
     return WORKSPACES.find((w) => w.id === id) || null;
   }
-  function MenuBar({ active, onActivate, readOnly, mobile, onStatusNavigate }) {
+  function MenuBar({ active, onActivate, readOnly, mobile, onStatusNavigate, desktopUpdate }) {
     const all = workspaces(readOnly);
     const primary = all.filter((w) => !w.utility);
     const utils = all.filter((w) => w.utility);
@@ -4583,7 +4583,7 @@
       },
       w.label
     );
-    return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item), /* @__PURE__ */ React.createElement(StatusMenu, { onNavigate: onStatusNavigate })));
+    return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item), /* @__PURE__ */ React.createElement(StatusMenu, { onNavigate: onStatusNavigate, desktopUpdate })));
   }
   function WorkspacePaperCue({ ctx }) {
     if (!ctx) return null;
@@ -4699,6 +4699,32 @@
   registerWorkspace({ id: "help", label: "Help", order: 100, utility: true });
   registerWorkspace({ id: "settings", label: "Settings", order: 110, utility: true });
   const STATUS_NAVIGABLE_STORES = /* @__PURE__ */ new Set(["meta_jobs", "citation_count_jobs", "summary_jobs"]);
+  const DESKTOP_UPDATE_STORE = "desktop_update";
+  function desktopUpdateStatusJob(update) {
+    if (!update || update.phase === "idle") return null;
+    if (update.phase === "downloading") {
+      const total = update.total;
+      const progress = total ? { current: Math.round(update.downloaded / 1e5) / 10, total: Math.round(total / 1e5) / 10, label: "MB downloaded", eta_seconds: null } : null;
+      return {
+        store: DESKTOP_UPDATE_STORE,
+        job_id: "desktop-update",
+        label: `Downloading update v${update.version}`,
+        status: "running",
+        detail: null,
+        progress,
+        nav: null
+      };
+    }
+    return {
+      store: DESKTOP_UPDATE_STORE,
+      job_id: "desktop-update",
+      label: `Update ready \u2014 v${update.version}`,
+      status: "done",
+      detail: null,
+      progress: null,
+      nav: null
+    };
+  }
   function StatusJobRow({ job, onDismiss, onNavigate }) {
     const finished = job.status === "done" || job.status === "error";
     const navigable = STATUS_NAVIGABLE_STORES.has(job.store);
@@ -4721,10 +4747,11 @@
       "\xD7"
     )), job.status === "error" ? /* @__PURE__ */ React.createElement("div", { className: "status-row-error-detail" }, job.detail || "Failed.") : job.status === "done" ? /* @__PURE__ */ React.createElement("div", { className: "status-row-done" }, job.progress ? `${job.progress.label} \u2014 ${job.progress.current} / ${job.progress.total}` : "Done") : /* @__PURE__ */ React.createElement(ProgressBar, { label: "Working\u2026", progress: job.progress }));
   }
-  function StatusMenu({ onNavigate }) {
+  function StatusMenu({ onNavigate, desktopUpdate }) {
     const [open, setOpen] = useState(false);
     const [jobs, setJobs] = useState([]);
     const [pos, setPos] = useState(null);
+    const [updateDismissedPhase, setUpdateDismissedPhase] = useState(null);
     const toggleRef = useRef(null);
     const popRef = useRef(null);
     const load = useCallback(() => {
@@ -4755,10 +4782,15 @@
       setOpen((o) => !o);
     };
     const dismiss = (job) => {
+      if (job.store === DESKTOP_UPDATE_STORE) {
+        setUpdateDismissedPhase(desktopUpdate.phase);
+        return;
+      }
       setJobs((js) => js.filter((j) => j.job_id !== job.job_id));
       apiPost(`/status/jobs/${job.store}/${job.job_id}/dismiss`, {});
     };
     const clearFinished = () => {
+      if (updateJob && updateJob.status === "done") setUpdateDismissedPhase(desktopUpdate.phase);
       setJobs((js) => js.filter((j) => j.status !== "done" && j.status !== "error"));
       apiPost("/status/jobs/clear-finished", {});
     };
@@ -4766,7 +4798,9 @@
       setOpen(false);
       if (onNavigate) onNavigate(job);
     };
-    const hasFinished = jobs.some((j) => j.status === "done" || j.status === "error");
+    const updateJob = desktopUpdate && desktopUpdate.phase !== updateDismissedPhase ? desktopUpdateStatusJob(desktopUpdate) : null;
+    const displayJobs = updateJob ? [updateJob, ...jobs] : jobs;
+    const hasFinished = displayJobs.some((j) => j.status === "done" || j.status === "error");
     return /* @__PURE__ */ React.createElement("span", { className: "status-menu" }, /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -4776,34 +4810,41 @@
         title: "Active and recently-finished processes"
       },
       "Status",
-      jobs.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "status-badge" }, jobs.length)
+      displayJobs.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "status-badge" }, displayJobs.length)
     ), open && pos && ReactDOM.createPortal(
-      /* @__PURE__ */ React.createElement("div", { className: "status-menu-pop", ref: popRef, style: { position: "fixed", top: pos.top, right: pos.right } }, jobs.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "status-empty" }, "Nothing running.") : jobs.map((j) => /* @__PURE__ */ React.createElement(StatusJobRow, { key: j.store + ":" + j.job_id, job: j, onDismiss: dismiss, onNavigate: navigate })), hasFinished && /* @__PURE__ */ React.createElement("button", { className: "status-clear-finished", onClick: clearFinished }, "Clear all finished")),
+      /* @__PURE__ */ React.createElement("div", { className: "status-menu-pop", ref: popRef, style: { position: "fixed", top: pos.top, right: pos.right } }, displayJobs.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "status-empty" }, "Nothing running.") : displayJobs.map((j) => /* @__PURE__ */ React.createElement(StatusJobRow, { key: j.store + ":" + j.job_id, job: j, onDismiss: dismiss, onNavigate: navigate })), hasFinished && /* @__PURE__ */ React.createElement("button", { className: "status-clear-finished", onClick: clearFinished }, "Clear all finished")),
       document.body
     ));
   }
-  function UpdateNotice() {
-    const [ready, setReady] = useState(null);
-    const [dismissed, setDismissed] = useState(false);
+  function useDesktopUpdate() {
+    const [update, setUpdate] = useState({ phase: "idle" });
     useEffect(() => {
       if (!("__TAURI__" in window)) return;
-      let unlisten;
-      window.__TAURI__.event.listen("update-ready", (e) => setReady(e.payload)).then((f) => {
-        unlisten = f;
-      });
-      return () => {
-        if (unlisten) unlisten();
-      };
+      const unlisten = [];
+      const on = (name, fn) => window.__TAURI__.event.listen(name, fn).then((f) => unlisten.push(f));
+      on("update-downloading", (e) => setUpdate({ phase: "downloading", version: e.payload.version, downloaded: 0, total: null }));
+      on("update-progress", (e) => setUpdate({
+        phase: "downloading",
+        version: e.payload.version,
+        downloaded: e.payload.downloaded,
+        total: e.payload.total
+      }));
+      on("update-ready", (e) => setUpdate({ phase: "ready", version: e.payload.version, notes: e.payload.notes, action: e.payload.action }));
+      return () => unlisten.forEach((f) => f());
     }, []);
-    if (!ready) return null;
+    return update;
+  }
+  function UpdateNotice({ update }) {
+    const [dismissed, setDismissed] = useState(false);
+    if (!update || update.phase !== "ready") return null;
     const act = () => window.__TAURI__.core.invoke(
-      ready.action === "restart" ? "install_update_now" : "open_release_page"
+      update.action === "restart" ? "install_update_now" : "open_release_page"
     );
-    const label = ready.action === "restart" ? "Restart now" : "Open release page";
+    const label = update.action === "restart" ? "Restart now" : "Open release page";
     if (dismissed) {
-      return /* @__PURE__ */ React.createElement("button", { className: "update-pill", onClick: () => setDismissed(false), title: `Update ready \u2014 v${ready.version}` }, "Update ready");
+      return /* @__PURE__ */ React.createElement("button", { className: "update-pill", onClick: () => setDismissed(false), title: `Update ready \u2014 v${update.version}` }, "Update ready");
     }
-    return /* @__PURE__ */ React.createElement("div", { className: "update-toast", role: "status" }, /* @__PURE__ */ React.createElement("span", { className: "update-toast-text" }, "Update ready \u2014 v", ready.version), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: act }, label), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setDismissed(true) }, "Later"));
+    return /* @__PURE__ */ React.createElement("div", { className: "update-toast", role: "status" }, /* @__PURE__ */ React.createElement("span", { className: "update-toast-text" }, "Update ready \u2014 v", update.version), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: act }, label), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setDismissed(true) }, "Later"));
   }
   const ONBOARDING_STEPS = ["identity", "ai", "library", "import", "axis", "done"];
   const ONBOARDING_STEP_LABELS = {
@@ -15948,7 +15989,33 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
   function SettingsCard({ title, children, id }) {
     return /* @__PURE__ */ React.createElement("section", { className: "settings-card", id }, /* @__PURE__ */ React.createElement("h2", { className: "settings-card-title" }, title), children);
   }
-  function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, onRetractionRan }) {
+  function DesktopUpdateSettings({ desktopUpdate }) {
+    const [outcome, setOutcome] = useState(null);
+    const [checking, setChecking] = useState(false);
+    if (!("__TAURI__" in window)) return null;
+    const check = async () => {
+      setChecking(true);
+      setOutcome(null);
+      try {
+        setOutcome(await window.__TAURI__.core.invoke("check_for_updates_now"));
+      } catch (e) {
+        setOutcome({ kind: "Failed", detail: String(e) });
+      }
+      setChecking(false);
+    };
+    const live = desktopUpdate && desktopUpdate.phase !== "idle" ? desktopUpdate : null;
+    let statusText = null;
+    if (live && live.phase === "ready") statusText = `Update ready \u2014 v${live.version}. Restart to install.`;
+    else if (live && live.phase === "downloading") statusText = `Downloading v${live.version}\u2026`;
+    else if (outcome) {
+      if (outcome.kind === "UpToDate") statusText = "You're up to date.";
+      else if (outcome.kind === "Downloading") statusText = `Found v${outcome.version} \u2014 downloading\u2026`;
+      else if (outcome.kind === "Ready") statusText = `Update v${outcome.version} ready. Restart to install.`;
+      else if (outcome.kind === "Failed") statusText = `Couldn't check for updates: ${outcome.detail}`;
+    }
+    return /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Updates"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: checking, onClick: check }, checking ? "Checking\u2026" : "Check for updates")), statusText && /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, statusText));
+  }
+  function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, onRetractionRan, desktopUpdate }) {
     const dark = theme === "dark";
     return /* @__PURE__ */ React.createElement("div", { className: "workspace-view scroll settings-view" }, /* @__PURE__ */ React.createElement("div", { className: "settings-grid" }, /* @__PURE__ */ React.createElement(SettingsCard, { title: "Account & sync" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "My Publications"), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed })), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement(MetadataSettings, null))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(SyncSettings, null), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Appearance"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Dark mode"), /* @__PURE__ */ React.createElement(
       "button",
@@ -15983,7 +16050,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onChange: (e) => onAxisCutoffDefault(Number(e.target.value)),
         "aria-label": "Default axis cutoff"
       }
-    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Citation styles", id: "citation-styles" }, /* @__PURE__ */ React.createElement(CitationStylesSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null))))));
+    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Citation styles", id: "citation-styles" }, /* @__PURE__ */ React.createElement(CitationStylesSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Desktop app" }, /* @__PURE__ */ React.createElement(DesktopUpdateSettings, { desktopUpdate }))));
   }
   function MyPubsSettings({ onRefreshed }) {
     const [name, setName] = useState("");
@@ -17938,6 +18005,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [conn, setConn] = useState({ state: "wait" });
     const [settingsNonce, setSettingsNonce] = useState(0);
     const [authLocked, setAuthLocked] = useState(false);
+    const desktopUpdate = useDesktopUpdate();
     const {
       theme,
       setTheme,
@@ -18255,7 +18323,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     useEffect(() => {
       api("/health").then((r) => {
         if (r.ok) {
-          setConn({ state: "ok", version: r.data && (r.data.verification_version || r.data.version) || null });
+          setConn({ state: "ok", version: r.data && r.data.app_version || null });
           setReadOnly(!!(r.data && r.data.read_only));
           setOnboardingDone(!!(r.data && r.data.onboarding_completed));
         } else setConn({ state: "bad" });
@@ -18376,7 +18444,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       onCaptureApplied: clearCapture
     };
     const sidebarEl = /* @__PURE__ */ React.createElement(Sidebar, { conn, ctx: paneCtx, theoryOpen, onTheoryOpen: setTheoryOpen });
-    const centerEl = /* @__PURE__ */ React.createElement("div", { className: "workspace-frame" }, !readingMode && /* @__PURE__ */ React.createElement(MenuBar, { active: activeWorkspace, onActivate: selectWorkspace, readOnly, mobile, onStatusNavigate }), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
+    const centerEl = /* @__PURE__ */ React.createElement("div", { className: "workspace-frame" }, !readingMode && /* @__PURE__ */ React.createElement(MenuBar, { active: activeWorkspace, onActivate: selectWorkspace, readOnly, mobile, onStatusNavigate, desktopUpdate }), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
       LibraryFrame,
       {
         libraryProps: {
@@ -18441,7 +18509,8 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         axisCutoffDefault,
         onAxisCutoffDefault: setAxisCutoffDefault,
         onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1),
-        onRetractionRan: refreshRetractionChip
+        onRetractionRan: refreshRetractionChip,
+        desktopUpdate
       }
     )));
     const detailEl = /* @__PURE__ */ React.createElement("div", { className: "pane pane-detail" }, /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "methods", ctx: paneCtx, openId: methodsOpen, onOpen: setMethodsOpen }));
@@ -18527,7 +18596,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         },
         onAxisSaved: () => setAxisRefresh((n) => n + 1)
       }
-    ), authLocked && /* @__PURE__ */ React.createElement(AccessLockOverlay, null), /* @__PURE__ */ React.createElement(UpdateNotice, null));
+    ), authLocked && /* @__PURE__ */ React.createElement(AccessLockOverlay, null), /* @__PURE__ */ React.createElement(UpdateNotice, { update: desktopUpdate }));
     const readOnlyBadge = readOnly ? /* @__PURE__ */ React.createElement("div", { className: "read-only-badge", title: "This callosum instance rejects changes \u2014 reading only." }, "\u{1F512} Read-only") : null;
     if (mobile) {
       const activeEl = mobilePane === "theory" ? sidebarEl : mobilePane === "methods" ? detailEl : centerEl;

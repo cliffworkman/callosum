@@ -109,7 +109,7 @@ fn pick_free_port() -> std::io::Result<u16> {
 /// Spawn uvicorn against `paths` on a freshly-picked port, retrying with a new port if the process
 /// exits almost immediately (the classic "address already in use" case on a personal machine where
 /// something else grabbed the port in the gap between `pick_free_port` and uvicorn's own bind).
-pub fn spawn_backend(paths: &ResolvedPaths) -> Result<(BackendHandle, u16), StartupError> {
+pub fn spawn_backend(paths: &ResolvedPaths, app_version: &str) -> Result<(BackendHandle, u16), StartupError> {
     let mut last_err = String::new();
     for _ in 0..MAX_SPAWN_ATTEMPTS {
         let port = pick_free_port().map_err(|e| StartupError::SpawnFailed(e.to_string()))?;
@@ -126,6 +126,7 @@ pub fn spawn_backend(paths: &ResolvedPaths) -> Result<(BackendHandle, u16), Star
         .current_dir(&paths.source_root)
         .env("CALLOSUM_DB_URL", &paths.db_url)
         .env("CALLOSUM_LIBRARY_DIR", &paths.library_dir)
+        .env("CALLOSUM_APP_VERSION", app_version)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 

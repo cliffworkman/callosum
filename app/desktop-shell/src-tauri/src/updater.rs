@@ -28,66 +28,159 @@ struct UpdateReadyPayload {
     action: &'static str, // "restart" (Windows/macOS, silent download already done) | "open-page" (Linux)
 }
 
+/// The download itself is silent for INSTALL purposes (no dialog interrupts the user), but the
+/// frontend Status popover shows it as a real in-progress row instead of a black box — the same
+/// "don't leave the user guessing how long this takes" rationale as the cross-feature Status
+/// popover (inc 415/406). These two events are Windows/macOS-only (Linux never downloads silently).
+#[derive(Serialize, Clone)]
+struct DownloadingPayload {
+    version: String,
+}
+
+#[derive(Serialize, Clone)]
+struct ProgressPayload {
+    version: String,
+    downloaded: u64,
+    total: Option<u64>,
+}
+
+/// The result of a check, returned to the Settings "Check for updates" button (inc "desktop-shell
+/// auto-updater" follow-up) as well as discarded by the silent periodic loop. `Downloading` means
+/// the check itself found a newer version and handed off to the background download — it does NOT
+/// wait for that download to finish (a manual click shouldn't block on a potentially large
+/// transfer); the existing update-downloading/update-progress/update-ready events carry the rest.
+#[derive(Serialize, Clone)]
+#[serde(tag = "kind")]
+pub enum CheckOutcome {
+    UpToDate,
+    Downloading { version: String },
+    Ready { version: String },
+    Failed { detail: String },
+}
+
 /// Holds whatever's needed to finish an update once the user clicks through — never anything
-/// bigger than that. On Windows/macOS this is the downloaded bytes + the `Update` handle needed
-/// to call `.install()`; on Linux it's just "have we already told the frontend," so a later check
-/// doesn't re-emit the same event every 6 hours.
+/// bigger than that. On Windows/macOS: `ready` is the downloaded bytes + the `Update` handle
+/// needed to call `.install()`; `downloading` is the in-flight version (if any), so a manual check
+/// while a download is already underway reports it instead of starting a second concurrent one. On
+/// Linux: `notified` is the version already surfaced to the frontend, so a later check (periodic or
+/// manual) reports the same version instead of re-emitting the event every 6 hours.
 #[derive(Default)]
 pub struct UpdateState {
     #[cfg(any(target_os = "macos", windows))]
     ready: Mutex<Option<(Update, Vec<u8>)>>,
+    #[cfg(any(target_os = "macos", windows))]
+    downloading: Mutex<Option<String>>,
     #[cfg(target_os = "linux")]
-    notified: Mutex<bool>,
+    notified: Mutex<Option<String>>,
 }
 
 pub async fn run_periodic_check(app: AppHandle) {
     tokio::time::sleep(STARTUP_DELAY).await;
     loop {
         #[cfg(any(target_os = "macos", windows))]
-        check_desktop(&app).await;
+        {
+            let _ = check_desktop(&app).await;
+        }
         #[cfg(target_os = "linux")]
-        check_linux(&app).await;
+        {
+            let _ = check_linux(&app).await;
+        }
         tokio::time::sleep(CHECK_INTERVAL).await;
     }
 }
 
+/// Manual on-demand check, invoked from Settings. Reuses the exact same check functions the
+/// silent periodic loop calls — the only difference is the caller actually reads the outcome.
+#[tauri::command]
+pub async fn check_for_updates_now(app: AppHandle) -> CheckOutcome {
+    #[cfg(any(target_os = "macos", windows))]
+    {
+        check_desktop(&app).await
+    }
+    #[cfg(target_os = "linux")]
+    {
+        check_linux(&app).await
+    }
+}
+
 #[cfg(any(target_os = "macos", windows))]
-async fn check_desktop(app: &AppHandle) {
+async fn check_desktop(app: &AppHandle) -> CheckOutcome {
     use tauri::Manager;
     let state = app.state::<UpdateState>();
-    if state.ready.lock().unwrap().is_some() {
-        return; // a Ready update already awaits the user's click — never clobber it with a re-check
+    if let Some((existing, _)) = state.ready.lock().unwrap().as_ref() {
+        return CheckOutcome::Ready { version: existing.version.clone() };
     }
-    // Every failure branch below (no updater handle, offline, a malformed manifest, a failed
-    // download) is an expected, benign steady state — not exceptional — so each just returns
-    // quietly and lets the next periodic tick try again, matching backend.rs's own terse style.
-    let Ok(updater) = app.updater() else { return };
+    if let Some(version) = state.downloading.lock().unwrap().clone() {
+        return CheckOutcome::Downloading { version };
+    }
+    let Ok(updater) = app.updater() else {
+        return CheckOutcome::Failed { detail: "The updater isn't available on this build.".into() };
+    };
     let update = match updater.check().await {
         Ok(Some(update)) => update,
-        _ => return, // None (already current) or Err (offline / bad manifest) — both a no-op here
+        Ok(None) => return CheckOutcome::UpToDate,
+        Err(e) => return CheckOutcome::Failed { detail: e.to_string() },
     };
     let version = update.version.clone();
-    let notes = update.body.clone();
-    // Silent by design — this is the "pushed automatically" half. No UI during the download itself;
-    // the toast only appears once it's actually ready to apply.
-    let Ok(bytes) = update.download(|_chunk_len, _content_len| {}, || {}).await else { return };
-    *state.ready.lock().unwrap() = Some((update, bytes));
-    let _ = app.emit(
-        "update-ready",
-        UpdateReadyPayload { version, notes, action: "restart" },
-    );
+    *state.downloading.lock().unwrap() = Some(version.clone());
+    spawn_download(app.clone(), update);
+    CheckOutcome::Downloading { version }
+}
+
+/// The actual download, run to completion in its own spawned task so a manual check-for-updates
+/// click returns as soon as a newer version is *found*, not once it's fully downloaded. Progress
+/// and completion both ride the same events the silent periodic path always used.
+#[cfg(any(target_os = "macos", windows))]
+fn spawn_download(app: AppHandle, update: Update) {
+    tauri::async_runtime::spawn(async move {
+        use tauri::Manager;
+        let state = app.state::<UpdateState>();
+        let version = update.version.clone();
+        let notes = update.body.clone();
+        let _ = app.emit("update-downloading", DownloadingPayload { version: version.clone() });
+        let downloaded = Mutex::new(0u64);
+        let last_emitted = Mutex::new(0u64);
+        const PROGRESS_EMIT_STEP: u64 = 256 * 1024; // coalesce chunk callbacks so the webview isn't flooded
+        let progress_app = app.clone();
+        let progress_version = version.clone();
+        let result = update
+            .download(
+                move |chunk_len, content_len| {
+                    let mut total = downloaded.lock().unwrap();
+                    *total += chunk_len as u64;
+                    let mut last = last_emitted.lock().unwrap();
+                    let done = content_len.map(|c| *total >= c).unwrap_or(false);
+                    if *total - *last >= PROGRESS_EMIT_STEP || done {
+                        *last = *total;
+                        let _ = progress_app.emit(
+                            "update-progress",
+                            ProgressPayload { version: progress_version.clone(), downloaded: *total, total: content_len },
+                        );
+                    }
+                },
+                || {},
+            )
+            .await;
+        *state.downloading.lock().unwrap() = None;
+        let Ok(bytes) = result else { return };
+        *state.ready.lock().unwrap() = Some((update, bytes));
+        let _ = app.emit(
+            "update-ready",
+            UpdateReadyPayload { version, notes, action: "restart" },
+        );
+    });
 }
 
 #[cfg(target_os = "linux")]
-async fn check_linux(app: &AppHandle) {
+async fn check_linux(app: &AppHandle) -> CheckOutcome {
     use tauri::Manager;
     let state = app.state::<UpdateState>();
-    if *state.notified.lock().unwrap() {
-        return;
+    if let Some(version) = state.notified.lock().unwrap().clone() {
+        return CheckOutcome::Ready { version };
     }
     let client = match reqwest::Client::builder().timeout(Duration::from_secs(10)).build() {
         Ok(c) => c,
-        Err(_) => return,
+        Err(e) => return CheckOutcome::Failed { detail: e.to_string() },
     };
     let resp = match client
         .get("https://api.github.com/repos/cliffworkman/callosum/releases/latest")
@@ -96,23 +189,27 @@ async fn check_linux(app: &AppHandle) {
         .await
     {
         Ok(r) => r,
-        Err(_) => return, // offline — fail closed, no retry storm; the next 6h tick tries again
+        // offline — fail closed, no retry storm; the next 6h periodic tick tries again regardless
+        Err(_) => return CheckOutcome::Failed { detail: "Couldn't reach GitHub — check your connection.".into() },
     };
     let json: serde_json::Value = match resp.json().await {
         Ok(j) => j,
-        Err(_) => return,
+        Err(_) => return CheckOutcome::Failed { detail: "Unexpected response from GitHub.".into() },
     };
     let Some(tag) = json.get("tag_name").and_then(|v| v.as_str()) else {
-        return;
+        return CheckOutcome::Failed { detail: "Unexpected response from GitHub.".into() };
     };
-    let remote = tag.trim_start_matches('v');
+    let remote = tag.trim_start_matches('v').to_string();
     let current = app.package_info().version.to_string();
-    if is_newer(remote, &current) {
-        *state.notified.lock().unwrap() = true;
+    if is_newer(&remote, &current) {
+        *state.notified.lock().unwrap() = Some(remote.clone());
         let _ = app.emit(
             "update-ready",
-            UpdateReadyPayload { version: remote.to_string(), notes: None, action: "open-page" },
+            UpdateReadyPayload { version: remote.clone(), notes: None, action: "open-page" },
         );
+        CheckOutcome::Ready { version: remote }
+    } else {
+        CheckOutcome::UpToDate
     }
 }
 

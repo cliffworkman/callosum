@@ -6,6 +6,7 @@ function App() {
   const [conn, setConn] = useState({ state: "wait" });
   const [settingsNonce, setSettingsNonce] = useState(0);  // inc 280: bumped on LEAVING the Settings workspace → panes re-read egress state (inc 148)
   const [authLocked, setAuthLocked] = useState(false);  // inc 254: a 401 (Remote access on, no valid token) → AccessLockOverlay
+  const desktopUpdate = useDesktopUpdate();  // shared with the Status popover (04c_status.jsx) via the MenuBar prop below
 
   // theme + axis prefs + side-panel layout + accordion-open + Reading mode (all in 04_layout.jsx).
   const {
@@ -312,7 +313,7 @@ function App() {
   useEffect(() => {
     api("/health").then(r => {
       if (r.ok) {
-        setConn({ state: "ok", version: (r.data && (r.data.verification_version || r.data.version)) || null });
+        setConn({ state: "ok", version: (r.data && r.data.app_version) || null });
         setReadOnly(!!(r.data && r.data.read_only));
         setOnboardingDone(!!(r.data && r.data.onboarding_completed));
       } else setConn({ state: "bad" });
@@ -414,7 +415,7 @@ function App() {
   const centerEl = (
     <div className="workspace-frame">
       {/* inc 301: hide the menu bar in read mode (the focused reader); the reader's own Reading toggle exits it. */}
-      {!readingMode && <MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} mobile={mobile} onStatusNavigate={onStatusNavigate} />}
+      {!readingMode && <MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} mobile={mobile} onStatusNavigate={onStatusNavigate} desktopUpdate={desktopUpdate} />}
       <div className="workspace-slot" style={{ display: activeWorkspace === "library" ? "flex" : "none" }}>
         <LibraryFrame
           libraryProps={{
@@ -464,7 +465,7 @@ function App() {
         <div className="workspace-slot" style={{ display: "flex" }}>
           <SettingsView theme={theme} onTheme={setTheme} hideUncertainDefault={hideUncertainDefault} onHideUncertainDefault={setHideUncertainDefault}
             axisCutoffDefault={axisCutoffDefault} onAxisCutoffDefault={setAxisCutoffDefault} onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)}
-            onRetractionRan={refreshRetractionChip} />
+            onRetractionRan={refreshRetractionChip} desktopUpdate={desktopUpdate} />
         </div>}
     </div>
   );
@@ -511,7 +512,7 @@ function App() {
           onImportedBundle={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }}
           onAxisSaved={() => setAxisRefresh(n => n + 1)} />}
       {authLocked && <AccessLockOverlay />}
-      <UpdateNotice />
+      <UpdateNotice update={desktopUpdate} />
     </React.Fragment>
   );
 

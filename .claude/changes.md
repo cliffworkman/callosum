@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-29 — Increment 417: auto-updater follow-up (real app version, progress visibility, on-demand check)
+
+- **Files:** `app/backend/api/routers/health.py`, `app/desktop-shell/src-tauri/src/{updater.rs,backend.rs,lib.rs}`,
+  `app/frontend/js/{40_app.jsx,04b_workspaces.jsx,04c_status.jsx,04d_update.jsx,35_settings.jsx}`,
+  `tests/test_health.py`, `tests/test_frontend_assembly.py`, `tests/e2e/test_smoke.py`,
+  `.claude/security-audits/2026-07-28_desktop-shell-auto-updater.md` (addendum).
+- **What:** three fixes prompted by watching v0.3.2's release + auto-update go live: the connection tooltip
+  now shows the real app version instead of an unrelated internal `verification_version` constant; the
+  silent download now emits progress events so the Status popover shows a real in-progress row (a
+  frontend-only synthetic entry, since the updater lives entirely in the Tauri process, never a backend
+  `JobStore`); and a new Settings → Desktop app → "Check for updates" button triggers an on-demand check
+  instead of only the periodic 6h cycle. Also fixed in passing: the e2e smoke-test fixture now isolates
+  `CALLOSUM_SETTINGS_PATH` so inc 416's onboarding wizard doesn't block the pre-existing browser tests on CI.
+- **Why:** Cliff restarted his running v0.3.1 install to test the just-shipped auto-updater and got no visible
+  feedback either way after several minutes — a real, firsthand instance of the "feels like a black box"
+  problem the Status popover (inc 415) was built to solve, just for a surface it didn't reach yet.
+- **Revert:** `git revert` the increment-417 commit, or restore the touched files from the pre-increment commit.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-29 inc 414 — a third Acquire-OA-copy outcome (a download can fail) -->
 ## 2026-07-29 — Increment 416: first-run onboarding wizard (wizard core)
 

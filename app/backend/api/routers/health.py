@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import Connection, text
@@ -30,6 +32,13 @@ class HealthResponse(BaseModel):
     # inc 416: has the first-run onboarding wizard been completed or explicitly skipped? Rides this same
     # unconditional launch fetch (the one App() always makes), mirroring read_only's own precedent above.
     onboarding_completed: bool = False
+    # The desktop shell's own version (e.g. "0.3.2"), set via CALLOSUM_APP_VERSION when the Tauri shell
+    # spawns this backend as a child process. None when run outside the shell (plain uvicorn/dev, the
+    # remote-access tunnel) — there's no packaged release version to report in that case. This is
+    # deliberately NOT verification_version (the local NLI/quote-verification pipeline's own internal
+    # versioning, unrelated to the app's release number) — the two were previously conflated in the
+    # frontend's connection tooltip.
+    app_version: str | None = None
 
 
 def _database_status(conn: Connection) -> tuple[bool, bool, str | None, str | None]:
@@ -66,4 +75,5 @@ def health(conn: Connection = Depends(get_connection)) -> HealthResponse:
         db_head_revision=head,
         read_only=app_settings.read_only_mode(),
         onboarding_completed=app_settings.stored_onboarding_completed(),
+        app_version=os.getenv("CALLOSUM_APP_VERSION"),
     )
