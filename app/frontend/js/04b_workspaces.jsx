@@ -3,6 +3,9 @@
 // My Publications | Library | Synthesize | Discover | Work (primary) + Help | Settings | Status (right-aligned
 // utilities). Status (04c_status.jsx, inc 406) is NOT a registered workspace — it's a click-toggle popover of
 // active/recent async jobs, rendered directly after the Help/Settings utility buttons in MenuBar below.
+// Feedback (18b_feedback.jsx, inc 413) rides the same exception for the same reason Status does — and one more:
+// it opens a MODAL rather than replacing the view, because a bug report is about the screen you are looking at.
+// Navigating away to a Feedback workspace would discard the very context (and screenshot) being reported.
 // Sections-are-data, exactly like 05_panes.jsx: a workspace self-registers with an order; it holds EITHER a single
 // `render` (My Publications, Help, Settings) OR >=2 sub-tabs (Discover: Feed|Search|Journals|Funding; Work:
 // Cite|Meta-Reference|CRediT|Meta-Analyze — citing, reference-list analysis, credit statements, and meta-analysis
@@ -75,6 +78,10 @@ function MenuBar({ active, onActivate, readOnly, mobile }) {
               {utils.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
             </optgroup>}
         </select>
+        {/* Help/Settings ride the <select> because they're registered workspaces; Feedback is a modal, so it
+            needs its own control here or it would be unreachable at phone width — the one width where "something
+            is broken and I can't get on with it" is most likely. */}
+        <FeedbackMenuItem workspace={active} />
       </div>
     );
   }
@@ -89,6 +96,7 @@ function MenuBar({ active, onActivate, readOnly, mobile }) {
       <div className="menubar-utils">
         {utils.map(item)}
         <StatusMenu />
+        <FeedbackMenuItem workspace={active} />
       </div>
     </div>
   );
