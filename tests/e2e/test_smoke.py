@@ -510,13 +510,20 @@ def test_statcheck_table_result_surfaces_provenance_and_coverage(server: str):
         except Exception as exc:
             pytest.skip(f"chromium not launchable: {exc}")
         page = browser.new_page(viewport={"width": 1366, "height": 900})
+        # inc 400 moved the Details-pane "Statistics" section from the fused GET .../statcheck endpoint
+        # (still used elsewhere, e.g. Discover/Cite) to a cache-then-explicit-rescan read at
+        # .../statcheck/cached — this test's mock must match the endpoint actually called on mount, or the
+        # real (unmocked) cache miss just renders "no cached result" and every assertion below times out.
         page.route(
-            "**/papers/*/statcheck",
+            "**/papers/*/statcheck/cached",
             lambda route: route.fulfill(
                 json={
+                    "cached": True,
                     "checked": 1,
                     "inconsistent": 0,
                     "decision_errors": 1,
+                    "computed_at": "2026-07-01T00:00:00",
+                    "stale": False,
                     "results": [
                         {
                             "raw": "Memory | t(28) | 1.50 | .04",
