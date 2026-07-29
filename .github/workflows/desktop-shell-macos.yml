@@ -143,6 +143,12 @@ jobs:
             echo "::warning::TAURI_SIGNING_PRIVATE_KEY not set — skipping the updater-artifact regen (unsigned build, no repo secrets configured yet)"
             exit 0
           fi
+          # A real run found createUpdaterArtifacts:true also produces its OWN auto-signed
+          # Callosum.app.tar.gz(.sig) (no version/arch in the name) alongside this one — since
+          # that's the untrusted artifact this whole step exists to not rely on, delete it here so
+          # the "Upload updater artifact" step's glob below can only ever find the trusted one.
+          rm -f src-tauri/target/release/bundle/macos/Callosum.app.tar.gz \
+                src-tauri/target/release/bundle/macos/Callosum.app.tar.gz.sig
           APP=$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name "*.app")
           VERSION=$(jq -r '.version' src-tauri/tauri.conf.json)
           ARTIFACT="src-tauri/target/release/bundle/macos/Callosum_${VERSION}_aarch64.app.tar.gz"
