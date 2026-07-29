@@ -275,6 +275,29 @@ def test_author_client_resolves_by_name(temp_db_url):
     assert author.author_id == "A2" and author.matched_by == "name"
 
 
+def test_author_client_falls_back_to_name_when_orcid_unlinked(temp_db_url):
+    """A real, common gap (not a Callosum bug): OpenAlex's own author record can lack the ORCID link even
+    though the ORCID itself is correct (the OpenAlex profile predates or was never merged with it) — the
+    orcid-keyed lookup 404s, but a name search still finds the same person. Falling back keeps this an
+    honest, lower-confidence match (``matched_by="name"``), not a silent no-match."""
+    name_body = {"results": [{"id": "https://openalex.org/A9", "display_name": "Isabella Bobrow", "works_count": 14}]}
+    fetcher = _AuthorFetcher({"/authors/orcid:": (404, None), "/authors": (200, name_body)})
+    client = OpenAlexAuthorClient(fetcher=fetcher)
+    with make_engine(temp_db_url).begin() as conn:
+        author = client.resolve_author(conn, orcid="0009-0008-6787-5123", name="Isabella Bobrow")
+    assert author is not None and author.author_id == "A9" and author.matched_by == "name"
+    assert len(fetcher.calls) == 2  # both the orcid attempt and the name fallback actually ran
+
+
+def test_author_client_orcid_success_never_tries_name_fallback(temp_db_url):
+    body = {"id": "https://openalex.org/A1", "display_name": "Ada", "orcid": "https://orcid.org/0000-x"}
+    fetcher = _AuthorFetcher({"/authors/orcid:": (200, body), "/authors": (200, {"results": []})})
+    client = OpenAlexAuthorClient(fetcher=fetcher)
+    with make_engine(temp_db_url).begin() as conn:
+        author = client.resolve_author(conn, orcid="0000-x", name="Someone Else")
+    assert author.matched_by == "orcid" and len(fetcher.calls) == 1  # never reaches the name search
+
+
 def test_author_client_works_mapping_and_cache(temp_db_url):
     body = {
         "results": [
@@ -378,6 +401,23 @@ def test_cached_author_reads_cache_without_fetching(temp_db_url):
     with engine.begin() as conn:
         author = client.cached_author(conn, orcid="0000-x")
     assert author is not None and author.cited_by_count == 5 and len(fetcher.calls) == calls  # served from cache
+
+
+def test_cached_author_finds_a_prior_name_fallback_match(temp_db_url):
+    """cached_author must mirror resolve_author's orcid-then-name fallback order — otherwise a name-fallback
+    match resolved once would silently vanish (report not-resolved) on every later cache-only dashboard read,
+    even though the underlying OpenAlex data hasn't changed."""
+    name_body = {"results": [{"id": "https://openalex.org/A9", "display_name": "Isabella Bobrow"}]}
+    fetcher = _AuthorFetcher({"/authors/orcid:": (404, None), "/authors": (200, name_body)})
+    client = OpenAlexAuthorClient(fetcher=fetcher)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        client.resolve_author(conn, orcid="0009-0008-6787-5123", name="Isabella Bobrow")  # warms both cache keys
+    calls = len(fetcher.calls)
+    with engine.begin() as conn:
+        author = client.cached_author(conn, orcid="0009-0008-6787-5123", name="Isabella Bobrow")
+    assert author is not None and author.author_id == "A9" and author.matched_by == "name"
+    assert len(fetcher.calls) == calls  # served entirely from cache, no new fetch
 
 
 def test_dashboard_ok_returns_metrics_and_pubs_by_year(temp_db_url):

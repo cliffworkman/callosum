@@ -102,27 +102,47 @@ class OpenAlexAuthorClient:
     def resolve_author(
         self, conn: Connection, *, orcid: str | None = None, name: str | None = None
     ) -> ResolvedAuthor | None:
-        keyed = _author_cache_key(orcid=orcid, name=name)
-        if keyed is None:
-            return None
-        key, matched_by = keyed
-        if matched_by == "orcid":
-            url, params = f"{OPENALEX_ROOT}/authors/orcid:{orcid.strip()}", {}
-        else:
-            url, params = f"{OPENALEX_ROOT}/authors", {"filter": f"display_name.search:{name.strip()}", "per-page": "1"}
+        """ORCID-first (exact match, ``matched_by="orcid"``). If OpenAlex has no ORCID-linked record for it — a
+        real, common gap when an author's OpenAlex profile predates or was never linked to their ORCID iD, not
+        a Callosum bug — falls back to a name search rather than reporting no match, as long as a name is also
+        on file. The fallback is honestly lower-confidence (``matched_by="name"``): never silently equated with
+        an exact ORCID match (see ``ResolvedAuthor.matched_by``, surfaced to the user)."""
+        if orcid and orcid.strip():
+            author = self._fetch_by_orcid(conn, orcid)
+            if author is not None:
+                return author
+        if name and name.strip():
+            return self._fetch_by_name(conn, name)
+        return None
+
+    def _fetch_by_orcid(self, conn: Connection, orcid: str) -> ResolvedAuthor | None:
+        key = _orcid_cache_key(orcid)
+        body = self._fetch(conn, OPENALEX_AUTHOR_PROVIDER, key, f"{OPENALEX_ROOT}/authors/orcid:{orcid.strip()}", {})
+        return _author_from_obj(_pick_author(body), matched_by="orcid") if body is not None else None
+
+    def _fetch_by_name(self, conn: Connection, name: str) -> ResolvedAuthor | None:
+        key = _name_cache_key(name)
+        url = f"{OPENALEX_ROOT}/authors"
+        params = {"filter": f"display_name.search:{name.strip()}", "per-page": "1"}
         body = self._fetch(conn, OPENALEX_AUTHOR_PROVIDER, key, url, params)
-        return _author_from_obj(_pick_author(body), matched_by=matched_by) if body is not None else None
+        return _author_from_obj(_pick_author(body), matched_by="name") if body is not None else None
 
     def cached_author(
         self, conn: Connection, *, orcid: str | None = None, name: str | None = None
     ) -> ResolvedAuthor | None:
         """Cache-only author lookup (inc 81) — return the enriched author from cache, or None; NEVER fetches.
         The dashboard uses this so opening it makes ZERO egress (the resolve that set ``openalex_author_id``
-        already warmed this cache under the same key)."""
-        keyed = _author_cache_key(orcid=orcid, name=name)
-        if keyed is None:
-            return None
-        key, matched_by = keyed
+        already warmed this cache under the same key). Mirrors ``resolve_author``'s ORCID-first-then-name-
+        fallback order so a name-fallback match resolved earlier is still found on a later cache-only read."""
+        if orcid and orcid.strip():
+            author = self._cached_by_key(conn, _orcid_cache_key(orcid), matched_by="orcid")
+            if author is not None:
+                return author
+        if name and name.strip():
+            return self._cached_by_key(conn, _name_cache_key(name), matched_by="name")
+        return None
+
+    def _cached_by_key(self, conn: Connection, key: str, *, matched_by: str) -> ResolvedAuthor | None:
         cached = get_cached(conn, OPENALEX_AUTHOR_PROVIDER, key)
         if cached is None or int(cached["status_code"] or 0) != 200 or not isinstance(cached["response_json"], dict):
             return None
@@ -285,14 +305,12 @@ def _httpx_fetcher(
     return response.status_code, body
 
 
-def _author_cache_key(*, orcid: str | None, name: str | None) -> tuple[str, str] | None:
-    """(cache_key, matched_by) for an author lookup, or None. The single source of truth for the key, so
-    ``resolve_author`` (write) and ``cached_author`` (cache-only read) can never drift apart."""
-    if orcid and orcid.strip():
-        return "orcid:" + orcid.strip().lower(), "orcid"
-    if name and name.strip():
-        return "name:" + hashlib.sha256(name.strip().lower().encode("utf-8")).hexdigest()[:24], "name"
-    return None
+def _orcid_cache_key(orcid: str) -> str:
+    return "orcid:" + orcid.strip().lower()
+
+
+def _name_cache_key(name: str) -> str:
+    return "name:" + hashlib.sha256(name.strip().lower().encode("utf-8")).hexdigest()[:24]
 
 
 def _pick_author(body: dict[str, Any] | None) -> dict[str, Any] | None:

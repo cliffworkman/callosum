@@ -64,9 +64,9 @@ function MyPubsSettings({ onRefreshed }) {
 
   const s = refresh.summary;
   const summaryText = !s ? "" :
-    s.status === "ok" ? `Found ${s.confirmed || 0} confirmed + ${s.candidates || 0} candidate${(s.candidates || 0) === 1 ? "" : "s"} (of ${s.indexed_works || 0} indexed works; ${s.in_library || 0} in your library).` :
+    s.status === "ok" ? `Found ${s.confirmed || 0} confirmed + ${s.candidates || 0} candidate${(s.candidates || 0) === 1 ? "" : "s"} (of ${s.indexed_works || 0} indexed works; ${s.in_library || 0} in your library).${s.matched_by === "name" ? " Matched by name, not ORCID (your OpenAlex profile may not be linked to it yet) — lower confidence; double-check this is you." : ""}` :
     s.status === "no-identity" ? "Add your name or ORCID first." :
-    s.status === "no-match" ? `No OpenAlex author found for ${s.name || "that identity"} — check the name / ORCID.` :
+    s.status === "no-match" ? `No OpenAlex author found for ${s.name || "that identity"} — check the name / ORCID, or see Help for linking OpenAlex to ORCID.` :
     "Done.";
 
   return (

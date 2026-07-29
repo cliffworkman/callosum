@@ -34,7 +34,15 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
   }, []);
 
   const loadDetail = useCallback((id) => {
-    setDetails(d => ({ ...d, [id]: { status: "loading", papers: [] } }));
+    // Keep an already-loaded list showing while a refresh (confirm/reject/re-score/etc.) is in flight — only
+    // a genuine first load shows the "Loading…" placeholder. Blanking an already-visible list to a one-line
+    // placeholder on every refresh collapsed then reflowed the list's height, which reset the user's scroll
+    // position back to the top each time — the exact disorienting behavior reported against ✓/✕.
+    setDetails(d => {
+      const existing = d[id];
+      const refreshing = existing && existing.status === "ready";
+      return { ...d, [id]: { status: refreshing ? "refreshing" : "loading", papers: refreshing ? existing.papers : [] } };
+    });
     api(`/axes/${id}/clusters`).then(r => {
       if (r.ok) {
         const papers = (r.data || []).flatMap(node => node.papers || []);

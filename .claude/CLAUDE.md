@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 409** (see Increment workflow) with **1679 pytest tests
+It is currently at **Increment 412** (see Increment workflow) with **1683 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -129,7 +129,13 @@ the full per-increment narrative for all other increments now lives in the reloc
   grounded authors citing your work: stable author ids must appear across at least two retrieved citing works and
   two own publications; self and checked coauthors are excluded; every visible count opens to exact work/publication
   evidence; and bounded coauthor coverage is stated. It is a private inspection lead, never inferred collaboration
-  fit or a recommendation of a person. Optional grounded-data narration remains deferred.
+  fit or a recommendation of a person. Optional grounded-data narration remains deferred. **Inc 410** fixes a real
+  external bug report: an author whose OpenAlex profile was never linked to their ORCID iD (OpenAlex and ORCID
+  are separate systems; the gap is common, not user error) got an honest but avoidable "no match." ORCID-keyed
+  resolution (`resolve_author`/`cached_author` in `integrations/openalex/author.py`) now falls back to a name
+  search when the ORCID lookup alone 404s, and the frontend finally renders the pre-existing `matched_by` field
+  so a name-fallback match is visibly labeled lower-confidence rather than presented with an ORCID match's
+  authority. A Help-doc note explains linking OpenAlex to ORCID at the source.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**
@@ -150,7 +156,11 @@ the full per-increment narrative for all other increments now lives in the reloc
   never by the model, and egress rides the same `EgressGatedExtractionAssistant`. **Egress is endpoint-based** (inc 256):
   `requires_egress(config)` gates any **non-loopback** base URL exactly like Gemini, while a **loopback** provider
   (local or a custom `127.0.0.1` endpoint) runs with **zero egress** — so an arbitrary user URL honors #3 for free.
-  Verification NLI runs locally (`cross-encoder/nli-MiniLM2-L6-H768`).
+  Verification NLI runs locally (`cross-encoder/nli-MiniLM2-L6-H768`). **Inc 411** hardens the shared
+  `complete()` seam itself: when the active provider needs egress and has no resolved API key, it now refuses
+  before any network call with a friendly local message (mirroring `/settings/test-key`'s existing pre-check)
+  instead of letting a raw provider auth error (e.g. Anthropic's bare "x-api-key header is required" JSON)
+  reach the user — fixed at the one shared seam, so every LLM feature benefits without a per-router change.
 - **Frontend:** modular source under `app/frontend/` (`index.html` shell + `styles.css` +
   ordered `js/*.jsx` React chunks, React/ReactDOM + pdf.js via CDN), assembled by
   `app/backend/api/frontend.py`: the JSX chunks are concatenated and **precompiled to plain JS by
@@ -531,7 +541,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 405). Each increment of real work
+callosum is built in **numbered increments** (currently at 412). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

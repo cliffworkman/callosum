@@ -10083,7 +10083,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       api("/axes").then((r) => setAxes(r.ok ? r.data : []));
     }, []);
     const loadDetail = useCallback((id) => {
-      setDetails((d) => ({ ...d, [id]: { status: "loading", papers: [] } }));
+      setDetails((d) => {
+        const existing = d[id];
+        const refreshing = existing && existing.status === "ready";
+        return { ...d, [id]: { status: refreshing ? "refreshing" : "loading", papers: refreshing ? existing.papers : [] } };
+      });
       api(`/axes/${id}/clusters`).then((r) => {
         if (r.ok) {
           const papers = (r.data || []).flatMap((node) => node.papers || []);
@@ -10497,7 +10501,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       e.stopPropagation();
       fn();
     };
-    const readyPapers = detail && detail.status === "ready" ? detail.papers : [];
+    const readyPapers = detail && (detail.status === "ready" || detail.status === "refreshing") ? detail.papers : [];
     const uncertainCount = readyPapers.filter((p) => p.status === "uncertain").length;
     const total = axis.assignment_count || 0;
     const badgeCount = hideUncertain ? Math.max(0, total - (axis.uncertain_count || 0)) : total;
@@ -10651,7 +10655,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onClick: () => setHideUncertain((h) => !h)
       },
       "\u{1F441}"
-    )), isMyPubs && uncertainCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-mypubs-hint" }, "Name-only matches are candidates \u2014 ", /* @__PURE__ */ React.createElement("b", null, "\u2713"), " confirm the ones that are yours, ", /* @__PURE__ */ React.createElement("b", null, "\u2715"), " reject the rest. (Confirmed papers match by DOI/ORCID.)"), scoring && /* @__PURE__ */ React.createElement(ProgressBar, { label: job.message || "Scoring the library\u2026" }), job && job.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Scoring failed: ", job.message), detail && detail.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"), detail && detail.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load assignments."), detail && detail.status === "ready" && (detail.papers.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, isMyPubs ? "No publications matched yet \u2014 set your name/ORCID in Settings (\u2699) and Refresh." : isCurated ? "Empty \u2014 drag papers from the library onto this card to add them." : axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually.") : /* @__PURE__ */ React.createElement("div", { className: "axis-papers" }, renderPapers(detail.papers), hideUncertain && uncertainCount > 0 && /* @__PURE__ */ React.createElement("button", { className: "axis-eye-hint", onClick: () => setHideUncertain(false) }, uncertainCount, " uncertain hidden \u2014 show")))));
+    )), isMyPubs && uncertainCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-mypubs-hint" }, "Name-only matches are candidates \u2014 ", /* @__PURE__ */ React.createElement("b", null, "\u2713"), " confirm the ones that are yours, ", /* @__PURE__ */ React.createElement("b", null, "\u2715"), " reject the rest. (Confirmed papers match by DOI/ORCID.)"), scoring && /* @__PURE__ */ React.createElement(ProgressBar, { label: job.message || "Scoring the library\u2026" }), job && job.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Scoring failed: ", job.message), detail && detail.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"), detail && detail.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load assignments."), detail && (detail.status === "ready" || detail.status === "refreshing") && (detail.papers.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, isMyPubs ? "No publications matched yet \u2014 set your name/ORCID in Settings (\u2699) and Refresh." : isCurated ? "Empty \u2014 drag papers from the library onto this card to add them." : axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually.") : /* @__PURE__ */ React.createElement("div", { className: "axis-papers" }, renderPapers(detail.papers), hideUncertain && uncertainCount > 0 && /* @__PURE__ */ React.createElement("button", { className: "axis-eye-hint", onClick: () => setHideUncertain(false) }, uncertainCount, " uncertain hidden \u2014 show")))));
   }
   function _tierRank(p) {
     return p.status === "assigned" ? 0 : p.status === "uncertain" ? 1 : 2;
@@ -15932,7 +15936,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       poll(r.data.job_id);
     };
     const s = refresh.summary;
-    const summaryText = !s ? "" : s.status === "ok" ? `Found ${s.confirmed || 0} confirmed + ${s.candidates || 0} candidate${(s.candidates || 0) === 1 ? "" : "s"} (of ${s.indexed_works || 0} indexed works; ${s.in_library || 0} in your library).` : s.status === "no-identity" ? "Add your name or ORCID first." : s.status === "no-match" ? `No OpenAlex author found for ${s.name || "that identity"} \u2014 check the name / ORCID.` : "Done.";
+    const summaryText = !s ? "" : s.status === "ok" ? `Found ${s.confirmed || 0} confirmed + ${s.candidates || 0} candidate${(s.candidates || 0) === 1 ? "" : "s"} (of ${s.indexed_works || 0} indexed works; ${s.in_library || 0} in your library).${s.matched_by === "name" ? " Matched by name, not ORCID (your OpenAlex profile may not be linked to it yet) \u2014 lower confidence; double-check this is you." : ""}` : s.status === "no-identity" ? "Add your name or ORCID first." : s.status === "no-match" ? `No OpenAlex author found for ${s.name || "that identity"} \u2014 check the name / ORCID, or see Help for linking OpenAlex to ORCID.` : "Done.";
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Your name"), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "e.g. Karen Sp\xE4rck Jones", value: name, onChange: (e) => setName(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Other published names"), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
       "input",
       {

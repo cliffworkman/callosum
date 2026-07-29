@@ -68,7 +68,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
   const [dragMemberOver, setDragMemberOver] = useState(null);  // A7 SP2 (inc 212): the member row a drag is hovering
   const canDrop = !isMyPubs && !readOnly;  // B5 SP2: no drop-to-add on a read-only companion
   const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
-  const readyPapers = detail && detail.status === "ready" ? detail.papers : [];
+  const readyPapers = detail && (detail.status === "ready" || detail.status === "refreshing") ? detail.papers : [];
   const uncertainCount = readyPapers.filter(p => p.status === "uncertain").length;
   // inc 79: when uncertain papers are hidden, the count badge shows the visible (assigned + manual) count.
   const total = axis.assignment_count || 0;
@@ -203,7 +203,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
 
           {detail && detail.status === "loading" && <div className="axis-hint">Loading…</div>}
           {detail && detail.status === "error" && <div className="axis-err">Couldn't load assignments.</div>}
-          {detail && detail.status === "ready" &&
+          {detail && (detail.status === "ready" || detail.status === "refreshing") &&
             (detail.papers.length === 0
               ? <div className="axis-hint">{isMyPubs ? "No publications matched yet — set your name/ORCID in Settings (⚙) and Refresh." : isCurated ? "Empty — drag papers from the library onto this card to add them." : axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually."}</div>
               : <div className="axis-papers">

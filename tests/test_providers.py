@@ -145,6 +145,20 @@ def test_complete_local_loopback_uses_openai_shape():
     assert "Authorization" not in cap["headers"]  # no key needed for a local server
 
 
+def test_complete_blocks_before_network_when_no_key_for_cloud_provider():
+    """The seam every LLM feature routes through (axis-terms, summaries, help, …) must refuse a cloud call up
+    front with a friendly message when no key is resolved, instead of letting a raw provider 401 (e.g.
+    Anthropic's "x-api-key header is required" JSON) reach the user — the exact bug an external report
+    surfaced via "Search related terms" with no Anthropic key configured."""
+
+    class _Boom:
+        def post(self, *a, **kw):
+            raise AssertionError("must not reach the network when no API key is resolved")
+
+    with pytest.raises(ProviderError, match="No API key"):
+        complete(_Cfg("anthropic", api_key=None), "PROMPT", http_client=_Boom())
+
+
 def test_complete_local_nonloopback_is_rejected():
     cfg = _Cfg("local", base_url="https://evil.example.com")
     with pytest.raises(ProviderError):

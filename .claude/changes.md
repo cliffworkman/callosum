@@ -9,6 +9,58 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-29 — Increment 412: axis-review list no longer jumps to the top on ✓/✕
+
+- **Files:** `app/frontend/js/15_axes.jsx`, `app/frontend/js/15b_axis_card.jsx`, `.claude/docs/
+  increment-notes/INCREMENT-412-NOTES.md`.
+- **What:** a third bug report (same colleague) — confirming/rejecting a candidate paper in an axis
+  scrolled the list back to the top. Root cause: `loadDetail` blanked the axis's paper list to a
+  one-line "Loading…" placeholder on every refresh, including the tiny refetch after a single ✓/✕
+  decision — the list's height collapsed then reflowed, which reset scroll position. Fix: a refresh of
+  an already-loaded list now keeps the existing rows visible (a new `"refreshing"` status) until the
+  new data replaces them in place, instead of unmounting to a placeholder first.
+- **Why:** a real, previously self-noticed disorienting UX papercut, cheap to fix once traced to the
+  exact re-render cause.
+- **Revert:** restore `loadDetail`'s unconditional `{status: "loading", papers: []}` reset and the
+  `"ready"`-only render/count conditions in `AxisItem`.
+
+## 2026-07-29 — Increment 411: friendly pre-flight check for a missing provider API key
+
+- **Files:** `app/backend/llm/providers.py`, `tests/test_providers.py`, `.claude/docs/increment-notes/
+  INCREMENT-411-NOTES.md`.
+- **What:** a second bug report from the same colleague — "search related terms" always failed with a
+  raw Anthropic 401 JSON dump. Root cause: the shared `complete()` seam every LLM feature routes through
+  made the real network call even when no API key was resolved for the active provider, letting the
+  provider's own auth error surface verbatim. `complete()` now refuses up front with a friendly message
+  ("No API key is set for the '<provider>' provider...") whenever `requires_egress(config)` is true and
+  no key is resolved — mirroring `/settings/test-key`'s existing pre-check, but applied at the one place
+  every AI feature (axis-terms, summaries, help, critique, funding triage, extraction assist, …) already
+  routes through, so no router-by-router change was needed.
+- **Why:** a predictable, common misconfiguration (provider selected, no key saved) was surfacing as an
+  illegible raw provider error instead of an actionable local message.
+- **Revert:** remove the `requires_egress(config) and not key` guard block in `complete()`.
+
+<!-- HELP-DOCS-SYNCED: 2026-07-29 inc 410 — ORCID→name fallback + the OpenAlex/ORCID-linking help note -->
+## 2026-07-29 — Increment 410: ORCID→name fallback for My Publications author resolution
+
+- **Files:** `integrations/openalex/author.py`, `app/frontend/js/35a_mypubs.jsx`,
+  `app/backend/help/help_content.md`, `tests/test_my_publications.py`, `.claude/docs/increment-notes/
+  INCREMENT-410-NOTES.md`.
+- **What:** a real bug report from an external adopter (Isabella Bobrow) — a correct, verified ORCID
+  entered in My Publications settings still got "No OpenAlex author found." Root cause (confirmed via
+  direct OpenAlex API calls, not assumed): her OpenAlex author profile itself has never been linked to
+  her ORCID iD, so the ORCID-keyed lookup genuinely 404s — a real, common OpenAlex/ORCID data gap, not a
+  Callosum defect. `resolve_author`/`cached_author` now fall back to a name search when the ORCID lookup
+  alone comes up empty (previously the two were mutually exclusive), and the frontend now visibly labels
+  a name-fallback match as lower-confidence via the `matched_by` field that already existed in the data
+  model but was never rendered. Also added a Help-doc note on linking your OpenAlex profile to your ORCID
+  iD on OpenAlex's own site (the durable fix).
+- **Why:** real work was going undiscovered for anyone whose OpenAlex profile predates or was never
+  merged with their ORCID; the fix keeps the confidence signal honest per rule #9 (signal not verdict,
+  inspectability) rather than silently treating a name-guess as equivalent to an exact ORCID match.
+- **Revert:** restore `integrations/openalex/author.py`'s `_author_cache_key`-based single-branch
+  `resolve_author`/`cached_author` (see the increment notes for the exact prior form).
+
 ## 2026-07-28 — Increment 409, v0.3.0 shipped live: two more real bugs found + fixed
 
 - **Files:** `.github/workflows/desktop-shell-macos.yml`, `.claude/docs/increment-notes/

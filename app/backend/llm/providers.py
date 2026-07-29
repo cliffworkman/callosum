@@ -105,6 +105,13 @@ def complete(config, prompt: str, *, http_client=None) -> CompletionResult:
     wire = _wire_of(config)
     model = config.model
     key = config.resolved_api_key()
+    if requires_egress(config) and not key:
+        # Refuse before any network call — every LLM feature (axis-terms, summaries, help, …) routes through
+        # this one seam, so this is the single place to catch "no key set for this provider" and give a
+        # friendly, actionable message instead of letting a real provider 401 (e.g. Anthropic's raw
+        # "x-api-key header is required" JSON) reach the user. Mirrors /settings/test-key's own pre-check.
+        # A loopback/local provider legitimately needs no key, so requires_egress correctly exempts it.
+        raise ProviderError(f"No API key is set for the '{provider}' provider. Add one in Settings and Save.")
     if wire == "gemini":
         return _complete_gemini(model, key, prompt)
     base = getattr(config, "base_url", None)
