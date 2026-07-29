@@ -7,18 +7,25 @@ function MyPubsSettings({ onRefreshed }) {
   const [orcid, setOrcid] = useState("");
   const [saving, setSaving] = useState(false);
   const [refresh, setRefresh] = useState({ status: "idle" });
+  // Gates every mutating action until the initial GET resolves — previously a fast click (or an Enter-key
+  // submit in the variant-draft field, which calls addVariant directly and bypasses the Add button's own
+  // disabled attribute) before the fetch completed would PUT blank values and wipe an existing profile.
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api("/my-publications/profile").then(r => {
-      if (!r.ok) return;
-      const p = r.data;
-      setName(p.display_name || "");
-      setVariants(p.name_variants || []);
-      setOrcid(p.orcid || "");
+      if (r.ok) {
+        const p = r.data;
+        setName(p.display_name || "");
+        setVariants(p.name_variants || []);
+        setOrcid(p.orcid || "");
+      }
+      setLoading(false);  // flips even on a failed GET, so the UI never sticks disabled forever
     });
   }, []);
 
   const persistProfile = async (nextVariants) => {
+    if (loading) return false;
     setSaving(true);
     const r = await apiPut("/my-publications/profile", {
       display_name: name.trim() || null,
@@ -29,11 +36,13 @@ function MyPubsSettings({ onRefreshed }) {
     return r.ok;
   };
   const save = async () => {
+    if (loading) return;
     const draft = variantDraft.trim();
     const savedVariants = draft && !variants.some(v => v.toLowerCase() === draft.toLowerCase()) ? [...variants, draft] : variants;
     if (await persistProfile(savedVariants) && draft) { setVariants(savedVariants); setVariantDraft(""); }
   };
   const addVariant = async (rawValue = variantDraft) => {
+    if (loading) return;
     const value = rawValue.trim();
     if (!value) return;
     if (variants.some(v => v.toLowerCase() === value.toLowerCase())) { setVariantDraft(""); return; }
@@ -42,12 +51,14 @@ function MyPubsSettings({ onRefreshed }) {
     if (!(await persistProfile(nextVariants))) { setVariants(variants); setVariantDraft(value); }
   };
   const removeVariant = async (index) => {
+    if (loading) return;
     const nextVariants = variants.filter((_, i) => i !== index);
     setVariants(nextVariants);
     if (!(await persistProfile(nextVariants))) setVariants(variants);
   };
 
   const runRefresh = async () => {
+    if (loading) return;
     await save();  // persist the latest edits first
     setRefresh({ status: "running" });
     const poll = (jobId) => api(`/my-publications/refresh/${jobId}`).then(r => {
@@ -80,12 +91,12 @@ function MyPubsSettings({ onRefreshed }) {
         <div className="settings-keyrow">
           <input className="settings-input" placeholder="e.g. K. Spärck Jones" value={variantDraft}
             onChange={e => setVariantDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addVariant(e.currentTarget.value); } }} />
-          <button type="button" className="btn btn-ghost" disabled={saving || !variantDraft.trim()} onClick={() => addVariant()}>Add</button>
+          <button type="button" className="btn btn-ghost" disabled={loading || saving || !variantDraft.trim()} onClick={() => addVariant()}>Add</button>
         </div>
         {variants.length > 0 && <div className="settings-name-tags" aria-label="Other published names">
           {variants.map((variant, index) => <span className="tag-chip" key={variant + index}>
             <span className="tag-chip-name">{variant}</span>
-            <button type="button" className="tag-chip-x" disabled={saving} aria-label={`Remove ${variant}`}
+            <button type="button" className="tag-chip-x" disabled={loading || saving} aria-label={`Remove ${variant}`}
               onClick={() => removeVariant(index)}>×</button>
           </span>)}
         </div>}
@@ -94,9 +105,9 @@ function MyPubsSettings({ onRefreshed }) {
         <label className="settings-field-label">ORCID (Recommended — gives an exact match. Resolved via OpenAlex.)</label>
         <div className="settings-keyrow settings-orcid-row">
           <input className="settings-input" placeholder="0000-0002-1825-0097" value={orcid} onChange={e => setOrcid(e.target.value)} />
-          <button className="btn btn-ghost" disabled={saving} onClick={save}>{saving ? "Saving…" : "Save"}</button>
-          <button className="btn btn-primary" disabled={refresh.status === "running" || (!name.trim() && !orcid.trim())} onClick={runRefresh}>
-            {refresh.status === "running" ? "Gathering…" : "Refresh my papers"}
+          <button className="btn btn-ghost" disabled={loading || saving} onClick={save}>{saving ? "Saving…" : "Save"}</button>
+          <button className="btn btn-primary" disabled={loading || refresh.status === "running" || (!name.trim() && !orcid.trim())} onClick={runRefresh}>
+            {refresh.status === "running" ? "Gathering…" : loading ? "Loading…" : "Refresh my papers"}
           </button>
         </div>
       </div>

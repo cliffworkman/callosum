@@ -747,6 +747,19 @@
   .lockout-msg.ok { color: var(--verified); background: var(--verified-soft); border-color: var(--verified); }   /* success (green), not the amber error tint */
   .lockout-foot { margin-top: 12px; font-size: 11px; color: var(--ink-3); line-height: 1.45; }
   .lockout-foot code, .lockout-step code { font-family: var(--mono); font-size: 10.5px; }
+  /* inc 416: first-run onboarding wizard. Reuses the .axis-modal shell (backdrop/card/shadow/radius) —
+     only the wizard-specific bits (step dots, choice screens, the done screen) are new. */
+  .onboarding-card { width: min(560px, 94vw); }
+  .onboarding-dots { display: flex; justify-content: center; gap: 6px; margin-bottom: 10px; }
+  .onboarding-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line-2); }
+  .onboarding-dot.active { background: var(--accent); }  /* indigo = current step (primary/provenance, DESIGN §4) */
+  .onboarding-dot.done { background: var(--verified); }  /* green = completed step (affirmative, DESIGN §4) */
+  .onboarding-body { min-height: 120px; max-height: 56vh; overflow-y: auto; }
+  .onboarding-nav { justify-content: space-between; margin-top: 10px; }
+  .onboarding-choice-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; align-items: flex-start; }
+  .onboarding-done { text-align: center; padding: 18px 8px; }
+  .onboarding-done-icon { font-size: 32px; margin-bottom: 8px; }
+  .onboarding-done p { font-size: 13px; color: var(--ink-2); line-height: 1.5; margin: 0; }
   /* inc 397: generic in-app folder-browser modal (WipRootSetup + WipRelink "Browse…") -- neutral utility
      chrome (plain --hover/--accent row hover), not WIP-context teal. */
   .folder-browser-modal { display: flex; flex-direction: column; max-height: 80vh; }

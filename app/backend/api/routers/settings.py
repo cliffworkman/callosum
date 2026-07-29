@@ -68,6 +68,7 @@ class SettingsStatus(BaseModel):
     publisher_breadth: str | None = None
     publisher_defaults_set: bool = False
     account: AccountStatus  # SP1: optional "Sign in with ORCID" status — the verified identity, never tokens
+    onboarding_completed: bool = False  # inc 416: first-run wizard done/skipped — a read/write path for Settings
 
 
 class SettingsUpdate(BaseModel):
@@ -92,6 +93,7 @@ class SettingsUpdate(BaseModel):
     publisher_weighting: float | None = None
     set_publisher_breadth: bool = False
     publisher_breadth: str | None = None
+    onboarding_completed: bool | None = None  # inc 416: set by the wizard's "Finish"/"Skip setup"
 
 
 def _stored_key(provider: str) -> bool:
@@ -146,6 +148,7 @@ def _status() -> SettingsStatus:
         publisher_breadth=app_settings.stored_publisher_breadth(),
         publisher_defaults_set=app_settings.publisher_defaults_set(),
         account=AccountStatus(configured=app_settings.oidc_configured(), **app_settings.oauth_account_status()),
+        onboarding_completed=app_settings.stored_onboarding_completed(),
     )
 
 
@@ -207,6 +210,8 @@ def put_settings(update: SettingsUpdate) -> SettingsStatus:
         if b and b not in PUBLISHER_BREADTHS:
             raise HTTPException(status_code=422, detail=f"Unknown result breadth: {b}")
         app_settings.set_publisher_breadth(b or None)
+    if update.onboarding_completed is not None:
+        app_settings.set_onboarding_completed(update.onboarding_completed)
     return _status()
 
 

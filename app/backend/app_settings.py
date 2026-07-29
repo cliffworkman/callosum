@@ -403,6 +403,18 @@ def stored_remote_access() -> bool:
     return bool(load_settings().get("remote_access_enabled", False))
 
 
+def set_onboarding_completed(done: bool) -> None:
+    data = load_settings()
+    data["onboarding_completed"] = bool(done)
+    _write(data)
+
+
+def stored_onboarding_completed() -> bool:
+    """Whether the first-run wizard has been completed OR explicitly skipped (both count — re-nagging on every
+    future launch after a skip would itself be the kind of pressure the wizard is designed to avoid)."""
+    return bool(load_settings().get("onboarding_completed", False))
+
+
 def read_only_mode() -> bool:
     """Whether this callosum instance is READ-ONLY (B5 mobile reading): CALLOSUM_READ_ONLY=1 makes the middleware
     reject every mutating method (anything but GET/HEAD/OPTIONS) with 403 — the method-level boundary for a

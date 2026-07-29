@@ -10,6 +10,27 @@ are the design diary; this is the chronological "what & why" record.
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
 <!-- HELP-DOCS-SYNCED: 2026-07-29 inc 414 — a third Acquire-OA-copy outcome (a download can fail) -->
+## 2026-07-29 — Increment 416: first-run onboarding wizard (wizard core)
+
+- **Files:** `app/backend/app_settings.py`, `app/backend/api/routers/health.py`, `app/backend/api/routers/
+  settings.py`, `app/frontend/js/04e_onboarding.jsx` (new), `app/frontend/js/40_app.jsx`, `app/frontend/js/
+  35a_mypubs.jsx`, `app/frontend/js/{27_scan,28_import,28b_bundle,14_axes_edit,17_axes_suggest}.jsx`,
+  `app/frontend/styles.css`, `tests/test_settings.py`, `tests/test_health.py`, `tests/
+  test_frontend_assembly.py`, `.claude/qa-routes/route_77_onboarding_wizard.md` (new), `.claude/
+  security-audits/2026-07-29_onboarding-wizard.md` (new).
+- **What:** a full-screen, skippable wizard shown once per machine on first launch, sequencing five already-
+  working settings screens (My Publications identity, AI/BYOK opt-in, watched library folder, citation/bundle
+  import, an initial axis) rather than reinventing any of them. New `onboarding_completed` flag rides `GET
+  /health` (the one endpoint the frontend fetches unconditionally at launch). Also fixed a real pre-existing
+  bug found along the way: `MyPubsSettings`'s actions were enabled before its initial profile fetch resolved,
+  risking a blank-overwrite of the two existing testers' real profile data. A guided tour (the one wholly novel
+  piece, no precedent in this codebase) is deferred to a follow-up increment.
+- **Why:** new installs had no guidance toward the handful of settings that matter most; the wizard surfaces
+  them once without gating the app behind completing any of them.
+- **Revert:** drop `onboarding_completed` from `app_settings.py`/`health.py`/`settings.py`, remove
+  `04e_onboarding.jsx` and its `40_app.jsx` wiring, and revert the five modal-body extractions and the
+  `MyPubsSettings` loading-gate — see the increment notes for the exact prior shape of each file.
+
 ## 2026-07-29 — Increment 415: Status popover click-to-navigate
 
 - **Files:** `app/backend/api/job_store.py`, `app/backend/api/routers/status.py`, `app/backend/api/

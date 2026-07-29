@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 415** (see Increment workflow) with **1699 pytest tests
+It is currently at **Increment 416** (see Increment workflow) with **1704 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -545,7 +545,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 415). Each increment of real work
+callosum is built in **numbered increments** (currently at 416). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -808,6 +808,17 @@ callosum ships **no committed `.mcp.json`.** The only session-level MCP tool use
 **Playwright**, for optional manual UI checks of the assembled frontend — it is not a project
 dependency, and the repo never relies on it. If you expect an MCP server and it isn't available,
 say so and adjust the plan. Keep this section updated if a project-level MCP config is added.
+
+**Playwright is already registered for this project (2026-07-29), local scope, private to the maintainer's
+own machine** (`claude mcp get playwright` → `Scope: Local config (private to you in this project)`; browser
+binaries were already installed via a prior `playwright install` on this machine — nothing to install). This
+is **not** a committed `.mcp.json` (the paragraph above stays true for the repo itself) — it's a per-user
+config Claude Code stores outside the repo. Because MCP tool availability is fixed at session start, a
+session that started before this was registered (or that never called `ToolSearch` for it) will report no
+browser automation available even though it's configured — **always `ToolSearch` for `mcp__playwright__*`
+before concluding it's unavailable**, and if a long-running session genuinely doesn't have it, tell the user
+to restart with `claude --continue` (resumes the same conversation in a fresh process that picks up the
+already-configured server) rather than assuming a manual verification step must be skipped.
 
 ---
 

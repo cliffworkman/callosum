@@ -1072,6 +1072,42 @@ def test_citation_style_manager_surface_and_deep_link():
     assert ".app.mobile .citation-style-manager { grid-template-columns: 1fr; }" in css
 
 
+def test_onboarding_wizard_orchestrates_existing_settings_never_defaults_egress_on():
+    raw = assemble_jsx()
+    css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
+    # The wizard itself exists, is skippable at every step, and persists completion through the existing
+    # PUT /settings endpoint (no dedicated onboarding endpoint invented).
+    assert "function OnboardingWizard(" in raw
+    assert "Skip setup" in raw
+    assert 'apiPut("/settings", { onboarding_completed: true })' in raw
+    # It reuses the existing settings components verbatim — never a re-implementation of them.
+    assert "<MyPubsSettings onRefreshed={onMyPubsRefreshed} />" in raw
+    assert "<AiSettings />" in raw
+    # inc 416: each of the five step-source components was split into a bare *Body + a thin wrapper that
+    # still adds the .axis-modal-overlay chrome — both halves must survive, so every existing standalone
+    # entry point (Settings, the library "+Add" menu, the axis editor/suggester) keeps working unchanged.
+    for name in ("ScanModal", "ImportModal", "BundleImportModal", "AxisEditModal", "SuggestAxesModal"):
+        assert f"function {name}(" in raw, name
+        assert f"function {name}Body(" in raw, name
+    # Honesty check (invariant #3 / APPROACH-AVOIDANCE A5): the wizard's own source never pre-checks or
+    # forces the egress toggle — it only ever renders the existing, already-defaults-off AiSettings.
+    assert "data_egress_enabled: true" not in raw
+    assert "data_egress_enabled=true" not in raw
+    assert ".onboarding-card {" in css
+    assert ".onboarding-dot.active {" in css and ".onboarding-dot.done {" in css
+
+
+def test_my_pubs_settings_gates_actions_until_profile_loads():
+    # inc 416: a real pre-existing bug — Save/Add/Refresh were enabled before the initial GET resolved, so a
+    # fast click (or Enter in the variant-draft field) before it completed would PUT blank values and wipe an
+    # existing profile. Guards against a regression of the fix, not just the wizard's new usage of it.
+    src = (FRONTEND_DIR / "js" / "35a_mypubs.jsx").read_text(encoding="utf-8")
+    assert "const [loading, setLoading] = useState(true);" in src
+    for guarded in ("persistProfile", "save", "addVariant", "removeVariant", "runRefresh"):
+        fn_body = src.split(f"const {guarded} = async", 1)[1].split("\n", 3)[0:3]
+        assert any("if (loading) return" in line for line in fn_body), guarded
+
+
 def test_built_artifact_is_in_sync():
     """callosum-app.html must equal the live assembly — i.e. it was rebuilt after the last source
     edit (CLAUDE.md: re-run tools/build_frontend.py after editing app/frontend/)."""

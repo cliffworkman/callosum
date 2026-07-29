@@ -27,6 +27,9 @@ class HealthResponse(BaseModel):
     # one endpoint forwarded over the read-only mobile tunnel AND token-exempt — to hide write controls (a clean
     # companion). It's a UX signal; the actual read-only boundary is the method gate in AccessControlMiddleware.
     read_only: bool = False
+    # inc 416: has the first-run onboarding wizard been completed or explicitly skipped? Rides this same
+    # unconditional launch fetch (the one App() always makes), mirroring read_only's own precedent above.
+    onboarding_completed: bool = False
 
 
 def _database_status(conn: Connection) -> tuple[bool, bool, str | None, str | None]:
@@ -62,4 +65,5 @@ def health(conn: Connection = Depends(get_connection)) -> HealthResponse:
         db_revision=current,
         db_head_revision=head,
         read_only=app_settings.read_only_mode(),
+        onboarding_completed=app_settings.stored_onboarding_completed(),
     )

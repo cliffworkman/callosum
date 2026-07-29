@@ -5,6 +5,19 @@
 // DESELECTED by default (the human curates — keeps the model an aid, not a crutch), and selected terms
 // sort to the top so the contributing vocabulary is obvious. Serves both create and edit.
 function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
+  return (
+    <div className="axis-modal-overlay" onClick={onClose}>
+      <div className="axis-modal" onClick={e => e.stopPropagation()}>
+        <AxisEditModalBody mode={mode} axisId={axisId} initialTitle={initialTitle}
+          initialDescription={initialDescription} initialTerms={initialTerms} onClose={onClose} onSaved={onSaved} />
+      </div>
+    </div>
+  );
+}
+
+// inc 416: bare body split out so the onboarding wizard can embed it without a nested overlay —
+// AxisEditModal above is now a thin wrapper adding that chrome. Every hook/handler below is unchanged.
+function AxisEditModalBody({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
   const [title, setTitle] = useState(initialTitle || "");
   const [prose, setProse] = useState(initialDescription || "");
   const [terms, setTerms] = useState(initialTerms || []);   // [{ term, selected }]
@@ -60,43 +73,41 @@ function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initial
   };
 
   return (
-    <div className="axis-modal-overlay" onClick={onClose}>
-      <div className="axis-modal" onClick={e => e.stopPropagation()}>
-        <div className="axis-modal-head">
-          <span>{mode === "edit" ? "Edit axis" : "New axis"}</span>
-          <button className="axis-link" onClick={onClose}>×</button>
-        </div>
-
-        <div className="axis-modal-note">Title — a display name, not a search term:</div>
-        <input className="axis-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Resting-state networks" />
-
-        <div className="axis-modal-note">Description — optional context (embedded alongside the terms):</div>
-        <textarea className="axis-input axis-textarea" value={prose} onChange={e => setProse(e.target.value)}
-          placeholder="Describe the construct this lens captures." />
-
-        <div className="axis-modal-note">Search terms — the vocabulary scored against the library. Select the ones that fit (suggestions start off):</div>
-        <div className="axis-chips">
-          {orderedTerms.length === 0 && <span className="axis-hint">Add a term below, or search for related ones.</span>}
-          {orderedTerms.map(t => (
-            <button key={t.i} className={"term-chip" + (t.selected ? " on" : "")} onClick={() => toggle(t.i)}>{t.term}</button>
-          ))}
-        </div>
-        <div className="axis-add-head">
-          <input className="axis-add-input" placeholder="add a term…" value={custom}
-            onChange={e => setCustom(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } }} />
-          <button className="axis-link" onClick={addCustom}>add</button>
-          <button className="axis-link" disabled={searching} onClick={runSearch}>{searching ? "searching…" : "search related terms"}</button>
-        </div>
-        {searchMsg && <div className="axis-hint">{searchMsg}</div>}
-
-        {error && <div className="axis-err">{error}</div>}
-        <div className="axis-form-actions">
-          <button className="axis-btn" disabled={saving || !title.trim()} onClick={save}>
-            {saving ? "Saving…" : (mode === "edit" ? "Save changes" : "Create axis")}
-          </button>
-          <button className="axis-link" disabled={saving} onClick={onClose}>cancel</button>
-        </div>
+    <>
+      <div className="axis-modal-head">
+        <span>{mode === "edit" ? "Edit axis" : "New axis"}</span>
+        <button className="axis-link" onClick={onClose}>×</button>
       </div>
-    </div>
+
+      <div className="axis-modal-note">Title — a display name, not a search term:</div>
+      <input className="axis-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Resting-state networks" />
+
+      <div className="axis-modal-note">Description — optional context (embedded alongside the terms):</div>
+      <textarea className="axis-input axis-textarea" value={prose} onChange={e => setProse(e.target.value)}
+        placeholder="Describe the construct this lens captures." />
+
+      <div className="axis-modal-note">Search terms — the vocabulary scored against the library. Select the ones that fit (suggestions start off):</div>
+      <div className="axis-chips">
+        {orderedTerms.length === 0 && <span className="axis-hint">Add a term below, or search for related ones.</span>}
+        {orderedTerms.map(t => (
+          <button key={t.i} className={"term-chip" + (t.selected ? " on" : "")} onClick={() => toggle(t.i)}>{t.term}</button>
+        ))}
+      </div>
+      <div className="axis-add-head">
+        <input className="axis-add-input" placeholder="add a term…" value={custom}
+          onChange={e => setCustom(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } }} />
+        <button className="axis-link" onClick={addCustom}>add</button>
+        <button className="axis-link" disabled={searching} onClick={runSearch}>{searching ? "searching…" : "search related terms"}</button>
+      </div>
+      {searchMsg && <div className="axis-hint">{searchMsg}</div>}
+
+      {error && <div className="axis-err">{error}</div>}
+      <div className="axis-form-actions">
+        <button className="axis-btn" disabled={saving || !title.trim()} onClick={save}>
+          {saving ? "Saving…" : (mode === "edit" ? "Save changes" : "Create axis")}
+        </button>
+        <button className="axis-link" disabled={saving} onClick={onClose}>cancel</button>
+      </div>
+    </>
   );
 }

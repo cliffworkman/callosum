@@ -47,6 +47,18 @@ function SuggestCard({ suggestion, onCreated }) {
 }
 
 function SuggestAxesModal({ onClose }) {
+  return (
+    <div className="axis-modal-overlay" onClick={onClose}>
+      <div className="axis-modal" onClick={e => e.stopPropagation()}>
+        <SuggestAxesModalBody onClose={onClose} />
+      </div>
+    </div>
+  );
+}
+
+// inc 416: bare body split out so the onboarding wizard can embed it without a nested overlay —
+// SuggestAxesModal above is now a thin wrapper adding that chrome. Every hook/handler below is unchanged.
+function SuggestAxesModalBody({ onClose }) {
   const [state, setState] = useState({ status: "loading", suggestions: [] });
   const [createdCount, setCreatedCount] = useState(0);
 
@@ -72,29 +84,27 @@ function SuggestAxesModal({ onClose }) {
   }, []);
 
   return (
-    <div className="axis-modal-overlay" onClick={onClose}>
-      <div className="axis-modal" onClick={e => e.stopPropagation()}>
-        <div className="axis-modal-head">
-          <span>Suggested axes</span>
-          <button className="axis-link" onClick={onClose}>×</button>
-        </div>
-        <div className="axis-modal-note">
-          Themes discovered in your library that your current axes don't already cover. Curate the terms,
-          rename, and create the ones you want.
-        </div>
-
-        {state.status === "loading" && <ProgressBar label="Analyzing your library…" />}
-        {state.status === "error" && <div className="axis-err">Couldn't suggest axes: {state.error}</div>}
-        {state.status === "ready" && state.suggestions.length === 0 &&
-          <div className="axis-hint">No new themes found — your axes already cover the library, or there aren't enough papers yet.</div>}
-        {state.status === "ready" && state.suggestions.map((s, i) => (
-          <SuggestCard key={i} suggestion={s} onCreated={() => setCreatedCount(c => c + 1)} />
-        ))}
-
-        <div className="axis-form-actions">
-          <button className="axis-link" onClick={onClose}>{createdCount ? "Done" : "Close"}</button>
-        </div>
+    <>
+      <div className="axis-modal-head">
+        <span>Suggested axes</span>
+        <button className="axis-link" onClick={onClose}>×</button>
       </div>
-    </div>
+      <div className="axis-modal-note">
+        Themes discovered in your library that your current axes don't already cover. Curate the terms,
+        rename, and create the ones you want.
+      </div>
+
+      {state.status === "loading" && <ProgressBar label="Analyzing your library…" />}
+      {state.status === "error" && <div className="axis-err">Couldn't suggest axes: {state.error}</div>}
+      {state.status === "ready" && state.suggestions.length === 0 &&
+        <div className="axis-hint">No new themes found — your axes already cover the library, or there aren't enough papers yet.</div>}
+      {state.status === "ready" && state.suggestions.map((s, i) => (
+        <SuggestCard key={i} suggestion={s} onCreated={() => setCreatedCount(c => c + 1)} />
+      ))}
+
+      <div className="axis-form-actions">
+        <button className="axis-link" onClick={onClose}>{createdCount ? "Done" : "Close"}</button>
+      </div>
+    </>
   );
 }

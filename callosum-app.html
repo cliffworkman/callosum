@@ -771,6 +771,19 @@
   .lockout-msg.ok { color: var(--verified); background: var(--verified-soft); border-color: var(--verified); }   /* success (green), not the amber error tint */
   .lockout-foot { margin-top: 12px; font-size: 11px; color: var(--ink-3); line-height: 1.45; }
   .lockout-foot code, .lockout-step code { font-family: var(--mono); font-size: 10.5px; }
+  /* inc 416: first-run onboarding wizard. Reuses the .axis-modal shell (backdrop/card/shadow/radius) —
+     only the wizard-specific bits (step dots, choice screens, the done screen) are new. */
+  .onboarding-card { width: min(560px, 94vw); }
+  .onboarding-dots { display: flex; justify-content: center; gap: 6px; margin-bottom: 10px; }
+  .onboarding-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line-2); }
+  .onboarding-dot.active { background: var(--accent); }  /* indigo = current step (primary/provenance, DESIGN §4) */
+  .onboarding-dot.done { background: var(--verified); }  /* green = completed step (affirmative, DESIGN §4) */
+  .onboarding-body { min-height: 120px; max-height: 56vh; overflow-y: auto; }
+  .onboarding-nav { justify-content: space-between; margin-top: 10px; }
+  .onboarding-choice-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; align-items: flex-start; }
+  .onboarding-done { text-align: center; padding: 18px 8px; }
+  .onboarding-done-icon { font-size: 32px; margin-bottom: 8px; }
+  .onboarding-done p { font-size: 13px; color: var(--ink-2); line-height: 1.5; margin: 0; }
   /* inc 397: generic in-app folder-browser modal (WipRootSetup + WipRelink "Browse…") -- neutral utility
      chrome (plain --hover/--accent row hover), not WIP-context teal. */
   .folder-browser-modal { display: flex; flex-direction: column; max-height: 80vh; }
@@ -4791,6 +4804,69 @@
       return /* @__PURE__ */ React.createElement("button", { className: "update-pill", onClick: () => setDismissed(false), title: `Update ready \u2014 v${ready.version}` }, "Update ready");
     }
     return /* @__PURE__ */ React.createElement("div", { className: "update-toast", role: "status" }, /* @__PURE__ */ React.createElement("span", { className: "update-toast-text" }, "Update ready \u2014 v", ready.version), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: act }, label), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setDismissed(true) }, "Later"));
+  }
+  const ONBOARDING_STEPS = ["identity", "ai", "library", "import", "axis", "done"];
+  const ONBOARDING_STEP_LABELS = {
+    identity: "Your publications",
+    ai: "AI features",
+    library: "Where your PDFs live",
+    import: "Import",
+    axis: "Your first axis",
+    done: "All set"
+  };
+  function OnboardingImportChoice({ onPick, onSkip }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Bring in papers you already have citations for \u2014 a BibTeX/RIS/CSL-JSON file (e.g. exported from Zotero, Mendeley, or EndNote) or a callosum library bundle. Or skip this and add papers later."), /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-btn", onClick: () => onPick("file") }, "Import citations file\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => onPick("bundle") }, "Import a callosum bundle\u2026"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onSkip }, "Skip this step \u2192")));
+  }
+  function OnboardingAxisChoice({ onPick, onSkip }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "An axis is a lens for organizing your library along a theme you define \u2014 Callosum can suggest some from your library's own content, or you can name your first one by hand. Either way, you can add more anytime."), /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-btn", onClick: () => onPick("suggest") }, "Suggest axes from my library\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => onPick("manual") }, "Create one manually\u2026"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onSkip }, "Skip this step \u2192")));
+  }
+  function OnboardingWizard({ onDone, onMyPubsRefreshed, onScanned, onImported, onImportedBundle, onAxisSaved }) {
+    const [step, setStep] = useState(0);
+    const [importMode, setImportMode] = useState(null);
+    const [axisMode, setAxisMode] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const stepId = ONBOARDING_STEPS[step];
+    const isLast = step === ONBOARDING_STEPS.length - 1;
+    const finish = async () => {
+      setBusy(true);
+      await apiPut("/settings", { onboarding_completed: true });
+      setBusy(false);
+      if (onDone) onDone();
+    };
+    const goNext = () => {
+      if (isLast) finish();
+      else setStep((s) => s + 1);
+    };
+    const goBack = () => setStep((s) => Math.max(0, s - 1));
+    let body = null;
+    if (stepId === "identity") {
+      body = /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Optional \u2014 helps Callosum find and organize your own papers."), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }));
+    } else if (stepId === "ai") {
+      body = /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Optional and off by default \u2014 skip this if you'd rather stay fully local."), /* @__PURE__ */ React.createElement(AiSettings, null));
+    } else if (stepId === "library") {
+      body = /* @__PURE__ */ React.createElement(ScanModalBody, { onClose: goNext, onScanned });
+    } else if (stepId === "import") {
+      body = importMode == null ? /* @__PURE__ */ React.createElement(OnboardingImportChoice, { onPick: setImportMode, onSkip: goNext }) : importMode === "bundle" ? /* @__PURE__ */ React.createElement(BundleImportModalBody, { onClose: goNext, onImported: onImportedBundle }) : /* @__PURE__ */ React.createElement(ImportModalBody, { onClose: goNext, onImported });
+    } else if (stepId === "axis") {
+      body = axisMode == null ? /* @__PURE__ */ React.createElement(OnboardingAxisChoice, { onPick: setAxisMode, onSkip: goNext }) : axisMode === "suggest" ? /* @__PURE__ */ React.createElement(SuggestAxesModalBody, { onClose: goNext }) : /* @__PURE__ */ React.createElement(
+        AxisEditModalBody,
+        {
+          mode: "create",
+          axisId: null,
+          initialTitle: "",
+          initialDescription: "",
+          initialTerms: [],
+          onClose: goNext,
+          onSaved: () => {
+            if (onAxisSaved) onAxisSaved();
+            goNext();
+          }
+        }
+      );
+    } else if (stepId === "done") {
+      body = /* @__PURE__ */ React.createElement("div", { className: "onboarding-done" }, /* @__PURE__ */ React.createElement("div", { className: "onboarding-done-icon", "aria-hidden": "true" }, "\u{1F389}"), /* @__PURE__ */ React.createElement("p", null, "You're all set. Everything here is always reachable again from ", /* @__PURE__ */ React.createElement("b", null, "Settings"), " \u2014 come back anytime to adjust your profile, AI provider, watched folders, or axes."));
+    }
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", role: "dialog", "aria-modal": "true", "aria-label": "Get started with Callosum" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal onboarding-card", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "onboarding-dots", "aria-hidden": "true" }, ONBOARDING_STEPS.map((id, i) => /* @__PURE__ */ React.createElement("span", { key: id, className: "onboarding-dot" + (i === step ? " active" : i < step ? " done" : "") }))), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Welcome to Callosum \u2014 ", ONBOARDING_STEP_LABELS[stepId]), stepId !== "done" && /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: busy, onClick: finish }, "Skip setup")), /* @__PURE__ */ React.createElement("div", { className: "onboarding-body" }, body), /* @__PURE__ */ React.createElement("div", { className: "onboarding-nav axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: step === 0 || busy, onClick: goBack }, "\u2190 Back"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: busy, onClick: goNext }, busy ? "Finishing\u2026" : isLast ? "Finish" : "Next \u2192"))));
   }
   function creditItems(items) {
     return Array.isArray(items) ? items : [items];
@@ -9999,6 +10075,20 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     );
   }
   function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(
+      AxisEditModalBody,
+      {
+        mode,
+        axisId,
+        initialTitle,
+        initialDescription,
+        initialTerms,
+        onClose,
+        onSaved
+      }
+    )));
+  }
+  function AxisEditModalBody({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
     const [title, setTitle] = useState(initialTitle || "");
     const [prose, setProse] = useState(initialDescription || "");
     const [terms, setTerms] = useState(initialTerms || []);
@@ -10056,7 +10146,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       }
       onSaved(r.data ? r.data.id : axisId);
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, mode === "edit" ? "Edit axis" : "New axis"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Title \u2014 a display name, not a search term:"), /* @__PURE__ */ React.createElement("input", { className: "axis-input", value: title, onChange: (e) => setTitle(e.target.value), placeholder: "e.g. Resting-state networks" }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Description \u2014 optional context (embedded alongside the terms):"), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, mode === "edit" ? "Edit axis" : "New axis"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Title \u2014 a display name, not a search term:"), /* @__PURE__ */ React.createElement("input", { className: "axis-input", value: title, onChange: (e) => setTitle(e.target.value), placeholder: "e.g. Resting-state networks" }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Description \u2014 optional context (embedded alongside the terms):"), /* @__PURE__ */ React.createElement(
       "textarea",
       {
         className: "axis-input axis-textarea",
@@ -10078,7 +10168,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           }
         }
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: addCustom }, "add"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: searching, onClick: runSearch }, searching ? "searching\u2026" : "search related terms")), searchMsg && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, searchMsg), error && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, error), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: saving || !title.trim(), onClick: save }, saving ? "Saving\u2026" : mode === "edit" ? "Save changes" : "Create axis"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: saving, onClick: onClose }, "cancel"))));
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: addCustom }, "add"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: searching, onClick: runSearch }, searching ? "searching\u2026" : "search related terms")), searchMsg && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, searchMsg), error && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, error), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: saving || !title.trim(), onClick: save }, saving ? "Saving\u2026" : mode === "edit" ? "Save changes" : "Create axis"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: saving, onClick: onClose }, "cancel")));
   }
   function MyPubsPrompt() {
     return /* @__PURE__ */ React.createElement("div", { className: "axis-mypubs-prompt", title: "Set your name / ORCID in Settings to auto-gather your own papers" }, "\u{1F4C4} ", /* @__PURE__ */ React.createElement("b", null, "My Publications"), " \u2014 set your name / ORCID in Settings (\u2699) to auto-gather your own papers.");
@@ -11063,6 +11153,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     ), /* @__PURE__ */ React.createElement("div", { className: "axis-chips" }, terms.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "axis-hint" }, "No terms \u2014 add some after creating."), terms.map((t, i) => /* @__PURE__ */ React.createElement("button", { key: i, className: "term-chip" + (t.selected ? " on" : ""), disabled: done, onClick: () => toggle(i) }, t.term))), /* @__PURE__ */ React.createElement("div", { className: "suggest-papers" }, suggestion.size, " papers", titles ? " \xB7 e.g. " + titles : ""), err && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, err), /* @__PURE__ */ React.createElement("div", { className: "suggest-item-actions" }, done ? /* @__PURE__ */ React.createElement("span", { className: "suggest-done" }, "\u2713 created") : /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: saving || !label.trim(), onClick: create }, saving ? "Creating\u2026" : "Create axis")));
   }
   function SuggestAxesModal({ onClose }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(SuggestAxesModalBody, { onClose })));
+  }
+  function SuggestAxesModalBody({ onClose }) {
     const [state, setState] = useState({ status: "loading", suggestions: [] });
     const [createdCount, setCreatedCount] = useState(0);
     useEffect(() => {
@@ -11094,7 +11187,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         if (timer) clearTimeout(timer);
       };
     }, []);
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Suggested axes"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Themes discovered in your library that your current axes don't already cover. Curate the terms, rename, and create the ones you want."), state.status === "loading" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Analyzing your library\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't suggest axes: ", state.error), state.status === "ready" && state.suggestions.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No new themes found \u2014 your axes already cover the library, or there aren't enough papers yet."), state.status === "ready" && state.suggestions.map((s, i) => /* @__PURE__ */ React.createElement(SuggestCard, { key: i, suggestion: s, onCreated: () => setCreatedCount((c) => c + 1) })), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, createdCount ? "Done" : "Close"))));
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Suggested axes"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Themes discovered in your library that your current axes don't already cover. Curate the terms, rename, and create the ones you want."), state.status === "loading" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Analyzing your library\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't suggest axes: ", state.error), state.status === "ready" && state.suggestions.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No new themes found \u2014 your axes already cover the library, or there aren't enough papers yet."), state.status === "ready" && state.suggestions.map((s, i) => /* @__PURE__ */ React.createElement(SuggestCard, { key: i, suggestion: s, onCreated: () => setCreatedCount((c) => c + 1) })), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, createdCount ? "Done" : "Close")));
   }
   function flashHelpSection(id) {
     const el = document.getElementById("help-" + id);
@@ -13041,6 +13134,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   }
   const SCAN_JOB_KEY = "callosum.scanJob";
   function ScanModal({ onClose, onScanned, onShowUnsorted }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(ScanModalBody, { onClose, onScanned, onShowUnsorted })));
+  }
+  function ScanModalBody({ onClose, onScanned, onShowUnsorted }) {
     const [folder, setFolder] = useState(() => {
       try {
         return localStorage.getItem("callosum.scanFolder") || "";
@@ -13135,7 +13231,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       loadWatched();
     };
     const s = scan.summary;
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Watched folders"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Your ", /* @__PURE__ */ React.createElement("b", null, "library folder"), " is watched by default (shown below) \u2014 drop a PDF into it and it's picked up automatically on launch (and when you switch back to Callosum). Add more folders to watch them the same way. New files are added (text extracted, chunked, embedded, Crossref-enriched); files already in your library are skipped. PDFs stay where they are; nothing is moved or copied."), watched.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "watched-list" }, watched.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.id, className: "watched-row" + (w.is_default ? " is-default" : "") }, /* @__PURE__ */ React.createElement("div", { className: "watched-info" }, /* @__PURE__ */ React.createElement("div", { className: "watched-path", title: w.path }, w.path), /* @__PURE__ */ React.createElement("div", { className: "watched-meta" }, w.is_default ? "your library folder \xB7 always watched" : w.last_scanned_at ? "last scanned " + w.last_scanned_at.slice(0, 10) : "not yet scanned")), w.is_default ? /* @__PURE__ */ React.createElement("span", { className: "watched-default-note", title: "Your library folder is always watched \u2014 it can't be removed" }, "default") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", title: "Stop watching (keeps the imported papers)", onClick: () => unwatch(w.id) }, "remove"))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: scan.status === "running", onClick: rescanAll }, scan.status === "running" ? "Working\u2026" : "Re-scan all")), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Watched folders"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Your ", /* @__PURE__ */ React.createElement("b", null, "library folder"), " is watched by default (shown below) \u2014 drop a PDF into it and it's picked up automatically on launch (and when you switch back to Callosum). Add more folders to watch them the same way. New files are added (text extracted, chunked, embedded, Crossref-enriched); files already in your library are skipped. PDFs stay where they are; nothing is moved or copied."), watched.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "watched-list" }, watched.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.id, className: "watched-row" + (w.is_default ? " is-default" : "") }, /* @__PURE__ */ React.createElement("div", { className: "watched-info" }, /* @__PURE__ */ React.createElement("div", { className: "watched-path", title: w.path }, w.path), /* @__PURE__ */ React.createElement("div", { className: "watched-meta" }, w.is_default ? "your library folder \xB7 always watched" : w.last_scanned_at ? "last scanned " + w.last_scanned_at.slice(0, 10) : "not yet scanned")), w.is_default ? /* @__PURE__ */ React.createElement("span", { className: "watched-default-note", title: "Your library folder is always watched \u2014 it can't be removed" }, "default") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", title: "Stop watching (keeps the imported papers)", onClick: () => unwatch(w.id) }, "remove"))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: scan.status === "running", onClick: rescanAll }, scan.status === "running" ? "Working\u2026" : "Re-scan all")), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "wanted-add",
@@ -13149,9 +13245,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: scan.status === "running" || !folder.trim(), onClick: run }, scan.status === "running" ? "Scanning\u2026" : "Add + scan")), scan.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Scanning + processing PDFs\u2026", progress: scan.progress }), scan.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Scan failed: ", scan.error), scan.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.added), " added \xB7 ", s.unchanged, " unchanged \xB7 ", s.removed, " missing", s.errors ? ` \xB7 ${s.errors} error${s.errors === 1 ? "" : "s"}` : "", s.error_details && s.error_details.length > 0 && /* @__PURE__ */ React.createElement("details", { className: "scan-errors" }, /* @__PURE__ */ React.createElement("summary", null, s.errors, " file", s.errors === 1 ? "" : "s", " couldn't be read"), /* @__PURE__ */ React.createElement("ul", null, s.error_details.map((e, i) => /* @__PURE__ */ React.createElement("li", { key: i }, /* @__PURE__ */ React.createElement("span", { className: "scan-err-path", title: e.path }, e.path.split(/[\\/]/).pop()), " \u2014 ", e.error))), s.errors > s.error_details.length && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "\u2026and ", s.errors - s.error_details.length, " more.")), s.added > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "New papers are in your library \u2014 any whose DOI didn't resolve need a look.", onShowUnsorted && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => {
       onShowUnsorted();
       onClose();
-    } }, "Review unsorted \u2192")))), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));
+    } }, "Review unsorted \u2192")))), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")));
   }
   function ImportModal({ onClose, onImported }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(ImportModalBody, { onClose, onImported })));
+  }
+  function ImportModalBody({ onClose, onImported }) {
     const [file, setFile] = useState(null);
     const [imp, setImp] = useState({ status: "idle" });
     const onPick = async (e) => {
@@ -13193,9 +13292,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       });
     };
     const s = imp.summary;
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Import citations"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Choose a ", /* @__PURE__ */ React.createElement("b", null, "BibTeX"), " (.bib), ", /* @__PURE__ */ React.createElement("b", null, "RIS"), " (.ris), or ", /* @__PURE__ */ React.createElement("b", null, "CSL-JSON"), " (.json) file exported from Zotero, Mendeley, EndNote, or callosum. Each entry becomes a metadata-only library paper (no PDF attached); entries already in your library are skipped. Everything stays on your machine \u2014 nothing is sent anywhere."), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".bib,.ris,.json,.txt", onChange: onPick }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: imp.status === "running" || !file, onClick: run }, imp.status === "running" ? "Importing\u2026" : "Import")), file && imp.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, file.name, " \u2014 ready to import."), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Parsing + embedding\u2026", progress: imp.progress }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Import failed: ", imp.error), imp.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.imported), " imported \xB7 ", s.duplicate, " already in library", s.failed ? ` \xB7 ${s.failed} failed` : "", s.skipped ? ` \xB7 ${s.skipped} skipped (no title or DOI)` : "", s.format == null ? /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't recognise the file \u2014 is it BibTeX, RIS, or CSL-JSON?") : s.imported > 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "New papers are in your library, filterable by type.") : null), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Import citations"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Choose a ", /* @__PURE__ */ React.createElement("b", null, "BibTeX"), " (.bib), ", /* @__PURE__ */ React.createElement("b", null, "RIS"), " (.ris), or ", /* @__PURE__ */ React.createElement("b", null, "CSL-JSON"), " (.json) file exported from Zotero, Mendeley, EndNote, or callosum. Each entry becomes a metadata-only library paper (no PDF attached); entries already in your library are skipped. Everything stays on your machine \u2014 nothing is sent anywhere."), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".bib,.ris,.json,.txt", onChange: onPick }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: imp.status === "running" || !file, onClick: run }, imp.status === "running" ? "Importing\u2026" : "Import")), file && imp.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, file.name, " \u2014 ready to import."), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Parsing + embedding\u2026", progress: imp.progress }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Import failed: ", imp.error), imp.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.imported), " imported \xB7 ", s.duplicate, " already in library", s.failed ? ` \xB7 ${s.failed} failed` : "", s.skipped ? ` \xB7 ${s.skipped} skipped (no title or DOI)` : "", s.format == null ? /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't recognise the file \u2014 is it BibTeX, RIS, or CSL-JSON?") : s.imported > 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "New papers are in your library, filterable by type.") : null), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")));
   }
   function BundleImportModal({ onClose, onImported }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(BundleImportModalBody, { onClose, onImported })));
+  }
+  function BundleImportModalBody({ onClose, onImported }) {
     const [file, setFile] = useState(null);
     const [imp, setImp] = useState({ status: "idle" });
     const onPick = async (e) => {
@@ -13235,7 +13337,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       });
     };
     const s = imp.summary;
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Import library bundle"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Choose a ", /* @__PURE__ */ React.createElement("b", null, "callosum library bundle"), " (.json) exported from another library. Its papers, tags, annotations, axis definitions, and syntheses merge into yours \u2014 existing papers keep their own metadata and just gain the bundle's tags + notes. An imported synthesis is shown as ", /* @__PURE__ */ React.createElement("b", null, "the sender's assessment"), " (not re-verified in your library). ", /* @__PURE__ */ React.createElement("b", null, "No PDFs"), " travel in a bundle; a highlight's box re-appears once you have the same PDF. Everything stays on your machine."), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".json", onChange: onPick }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: imp.status === "running" || !file, onClick: run }, imp.status === "running" ? "Importing\u2026" : "Import")), file && imp.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, file.name, " \u2014 ready to import."), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Merging + embedding\u2026", progress: imp.progress }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Import failed: ", imp.error), imp.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.papers_created), " new \xB7 ", s.papers_merged, " merged", s.tags_applied ? ` \xB7 ${s.tags_applied} tags` : "", s.annotations_added ? ` \xB7 ${s.annotations_added} highlights` : "", s.axes_created ? ` \xB7 ${s.axes_created} axes` : "", s.axes_members_added ? ` \xB7 ${s.axes_members_added} axis members` : "", s.syntheses_imported ? ` \xB7 ${s.syntheses_imported} syntheses` : "", s.skipped ? ` \xB7 ${s.skipped} skipped` : "", /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Merged papers keep your own metadata; new papers are filterable by type. Imported syntheses are the sender's \u2014 not re-verified here.")), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Import library bundle"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Choose a ", /* @__PURE__ */ React.createElement("b", null, "callosum library bundle"), " (.json) exported from another library. Its papers, tags, annotations, axis definitions, and syntheses merge into yours \u2014 existing papers keep their own metadata and just gain the bundle's tags + notes. An imported synthesis is shown as ", /* @__PURE__ */ React.createElement("b", null, "the sender's assessment"), " (not re-verified in your library). ", /* @__PURE__ */ React.createElement("b", null, "No PDFs"), " travel in a bundle; a highlight's box re-appears once you have the same PDF. Everything stays on your machine."), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".json", onChange: onPick }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: imp.status === "running" || !file, onClick: run }, imp.status === "running" ? "Importing\u2026" : "Import")), file && imp.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, file.name, " \u2014 ready to import."), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Merging + embedding\u2026", progress: imp.progress }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Import failed: ", imp.error), imp.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.papers_created), " new \xB7 ", s.papers_merged, " merged", s.tags_applied ? ` \xB7 ${s.tags_applied} tags` : "", s.annotations_added ? ` \xB7 ${s.annotations_added} highlights` : "", s.axes_created ? ` \xB7 ${s.axes_created} axes` : "", s.axes_members_added ? ` \xB7 ${s.axes_members_added} axis members` : "", s.syntheses_imported ? ` \xB7 ${s.syntheses_imported} syntheses` : "", s.skipped ? ` \xB7 ${s.skipped} skipped` : "", /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Merged papers keep your own metadata; new papers are filterable by type. Imported syntheses are the sender's \u2014 not re-verified here.")), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")));
   }
   const SNS2014_CSL = {
     type: "article-journal",
@@ -15890,16 +15992,20 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [orcid, setOrcid] = useState("");
     const [saving, setSaving] = useState(false);
     const [refresh, setRefresh] = useState({ status: "idle" });
+    const [loading, setLoading] = useState(true);
     useEffect(() => {
       api("/my-publications/profile").then((r) => {
-        if (!r.ok) return;
-        const p = r.data;
-        setName(p.display_name || "");
-        setVariants(p.name_variants || []);
-        setOrcid(p.orcid || "");
+        if (r.ok) {
+          const p = r.data;
+          setName(p.display_name || "");
+          setVariants(p.name_variants || []);
+          setOrcid(p.orcid || "");
+        }
+        setLoading(false);
       });
     }, []);
     const persistProfile = async (nextVariants) => {
+      if (loading) return false;
       setSaving(true);
       const r = await apiPut("/my-publications/profile", {
         display_name: name.trim() || null,
@@ -15910,6 +16016,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       return r.ok;
     };
     const save = async () => {
+      if (loading) return;
       const draft = variantDraft.trim();
       const savedVariants = draft && !variants.some((v) => v.toLowerCase() === draft.toLowerCase()) ? [...variants, draft] : variants;
       if (await persistProfile(savedVariants) && draft) {
@@ -15918,6 +16025,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       }
     };
     const addVariant = async (rawValue = variantDraft) => {
+      if (loading) return;
       const value = rawValue.trim();
       if (!value) return;
       if (variants.some((v) => v.toLowerCase() === value.toLowerCase())) {
@@ -15933,11 +16041,13 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       }
     };
     const removeVariant = async (index) => {
+      if (loading) return;
       const nextVariants = variants.filter((_, i) => i !== index);
       setVariants(nextVariants);
       if (!await persistProfile(nextVariants)) setVariants(variants);
     };
     const runRefresh = async () => {
+      if (loading) return;
       await save();
       setRefresh({ status: "running" });
       const poll = (jobId) => api(`/my-publications/refresh/${jobId}`).then((r2) => {
@@ -15975,17 +16085,17 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           }
         }
       }
-    ), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost", disabled: saving || !variantDraft.trim(), onClick: () => addVariant() }, "Add")), variants.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "settings-name-tags", "aria-label": "Other published names" }, variants.map((variant, index) => /* @__PURE__ */ React.createElement("span", { className: "tag-chip", key: variant + index }, /* @__PURE__ */ React.createElement("span", { className: "tag-chip-name" }, variant), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost", disabled: loading || saving || !variantDraft.trim(), onClick: () => addVariant() }, "Add")), variants.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "settings-name-tags", "aria-label": "Other published names" }, variants.map((variant, index) => /* @__PURE__ */ React.createElement("span", { className: "tag-chip", key: variant + index }, /* @__PURE__ */ React.createElement("span", { className: "tag-chip-name" }, variant), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
         className: "tag-chip-x",
-        disabled: saving,
+        disabled: loading || saving,
         "aria-label": `Remove ${variant}`,
         onClick: () => removeVariant(index)
       },
       "\xD7"
-    ))))), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "ORCID (Recommended \u2014 gives an exact match. Resolved via OpenAlex.)"), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow settings-orcid-row" }, /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "0000-0002-1825-0097", value: orcid, onChange: (e) => setOrcid(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: saving, onClick: save }, saving ? "Saving\u2026" : "Save"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: refresh.status === "running" || !name.trim() && !orcid.trim(), onClick: runRefresh }, refresh.status === "running" ? "Gathering\u2026" : "Refresh my papers"))), refresh.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Resolving via OpenAlex\u2026" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Refresh failed: ", refresh.error), refresh.status === "done" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, summaryText));
+    ))))), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "ORCID (Recommended \u2014 gives an exact match. Resolved via OpenAlex.)"), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow settings-orcid-row" }, /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "0000-0002-1825-0097", value: orcid, onChange: (e) => setOrcid(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: loading || saving, onClick: save }, saving ? "Saving\u2026" : "Save"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: loading || refresh.status === "running" || !name.trim() && !orcid.trim(), onClick: runRefresh }, refresh.status === "running" ? "Gathering\u2026" : loading ? "Loading\u2026" : "Refresh my papers"))), refresh.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Resolving via OpenAlex\u2026" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Refresh failed: ", refresh.error), refresh.status === "done" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, summaryText));
   }
   const AI_KEY_URLS = {
     gemini: "https://aistudio.google.com/apikey",
@@ -17903,6 +18013,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     });
     const [readOnly, setReadOnly] = useState(void 0);
     const [healthLoaded, setHealthLoaded] = useState(false);
+    const [onboardingDone, setOnboardingDone] = useState(true);
     const wip = useWipWorkspace({ enabled: healthLoaded && readOnly === false });
     const lib = useLibrary({
       selected,
@@ -18146,6 +18257,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         if (r.ok) {
           setConn({ state: "ok", version: r.data && (r.data.verification_version || r.data.version) || null });
           setReadOnly(!!(r.data && r.data.read_only));
+          setOnboardingDone(!!(r.data && r.data.onboarding_completed));
         } else setConn({ state: "bad" });
         setHealthLoaded(true);
       });
@@ -18394,6 +18506,26 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           setAxisRefresh((n) => n + 1);
           libraryBits.onPage(0);
         }
+      }
+    ), !authLocked && healthLoaded && !onboardingDone && /* @__PURE__ */ React.createElement(
+      OnboardingWizard,
+      {
+        onDone: () => setOnboardingDone(true),
+        onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1),
+        onScanned: () => {
+          setLibRefresh((n) => n + 1);
+          libraryBits.onPage(0);
+        },
+        onImported: () => {
+          setLibRefresh((n) => n + 1);
+          libraryBits.onPage(0);
+        },
+        onImportedBundle: () => {
+          setLibRefresh((n) => n + 1);
+          setAxisRefresh((n) => n + 1);
+          libraryBits.onPage(0);
+        },
+        onAxisSaved: () => setAxisRefresh((n) => n + 1)
       }
     ), authLocked && /* @__PURE__ */ React.createElement(AccessLockOverlay, null), /* @__PURE__ */ React.createElement(UpdateNotice, null));
     const readOnlyBadge = readOnly ? /* @__PURE__ */ React.createElement("div", { className: "read-only-badge", title: "This callosum instance rejects changes \u2014 reading only." }, "\u{1F512} Read-only") : null;

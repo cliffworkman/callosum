@@ -80,6 +80,10 @@ function App() {
   // before we know); then true (read-only) or false (read-write). The write-control gates treat undefined as falsy.
   const [readOnly, setReadOnly] = useState(undefined);
   const [healthLoaded, setHealthLoaded] = useState(false);
+  // inc 416: defaults true (never undefined) — a FAILED /health still sets healthLoaded=true, and if this
+  // defaulted falsy the wizard would incorrectly appear over a broken instance instead of the connection-error
+  // state. Only flips false when a real /health response says the wizard hasn't run/been skipped yet.
+  const [onboardingDone, setOnboardingDone] = useState(true);
   const wip = useWipWorkspace({ enabled: healthLoaded && readOnly === false });
 
   // The library-list subsystem (inc 221). Cross-cutting setters go in via opts; cancelFocus + setAxisRefresh are
@@ -310,6 +314,7 @@ function App() {
       if (r.ok) {
         setConn({ state: "ok", version: (r.data && (r.data.verification_version || r.data.version)) || null });
         setReadOnly(!!(r.data && r.data.read_only));
+        setOnboardingDone(!!(r.data && r.data.onboarding_completed));
       } else setConn({ state: "bad" });
       setHealthLoaded(true);
     });
@@ -498,6 +503,13 @@ function App() {
       {bundleImportOpen &&
         <BundleImportModal onClose={() => setBundleImportOpen(false)}
           onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }} />}
+      {!authLocked && healthLoaded && !onboardingDone &&
+        <OnboardingWizard onDone={() => setOnboardingDone(true)}
+          onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)}
+          onScanned={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }}
+          onImported={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }}
+          onImportedBundle={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }}
+          onAxisSaved={() => setAxisRefresh(n => n + 1)} />}
       {authLocked && <AccessLockOverlay />}
       <UpdateNotice />
     </React.Fragment>

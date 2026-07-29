@@ -36,6 +36,22 @@ def test_agent_writes_toggle_defaults_off_and_round_trips(temp_db_url: str) -> N
     assert client.get("/settings").json()["agent_writes_enabled"] is False
 
 
+def test_onboarding_completed_defaults_false_and_round_trips(temp_db_url: str) -> None:
+    # inc 416: the first-run wizard's completion/skip flag. Default OFF; PUT toggles it.
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.get("/settings").json()["onboarding_completed"] is False
+    assert client.put("/settings", json={"onboarding_completed": True}).json()["onboarding_completed"] is True
+    assert client.get("/settings").json()["onboarding_completed"] is True
+
+
+def test_onboarding_completed_store_roundtrip() -> None:
+    assert app_settings.stored_onboarding_completed() is False
+    app_settings.set_onboarding_completed(True)
+    assert app_settings.stored_onboarding_completed() is True
+    app_settings.set_onboarding_completed(False)
+    assert app_settings.stored_onboarding_completed() is False
+
+
 def test_publisher_prefs_gate_and_roundtrip(temp_db_url: str) -> None:
     # #40 SP1b: the first-use choice gate is satisfied only when BOTH consequential defaults are set — neither is
     # pre-selected, so the weighting is one forced choice among peers (never the lone spotlighted one).

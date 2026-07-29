@@ -68,6 +68,14 @@ def test_health_reports_behind_db_as_not_at_head(tmp_path: Path) -> None:
     assert body["db_head_revision"] == HEAD
 
 
+def test_health_reports_onboarding_completed_and_reflects_settings_change(temp_db_url: str) -> None:
+    # inc 416: onboarding_completed rides this same unconditional launch fetch (mirrors read_only's precedent).
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.get("/health").json()["onboarding_completed"] is False
+    client.put("/settings", json={"onboarding_completed": True})
+    assert client.get("/health").json()["onboarding_completed"] is True
+
+
 def test_frontend_root_serves_configured_html_file(temp_db_url: str, tmp_path: Path) -> None:
     frontend = tmp_path / "callosum-app.html"
     frontend.write_text("<!doctype html><html><head><title>Callosum</title></head><body>Callosum shell</body></html>")
