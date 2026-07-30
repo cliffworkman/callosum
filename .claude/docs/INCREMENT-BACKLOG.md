@@ -106,6 +106,13 @@
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
 - ✅ **#45 My Publications example name — CLOSED 2026-07-22.** Swapped "e.g. Ada Lovelace"/"e.g. A. Lovelace" for
   "e.g. Karen Spärck Jones"/"e.g. K. Spärck Jones" in the name/alt-names placeholders (`35a_mypubs.jsx`).
+- **#51 [housekeeping] a flaky test:** `tests/test_funding_discovery.py::test_selected_paper_mode_and_provider_partial_failure_visibility`
+  failed once in CI (`lint-and-test`, the v0.3.4 release push, 2026-07-30) but passed reliably every time locally
+  — 5/5 in isolation, clean alongside its sibling tests in the same file, and in the immediately-prior full-suite
+  run (1712/1712). A CI rerun of the same commit passed clean. Likely a timing/ordering-sensitive assertion around
+  the "at least one provider succeeds while another fails" multi-provider scenario — worth a real look (is there
+  a race in how partial-provider-failure results get aggregated?) next time someone's in that file, not urgent
+  enough to have blocked the v0.3.4 release.
 
 ---
 
