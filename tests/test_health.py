@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from fastapi.routing import APIRoute
@@ -76,16 +77,38 @@ def test_health_reports_onboarding_completed_and_reflects_settings_change(temp_d
     assert client.get("/health").json()["onboarding_completed"] is True
 
 
-def test_health_app_version_reflects_env_and_is_none_outside_the_desktop_shell(temp_db_url: str, monkeypatch) -> None:
+def test_health_app_version_prefers_desktop_shell_env_over_the_dev_git_fallback(temp_db_url: str, monkeypatch) -> None:
     # The desktop shell sets CALLOSUM_APP_VERSION when it spawns this backend as a child process
-    # (backend.rs); a plain uvicorn/dev run or the remote-access tunnel never sets it, so app_version
-    # is honestly None rather than falling back to verification_version (an unrelated internal
-    # pipeline-version constant the connection tooltip used to show by mistake).
-    monkeypatch.delenv("CALLOSUM_APP_VERSION", raising=False)
-    assert TestClient(create_app(db_url=temp_db_url)).get("/health").json()["app_version"] is None
-
+    # (backend.rs); when it's set, it wins over the dev-only git fallback below.
     monkeypatch.setenv("CALLOSUM_APP_VERSION", "0.3.2")
     assert TestClient(create_app(db_url=temp_db_url)).get("/health").json()["app_version"] == "0.3.2"
+
+
+def test_health_app_version_falls_back_to_a_dev_git_identifier_outside_the_shell(temp_db_url: str, monkeypatch) -> None:
+    # A plain uvicorn/dev run or the remote-access tunnel never sets CALLOSUM_APP_VERSION — this repo
+    # IS a real git checkout during tests, so app_version should be a "dev-<sha>" identifier (never
+    # verification_version, an unrelated internal pipeline-version constant the connection tooltip
+    # used to show by mistake, and never a fabricated release version).
+    from app.backend.api.routers import health as health_module
+
+    health_module._dev_git_version.cache_clear()
+    monkeypatch.delenv("CALLOSUM_APP_VERSION", raising=False)
+    version = TestClient(create_app(db_url=temp_db_url)).get("/health").json()["app_version"]
+    assert version is not None
+    assert re.fullmatch(r"dev-[0-9a-f]+\+?", version), version
+
+
+def test_health_app_version_dev_fallback_is_none_when_git_is_unavailable(temp_db_url: str, monkeypatch) -> None:
+    from app.backend.api.routers import health as health_module
+
+    def _boom(*args, **kwargs):
+        raise FileNotFoundError("git not found")
+
+    health_module._dev_git_version.cache_clear()
+    monkeypatch.delenv("CALLOSUM_APP_VERSION", raising=False)
+    monkeypatch.setattr(health_module.subprocess, "run", _boom)
+    assert TestClient(create_app(db_url=temp_db_url)).get("/health").json()["app_version"] is None
+    health_module._dev_git_version.cache_clear()  # don't leak the mocked-None result into later tests
 
 
 def test_frontend_root_serves_configured_html_file(temp_db_url: str, tmp_path: Path) -> None:

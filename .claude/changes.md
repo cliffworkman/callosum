@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-30 — Increment 419: dev-mode fallback for the connection-tooltip version
+
+- **Files:** `app/backend/api/routers/health.py`, `tests/test_health.py`.
+- **What:** `app_version` now falls back to a `dev-<git-sha>` identifier (git status--porcelain-checked for a
+  trailing `+` if dirty) when `CALLOSUM_APP_VERSION` isn't set — i.e. any plain `uvicorn`/browser dev run, not
+  just the packaged desktop shell. Never invents a fake semver; `None` if git isn't available at all.
+- **Why:** Cliff checked inc 417's tooltip fix via the browser dev server and found the old
+  `(local-verifier-v1)` text correctly gone but nothing replaced it — the packaged builds he has installed
+  don't even carry inc 417 yet (it landed after v0.3.2 was tagged), so dev-server testing was the only way to
+  see the fix at all, and that's exactly the context inc 417 deliberately left with no version to show.
+- **Revert:** `git revert` the increment-419 commit, or restore `health.py`/`test_health.py` from the
+  pre-increment commit.
+
 ## 2026-07-29 — Increment 418: speed up the flagship pipeline (batch model calls, concurrent batch-job fetches)
 
 - **Files:** `app/backend/summarization/{verification.py,pipeline.py,reverify.py}`,
