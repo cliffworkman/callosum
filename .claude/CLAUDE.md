@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 421** (see Increment workflow) with **1712 pytest tests
+It is currently at **Increment 422** (see Increment workflow) with **1712 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -214,7 +214,10 @@ the full per-increment narrative for all other increments now lives in the reloc
   an edit (a Detail/WIP mutation now bumps the same `libRefresh`/WIP-card refresh counter the queue
   already did) and a new import landing off the visible page (ingest paths now reset to page 1, since
   the default sort is oldest-first). See `INCREMENT-394-NOTES.md` / `INCREMENT-395-NOTES.md` /
-  `INCREMENT-396-NOTES.md`. **Inc 409** adds the in-app auto-updater (backlog #49): Windows/macOS check
+  `INCREMENT-396-NOTES.md`. **Inc 422** regenerated the same icon set again from a new source
+  (`.claude/media/logo_app.png`) after the inc-396 mark turned out to be a near-white line stroke on
+  transparency, invisible against light backgrounds — the new source fills the mark solid black with
+  a white outline, visible against light and dark backgrounds alike. **Inc 409** adds the in-app auto-updater (backlog #49): Windows/macOS check
   periodically, silently download in the background, and prompt (never force) a restart once ready —
   driven entirely from Rust (`src-tauri/src/updater.rs`, `tauri-plugin-updater`) since the frontend's
   transform-only esbuild pipeline can't resolve npm imports; the frontend side (`04d_update.jsx`) is
@@ -228,9 +231,19 @@ the full per-increment narrative for all other increments now lives in the reloc
   `app_version`, sourced from a new `CALLOSUM_APP_VERSION` env var `backend.rs` sets when spawning the
   backend); surfaces the silent download's progress in the Status popover as a frontend-only synthetic
   entry (the updater lives entirely in the Tauri process, never a backend `JobStore`) via a shared
-  `useDesktopUpdate()` hook also read by the toast; and adds a Settings → Desktop app → "Check for
-  updates" on-demand button (`check_for_updates_now`, reusing the same check functions the periodic
-  loop already calls, with a `downloading` guard against a concurrent double-download).
+  `useDesktopUpdate()` hook also read by the toast; and adds a Settings → Account & sync → Desktop app
+  (relocated there from its own card in inc 420) → "Check for updates" on-demand button
+  (`check_for_updates_now`, reusing the same check functions the periodic loop already calls, with a
+  `downloading` guard against a concurrent double-download). **Inc 421 fixes a real, since-day-one bug
+  this button's first-ever click surfaced**: Tauri v2 requires an explicit ACL permission grant per
+  custom `#[tauri::command]` (`src-tauri/capabilities/*.json` + `src-tauri/permissions/*.toml`) — this
+  app never had a `permissions/` directory at all, so `retry_backend`/`install_update_now`/
+  `open_release_page`/`check_for_updates_now` were **all** silently unreachable from the frontend since
+  inc 409 (v0.3.0), just never caught until this button became the first of the four a real user
+  actually clicked. **Any future custom Tauri command needs its own `allow-<name>` permission added to
+  both files, or it will fail identically** — verify a new command's ACL by checking that
+  `src-tauri/gen/schemas/acl-manifests.json`'s `__app-acl__` entry resolves it after `cargo check`, the
+  same empirical check that found and confirmed this fix.
 
 > **README:** brought current in **inc 178** (the contributor front door — accurate feature list + the
 > `npm install`/`build_frontend` step + privacy/security notes). Shipped as a **draft pending the maintainer's

@@ -9,6 +9,16 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-30 — Increment 422: desktop app icon — replace the invisible-on-light-backgrounds mark
+
+- **Files:** `app/desktop-shell/src-tauri/icons/*` (regenerated), `.claude/media/logo_app.png` (new source,
+  provided by Cliff).
+- **What:** regenerated the full icon set from a new source with a solid black fill + white outline (visible
+  on both light and dark backgrounds), replacing the inc-396 mark whose only content was a near-white line
+  stroke on transparency.
+- **Why:** Cliff: "the white only icon is invisible on many backgrounds."
+- **Revert:** `git revert` the increment-422 commit, or regenerate icons from `.claude/media/logo_dm.png`.
+
 ## 2026-07-30 — Increment 421: fix — the desktop shell's own commands had no ACL grant
 
 - **Files:** `app/desktop-shell/src-tauri/capabilities/default.json`,
