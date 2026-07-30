@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-30 — Increment 423: fix — a second, independent ACL gate (local/remote origin scoping)
+
+- **Files:** `app/desktop-shell/src-tauri/capabilities/default.json`.
+- **What:** inc 421 fixed the permission-grant axis of Tauri v2's ACL; this fixes the second, independent
+  origin-scoping axis. The `main` window loads content via `WebviewUrl::External(http://127.0.0.1:{port})` —
+  a genuine external HTTP origin in Tauri's ACL sense, not covered by the capability's default `local: true`.
+  Added `"remote": {"urls": ["http://127.0.0.1:*/*"]}` so `check_for_updates_now`/`install_update_now`/
+  `open_release_page` (all invoked from `main`) are actually reachable, not just permission-granted.
+- **Why:** Cliff hit the *exact same* `Command check_for_updates_now not allowed by ACL` error on v0.3.5, which
+  provably contains the inc-421 fix — proving a second gate existed. Confirmed via the real compiled
+  `gen/schemas/capabilities.json` (showed `local:true`, no `remote` key at all) and a matching Tauri upstream
+  discussion (tauri-apps/tauri#11622) with an identical dynamically-ported-loopback scenario.
+- **Revert:** `git revert` the increment-423 commit.
+
 ## 2026-07-30 — Increment 422: desktop app icon — replace the invisible-on-light-backgrounds mark
 
 - **Files:** `app/desktop-shell/src-tauri/icons/*` (regenerated), `.claude/media/logo_app.png` (new source,

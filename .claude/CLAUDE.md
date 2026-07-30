@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 422** (see Increment workflow) with **1712 pytest tests
+It is currently at **Increment 423** (see Increment workflow) with **1712 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -243,7 +243,17 @@ the full per-increment narrative for all other increments now lives in the reloc
   actually clicked. **Any future custom Tauri command needs its own `allow-<name>` permission added to
   both files, or it will fail identically** — verify a new command's ACL by checking that
   `src-tauri/gen/schemas/acl-manifests.json`'s `__app-acl__` entry resolves it after `cargo check`, the
-  same empirical check that found and confirmed this fix.
+  same empirical check that found and confirmed this fix. **Inc 423 found the fix was incomplete**: Tauri
+  v2 capabilities gate on a *second, independent* axis besides the permission grant — origin scoping
+  (`local`/`remote`). The app's `main` window loads its own bundled backend via
+  `WebviewUrl::External(http://127.0.0.1:{port})` (`src-tauri/src/lib.rs`), which Tauri's ACL does **not**
+  treat as "local" even though it's loopback — so every `invoke()` from `main` (the entire user-facing
+  update flow) was still rejected until `capabilities/default.json` also gained
+  `"remote": {"urls": ["http://127.0.0.1:*/*"]}`. **Any future window that loads external/non-bundled
+  content (including another loopback server) needs its own matching `remote.urls` entry, or its commands
+  will fail identically even with a correct permission grant** — verify by confirming
+  `gen/schemas/capabilities.json`'s capability gained a `"remote"` key after `cargo check`, same empirical
+  method, now covering both axes.
 
 > **README:** brought current in **inc 178** (the contributor front door — accurate feature list + the
 > `npm install`/`build_frontend` step + privacy/security notes). Shipped as a **draft pending the maintainer's
@@ -580,7 +590,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 416). Each increment of real work
+callosum is built in **numbered increments** (currently at 423). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
