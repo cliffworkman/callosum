@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-30 — Increment 421: fix — the desktop shell's own commands had no ACL grant
+
+- **Files:** `app/desktop-shell/src-tauri/capabilities/default.json`,
+  `app/desktop-shell/src-tauri/permissions/default.toml` (new).
+- **What:** Tauri v2's ACL requires an explicit permission grant per custom command; this app never had a
+  `permissions/` directory at all, so `retry_backend`, `install_update_now`, `open_release_page`, and
+  `check_for_updates_now` were all unreachable from the frontend since inc 409 (v0.3.0) — just never caught
+  until `check_for_updates_now` (inc 417) became the first of the four a real user actually clicked. Fixed
+  with a proper permission TOML (modeled on `tauri-plugin-updater`'s own real permission files) + capability
+  reference; verified empirically via the real build-time-generated ACL manifest, not just "it compiled."
+- **Why:** Cliff hit `Couldn't check for updates: Command check_for_updates_now not allowed by ACL` on v0.3.4.
+- **Revert:** `git revert` the increment-421 commit.
+
 ## 2026-07-30 — Increment 420: relocate "Check for updates" into Account & sync
 
 - **Files:** `app/frontend/js/35_settings.jsx`, `tests/test_frontend_assembly.py`.

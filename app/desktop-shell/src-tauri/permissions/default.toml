@@ -1,0 +1,28 @@
+[[permission]]
+identifier = "allow-retry-backend"
+description = "Allows retrying backend startup after a failure (the splash screen's Retry button)."
+commands.allow = ["retry_backend"]
+
+[[permission]]
+identifier = "allow-install-update-now"
+description = "Allows installing an already-downloaded update and restarting (Windows/macOS)."
+commands.allow = ["install_update_now"]
+
+[[permission]]
+identifier = "allow-open-release-page"
+description = "Allows opening the GitHub release page in the system browser (Linux update fallback)."
+commands.allow = ["open_release_page"]
+
+[[permission]]
+identifier = "allow-check-for-updates-now"
+description = "Allows checking for updates on demand (Settings > Account & sync > Desktop app)."
+commands.allow = ["check_for_updates_now"]
+
+[default]
+description = "Default permissions for callosum-shell's own commands: backend retry + the auto-updater's manual-check/install/release-page actions."
+permissions = [
+  "allow-retry-backend",
+  "allow-install-update-now",
+  "allow-open-release-page",
+  "allow-check-for-updates-now",
+]
