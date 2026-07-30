@@ -33,11 +33,15 @@ def embed_chunks(
     on_progress: Callable[[int, int], None] | None = None,
 ) -> list[int]:
     rows = _chunk_rows(conn, chunk_ids)
-    created: list[int] = []
     total = len(rows)
-    for index, row in enumerate(rows, start=1):
-        if on_progress:
-            on_progress(index, total)  # inc 142: determinate progress for the long embed phase
+    # inc 418: one batched encode_texts() call for every row needing a fresh embedding, instead of one call per
+    # row — same vectors out, computed together. Phase 1 classifies each row (existing embedding vs. needs one,
+    # a cheap per-row DB lookup, not a model call — left as-is); phase 2 batch-encodes; phase 3 walks rows again
+    # in original order to report progress + do the existing insert/vector-store bookkeeping, preserving the
+    # exact per-row on_progress sequence tests assert on.
+    existing_ids: list[int | None] = []
+    pending_texts: list[str] = []
+    for row in rows:
         existing = _current_embedding(
             conn,
             target_type="chunk",
@@ -47,10 +51,21 @@ def embed_chunks(
             source_chunk_version=str(row["chunk_version"]),
         )
         if existing is not None:
-            created.append(int(existing["id"]))
-            continue
+            existing_ids.append(int(existing["id"]))
+        else:
+            existing_ids.append(None)
+            pending_texts.append(str(row["text"]))
 
-        vector = model.encode_texts([str(row["text"])])[0]
+    vectors = iter(model.encode_texts(pending_texts) if pending_texts else [])
+
+    created: list[int] = []
+    for index, (row, existing_id) in enumerate(zip(rows, existing_ids, strict=True), start=1):
+        if on_progress:
+            on_progress(index, total)  # inc 142: determinate progress for the long embed phase
+        if existing_id is not None:
+            created.append(existing_id)
+            continue
+        vector = next(vectors)
         embedding_id = _insert_embedding_metadata(
             conn,
             target_type="chunk",
@@ -76,14 +91,21 @@ def embed_papers(
     on_progress: Callable[[int, int], None] | None = None,
 ) -> list[int]:
     rows = _paper_rows(conn, paper_ids)
-    created: list[int] = []
     total = len(rows)
-    for index, row in enumerate(rows, start=1):
-        if on_progress:
-            on_progress(index, total)  # inc 142: determinate progress for the long embed phase
+    # inc 418: same batching technique as embed_chunks (see its comment) — classify each row first (empty text /
+    # existing embedding / needs one), one batched encode_texts() call for every row that needs one, then a
+    # second pass in original order for progress + the existing insert/vector-store bookkeeping. A row whose text
+    # normalizes to empty still contributes nothing to `created` (unchanged from before).
+    texts: list[str | None] = []
+    existing_ids: list[int | None] = []
+    pending_texts: list[str] = []
+    for row in rows:
         text = paper_embedding_text(row)
         if not normalize_text(text, model.normalization):
+            texts.append(None)
+            existing_ids.append(None)
             continue
+        texts.append(text)
         existing = _current_embedding(
             conn,
             target_type="paper",
@@ -93,10 +115,23 @@ def embed_papers(
             source_chunk_version=None,
         )
         if existing is not None:
-            created.append(int(existing["id"]))
-            continue
+            existing_ids.append(int(existing["id"]))
+        else:
+            existing_ids.append(None)
+            pending_texts.append(text)
 
-        vector = model.encode_texts([text])[0]
+    vectors = iter(model.encode_texts(pending_texts) if pending_texts else [])
+
+    created: list[int] = []
+    for index, (row, text, existing_id) in enumerate(zip(rows, texts, existing_ids, strict=True), start=1):
+        if on_progress:
+            on_progress(index, total)  # inc 142: determinate progress for the long embed phase
+        if text is None:
+            continue
+        if existing_id is not None:
+            created.append(existing_id)
+            continue
+        vector = next(vectors)
         embedding_id = _insert_embedding_metadata(
             conn,
             target_type="paper",

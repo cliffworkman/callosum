@@ -102,13 +102,18 @@ def reverify_imported_summary(
         model=model, vector_store=vector_store, config=config, support_scorer=support_scorer
     )
 
-    per_sentence: list[tuple[str, list[VerificationResult]]] = []
-    all_results: list[VerificationResult] = []
+    # inc 418: resolve every sentence's citations to a local chunk id first (unchanged — depends on paper
+    # resolution + quote/similarity matching, not the model), then verify the WHOLE flattened batch in ONE
+    # verify_many() call instead of one verify() call per citation — same per-item logic, just batched.
+    per_sentence_texts: list[str] = []
+    flat_items: list[tuple[str, CandidateCitation]] = []
+    item_sentence_index: list[int] = []
     for st in blob.get("sentences") or []:
         if not isinstance(st, dict):
             continue
         text = str(st.get("text") or "")
-        results: list[VerificationResult] = []
+        sentence_index = len(per_sentence_texts)
+        per_sentence_texts.append(text)
         for c in st.get("citations") or []:
             if not isinstance(c, dict):
                 continue
@@ -120,15 +125,16 @@ def reverify_imported_summary(
             )
             if chunk_id is None:
                 continue
-            vr = verifier.verify(
-                conn,
-                sentence=text,
-                citation=CandidateCitation(chunk_id=chunk_id, quote=str(c.get("quote") or "")),
-                source_chunks=[],
-            )
-            results.append(vr)
-        per_sentence.append((text, results))
-        all_results.extend(results)
+            flat_items.append((text, CandidateCitation(chunk_id=chunk_id, quote=str(c.get("quote") or ""))))
+            item_sentence_index.append(sentence_index)
+
+    all_results = verifier.verify_many(conn, items=flat_items, source_chunks=[])
+    sentence_results: list[list[VerificationResult]] = [[] for _ in per_sentence_texts]
+    for sentence_index, vr in zip(item_sentence_index, all_results, strict=True):
+        sentence_results[sentence_index].append(vr)
+    per_sentence: list[tuple[str, list[VerificationResult]]] = list(
+        zip(per_sentence_texts, sentence_results, strict=True)
+    )
 
     status = (
         "verified" if all(rs and all(v.verified for v in rs) for _, rs in per_sentence) and per_sentence else "flagged"

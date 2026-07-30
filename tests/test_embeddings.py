@@ -95,6 +95,75 @@ def test_embed_papers_reports_progress_per_paper(tmp_path: Path) -> None:
     assert calls == [(1, 3), (2, 3), (3, 3)]  # one determinate tick per paper
 
 
+def test_embed_papers_batches_encode_texts_into_one_call(tmp_path: Path) -> None:
+    # inc 418: proves the batching actually happens (call COUNT), not just that the resulting vectors are
+    # correct — 3 fresh papers must yield ONE encode_texts() call with all 3 texts, not 3 calls with 1 each.
+    engine = _migrated_engine(tmp_path)
+    encode_calls: list[list[str]] = []
+
+    @dataclass(frozen=True)
+    class CountingEmbeddingModel:
+        name: str = "counting-keyword-model"
+        version: str = "v1"
+        dimension: int = 4
+        normalization: str = DEFAULT_NORMALIZATION
+
+        def encode_texts(self, texts: list[str]) -> list[list[float]]:
+            encode_calls.append(list(texts))
+            return [[0.1, 0.2, 0.3, 0.4] for _ in texts]
+
+    model = CountingEmbeddingModel()
+    vector_store: VectorStore = SQLiteVecVectorStore()
+    with engine.begin() as conn:
+        for i in range(3):
+            create_paper(
+                conn,
+                title=f"Paper {i}",
+                abstract=f"Abstract {i} about banana orchards.",
+                year=2024,
+                csl_json={"id": f"p{i}", "type": "article-journal", "title": f"Paper {i}"},
+                processing_tier="abstract-embedded",
+            )
+        created = embed_papers(conn, model=model, vector_store=vector_store)
+    engine.dispose()
+    assert len(created) == 3
+    assert len(encode_calls) == 1  # ONE batched call ...
+    assert len(encode_calls[0]) == 3  # ... covering all 3 papers, not 3 separate one-item calls
+
+
+def test_embed_chunks_batches_encode_texts_into_one_call(tmp_path: Path) -> None:
+    # inc 418: same proof for embed_chunks — a paper's 2 fresh chunks must yield ONE encode_texts() call with
+    # both texts, not one call per chunk.
+    engine = _migrated_engine(tmp_path)
+    encode_calls: list[list[str]] = []
+
+    @dataclass(frozen=True)
+    class CountingEmbeddingModel:
+        name: str = "counting-keyword-model"
+        version: str = "v1"
+        dimension: int = 4
+        normalization: str = DEFAULT_NORMALIZATION
+
+        def encode_texts(self, texts: list[str]) -> list[list[float]]:
+            encode_calls.append(list(texts))
+            return [[0.1, 0.2, 0.3, 0.4] for _ in texts]
+
+    model = CountingEmbeddingModel()
+    vector_store: VectorStore = SQLiteVecVectorStore()
+    with engine.begin() as conn:
+        pdf_path = _make_embedding_fixture_pdf(tmp_path / "embed-chunks-batch.pdf")
+        ingest = ingest_pdf_scaffold(conn, pdf_path, title="Embed Chunks Batch Fixture")
+        chunk_ids = [
+            int(row[0]) for row in conn.execute(select(chunks.c.id).where(chunks.c.paper_id == ingest["paper_id"]))
+        ]
+        assert len(chunk_ids) == 2  # the fixture PDF has exactly 2 sentences → 2 chunks
+        created = embed_chunks(conn, model=model, vector_store=vector_store, chunk_ids=chunk_ids)
+    engine.dispose()
+    assert len(created) == 2
+    assert len(encode_calls) == 1  # ONE batched call ...
+    assert len(encode_calls[0]) == 2  # ... covering both chunks, not 2 separate one-item calls
+
+
 def test_embedding_chunks_and_papers_store_metadata_and_sqlite_vec_vectors(tmp_path: Path) -> None:
     engine = _migrated_engine(tmp_path)
     model = FakeEmbeddingModel()

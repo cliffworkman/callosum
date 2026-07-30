@@ -376,9 +376,14 @@ def test_enrich_progress_label_shows_title_and_falls_back():
 
 
 def test_enrich_commits_per_paper_partial_progress(temp_db_url, monkeypatch):
-    """inc B: a failure enriching the 2nd paper leaves the 1st paper's enrichment committed and the job completes
-    (per-paper commit + skip). Under the old single-transaction job, the 2nd's failure rolled back the 1st too and
-    errored the whole run — so status 'done' + fields_filled>=2 can only hold with per-paper commits."""
+    """inc B: a failure enriching one paper leaves the other paper's enrichment committed and the job completes
+    (per-paper commit + skip). Under the old single-transaction job, one failure rolled back the other too and
+    errored the whole run — so status 'done' + fields_filled>=2 can only hold with per-paper commits.
+
+    inc 418 made this batch concurrent (`library_enrich.py`'s ThreadPoolExecutor), so WHICH paper lands on the
+    2nd call is no longer deterministic — the assertions below are written to hold either way: exactly one of
+    the two papers fails (whichever wins the race to be call #2), the other succeeds, and the run still
+    completes with that paper's fields filled."""
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
         _paper(conn, title="A", doi="10.1/a", csl_json={"title": "A", "DOI": "10.1/a"}, imported_source="pdf-scaffold")
@@ -392,7 +397,7 @@ def test_enrich_commits_per_paper_partial_progress(temp_db_url, monkeypatch):
 
     def flaky(conn, paper_id, **kwargs):
         calls["n"] += 1
-        if calls["n"] == 2:  # papers processed id-ASC → the 2nd is paper B
+        if calls["n"] == 2:  # whichever paper wins the race to be the 2nd call — see the docstring above
             raise RuntimeError("boom enriching the 2nd paper")
         return real(conn, paper_id, **kwargs)
 

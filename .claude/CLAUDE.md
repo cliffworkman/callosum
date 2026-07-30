@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 417** (see Increment workflow) with **1707 pytest tests
+It is currently at **Increment 418** (see Increment workflow) with **1710 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -178,6 +178,20 @@ the full per-increment narrative for all other increments now lives in the reloc
   **Run `npm install` once, then re-run `python tools/build_frontend.py` after editing anything under
   `app/frontend/`.**
 - **HTTP client:** httpx (external metadata/discovery APIs).
+- **Concurrency (inc 418):** the backend runs single-process/single-worker uvicorn with no concurrency anywhere
+  by default — CPU-bound and I/O-bound batch jobs alike looped strictly sequentially until inc 418 introduced
+  two deliberate, narrow exceptions: the citation-verification loop batches its NLI/embedding model calls (one
+  call for a whole summary instead of one per sentence-citation pair — same model, same math, just batched;
+  `summarization/verification.py`'s `verify_many`/`support_and_contradiction_many`, also used by
+  `embeddings/pipeline.py`'s `embed_chunks`/`embed_papers`), and the two sequential external-HTTP batch jobs
+  (`citation_counts.py`, `library_enrich.py`) fetch concurrently via a small bounded `ThreadPoolExecutor` (stdlib,
+  no new dependency) instead of one paper at a time — safe because `persistence/sqlite_retry.py`'s `run_write`
+  already opens a fresh connection per call with retry-on-lock, and SQLAlchemy's default `QueuePool` (no special
+  `poolclass` set) is built for exactly this. CPU-bound batch jobs (statcheck-all, PDF scan/import, axis
+  scoring's pre-embed loop) remain deliberately sequential — see `INCREMENT-418-NOTES.md` for why each was left
+  alone. GPU is not used anywhere; nothing constructs a model with an explicit `device=`, so sentence-transformers'
+  own cuda→mps→cpu auto-detection already applies for free to anyone running the dev server on a GPU-equipped
+  machine — only the packaged desktop installer forces CPU-only torch (bundle-size, not a code constraint).
 - **Desktop packaging (backlog #21, incs 394-395):** `app/desktop-shell/` — a Tauri v2 shell that
   spawns callosum's own FastAPI/uvicorn backend as a child process (a bundled portable CPython + this
   project's real dependencies via `bundle.resources`, CPU-only torch, not PyInstaller/Nuitka freezing)

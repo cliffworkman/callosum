@@ -13,6 +13,7 @@ The concern lives in its own router (3-segment path) so ``/papers/citation-count
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request
@@ -27,6 +28,10 @@ from integrations.openalex.adapter import OpenAlexClient
 
 router = APIRouter(tags=["citation-counts"])
 _log = logging.getLogger("callosum.citation_counts")
+# inc 418: a courtesy-norm concurrency cap, not an OpenAlex-published limit — a handful of in-flight fetches at
+# once, not dozens. Each worker opens its own DB connection via run_write (a fresh connection per call, retried
+# with backoff on a transient SQLite writer-lock collision) — safe under SQLAlchemy's default QueuePool.
+CITATION_COUNT_WORKERS = 4
 
 
 class CitationRefreshSummary(BaseModel):
@@ -98,13 +103,21 @@ def _run_citation_counts_job(app: FastAPI, job_id: str) -> None:
                 return True
             return False
 
-        for i, row in enumerate(rows):
-            try:
-                if run_write(engine, lambda conn, r=row: process(conn, r)):
-                    updated += 1
-            except Exception as exc:  # noqa: BLE001 — one bad paper never aborts the batch
-                _log.warning("citation-counts batch: skipped paper %s: %s", row["id"], exc)
-            jobs.mark_progress(job_id, i + 1, total, "Fetching citation counts")
+        # inc 418: fetch+write each paper concurrently (bounded) instead of one-at-a-time — the OpenAlex round
+        # trip, not the local write, dominates wall-clock time here. `process` itself is unchanged; only the
+        # orchestration is concurrent. Progress is completion-count-based (inherently order-agnostic).
+        completed = 0
+        with ThreadPoolExecutor(max_workers=CITATION_COUNT_WORKERS) as pool:
+            futures = {pool.submit(run_write, engine, lambda conn, r=row: process(conn, r)): row for row in rows}
+            for future in as_completed(futures):
+                completed += 1
+                row = futures[future]
+                try:
+                    if future.result():
+                        updated += 1
+                except Exception as exc:  # noqa: BLE001 — one bad paper never aborts the batch
+                    _log.warning("citation-counts batch: skipped paper %s: %s", row["id"], exc)
+                jobs.mark_progress(job_id, completed, total, "Fetching citation counts")
         jobs.mark_done(
             job_id,
             CitationRefreshResponse(

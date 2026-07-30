@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-29 — Increment 418: speed up the flagship pipeline (batch model calls, concurrent batch-job fetches)
+
+- **Files:** `app/backend/summarization/{verification.py,pipeline.py,reverify.py}`,
+  `app/backend/embeddings/pipeline.py`, `app/backend/api/routers/{citation_counts.py,library_enrich.py}`,
+  `tests/test_summarization.py`, `tests/test_embeddings.py`, `tests/test_metadata_multi_enrich.py`.
+- **What:** the NLI cross-encoder + embedding model, both of which already batch internally, were being called
+  one sentence-citation pair at a time in the verification loop (the literal "Ask"/Synthesize flagship path) —
+  now batched into one call per summary. `embed_chunks`/`embed_papers` batched the same way, speeding up
+  library scan/import. Citation-count refresh + metadata enrichment now fetch concurrently (bounded
+  `ThreadPoolExecutor`) instead of one paper at a time.
+- **Why:** Cliff was worried the app's slowness would cause user attrition and asked whether
+  parallelizing/GPU could help; research found GPU was already free where available (nothing to build) and the
+  real, safe lever was that nothing in the backend batched model calls or ran independent work concurrently.
+  A real-model test (8 real citations from the maintainer's testing DB) confirmed batching is numerically
+  equivalent to the old per-item calls (status + confidences matching to within 1e-6) with a measured 6.85x
+  speedup on the verification stage.
+- **Revert:** `git revert` the increment-418 commit, or restore the touched files from the pre-increment commit.
+
 ## 2026-07-29 — Increment 417: auto-updater follow-up (real app version, progress visibility, on-demand check)
 
 - **Files:** `app/backend/api/routers/health.py`, `app/desktop-shell/src-tauri/src/{updater.rs,backend.rs,lib.rs}`,

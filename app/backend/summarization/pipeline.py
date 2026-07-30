@@ -21,7 +21,7 @@ from app.backend.persistence.schema import (
     summary_sentences,
 )
 from app.backend.summarization.chunk_filtering import is_front_matter_chunk
-from app.backend.summarization.generators import SourceChunk, SummaryGenerator
+from app.backend.summarization.generators import CandidateCitation, SourceChunk, SummaryGenerator
 from app.backend.summarization.overview import OverviewGenerator
 from app.backend.summarization.verification import (
     LocalCitationVerifier,
@@ -111,15 +111,21 @@ def summarize_scope(
     # stay un-instrumented on purpose — the LLM call is a single opaque blocking request with no sub-progress
     # signal, and a cache hit would make a naive elapsed-time ETA misleading — so `on_progress` is only ever
     # called here, once N (the candidate count) is known.
+    # inc 418: every (candidate, citation) pair across the WHOLE summary is verified in ONE verify_many() call
+    # (one batched embedding-encode + one batched NLI call) instead of one verify() call per citation — same
+    # per-item logic and thresholds, just batched. Results are unzipped back into their per-candidate rows before
+    # on_progress fires, so the reported sequence is unchanged: still exactly one call per candidate, in order.
     total_candidates = len(candidates)
+    flat_items: list[tuple[str, CandidateCitation]] = [
+        (candidate.text, citation) for candidate in candidates for citation in candidate.citations
+    ]
+    flat_results = verifier.verify_many(conn, items=flat_items, source_chunks=source_chunks)
     verification_rows: list[list[VerificationResult]] = []
+    cursor = 0
     for index, candidate in enumerate(candidates, start=1):
-        verification_rows.append(
-            [
-                verifier.verify(conn, sentence=candidate.text, citation=citation, source_chunks=source_chunks)
-                for citation in candidate.citations
-            ]
-        )
+        count = len(candidate.citations)
+        verification_rows.append(flat_results[cursor : cursor + count])
+        cursor += count
         if on_progress is not None:
             on_progress(index, total_candidates, "Verifying claim")
     summary_status = (

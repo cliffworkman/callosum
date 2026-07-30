@@ -10,6 +10,7 @@ from sqlalchemy import select
 from alembic import command
 from alembic.config import Config
 from app.backend.embeddings.models import DEFAULT_NORMALIZATION, normalize_text
+from app.backend.embeddings.pipeline import embed_chunks
 from app.backend.embeddings.vector_store import InMemoryVectorStore
 from app.backend.pdf_processing.extraction import COORDINATE_SYSTEM, DEFAULT_CHUNKING_STRATEGY, file_sha256
 from app.backend.pdf_processing.ingest import ingest_pdf_scaffold
@@ -20,7 +21,7 @@ from app.backend.persistence.repository import create_attachment, create_chunk, 
 from app.backend.persistence.schema import chunks, citation_mappings, evidence_quotes, summaries, summary_sentences
 from app.backend.summarization.generators import CandidateCitation, CandidateSummarySentence, FakeSummaryGenerator
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
-from app.backend.summarization.verification import EmbeddingSupportScorer, VerificationConfig
+from app.backend.summarization.verification import EmbeddingSupportScorer, LocalCitationVerifier, VerificationConfig
 from integrations.gemini import DataEgressDisabledError, GeminiConfig, GeminiSummaryGenerator
 
 
@@ -489,6 +490,60 @@ def test_on_progress_is_optional_and_never_called_with_zero_candidates(tmp_path:
 
     assert result.sentences == []
     assert calls == []
+
+
+def test_verify_many_batches_encode_and_nli_calls_instead_of_looping(tmp_path: Path) -> None:
+    # inc 418: proves the batching actually happens (call COUNT), not just that outputs are correct — 2
+    # (sentence, citation) items must yield ONE encode_texts() call with both sentences and ONE NLI call with
+    # both pairs, not 2 calls of each.
+    engine = _migrated_engine(tmp_path)
+    encode_calls: list[list[str]] = []
+
+    @dataclass(frozen=True)
+    class CountingEmbeddingModel:
+        name: str = "counting-summary-embedding"
+        version: str = "v1"
+        dimension: int = 3
+        normalization: str = DEFAULT_NORMALIZATION
+
+        def encode_texts(self, texts: list[str]) -> list[list[float]]:
+            encode_calls.append(list(texts))
+            return [_summary_vector(normalize_text(text, self.normalization)) for text in texts]
+
+    nli_calls: list[list[tuple[str, str]]] = []
+
+    @dataclass(frozen=True)
+    class CountingSupportScorer:
+        def support_and_contradiction_many(self, pairs: list[tuple[str, str]]) -> list[tuple[float, float | None]]:
+            nli_calls.append(list(pairs))
+            return [(1.0, None) for _ in pairs]
+
+    model = CountingEmbeddingModel()
+    vector_store = InMemoryVectorStore()
+
+    with engine.begin() as conn:
+        fixture = _ingest_summary_fixture(conn, tmp_path)
+        chunk_ids = [fixture["alpha_chunk_id"], fixture["banana_chunk_id"]]
+        embed_chunks(conn, model=model, vector_store=vector_store, chunk_ids=chunk_ids)  # pre-embed both chunks
+        encode_calls.clear()  # discard the pre-embed call — only verify_many's own calls matter below
+
+        verifier = LocalCitationVerifier(model=model, vector_store=vector_store, support_scorer=CountingSupportScorer())
+        items = [
+            (
+                "Alpha sentence one.",
+                CandidateCitation(chunk_id=fixture["alpha_chunk_id"], quote="Alpha beta evidence supports the claim."),
+            ),
+            (
+                "Banana sentence two.",
+                CandidateCitation(chunk_id=fixture["banana_chunk_id"], quote="Banana orchard material is unrelated."),
+            ),
+        ]
+        results = verifier.verify_many(conn, items=items, source_chunks=[])
+
+    assert len(results) == 2
+    assert encode_calls == [["Alpha sentence one.", "Banana sentence two."]]  # ONE call, both sentences together
+    assert len(nli_calls) == 1
+    assert len(nli_calls[0]) == 2  # ONE call, both pairs together
 
 
 def test_gemini_generator_refuses_data_egress_before_sdk_call() -> None:

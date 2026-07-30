@@ -91,14 +91,25 @@ class NLISupportScorer:
         """Both probabilities from ONE NLI softmax: (entailment→support, contradiction). On failure → the fallback
         scorer's support + None contradiction (the embedding fallback has no contradiction signal — silence, not a
         guessed verdict). Used by the verifier to surface the `contradicted` status (the source actively disagrees)."""
+        return self.support_and_contradiction_many([(passage, sentence)])[0]
+
+    def support_and_contradiction_many(self, pairs: list[tuple[str, str]]) -> list[tuple[float, float | None]]:
+        """Batched form of ``support_and_contradiction`` — ONE ``model.predict()`` call for every ``(passage,
+        sentence)`` pair, instead of one call per pair. Same model, same math, same thresholds — only the number
+        of calls changes. On any failure, falls back to the embedding scorer PER PAIR (preserves the existing
+        silent-fallback contract exactly, just applied to each item)."""
+        if not pairs:
+            return []
         try:
             model = self._load_model()
-            scores = model.predict([(passage, sentence)], apply_softmax=True)  # type: ignore[attr-defined]
-            return _support_and_contradiction(scores, model=model)
+            scores = model.predict(list(pairs), apply_softmax=True)  # type: ignore[attr-defined]
+            return [_values_from_row(row, model=model) for row in scores]
         except Exception:
             if self.fallback_scorer is None:
                 raise
-            return self.fallback_scorer.score(sentence=sentence, passage=passage), None
+            return [
+                (self.fallback_scorer.score(sentence=sentence, passage=passage), None) for passage, sentence in pairs
+            ]
 
     def _load_model(self) -> object:
         if self._model is None:
@@ -188,44 +199,87 @@ class LocalCitationVerifier:
         citation: CandidateCitation,
         source_chunks: list[SourceChunk],
     ) -> VerificationResult:
+        return self.verify_many(conn, items=[(sentence, citation)], source_chunks=source_chunks)[0]
+
+    def verify_many(
+        self,
+        conn: Connection,
+        *,
+        items: list[tuple[str, CandidateCitation]],
+        source_chunks: list[SourceChunk],
+    ) -> list[VerificationResult]:
+        """Batched form of ``verify`` — ONE embedding-encode call and ONE NLI call for the WHOLE batch, instead of
+        one each per (sentence, citation) pair. Same per-item logic, same math, same thresholds; only the model
+        calls are batched. ``verify()`` is a thin ``verify_many`` wrapper (n=1) — every existing test exercising
+        ``verify()`` is therefore a free regression test for this method too."""
+        if not items:
+            return []
         source_by_id = {chunk.chunk_id: chunk for chunk in source_chunks}
-        cited_chunk = source_by_id.get(citation.chunk_id) or _source_chunk_for_id(conn, citation.chunk_id)
-        candidate_chunk_ids = [chunk.chunk_id for chunk in source_chunks] or [citation.chunk_id]
-        retrieval_confidence = self._retrieval_confidence(
-            conn,
-            sentence=sentence,
-            cited_chunk_id=citation.chunk_id,
-            candidate_chunk_ids=candidate_chunk_ids,
+        cited_chunks = [
+            source_by_id.get(citation.chunk_id) or _source_chunk_for_id(conn, citation.chunk_id)
+            for _, citation in items
+        ]
+
+        # `source_chunks` is the SAME candidate pool for every item in a real batch (summarize_scope/reverify both
+        # call with one shared list per summary) — hoist the embed/lookup ONCE instead of redoing it per citation
+        # (today's `verify()` redundantly re-checks embedding existence for the same chunks on every single
+        # citation). Only falls back to a per-item pool when source_chunks is empty, matching verify()'s own
+        # existing edge-case behavior exactly.
+        shared_candidate_ids = [chunk.chunk_id for chunk in source_chunks]
+        shared_embedding_to_chunk = (
+            self._embedding_lookup(conn, candidate_chunk_ids=shared_candidate_ids) if shared_candidate_ids else None
         )
-        quote_confidence, page_start, page_end, bbox_json, coordinate_precision = self._quote_confidence(
-            conn,
-            citation=citation,
-            cited_chunk=cited_chunk,
-        )
-        support_confidence, contradiction_confidence = self._support_and_contradiction(
-            sentence=sentence, passage=cited_chunk.text
-        )
-        status = self._status(
-            retrieval_confidence=retrieval_confidence,
-            quote_confidence=quote_confidence,
-            support_confidence=support_confidence,
-            contradiction_confidence=contradiction_confidence,
-        )
-        return VerificationResult(
-            chunk_id=citation.chunk_id,
-            quote_text=citation.quote,
-            status=status,
-            retrieval_confidence=retrieval_confidence,
-            quote_confidence=quote_confidence,
-            support_confidence=support_confidence,
-            contradiction_confidence=contradiction_confidence,
-            page_start=page_start,
-            page_end=page_end,
-            bbox_json=bbox_json,
-            coordinate_precision=coordinate_precision,
-            chunk_version_verified_against=cited_chunk.chunk_version,
-            embedding_version_verified_against=_embedding_version(self.model),
-        )
+
+        sentence_vectors = self.model.encode_texts([sentence for sentence, _ in items])
+
+        retrieval_confidences: list[float] = []
+        for (_, citation), vector in zip(items, sentence_vectors, strict=True):
+            embedding_to_chunk = shared_embedding_to_chunk
+            if embedding_to_chunk is None:
+                embedding_to_chunk = self._embedding_lookup(conn, candidate_chunk_ids=[citation.chunk_id])
+            retrieval_confidences.append(
+                self._retrieval_confidence_from_vector(
+                    conn, vector=vector, cited_chunk_id=citation.chunk_id, embedding_to_chunk=embedding_to_chunk
+                )
+            )
+
+        quote_results = [
+            self._quote_confidence(conn, citation=citation, cited_chunk=cited_chunk)
+            for (_, citation), cited_chunk in zip(items, cited_chunks, strict=True)
+        ]
+        pairs = [(cited_chunk.text, sentence) for (sentence, _), cited_chunk in zip(items, cited_chunks, strict=True)]
+        support_results = self._support_and_contradiction_many(pairs)
+
+        results: list[VerificationResult] = []
+        for retrieval_confidence, quote_result, support_result, (_, citation), cited_chunk in zip(
+            retrieval_confidences, quote_results, support_results, items, cited_chunks, strict=True
+        ):
+            quote_confidence, page_start, page_end, bbox_json, coordinate_precision = quote_result
+            support_confidence, contradiction_confidence = support_result
+            status = self._status(
+                retrieval_confidence=retrieval_confidence,
+                quote_confidence=quote_confidence,
+                support_confidence=support_confidence,
+                contradiction_confidence=contradiction_confidence,
+            )
+            results.append(
+                VerificationResult(
+                    chunk_id=citation.chunk_id,
+                    quote_text=citation.quote,
+                    status=status,
+                    retrieval_confidence=retrieval_confidence,
+                    quote_confidence=quote_confidence,
+                    support_confidence=support_confidence,
+                    contradiction_confidence=contradiction_confidence,
+                    page_start=page_start,
+                    page_end=page_end,
+                    bbox_json=bbox_json,
+                    coordinate_precision=coordinate_precision,
+                    chunk_version_verified_against=cited_chunk.chunk_version,
+                    embedding_version_verified_against=_embedding_version(self.model),
+                )
+            )
+        return results
 
     def _support_and_contradiction(self, *, sentence: str, passage: str) -> tuple[float, float | None]:
         """Support + (when the scorer exposes it) contradiction, in one call. A scorer that only implements the
@@ -235,16 +289,30 @@ class LocalCitationVerifier:
             return both(sentence=sentence, passage=passage)
         return self.support_scorer.score(sentence=sentence, passage=passage), None
 
-    def _retrieval_confidence(
+    def _support_and_contradiction_many(self, pairs: list[tuple[str, str]]) -> list[tuple[float, float | None]]:
+        """Batched dispatch mirroring ``_support_and_contradiction``'s duck-typed fallback: a scorer exposing
+        ``support_and_contradiction_many`` batches in one call; one exposing only ``support_and_contradiction``
+        (or just ``.score``) is looped through the existing single-item dispatcher — every test-double scorer
+        keeps working completely unmodified."""
+        if not pairs:
+            return []
+        many = getattr(self.support_scorer, "support_and_contradiction_many", None)
+        if callable(many):
+            return many(pairs)
+        return [self._support_and_contradiction(sentence=sentence, passage=passage) for passage, sentence in pairs]
+
+    def _embedding_lookup(self, conn: Connection, *, candidate_chunk_ids: list[int]) -> dict[int, int]:
+        embed_chunks(conn, model=self.model, vector_store=self.vector_store, chunk_ids=candidate_chunk_ids)
+        return _chunk_embedding_ids(conn, model=self.model, chunk_ids=candidate_chunk_ids)
+
+    def _retrieval_confidence_from_vector(
         self,
         conn: Connection,
         *,
-        sentence: str,
+        vector: list[float],
         cited_chunk_id: int,
-        candidate_chunk_ids: list[int],
+        embedding_to_chunk: dict[int, int],
     ) -> float:
-        embed_chunks(conn, model=self.model, vector_store=self.vector_store, chunk_ids=candidate_chunk_ids)
-        embedding_to_chunk = _chunk_embedding_ids(conn, model=self.model, chunk_ids=candidate_chunk_ids)
         cited_embedding_ids = {
             embedding_id for embedding_id, chunk_id in embedding_to_chunk.items() if chunk_id == cited_chunk_id
         }
@@ -252,7 +320,7 @@ class LocalCitationVerifier:
             return 0.0
         hits = self.vector_store.search(
             conn,
-            vector=self.model.encode_texts([sentence])[0],
+            vector=vector,
             top_k=len(embedding_to_chunk),
             candidate_embedding_ids=set(embedding_to_chunk),
         )
@@ -383,18 +451,10 @@ def _cosine_similarity_confidence(left: list[float], right: list[float]) -> floa
     return max(0.0, min(1.0, similarity))
 
 
-def _entailment_confidence(scores, *, model: object) -> float:  # type: ignore[no-untyped-def]
-    row = scores[0] if hasattr(scores, "__len__") and len(scores) else scores
-    values = [float(value) for value in row]
-    if len(values) == 1:
-        return max(0.0, min(1.0, values[0]))
-    index = _entailment_index(model=model, count=len(values))
-    return max(0.0, min(1.0, values[index]))
-
-
-def _support_and_contradiction(scores, *, model: object) -> tuple[float, float | None]:  # type: ignore[no-untyped-def]
-    """(entailment, contradiction) from one NLI softmax row. A single-value (regression) head has no contradiction."""
-    row = scores[0] if hasattr(scores, "__len__") and len(scores) else scores
+def _values_from_row(row, *, model: object) -> tuple[float, float | None]:  # type: ignore[no-untyped-def]
+    """(entailment, contradiction) from ONE NLI softmax row. A single-value (regression) head has no
+    contradiction. Pure per-row extraction, called once per row of a ``model.predict(pairs, ...)`` response — a
+    single-item call is just a length-1 batch, so there is only ever this one code path."""
     values = [float(value) for value in row]
     if len(values) <= 1:
         return (max(0.0, min(1.0, values[0])) if values else 0.0), None

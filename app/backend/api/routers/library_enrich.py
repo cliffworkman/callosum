@@ -12,6 +12,7 @@ in ``app.py`` — the inc-226 ``paper_enrich.py`` pattern. Reuses ``library``'s 
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request
@@ -28,6 +29,8 @@ from app.backend.persistence.schema import papers
 from app.backend.persistence.sqlite_retry import run_write
 
 _log = logging.getLogger("callosum.library_enrich")
+# inc 418: same bounded-concurrency rationale as citation_counts.py — a handful of in-flight fetches, not dozens.
+METADATA_ENRICH_WORKERS = 4
 
 router = APIRouter()
 
@@ -98,20 +101,32 @@ def _run_metadata_enrich_job(app: FastAPI, job_id: str) -> None:
         total = len(ids)
         # inc B: enrich each paper (external metadata fetch + write) in its OWN committed transaction, so the write
         # lock is released between papers; one paper's hard failure is skipped, never aborting the batch.
-        for index, paper_id in enumerate(ids, start=1):
-            try:
-                result = run_write(
+        # inc 418: run these concurrently (bounded) instead of one-at-a-time — the external fetch cascade
+        # (Crossref/OpenAlex/Europe PMC/PubMed), not the local write, dominates wall-clock time here. The enrich
+        # call itself is unchanged; only the orchestration is concurrent. Progress is completion-count-based.
+        completed = 0
+        with ThreadPoolExecutor(max_workers=METADATA_ENRICH_WORKERS) as pool:
+            futures = {
+                pool.submit(
+                    run_write,
                     engine,
                     lambda conn, pid=paper_id: enrich_paper_metadata_multi(
                         conn, pid, registry=registry, search_provider=search_provider
                     ),
-                )
-                recovered += 1 if result.doi_recovered else 0
-                filled += len(result.filled_fields)
-                missing += 1 if result.still_missing_doi else 0
-            except Exception as exc:  # noqa: BLE001 — one bad paper never aborts the batch
-                _log.warning("metadata enrich: skipped paper %s: %s", paper_id, exc)
-            jobs.mark_progress(job_id, index, total, _enrich_progress_label(titles.get(paper_id)))
+                ): paper_id
+                for paper_id in ids
+            }
+            for future in as_completed(futures):
+                completed += 1
+                paper_id = futures[future]
+                try:
+                    result = future.result()
+                    recovered += 1 if result.doi_recovered else 0
+                    filled += len(result.filled_fields)
+                    missing += 1 if result.still_missing_doi else 0
+                except Exception as exc:  # noqa: BLE001 — one bad paper never aborts the batch
+                    _log.warning("metadata enrich: skipped paper %s: %s", paper_id, exc)
+                jobs.mark_progress(job_id, completed, total, _enrich_progress_label(titles.get(paper_id)))
         jobs.mark_done(
             job_id,
             MetadataEnrichResponse(
