@@ -1137,11 +1137,15 @@ def test_desktop_update_progress_surfaces_in_status_popover_and_settings():
     assert "desktopUpdate" in raw.split("function StatusMenu(", 1)[1].split("\n", 1)[0]
 
     # Settings: an on-demand "Check for updates" button, desktop-shell-only (returns null without Tauri).
+    # inc 420: lives as a subsection inside "Account & sync" (beneath Appearance), not its own standalone
+    # card — a plain browser/dev-server render still shows nothing there (DesktopUpdateSettings itself
+    # returns null outside Tauri), so no orphaned "Desktop app" label with nothing under it.
     assert "function DesktopUpdateSettings(" in raw
     assert '!("__TAURI__" in window)) return null' in raw
     assert "Check for updates" in raw
     assert 'invoke("check_for_updates_now")' in raw
-    assert '<SettingsCard title="Desktop app">' in raw
+    assert '<SettingsCard title="Desktop app">' not in raw
+    assert "<DesktopUpdateSettings desktopUpdate={desktopUpdate} />" in raw
 
 
 def test_built_artifact_is_in_sync():

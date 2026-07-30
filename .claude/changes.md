@@ -9,6 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-30 — Increment 420: relocate "Check for updates" into Account & sync
+
+- **Files:** `app/frontend/js/35_settings.jsx`, `tests/test_frontend_assembly.py`.
+- **What:** "Check for updates" (inc 417) moved from its own standalone "Desktop app" card to a subsection
+  nested inside "Account & sync," right after "Appearance" — matching the existing subsection pattern.
+- **Why:** Cliff's own Settings-layout preference; a genuinely minor UI reorganization, no behavior change.
+- **Revert:** `git revert` the increment-420 commit.
+
 ## 2026-07-30 — Increment 419: dev-mode fallback for the connection-tooltip version
 
 - **Files:** `app/backend/api/routers/health.py`, `tests/test_health.py`.

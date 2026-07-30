@@ -464,7 +464,8 @@ function DesktopUpdateSettings({ desktopUpdate }) {
   }
 
   return (
-    <div className="settings-section">
+    <div className="settings-subsection">
+      <p className="eyebrow">Desktop app</p>
       <div className="settings-row">
         <span className="settings-field-label">Updates</span>
         <button className="btn btn-ghost" disabled={checking} onClick={check}>
@@ -505,6 +506,7 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
                   ><span className="settings-knob" /></button>
                 </div>
               </div>
+              <DesktopUpdateSettings desktopUpdate={desktopUpdate} />
             </div>
           </div>
         </SettingsCard>
@@ -554,10 +556,6 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
             <div className="settings-section"><WordSettings /></div>
             <div className="settings-section"><RemoteAccessSettings /></div>
           </div>
-        </SettingsCard>
-
-        <SettingsCard title="Desktop app">
-          <DesktopUpdateSettings desktopUpdate={desktopUpdate} />
         </SettingsCard>
 
       </div>
