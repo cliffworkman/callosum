@@ -27,6 +27,7 @@ from app.backend.pdf_processing.location import locate_quote_for_attachment
 from app.backend.pdf_processing.quote_matching import locate_quote
 from app.backend.pdf_processing.sections import SectionTracker, detect_section_heading
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper, get_chunks_for_paper
 from app.backend.persistence.schema import embeddings, papers
 from tests.api_helpers import ApiFakeEmbeddingModel
@@ -122,7 +123,7 @@ def test_extraction_ingest_writes_chunks_with_provenance(tmp_path: Path) -> None
 
     with engine.begin() as conn:
         result = ingest_pdf_scaffold(conn, pdf_path, title="Generated Quote Fixture")
-        chunks = get_chunks_for_paper(conn, result["paper_id"])
+        chunks = get_chunks_for_paper(conn, result["paper_id"], document_roles=ARTICLE_DOCUMENT_ROLES)
         attachment_match = locate_quote_for_attachment(
             conn,
             result["attachment_id"],
@@ -219,7 +220,7 @@ def test_section_metadata_survives_pdf_ingest(tmp_path: Path) -> None:
 
     with engine.begin() as conn:
         result = ingest_pdf_scaffold(conn, pdf_path, title="Sectioned Fixture")
-        chunks = get_chunks_for_paper(conn, result["paper_id"])
+        chunks = get_chunks_for_paper(conn, result["paper_id"], document_roles=ARTICLE_DOCUMENT_ROLES)
 
     sections_by_text = {chunk["text"]: chunk["section"] for chunk in chunks}
     assert sections_by_text["Data are available at OSF."] == "abstract"
@@ -294,7 +295,7 @@ def test_reprocess_pdf_endpoint_replaces_chunks_and_preserves_paper(tmp_path: Pa
     assert body["chunks_created"] == 3
     with engine.begin() as conn:
         saved_paper = conn.execute(select(papers).where(papers.c.id == paper_id)).mappings().one()
-        saved_chunks = get_chunks_for_paper(conn, paper_id)
+        saved_chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_DOCUMENT_ROLES)
         saved_ids = [chunk["id"] for chunk in saved_chunks]
         embedded_current = conn.execute(
             select(func.count())

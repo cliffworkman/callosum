@@ -35,6 +35,10 @@ from app.backend.methods.grim import grim_test, grimmer_test
 from app.backend.methods.pcurve import PcurveResult, run_pcurve
 from app.backend.methods.statcheck import run_statcheck
 from app.backend.pdf_processing.location import locate_quote_for_attachment
+from app.backend.persistence.document_roles import (
+    ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES,
+    normalized_document_role,
+)
 from app.backend.persistence.findings_repo import upsert_findings
 from app.backend.persistence.repository import (
     get_attachments_for_paper,
@@ -162,7 +166,7 @@ def _statcheck_result_payload(conn: Connection, result, pdf_ids: set[int]) -> di
 
 
 def _run_statcheck_for_paper(conn: Connection, paper_id: int):
-    chunks = get_chunks_for_paper(conn, paper_id)
+    chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES)
     table_rows, coverage = _statcheck_table_rows(conn, paper_id, chunks)
     report = run_statcheck(chunks, table_rows=table_rows)
     coverage["table_results"] = sum(1 for result in report.results if result.source_kind == "table")
@@ -195,6 +199,8 @@ def _statcheck_table_rows(
 
     supported = []
     for attachment in get_attachments_for_paper(conn, paper_id):
+        if normalized_document_role(attachment) not in ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES:
+            continue
         path_value = attachment["resolved_path"]
         content_type = attachment["content_type"]
         path = Path(str(path_value)) if path_value else None
@@ -445,7 +451,14 @@ def _run_pcurve_job(app: FastAPI, job_id: str, paper_ids: list[int]) -> None:
         with app.state.engine.begin() as conn:
             live = set(list_live_paper_ids(conn))  # exclude trashed papers from the analysis
             per_paper = [
-                (pid, run_statcheck(get_chunks_for_paper(conn, pid)).results) for pid in paper_ids if pid in live
+                (
+                    pid,
+                    run_statcheck(
+                        get_chunks_for_paper(conn, pid, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES)
+                    ).results,
+                )
+                for pid in paper_ids
+                if pid in live
             ]
             result = run_pcurve(per_paper)
         jobs.mark_done(job_id, PcurveRunResponse(job_id=job_id, status="done", result=_pcurve_to_model(result)))

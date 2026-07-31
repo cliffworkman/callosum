@@ -13,6 +13,7 @@ from collections.abc import Sequence
 
 from sqlalchemy import Connection, RowMapping, String, and_, case, cast, func, or_, select
 
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
 from app.backend.persistence.schema import (
     attachments,
     axes,
@@ -311,7 +312,12 @@ def list_papers(
     attachment_count = (
         select(func.count()).select_from(attachments).where(attachments.c.paper_id == papers.c.id).scalar_subquery()
     )
-    chunk_count = select(func.count()).select_from(chunks).where(chunks.c.paper_id == papers.c.id).scalar_subquery()
+    chunk_count = (
+        select(func.count())
+        .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
+        .where(chunks.c.paper_id == papers.c.id, attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES))
+        .scalar_subquery()
+    )
     stmt = select(
         papers,
         attachment_count.label("attachment_count"),

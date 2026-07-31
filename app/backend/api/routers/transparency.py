@@ -26,6 +26,7 @@ from app.backend.api.job_store import JobStore
 from app.backend.methods.evidence_anchors import anchor_evidence, pdf_attachment_ids_for_chunks
 from app.backend.methods.transparency import detect_transparency
 from app.backend.methods.transparency_findings import persist_transparency
+from app.backend.persistence.document_roles import ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
 from app.backend.persistence.signals_repo import count_transparency_review, count_transparency_status
 from app.backend.persistence.sqlite_retry import run_write
@@ -59,7 +60,7 @@ def paper_transparency(paper_id: int, conn: Connection = Depends(get_connection)
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    chunks = get_chunks_for_paper(conn, paper_id)
+    chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES)
     pdf_attachment_ids = pdf_attachment_ids_for_chunks(conn, chunks)
     report = detect_transparency(chunks)
     return TransparencyResponse(
@@ -114,7 +115,11 @@ def _run_transparency_all_job(app: FastAPI, job_id: str) -> None:
             try:
                 result = run_write(
                     engine,
-                    lambda conn, pid=paper_id: persist_transparency(conn, pid, get_chunks_for_paper(conn, pid)),
+                    lambda conn, pid=paper_id: persist_transparency(
+                        conn,
+                        pid,
+                        get_chunks_for_paper(conn, pid, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES),
+                    ),
                 )
                 if result["present"] > 0:
                     with_disclosures += 1

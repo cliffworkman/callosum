@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -9,7 +10,8 @@ from sqlalchemy import Connection, and_, not_, or_, select
 
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import VectorStore
-from app.backend.persistence.schema import chunks, embeddings, papers
+from app.backend.persistence.document_roles import attachment_document_role_clause, validate_document_roles
+from app.backend.persistence.schema import attachments, chunks, embeddings, papers
 
 
 @dataclass(frozen=True)
@@ -37,6 +39,7 @@ def search_similar(
     top_k: int = 5,
     target_types: tuple[Literal["chunk", "paper"], ...] = ("chunk", "paper"),
     candidate_target_ids: set[int] | None = None,
+    document_roles: Iterable[str] | None = None,
 ) -> list[RetrievalHit]:
     if query_vector is None:
         if query is None:
@@ -48,6 +51,7 @@ def search_similar(
         model=model,
         target_types=target_types,
         candidate_target_ids=candidate_target_ids,
+        document_roles=document_roles,
     )
     vector_hits = vector_store.search(
         conn,
@@ -64,6 +68,7 @@ def _candidate_embedding_ids(
     model: EmbeddingModel,
     target_types: tuple[str, ...],
     candidate_target_ids: set[int] | None = None,
+    document_roles: Iterable[str] | None = None,
 ) -> set[int]:
     # Exclude embeddings that belong to a trashed (soft-deleted) paper — a paper-target embedding pointing at
     # a trashed paper, or a chunk-target embedding whose chunk belongs to one (inc 66). Keeps retrieval from
@@ -76,6 +81,8 @@ def _candidate_embedding_ids(
     )
     if candidate_target_ids is not None and not candidate_target_ids:
         return set()
+    if "chunk" in target_types and document_roles is None and candidate_target_ids is None:
+        raise ValueError("Chunk retrieval requires document_roles or an explicit candidate_target_ids set")
     filters = [
         embeddings.c.target_type.in_(target_types),
         embeddings.c.model_name == model.name,
@@ -84,6 +91,14 @@ def _candidate_embedding_ids(
         embeddings.c.normalization == model.normalization,
         not_(belongs_to_trashed),
     ]
+    if document_roles is not None:
+        roles = validate_document_roles(document_roles)
+        allowed_chunks = (
+            select(chunks.c.id)
+            .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
+            .where(attachment_document_role_clause(roles))
+        )
+        filters.append(or_(embeddings.c.target_type != "chunk", embeddings.c.target_id.in_(allowed_chunks)))
     if candidate_target_ids is not None:
         filters.append(embeddings.c.target_id.in_(candidate_target_ids))
     rows = conn.execute(select(embeddings.c.id).where(*filters))

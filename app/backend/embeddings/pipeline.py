@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -10,7 +10,8 @@ from sqlalchemy import Connection, RowMapping, and_, insert, select, update
 
 from app.backend.embeddings.models import EmbeddingModel, normalize_text
 from app.backend.embeddings.vector_store import VectorStore
-from app.backend.persistence.schema import chunks, embeddings, papers
+from app.backend.persistence.document_roles import attachment_document_role_clause
+from app.backend.persistence.schema import attachments, chunks, embeddings, papers
 
 PAPER_TEXT_VERSION = "paper-metadata-v1"
 TargetType = Literal["chunk", "paper"]
@@ -30,9 +31,10 @@ def embed_chunks(
     model: EmbeddingModel,
     vector_store: VectorStore,
     chunk_ids: list[int] | None = None,
+    document_roles: Iterable[str] | None = None,
     on_progress: Callable[[int, int], None] | None = None,
 ) -> list[int]:
-    rows = _chunk_rows(conn, chunk_ids)
+    rows = _chunk_rows(conn, chunk_ids, document_roles=document_roles)
     total = len(rows)
     # inc 418: one batched encode_texts() call for every row needing a fresh embedding, instead of one call per
     # row — same vectors out, computed together. Phase 1 classifies each row (existing embedding vs. needs one,
@@ -185,10 +187,23 @@ def paper_embedding_text(row: RowMapping) -> str:
     return " ".join(str(part) for part in parts if part)
 
 
-def _chunk_rows(conn: Connection, chunk_ids: list[int] | None) -> list[RowMapping]:
-    stmt = select(chunks)
-    if chunk_ids:
-        stmt = stmt.where(chunks.c.id.in_(chunk_ids))
+def _chunk_rows(
+    conn: Connection, chunk_ids: list[int] | None, *, document_roles: Iterable[str] | None
+) -> list[RowMapping]:
+    if chunk_ids is not None:
+        if document_roles is not None:
+            raise ValueError("Pass chunk_ids or document_roles, not both")
+        if not chunk_ids:
+            return []
+        stmt = select(chunks).where(chunks.c.id.in_(chunk_ids))
+    else:
+        if document_roles is None:
+            raise ValueError("Embedding all chunks requires an explicit document_roles scope")
+        stmt = (
+            select(chunks)
+            .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
+            .where(attachment_document_role_clause(document_roles))
+        )
     return list(conn.execute(stmt.order_by(chunks.c.id)).mappings())
 
 

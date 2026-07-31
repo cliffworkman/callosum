@@ -16,6 +16,8 @@ from sqlalchemy import Connection, RowMapping
 from sqlalchemy import text as sql_text
 from sqlalchemy.exc import OperationalError
 
+from app.backend.persistence.document_roles import ARTICLE_FULLTEXT, SQLITE_DOCUMENT_ROLE_CASE_FOR_A
+
 FULLTEXT_MAX_RESULTS = 50
 
 # Snippet match markers — Unicode private-use chars that can't occur in extracted PDF text, so the frontend can split
@@ -54,12 +56,20 @@ def search_chunks_fulltext(conn: Connection, query: str, *, limit: int = FULLTEX
         "snippet(chunks_fts, 0, :open, :close, :ellipsis, 12) AS snippet "
         "FROM chunks_fts "
         "JOIN chunks c ON c.id = chunks_fts.rowid "
+        "JOIN attachments a ON a.id = c.attachment_id "
         "JOIN papers p ON p.id = c.paper_id AND p.deleted_at IS NULL "
-        "WHERE chunks_fts MATCH :q "
+        f"WHERE chunks_fts MATCH :q AND ({SQLITE_DOCUMENT_ROLE_CASE_FOR_A}) = :document_role "
         "ORDER BY bm25(chunks_fts) "
         "LIMIT :n"
     )
-    params = {"q": match, "open": SNIPPET_OPEN, "close": SNIPPET_CLOSE, "ellipsis": "…", "n": n}
+    params = {
+        "q": match,
+        "open": SNIPPET_OPEN,
+        "close": SNIPPET_CLOSE,
+        "ellipsis": "…",
+        "document_role": ARTICLE_FULLTEXT,
+        "n": n,
+    }
     try:
         return list(conn.execute(stmt, params).mappings())
     except OperationalError:

@@ -516,11 +516,15 @@ the Principles + A-A gates before build.)*
   user exclusion/filtering; thumb auditability; the real field self-citation baseline (= #25 again).
 - **#41 User-authored modules (plugins).** [future track — record only] Deferred record of the idea + open
   questions. Do not build a plugin system until a dedicated design pass.
-- **#44 Lakens-catalog integration — remaining increments 3–5.** Increment 1/1b (the transparency-signals
+- **#44 Lakens-catalog integration — registration workflow now in ordered increments.** Increment 1/1b (the transparency-signals
   auditor + persistence/review queue) shipped in 250/251. Increment 2's `DocumentTextProvider` already shipped
   in inc 352 (`app/backend/document_text.py`: PDF/JATS/XML/HTML/DOCX/ODT/plain/TeX), correcting this stale entry.
-  Increment 5's conservative table-aware statcheck slice shipped in inc 387. Remaining: **Increment 3**
-  (fraught, gated) — **RegCheck**, a registration↔paper delta table, human-verified behind the auditability gate;
+  Increment 5's conservative table-aware statcheck slice shipped in inc 387. **Inc 425 ships the new hard
+  prerequisite:** every ordinary chunk/search/embedding consumer is explicitly document-scoped, so a future
+  registration attachment cannot contaminate article synthesis or Methods reads. Remaining: registration-reference
+  extraction, user-triggered candidate discovery, confirmed acquisition/versioning, canonical commitment extraction,
+  section/study-aware article retrieval, evidence-bound comparison, and the side-by-side inspection UI. This is the
+  fraught, gated **RegCheck** track: a registration↔paper delta table, human-verified behind the auditability gate;
   **Increment 4** overlaps CRediT #26; the rest of **Increment 5** is a broader consistency registry
   (DEBIT/duplication analysis and perhaps a collection-level z-curve).
 - **#48 WIP integration — remaining tools (Checklists / Critique / Meta-Reference).** Incs 402–404 wired the

@@ -26,9 +26,10 @@ from sqlalchemy import select
 
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import VectorHit, VectorStore
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
 from app.backend.persistence.findings_repo import get_paper_findings
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper
-from app.backend.persistence.schema import chunks, embeddings, open_science_signals, papers
+from app.backend.persistence.schema import attachments, chunks, embeddings, open_science_signals, papers
 from app.backend.summarization.verification import StanceScorer
 
 
@@ -250,7 +251,7 @@ def extract_claim_sentences(conn, paper_id, *, max_claims: int = 12) -> list[str
     paper = get_paper(conn, paper_id)
     text = str(paper["abstract"] or "").strip()
     if not text:
-        first_chunks = get_chunks_for_paper(conn, paper_id, limit=1)
+        first_chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_DOCUMENT_ROLES, limit=1)
         if first_chunks:
             text = str(first_chunks[0]["text"] or "").strip()
     if not text:
@@ -263,7 +264,9 @@ def paper_full_text(conn, paper_id) -> str:
     Tier-2 #13 bar (``canonical_text_contains``) checks a candidate's anchor_quote against. Local, no LLM."""
     paper = get_paper(conn, paper_id)
     parts = [str(paper["abstract"] or "").strip()]
-    parts += [str(row["text"] or "") for row in get_chunks_for_paper(conn, paper_id)]
+    parts += [
+        str(row["text"] or "") for row in get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_DOCUMENT_ROLES)
+    ]
     return "\n".join(part for part in parts if part)
 
 
@@ -271,8 +274,10 @@ def other_paper_chunk_embedding_ids(conn, paper_id) -> set[int]:
     """The ``embeddings.id`` of every chunk-embedding belonging to a paper OTHER than ``paper_id``, excluding
     soft-deleted papers — the candidate set the contradiction detector retrieves the *rest of the corpus* from.
     Joins ``embeddings.target_id`` → ``chunks.id`` (target_type='chunk') → ``papers.id`` (deleted_at IS NULL)."""
-    corpus = embeddings.join(chunks, embeddings.c.target_id == chunks.c.id).join(
-        papers, papers.c.id == chunks.c.paper_id
+    corpus = (
+        embeddings.join(chunks, embeddings.c.target_id == chunks.c.id)
+        .join(attachments, attachments.c.id == chunks.c.attachment_id)
+        .join(papers, papers.c.id == chunks.c.paper_id)
     )
     rows = conn.execute(
         select(embeddings.c.id)
@@ -281,6 +286,7 @@ def other_paper_chunk_embedding_ids(conn, paper_id) -> set[int]:
             embeddings.c.target_type == "chunk",
             chunks.c.paper_id != paper_id,
             papers.c.deleted_at.is_(None),
+            attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES),
         )
     )
     return {int(row[0]) for row in rows}

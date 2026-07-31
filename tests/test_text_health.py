@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 
 from app.backend.api import create_app
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper, get_chunks_for_paper
 from app.backend.persistence.schema import embeddings
 from tests.api_helpers import ApiFakeEmbeddingModel
@@ -54,8 +55,8 @@ def test_text_health_overview_and_missing_section_batch(temp_db_url: str, tmp_pa
     assert done["summary"]["total"] == 1
     assert done["summary"]["reprocessed"] == 1
     with make_engine(temp_db_url).begin() as conn:
-        chunks = get_chunks_for_paper(conn, needs["paper_id"])
-        no_chunk_rows = get_chunks_for_paper(conn, no_chunks["paper_id"])
+        chunks = get_chunks_for_paper(conn, needs["paper_id"], document_roles=ARTICLE_DOCUMENT_ROLES)
+        no_chunk_rows = get_chunks_for_paper(conn, no_chunks["paper_id"], document_roles=ARTICLE_DOCUMENT_ROLES)
         chunk_ids = [chunk["id"] for chunk in chunks]
         embedded = conn.execute(
             select(func.count())
@@ -133,7 +134,7 @@ def test_reprocess_empty_extraction_preserves_existing_chunks(temp_db_url: str, 
 
     assert response.status_code == 422
     with make_engine(temp_db_url).begin() as conn:
-        chunks = get_chunks_for_paper(conn, seeded["paper_id"])
+        chunks = get_chunks_for_paper(conn, seeded["paper_id"], document_roles=ARTICLE_DOCUMENT_ROLES)
     assert [chunk["text"] for chunk in chunks] == ["existing text should remain"]
 
 

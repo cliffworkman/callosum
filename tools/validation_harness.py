@@ -39,6 +39,7 @@ from app.backend.pdf_processing.extraction import (
 from app.backend.pdf_processing.ingest import ingest_pdf_scaffold
 from app.backend.pdf_processing.quote_matching import locate_quote
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
 from app.backend.persistence.schema import (
     attachments,
     chunks,
@@ -532,7 +533,11 @@ def _summary_scope_from_spec(spec: SummarizationSpec) -> SummaryScope:
 
 
 def _summary_scope_chunk_count(conn: Connection, scope: SummaryScope) -> int:
-    stmt = select(func.count()).select_from(chunks)
+    stmt = (
+        select(func.count())
+        .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
+        .where(attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES))
+    )
     if scope.scope_type == "papers":
         paper_ids = scope.paper_ids or []
         stmt = stmt.where(chunks.c.paper_id.in_(paper_ids)) if paper_ids else stmt.where(False)
@@ -770,10 +775,19 @@ def _run_retrieval_spot_check(
     store = vector_store or SQLiteVecVectorStore()
     report = RetrievalReport()
     try:
-        report.chunk_embeddings = len(embed_chunks(conn, model=model, vector_store=store))
+        report.chunk_embeddings = len(
+            embed_chunks(conn, model=model, vector_store=store, document_roles=ARTICLE_DOCUMENT_ROLES)
+        )
         report.paper_embeddings = len(embed_papers(conn, model=model, vector_store=store))
         for index, query in enumerate(queries, start=1):
-            hits = search_similar(conn, query=query, model=model, vector_store=store, top_k=top_k)
+            hits = search_similar(
+                conn,
+                query=query,
+                model=model,
+                vector_store=store,
+                top_k=top_k,
+                document_roles=ARTICLE_DOCUMENT_ROLES,
+            )
             report.query_results[query] = [_hit_to_dict(conn, hit) for hit in hits]
             if progress:
                 progress.update(f"Running retrieval spot checks: {query}", current=index, total=len(queries))

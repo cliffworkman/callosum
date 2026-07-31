@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from sqlalchemy import (
@@ -13,6 +13,8 @@ from sqlalchemy import (
     insert,
     select,
 )
+
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
 
 # Paper lifecycle/state mutators (trash, purge, read/priority, tier) live in paper_lifecycle_repo.py (extracted
 # inc 220 to keep this module under the 600-line cap); re-exported so existing import sites are unchanged.
@@ -144,8 +146,11 @@ def get_paper_counts(conn: Connection, paper_id: int) -> RowMapping:
                 .scalar_subquery()
                 .label("attachment_count"),
                 select(func.count())
-                .select_from(chunks)
-                .where(chunks.c.paper_id == paper_id)
+                .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
+                .where(
+                    chunks.c.paper_id == paper_id,
+                    attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES),
+                )
                 .scalar_subquery()
                 .label("chunk_count"),
             )
@@ -282,9 +287,45 @@ def create_chunk(
     return int(result.inserted_primary_key[0])
 
 
+def get_chunks_for_attachment(
+    conn: Connection, attachment_id: int, *, limit: int | None = None, offset: int = 0
+) -> list[RowMapping]:
+    """Chunks belonging to one exact attachment; safe for paired-document comparison."""
+    stmt = select(chunks).where(chunks.c.attachment_id == attachment_id).order_by(chunks.c.id)
+    if limit is not None:
+        stmt = stmt.limit(limit).offset(offset)
+    return list(conn.execute(stmt).mappings())
+
+
 def get_chunks_for_paper(
+    conn: Connection,
+    paper_id: int,
+    *,
+    document_roles: Iterable[str],
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[RowMapping]:
+    """Paper chunks limited to an explicit canonical document-role scope.
+
+    There is intentionally no default: ordinary paper readers must state whether they mean the article, its
+    supplements, or another document class. Use :func:`get_all_chunks_for_paper` only for explicit management or
+    export operations where every associated document is genuinely intended.
+    """
+    stmt = (
+        select(chunks)
+        .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
+        .where(chunks.c.paper_id == paper_id, attachment_document_role_clause(document_roles))
+        .order_by(chunks.c.id)
+    )
+    if limit is not None:
+        stmt = stmt.limit(limit).offset(offset)
+    return list(conn.execute(stmt).mappings())
+
+
+def get_all_chunks_for_paper(
     conn: Connection, paper_id: int, *, limit: int | None = None, offset: int = 0
 ) -> list[RowMapping]:
+    """Chunks across every attachment, explicitly named so unrestricted reads stay visible in review."""
     stmt = select(chunks).where(chunks.c.paper_id == paper_id).order_by(chunks.c.id)
     if limit is not None:
         stmt = stmt.limit(limit).offset(offset)

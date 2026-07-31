@@ -18,6 +18,7 @@ from app.backend.discovery.providers import Item, SourceRegistry
 from app.backend.embeddings.pipeline import embed_chunks
 from app.backend.embeddings.vector_store import InMemoryVectorStore
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import soft_delete_paper
 from app.backend.persistence.schema import attachments, papers
 from app.backend.summarization.verification import NLIStanceScorer, Stance, _stance_from_scores
@@ -42,7 +43,7 @@ class FakeStanceScorer:
 def _embed_all(db_url: str, model, store) -> None:
     engine = make_engine(db_url)
     with engine.begin() as conn:
-        embed_chunks(conn, model=model, vector_store=store, chunk_ids=None)  # all chunks
+        embed_chunks(conn, model=model, vector_store=store, document_roles=ARTICLE_DOCUMENT_ROLES)
     engine.dispose()
 
 

@@ -21,6 +21,7 @@ from app.backend.embeddings.pipeline import embed_chunks
 from app.backend.embeddings.retrieval import search_similar
 from app.backend.embeddings.vector_store import VectorStore
 from app.backend.pdf_processing.quote_matching import locate_quote
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import get_attachments_for_paper
 
 MAX_TEXT_CHARS = 50_000  # the paper-text egress cap (resource guard; also bounds the prompt)
@@ -82,6 +83,7 @@ def relevant_page_tagged_text(
                 top_k=min(top_k, len(chunk_ids)),
                 target_types=("chunk",),
                 candidate_target_ids=set(chunk_ids),
+                document_roles=ARTICLE_DOCUMENT_ROLES,
             )
             by_id = {int(row["id"]): row for row in rows}
             selected = [by_id[hit.chunk_id] for hit in hits if hit.chunk_id in by_id]

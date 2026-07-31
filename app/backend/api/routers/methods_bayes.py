@@ -27,6 +27,7 @@ from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
 from app.backend.methods.bayes import DEFAULT_R, apply_bayes, audit_completeness, run_bayes
 from app.backend.methods.evidence_anchors import anchor_evidence, pdf_attachment_ids_for_chunks
+from app.backend.persistence.document_roles import ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
 from app.backend.persistence.signals_repo import count_bayes_flagged
 from app.backend.persistence.sqlite_retry import run_write
@@ -97,7 +98,7 @@ def paper_bayes(paper_id: int, request: Request, conn: Connection = Depends(get_
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    chunks = get_chunks_for_paper(conn, paper_id)
+    chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES)
     pdf_attachment_ids = pdf_attachment_ids_for_chunks(conn, chunks)
     report = run_bayes(chunks)
     completeness = audit_completeness(chunks)
@@ -202,7 +203,7 @@ def _run_bayes_all_job(app: FastAPI, job_id: str) -> None:
             ids = list_live_paper_ids(conn)
 
         def process(conn, paper_id):  # one committed transaction per paper — lock released between papers
-            chunks = get_chunks_for_paper(conn, paper_id)
+            chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES)
             report = run_bayes(chunks)
             completeness = audit_completeness(chunks)
             apply_bayes(conn, paper_id, report, completeness)

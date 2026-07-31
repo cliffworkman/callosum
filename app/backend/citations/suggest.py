@@ -22,6 +22,7 @@ from sqlalchemy import Connection, select
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.retrieval import RetrievalHit, search_similar
 from app.backend.embeddings.vector_store import VectorStore
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.schema import attachments, chunks, papers
 from app.backend.summarization.verification import Stance, StanceScorer, default_stance_scorer
 
@@ -71,6 +72,7 @@ def suggest_citations(
         vector_store=vector_store,
         top_k=CHUNK_TOP_K,
         target_types=("chunk",),
+        document_roles=ARTICLE_DOCUMENT_ROLES,
     )
     # Best (highest-score) chunk per paper. `hits` arrive best-first, so the first time a paper appears is at its
     # best chunk; dict insertion order then ranks papers by that best chunk's score.

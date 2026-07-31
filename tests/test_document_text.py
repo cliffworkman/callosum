@@ -7,6 +7,7 @@ import zipfile
 from app.backend.document_text import extract_text_document
 from app.backend.pdf_processing.ingest import attach_text_document_to_paper
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.document_roles import ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES
 from app.backend.persistence.repository import create_paper, get_attachments_for_paper, get_chunks_for_paper
 
 
@@ -96,7 +97,7 @@ def test_attach_text_document_feeds_normal_chunks(temp_db_url, tmp_path):
     with engine.begin() as conn:
         paper_id = create_paper(conn, title="XML paper", csl_json={"title": "XML paper"})
         result = attach_text_document_to_paper(conn, paper_id, path, storage_mode="linked")
-        chunks = get_chunks_for_paper(conn, paper_id)
+        chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES)
         attachments = get_attachments_for_paper(conn, paper_id)
         assert result["extraction_tool"] == "jats-xml-text"
         assert attachments[0]["attachment_type"] == "jats-xml"

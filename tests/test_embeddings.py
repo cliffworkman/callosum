@@ -21,6 +21,7 @@ from app.backend.embeddings.retrieval import search_similar
 from app.backend.embeddings.vector_store import InMemoryVectorStore, SQLiteVecVectorStore, VectorStore, _table_name
 from app.backend.pdf_processing.ingest import ingest_pdf_scaffold
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import create_paper
 from app.backend.persistence.schema import chunks, embeddings
 
@@ -181,7 +182,9 @@ def test_embedding_chunks_and_papers_store_metadata_and_sqlite_vec_vectors(tmp_p
             processing_tier="abstract-embedded",
         )
 
-        chunk_embedding_ids = embed_chunks(conn, model=model, vector_store=vector_store)
+        chunk_embedding_ids = embed_chunks(
+            conn, model=model, vector_store=vector_store, document_roles=ARTICLE_DOCUMENT_ROLES
+        )
         paper_embedding_ids = embed_papers(conn, model=model, vector_store=vector_store)
 
         embedding_rows = list(conn.execute(select(embeddings)).mappings())
@@ -192,6 +195,7 @@ def test_embedding_chunks_and_papers_store_metadata_and_sqlite_vec_vectors(tmp_p
             vector_store=vector_store,
             top_k=2,
             target_types=("chunk",),
+            document_roles=ARTICLE_DOCUMENT_ROLES,
         )
         paper_hits = search_similar(
             conn,
@@ -232,7 +236,7 @@ def test_retrieval_ranks_relevant_chunk_above_unrelated_with_fake_vector_store(t
     with engine.begin() as conn:
         pdf_path = _make_embedding_fixture_pdf(tmp_path / "ranking-fixture.pdf")
         ingest_pdf_scaffold(conn, pdf_path, title="Ranking Fixture")
-        embed_chunks(conn, model=model, vector_store=vector_store)
+        embed_chunks(conn, model=model, vector_store=vector_store, document_roles=ARTICLE_DOCUMENT_ROLES)
 
         hits = search_similar(
             conn,
@@ -241,6 +245,7 @@ def test_retrieval_ranks_relevant_chunk_above_unrelated_with_fake_vector_store(t
             vector_store=vector_store,
             top_k=2,
             target_types=("chunk",),
+            document_roles=ARTICLE_DOCUMENT_ROLES,
         )
         hit_texts = [
             conn.execute(select(chunks.c.text).where(chunks.c.id == hit.chunk_id)).scalar_one() for hit in hits
@@ -258,7 +263,7 @@ def test_retrieval_can_restrict_hits_to_candidate_target_ids(tmp_path: Path) -> 
     with engine.begin() as conn:
         pdf_path = _make_embedding_fixture_pdf(tmp_path / "candidate-target-fixture.pdf")
         ingest_pdf_scaffold(conn, pdf_path, title="Candidate Target Fixture")
-        embed_chunks(conn, model=model, vector_store=vector_store)
+        embed_chunks(conn, model=model, vector_store=vector_store, document_roles=ARTICLE_DOCUMENT_ROLES)
         chunk_rows = list(conn.execute(select(chunks.c.id, chunks.c.text)).mappings())
         neural_id = int(next(row["id"] for row in chunk_rows if "Neural" in row["text"]))
 
@@ -284,8 +289,8 @@ def test_embedding_model_change_creates_distinct_records_and_stale_detection(tmp
     with engine.begin() as conn:
         pdf_path = _make_embedding_fixture_pdf(tmp_path / "stale-fixture.pdf")
         ingest_pdf_scaffold(conn, pdf_path, title="Stale Fixture")
-        old_ids = embed_chunks(conn, model=old_model, vector_store=vector_store)
-        new_ids = embed_chunks(conn, model=new_model, vector_store=vector_store)
+        old_ids = embed_chunks(conn, model=old_model, vector_store=vector_store, document_roles=ARTICLE_DOCUMENT_ROLES)
+        new_ids = embed_chunks(conn, model=new_model, vector_store=vector_store, document_roles=ARTICLE_DOCUMENT_ROLES)
         stale = find_stale_embeddings(conn, model=new_model)
 
         assert conn.execute(select(func.count()).select_from(embeddings)).scalar_one() == len(old_ids) + len(new_ids)
@@ -303,7 +308,9 @@ def test_chunk_version_change_is_reported_as_stale(tmp_path: Path) -> None:
     with engine.begin() as conn:
         pdf_path = _make_embedding_fixture_pdf(tmp_path / "chunk-version-fixture.pdf")
         ingest_pdf_scaffold(conn, pdf_path, title="Chunk Version Fixture")
-        embedding_ids = embed_chunks(conn, model=model, vector_store=vector_store)
+        embedding_ids = embed_chunks(
+            conn, model=model, vector_store=vector_store, document_roles=ARTICLE_DOCUMENT_ROLES
+        )
         first_chunk_id = conn.execute(select(chunks.c.id).order_by(chunks.c.id).limit(1)).scalar_one()
         conn.execute(update(chunks).where(chunks.c.id == first_chunk_id).values(chunk_version="changed-version"))
         stale = find_stale_embeddings(conn, model=model)

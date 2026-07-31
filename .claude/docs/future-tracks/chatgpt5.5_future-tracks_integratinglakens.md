@@ -5,6 +5,11 @@ inc 352, including JATS/XML, HTML, DOCX, ODT, plain text, and TeX. The fifth inc
 table-aware statcheck slice shipped in inc 387 for PDF/JATS/XML/HTML/DOCX/ODT attachments. RegCheck remains
 auditability-gated; CRediT and the broader DEBIT/duplication/z-curve registry remain separate future work.
 
+**Implementation update (2026-07-31):** inc 425 ships RegCheck's hard prerequisite: canonical document-role
+normalization plus explicit attachment/role-scoped chunk, embedding, lexical-search, and semantic-retrieval paths.
+Registration reference extraction/discovery/acquisition still has not begun; it now cannot silently contaminate
+ordinary article synthesis or Methods reads when it does.
+
 Highest-value additions
 1. ODDPub + rtransparent + output-it-forward	Build a local Transparency signals METHODS/findings module. Detect data availability, code availability, repository links, COI, funding, protocol registration, preregistration language, and "upon request" statements. Store as evidence-backed findings and optional read-only system tags, not as author accusations. ODDPub is especially useful because it returns detected categories and sentences, and reports validation on PubMed biomedical papers. rtransparent broadens this to COI, funding, and registration indicators. OIF contributes editable phrase and repository-domain lists.
 

@@ -28,6 +28,7 @@ from app.backend.api.routers.paper_files import _local_attachment_path, _select_
 from app.backend.embeddings.pipeline import embed_chunks
 from app.backend.pdf_processing.ingest import attach_pdf_to_paper
 from app.backend.pdf_processing.ocr import OCR_IMPORT_SOURCE, TesseractUnavailable, make_searchable_pdf
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import get_attachments_for_paper, get_chunks_for_paper, get_paper
 from app.backend.persistence.schema import attachments, papers
 
@@ -68,7 +69,7 @@ def ocr_run(body: OcrRequest, background_tasks: BackgroundTasks, request: Reques
         att = _select_primary_pdf_attachment(get_attachments_for_paper(conn, body.paper_id))
         if _local_attachment_path(att) is None:
             raise HTTPException(status_code=422, detail="This paper has no local PDF to OCR.")
-        if get_chunks_for_paper(conn, body.paper_id, limit=1):
+        if get_chunks_for_paper(conn, body.paper_id, document_roles=ARTICLE_DOCUMENT_ROLES, limit=1):
             raise HTTPException(
                 status_code=422,
                 detail="This paper already has extractable text; OCR is only for scanned PDFs with none.",

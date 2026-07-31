@@ -11,6 +11,7 @@ from app.backend.embeddings.retrieval import search_similar
 from app.backend.embeddings.vector_store import InMemoryVectorStore
 from app.backend.metadata.enrich_sources import EnrichmentRegistry
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import (
     create_attachment,
     create_chunk,
@@ -1266,7 +1267,14 @@ def test_purge_paper_removes_embeddings_and_vectors_without_orphaning(temp_db_ur
         )
 
         # retrieval must NOT orphan-crash: no leftover vector points at a deleted embedding/chunk/paper
-        hits = search_similar(conn, query_vector=[0.0, 1.0], model=_TwoDimModel(), vector_store=store, top_k=5)
+        hits = search_similar(
+            conn,
+            query_vector=[0.0, 1.0],
+            model=_TwoDimModel(),
+            vector_store=store,
+            top_k=5,
+            document_roles=ARTICLE_DOCUMENT_ROLES,
+        )
         assert hits and all(h.paper_id == keep["paper_id"] for h in hits)
     engine.dispose()
 
@@ -1509,7 +1517,13 @@ def test_trashed_paper_excluded_from_retrieval(temp_db_url: str) -> None:
         before = {
             h.paper_id
             for h in search_similar(
-                conn, query_vector=[0.0, 1.0], model=model, vector_store=store, top_k=10, target_types=("chunk",)
+                conn,
+                query_vector=[0.0, 1.0],
+                model=model,
+                vector_store=store,
+                top_k=10,
+                target_types=("chunk",),
+                document_roles=ARTICLE_DOCUMENT_ROLES,
             )
         }
         assert {a["paper_id"], b["paper_id"]} <= before  # both papers retrievable
@@ -1518,7 +1532,13 @@ def test_trashed_paper_excluded_from_retrieval(temp_db_url: str) -> None:
         after = {
             h.paper_id
             for h in search_similar(
-                conn, query_vector=[0.0, 1.0], model=model, vector_store=store, top_k=10, target_types=("chunk",)
+                conn,
+                query_vector=[0.0, 1.0],
+                model=model,
+                vector_store=store,
+                top_k=10,
+                target_types=("chunk",),
+                document_roles=ARTICLE_DOCUMENT_ROLES,
             )
         }
         assert a["paper_id"] not in after and b["paper_id"] in after  # trashed → excluded; live stays

@@ -29,6 +29,7 @@ from app.backend.llm.providers import ProviderError
 from app.backend.methods.effectsize import convert
 from app.backend.persistence import workbench_export as wx
 from app.backend.persistence import workbench_repo as wr
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import get_chunks_for_paper
 from app.backend.persistence.sqlite_retry import run_write
 from integrations.gemini.extraction_assistant import GeminiExtractionAssistant
@@ -346,7 +347,7 @@ def propose_row(row_id: int, request: Request, conn: Connection = Depends(get_co
         raise HTTPException(status_code=422, detail="This paper has no processed local PDF to draft from.")
     text, truncated = wa.relevant_page_tagged_text(
         conn,
-        get_chunks_for_paper(conn, row["paper_id"]),
+        get_chunks_for_paper(conn, row["paper_id"], document_roles=ARTICLE_DOCUMENT_ROLES),
         fields=fields,
         model=_embedding_model(request.app),
         vector_store=_vector_store(request.app),

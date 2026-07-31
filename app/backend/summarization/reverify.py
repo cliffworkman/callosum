@@ -17,8 +17,9 @@ from sqlalchemy import Connection, delete, insert, select, update
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.retrieval import search_similar
 from app.backend.embeddings.vector_store import VectorStore
-from app.backend.persistence.repository import find_existing_paper_by_identity
-from app.backend.persistence.schema import chunks, summaries, summary_sentences
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
+from app.backend.persistence.repository import find_existing_paper_by_identity, get_chunks_for_paper
+from app.backend.persistence.schema import summaries, summary_sentences
 from app.backend.summarization.generators import CandidateCitation
 from app.backend.summarization.pipeline import (
     _combined_chunk_version,
@@ -67,7 +68,9 @@ def _best_chunk_for(
 ) -> int | None:
     """The local chunk to verify against: the one containing the sender's quote (so the quote locates exactly), else
     the best-by-similarity chunk in that paper, else any chunk of the paper."""
-    rows = conn.execute(select(chunks.c.id, chunks.c.text).where(chunks.c.paper_id == paper_id)).all()
+    rows = [
+        (row["id"], row["text"]) for row in get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_DOCUMENT_ROLES)
+    ]
     if not rows:
         return None
     qn = _norm(quote)
@@ -76,7 +79,13 @@ def _best_chunk_for(
             if qn in _norm(str(text or "")):
                 return int(cid)
     hits = search_similar(
-        conn, query=sentence, model=model, vector_store=vector_store, top_k=_CHUNK_SCAN, target_types=("chunk",)
+        conn,
+        query=sentence,
+        model=model,
+        vector_store=vector_store,
+        top_k=_CHUNK_SCAN,
+        target_types=("chunk",),
+        document_roles=ARTICLE_DOCUMENT_ROLES,
     )
     for hit in hits:
         if hit.paper_id == paper_id and hit.chunk_id is not None:

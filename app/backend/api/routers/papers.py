@@ -37,6 +37,7 @@ from app.backend.metadata.citation_export import render_citations
 from app.backend.metadata.paper_edits import build_paper_update
 from app.backend.paper_purge import ManagedFilePurgeError, purge_paper_permanently, purge_trash_permanently
 from app.backend.pdf_processing.ingest import PdfReprocessEmptyExtraction, reprocess_pdf_attachment
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.paper_urls_repo import list_paper_urls, replace_paper_urls
 from app.backend.persistence.repository import (
     PRIORITY_LEVELS,
@@ -189,7 +190,12 @@ def paper_chunks(
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    return [_chunk_response(row) for row in get_chunks_for_paper(conn, paper_id, limit=limit, offset=offset)]
+    return [
+        _chunk_response(row)
+        for row in get_chunks_for_paper(
+            conn, paper_id, document_roles=ARTICLE_DOCUMENT_ROLES, limit=limit, offset=offset
+        )
+    ]
 
 
 @router.post("/papers/{paper_id}/reprocess-pdf", response_model=ReprocessPdfResponse)

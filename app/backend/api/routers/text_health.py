@@ -20,8 +20,9 @@ from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingMode
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.pdf_processing.extraction import DEFAULT_CHUNKING_STRATEGY, EXTRACTION_TOOL
 from app.backend.pdf_processing.ingest import PdfReprocessEmptyExtraction, reprocess_pdf_attachment
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
 from app.backend.persistence.repository import get_attachments_for_paper, list_live_paper_ids
-from app.backend.persistence.schema import chunks
+from app.backend.persistence.schema import attachments, chunks
 
 router = APIRouter(tags=["text-health"])
 
@@ -215,17 +216,18 @@ def _text_health_for_paper(conn: Connection, paper_id: int) -> TextHealthItem:
             func.coalesce(func.sum(func.length(chunks.c.text)), 0).label("text_chars"),
             func.coalesce(func.sum(case((chunks.c.section.is_not(None), 1), else_=0)), 0),
         )
-        .select_from(chunks)
-        .where(chunks.c.paper_id == paper_id)
+        .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
+        .where(chunks.c.paper_id == paper_id, attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES))
     ).one()
     section_count = int(metrics[2])
     stale_count = int(
         conn.execute(
             select(func.count())
-            .select_from(chunks)
+            .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
             .where(
                 and_(
                     chunks.c.paper_id == paper_id,
+                    attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES),
                     (chunks.c.chunking_strategy != DEFAULT_CHUNKING_STRATEGY)
                     | (chunks.c.extraction_tool != EXTRACTION_TOOL),
                 )

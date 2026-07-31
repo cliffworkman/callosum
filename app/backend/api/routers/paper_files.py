@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import Connection
 
 from app.backend.api.dependencies import get_connection
+from app.backend.persistence.document_roles import ARTICLE_FULLTEXT, normalized_document_role
 from app.backend.persistence.repository import get_attachments_for_paper
 
 router = APIRouter()
@@ -56,13 +57,13 @@ def paper_pdf(
 def _select_primary_pdf_attachment(rows: list[Any]) -> Any | None:
     """Pick the paper's primary PDF attachment from its attachment rows.
 
-    Prefers PDF attachments, then those marked role='primary', falling back to
-    the first available attachment so single-attachment papers still resolve.
+    Only article-fulltext PDFs are eligible. Legacy ``primary`` and null-role attachments normalize into that
+    scope; preregistrations, protocols, supplements, and OCR-preserved ``secondary`` originals never become the
+    ordinary paper viewer/reprocessing target by fallback.
     """
     if not rows:
         return None
-    pdfs = [row for row in rows if _is_pdf_attachment(row)]
-    candidates = pdfs or list(rows)
+    candidates = [row for row in rows if _is_pdf_attachment(row) and normalized_document_role(row) == ARTICLE_FULLTEXT]
     primary = [row for row in candidates if (row["role"] or "").strip().lower() == "primary"]
     ordered = primary or candidates
     return ordered[0] if ordered else None

@@ -11,7 +11,9 @@ from sqlalchemy import Connection, insert, select, update
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.pipeline import embed_chunks
 from app.backend.embeddings.vector_store import VectorStore
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
 from app.backend.persistence.schema import (
+    attachments,
     chunks,
     citation_mappings,
     cluster_node_papers,
@@ -217,7 +219,12 @@ def _source_chunks_for_scope(
     # synthesis (inc 65 closed the purge path; inc 66 closes this soft-delete leak). For the query scope (no
     # paper filter below) this is the only guard; for papers/cluster scopes it's defense-in-depth.
     live_papers = select(papers.c.id).where(papers.c.deleted_at.is_(None))
-    stmt = select(chunks).where(chunks.c.paper_id.in_(live_papers)).order_by(chunks.c.id)
+    stmt = (
+        select(chunks)
+        .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
+        .where(chunks.c.paper_id.in_(live_papers), attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES))
+        .order_by(chunks.c.id)
+    )
     if scope.scope_type == "papers":
         paper_ids = scope.paper_ids or []
         stmt = stmt.where(chunks.c.paper_id.in_(paper_ids)) if paper_ids else stmt.where(False)

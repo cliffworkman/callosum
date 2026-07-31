@@ -16,6 +16,7 @@ from app.backend.persistence.annotations_repo import (
     update_annotation,
 )
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import (
     create_attachment,
     create_chunk,
@@ -156,7 +157,7 @@ def test_round_trips_paper_attachment_and_chunk(migrated_db_url: str) -> None:
 
         paper = get_paper(conn, paper_id)
         attachments = get_attachments_for_paper(conn, paper_id)
-        paper_chunks = get_chunks_for_paper(conn, paper_id)
+        paper_chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_DOCUMENT_ROLES)
 
     assert paper["title"] == "Source Grounded Summaries"
     assert paper["doi"] == "10.5555/callosum.1"

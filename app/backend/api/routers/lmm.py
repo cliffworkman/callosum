@@ -26,6 +26,7 @@ from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
 from app.backend.methods.evidence_anchors import anchor_evidence, pdf_attachment_ids_for_chunks
 from app.backend.methods.lmm import apply_lmm, audit_lmm
+from app.backend.persistence.document_roles import ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
 from app.backend.persistence.signals_repo import count_lmm_flagged
 from app.backend.persistence.sqlite_retry import run_write
@@ -60,7 +61,7 @@ def paper_lmm(paper_id: int, request: Request, conn: Connection = Depends(get_co
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    chunks = get_chunks_for_paper(conn, paper_id)
+    chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES)
     pdf_attachment_ids = pdf_attachment_ids_for_chunks(conn, chunks)
     report = audit_lmm(chunks)
     response = LmmResponse(
@@ -136,7 +137,9 @@ def _run_lmm_all_job(app: FastAPI, job_id: str) -> None:
             ids = list_live_paper_ids(conn)
 
         def process(conn, paper_id):  # one committed transaction per paper — lock released between papers
-            report = audit_lmm(get_chunks_for_paper(conn, paper_id))
+            report = audit_lmm(
+                get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES)
+            )
             apply_lmm(conn, paper_id, report)
             return report
 

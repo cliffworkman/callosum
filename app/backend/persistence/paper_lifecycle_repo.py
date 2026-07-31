@@ -12,7 +12,8 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Connection, and_, delete, exists, func, or_, select, update
 
-from app.backend.persistence.schema import chunks, embeddings, merge_operations, papers
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
+from app.backend.persistence.schema import attachments, chunks, embeddings, merge_operations, papers
 from app.backend.persistence.sqlite_retry import retry_sqlite_locked
 
 if TYPE_CHECKING:  # avoid coupling persistence to the embeddings package at import time
@@ -147,7 +148,11 @@ def delete_chunks_for_attachment(
 
 def compute_processing_tier(conn: Connection, paper_id: int) -> str:
     chunk_count = int(
-        conn.execute(select(func.count()).select_from(chunks).where(chunks.c.paper_id == paper_id)).scalar_one()
+        conn.execute(
+            select(func.count())
+            .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
+            .where(chunks.c.paper_id == paper_id, attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES))
+        ).scalar_one()
     )
     if chunk_count > 0:
         return "fully-chunked"

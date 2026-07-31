@@ -16,8 +16,9 @@ from app.backend.methods.critical_review import (
     find_contested_claims,
     make_chunk_resolver,
 )
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
 from app.backend.persistence.repository import get_paper
-from app.backend.persistence.schema import chunks, embeddings, papers
+from app.backend.persistence.schema import attachments, chunks, embeddings, papers
 from app.backend.summarization.verification import StanceScorer
 
 
@@ -25,8 +26,10 @@ def set_chunk_embedding_ids(conn: Connection, set_ids: list[int], exclude_id: in
     """Chunk-embedding ids for the OTHER papers IN THE SET — mirror of ``other_paper_chunk_embedding_ids``, but
     scoped to ``set_ids`` (and excluding ``exclude_id`` + soft-deleted papers). This is the set scoping: a
     contradicter is only retrieved when it belongs to another paper *in the chosen set*."""
-    corpus = embeddings.join(chunks, embeddings.c.target_id == chunks.c.id).join(
-        papers, papers.c.id == chunks.c.paper_id
+    corpus = (
+        embeddings.join(chunks, embeddings.c.target_id == chunks.c.id)
+        .join(attachments, attachments.c.id == chunks.c.attachment_id)
+        .join(papers, papers.c.id == chunks.c.paper_id)
     )
     rows = conn.execute(
         select(embeddings.c.id)
@@ -36,6 +39,7 @@ def set_chunk_embedding_ids(conn: Connection, set_ids: list[int], exclude_id: in
             chunks.c.paper_id.in_(set_ids),
             chunks.c.paper_id != exclude_id,
             papers.c.deleted_at.is_(None),
+            attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES),
         )
     )
     return {int(r[0]) for r in rows}

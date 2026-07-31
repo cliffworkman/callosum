@@ -13,6 +13,7 @@ from app.backend.pdf_processing.extraction import extract_pdf
 from app.backend.pdf_processing.ingest import ingest_pdf_scaffold
 from app.backend.pdf_processing.ocr import make_searchable_pdf
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import get_attachments_for_paper, get_chunks_for_paper
 from tests.api_helpers import ApiFakeEmbeddingModel, InMemoryVectorStore
 
@@ -114,7 +115,9 @@ def _seed_scanned_paper(temp_db_url, tmp_path) -> int:
     with engine.begin() as conn:
         result = ingest_pdf_scaffold(conn, src, title="Scanned paper")
         paper_id = int(result["paper_id"])
-        assert not get_chunks_for_paper(conn, paper_id)  # no text layer → 0 chunks (the OCR target)
+        assert not get_chunks_for_paper(
+            conn, paper_id, document_roles=ARTICLE_DOCUMENT_ROLES
+        )  # no text layer → 0 chunks (the OCR target)
     engine.dispose()
     return paper_id
 
@@ -173,7 +176,7 @@ def test_ocr_endpoint_404_and_422(temp_db_url, tmp_path, monkeypatch):
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
         with_text = int(ingest_pdf_scaffold(conn, seed, title="Has text")["paper_id"])
-        assert get_chunks_for_paper(conn, with_text)  # it has chunks
+        assert get_chunks_for_paper(conn, with_text, document_roles=ARTICLE_DOCUMENT_ROLES)  # it has chunks
     engine.dispose()
     assert client.post("/papers/ocr/run", json={"paper_id": with_text}).status_code == 422
 
