@@ -9,6 +9,37 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 427 — explicit registration discovery and candidate lifecycle -->
+
+## 2026-07-31 — Increment 427: explicit registration discovery and candidate matching
+
+- **Files:** `app/backend/registration_discovery/*`, `app/backend/api/routers/registration_discovery.py`,
+  `app/backend/persistence/{registration_schema.py,registration_links_repo.py}`, migration 0060,
+  `app/frontend/js/08h_methods_transparency.jsx`, tests/help/QA/security notes.
+- **What:** user-triggered, metadata-only OSF/DataCite discovery now returns persistent evidence-bearing candidates;
+  a direct-reference provider surfaces known AsPredicted/manual identifiers locally. Candidates carry provider
+  provenance, public/embargoed/withdrawn state, linkage class, typed relation evidence, and confirm/reject state.
+  The Methods panel shows the exact disclosure before egress and never attaches or downloads a candidate.
+- **Why:** actionable paper references and public metadata relations can narrow the registration search, but neither
+  a search hit nor contextual similarity proves the match. The workflow keeps that uncertainty inspectable and lets
+  the reader decide.
+- **Revert:** revert the Increment 427 commit. Migration 0060 deliberately preserves candidate decisions on
+  downgrade; export confirmations/rejections before manually dropping `paper_registration_links`.
+
+## 2026-07-31 — Increment 426: extract registration references locally
+
+- **What:** local article/supplement parsing now persists source-anchored OSF/AsPredicted/NCT/PROSPERO/contextual
+  references, including PDF hyperlink targets hidden behind “here,” plus manual reference/local-PDF fallbacks.
+- **Why:** registration language and a resolvable registration reference are distinct evidence states.
+- **Revert:** revert Increment 426; preserve migration 0059 rows unless manual evidence has been exported.
+
+## 2026-07-31 — Increment 425: enforce document-scoped chunk retrieval
+
+- **What:** canonical document roles and explicit attachment/role-scoped chunk APIs prevent registration text from
+  entering ordinary article synthesis, search, embeddings, summaries, and Methods consumers.
+- **Why:** this is the structural acceptance gate for every registration increment.
+- **Revert:** do not revert while any registration attachment is chunked; otherwise revert Increment 425.
+
 ## 2026-07-31 — Increment 424: align Meta-Reference actions in one fixed-width column
 
 - **Files:** `app/frontend/js/{08b_methods_citation_equity.jsx,08c_methods_citation_context.jsx,08j_reference_integrity.jsx}`,

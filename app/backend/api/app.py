@@ -67,6 +67,7 @@ from app.backend.api.routers import (
     publishers,
     reading_queue,
     reference_integrity,
+    registration_discovery,
     saved_searches,
     settings,
     settings_providers,
@@ -93,6 +94,7 @@ from app.backend.embeddings.vector_store import VectorStore
 from app.backend.help.assistant import HelpAssistant
 from app.backend.methods.retraction import DEFAULT_CHECKERS as DEFAULT_RETRACTION_CHECKERS
 from app.backend.persistence.database import make_engine
+from app.backend.registration_discovery.domain import RegistrationDiscoveryRegistry
 from app.backend.summarization.generators import SummaryGenerator
 from app.backend.summarization.overview import OverviewGenerator
 from app.backend.summarization.verification import StanceScorer, SupportScorer, VerificationConfig
@@ -137,6 +139,7 @@ def create_app(
     help_assistant: HelpAssistant | None = None,
     discovery_registry: SourceRegistry | None = None,
     feed_registry: FeedRegistry | None = None,
+    registration_discovery_registry: RegistrationDiscoveryRegistry | None = None,
     oidc_client: OidcClient | None = None,
     sync_transport: object | None = None,
 ) -> FastAPI:
@@ -187,6 +190,8 @@ def create_app(
     api.state.bayes_jobs = JobStore()  # backlog #23 F1: library-wide Bayesian auditor batch
     api.state.retraction_checkers = DEFAULT_RETRACTION_CHECKERS  # inc 131: per-source checkers (overridable in tests)
     api.state.transparency_jobs = JobStore()  # inc 251: library-wide transparency-signals batch (#44)
+    api.state.registration_discovery_jobs = JobStore()
+    api.state.registration_discovery_registry = registration_discovery_registry
     api.state.retraction_db_jobs = JobStore()  # inc 132: Retraction Watch DB download
     api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
@@ -327,6 +332,7 @@ def create_app(
         metaanalysis.router
     )  # /papers/{id}/meta-analysis — meta-analysis reporting auditor (#36, inc 249)
     api.include_router(transparency.router)  # /papers/{id}/transparency — transparency-signals auditor (#44, inc 250)
+    api.include_router(registration_discovery.router)  # explicit metadata-only registration candidate discovery
     api.include_router(findings.router)  # /papers/{id}/findings — the FACT-vs-CANDIDATE store (inc 130)
     api.include_router(gaps.router)  # /gaps/* — literature gap-finder (inc 135)
     api.include_router(overlooked.router)  # /overlooked/* — overlooked-work lens: per-axis discovery (#37)

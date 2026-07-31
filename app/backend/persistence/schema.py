@@ -117,7 +117,10 @@ attachments = Table(
     Index("ix_attachments_checksum", "checksum"),
 )
 
-from app.backend.persistence.registration_schema import paper_registration_references  # noqa: E402, F401
+from app.backend.persistence.registration_schema import (  # noqa: E402, F401
+    paper_registration_links,
+    paper_registration_references,
+)
 
 collections = Table(
     "collections",

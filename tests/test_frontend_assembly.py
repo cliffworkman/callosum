@@ -766,6 +766,18 @@ def test_methods_pane_regrouped_details_data_statistics_checklists():
     assert ".app.mobile .pane-tabs-checklists { grid-template-columns: 1fr; }" in css
 
 
+def test_registration_discovery_is_explicit_metadata_egress_and_never_auto_attaches():
+    raw = assemble_jsx()
+    assert "<RegistrationDiscovery paperId={paperId} />" in raw
+    assert "Search public registry metadata?" in raw
+    assert "Sends: <b>" in raw
+    assert "Used only on this machine for matching" in raw
+    assert "metadata_consent: true" in raw
+    assert "Registration link confirmed. No registration content has been downloaded yet." in raw
+    assert "Candidate evidence supports inspection" in raw
+    assert "Fresh search, including dismissed candidates" in raw
+
+
 def test_set_critical_review_modal_shipped():
     """Backlog #12 (set critical review): the multi-paper modal + its two entry points assemble, and the
     honesty framing (fact-matrix caption, amber candidate reuse, no score) ships with it."""

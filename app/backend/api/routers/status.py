@@ -52,6 +52,7 @@ JOB_LABELS: dict[str, str] = {
     "meta_jobs": "Meta-analysis reporting-completeness",
     "bayes_jobs": "Bayesian auditor",
     "transparency_jobs": "Transparency signals",
+    "registration_discovery_jobs": "Registration discovery",
     "citation_count_jobs": "Cited-by refresh",
     "citation_equity_jobs": "Citation-equity audit",
     "citation_context_jobs": "Citation context",

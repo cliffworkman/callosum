@@ -935,7 +935,21 @@ registration PDF, or mark an existing attachment as the registration. These acti
 they do not look up the reference, download anything, or confirm that it belongs to the paper. A local PDF is copied
 into the managed library and chunked under the separate `preregistration` document role, so it cannot enter ordinary
 article synthesis, search, summaries, or Methods checks. Provider discovery and acquisition remain separate,
-explicitly triggered later steps. “Not located” is never equivalent to absent.
+explicitly triggered steps. “Not located” is never equivalent to absent.
+
+To search public registration metadata, click **Find registration**. Callosum first shows the exact metadata it
+would send: the paper DOI/title and any detected registration identifiers. Author names and publication year may be
+used to compare returned metadata, but stay on your machine. Nothing is sent until you choose **Search OSF and
+DataCite**; opening the Methods panel never starts discovery, and paper/registration text is never sent. OSF and
+DataCite can return incomplete or ambiguous relationships, so results are evidence-bearing candidates labeled
+**Explicitly linked**, **Probable match, confirm**, or **Possible match, inspect**. A candidate card shows the
+registration metadata and why it surfaced. It is never attached automatically.
+
+**Confirm link** records your choice but does not download registration content. **Dismiss** hides a candidate from
+ordinary repeat searches; **Fresh search, including dismissed candidates** deliberately revisits it. Provider errors
+remain visible, and one registry failing does not erase candidates from another. An empty search means only that no
+candidate was located through the searched metadata routes—not that no registration exists. Timing has not yet been
+established at this stage, so Callosum says **registration**, not “preregistration,” for registry candidates.
 
 **Checking the whole library.** In the same section, **Whole library → Check all papers** runs the auditor over every paper. Each paper's *detected* disclosures become evidence-carrying marks in its **Review** section. When the data disclosure list isn't empty, the Library header shows a **🔎 Open Data · N** chip that jumps to papers where the auditor detected an open-data disclosure. The section also fills review queues for disclosures *not detected* in extracted text; those queues are prompts to look — *the paper may still share artifacts elsewhere* — never claims that it hides anything, and there is no score or ranking.
 

@@ -165,6 +165,10 @@ def test_attach_local_registration_pdf_chunks_only_that_attachment(temp_db_url: 
     assert attachment["storage_mode"] == "managed"
     assert client.get(f"/papers/{paper_id}/chunks").json() == []
     assert client.get(f"/papers/{paper_id}/transparency").json()["registration_reference_state"] == "not-detected"
+    link = client.get(f"/papers/{paper_id}/registration-links").json()[0]
+    assert link["provider"] == "manual-local"
+    assert link["link_status"] == "confirmed"
+    assert link["attachment_id"] == attachment_id
 
 
 def test_local_registration_upload_rejects_non_pdf(temp_db_url: str) -> None:
@@ -201,6 +205,9 @@ def test_mark_existing_attachment_as_preregistration(temp_db_url: str) -> None:
     assert response.status_code == 200
     detail = client.get(f"/papers/{paper_id}").json()
     assert next(row for row in detail["attachments"] if row["id"] == attachment_id)["role"] == "preregistration"
+    link = client.get(f"/papers/{paper_id}/registration-links").json()[0]
+    assert link["attachment_id"] == attachment_id
+    assert link["link_status"] == "confirmed"
 
 
 def test_cannot_reclassify_another_papers_attachment(temp_db_url: str) -> None:

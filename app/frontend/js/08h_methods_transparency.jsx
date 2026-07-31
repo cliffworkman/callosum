@@ -100,6 +100,7 @@ function TransparencyPaper({ paperId, onOpenPaper, active }) {
       {state.status === "error" && <div className="axis-err">Couldn't check: {state.error}</div>}
       {state.status === "done" && d && <TransparencyChecklist checks={d.checks} onOpen={open}
         references={d.registration_references} referenceState={d.registration_reference_state} />}
+      {meta && <RegistrationDiscovery paperId={paperId} />}
       {meta && <RegistrationReferenceActions paperId={paperId} attachments={meta.attachments} onChanged={run} />}
     </div>
   );
@@ -218,6 +219,117 @@ function RegistrationReferenceActions({ paperId, attachments, onChanged }) {
     </div>}
     {status.state === "error" && <div className="axis-err">{status.error}</div>}
     {status.state === "done" && <div className="axis-hint">{status.message}</div>}
+  </div>;
+}
+
+// inc 427: registry discovery is an explicit metadata-egress action. Merely opening Methods fetches only
+// already-local candidate state. Confirmation records a link; acquisition remains a separate user action.
+function RegistrationDiscovery({ paperId }) {
+  const [links, setLinks] = useState([]);
+  const [state, setState] = useState({ status: "idle" });
+  const pollTimer = useRef(null);
+  const loadLinks = useCallback(() => api(`/papers/${paperId}/registration-links`).then(r => {
+    if (r.ok) setLinks(r.data || []);
+  }), [paperId]);
+  useEffect(() => {
+    setState({ status: "idle" }); setLinks([]); loadLinks();
+    return () => { if (pollTimer.current) clearTimeout(pollTimer.current); };
+  }, [loadLinks]);
+  const showDisclosure = async () => {
+    const r = await api(`/papers/${paperId}/registration-discovery/preview`);
+    setState(r.ok ? { status: "consent", preview: r.data } : { status: "error", error: r.error });
+  };
+  const search = async (fresh = false) => {
+    setState({ status: "running" });
+    const started = await apiPost(`/papers/${paperId}/registration-discovery`, { metadata_consent: true, fresh });
+    if (!started.ok) return setState({ status: "error", error: started.error });
+    const poll = async () => {
+      const r = await api(`/registration-discovery/${started.data.job_id}`);
+      if (!r.ok) return setState({ status: "error", error: r.error });
+      if (r.data.status === "done") {
+        setLinks(r.data.candidates || []);
+        return setState({ status: "done", providers: r.data.providers || [] });
+      }
+      if (r.data.status === "error") return setState({ status: "error", error: r.data.detail || "Registry discovery failed." });
+      pollTimer.current = setTimeout(poll, 1200);
+    };
+    poll();
+  };
+  const change = async (link, action) => {
+    setState({ status: "working", linkId: link.id });
+    const r = await apiPost(`/papers/${paperId}/registration-links/${link.id}/${action}`, {});
+    if (!r.ok) return setState({ status: "error", error: r.error });
+    await loadLinks();
+    setState({ status: "done", message: action === "confirm"
+      ? "Registration link confirmed. No registration content has been downloaded yet."
+      : "Candidate dismissed. It will stay hidden unless you request a fresh search." });
+  };
+  const confirmed = links.filter(link => link.link_status === "confirmed");
+  const candidates = links.filter(link => link.link_status === "candidate" || link.link_status === "withdrawn" || link.link_status === "unavailable");
+  const statusLabel = confirmed.length ? "Registration linked, not acquired"
+    : candidates.length ? "Candidates found, choose"
+      : "No registration linked";
+  return <div className="registration-discovery">
+    <div className="registration-discovery-head">
+      <div><b>Registration comparison</b><div className="axis-hint">{statusLabel}</div></div>
+      <button className="btn btn-secondary" disabled={state.status === "running" || state.status === "working"} onClick={showDisclosure}>
+        {links.length ? "Search again" : "Find registration"}
+      </button>
+    </div>
+    {state.status === "consent" && <div className="provider-egress-warn registration-discovery-consent">
+      <b>Search public registry metadata?</b>
+      <div>{state.preview.notice}</div>
+      <div>Sends: <b>{(state.preview.metadata_fields || []).join(", ") || "no paper metadata"}</b>.</div>
+      {!!(state.preview.local_match_fields || []).length && <div>Used only on this machine for matching: {state.preview.local_match_fields.join(", ")}.</div>}
+      <div className="settings-actions">
+        <button className="btn btn-primary" onClick={() => search(false)}>Search OSF and DataCite</button>
+        <button className="btn btn-secondary" onClick={() => setState({ status: "idle" })}>Cancel</button>
+      </div>
+    </div>}
+    {state.status === "running" && <ProgressBar label="Searching public registration metadata…" />}
+    {state.status === "error" && <div className="settings-note settings-note-err">Discovery failed: {state.error}</div>}
+    {state.message && <div className="settings-note">{state.message}</div>}
+    {(state.providers || []).map(report => report.status !== "ok" && <div className="axis-hint" key={report.provider}>
+      {report.provider}: {report.detail || report.status}
+    </div>)}
+    {confirmed.map(link => <RegistrationCandidateCard key={link.id} link={link} confirmed />)}
+    {candidates.map(link => <RegistrationCandidateCard key={link.id} link={link}
+      busy={state.status === "working" && state.linkId === link.id}
+      onConfirm={() => change(link, "confirm")} onReject={() => change(link, "reject")} />)}
+    {state.status === "done" && !links.length && <div className="axis-hint">
+      No candidate was located through the searched metadata routes. This is not evidence that no registration exists.
+      You can add a known reference or local PDF below.
+    </div>}
+    {state.status === "done" && <button className="btn-link" onClick={() => search(true)}>Fresh search, including dismissed candidates</button>}
+  </div>;
+}
+
+function RegistrationCandidateCard({ link, confirmed, busy, onConfirm, onReject }) {
+  const evidence = link.match_evidence || [];
+  const evidenceLabel = item => item.kind === "datacite-related-identifier"
+    ? `DataCite relation: ${item.relation_type || "typed relation"} · ${item.doi || ""}`
+    : item.kind === "osf-papers-resource" ? `OSF papers resource names publication DOI ${item.doi || ""}`
+      : item.kind === "paper-reference" ? `Reference surfaced from the paper${item.printed ? "" : " (link target or supplied reference)"}`
+        : item.kind === "contributor-overlap" ? `Contributor overlap: ${(item.names || []).join(", ")}`
+          : item.kind === "title-terms" ? `Shared title terms: ${(item.terms || []).join(", ")}`
+            : item.kind === "date-order" ? `Registered ${item.registration_year}; paper published ${item.publication_year}`
+              : item.kind.replaceAll("-", " ");
+  return <div className="registration-candidate-card">
+    <div className="registration-candidate-top">
+      <span className={`registration-linkage ${link.linkage_class}`}>{confirmed ? "Linked by you" : link.linkage_label}</span>
+      {link.registration_status && <span className="axis-hint">{link.registration_status}</span>}
+    </div>
+    <b>{link.title || `${link.provider} registration ${link.external_id}`}</b>
+    <div className="axis-hint">{link.provider} · {link.registration_doi || link.external_id}{link.registered_at ? ` · ${link.registered_at.slice(0, 10)}` : ""}</div>
+    {!!(link.contributors || []).length && <div className="axis-hint">{link.contributors.join(", ")}</div>}
+    {!!evidence.length && <ul className="registration-candidate-evidence">{evidence.map((item, index) => <li key={index}>{evidenceLabel(item)}</li>)}</ul>}
+    {link.registration_status === "withdrawn" && <div className="settings-note settings-note-err">The registry reports this registration as withdrawn. Inspect its public metadata before relying on the match.</div>}
+    <div className="settings-actions">
+      {link.canonical_url && <button className="axis-link" onClick={() => window.open(link.canonical_url, "_blank", "noopener")}>Open externally</button>}
+      {!confirmed && <button className="btn btn-secondary" disabled={busy || link.registration_status === "withdrawn"} onClick={onConfirm}>Confirm link</button>}
+      {!confirmed && <button className="btn-link" disabled={busy} onClick={onReject}>Dismiss</button>}
+    </div>
+    <div className="axis-hint">Candidate evidence supports inspection, not a claim that this is the paper's correct registration or that the paper followed it.</div>
   </div>;
 }
 

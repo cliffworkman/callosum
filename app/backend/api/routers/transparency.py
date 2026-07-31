@@ -37,6 +37,7 @@ from app.backend.methods.transparency import detect_transparency
 from app.backend.methods.transparency_findings import persist_transparency
 from app.backend.pdf_processing.ingest import attach_pdf_to_paper
 from app.backend.persistence.document_roles import ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES
+from app.backend.persistence.registration_links_repo import confirm_local_registration_attachment
 from app.backend.persistence.registration_references_repo import (
     add_manual_registration_reference,
     list_registration_references,
@@ -200,6 +201,8 @@ def update_attachment_document_role(
             raise HTTPException(status_code=404, detail="Paper not found") from None
         if not set_attachment_document_role(conn, paper_id, attachment_id, payload.role):
             raise HTTPException(status_code=404, detail="Attachment not found on this paper")
+        if payload.role == "preregistration":
+            confirm_local_registration_attachment(conn, paper_id, attachment_id)
         refresh_processing_tier(conn, paper_id)
         return {"paper_id": paper_id, "attachment_id": attachment_id, "role": payload.role}
 
@@ -261,18 +264,7 @@ async def attach_local_registration_pdf(
         managed_path = managed_root / safe_name
         shutil.move(str(temp_path), str(managed_path))
         try:
-            result = run_write(
-                engine,
-                lambda conn: attach_pdf_to_paper(
-                    conn,
-                    paper_id,
-                    managed_path,
-                    storage_mode="managed",
-                    original_path=str(managed_path),
-                    import_source="registration:manual-local",
-                    role="preregistration",
-                ),
-            )
+            result = run_write(engine, lambda conn: _attach_and_confirm_local(conn, paper_id, managed_path))
         except Exception:
             managed_path.unlink(missing_ok=True)
             raise
@@ -291,6 +283,20 @@ def _safe_registration_filename(filename: str, existing_names: set[str]) -> str:
         candidate = f"{stem} (registration {index}).pdf"
         index += 1
     return candidate
+
+
+def _attach_and_confirm_local(conn: Connection, paper_id: int, managed_path: Path) -> dict:
+    result = attach_pdf_to_paper(
+        conn,
+        paper_id,
+        managed_path,
+        storage_mode="managed",
+        original_path=str(managed_path),
+        import_source="registration:manual-local",
+        role="preregistration",
+    )
+    result["registration_link_id"] = confirm_local_registration_attachment(conn, paper_id, result["attachment_id"])
+    return result
 
 
 # --- inc 251: the library-wide persistence batch + the review-queue chip -------------------------------------------

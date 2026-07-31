@@ -1,6 +1,7 @@
 """Schema owned by the registration-reference/comparison workflow."""
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     Column,
@@ -45,4 +46,42 @@ paper_registration_references = Table(
     CheckConstraint("page IS NULL OR page >= 1", name="registration_reference_page_positive"),
     Index("ix_registration_references_paper_id", "paper_id"),
     Index("ix_registration_references_attachment_id", "attachment_id"),
+)
+
+paper_registration_links = Table(
+    "paper_registration_links",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), nullable=False),
+    Column("attachment_id", ForeignKey("attachments.id", ondelete="SET NULL")),
+    Column("provider", String(100), nullable=False),
+    Column("external_id", String(500), nullable=False),
+    Column("registration_doi", String(500)),
+    Column("canonical_url", Text),
+    Column("title", Text),
+    Column("contributors_json", JSON),
+    Column("registered_at", String(100)),
+    Column("registration_status", String(100)),
+    Column("schema_name", Text),
+    Column("link_status", String(30), nullable=False, server_default="candidate"),
+    Column("linkage_class", String(50), nullable=False),
+    Column("match_method", String(100), nullable=False),
+    Column("match_evidence_json", JSON, nullable=False),
+    Column("user_confirmed", Boolean, nullable=False, server_default="0"),
+    Column("source_metadata_json", JSON),
+    Column("content_hash", String(128)),
+    Column("retrieved_at", DateTime),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    Column("updated_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    UniqueConstraint("paper_id", "provider", "external_id", name="uq_paper_registration_link_candidate"),
+    CheckConstraint(
+        "link_status IN ('candidate','confirmed','rejected','unavailable','withdrawn')",
+        name="registration_link_status_valid",
+    ),
+    CheckConstraint(
+        "linkage_class IN ('explicit-linkage','strong-contextual-match','similarity-candidate')",
+        name="registration_linkage_class_valid",
+    ),
+    Index("ix_registration_links_paper_status", "paper_id", "link_status"),
+    Index("ix_registration_links_external", "provider", "external_id"),
 )

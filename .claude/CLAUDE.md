@@ -45,6 +45,11 @@ the full per-increment narrative for all other increments now lives in the reloc
   future candidate/confirmed links. Manual URL/DOI saving, local PDF attachment, and existing-attachment role marking
   perform no provider request; local registration PDFs are stored under `preregistration` role and remain excluded
   from ordinary article consumers by the inc-425 invariant.
+- **Registration discovery (inc 427):** an explicit per-run consent step sends only paper DOI/title and detected
+  registration identifiers to bounded OSF/DataCite metadata providers; authors/year stay local for contextual
+  matching and no document text leaves. Candidate links persist separately with provenance, a three-class evidence
+  ladder, confirm/reject state, and provider errors. Discovery never runs on panel open, never auto-attaches, and
+  confirmation does not acquire content. Direct AsPredicted/manual references require no provider request.
 - **Methods (deterministic, local, no-LLM):** statcheck NHST p-value recomputation (`scipy.stats`), inc 95;
   inc 387 conservatively adds clearly headed table rows from local PDF/JATS/XML/HTML/DOCX/ODT attachments
   without mixing reconstructed rows into prose chunks or embeddings; inc 388 keeps the evidence-bearing PDF

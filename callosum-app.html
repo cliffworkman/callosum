@@ -562,6 +562,13 @@
   .provider-add-btn:not(:disabled):hover { background: var(--verified-soft); }
   .provider-add-btn:disabled { opacity: .4; cursor: default; }
   .transparency-queues { margin-top: 5px; line-height: 1.7; }   /* inc 251: the 7 review-queue links (not detected — go look, never a verdict) */
+  .registration-discovery { margin-top: 10px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel-2); }
+  .registration-discovery-head, .registration-candidate-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .registration-discovery-consent { margin: 9px 0 0; line-height: 1.5; }
+  .registration-candidate-card { margin-top: 9px; padding: 9px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); }
+  .registration-linkage { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; color: var(--ink-2); background: var(--hover); }
+  .registration-linkage.explicit-linkage { color: var(--accent); }
+  .registration-candidate-evidence { margin: 7px 0 5px; padding-left: 18px; color: var(--ink-2); font-size: 11.5px; line-height: 1.45; }
   /* B1 SP2: the agent-activity review list (one row per agent write + a Revert action). */
   .agent-activity { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; }
   .agent-activity-row { display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -6567,7 +6574,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         references: d.registration_references,
         referenceState: d.registration_reference_state
       }
-    ), meta && /* @__PURE__ */ React.createElement(RegistrationReferenceActions, { paperId, attachments: meta.attachments, onChanged: run }));
+    ), meta && /* @__PURE__ */ React.createElement(RegistrationDiscovery, { paperId }), meta && /* @__PURE__ */ React.createElement(RegistrationReferenceActions, { paperId, attachments: meta.attachments, onChanged: run }));
   }
   function TransparencyChecklist({ checks, onOpen, references, referenceState }) {
     if (!checks || !checks.length) return null;
@@ -6647,6 +6654,67 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       onChanged();
     };
     return /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, /* @__PURE__ */ React.createElement("b", null, "Add a registration source"), /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "These actions are local. Saving a reference does not fetch it or confirm that it belongs to this paper."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("input", { value, onChange: (e) => setValue(e.target.value), placeholder: "Registration URL, DOI, or identifier", "aria-label": "Registration URL, DOI, or identifier" }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", disabled: status.state === "working" || !value.trim(), onClick: addReference }, "Save reference")), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("input", { ref: fileInput, type: "file", accept: "application/pdf,.pdf", onChange: attachFile, style: { display: "none" } }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", disabled: status.state === "working", onClick: () => fileInput.current && fileInput.current.click() }, "Attach local preregistration PDF")), !!attachments.length && /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("select", { value: selectedAttachment, onChange: (e) => setSelectedAttachment(e.target.value), "aria-label": "Existing attachment" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Choose an existing attachment\u2026"), attachments.filter((a) => a.role !== "preregistration").map((a) => /* @__PURE__ */ React.createElement("option", { value: a.id, key: a.id }, a.filename || `Attachment ${a.id}`, " \xB7 ", a.role || "legacy role"))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", disabled: status.state === "working" || !selectedAttachment, onClick: markAttachment }, "Mark as preregistration")), status.state === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, status.error), status.state === "done" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, status.message));
+  }
+  function RegistrationDiscovery({ paperId }) {
+    const [links, setLinks] = useState([]);
+    const [state, setState] = useState({ status: "idle" });
+    const pollTimer = useRef(null);
+    const loadLinks = useCallback(() => api(`/papers/${paperId}/registration-links`).then((r) => {
+      if (r.ok) setLinks(r.data || []);
+    }), [paperId]);
+    useEffect(() => {
+      setState({ status: "idle" });
+      setLinks([]);
+      loadLinks();
+      return () => {
+        if (pollTimer.current) clearTimeout(pollTimer.current);
+      };
+    }, [loadLinks]);
+    const showDisclosure = async () => {
+      const r = await api(`/papers/${paperId}/registration-discovery/preview`);
+      setState(r.ok ? { status: "consent", preview: r.data } : { status: "error", error: r.error });
+    };
+    const search = async (fresh = false) => {
+      setState({ status: "running" });
+      const started = await apiPost(`/papers/${paperId}/registration-discovery`, { metadata_consent: true, fresh });
+      if (!started.ok) return setState({ status: "error", error: started.error });
+      const poll = async () => {
+        const r = await api(`/registration-discovery/${started.data.job_id}`);
+        if (!r.ok) return setState({ status: "error", error: r.error });
+        if (r.data.status === "done") {
+          setLinks(r.data.candidates || []);
+          return setState({ status: "done", providers: r.data.providers || [] });
+        }
+        if (r.data.status === "error") return setState({ status: "error", error: r.data.detail || "Registry discovery failed." });
+        pollTimer.current = setTimeout(poll, 1200);
+      };
+      poll();
+    };
+    const change = async (link, action) => {
+      setState({ status: "working", linkId: link.id });
+      const r = await apiPost(`/papers/${paperId}/registration-links/${link.id}/${action}`, {});
+      if (!r.ok) return setState({ status: "error", error: r.error });
+      await loadLinks();
+      setState({ status: "done", message: action === "confirm" ? "Registration link confirmed. No registration content has been downloaded yet." : "Candidate dismissed. It will stay hidden unless you request a fresh search." });
+    };
+    const confirmed = links.filter((link) => link.link_status === "confirmed");
+    const candidates = links.filter((link) => link.link_status === "candidate" || link.link_status === "withdrawn" || link.link_status === "unavailable");
+    const statusLabel = confirmed.length ? "Registration linked, not acquired" : candidates.length ? "Candidates found, choose" : "No registration linked";
+    return /* @__PURE__ */ React.createElement("div", { className: "registration-discovery" }, /* @__PURE__ */ React.createElement("div", { className: "registration-discovery-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("b", null, "Registration comparison"), /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, statusLabel)), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", disabled: state.status === "running" || state.status === "working", onClick: showDisclosure }, links.length ? "Search again" : "Find registration")), state.status === "consent" && /* @__PURE__ */ React.createElement("div", { className: "provider-egress-warn registration-discovery-consent" }, /* @__PURE__ */ React.createElement("b", null, "Search public registry metadata?"), /* @__PURE__ */ React.createElement("div", null, state.preview.notice), /* @__PURE__ */ React.createElement("div", null, "Sends: ", /* @__PURE__ */ React.createElement("b", null, (state.preview.metadata_fields || []).join(", ") || "no paper metadata"), "."), !!(state.preview.local_match_fields || []).length && /* @__PURE__ */ React.createElement("div", null, "Used only on this machine for matching: ", state.preview.local_match_fields.join(", "), "."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: () => search(false) }, "Search OSF and DataCite"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setState({ status: "idle" }) }, "Cancel"))), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Searching public registration metadata\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Discovery failed: ", state.error), state.message && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, state.message), (state.providers || []).map((report) => report.status !== "ok" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint", key: report.provider }, report.provider, ": ", report.detail || report.status)), confirmed.map((link) => /* @__PURE__ */ React.createElement(RegistrationCandidateCard, { key: link.id, link, confirmed: true })), candidates.map((link) => /* @__PURE__ */ React.createElement(
+      RegistrationCandidateCard,
+      {
+        key: link.id,
+        link,
+        busy: state.status === "working" && state.linkId === link.id,
+        onConfirm: () => change(link, "confirm"),
+        onReject: () => change(link, "reject")
+      }
+    )), state.status === "done" && !links.length && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No candidate was located through the searched metadata routes. This is not evidence that no registration exists. You can add a known reference or local PDF below."), state.status === "done" && /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => search(true) }, "Fresh search, including dismissed candidates"));
+  }
+  function RegistrationCandidateCard({ link, confirmed, busy, onConfirm, onReject }) {
+    const evidence = link.match_evidence || [];
+    const evidenceLabel = (item) => item.kind === "datacite-related-identifier" ? `DataCite relation: ${item.relation_type || "typed relation"} \xB7 ${item.doi || ""}` : item.kind === "osf-papers-resource" ? `OSF papers resource names publication DOI ${item.doi || ""}` : item.kind === "paper-reference" ? `Reference surfaced from the paper${item.printed ? "" : " (link target or supplied reference)"}` : item.kind === "contributor-overlap" ? `Contributor overlap: ${(item.names || []).join(", ")}` : item.kind === "title-terms" ? `Shared title terms: ${(item.terms || []).join(", ")}` : item.kind === "date-order" ? `Registered ${item.registration_year}; paper published ${item.publication_year}` : item.kind.replaceAll("-", " ");
+    return /* @__PURE__ */ React.createElement("div", { className: "registration-candidate-card" }, /* @__PURE__ */ React.createElement("div", { className: "registration-candidate-top" }, /* @__PURE__ */ React.createElement("span", { className: `registration-linkage ${link.linkage_class}` }, confirmed ? "Linked by you" : link.linkage_label), link.registration_status && /* @__PURE__ */ React.createElement("span", { className: "axis-hint" }, link.registration_status)), /* @__PURE__ */ React.createElement("b", null, link.title || `${link.provider} registration ${link.external_id}`), /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, link.provider, " \xB7 ", link.registration_doi || link.external_id, link.registered_at ? ` \xB7 ${link.registered_at.slice(0, 10)}` : ""), !!(link.contributors || []).length && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, link.contributors.join(", ")), !!evidence.length && /* @__PURE__ */ React.createElement("ul", { className: "registration-candidate-evidence" }, evidence.map((item, index) => /* @__PURE__ */ React.createElement("li", { key: index }, evidenceLabel(item)))), link.registration_status === "withdrawn" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "The registry reports this registration as withdrawn. Inspect its public metadata before relying on the match."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, link.canonical_url && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => window.open(link.canonical_url, "_blank", "noopener") }, "Open externally"), !confirmed && /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", disabled: busy || link.registration_status === "withdrawn", onClick: onConfirm }, "Confirm link"), !confirmed && /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: onReject }, "Dismiss")), /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Candidate evidence supports inspection, not a claim that this is the paper's correct registration or that the paper followed it."));
   }
   function TransparencyCredit() {
     return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Detectors:"), " data & code availability \u2014 ODDPub (Riedel et al. 2020); conflict-of-interest, funding & registration indicators \u2014 rtransparent (Serghiou et al. 2021); preregistration \u2014 Nosek et al. (2018).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: TRANSPARENCY_CSL }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "A reading aid \u2014 a rule-based text detector, never a transparency score or a judgment of the authors. Surfaced via D. Lakens' automated-review catalog."));
