@@ -64,7 +64,7 @@ function TransparencyPaper({ paperId, onOpenPaper, active }) {
     let live = true;
     api(`/papers/${paperId}`).then(r => {
       if (!live || !r.ok) return;
-      setMeta({ title: r.data.title, hasText: (r.data.chunk_count || 0) > 0 });
+      setMeta({ title: r.data.title, hasText: (r.data.chunk_count || 0) > 0, attachments: r.data.attachments || [] });
     });
     return () => { live = false; };
   }, [paperId]);
@@ -98,12 +98,14 @@ function TransparencyPaper({ paperId, onOpenPaper, active }) {
             : null}
       {state.status === "running" && <span className="tag-suggest-empty">checking…</span>}
       {state.status === "error" && <div className="axis-err">Couldn't check: {state.error}</div>}
-      {state.status === "done" && d && <TransparencyChecklist checks={d.checks} onOpen={open} />}
+      {state.status === "done" && d && <TransparencyChecklist checks={d.checks} onOpen={open}
+        references={d.registration_references} referenceState={d.registration_reference_state} />}
+      {meta && <RegistrationReferenceActions paperId={paperId} attachments={meta.attachments} onChanged={run} />}
     </div>
   );
 }
 
-function TransparencyChecklist({ checks, onOpen }) {
+function TransparencyChecklist({ checks, onOpen, references, referenceState }) {
   if (!checks || !checks.length) return null;
   const present = checks.filter(c => c.status === "present").length;
   const notFound = checks.filter(c => c.status === "not-found").length;
@@ -132,6 +134,8 @@ function TransparencyChecklist({ checks, onOpen }) {
           {c.evidence && <EvidenceTrail detector="Transparency signals" matched={c.evidence}
             precision={c.coordinate_precision} hasSourcePage={c.page != null} page={c.page}
             caveat="Disclosure signals are text detections only; not detected does not mean absent." />}
+          {c.key === "preregistration" &&
+            <RegistrationReferences references={references || []} state={referenceState} onOpen={onOpen} />}
         </div>
       ))}
       <div className="statcheck-caveat">
@@ -139,6 +143,82 @@ function TransparencyChecklist({ checks, onOpen }) {
       </div>
     </div>
   );
+}
+
+function RegistrationReferences({ references, state, onOpen }) {
+  const stateLabel = state === "multiple-references-detected" ? "Multiple registration references detected"
+    : state === "reference-detected" ? "Registration reference detected"
+      : state === "language-detected" ? "Preregistration language detected; no actionable reference located"
+        : "No registration reference detected";
+  return (
+    <div className="registration-reference-list">
+      <div className="lmm-summary">{stateLabel}</div>
+      {references.map((ref, index) => <div className="bayes-check-ev" key={`${ref.provider}:${ref.external_id}:${index}`}>
+        <div><b>{ref.provider}</b> · <code>{ref.external_id}</code></div>
+        {ref.evidence_snippet && <EvidenceQuote text={ref.evidence_snippet} match={ref.evidence_snippet}
+          label={ref.extraction_method === "pdf-hyperlink" ? `Linked from “${ref.visible_text || "link"}”` : "Reference evidence"}
+          className="bayes-check-ev" precision={ref.coordinate_precision} hasSourcePage={ref.page != null}
+          onOpen={ref.page != null ? () => onOpen(ref, `registration-reference:${index}`) : null}
+          openLabel="Open source page for this registration reference" />}
+        <div className="settings-actions">
+          {ref.canonical_url && <button className="axis-link" onClick={() => window.open(ref.canonical_url, "_blank", "noopener")}>Open externally</button>}
+          <span className="axis-hint">{ref.explicitly_printed ? "printed in document" : ref.extraction_method === "manual" ? "supplied by you" : "PDF link target"}</span>
+        </div>
+      </div>)}
+      {!references.length && <div className="axis-hint">“Not located” is not equivalent to absent; the reference may be in unextracted metadata, a supplement, or visible only outside the document.</div>}
+    </div>
+  );
+}
+
+function RegistrationReferenceActions({ paperId, attachments, onChanged }) {
+  const [value, setValue] = useState("");
+  const [selectedAttachment, setSelectedAttachment] = useState("");
+  const [status, setStatus] = useState({ state: "idle" });
+  const fileInput = useRef(null);
+  const addReference = async () => {
+    if (!value.trim()) return;
+    setStatus({ state: "working" });
+    const r = await apiPost(`/papers/${paperId}/registration-references`, { value: value.trim() });
+    if (!r.ok) return setStatus({ state: "error", error: r.error });
+    setValue(""); setStatus({ state: "done", message: "Registration reference saved locally." }); onChanged();
+  };
+  const markAttachment = async () => {
+    if (!selectedAttachment) return;
+    setStatus({ state: "working" });
+    const r = await apiPatch(`/papers/${paperId}/attachments/${selectedAttachment}/document-role`, { role: "preregistration" });
+    if (!r.ok) return setStatus({ state: "error", error: r.error });
+    setStatus({ state: "done", message: "Attachment marked as a preregistration." }); onChanged();
+  };
+  const attachFile = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    setStatus({ state: "working" });
+    const r = await apiUpload(`/papers/${paperId}/registration-attachments?filename=${encodeURIComponent(file.name || "registration.pdf")}`, file);
+    event.target.value = "";
+    if (!r.ok) return setStatus({ state: "error", error: r.error });
+    setStatus({ state: "done", message: "Local registration PDF attached and processed." }); onChanged();
+  };
+  return <div className="statcheck-caveat">
+    <b>Add a registration source</b>
+    <div className="axis-hint">These actions are local. Saving a reference does not fetch it or confirm that it belongs to this paper.</div>
+    <div className="settings-actions">
+      <input value={value} onChange={e => setValue(e.target.value)} placeholder="Registration URL, DOI, or identifier" aria-label="Registration URL, DOI, or identifier" />
+      <button className="btn btn-secondary" disabled={status.state === "working" || !value.trim()} onClick={addReference}>Save reference</button>
+    </div>
+    <div className="settings-actions">
+      <input ref={fileInput} type="file" accept="application/pdf,.pdf" onChange={attachFile} style={{display: "none"}} />
+      <button className="btn btn-secondary" disabled={status.state === "working"} onClick={() => fileInput.current && fileInput.current.click()}>Attach local preregistration PDF</button>
+    </div>
+    {!!attachments.length && <div className="settings-actions">
+      <select value={selectedAttachment} onChange={e => setSelectedAttachment(e.target.value)} aria-label="Existing attachment">
+        <option value="">Choose an existing attachment…</option>
+        {attachments.filter(a => a.role !== "preregistration").map(a => <option value={a.id} key={a.id}>{a.filename || `Attachment ${a.id}`} · {a.role || "legacy role"}</option>)}
+      </select>
+      <button className="btn btn-secondary" disabled={status.state === "working" || !selectedAttachment} onClick={markAttachment}>Mark as preregistration</button>
+    </div>}
+    {status.state === "error" && <div className="axis-err">{status.error}</div>}
+    {status.state === "done" && <div className="axis-hint">{status.message}</div>}
+  </div>;
 }
 
 function TransparencyCredit() {

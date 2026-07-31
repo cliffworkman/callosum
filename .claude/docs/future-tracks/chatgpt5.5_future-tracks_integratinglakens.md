@@ -7,8 +7,10 @@ auditability-gated; CRediT and the broader DEBIT/duplication/z-curve registry re
 
 **Implementation update (2026-07-31):** inc 425 ships RegCheck's hard prerequisite: canonical document-role
 normalization plus explicit attachment/role-scoped chunk, embedding, lexical-search, and semantic-retrieval paths.
-Registration reference extraction/discovery/acquisition still has not begun; it now cannot silently contaminate
-ordinary article synthesis or Methods reads when it does.
+Inc 426 now adds the local registration-reference handoff: printed/contextual identifiers and hidden PDF hyperlink
+targets become evidence records, with manual URL/DOI/local-PDF/existing-attachment fallback and no automatic
+resolution. Candidate discovery, confirmed acquisition, commitment extraction, and comparison remain future work;
+registration attachments cannot silently contaminate ordinary article synthesis or Methods reads.
 
 Highest-value additions
 1. ODDPub + rtransparent + output-it-forward	Build a local Transparency signals METHODS/findings module. Detect data availability, code availability, repository links, COI, funding, protocol registration, preregistration language, and "upon request" statements. Store as evidence-backed findings and optional read-only system tags, not as author accusations. ODDPub is especially useful because it returns detected categories and sentences, and reports validation on PubMed biomedical papers. rtransparent broadens this to COI, funding, and registration indicators. OIF contributes editable phrase and repository-domain lists.

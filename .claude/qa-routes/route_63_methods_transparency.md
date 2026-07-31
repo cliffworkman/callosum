@@ -3,6 +3,9 @@ api: /papers/{paper_id}/transparency
 api: /methods/transparency/run
 api: /methods/transparency/run/{job_id}
 api: /methods/transparency/summary
+api: /papers/{paper_id}/registration-references
+api: /papers/{paper_id}/registration-attachments
+api: /papers/{paper_id}/attachments/{attachment_id}/document-role
 fe: 08h_methods_transparency.jsx
 -->
 
@@ -48,6 +51,11 @@ genai-host request regardless). Register listeners before navigation.
   "not found").
 - **Coordinate honesty.** A present check's evidence link opens its page at **region** precision (page-open), never a
   fabricated exact highlight.
+- **Reference is not confirmation.** A normalized/pasted reference is labeled as evidence to inspect, never a
+  verified/correct registration match. “Language detected, no actionable reference located” is not “absent.”
+- **Local attachment boundary.** Pasting an identifier, marking an attachment, and uploading a browser-selected PDF
+  make no registry/provider request. The PDF upload is loopback-only, bounded, validated, and stored with the
+  `preregistration` document role; it must not enter ordinary article retrieval.
 - **Credit-the-lineage.** The detectors name their source in-context (`basis` + the credit block); the panel offers the
   methods sources to the library via a working **＋ add methods sources to library**.
 
@@ -84,18 +92,24 @@ genai-host request regardless). Register listeners before navigation.
 7. Confirm the **credit** block (ODDPub — Riedel et al. 2020; rtransparent — Serghiou et al. 2021; preregistration —
    Nosek et al. 2018) + a working **＋ add methods sources to library**.
 8. Adversarial: a metadata-only paper -> "Process a PDF first"; 999999 -> 404-class.
-9. **Library persistence (inc 251).** In the panel's **Whole library** part, click **Check all papers** ->
+9. **Registration references (inc 426).** Exercise a printed OSF URL, OSF DOI, AsPredicted identifier, and a PDF
+   hyperlink whose visible text is “here.” Confirm the Preregistration row distinguishes language detected from one
+   or multiple actionable references, shows provider/id + evidence/page, and describes hidden link targets honestly.
+   Paste a valid reference and malformed input; attach a local PDF; mark an existing attachment as preregistration.
+   Confirm no provider/network request occurs, invalid input/file fails clearly, and reopening the paper preserves the
+   reference/role. Confirm registration-only text does not appear in ordinary paper chunks/search/transparency.
+10. **Library persistence (inc 251).** In the panel's **Whole library** part, click **Check all papers** ->
    `POST /methods/transparency/run` 202 -> poll `GET .../run/{job_id}` to done. Confirm the summary reads
    "N papers checked · M with ≥1 disclosure detected". Confirm the 7 review-queue links render ("not detected in the
    text — go look" framing, NEVER "hides data").
-10. Confirm a paper whose text HAS an open-data disclosure now shows a transparency FACT mark in its **Review** section
+11. Confirm a paper whose text HAS an open-data disclosure now shows a transparency FACT mark in its **Review** section
     (METHODS -> Review). Confirm a bare paper (no disclosures) shows **no** transparency fact (an absence is never a
     fact).
-11. In the Library header, if any paper lacks a detected data disclosure, confirm the **🔎 N · open data not detected**
+12. In the Library header, if any paper lacks a detected data disclosure, confirm the **🔎 N · open data not detected**
     chip (indigo work-queue color) -> click -> the library narrows to that review queue + a non-accusatory banner;
     `GET /papers?signal=transparency-data-not-detected` returns only checked papers lacking a data FACT. Confirm the
     registration queue excludes non-trial (n/a) papers.
-12. Adversarial: `GET /methods/transparency/run/nope` -> 404-class, no crash.
+13. Adversarial: `GET /methods/transparency/run/nope` -> 404-class, no crash.
 
 ## Pass criteria
 

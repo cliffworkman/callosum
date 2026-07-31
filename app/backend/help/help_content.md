@@ -923,6 +923,20 @@ Read it as a prompt, not a report card:
 - There is **no transparency score, no rank, and no verdict**; a present check opens its evidence in the PDF.
 - The section credits each detector's source and offers a one-click **add missing to library**.
 
+The **Preregistration** row also distinguishes language from an actionable reference. It recognizes printed OSF
+links and DOIs, AsPredicted links/identifiers, ClinicalTrials.gov and PROSPERO identifiers, and a generic DOI or URL
+when it occurs near registration language. A PDF link hidden behind words such as “available here” is read from the
+PDF annotation and shown as a link target rather than misrepresented as printed text. You will see one of four local
+states: **not detected**, **language detected**, **reference detected**, or **multiple references detected**. Each
+reference retains its evidence and source page where available.
+
+If extraction cannot locate the reference, you can paste a registration URL/DOI/identifier, attach a local
+registration PDF, or mark an existing attachment as the registration. These actions only save/process local evidence:
+they do not look up the reference, download anything, or confirm that it belongs to the paper. A local PDF is copied
+into the managed library and chunked under the separate `preregistration` document role, so it cannot enter ordinary
+article synthesis, search, summaries, or Methods checks. Provider discovery and acquisition remain separate,
+explicitly triggered later steps. “Not located” is never equivalent to absent.
+
 **Checking the whole library.** In the same section, **Whole library → Check all papers** runs the auditor over every paper. Each paper's *detected* disclosures become evidence-carrying marks in its **Review** section. When the data disclosure list isn't empty, the Library header shows a **🔎 Open Data · N** chip that jumps to papers where the auditor detected an open-data disclosure. The section also fills review queues for disclosures *not detected* in extracted text; those queues are prompts to look — *the paper may still share artifacts elsewhere* — never claims that it hides anything, and there is no score or ranking.
 
 <!-- section: converting-effect-sizes -->

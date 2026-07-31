@@ -3410,6 +3410,27 @@
       attachmentId: evidence.attachment_id ?? null
     };
   }
+  async function apiUpload(path, file) {
+    try {
+      const res = await fetch(API_BASE + path, {
+        method: "POST",
+        headers: { "Accept": "application/json", "Content-Type": file.type || "application/octet-stream" },
+        body: file
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const detail = data && data.detail ? data.detail : `HTTP ${res.status} on ${path}`;
+        if (res.status === 401) {
+          _notifyAuthRequired();
+          return { ok: false, status: 401, authRequired: true, error: detail };
+        }
+        return { ok: false, error: detail };
+      }
+      return { ok: true, data };
+    } catch (e) {
+      return { ok: false, error: `Could not reach the ${API_LABEL}. Is uvicorn running?` };
+    }
+  }
   function responseFilename(response) {
     const value = response && response.headers ? response.headers.get("content-disposition") || "" : "";
     const encoded = value.match(/filename\*=UTF-8''([^;]+)/i);
@@ -6515,7 +6536,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       let live = true;
       api(`/papers/${paperId}`).then((r) => {
         if (!live || !r.ok) return;
-        setMeta({ title: r.data.title, hasText: (r.data.chunk_count || 0) > 0 });
+        setMeta({ title: r.data.title, hasText: (r.data.chunk_count || 0) > 0, attachments: r.data.attachments || [] });
       });
       return () => {
         live = false;
@@ -6538,9 +6559,17 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to check its transparency disclosures.");
     const hasText = meta ? meta.hasText : false;
     const d = state.data;
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the auditor reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Detect this paper's open-science disclosures \u2014 local, no AI", onClick: run }, "Check disclosures") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "checking\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && /* @__PURE__ */ React.createElement(TransparencyChecklist, { checks: d.checks, onOpen: open }));
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the auditor reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Detect this paper's open-science disclosures \u2014 local, no AI", onClick: run }, "Check disclosures") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "checking\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && /* @__PURE__ */ React.createElement(
+      TransparencyChecklist,
+      {
+        checks: d.checks,
+        onOpen: open,
+        references: d.registration_references,
+        referenceState: d.registration_reference_state
+      }
+    ), meta && /* @__PURE__ */ React.createElement(RegistrationReferenceActions, { paperId, attachments: meta.attachments, onChanged: run }));
   }
-  function TransparencyChecklist({ checks, onOpen }) {
+  function TransparencyChecklist({ checks, onOpen, references, referenceState }) {
     if (!checks || !checks.length) return null;
     const present = checks.filter((c) => c.status === "present").length;
     const notFound = checks.filter((c) => c.status === "not-found").length;
@@ -6567,7 +6596,57 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         page: c.page,
         caveat: "Disclosure signals are text detections only; not detected does not mean absent."
       }
-    ))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Detects ", /* @__PURE__ */ React.createElement("b", null, "reported disclosures"), " in the extracted text \u2014 it does not judge a paper's openness. ", /* @__PURE__ */ React.createElement("b", null, "\u201CNot detected\u201D means not found in the text, NOT that the artifact is absent"), " \u2014 a data-availability statement can live in an appendix, a footnote, or the journal's structured metadata this reader doesn't fully see. It's a prompt to look, never a score, and never an accusation of the authors. \u201CAvailable upon request\u201D is shown as a weaker signal than an open link, not a concern in itself."));
+    ), c.key === "preregistration" && /* @__PURE__ */ React.createElement(RegistrationReferences, { references: references || [], state: referenceState, onOpen }))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Detects ", /* @__PURE__ */ React.createElement("b", null, "reported disclosures"), " in the extracted text \u2014 it does not judge a paper's openness. ", /* @__PURE__ */ React.createElement("b", null, "\u201CNot detected\u201D means not found in the text, NOT that the artifact is absent"), " \u2014 a data-availability statement can live in an appendix, a footnote, or the journal's structured metadata this reader doesn't fully see. It's a prompt to look, never a score, and never an accusation of the authors. \u201CAvailable upon request\u201D is shown as a weaker signal than an open link, not a concern in itself."));
+  }
+  function RegistrationReferences({ references, state, onOpen }) {
+    const stateLabel = state === "multiple-references-detected" ? "Multiple registration references detected" : state === "reference-detected" ? "Registration reference detected" : state === "language-detected" ? "Preregistration language detected; no actionable reference located" : "No registration reference detected";
+    return /* @__PURE__ */ React.createElement("div", { className: "registration-reference-list" }, /* @__PURE__ */ React.createElement("div", { className: "lmm-summary" }, stateLabel), references.map((ref, index) => /* @__PURE__ */ React.createElement("div", { className: "bayes-check-ev", key: `${ref.provider}:${ref.external_id}:${index}` }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("b", null, ref.provider), " \xB7 ", /* @__PURE__ */ React.createElement("code", null, ref.external_id)), ref.evidence_snippet && /* @__PURE__ */ React.createElement(
+      EvidenceQuote,
+      {
+        text: ref.evidence_snippet,
+        match: ref.evidence_snippet,
+        label: ref.extraction_method === "pdf-hyperlink" ? `Linked from \u201C${ref.visible_text || "link"}\u201D` : "Reference evidence",
+        className: "bayes-check-ev",
+        precision: ref.coordinate_precision,
+        hasSourcePage: ref.page != null,
+        onOpen: ref.page != null ? () => onOpen(ref, `registration-reference:${index}`) : null,
+        openLabel: "Open source page for this registration reference"
+      }
+    ), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, ref.canonical_url && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => window.open(ref.canonical_url, "_blank", "noopener") }, "Open externally"), /* @__PURE__ */ React.createElement("span", { className: "axis-hint" }, ref.explicitly_printed ? "printed in document" : ref.extraction_method === "manual" ? "supplied by you" : "PDF link target")))), !references.length && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "\u201CNot located\u201D is not equivalent to absent; the reference may be in unextracted metadata, a supplement, or visible only outside the document."));
+  }
+  function RegistrationReferenceActions({ paperId, attachments, onChanged }) {
+    const [value, setValue] = useState("");
+    const [selectedAttachment, setSelectedAttachment] = useState("");
+    const [status, setStatus] = useState({ state: "idle" });
+    const fileInput = useRef(null);
+    const addReference = async () => {
+      if (!value.trim()) return;
+      setStatus({ state: "working" });
+      const r = await apiPost(`/papers/${paperId}/registration-references`, { value: value.trim() });
+      if (!r.ok) return setStatus({ state: "error", error: r.error });
+      setValue("");
+      setStatus({ state: "done", message: "Registration reference saved locally." });
+      onChanged();
+    };
+    const markAttachment = async () => {
+      if (!selectedAttachment) return;
+      setStatus({ state: "working" });
+      const r = await apiPatch(`/papers/${paperId}/attachments/${selectedAttachment}/document-role`, { role: "preregistration" });
+      if (!r.ok) return setStatus({ state: "error", error: r.error });
+      setStatus({ state: "done", message: "Attachment marked as a preregistration." });
+      onChanged();
+    };
+    const attachFile = async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      setStatus({ state: "working" });
+      const r = await apiUpload(`/papers/${paperId}/registration-attachments?filename=${encodeURIComponent(file.name || "registration.pdf")}`, file);
+      event.target.value = "";
+      if (!r.ok) return setStatus({ state: "error", error: r.error });
+      setStatus({ state: "done", message: "Local registration PDF attached and processed." });
+      onChanged();
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, /* @__PURE__ */ React.createElement("b", null, "Add a registration source"), /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "These actions are local. Saving a reference does not fetch it or confirm that it belongs to this paper."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("input", { value, onChange: (e) => setValue(e.target.value), placeholder: "Registration URL, DOI, or identifier", "aria-label": "Registration URL, DOI, or identifier" }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", disabled: status.state === "working" || !value.trim(), onClick: addReference }, "Save reference")), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("input", { ref: fileInput, type: "file", accept: "application/pdf,.pdf", onChange: attachFile, style: { display: "none" } }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", disabled: status.state === "working", onClick: () => fileInput.current && fileInput.current.click() }, "Attach local preregistration PDF")), !!attachments.length && /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("select", { value: selectedAttachment, onChange: (e) => setSelectedAttachment(e.target.value), "aria-label": "Existing attachment" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Choose an existing attachment\u2026"), attachments.filter((a) => a.role !== "preregistration").map((a) => /* @__PURE__ */ React.createElement("option", { value: a.id, key: a.id }, a.filename || `Attachment ${a.id}`, " \xB7 ", a.role || "legacy role"))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", disabled: status.state === "working" || !selectedAttachment, onClick: markAttachment }, "Mark as preregistration")), status.state === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, status.error), status.state === "done" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, status.message));
   }
   function TransparencyCredit() {
     return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Detectors:"), " data & code availability \u2014 ODDPub (Riedel et al. 2020); conflict-of-interest, funding & registration indicators \u2014 rtransparent (Serghiou et al. 2021); preregistration \u2014 Nosek et al. (2018).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: TRANSPARENCY_CSL }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "A reading aid \u2014 a rule-based text detector, never a transparency score or a judgment of the authors. Surfaced via D. Lakens' automated-review catalog."));

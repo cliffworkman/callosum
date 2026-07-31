@@ -14,6 +14,7 @@ from typing import Any
 
 import fitz
 
+from app.backend.pdf_processing.pdf_links import PdfLinkAnnotation, extract_page_link_annotations
 from app.backend.pdf_processing.sections import SectionTracker
 
 COORDINATE_SYSTEM = "pdf-points-top-left"
@@ -97,6 +98,7 @@ class ExtractionResult:
     extraction_version: str
     coordinate_system: str
     pages: tuple[ExtractedPage, ...]
+    links: tuple[PdfLinkAnnotation, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -131,6 +133,7 @@ class _WordToken:
 def extract_pdf(pdf_path: str | Path) -> ExtractionResult:
     path = Path(pdf_path)
     pages: list[ExtractedPage] = []
+    links: list[PdfLinkAnnotation] = []
 
     with fitz.open(path) as document:
         for page_index, page in enumerate(document):
@@ -187,6 +190,7 @@ def extract_pdf(pdf_path: str | Path) -> ExtractionResult:
                     blocks=tuple(blocks),
                 )
             )
+            links.extend(extract_page_link_annotations(page, page_number, blocks))
 
     return ExtractionResult(
         pdf_path=path,
@@ -194,6 +198,7 @@ def extract_pdf(pdf_path: str | Path) -> ExtractionResult:
         extraction_version=_pymupdf_version(),
         coordinate_system=COORDINATE_SYSTEM,
         pages=tuple(pages),
+        links=tuple(links),
     )
 
 

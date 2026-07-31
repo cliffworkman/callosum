@@ -521,8 +521,10 @@ the Principles + A-A gates before build.)*
   in inc 352 (`app/backend/document_text.py`: PDF/JATS/XML/HTML/DOCX/ODT/plain/TeX), correcting this stale entry.
   Increment 5's conservative table-aware statcheck slice shipped in inc 387. **Inc 425 ships the new hard
   prerequisite:** every ordinary chunk/search/embedding consumer is explicitly document-scoped, so a future
-  registration attachment cannot contaminate article synthesis or Methods reads. Remaining: registration-reference
-  extraction, user-triggered candidate discovery, confirmed acquisition/versioning, canonical commitment extraction,
+  registration attachment cannot contaminate article synthesis or Methods reads. **Inc 426 now ships local
+  registration-reference extraction** (including hidden PDF hyperlink targets), evidence persistence, four honest
+  transparency states, and manual URL/DOI/local-file/existing-attachment fallbacks with no automatic egress. Remaining:
+  user-triggered candidate discovery, confirmed acquisition/versioning, canonical commitment extraction,
   section/study-aware article retrieval, evidence-bound comparison, and the side-by-side inspection UI. This is the
   fraught, gated **RegCheck** track: a registration↔paper delta table, human-verified behind the auditability gate;
   **Increment 4** overlaps CRediT #26; the rest of **Increment 5** is a broader consistency registry

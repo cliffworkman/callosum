@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 425** (see Increment workflow) with **1720 pytest tests
+It is currently at **Increment 426** (see Increment workflow) with **1731 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -39,6 +39,12 @@ the full per-increment narrative for all other increments now lives in the reloc
   paths cannot read registration chunks by fallback; exact attachment reads remain available for future paired
   comparison. Legacy `primary`/null/supplement roles are normalized without a destructive migration, and an AST
   regression test rejects new ambiguous paper-level chunk, embedding, or semantic-retrieval calls.
+- **Registration references (inc 426):** Transparency distinguishes registration language from an actionable,
+  evidence-bearing reference; local extraction covers OSF/AsPredicted/ClinicalTrials.gov/PROSPERO plus contextual
+  DOI/URL references and PDF link targets hidden behind text such as “here.” References are persisted separately from
+  future candidate/confirmed links. Manual URL/DOI saving, local PDF attachment, and existing-attachment role marking
+  perform no provider request; local registration PDFs are stored under `preregistration` role and remain excluded
+  from ordinary article consumers by the inc-425 invariant.
 - **Methods (deterministic, local, no-LLM):** statcheck NHST p-value recomputation (`scipy.stats`), inc 95;
   inc 387 conservatively adds clearly headed table rows from local PDF/JATS/XML/HTML/DOCX/ODT attachments
   without mixing reconstructed rows into prose chunks or embeddings; inc 388 keeps the evidence-bearing PDF
@@ -595,7 +601,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 425). Each increment of real work
+callosum is built in **numbered increments** (currently at 426). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

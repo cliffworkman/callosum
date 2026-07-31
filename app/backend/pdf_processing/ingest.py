@@ -19,12 +19,14 @@ from app.backend.document_text import (
     extract_text_document,
     make_text_chunk_drafts,
 )
+from app.backend.methods.registration_references import extract_registration_references
 from app.backend.pdf_processing.extraction import (
     DEFAULT_CHUNKING_STRATEGY,
     extract_pdf,
     file_sha256,
     make_chunk_drafts,
 )
+from app.backend.persistence.registration_references_repo import replace_extracted_registration_references
 from app.backend.persistence.repository import (
     create_attachment,
     create_chunk,
@@ -32,7 +34,7 @@ from app.backend.persistence.repository import (
     delete_chunks_for_attachment,
     refresh_processing_tier,
 )
-from app.backend.persistence.schema import chunks
+from app.backend.persistence.schema import attachments, chunks
 
 if TYPE_CHECKING:
     from app.backend.embeddings.models import EmbeddingModel
@@ -41,6 +43,21 @@ if TYPE_CHECKING:
 
 class PdfReprocessEmptyExtraction(RuntimeError):
     """Raised when reprocessing would replace existing chunks with an empty extraction."""
+
+
+_REGISTRATION_REFERENCE_SOURCE_ROLES = {
+    "article-fulltext",
+    "primary",
+    "supplement",
+    "supplementary",
+    "supplementary-text",
+}
+
+
+def _registration_references_for_role(role: str, drafts: list, *, hyperlinks=()) -> list:
+    if role.casefold() not in _REGISTRATION_REFERENCE_SOURCE_ROLES:
+        return []
+    return extract_registration_references(drafts, hyperlinks=hyperlinks)
 
 
 def attach_pdf_to_paper(
@@ -98,6 +115,12 @@ def attach_pdf_to_paper(
         )
         for draft in drafts
     ]
+    replace_extracted_registration_references(
+        conn,
+        paper_id,
+        attachment_id,
+        _registration_references_for_role(role, drafts, hyperlinks=extraction.links),
+    )
     refresh_processing_tier(conn, paper_id)
     return {
         "attachment_id": attachment_id,
@@ -153,6 +176,15 @@ def reprocess_pdf_attachment(
         )
         for draft in drafts
     ]
+    attachment_role = conn.execute(
+        select(attachments.c.role).where(attachments.c.id == attachment_id, attachments.c.paper_id == paper_id)
+    ).scalar_one_or_none()
+    replace_extracted_registration_references(
+        conn,
+        paper_id,
+        attachment_id,
+        _registration_references_for_role(attachment_role or "primary", drafts, hyperlinks=extraction.links),
+    )
     # Re-embed the fresh chunks: delete_chunks_for_attachment removed the OLD chunks' vector embeddings, so
     # without this the reprocessed paper would silently drop out of vector-search retrieval (find-related,
     # gap-finder, axis scoring, library-wide citation suggest). embed_chunks is idempotent per chunk_version.
@@ -234,6 +266,12 @@ def attach_text_document_to_paper(
         )
         for draft in drafts
     ]
+    replace_extracted_registration_references(
+        conn,
+        paper_id,
+        attachment_id,
+        _registration_references_for_role(role, drafts),
+    )
     refresh_processing_tier(conn, paper_id)
     return {
         "attachment_id": attachment_id,

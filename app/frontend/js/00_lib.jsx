@@ -486,6 +486,27 @@ function methodEvidenceTarget(paperId, paperTitle, evidence, key) {
   };
 }
 
+// Same-origin raw-file upload for explicitly selected local artifacts. The access-token shim above still applies;
+// unlike apiPost, this intentionally does not JSON/base64-wrap potentially large bytes.
+async function apiUpload(path, file) {
+  try {
+    const res = await fetch(API_BASE + path, {
+      method: "POST",
+      headers: { "Accept": "application/json", "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const detail = data && data.detail ? data.detail : `HTTP ${res.status} on ${path}`;
+      if (res.status === 401) { _notifyAuthRequired(); return { ok: false, status: 401, authRequired: true, error: detail }; }
+      return { ok: false, error: detail };
+    }
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: `Could not reach the ${API_LABEL}. Is uvicorn running?` };
+  }
+}
+
 function responseFilename(response) {
   const value = response && response.headers ? response.headers.get("content-disposition") || "" : "";
   const encoded = value.match(/filename\*=UTF-8''([^;]+)/i);
