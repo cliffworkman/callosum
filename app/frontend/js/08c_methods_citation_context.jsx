@@ -88,17 +88,22 @@ function CitationContextPaper({ paperId, direction }) {
   const rep = state.report;
   return (
     <div className="cite-equity">
-      <div className="cite-equity-intro">{D.intro}</div>
+      <div className="meta-ref-action-row">
+        <div className="meta-ref-action-copy">
+          <div className="cite-equity-intro">{D.intro}</div>
+          {meta && meta.hasDoi && state.status === "idle" &&
+            <div className="cite-equity-egress-note">Running sends this paper's DOI to Semantic Scholar (public metadata) and classifies the returned sentences on your machine — your library text never leaves.</div>}
+        </div>
+        <div className="meta-ref-action-slot">
+          {meta && meta.hasDoi && state.status === "idle" &&
+            <button className="btn btn-primary" onClick={run}
+              title="Fetch the citing sentences from Semantic Scholar (public metadata) and classify each stance locally">
+              {D.verb}
+            </button>}
+        </div>
+      </div>
       {meta && !meta.hasDoi &&
         <div className="tag-suggest-empty">This paper has no DOI, so Semantic Scholar can't look up its citation graph. Add one under Identifiers in the Detail pane to enable it.</div>}
-      {meta && meta.hasDoi && state.status === "idle" &&
-        <React.Fragment>
-          <button className="btn btn-primary" onClick={run}
-            title="Fetch the citing sentences from Semantic Scholar (public metadata) and classify each stance locally">
-            {D.verb}
-          </button>
-          <div className="cite-equity-egress-note">Running sends this paper's DOI to Semantic Scholar (public metadata) and classifies the returned sentences on your machine — your library text never leaves.</div>
-        </React.Fragment>}
       {state.status === "running" && <ProgressBar progress={state.progress} label="Fetching + classifying…" />}
       {state.status === "error" && <div className="axis-err">Couldn't fetch {D.noun}: {state.error}</div>}
       {state.status === "done" && rep && (rep.total_citations === 0

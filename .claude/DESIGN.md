@@ -148,6 +148,11 @@ ad-hoc class names are **grouped into** those rules so the recipe isn't re-typed
 - **`.danger` modifier:** red `--danger` text (+ `--danger-line` border for icon hover). The canonical
   destructive color (DESIGN §4); use it on new destructive buttons.
 - **Disabled (all):** `opacity:.45` (ghost uses `.4`) + `--line-2` bg/border + `--ink-3` text; `cursor:default`.
+- **Meta-Reference action rows (`.meta-ref-action-row`):** the five stacked Work → Meta-Reference tools pair
+  descriptive copy with one flush-right, fixed **150px** action column (the natural width needed by the longest
+  label, "Find overlooked work"). The grid uses `minmax(0,1fr) 150px` with a 24px column gap; the slot itself has
+  no extra horizontal padding, and its canonical `.btn-primary` fills the column. On the phone-width `.app.mobile`
+  layout, the action stacks below the copy, remains right-aligned and 150px wide, and never squeezes the copy.
 - **`.method-credit` lineage buttons:** use the shared `MethodCreditButton` helper and the existing `.btn-link`
   recipe. Label is **"＋ add missing to library"** while any DOI-backed credited source is absent, and
   **"✓ added to library"** once all DOI-backed sources are present. Multi-source credits import only missing items.

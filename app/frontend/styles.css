@@ -217,6 +217,8 @@
      Collapse to a single column with the section list scrollable above the article. */
   .app.mobile .help-layout { grid-template-columns: 1fr; overflow: visible; }
   .app.mobile .help-toc { border-right: 0; border-bottom: 1px solid var(--line); padding-right: 0; padding-bottom: 6px; max-height: 28vh; }
+  .app.mobile .meta-ref-action-row { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
+  .app.mobile .meta-ref-action-slot { justify-self: end; }
   /* QA 2026-07-19 mobile-CSS batch (browser-verified with Playwright): 4 spacing fixes at 375px. */
   /* (1) Discover Feed's All/Unread/Starred filter buttons were flex:1 (from the shared .tags-srcfilter-btn base),
      so 3 buttons squeezed into equal thirds and "Unread (391)" wrapped mid-word. Content-sized + let the
@@ -877,8 +879,19 @@
   .method-credit { font-size: 11.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
   .method-credit-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
   /* inc 227: citation-equity audit — descriptive signal rows + a list-vs-field mini-bar. Tokens only. */
+  .meta-ref-action-row {
+    --meta-ref-action-width: 150px;
+    display: grid; grid-template-columns: minmax(0, 1fr) var(--meta-ref-action-width);
+    align-items: start; column-gap: 24px;
+  }
+  .meta-ref-action-copy { min-width: 0; }
+  .meta-ref-action-slot { width: var(--meta-ref-action-width); justify-self: end; }
+  .meta-ref-action-slot:empty { display: none; }
+  .meta-ref-action-slot .btn-primary { width: 100%; box-sizing: border-box; white-space: nowrap; }
   .cite-equity-section { font-size: 12px; }
   .cite-equity-intro { font-size: 12px; color: var(--ink-2); line-height: 1.5; margin-bottom: 8px; }
+  .meta-ref-action-copy .cite-equity-intro { margin-bottom: 0; }
+  .cite-equity .meta-ref-action-row { margin-bottom: 8px; }
   .cite-equity-field { font-size: 11px; color: var(--ink-3); margin: 4px 0 4px; }
   .cite-equity-caption { font-size: 10.5px; color: var(--ink-3); font-style: italic; margin: 0 0 6px; }
   .cite-equity-egress-note { font-size: 10.5px; color: var(--ink-3); margin-top: 6px; line-height: 1.45; }
@@ -900,6 +913,8 @@
   /* inc 228: overlooked-work remediation — candidate cards (add-only, topical-match "why"). Tokens only. */
   .cite-equity-overlooked { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 4px; }
   .cite-equity-overlooked-intro { font-size: 11px; color: var(--ink-2); line-height: 1.5; margin-bottom: 6px; }
+  .meta-ref-action-copy.cite-equity-overlooked-intro { margin-bottom: 0; }
+  .cite-equity-overlooked .meta-ref-action-row { margin-bottom: 6px; }
   .cite-equity-cand-cov { font-size: 10.5px; color: var(--ink-3); margin: 4px 0 6px; }
   .cite-equity-cand { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 9px; margin: 6px 0; }
   .cite-equity-cand-title { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.4; }
@@ -2638,7 +2653,6 @@
      local propagation uses the provenance accent. */
   .ref-panel { display: flex; flex-direction: column; gap: 10px; }
   .ref-intro, .ref-summary { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
-  .ref-panel .btn-primary { align-self: flex-start; }
   .ref-card {
     border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 9px 11px;
     display: flex; flex-direction: column; gap: 5px;

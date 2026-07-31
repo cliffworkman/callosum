@@ -115,7 +115,10 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
      How it cites its sources — the last two were one toggle-switched subsection before 2026-07-20 and are now
      independently fetchable (running one doesn't reset the other). With a selected paper, click a Library
      **ref signal** badge and confirm it jumps directly to **Work → Meta-Reference** and scrolls to the Meta
-     Reference List subsection.
+     Reference List subsection. At desktop width, confirm each subsection's descriptive copy and action share one
+     row; all five actions form one flush-right, 150px column (the width of **Find overlooked work**) with equal
+     button widths and clear space between text and action. At `375x812`, confirm each action stacks below its copy,
+     stays right-aligned at the same width, and creates no horizontal overflow.
    - **CRediT** (renamed from "CRediT statement") — unchanged internally; confirm the By-author/By-role toggle
      still works.
    - **Meta-Analyze** is the relocated Workbench. Confirm the intro sentence now ends cleanly after "...one study

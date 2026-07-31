@@ -9,6 +9,18 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-31 — Increment 424: align Meta-Reference actions in one fixed-width column
+
+- **Files:** `app/frontend/js/{08b_methods_citation_equity.jsx,08c_methods_citation_context.jsx,08j_reference_integrity.jsx}`,
+  `app/frontend/styles.css`, `callosum-app.html`, `tests/test_frontend_assembly.py`, `.claude/{DESIGN.md,CLAUDE.md}`,
+  `.claude/qa-routes/route_73_workspaces.md`, `.claude/docs/increment-notes/INCREMENT-424-NOTES.md`.
+- **What:** paired each Meta-Reference subsection's descriptive copy with its action in one two-column row; all
+  five primary actions now occupy the same flush-right 150px column with a 24px copy/action gap. Phone-width
+  layouts stack the same-width action below the copy, right-aligned, without horizontal overflow.
+- **Why:** the previous vertical sequence left five differently-sized buttons floating beneath their descriptions;
+  the shared column makes the stacked tools faster to scan and gives every action equal visual weight.
+- **Revert:** `git revert` the Increment 424 commit.
+
 ## 2026-07-30 — Increment 423: fix — a second, independent ACL gate (local/remote origin scoping)
 
 - **Files:** `app/desktop-shell/src-tauri/capabilities/default.json`.

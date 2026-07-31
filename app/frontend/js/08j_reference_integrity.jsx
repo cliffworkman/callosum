@@ -163,14 +163,18 @@ function MetaReferenceList({ ctx }) {
   const data = state.data;
   return (
     <div className="ref-panel">
-      <div className="ref-intro">
-        Surfaces only three negative signals for review: could not verify, known retraction signal, and prior local
-        flag propagation. Search misses are not conclusions, and clearing signals is not positive verification.
+      <div className="meta-ref-action-row">
+        <div className="meta-ref-action-copy ref-intro">
+          Surfaces only three negative signals for review: could not verify, known retraction signal, and prior local
+          flag propagation. Search misses are not conclusions, and clearing signals is not positive verification.
+        </div>
+        <div className="meta-ref-action-slot">
+          {state.status !== "running" &&
+            <button className="btn btn-primary" onClick={run}>
+              {state.status === "error" || hasPartialCoverage ? "Retry reference check" : "Check references"}
+            </button>}
+        </div>
       </div>
-      {state.status !== "running" &&
-        <button className="btn btn-primary" onClick={run}>
-          {state.status === "error" || hasPartialCoverage ? "Retry reference check" : "Check references"}
-        </button>}
       {state.status === "running" && <ProgressBar progress={state.progress} label="Checking reference list…" />}
       {state.status === "error" && <div className="axis-err">Reference check failed: {state.error}</div>}
       {state.status === "loading" && <div className="tag-suggest-empty">Loading reference signals…</div>}

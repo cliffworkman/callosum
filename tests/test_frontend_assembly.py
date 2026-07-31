@@ -443,6 +443,18 @@ def test_meta_reference_list_sits_before_journal_search_with_accessible_review_c
     assert "onOpenReferenceWarnings: openReferenceWarnings" in raw
 
 
+def test_meta_reference_actions_share_one_aligned_fixed_width_column():
+    raw = assemble_jsx()
+    # Four source rows render five controls at runtime because CitationContextPaper is mounted once per direction.
+    assert raw.count('className="meta-ref-action-row"') == 4
+    assert raw.count('className="meta-ref-action-slot"') == 4
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    assert "--meta-ref-action-width: 150px" in css
+    assert "grid-template-columns: minmax(0, 1fr) var(--meta-ref-action-width)" in css
+    assert ".meta-ref-action-slot .btn-primary { width: 100%" in css
+    assert ".app.mobile .meta-ref-action-row { grid-template-columns: minmax(0, 1fr)" in css
+
+
 def test_tag_validation_errors_are_inline_and_accessible():
     raw = assemble_jsx()
     assert 'const [error, setError] = useState("")' in raw

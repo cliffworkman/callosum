@@ -117,20 +117,25 @@ function CitationEquityPaper({ paperId, meta }) {
   const rep = state.report;
   return (
     <div className="cite-equity">
-      <div className="cite-equity-intro">
-        How concentrated <b>{meta ? meta.title : "this paper"}</b>'s reference list is — does it lean on your own
-        work, famous work, a few venues, a few elite institutions? Descriptive context, never a score or a target.
+      <div className="meta-ref-action-row">
+        <div className="meta-ref-action-copy">
+          <div className="cite-equity-intro">
+            How concentrated <b>{meta ? meta.title : "this paper"}</b>'s reference list is — does it lean on your own
+            work, famous work, a few venues, a few elite institutions? Descriptive context, never a score or a target.
+          </div>
+          {meta && meta.hasDoi && state.status === "idle" &&
+            <div className="cite-equity-egress-note">Running fetches public OpenAlex metadata about your references (their DOIs) — nothing about your draft or library text leaves your machine.</div>}
+        </div>
+        <div className="meta-ref-action-slot">
+          {meta && meta.hasDoi && state.status === "idle" &&
+            <button className="btn btn-primary" onClick={run}
+              title="Resolve this paper's references via OpenAlex (public metadata) and compute its structural signals">
+              Run audit
+            </button>}
+        </div>
       </div>
       {meta && !meta.hasDoi &&
         <div className="tag-suggest-empty">This paper has no DOI, so OpenAlex can't resolve its references. Add one under Identifiers in the Detail pane to enable this audit.</div>}
-      {meta && meta.hasDoi && state.status === "idle" &&
-        <React.Fragment>
-          <button className="btn btn-primary" onClick={run}
-            title="Resolve this paper's references via OpenAlex (public metadata) and compute its structural signals">
-            Run audit
-          </button>
-          <div className="cite-equity-egress-note">Running fetches public OpenAlex metadata about your references (their DOIs) — nothing about your draft or library text leaves your machine.</div>
-        </React.Fragment>}
       {state.status === "running" && <ProgressBar progress={state.progress} label="Resolving references…" />}
       {state.status === "error" && <div className="axis-err">Couldn't run the audit: {state.error}</div>}
       {state.status === "done" && rep && (rep.references_total === 0
@@ -211,17 +216,21 @@ function OverlookedWork({ paperId, hasDoi }) {
   return (
     <div className="cite-equity-overlooked">
       <p className="eyebrow">Overlooked work</p>
-      <div className="cite-equity-overlooked-intro">
-        Relevant work you may have missed — candidates to consider, ranked by topical match (callosum's own local
-        embedding). Nothing is dropped or auto-added, and an author's identity is never the reason to cite.
+      <div className="meta-ref-action-row">
+        <div className="meta-ref-action-copy cite-equity-overlooked-intro">
+          Relevant work you may have missed — candidates to consider, ranked by topical match (callosum's own local
+          embedding). Nothing is dropped or auto-added, and an author's identity is never the reason to cite.
+        </div>
+        <div className="meta-ref-action-slot">
+          {hasDoi && state.status === "idle" &&
+            <button className="btn btn-primary" onClick={run}
+              title="Find topically-relevant work this paper's reference list omits (OpenAlex related work + a sample of the field, ranked locally)">
+              Find overlooked work
+            </button>}
+        </div>
       </div>
       {hasDoi === false &&
         <div className="tag-suggest-empty">This paper has no DOI, so OpenAlex can't relate work to it. Add one under Identifiers in the Detail pane to enable the overlooked-work search.</div>}
-      {hasDoi && state.status === "idle" &&
-        <button className="btn btn-primary" onClick={run}
-          title="Find topically-relevant work this paper's reference list omits (OpenAlex related work + a sample of the field, ranked locally)">
-          Find overlooked work
-        </button>}
       {state.status === "running" && <ProgressBar progress={state.progress} label="Finding related work…" />}
       {state.status === "error" && <div className="axis-err">Couldn't search: {state.error}</div>}
       {state.status === "done" && rep && (rep.shown === 0
