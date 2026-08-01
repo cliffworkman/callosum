@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 429** (see Increment workflow) with **1749 pytest tests
+It is currently at **Increment 430** (see Increment workflow) with **1749 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -60,6 +60,11 @@ the full per-increment narrative for all other increments now lives in the reloc
   extraction method/confidence/version, study label, and exact registration hash. Structured OSF/AsPredicted mappings
   are preferred; conservative local-PDF text mapping leaves unknowns unmapped. This is extraction, not comparison or
   a judgment, and no model/provider is called.
+- **Registration publication retrieval (inc 430):** each commitment searches compatible article section families
+  first using cached local embeddings, adds same-attachment context, and expands to the whole article only after a
+  weak bounded search. Supplements are explicit opt-in scope; registration chunks are unreachable as publication
+  candidates. Results preserve sections searched, expansion/supplement state, exact evidence anchors, and study labels;
+  multi-study uncertainty is `ambiguous`, and a miss is never proof of non-reporting.
 - **Methods (deterministic, local, no-LLM):** statcheck NHST p-value recomputation (`scipy.stats`), inc 95;
   inc 387 conservatively adds clearly headed table rows from local PDF/JATS/XML/HTML/DOCX/ODT attachments
   without mixing reconstructed rows into prose chunks or embeddings; inc 388 keeps the evidence-bearing PDF

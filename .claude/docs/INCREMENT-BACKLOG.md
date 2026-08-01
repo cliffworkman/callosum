@@ -526,8 +526,8 @@ the Principles + A-A gates before build.)*
   transparency states, and manual URL/DOI/local-file/existing-attachment fallbacks with no automatic egress. **Inc 427
   ships explicit OSF/DataCite candidate discovery and confirm/reject state; inc 428 ships confirmed OSF/AsPredicted/
   local acquisition with immutable content-hash versions; inc 429 adds canonical evidence-bearing commitment
-  extraction.** Remaining: section/study-aware article retrieval, evidence-bound comparison, and the side-by-side
-  inspection UI. This is the
+  extraction; inc 430 adds section/study-aware article retrieval with explicit expansion and supplement scope.**
+  Remaining: evidence-bound comparison and the side-by-side inspection UI. This is the
   fraught, gated **RegCheck** track: a registration↔paper delta table, human-verified behind the auditability gate;
   **Increment 4** overlaps CRediT #26; the rest of **Increment 5** is a broader consistency registry
   (DEBIT/duplication analysis and perhaps a collection-level z-curve).

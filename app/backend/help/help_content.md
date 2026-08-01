@@ -973,6 +973,14 @@ conservatively and uncertain passages may remain unmapped. This step uses no AI 
 no comparison. A field label is an extraction aid, not a claim that the plan is clear, complete, prospective, or
 followed.
 
+For each plan field, publication retrieval starts in the sections most likely to report it—for example, hypotheses in
+Introduction/Methods/Results, sample size in Participants/Procedure/Methods, and models in Analysis/Results. Passages
+are ranked with the local embedding model and retain their article attachment, section, page, source region, and
+nearby context. If the bounded search is weak, Callosum can expand to the whole article and records that expansion.
+Supplements are searched only when you request them. Study/Experiment labels constrain retrieval where possible;
+uncertain multi-study mapping is marked ambiguous. A search miss always names the sections and scope searched and is
+never presented as proof that the publication omitted the item.
+
 **Checking the whole library.** In the same section, **Whole library → Check all papers** runs the auditor over every paper. Each paper's *detected* disclosures become evidence-carrying marks in its **Review** section. When the data disclosure list isn't empty, the Library header shows a **🔎 Open Data · N** chip that jumps to papers where the auditor detected an open-data disclosure. The section also fills review queues for disclosures *not detected* in extracted text; those queues are prompts to look — *the paper may still share artifacts elsewhere* — never claims that it hides anything, and there is no score or ranking.
 
 <!-- section: converting-effect-sizes -->

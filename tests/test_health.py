@@ -325,6 +325,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
             "/papers/{paper_id}/registration-versions/{version_id}/commitments/extract",
             frozenset({"POST"}),
         ),
+        ("/papers/{paper_id}/registration-evidence/retrieve", frozenset({"POST"})),
         ("/reference-integrity/run-selected", frozenset({"POST"})),
         ("/reference-integrity/instances/{instance_id}/review", frozenset({"POST"})),
         ("/findings/{finding_id}/review", frozenset({"POST"})),

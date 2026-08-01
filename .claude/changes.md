@@ -9,7 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 429 — canonical evidence-bearing registration commitments -->
+<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 430 — section- and study-aware publication retrieval -->
+
+## 2026-07-31 — Increment 430: section- and study-aware publication retrieval
+
+- **Files:** `app/backend/registration_retrieval/*`, retrieval router, tests/help/QA/increment notes.
+- **What:** per-commitment local semantic retrieval searches compatible article section families first, records
+  bounded/expanded scope, adds source-anchored nearby context, optionally searches supplements, and preserves/flags
+  multi-study mapping.
+- **Why:** a later “not located” or difference flag is only inspectable if readers can see what documents/sections
+  were searched and unrelated registration/study text was structurally excluded.
+- **Revert:** revert Increment 430; it has no migration or persisted output.
 
 ## 2026-07-31 — Increment 429: canonical evidence-bearing registration commitments
 
