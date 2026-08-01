@@ -142,6 +142,30 @@ def test_manual_reference_is_local_and_idempotent(temp_db_url: str) -> None:
     )
 
 
+def test_same_printed_and_manual_reference_is_one_identity_with_printed_evidence(
+    temp_db_url: str, tmp_path: Path
+) -> None:
+    pdf = _one_page_pdf(tmp_path / "same-reference.pdf", "Preregistered at https://osf.io/ab12c/.")
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(conn, title="Same reference", csl_json={"title": "Same reference"})
+        attach_pdf_to_paper(conn, paper_id, pdf, role="article-fulltext")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert (
+        client.post(f"/papers/{paper_id}/registration-references", json={"value": "10.17605/OSF.IO/AB12C"}).status_code
+        == 201
+    )
+
+    body = client.get(f"/papers/{paper_id}/transparency").json()
+    assert body["registration_reference_state"] == "reference-detected"
+    assert len(body["registration_references"]) == 1
+    reference = body["registration_references"][0]
+    assert reference["extraction_method"] == "printed-text"
+    assert reference["explicitly_printed"] is True
+    assert reference["attachment_id"] is not None
+
+
 def test_attach_local_registration_pdf_chunks_only_that_attachment(temp_db_url: str, tmp_path: Path) -> None:
     pdf = _one_page_pdf(tmp_path / "local-plan.pdf", "Primary outcome: response accuracy.")
     engine = make_engine(temp_db_url)
@@ -213,6 +237,21 @@ def test_mark_existing_attachment_as_preregistration(temp_db_url: str) -> None:
     link = client.get(f"/papers/{paper_id}/registration-links").json()[0]
     assert link["attachment_id"] == attachment_id
     assert link["link_status"] == "confirmed"
+
+    changed_back = client.patch(f"/papers/{paper_id}/attachments/{attachment_id}/document-role", json={"role": "other"})
+    assert changed_back.status_code == 200
+    unavailable = client.get(f"/papers/{paper_id}/registration-links?include_rejected=true").json()[0]
+    assert unavailable["link_status"] == "unavailable"
+    assert unavailable["user_confirmed"] is False
+    refused = client.post(f"/papers/{paper_id}/registration-links/{unavailable['id']}/confirm")
+    assert refused.status_code == 409
+    assert "Mark the local attachment" in refused.json()["detail"]
+
+    restored = client.patch(
+        f"/papers/{paper_id}/attachments/{attachment_id}/document-role", json={"role": "preregistration"}
+    )
+    assert restored.status_code == 200
+    assert client.get(f"/papers/{paper_id}/registration-links").json()[0]["link_status"] == "confirmed"
 
 
 def test_cannot_reclassify_another_papers_attachment(temp_db_url: str) -> None:

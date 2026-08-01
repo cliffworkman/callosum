@@ -213,6 +213,44 @@ def test_aspredicted_numbered_questions_have_provider_specific_deterministic_map
     engine.dispose()
 
 
+def test_aspredicted_existing_data_answer_and_response_update_join_registration_timing(temp_db_url: str) -> None:
+    structured = {
+        "provider": "aspredicted",
+        "registered_at": "2021/01/01",
+        "questions": [
+            {
+                "response_key": "aspredicted-1",
+                "label": "Have any data been collected for this study already?",
+                "section": "AsPredicted questions",
+                "answer": "Yes, some data have been collected for this study already.",
+            },
+            {
+                "response_key": "aspredicted-2",
+                "label": "What is the main hypothesis?",
+                "section": "AsPredicted questions",
+                "answer": "Condition A will improve recall.",
+            },
+        ],
+        "response_history": [
+            {"date_modified": "2021-01-01T00:00:00Z", "is_original_response": True},
+            {"date_modified": "2021-05-01T00:00:00Z", "revision_justification": "Clarified analysis."},
+        ],
+    }
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id, version_id, _ = _seed_version(conn, structured=structured, provider="aspredicted", chunks=[])
+    payload = TestClient(create_app(db_url=temp_db_url)).post(
+        f"/papers/{paper_id}/registration-versions/{version_id}/commitments/extract"
+    )
+    assert payload.status_code == 200
+    timing = next(row for row in payload.json()["commitments"] if row["field_type"] == "registration-timing")
+    assert timing["structured_value"]["existing_data_collected"] is True
+    assert timing["structured_value"]["updated_at"] == "2021-05-01T00:00:00Z"
+    assert "Existing-data response" in timing["evidence_text"]
+    assert not any(row["source_key"] == "aspredicted-1" for row in payload.json()["commitments"])
+    engine.dispose()
+
+
 def test_manual_local_pdf_uses_only_exact_attachment_chunks_and_marks_text_mapping_uncertainty(
     temp_db_url: str,
 ) -> None:

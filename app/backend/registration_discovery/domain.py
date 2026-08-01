@@ -115,6 +115,11 @@ def contextual_evidence(request: DiscoveryRequest, candidate: RegistrationCandid
 
 def contextual_class(evidence: tuple[dict[str, Any], ...], *, one_registration_on_node: bool = False) -> LinkageClass:
     kinds = {item.get("kind") for item in evidence}
+    if any(
+        item.get("kind") == "date-order" and item.get("registration_not_after_publication_year") is False
+        for item in evidence
+    ):
+        return "similarity-candidate"
     if one_registration_on_node and ("title-terms" in kinds or "contributor-overlap" in kinds):
         return "strong-contextual-match"
     if {"title-terms", "contributor-overlap"} <= kinds:

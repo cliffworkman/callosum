@@ -66,7 +66,15 @@ def _hit(text: str, *, chunk_id: int = 1, attachment_id: int = 10, page: int = 2
     )
 
 
-def _retrieval(commitment_id: int, hits=(), *, study_mapping: str = "unscoped") -> CommitmentRetrieval:
+def _retrieval(
+    commitment_id: int,
+    hits=(),
+    *,
+    study_mapping: str = "unscoped",
+    searched_chunk_ids: tuple[int, ...] | None = None,
+    searched_attachment_ids: tuple[int, ...] | None = None,
+) -> CommitmentRetrieval:
+    hits = tuple(hits)
     return CommitmentRetrieval(
         commitment_id=commitment_id,
         field_type="fixture",
@@ -74,9 +82,17 @@ def _retrieval(commitment_id: int, hits=(), *, study_mapping: str = "unscoped") 
         sections_searched=("methods",),
         whole_article_expanded=False,
         supplements_searched=False,
+        searched_chunk_ids=(
+            searched_chunk_ids if searched_chunk_ids is not None else tuple(hit.chunk_id for hit in hits)
+        ),
+        searched_attachment_ids=(
+            searched_attachment_ids
+            if searched_attachment_ids is not None
+            else tuple(dict.fromkeys(hit.attachment_id for hit in hits))
+        ),
         study_mapping=study_mapping,
         study_labels_found=(),
-        hits=tuple(hits),
+        hits=hits,
     )
 
 
@@ -97,12 +113,16 @@ def test_deterministic_numeric_threshold_outcome_and_model_comparisons() -> None
         _commitment(2, "exclusion-criterion", "Failing either attention check leads to exclusion."),
         _commitment(3, "primary-outcome", "The primary outcome is response accuracy."),
         _commitment(4, "statistical-model", "We will fit a logistic regression."),
+        _commitment(5, "stopping-rule", "We will stop after 120 participants."),
+        _commitment(6, "covariate", "Age will be included as a covariate."),
     ]
     retrievals = [
         _retrieval(1, [_hit("The final sample of 118 participants was analyzed.", chunk_id=1)]),
         _retrieval(2, [_hit("Participants failing both attention checks were excluded.", chunk_id=2)]),
         _retrieval(3, [_hit("The primary outcome was recall score.", chunk_id=3)]),
         _retrieval(4, [_hit("We fitted a linear regression.", chunk_id=4)]),
+        _retrieval(5, [_hit("Data collection stopped after 150 participants.", chunk_id=5)]),
+        _retrieval(6, [_hit("Models were adjusted for income.", chunk_id=6)]),
     ]
     rows = _compare(commitments, retrievals)
     by_type = {row.field_type: row for row in rows}
@@ -112,6 +132,8 @@ def test_deterministic_numeric_threshold_outcome_and_model_comparisons() -> None
     assert "either versus both" in by_type["exclusion-criterion"].explanation
     assert by_type["primary-outcome"].comparison_status == "potentially-changed"
     assert by_type["statistical-model"].comparison_status == "potentially-changed"
+    assert by_type["stopping-rule"].comparison_status == "potentially-changed"
+    assert by_type["covariate"].comparison_status == "potentially-changed"
     assert all(row.registration_evidence_text and row.publication_evidence_text for row in rows)
     assert all("incorrect registration match" in row.uncertainty for row in rows)
 
@@ -163,6 +185,23 @@ def test_reported_primary_outcome_without_extracted_registration_field_is_surfac
     assert "not absence" in reported.explanation.casefold()
 
 
+def test_reported_covariate_without_registration_field_is_surfaced_as_one_sided_evidence() -> None:
+    chunk = {
+        "id": 51,
+        "attachment_id": 10,
+        "text": "The model was adjusted for age.",
+        "section": "Results",
+        "page_start": 8,
+        "page_end": 8,
+        "bbox_json": None,
+        "document_role": "article-fulltext",
+    }
+    rows = _compare([_commitment(1, "sample-size-target", "Target sample size 120.")], [_retrieval(1, [])], [chunk])
+    reported = next(row for row in rows if row.field_type == "covariate")
+    assert reported.comparison_status == "reported-item-not-located-in-registration"
+    assert reported.publication_evidence_text == chunk["text"]
+
+
 def test_registration_timing_is_first_class_and_uses_cautious_status_language() -> None:
     commitment = _commitment(
         1,
@@ -180,11 +219,103 @@ def test_registration_timing_is_first_class_and_uses_cautious_status_language() 
         "bbox_json": None,
         "document_role": "article-fulltext",
     }
-    row = _compare([commitment], [_retrieval(1)], [chunk])[0]
+    row = _compare(
+        [commitment],
+        [_retrieval(1, searched_chunk_ids=(60,), searched_attachment_ids=(10,))],
+        [chunk],
+    )[0]
     assert row.comparison_status == "potentially-changed"
     assert row.timing_status == "registration-appears-after-data-collection-began"
     assert "appears" in row.explanation
     assert row.publication_evidence_text == chunk["text"]
+    assert row.search_scope["searched_chunk_ids"] == [60]
+    assert row.search_scope["publication_sources"] == [{"attachment_id": 10, "checksum": "article-hash"}]
+
+
+def test_timing_uses_only_chunks_in_the_recorded_search_scope() -> None:
+    commitment = _commitment(
+        1,
+        "registration-timing",
+        "2021-06-01",
+        value={"registered_at": "2021-06-01", "registration_status": "public"},
+    )
+    searched = {
+        "id": 70,
+        "attachment_id": 10,
+        "text": "Recruitment began on 2022-01-10.",
+        "section": "Methods",
+        "page_start": 3,
+        "page_end": 3,
+        "bbox_json": None,
+        "document_role": "article-fulltext",
+    }
+    outside_scope = dict(
+        searched,
+        id=71,
+        text="Analysis began on 2020-01-10.",
+        section="Discussion",
+        page_start=9,
+        page_end=9,
+    )
+    retrieval = _retrieval(1, searched_chunk_ids=(70,), searched_attachment_ids=(10,))
+
+    row = _compare([commitment], [retrieval], [searched, outside_scope])[0]
+
+    assert row.timing_status == "prospective-timing-supported"
+    assert row.publication_source_locator["chunk_id"] == 70
+
+
+def test_timing_accepts_slash_dates_and_surfaces_existing_data_and_later_updates() -> None:
+    collection = {
+        "id": 72,
+        "attachment_id": 10,
+        "text": "Data collection began on 2021/03/10 and ended on 2021/04/10.",
+        "section": "Methods",
+        "page_start": 3,
+        "page_end": 3,
+        "bbox_json": None,
+        "document_role": "article-fulltext",
+    }
+    retrieval = _retrieval(1, searched_chunk_ids=(72,), searched_attachment_ids=(10,))
+    existing_data = _commitment(
+        1,
+        "registration-timing",
+        "2021/01/01\nExisting-data response: Yes, some data have been collected.",
+        value={"registered_at": "2021/01/01", "existing_data_collected": True},
+    )
+    existing_row = _compare([existing_data], [retrieval], [collection])[0]
+    assert existing_row.timing_status == "registration-appears-after-data-collection-began"
+    assert "own existing-data response" in existing_row.explanation
+
+    amended = _commitment(
+        1,
+        "registration-timing",
+        "2021/01/01",
+        value={"registered_at": "2021/01/01", "updated_at": "2021/05/01"},
+    )
+    amended_row = _compare([amended], [retrieval], [collection])[0]
+    assert amended_row.timing_status == "registration-appears-after-data-collection-ended"
+    assert "latest recorded registration update" in amended_row.explanation.casefold()
+
+
+def test_empty_commitment_extraction_never_becomes_an_empty_positive_crosswalk() -> None:
+    rows = compare_registration_to_publication(
+        [],
+        [],
+        [],
+        attachment_checksums={},
+        registration_version_id=7,
+        registration_content_hash="registration-hash",
+        registration_attachment_id=90,
+    )
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.comparison_status == "extraction-uncertain"
+    assert row.field_type == "registration-document"
+    assert row.registration_source_locator["attachment_id"] == 90
+    assert row.search_scope["publication_search_performed"] is False
+    assert "not evidence" in row.uncertainty.casefold()
 
 
 def test_underspecified_and_semantically_unresolved_rows_are_not_forced_into_difference_verdicts() -> None:
@@ -224,13 +355,12 @@ def test_timing_can_support_prospective_order_or_remain_insufficient_without_cer
         "bbox_json": None,
         "document_role": "article-fulltext",
     }
-    prospective = _compare([commitment], [_retrieval(1)], [dated_chunk])[0]
+    retrieval = _retrieval(1, searched_chunk_ids=(61,), searched_attachment_ids=(10,))
+    prospective = _compare([commitment], [retrieval], [dated_chunk])[0]
     assert prospective.comparison_status == "aligned"
     assert prospective.timing_status == "prospective-timing-supported"
     assert "compliance" not in prospective.explanation.casefold()
-    insufficient = _compare(
-        [commitment], [_retrieval(1)], [dict(dated_chunk, text="Recruitment dates were reported.")]
-    )[0]
+    insufficient = _compare([commitment], [retrieval], [dict(dated_chunk, text="Recruitment dates were reported.")])[0]
     assert insufficient.comparison_status == "not-comparable"
     assert insufficient.timing_status == "insufficient-dates-to-compare"
 

@@ -529,7 +529,9 @@ the Principles + A-A gates before build.)*
   extraction; inc 430 adds section/study-aware article retrieval with explicit expansion and supplement scope.**
   Inc 431 adds persisted evidence-bound comparison rows, timing, human review, and stale-basis detection; inc 432
   completes the side-by-side inspection UI, controls, stale/incorrect-match recovery, security audit, and separate
-  evaluation manifest. This is the
+  evaluation manifest. Inc 433 completes the acceptance audit with bounded OSF pagination/file manifests,
+  transactional provider/link revalidation, fail-closed empty extraction, exact per-row search receipts, role-change
+  invalidation, and executable fixture traceability. This is the
   fraught, gated **RegCheck** track: a registration↔paper delta table, human-verified behind the auditability gate;
   **Increment 4** overlaps CRediT #26; the rest of **Increment 5** is a broader consistency registry
   (DEBIT/duplication analysis and perhaps a collection-level z-curve).

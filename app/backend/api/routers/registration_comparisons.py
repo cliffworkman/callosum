@@ -12,7 +12,12 @@ from sqlalchemy import Connection, Engine, select
 from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, SentenceTransformerEmbeddingModel
-from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, SUPPLEMENT
+from app.backend.persistence.document_roles import (
+    ARTICLE_DOCUMENT_ROLES,
+    PREREGISTRATION,
+    SUPPLEMENT,
+    normalized_document_role,
+)
 from app.backend.persistence.registration_commitments_repo import (
     get_registration_version,
     list_registration_commitments,
@@ -274,10 +279,22 @@ def _run_comparison_job(app: FastAPI, job_id: str, paper_id: int, configuration:
             attachment_checksums=checksums,
             registration_version_id=version_id,
             registration_content_hash=str(version["content_hash"]),
+            registration_attachment_id=(
+                int(version["attachment_id"]) if version["attachment_id"] is not None else None
+            ),
         )
-        run_id = run_write(
-            app.state.engine,
-            lambda conn: create_comparison_run(
+
+        def persist_run(conn: Connection) -> int:
+            current_link = (
+                conn.execute(
+                    select(paper_registration_links).where(paper_registration_links.c.id == version["link_id"])
+                )
+                .mappings()
+                .one()
+            )
+            if current_link["link_status"] != "confirmed" or not current_link["user_confirmed"]:
+                raise ValueError("The registration match is no longer confirmed; no comparison was saved.")
+            return create_comparison_run(
                 conn,
                 paper_id=paper_id,
                 link_id=int(version["link_id"]),
@@ -293,8 +310,9 @@ def _run_comparison_job(app: FastAPI, job_id: str, paper_id: int, configuration:
                 configuration=configuration,
                 model_versions={"embedding": {"name": model.name, "version": model.version}},
                 proposals=proposals,
-            ),
-        )
+            )
+
+        run_id = run_write(app.state.engine, persist_run)
         jobs.mark_done(
             job_id,
             ComparisonJobResult(
@@ -342,6 +360,17 @@ def _stale_reasons(engine: Engine, run) -> list[str]:
     with engine.connect() as conn:
         if current_link_hash(conn, int(run["link_id"])) != run["registration_content_hash"]:
             reasons.append("registration-content-changed")
+        version = get_registration_version(conn, int(run["paper_id"]), int(run["registration_version_id"]))
+        if version is None or version["attachment_id"] is None:
+            reasons.append("registration-attachment-unavailable")
+        else:
+            registration_attachment = (
+                conn.execute(select(attachments).where(attachments.c.id == version["attachment_id"])).mappings().first()
+            )
+            if registration_attachment is None:
+                reasons.append("registration-attachment-unavailable")
+            elif normalized_document_role(registration_attachment) != PREREGISTRATION:
+                reasons.append("registration-attachment-role-changed")
         confirmed = conn.scalar(
             select(paper_registration_links.c.id).where(
                 paper_registration_links.c.paper_id == run["paper_id"],

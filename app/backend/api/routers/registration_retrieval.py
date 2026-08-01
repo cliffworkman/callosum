@@ -51,6 +51,8 @@ class CommitmentRetrievalOut(BaseModel):
     sections_searched: list[str]
     whole_article_expanded: bool
     supplements_searched: bool
+    searched_chunk_ids: list[int]
+    searched_attachment_ids: list[int]
     study_mapping: Literal["matched", "unscoped", "ambiguous"]
     study_labels_found: list[str]
     hits: list[PublicationEvidenceOut]
@@ -119,6 +121,8 @@ def retrieve_registration_publication_evidence(
                 sections_searched=list(item.sections_searched),
                 whole_article_expanded=item.whole_article_expanded,
                 supplements_searched=item.supplements_searched,
+                searched_chunk_ids=list(item.searched_chunk_ids),
+                searched_attachment_ids=list(item.searched_attachment_ids),
                 study_mapping=item.study_mapping,
                 study_labels_found=list(item.study_labels_found),
                 hits=[PublicationEvidenceOut(**hit.__dict__) for hit in item.hits],

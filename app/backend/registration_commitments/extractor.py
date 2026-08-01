@@ -56,6 +56,7 @@ _TARGET_N = re.compile(
 
 def extract_commitments(version: Mapping[str, Any], chunks: Sequence[Mapping[str, Any]]) -> list[CommitmentCandidate]:
     structured = dict(version.get("structured_json") or {})
+    questions = structured.get("questions") or []
     attachment_id = version.get("attachment_id")
     base_locator = {
         "attachment_id": attachment_id,
@@ -78,32 +79,47 @@ def extract_commitments(version: Mapping[str, Any], chunks: Sequence[Mapping[str
         )
     if structured.get("registered_at"):
         timing = str(structured["registered_at"])
+        existing_data = _existing_data_timing(questions)
+        updated_at = _latest_response_update(structured.get("response_history") or [])
+        timing_value = {
+            "registered_at": timing,
+            "registration_status": structured.get("registration_status"),
+        }
+        timing_evidence = timing
+        timing_locator = base_locator | {"metadata_field": "registered_at"}
+        if updated_at:
+            timing_value["updated_at"] = updated_at
+        if existing_data:
+            timing_value |= {
+                "existing_data_collected": existing_data["collected"],
+                "existing_data_statement": existing_data["answer"],
+            }
+            timing_evidence += f"\nExisting-data response: {existing_data['answer']}"
+            timing_locator["existing_data_response_key"] = existing_data["response_key"]
         result.append(
             CommitmentCandidate(
                 field_type="registration-timing",
                 study_label=None,
-                structured_value={
-                    "registered_at": timing,
-                    "registration_status": structured.get("registration_status"),
-                },
-                evidence_text=timing,
+                structured_value=timing_value,
+                evidence_text=timing_evidence,
                 source_section="Registration metadata",
                 source_key="registration-metadata:registered-at",
                 page=None,
                 chunk_id=None,
-                source_locator=base_locator | {"metadata_field": "registered_at"},
+                source_locator=timing_locator,
                 extraction_method="structured-registry-metadata",
                 extraction_confidence="high",
             )
         )
 
-    questions = structured.get("questions") or []
     if questions:
         for question in questions:
             answer = _answer_text(question.get("answer"))
             if not answer:
                 continue
             response_key = str(question.get("response_key") or f"question-{len(result)}")
+            if response_key == "aspredicted-1" and structured.get("registered_at"):
+                continue
             mapping = _map_field(
                 f"{question.get('section') or ''} {question.get('label') or ''}",
                 response_key=response_key,
@@ -286,3 +302,25 @@ def _unique(candidate: CommitmentCandidate, prior: Sequence[CommitmentCandidate]
         and item.evidence_text == candidate.evidence_text
         for item in prior
     )
+
+
+def _existing_data_timing(questions: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
+    question = next((item for item in questions if item.get("response_key") == "aspredicted-1"), None)
+    if question is None:
+        return None
+    answer = _answer_text(question.get("answer"))
+    lowered = answer.casefold()
+    if not answer:
+        collected = None
+    elif re.search(r"\b(?:no|none)\b.{0,40}\bdata\b.{0,40}\bcollected\b", lowered):
+        collected = False
+    elif re.search(r"\b(?:yes|some|all)\b.{0,60}\bdata\b", lowered) or "data have been collected" in lowered:
+        collected = True
+    else:
+        collected = None
+    return {"response_key": "aspredicted-1", "answer": answer, "collected": collected}
+
+
+def _latest_response_update(history: Sequence[Mapping[str, Any]]) -> str | None:
+    values = [str(item.get("date_modified") or "") for item in history if item.get("date_modified")]
+    return max(values, default=None)

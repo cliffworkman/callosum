@@ -24,6 +24,10 @@
 - Provider errors classified/visible/isolated. Failed download/import cannot corrupt prior links, files, or versions.
 - Registration versions immutable by content hash; article/supplement/extraction/chunk/pipeline fingerprints stale old
   comparisons. Incorrect/rejected links cannot start new comparisons, including stale-client races.
+- Exact searched chunk IDs and attachment checksums are persisted per row; timing cannot inspect text outside that
+  receipt. Empty extraction fails closed as an `extraction-uncertain` row rather than an empty positive-looking run.
+- Local attachment-role changes make the affected registration link unavailable and stale prior comparisons. Both
+  acquisition and comparison recheck confirmation inside their final write transaction.
 - Document-scope API/AST guard structurally excludes preregistration/protocol/other chunks from ordinary article
   synthesis/search/Methods/embeddings and from the publication side of comparison.
 - SQLAlchemy bound expressions and FK/check constraints protect controlled states. React renders provider/evidence
@@ -45,7 +49,8 @@
 - Dedicated discovery and acquisition audits remain applicable and are incorporated by reference.
 - Structural document-scope, provider negative-path, migration, staleness, incorrect-match race, frontend assembly,
   QA surface-map, and curated evaluation-manifest tests pass in the final gate.
-- Final full-suite result: **1766 passed, 1 skipped**; computed QA coverage: **351/351 API** and **1537/1537 FE**.
+- Increment 433 final full suite: **1778 passed, 1 skipped**; computed QA coverage remains **351/351 API** and
+  **1537/1537 frontend**, zero uncovered.
 
 ## Result
 

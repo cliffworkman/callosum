@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 432** (see Increment workflow) with **1766 pytest tests
+It is currently at **Increment 433** (see Increment workflow) with **1778 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -75,6 +75,10 @@ the full per-increment narrative for all other increments now lives in the reloc
   opening/raw inspection, timing/scope/uncertainty, row review/dismiss/note, stale recovery, and incorrect-match
   correction. Incorrect links cannot start a comparison. The all-aligned state still denies a positive certificate;
   amber/indigo/neutral chrome never turns the crosswalk into a green paper grade.
+- **Registration workflow hardening (inc 433):** OSF collections/file manifests are bounded and paginated; provider
+  status and user confirmation are rechecked at transactional writes; empty extraction fails closed; exact searched
+  chunks/source checksums constrain timing and remain visible; attachment-role changes invalidate local links; and
+  timing incorporates existing-data/update evidence. Every curated evaluation case traces to an executable test.
 - **Methods (deterministic, local, no-LLM):** statcheck NHST p-value recomputation (`scipy.stats`), inc 95;
   inc 387 conservatively adds clearly headed table rows from local PDF/JATS/XML/HTML/DOCX/ODT attachments
   without mixing reconstructed rows into prose chunks or embeddings; inc 388 keeps the evidence-bearing PDF

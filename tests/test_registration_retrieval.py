@@ -182,6 +182,8 @@ def test_retrieval_starts_in_compatible_sections_then_expands_and_excludes_regis
     assert sample["study_mapping"] == "matched"
     assert sample["hits"][0]["chunk_id"] == sample_chunk
     assert sample["hits"][0]["search_phase"] == "expected-sections"
+    assert sample_chunk in sample["searched_chunk_ids"]
+    assert sample["searched_attachment_ids"] == [sample["hits"][0]["attachment_id"]]
     assert "Context immediately before" in sample["hits"][0]["context_text"]
     assert "Context immediately after" in sample["hits"][0]["context_text"]
 
@@ -195,6 +197,7 @@ def test_retrieval_starts_in_compatible_sections_then_expands_and_excludes_regis
     assert model["hits"][0]["chunk_id"] == regression_chunk
     assert model["hits"][0]["search_phase"] == "whole-article"
     assert "discussion" in model["sections_searched"]
+    assert regression_chunk in model["searched_chunk_ids"]
 
     assert registration_id not in {hit["attachment_id"] for row in payload["results"] for hit in row["hits"]}
     assert all("not proof" in row["non_detection_note"] for row in payload["results"])
@@ -221,6 +224,7 @@ def test_supplements_are_searched_only_when_explicitly_requested(temp_db_url: st
     assert sampling["supplements_searched"] is False
     assert any(hit["document_role"] == "supplement" for hit in primary["hits"])
     assert "supplement" in primary["sections_searched"]
+    assert len(primary["searched_attachment_ids"]) == 2
     engine.dispose()
 
 

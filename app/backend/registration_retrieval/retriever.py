@@ -91,6 +91,7 @@ def retrieve_publication_evidence(
         expected = _COMPATIBLE_SECTIONS.get(str(commitment["field_type"]), _DEFAULT_SECTIONS)
         study_mapping, scoped_article = _study_scope(article, commitment.get("study_label"), study_labels)
         bounded = [row for row in scoped_article if _section_family(row) in expected]
+        searched_rows = list(bounded)
         sections_searched = {_section_family(row) for row in bounded}
         query = _query(commitment)
         hits = _rank(
@@ -105,6 +106,7 @@ def retrieve_publication_evidence(
         expanded = False
         if expand_beyond_expected and not _has_usable_hit(hits):
             expanded = True
+            searched_rows = list(scoped_article)
             sections_searched.update(_section_family(row) for row in scoped_article)
             hits = _rank(
                 query,
@@ -119,6 +121,7 @@ def retrieve_publication_evidence(
         search_supplements = include_supplements and str(commitment["field_type"]) in _SUPPLEMENT_RELEVANT_FIELDS
         if search_supplements:
             scoped_supplements = _scope_supplements(supplements, commitment.get("study_label"))
+            searched_rows.extend(scoped_supplements)
             sections_searched.update(_section_family(row, supplement=True) for row in scoped_supplements)
             supplement_hits = _rank(
                 query,
@@ -139,6 +142,8 @@ def retrieve_publication_evidence(
                 sections_searched=tuple(sorted(sections_searched)),
                 whole_article_expanded=expanded,
                 supplements_searched=search_supplements,
+                searched_chunk_ids=tuple(dict.fromkeys(int(row["id"]) for row in searched_rows)),
+                searched_attachment_ids=tuple(dict.fromkeys(int(row["attachment_id"]) for row in searched_rows)),
                 study_mapping=study_mapping,
                 study_labels_found=tuple(study_labels),
                 hits=tuple(combined),

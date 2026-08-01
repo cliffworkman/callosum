@@ -30,7 +30,14 @@ withdrawn candidate. Capture browser requests, console, and page errors. AI egre
    version, fresh search/another confirmation path, and backend refusal if a stale client submits anyway.
 8. Use a run with no difference flags. Verify it says no positive certificate is implied and shows no green “pass,”
    compliance/integrity/risk/deviation score, author judgment, or “authors followed/failed” wording.
-9. Repeat at 375px. Verify evidence columns stack, controls do not overflow, and source/review actions remain usable.
+9. Use an unsupported/empty registration extraction. Verify one **Extraction uncertain** document row appears, no
+   publication search is claimed, and the run does not look like an empty successful crosswalk.
+10. While acquisition/comparison is running, reject the candidate or choose **Incorrect registration match**. Verify
+    the stale job cannot import/save. Re-role a local registration to **Other** and verify the panel refreshes, the
+    link becomes unavailable, and existing runs stale.
+11. Inspect a timing row and verify its searched chunk IDs/source attachment checksums match the visible evidence;
+    an out-of-scope dated passage must not change the result.
+12. Repeat at 375px. Verify evidence columns stack, controls do not overflow, and source/review actions remain usable.
 
 ## Pass criteria
 

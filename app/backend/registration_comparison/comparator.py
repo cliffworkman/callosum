@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
-from datetime import datetime
 from typing import Any
 
 from app.backend.registration_comparison.domain import ComparisonProposal
+from app.backend.registration_comparison.timing import compare_timing
 from app.backend.registration_retrieval.domain import CommitmentRetrieval, PublicationEvidenceHit
 from app.backend.registration_retrieval.retriever import MIN_SIMILARITY
 
@@ -16,7 +16,6 @@ _UNCERTAINTY = (
     "a legitimate deviation, extraction failure, or an incorrect registration match."
 )
 _NUMBER = re.compile(r"\b([1-9][0-9]{1,6})\b")
-_DATE = re.compile(r"\b(19|20)\d{2}(?:-[01]\d-[0-3]\d)?\b")
 _VAGUE = ("to be determined", "as appropriate", "standard methods", "if necessary", "may be", "not specified")
 _DEVIATION = ("deviat", "changed from", "change from", "not preregistered", "not pre-registered", "amend")
 _MODEL_FAMILIES = (
@@ -63,7 +62,16 @@ def compare_registration_to_publication(
     attachment_checksums: Mapping[int, str | None],
     registration_version_id: int,
     registration_content_hash: str,
+    registration_attachment_id: int | None = None,
 ) -> list[ComparisonProposal]:
+    if not commitments:
+        return [
+            _empty_extraction_proposal(
+                registration_version_id,
+                registration_content_hash,
+                registration_attachment_id,
+            )
+        ]
     retrieval_by_commitment = {item.commitment_id: item for item in retrievals}
     proposals = []
     for commitment in commitments:
@@ -86,6 +94,45 @@ def compare_registration_to_publication(
         )
     )
     return proposals
+
+
+def _empty_extraction_proposal(
+    registration_version_id: int,
+    registration_content_hash: str,
+    registration_attachment_id: int | None,
+) -> ComparisonProposal:
+    return ComparisonProposal(
+        commitment_id=None,
+        field_type="registration-document",
+        registration_value=None,
+        registration_evidence_text=None,
+        registration_source_locator={
+            "attachment_id": registration_attachment_id,
+            "registration_version_id": registration_version_id,
+            "registration_content_hash": registration_content_hash,
+        },
+        publication_value=None,
+        publication_evidence_text=None,
+        publication_source_locator=None,
+        comparison_status="extraction-uncertain",
+        timing_status=None,
+        explanation=(
+            "No canonical commitments were extracted from this registration version, so Callosum did not classify "
+            "publication alignment. Inspect the stored registration and extraction basis."
+        ),
+        uncertainty=(
+            "An empty extraction is not evidence that the registration contained no commitments. It may reflect "
+            "underspecification, an unsupported form, or extraction failure."
+        ),
+        search_scope={
+            "registration_extraction": "no-canonical-commitments",
+            "publication_search_performed": False,
+            "non_detection_note": "No comparison search was run; this is not a positive certificate.",
+            "publication_sources": [],
+        },
+        publication_attachment_id=None,
+        publication_attachment_checksum=None,
+    )
 
 
 def _compare_commitment(
@@ -111,7 +158,9 @@ def _compare_commitment(
         status = "extraction-uncertain"
         explanation = "The registration field mapping is uncertain, so Callosum did not classify document alignment."
     elif commitment["field_type"] == "registration-timing":
-        status, timing_status, explanation, hit = _compare_timing(registration_value, publication_chunks, hit)
+        searched_ids = set(retrieval.searched_chunk_ids)
+        searched_chunks = [row for row in publication_chunks if int(row["id"]) in searched_ids]
+        status, timing_status, explanation, hit = compare_timing(registration_value, searched_chunks)
         publication_text = hit.text if hit else None
         publication_value = {"text": publication_text} if publication_text else None
     elif hit is None:
@@ -150,7 +199,7 @@ def _compare_commitment(
         timing_status=timing_status,
         explanation=explanation,
         uncertainty=_UNCERTAINTY,
-        search_scope=_search_scope(retrieval),
+        search_scope=_search_scope(retrieval, attachment_checksums),
         publication_attachment_id=attachment_id,
         publication_attachment_checksum=attachment_checksums.get(attachment_id) if attachment_id else None,
     )
@@ -202,6 +251,30 @@ def _compare_values(
                 f"The logical threshold appears different: {registered_logic} versus {reported_logic}.",
                 values,
             )
+    if field_type == "stopping-rule":
+        registered_stop = _stopping_signature(registration_text)
+        reported_stop = _stopping_signature(publication_text)
+        values = {"reported_stopping_rule": reported_stop} if reported_stop else {}
+        if registered_stop and reported_stop:
+            if registered_stop == reported_stop:
+                return "aligned", "Both passages state the same explicit stopping-rule trigger.", values
+            return (
+                "potentially-changed",
+                "The explicit stopping-rule triggers differ between the selected passages.",
+                values,
+            )
+    if field_type == "covariate":
+        registered_covariates = _named_covariates(registration_text)
+        reported_covariates = _named_covariates(publication_text)
+        values = {"reported_covariates": sorted(reported_covariates)} if reported_covariates else {}
+        if registered_covariates and reported_covariates:
+            if registered_covariates == reported_covariates:
+                return "aligned", "Both passages name the same covariate set.", values
+            return (
+                "potentially-changed",
+                "The named covariate sets differ between the selected passages.",
+                values,
+            )
     if field_type == "statistical-model":
         registered_model = _model_family(registration_text)
         reported_model = _model_family(publication_text)
@@ -233,58 +306,6 @@ def _compare_values(
     )
 
 
-def _compare_timing(
-    registration_value: Mapping[str, Any],
-    publication_chunks: Sequence[Mapping],
-    fallback_hit: PublicationEvidenceHit | None,
-) -> tuple[str, str, str, PublicationEvidenceHit | None]:
-    registered = _parse_date(str(registration_value.get("registered_at") or ""))
-    dates = _publication_dates(publication_chunks)
-    if registered is None:
-        return "not-comparable", "timing-unclear", "The registration timestamp could not be parsed.", fallback_hit
-    if not dates:
-        return (
-            "not-comparable",
-            "insufficient-dates-to-compare",
-            "No bounded recruitment, data-collection, or analysis date was located in the publication text.",
-            fallback_hit,
-        )
-    analysis = [item for item in dates if item[0] == "analysis"]
-    ended = [item for item in dates if item[0] == "ended"]
-    began = [item for item in dates if item[0] == "began"]
-    analysis_event = min(analysis, key=lambda item: item[1], default=None)
-    ended_event = min(ended, key=lambda item: item[1], default=None)
-    began_event = min(began, key=lambda item: item[1], default=None)
-    if analysis_event and registered > analysis_event[1]:
-        return (
-            "potentially-changed",
-            "registration-appears-after-analysis",
-            "The registration timestamp appears later than a reported analysis date.",
-            _hit_from_chunk(analysis_event[2]),
-        )
-    if ended_event and registered > ended_event[1]:
-        return (
-            "potentially-changed",
-            "registration-appears-after-data-collection-ended",
-            "The registration timestamp appears later than a reported data-collection end date.",
-            _hit_from_chunk(ended_event[2]),
-        )
-    if began_event and registered > began_event[1]:
-        return (
-            "potentially-changed",
-            "registration-appears-after-data-collection-began",
-            "The registration timestamp appears later than a reported data-collection start date.",
-            _hit_from_chunk(began_event[2]),
-        )
-    first_activity = min(dates, key=lambda item: item[1])
-    return (
-        "aligned",
-        "prospective-timing-supported",
-        "The registration timestamp precedes the reported dated research activity in the located passage.",
-        _hit_from_chunk(first_activity[2]),
-    )
-
-
 def _reported_items_without_registration(
     commitments: Sequence[Mapping],
     chunks: Sequence[Mapping],
@@ -297,6 +318,7 @@ def _reported_items_without_registration(
     patterns = {
         "primary-outcome": re.compile(r"\bprimary\s+(?:outcome|endpoint|dependent variable)\b", re.I),
         "secondary-outcome": re.compile(r"\bsecondary\s+(?:outcome|endpoint|dependent variable)\b", re.I),
+        "covariate": re.compile(r"\b(?:covariate|adjusted?\s+for|controlling\s+for)\b", re.I),
     }
     result = []
     for field_type, pattern in patterns.items():
@@ -339,44 +361,6 @@ def _reported_items_without_registration(
     return result
 
 
-def _publication_dates(chunks: Sequence[Mapping]) -> list[tuple[str, datetime, Mapping]]:
-    result = []
-    for chunk in chunks:
-        text = str(chunk.get("text") or "")
-        dates = [_parse_date(match.group(0)) for match in _DATE.finditer(text)]
-        dates = [value for value in dates if value is not None]
-        if not dates:
-            continue
-        lowered = text.casefold()
-        kind = None
-        if "analy" in lowered:
-            kind = "analysis"
-        elif any(term in lowered for term in ("ended", "completed", "data collection through", "recruited through")):
-            kind = "ended"
-        elif any(term in lowered for term in ("began", "started", "recruit", "data collection from")):
-            kind = "began"
-        if kind:
-            result.extend((kind, value, chunk) for value in dates)
-    return result
-
-
-def _hit_from_chunk(chunk: Mapping) -> PublicationEvidenceHit:
-    return PublicationEvidenceHit(
-        chunk_id=int(chunk["id"]),
-        attachment_id=int(chunk["attachment_id"]),
-        document_role="supplement" if chunk.get("document_role") == "supplement" else "article-fulltext",
-        text=str(chunk.get("text") or ""),
-        context_text=str(chunk.get("text") or ""),
-        section=chunk.get("section"),
-        section_family=str(chunk.get("section") or "unknown").casefold(),
-        page_start=int(chunk["page_start"]),
-        page_end=int(chunk["page_end"]),
-        bbox=chunk.get("bbox_json"),
-        similarity=1.0,
-        search_phase="expected-sections",
-    )
-
-
 def _usable_hit(hits: Sequence[PublicationEvidenceHit]) -> PublicationEvidenceHit | None:
     return hits[0] if hits and hits[0].similarity >= MIN_SIMILARITY else None
 
@@ -405,12 +389,17 @@ def _chunk_locator(chunk: Mapping) -> dict[str, Any]:
     }
 
 
-def _search_scope(retrieval: CommitmentRetrieval) -> dict[str, Any]:
+def _search_scope(retrieval: CommitmentRetrieval, attachment_checksums: Mapping[int, str | None]) -> dict[str, Any]:
     return {
         "expected_section_families": list(retrieval.expected_section_families),
         "sections_searched": list(retrieval.sections_searched),
         "whole_article_expanded": retrieval.whole_article_expanded,
         "supplements_searched": retrieval.supplements_searched,
+        "searched_chunk_ids": list(retrieval.searched_chunk_ids),
+        "publication_sources": [
+            {"attachment_id": attachment_id, "checksum": attachment_checksums.get(attachment_id)}
+            for attachment_id in retrieval.searched_attachment_ids
+        ],
         "study_mapping": retrieval.study_mapping,
         "study_labels_found": list(retrieval.study_labels_found),
         "non_detection_note": "Not located is not proof of non-reporting.",
@@ -454,6 +443,39 @@ def _logical_threshold(text: str) -> str | None:
     return None
 
 
+def _stopping_signature(text: str) -> dict[str, Any] | None:
+    lowered = text.casefold()
+    number = _sample_number(text) or _first_number(text)
+    if number is not None and any(term in lowered for term in ("stop", "until", "target", "collect", "recruit")):
+        return {"kind": "sample-target", "value": number}
+    if any(term in lowered for term in ("end of the semester", "end of semester", "funding expires")):
+        return {"kind": "calendar-or-resource-trigger"}
+    if "precision" in lowered:
+        return {"kind": "precision-trigger"}
+    return None
+
+
+def _named_covariates(text: str) -> set[str]:
+    lowered = " ".join(text.casefold().split())
+    candidates: list[str] = []
+    patterns = (
+        r"\b([a-z][a-z0-9_-]{1,30})\s+(?:will\s+be\s+|was\s+|were\s+)?included\s+as\s+(?:a\s+)?covariate\b",
+        r"\binclude\s+([a-z][a-z0-9 ,/-]{1,80}?)\s+as\s+covariates?\b",
+        r"\b(?:adjusted?|controlling)\s+for\s+([a-z][a-z0-9 ,/-]{1,80})",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, lowered)
+        if not match:
+            continue
+        candidates.extend(re.split(r"\s*(?:,|/|\band\b)\s*", match.group(1)))
+    noise = {"included", "include", "used", "use", "the", "a", "an"}
+    return {
+        value.strip(" .")
+        for value in candidates
+        if value.strip(" .") and value.strip(" .") not in noise and len(value.strip(" .").split()) <= 5
+    }
+
+
 def _model_family(text: str) -> str | None:
     lowered = text.casefold()
     return next((family for family in _MODEL_FAMILIES if family in lowered), None)
@@ -474,14 +496,3 @@ def _token_overlap(left: str, right: str) -> float:
 
 def _tokens(text: str) -> set[str]:
     return {token for token in re.findall(r"[a-z0-9]+", text.casefold()) if len(token) > 2 and token not in _STOPWORDS}
-
-
-def _parse_date(value: str) -> datetime | None:
-    match = _DATE.search(value)
-    if not match:
-        return None
-    token = match.group(0)
-    try:
-        return datetime.fromisoformat(token if "-" in token else f"{token}-01-01")
-    except ValueError:
-        return None

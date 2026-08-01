@@ -551,7 +551,9 @@ disclosed-deviation/provenance cue, and neutral `--line-2` for aligned/not-compa
 Evidence is a two-column `minmax(0,1fr)` grid of quiet `--panel-2` cells with serif blockquotes and source links; at
 phone width it stacks to one column. Stale/framing notices use the amber `--flag-soft` family. Raw stored records use a
 bounded mono `<pre>`. Review notes use the standard textarea/actions recipe. No row/status treatment may imply an
-overall certificate or paper/author grade.
+overall certificate or paper/author grade. An empty commitment extraction renders one neutral **Extraction uncertain**
+row rather than a blank result, and expanded scope details name the exact source attachments/checksum prefixes so a
+reader can reconcile the visible evidence with the stored search receipt.
 `PaneAccordion`'s tab strip carries a per-section `pane-tabs-<sectionId>` class hook (e.g. `.pane-tabs-checklists`)
 so one multi-tab section can opt into a bespoke layout (the Checklists 2×2 grid) with a CSS rule only — no change
 to `05_panes.jsx`'s render logic. Every tab/section `render(ctx, isVisible)` also receives whether it is actually

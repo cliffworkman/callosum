@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.registration_links_repo import list_registration_links, upsert_registration_candidates
 from app.backend.persistence.repository import create_paper
 from app.backend.registration_discovery.datacite_provider import DataCiteRegistrationProvider
 from app.backend.registration_discovery.direct_provider import DirectReferenceProvider
@@ -17,6 +18,8 @@ from app.backend.registration_discovery.domain import (
     ProviderReport,
     RegistrationCandidate,
     RegistrationDiscoveryRegistry,
+    contextual_class,
+    contextual_evidence,
 )
 from app.backend.registration_discovery.http import RegistryHttpError, _validate_registry_url
 from app.backend.registration_discovery.osf_provider import OsfRegistrationProvider
@@ -168,6 +171,50 @@ def test_datacite_reverse_lookup_preserves_relation_type() -> None:
     assert candidate.linkage_class == "explicit-linkage"
     assert candidate.source_metadata["datacite_relation_types"] == ["References"]
     assert any("10.5555/publication" in call for call in calls)
+
+
+def test_overlapping_title_and_author_stays_similarity_only_when_date_order_conflicts() -> None:
+    candidate = RegistrationCandidate(
+        **{
+            **_candidate().__dict__,
+            "registered_at": "2026-02-01",
+            "linkage_class": "similarity-candidate",
+            "match_evidence": (),
+        }
+    )
+    evidence = contextual_evidence(_request(), candidate)
+
+    assert {item["kind"] for item in evidence} == {"title-terms", "contributor-overlap", "date-order"}
+    assert contextual_class(evidence) == "similarity-candidate"
+
+
+def test_multiple_candidates_stay_separate_unattached_records(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(conn, title="Multiple registrations", csl_json={"title": "Multiple registrations"})
+        upsert_registration_candidates(conn, paper_id, [_candidate("ab12c"), _candidate("xy789")])
+        rows = list_registration_links(conn, paper_id)
+    engine.dispose()
+
+    assert {row["external_id"] for row in rows} == {"ab12c", "xy789"}
+    assert all(row["link_status"] == "candidate" for row in rows)
+    assert all(row["attachment_id"] is None for row in rows)
+
+
+def test_one_registration_identity_can_link_to_multiple_papers(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        first = create_paper(conn, title="Report one", csl_json={"title": "Report one"})
+        second = create_paper(conn, title="Report two", csl_json={"title": "Report two"})
+        upsert_registration_candidates(conn, first, [_candidate("shared1")])
+        upsert_registration_candidates(conn, second, [_candidate("shared1")])
+        first_link = list_registration_links(conn, first)[0]
+        second_link = list_registration_links(conn, second)[0]
+    engine.dispose()
+
+    assert first_link["external_id"] == second_link["external_id"] == "shared1"
+    assert first_link["id"] != second_link["id"]
+    assert first_link["paper_id"] != second_link["paper_id"]
 
 
 def test_registry_keeps_direct_candidates_when_another_provider_fails() -> None:

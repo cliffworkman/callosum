@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime, timezone
 
 from sqlalchemy import Connection, delete, insert, or_, select, update
 
 from app.backend.methods.registration_references import RegistrationReference
 from app.backend.persistence.document_roles import (
     ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES,
+    PREREGISTRATION,
     attachment_document_role_clause,
 )
-from app.backend.persistence.registration_schema import paper_registration_references
+from app.backend.persistence.registration_schema import paper_registration_links, paper_registration_references
 from app.backend.persistence.schema import attachments
 
 
@@ -102,6 +104,20 @@ def set_attachment_document_role(conn: Connection, paper_id: int, attachment_id:
                 paper_registration_references.c.paper_id == paper_id,
                 paper_registration_references.c.attachment_id == attachment_id,
                 paper_registration_references.c.extraction_method != "manual",
+            )
+        )
+    if result.rowcount and role != PREREGISTRATION:
+        conn.execute(
+            update(paper_registration_links)
+            .where(
+                paper_registration_links.c.paper_id == paper_id,
+                paper_registration_links.c.attachment_id == attachment_id,
+                paper_registration_links.c.provider == "manual-local",
+            )
+            .values(
+                link_status="unavailable",
+                user_confirmed=False,
+                updated_at=datetime.now(timezone.utc),
             )
         )
     return bool(result.rowcount)

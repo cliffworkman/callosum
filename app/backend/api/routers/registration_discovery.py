@@ -6,11 +6,12 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import Connection, Engine
+from sqlalchemy import Connection, Engine, select
 from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
+from app.backend.persistence.document_roles import PREREGISTRATION, normalized_document_role
 from app.backend.persistence.registration_links_repo import (
     list_registration_links,
     set_registration_link_status,
@@ -18,6 +19,7 @@ from app.backend.persistence.registration_links_repo import (
 )
 from app.backend.persistence.registration_references_repo import list_registration_references
 from app.backend.persistence.repository import get_paper
+from app.backend.persistence.schema import attachments
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.registration_discovery.domain import DiscoveryReference, DiscoveryRequest
 from app.backend.registration_discovery.providers import build_registration_discovery_registry
@@ -149,6 +151,22 @@ def _change_link(engine: Engine, paper_id: int, link_id: int, status: str, *, us
         )
         if row is None:
             raise HTTPException(status_code=404, detail="Registration candidate not found on this paper")
+        if status == "confirmed" and row["provider"] == "manual-local":
+            attachment = (
+                conn.execute(
+                    select(attachments).where(
+                        attachments.c.id == row["attachment_id"],
+                        attachments.c.paper_id == paper_id,
+                    )
+                )
+                .mappings()
+                .first()
+            )
+            if attachment is None or normalized_document_role(attachment) != PREREGISTRATION:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Mark the local attachment as a registration before confirming this link.",
+                )
         if status == "confirmed" and (
             row["link_status"] in {"withdrawn", "unavailable", "embargoed"}
             or row["registration_status"] in {"withdrawn", "unavailable", "embargoed"}

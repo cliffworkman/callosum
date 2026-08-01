@@ -56,11 +56,18 @@ def record_acquired_registration_version(
     existing = get_registration_version_by_hash(conn, link_id, acquired.content_hash)
     now = datetime.now(timezone.utc)
     if existing is not None:
+        restored_attachment_id = existing["attachment_id"] or attachment_id
+        if existing["attachment_id"] is None:
+            conn.execute(
+                update(registration_document_versions)
+                .where(registration_document_versions.c.id == existing["id"])
+                .values(attachment_id=restored_attachment_id, retrieved_at=now)
+            )
         conn.execute(
             update(paper_registration_links)
             .where(paper_registration_links.c.id == link_id, paper_registration_links.c.paper_id == paper_id)
             .values(
-                attachment_id=existing["attachment_id"],
+                attachment_id=restored_attachment_id,
                 content_hash=acquired.content_hash,
                 retrieved_at=now,
                 source_metadata_json=acquired.source_metadata,

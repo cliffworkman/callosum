@@ -156,16 +156,18 @@ def _run_acquisition_job(app: FastAPI, job_id: str, paper_id: int, link_id: int)
     try:
         with app.state.engine.connect() as conn:
             link_row = get_registration_link(conn, paper_id, link_id)
-            if link_row is None or link_row["link_status"] != "confirmed":
+            if link_row is None or link_row["link_status"] != "confirmed" or not link_row["user_confirmed"]:
                 raise RegistrationAcquisitionError("The confirmed registration link is no longer available.")
             link = dict(link_row)
         if link["provider"] == "manual-local":
             if link["attachment_id"] is None:
                 raise RegistrationAcquisitionError("The local registration link has no attachment.")
-            version_id = run_write(
-                app.state.engine,
-                lambda conn: record_local_registration_version(conn, paper_id, link_id, int(link["attachment_id"])),
-            )
+
+            def record_local(conn: Connection) -> int:
+                _require_still_confirmed(conn, paper_id, link_id)
+                return record_local_registration_version(conn, paper_id, link_id, int(link["attachment_id"]))
+
+            version_id = run_write(app.state.engine, record_local)
             result = AcquisitionResult(
                 job_id=job_id,
                 status="done",
@@ -180,15 +182,22 @@ def _run_acquisition_job(app: FastAPI, job_id: str, paper_id: int, link_id: int)
             return
         registry = app.state.registration_acquisition_registry or build_registration_acquisition_registry()
         acquired = registry.acquire(link)
-        with app.state.engine.connect() as conn:
-            existing = get_registration_version_by_hash(conn, link_id, acquired.content_hash)
-        if existing is not None:
-            version_id, _ = run_write(
-                app.state.engine,
-                lambda conn: record_acquired_registration_version(
-                    conn, paper_id, link_id, int(existing["attachment_id"]), acquired
-                ),
+        if acquired.registration_status in {"withdrawn", "unavailable", "embargoed"}:
+            raise RegistrationAcquisitionError(
+                f"The registry now reports this registration as {acquired.registration_status}; no artifact was imported."
             )
+        with app.state.engine.connect() as conn:
+            _require_still_confirmed(conn, paper_id, link_id)
+            existing = get_registration_version_by_hash(conn, link_id, acquired.content_hash)
+        if existing is not None and existing["attachment_id"] is not None:
+
+            def record_existing(conn: Connection) -> tuple[int, bool]:
+                _require_still_confirmed(conn, paper_id, link_id)
+                return record_acquired_registration_version(
+                    conn, paper_id, link_id, int(existing["attachment_id"]), acquired
+                )
+
+            version_id, _ = run_write(app.state.engine, record_existing)
             result = AcquisitionResult(
                 job_id=job_id,
                 status="done",
@@ -208,6 +217,7 @@ def _run_acquisition_job(app: FastAPI, job_id: str, paper_id: int, link_id: int)
         managed_path = managed_registration_path(acquired)
 
         def write(conn: Connection) -> tuple[dict, int]:
+            _require_still_confirmed(conn, paper_id, link_id)
             attachment = import_acquired_registration(conn, paper_id, acquired, temp_path, managed_path)
             version_id, _ = record_acquired_registration_version(
                 conn, paper_id, link_id, int(attachment["attachment_id"]), acquired
@@ -233,3 +243,9 @@ def _run_acquisition_job(app: FastAPI, job_id: str, paper_id: int, link_id: int)
     finally:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)
+
+
+def _require_still_confirmed(conn: Connection, paper_id: int, link_id: int) -> None:
+    current = get_registration_link(conn, paper_id, link_id)
+    if current is None or current["link_status"] != "confirmed" or not current["user_confirmed"]:
+        raise RegistrationAcquisitionError("The registration match is no longer confirmed; acquisition was stopped.")

@@ -58,6 +58,7 @@ const TRANSPARENCY_CSL = [
 function TransparencyPaper({ paperId, onOpenPaper, active }) {
   const [meta, setMeta] = useState(null); // { title, hasText } | null
   const [state, setState] = useState({ status: "idle" });
+  const [registrationRefresh, setRegistrationRefresh] = useState(0);
   useEffect(() => {
     setState({ status: "idle" }); setMeta(null);
     if (paperId == null) return;
@@ -83,6 +84,13 @@ function TransparencyPaper({ paperId, onOpenPaper, active }) {
     const target = methodEvidenceTarget(paperId, title, evidence, key);
     if (target) onOpenPaper({ id: paperId, title }, target);
   };
+  const registrationSourceChanged = () => {
+    setRegistrationRefresh(value => value + 1);
+    api(`/papers/${paperId}`).then(r => {
+      if (r.ok) setMeta({ title: r.data.title, hasText: (r.data.chunk_count || 0) > 0, attachments: r.data.attachments || [] });
+    });
+    run();
+  };
   if (paperId == null) return <div className="tag-suggest-empty">Select a paper to check its transparency disclosures.</div>;
   const hasText = meta ? meta.hasText : false;
   const d = state.data;
@@ -100,8 +108,10 @@ function TransparencyPaper({ paperId, onOpenPaper, active }) {
       {state.status === "error" && <div className="axis-err">Couldn't check: {state.error}</div>}
       {state.status === "done" && d && <TransparencyChecklist checks={d.checks} onOpen={open}
         references={d.registration_references} referenceState={d.registration_reference_state} />}
-      {meta && <RegistrationDiscovery paperId={paperId} paperTitle={meta.title} onOpenPaper={onOpenPaper} />}
-      {meta && <RegistrationReferenceActions paperId={paperId} attachments={meta.attachments} onChanged={run} />}
+      {meta && <RegistrationDiscovery paperId={paperId} paperTitle={meta.title} onOpenPaper={onOpenPaper}
+        refreshKey={registrationRefresh} />}
+      {meta && <RegistrationReferenceActions paperId={paperId} attachments={meta.attachments}
+        onChanged={registrationSourceChanged} />}
     </div>
   );
 }
@@ -224,7 +234,7 @@ function RegistrationReferenceActions({ paperId, attachments, onChanged }) {
 
 // inc 427: registry discovery is an explicit metadata-egress action. Merely opening Methods fetches only
 // already-local candidate state. Confirmation records a link; acquisition remains a separate user action.
-function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper }) {
+function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper, refreshKey = 0 }) {
   const [links, setLinks] = useState([]);
   const [versions, setVersions] = useState([]);
   const [state, setState] = useState({ status: "idle" });
@@ -240,7 +250,7 @@ function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper }) {
   useEffect(() => {
     setState({ status: "idle" }); setLinks([]); setVersions([]); loadLocalState();
     return () => { if (pollTimer.current) clearTimeout(pollTimer.current); };
-  }, [loadLocalState]);
+  }, [loadLocalState, refreshKey]);
   const showDisclosure = async () => {
     const r = await api(`/papers/${paperId}/registration-discovery/preview`);
     setState(r.ok ? { status: "consent", preview: r.data } : { status: "error", error: r.error });
@@ -296,6 +306,7 @@ function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper }) {
   };
   const confirmed = links.filter(link => link.link_status === "confirmed");
   const rejected = links.filter(link => link.link_status === "rejected");
+  const invalid = links.filter(link => link.link_status !== "confirmed");
   const candidates = links.filter(link => link.link_status === "candidate" || link.link_status === "withdrawn" || link.link_status === "unavailable");
   const statusLabel = rejected.length && !confirmed.length ? "Incorrect registration match"
     : versions.length ? "Registration attached, not compared"
@@ -342,7 +353,7 @@ function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper }) {
     </div>}
     {state.status === "done" && <button className="btn-link" onClick={() => search(true)}>Fresh search, including dismissed candidates</button>}
     {!!versions.length && <RegistrationComparisonWorkspace paperId={paperId} paperTitle={paperTitle}
-      versions={versions} onOpenPaper={onOpenPaper} invalidLinkIds={rejected.map(link => link.id)} />}
+      versions={versions} onOpenPaper={onOpenPaper} invalidLinkIds={invalid.map(link => link.id)} />}
   </div>;
 }
 
@@ -358,6 +369,7 @@ function RegistrationCandidateCard({ link, confirmed, versions = [], busy, onCon
               : item.kind.replaceAll("-", " ");
   const canAcquire = ["osf", "aspredicted", "manual-local"].includes(link.provider)
     && !["withdrawn", "unavailable", "embargoed"].includes(link.registration_status);
+  const unavailableLink = ["withdrawn", "unavailable"].includes(link.link_status);
   const latestVersion = versions[0];
   return <div className="registration-candidate-card">
     <div className="registration-candidate-top">
@@ -381,7 +393,7 @@ function RegistrationCandidateCard({ link, confirmed, versions = [], busy, onCon
     </div>}
     <div className="settings-actions">
       {link.canonical_url && <button className="axis-link" onClick={() => window.open(link.canonical_url, "_blank", "noopener")}>Open externally</button>}
-      {!confirmed && <button className="btn btn-secondary" disabled={busy || ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status)} onClick={onConfirm}>Confirm link</button>}
+      {!confirmed && <button className="btn btn-secondary" disabled={busy || unavailableLink || ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status)} onClick={onConfirm}>Confirm link</button>}
       {!confirmed && <button className="btn-link" disabled={busy} onClick={onReject}>Dismiss</button>}
       {confirmed && canAcquire && <button className="btn btn-secondary" disabled={busy} onClick={onAcquire}>
         {latestVersion ? "Check for an updated version" : "Acquire registration"}

@@ -17,6 +17,7 @@ precision cannot compensate for a wrong registration match, weak publication ret
 | Evidence-anchor correctness | Attachment/chunk/page/bbox assertions on both sides | Evidence opens a different attachment/page or claims unavailable precision |
 | False “not located” rate | Whole-article expansion, optional supplements, one-sided outcome, explicit scope note | Not-located status emitted despite evidence in searched scope, or rendered as absence |
 
-Current tests are a curated regression set, not a claim of field-wide validation. Live registry health checks remain
-optional and are not CI dependencies. Add discipline/domain-specific cases to the manifest and the corresponding
-stage test without combining the dimensions.
+Every manifest row names its executable pytest function through `exercised_by`, and
+`test_registration_evaluation_manifest.py` validates that trace. The tests remain a curated regression set, not a
+claim of field-wide validation. Live registry health checks remain optional and are not CI dependencies. Add
+discipline/domain-specific cases to the manifest and a corresponding stage test without combining the dimensions.

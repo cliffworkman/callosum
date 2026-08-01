@@ -30,6 +30,12 @@ hashed local version. A local registration attachment uses the same versioning s
   notes, chunks, annotations, or model prompt. Public registration content is downloaded only after user confirmation.
 - **Provider isolation:** unsupported providers and provider failures become job errors without altering confirmed
   link metadata or existing versions. No authenticated content or browser cookie import is attempted.
+- **Provider drift/races:** acquisition rechecks the registry's current status after provider retrieval and rechecks
+  confirmation inside the write transaction. Withdrawn/unavailable/embargoed state or a concurrent rejection wins;
+  no artifact is imported from the stale job.
+- **Bounded collections:** OSF schema responses, contributors, identifiers, resources, schema blocks, file providers,
+  and nested file manifests use capped pagination/recursion (20 pages / 200 items). Truncation is recorded rather than
+  hidden. Related file bytes are not automatically fetched.
 - **Dependencies:** existing `httpx` and PyMuPDF are reused; no dependency or executable was added.
 
 ## Negative-path evidence
@@ -40,10 +46,10 @@ hashed local version. A local registration attachment uses the same versioning s
 - Invalid content type/PDF bytes fail closed.
 - Provider exception leaves links, attachments, and version rows unchanged.
 - Same-hash re-acquisition creates no duplicate attachment/version; changed hash preserves the prior basis.
+- Same-hash re-acquisition restores a missing managed attachment onto its surviving immutable version.
 - Version GETs and local registration imports invoke no provider; hermetic tests require fixture transports.
 
 ## Result
 
 **PASS.** Acquisition is deliberate, provider-bounded, credential-free, size/type checked, hash-versioned, and
 failure-safe. Any later external-model commitment extraction/comparison needs the separate existing AI egress gate.
-

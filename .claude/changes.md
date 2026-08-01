@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 432 — inspectable registration comparison UI -->
+<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 433 — registration workflow completion hardening -->
+
+## 2026-07-31 — Increment 433: registration workflow completion hardening
+
+- **Files:** registration acquisition/comparison/retrieval/reference modules and routers, Transparency UI, help/design,
+  QA/security/evaluation/audit notes, and hermetic tests; no migration or dependency.
+- **What:** bounded/paginated OSF schema/history/file manifests; normalized registration/publication DOIs; provider,
+  confirmation, and attachment-role race revalidation; missing-attachment restoration; fail-closed empty extraction;
+  exact per-row search receipts; scoped/update/existing-data timing; stopping/covariate checks; identity deduplication;
+  and executable traceability for every curated fixture.
+- **Why:** green happy-path tests were insufficient for the acceptance invariant: stale provider/user/role state,
+  out-of-scope timing text, or an empty extraction could otherwise make a saved comparison misleading.
+- **Verify:** focused acceptance suite **122 passed** before the final restoration case; full `pytest -n 8 --maxfail=1
+  -q` **1778 passed, 1 skipped**; Ruff, frontend rebuild, line-budget, diff hygiene, and QA surface map **351/351 API +
+  1537/1537 frontend** clean.
+- **Revert:** revert Increment 433 and rebuild the frontend. No schema rollback is required; retain all existing links,
+  versions, commitments, comparisons, evidence, and review notes.
 
 ## 2026-07-31 — Increment 432: inspectable registration comparison UI
 

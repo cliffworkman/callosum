@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import fitz
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from app.backend.api import create_app
 from app.backend.persistence.database import make_engine
@@ -67,12 +69,32 @@ def _osf_payloads(answer: str = "We will recruit 120 participants.") -> dict[str
             ]
         },
         "/registrations/ab12c/identifiers/": {
-            "data": [{"id": "doi1", "attributes": {"category": "doi", "value": "10.17605/osf.io/ab12c"}}]
+            "data": [
+                {
+                    "id": "doi1",
+                    "attributes": {"category": "doi", "value": "https://doi.org/10.17605/OSF.IO/AB12C"},
+                }
+            ]
         },
         "/registrations/ab12c/resources/": {
-            "data": [{"id": "resource1", "attributes": {"resource_type": "papers", "pid": "10.5555/paper"}}]
+            "data": [{"id": "resource1", "attributes": {"resource_type": "paper", "pid": "doi:10.5555/PAPER"}}]
         },
         "/registrations/ab12c/files/": {"data": [{"id": "osfstorage", "attributes": {"name": "osfstorage"}}]},
+        "/registrations/ab12c/files/osfstorage/": {
+            "data": [
+                {
+                    "id": "file1",
+                    "type": "files",
+                    "attributes": {
+                        "name": "analysis-plan.pdf",
+                        "kind": "file",
+                        "size": 2048,
+                        "contentType": "application/pdf",
+                    },
+                    "links": {"download": "https://files.osf.io/v1/resources/ab12c/providers/osfstorage/file1"},
+                }
+            ]
+        },
         "/schemas/registrations/schema1/": {
             "data": {
                 "id": "schema1",
@@ -146,8 +168,50 @@ def test_osf_structured_response_is_deterministic_and_preserves_question_identit
     assert "# Attention plan" in first.rendered_text
     assert "## Sampling plan" in first.rendered_text
     assert "### Planned sample size" in first.rendered_text
-    assert first.structured["resources"][0]["attributes"]["pid"] == "10.5555/paper"
+    assert first.structured["resources"][0]["attributes"]["pid"] == "doi:10.5555/PAPER"
+    assert first.structured["registration_doi"] == "10.17605/osf.io/ab12c"
+    assert first.structured["publication_dois"] == ["10.5555/paper"]
+    assert first.structured["files"][0]["attributes"]["name"] == "analysis-plan.pdf"
+    assert first.structured["response_history"][0]["updated_response_keys"] == ["q-1"]
     assert first.source_metadata["schema_responses"]["data"][0]["attributes"]["updated_response_keys"] == ["q-1"]
+    assert first.source_metadata["file_manifest"]["truncated"] is False
+
+
+def test_osf_collection_pagination_preserves_later_schema_blocks_and_amendments() -> None:
+    payloads = _osf_payloads()
+    blocks = payloads["/schemas/registrations/schema1/schema_blocks/"]["data"]
+    payloads["/schemas/registrations/schema1/schema_blocks/"] = {
+        "data": blocks[:2],
+        "links": {"next": "https://api.osf.io/v2/schemas/registrations/schema1/schema_blocks/?page=2"},
+    }
+    payloads["/schemas/registrations/schema1/schema_blocks/?page=2"] = {"data": blocks[2:]}
+    original = payloads["/registrations/ab12c/schema_responses/"]["data"][0]
+    payloads["/registrations/ab12c/schema_responses/"] = {
+        "data": [original],
+        "links": {"next": "https://api.osf.io/v2/registrations/ab12c/schema_responses/?page=2"},
+    }
+    payloads["/registrations/ab12c/schema_responses/?page=2"] = {
+        "data": [
+            {
+                "id": "response2",
+                "attributes": {
+                    "date_modified": "2023-02-04T00:00:00Z",
+                    "revision_responses": {"q-1": "We will recruit 180 participants."},
+                    "updated_response_keys": ["q-1"],
+                    "revision_justification": "Updated the target before recruitment.",
+                    "is_original_response": False,
+                },
+            }
+        ]
+    }
+
+    acquired = OsfRegistrationAcquirer(_osf_fetch(payloads)).acquire({"external_id": "ab12c"})
+
+    assert acquired.structured["questions"][0]["label"] == "Planned sample size"
+    assert acquired.structured["questions"][0]["answer"] == "We will recruit 180 participants."
+    assert len(acquired.structured["response_history"]) == 2
+    assert "Updated the target before recruitment." in acquired.rendered_text
+    assert acquired.source_metadata["schema_blocks"]["callosum_collection"]["pages_retrieved"] == 2
 
 
 def _aspredicted_pdf() -> bytes:
@@ -279,6 +343,18 @@ def test_acquisition_requires_confirmation_and_blocks_withdrawn_candidate(temp_d
     assert acquirer.calls == 0
 
 
+def test_acquisition_rechecks_provider_status_before_import(temp_db_url: str) -> None:
+    acquired = replace(_acquired(), registration_status="withdrawn")
+    acquirer = _SequenceAcquirer([acquired])
+    paper_id, link_id, client = _paper_link_client(temp_db_url, acquirer)
+
+    result = _run_acquire(client, paper_id, link_id)
+
+    assert result["status"] == "error"
+    assert "now reports this registration as withdrawn" in result["detail"]
+    assert client.get(f"/papers/{paper_id}/registration-versions").json() == []
+
+
 def test_osf_acquisition_attaches_canonical_markdown_without_article_contamination(temp_db_url: str) -> None:
     acquirer = _SequenceAcquirer([_acquired()])
     paper_id, link_id, client = _paper_link_client(temp_db_url, acquirer)
@@ -340,6 +416,41 @@ def test_same_hash_reuses_version_and_changed_hash_preserves_prior_basis(temp_db
             == 2
         )
     engine.dispose()
+
+
+def test_same_hash_reacquisition_restores_a_removed_managed_attachment(temp_db_url: str) -> None:
+    acquired = _acquired()
+    acquirer = _SequenceAcquirer([acquired, acquired])
+    paper_id, link_id, client = _paper_link_client(temp_db_url, acquirer)
+    original = _run_acquire(client, paper_id, link_id)
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        conn.execute(delete(attachments).where(attachments.c.id == original["attachment_id"]))
+    restored = _run_acquire(client, paper_id, link_id)
+    with engine.connect() as conn:
+        version = (
+            conn.execute(
+                select(registration_document_versions).where(
+                    registration_document_versions.c.id == original["version_id"]
+                )
+            )
+            .mappings()
+            .one()
+        )
+        restored_attachment = (
+            conn.execute(select(attachments).where(attachments.c.id == restored["attachment_id"])).mappings().one()
+        )
+        restored_chunks = get_chunks_for_attachment(conn, restored["attachment_id"])
+    engine.dispose()
+
+    assert restored["status"] == "done"
+    assert restored["changed"] is True
+    assert restored["version_id"] == original["version_id"]
+    assert version["attachment_id"] == restored["attachment_id"]
+    assert restored_attachment["role"] == "preregistration"
+    assert restored_attachment["checksum"]
+    assert any("We will recruit 120 participants" in row["text"] for row in restored_chunks)
 
 
 def test_provider_failure_does_not_corrupt_existing_acquired_version(temp_db_url: str) -> None:

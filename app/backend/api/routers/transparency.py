@@ -147,13 +147,24 @@ def paper_transparency(paper_id: int, conn: Connection = Depends(get_connection)
 def _registration_reference_outputs(conn, paper_id, chunks, pdf_attachment_ids) -> list[RegistrationReferenceOut]:
     persisted = [dict(row) for row in list_registration_references(conn, paper_id)]
     live = [reference.to_dict() | {"id": None} for reference in extract_registration_references(chunks)]
-    combined: list[dict] = []
-    seen: set[tuple[str, str, int | None]] = set()
+    grouped: dict[tuple[str, str], list[dict]] = {}
     for row in [*persisted, *live]:
-        key = (row["provider"], str(row["external_id"]).casefold(), row.get("attachment_id"))
-        if key in seen:
-            continue
-        seen.add(key)
+        key = (row["provider"], str(row["external_id"]).casefold())
+        grouped.setdefault(key, []).append(row)
+    combined: list[dict] = []
+    evidence_priority = {"printed-text": 3, "pdf-hyperlink": 2, "manual": 1}
+    for rows in grouped.values():
+        row = max(
+            rows,
+            key=lambda item: (
+                bool(item.get("explicitly_printed")),
+                evidence_priority.get(str(item.get("extraction_method")), 0),
+                item.get("page") is not None,
+            ),
+        )
+        persisted_id = next((item.get("id") for item in rows if item.get("id") is not None), None)
+        if row.get("id") is None and persisted_id is not None:
+            row = row | {"id": persisted_id}
         anchor = anchor_evidence(
             conn,
             chunks,

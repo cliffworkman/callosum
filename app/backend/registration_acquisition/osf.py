@@ -4,6 +4,7 @@ import hashlib
 import html
 import json
 import re
+from collections import deque
 from typing import Any
 
 from app.backend.registration_acquisition.domain import AcquiredRegistration, RegistrationAcquisitionError
@@ -11,6 +12,9 @@ from app.backend.registration_discovery.http import JsonFetcher, RegistryHttpErr
 
 _BASE = "https://api.osf.io/v2"
 _GUID = re.compile(r"^[a-z0-9]{4,12}$")
+_PROVIDER_ID = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
+_MAX_COLLECTION_PAGES = 20
+_MAX_COLLECTION_ITEMS = 200
 
 
 class OsfRegistrationAcquirer:
@@ -25,15 +29,16 @@ class OsfRegistrationAcquirer:
             raise RegistrationAcquisitionError("The confirmed OSF identifier is not a valid registration GUID.")
         try:
             registration = self._fetch(f"{_BASE}/registrations/{guid}/")
-            schema_responses = self._fetch(f"{_BASE}/registrations/{guid}/schema_responses/")
-            contributors = self._optional(f"{_BASE}/registrations/{guid}/contributors/?embed=users")
-            identifiers = self._optional(f"{_BASE}/registrations/{guid}/identifiers/")
-            resources = self._optional(f"{_BASE}/registrations/{guid}/resources/")
-            files = self._optional(f"{_BASE}/registrations/{guid}/files/")
+            schema_responses = self._collection(f"{_BASE}/registrations/{guid}/schema_responses/")
+            contributors = self._optional_collection(f"{_BASE}/registrations/{guid}/contributors/?embed=users")
+            identifiers = self._optional_collection(f"{_BASE}/registrations/{guid}/identifiers/")
+            resources = self._optional_collection(f"{_BASE}/registrations/{guid}/resources/")
+            file_providers = self._optional_collection(f"{_BASE}/registrations/{guid}/files/")
+            file_manifest = self._file_manifest(guid, file_providers)
             schema_url = _related_href(registration, "registration_schema")
             schema = self._fetch(schema_url) if schema_url else {"data": None}
             blocks_url = f"{schema_url.rstrip('/')}/schema_blocks/" if schema_url else None
-            schema_blocks = self._fetch(blocks_url) if blocks_url else {"data": []}
+            schema_blocks = self._collection(blocks_url) if blocks_url else {"data": []}
         except RegistryHttpError as exc:
             raise RegistrationAcquisitionError(f"OSF acquisition failed: {exc}") from exc
 
@@ -44,6 +49,7 @@ class OsfRegistrationAcquirer:
         schema_row = schema.get("data") or {}
         schema_attrs = schema_row.get("attributes") or {}
         response_row = _latest_schema_response(schema_responses)
+        response_history = _response_history(schema_responses)
         questions = _canonical_questions(
             schema_blocks.get("data") or [],
             _response_values(attrs, response_row),
@@ -64,10 +70,15 @@ class OsfRegistrationAcquirer:
             },
             "questions": questions,
             "response_metadata": (response_row.get("attributes") or {}) if response_row else {},
+            "response_history": response_history,
             "contributors": _contributors(contributors),
+            "registration_doi": _registration_doi(identifiers),
+            "publication_dois": _publication_dois(resources),
             "identifiers": identifiers.get("data") or [],
             "resources": resources.get("data") or [],
-            "files": files.get("data") or [],
+            "file_providers": file_providers.get("data") or [],
+            "files": file_manifest["items"],
+            "files_truncated": file_manifest["truncated"],
         }
         source_metadata = {
             "registration": registration,
@@ -77,7 +88,8 @@ class OsfRegistrationAcquirer:
             "contributors": contributors,
             "identifiers": identifiers,
             "resources": resources,
-            "files": files,
+            "file_providers": file_providers,
+            "file_manifest": file_manifest,
         }
         canonical = json.dumps(structured, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         rendered = render_osf_registration(structured)
@@ -98,11 +110,78 @@ class OsfRegistrationAcquirer:
             content_type="text/plain",
         )
 
-    def _optional(self, url: str) -> dict:
+    def _collection(self, url: str) -> dict:
+        rows: list[dict] = []
+        pages: list[dict[str, Any]] = []
+        current: str | None = url
+        seen: set[str] = set()
+        first: dict[str, Any] = {}
+        while current and current not in seen and len(pages) < _MAX_COLLECTION_PAGES:
+            seen.add(current)
+            payload = self._fetch(current)
+            if not first:
+                first = payload
+            data = [row for row in payload.get("data") or [] if isinstance(row, dict)]
+            remaining = _MAX_COLLECTION_ITEMS - len(rows)
+            rows.extend(data[:remaining])
+            pages.append({"url": current, "links": payload.get("links"), "meta": payload.get("meta")})
+            if len(rows) >= _MAX_COLLECTION_ITEMS:
+                current = _next_href(payload)
+                break
+            current = _next_href(payload)
+        return {
+            **first,
+            "data": rows,
+            "callosum_collection": {
+                "pages_retrieved": len(pages),
+                "items_retrieved": len(rows),
+                "truncated": bool(current),
+                "pages": pages,
+            },
+        }
+
+    def _optional_collection(self, url: str) -> dict:
         try:
-            return self._fetch(url)
+            return self._collection(url)
         except RegistryHttpError as exc:
             return {"data": [], "callosum_error": {"status": exc.status, "detail": str(exc)}}
+
+    def _file_manifest(self, guid: str, providers: dict) -> dict[str, Any]:
+        items: list[dict[str, Any]] = []
+        collections: list[dict[str, Any]] = []
+        queue: deque[tuple[str, str]] = deque()
+        for row in providers.get("data") or []:
+            provider_id = str(row.get("id") or "")
+            if not _PROVIDER_ID.fullmatch(provider_id):
+                continue
+            related = _relationship_href(row, "files")
+            queue.append((provider_id, related or f"{_BASE}/registrations/{guid}/files/{provider_id}/"))
+        seen: set[str] = set()
+        while queue and len(items) < _MAX_COLLECTION_ITEMS and len(collections) < _MAX_COLLECTION_PAGES:
+            provider_id, url = queue.popleft()
+            if url in seen:
+                continue
+            seen.add(url)
+            payload = self._optional_collection(url)
+            collections.append({"provider_id": provider_id, "url": url, "payload": payload})
+            for row in payload.get("data") or []:
+                if len(items) >= _MAX_COLLECTION_ITEMS:
+                    break
+                item = {"provider_id": provider_id, **row}
+                items.append(item)
+                if str((row.get("attributes") or {}).get("kind") or "").casefold() == "folder":
+                    child = _relationship_href(row, "files")
+                    if child:
+                        queue.append((provider_id, child))
+        return {
+            "items": items,
+            "collections": collections,
+            "truncated": bool(queue)
+            or any(
+                bool((item.get("payload") or {}).get("callosum_collection", {}).get("truncated"))
+                for item in collections
+            ),
+        }
 
 
 def render_osf_registration(structured: dict[str, Any]) -> str:
@@ -136,6 +215,22 @@ def render_osf_registration(structured: dict[str, Any]) -> str:
                 "",
             ]
         )
+    revisions = [
+        item
+        for item in structured.get("response_history") or []
+        if item.get("revision_justification")
+        or item.get("updated_response_keys")
+        or not item.get("is_original_response")
+    ]
+    if revisions:
+        lines.extend(["## Registration revisions", ""])
+        for revision in revisions:
+            label = revision.get("date_modified") or revision.get("id") or "Recorded revision"
+            lines.extend([f"### {label}", ""])
+            if revision.get("revision_justification"):
+                lines.extend([str(revision["revision_justification"]), ""])
+            if revision.get("updated_response_keys"):
+                lines.extend(["Updated response keys: " + ", ".join(map(str, revision["updated_response_keys"])), ""])
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -208,6 +303,24 @@ def _latest_schema_response(payload: dict) -> dict | None:
     return max(rows, key=lambda row: str((row.get("attributes") or {}).get("date_modified") or ""), default=None)
 
 
+def _response_history(payload: dict) -> list[dict[str, Any]]:
+    history = []
+    for row in payload.get("data") or []:
+        attrs = row.get("attributes") or {}
+        history.append(
+            {
+                "id": row.get("id"),
+                "date_created": attrs.get("date_created"),
+                "date_modified": attrs.get("date_modified"),
+                "is_original_response": attrs.get("is_original_response"),
+                "updated_response_keys": list(attrs.get("updated_response_keys") or []),
+                "revision_justification": attrs.get("revision_justification"),
+                "revision_responses": attrs.get("revision_responses") or {},
+            }
+        )
+    return sorted(history, key=lambda item: (str(item.get("date_modified") or ""), str(item.get("id") or "")))
+
+
 def _related_href(payload: dict, relationship: str) -> str | None:
     value = ((((payload.get("data") or {}).get("relationships") or {}).get(relationship) or {}).get("links") or {}).get(
         "related"
@@ -215,6 +328,47 @@ def _related_href(payload: dict, relationship: str) -> str | None:
     if isinstance(value, dict):
         value = value.get("href")
     return str(value) if value else None
+
+
+def _relationship_href(row: dict, relationship: str) -> str | None:
+    value = (((row.get("relationships") or {}).get(relationship) or {}).get("links") or {}).get("related")
+    if isinstance(value, dict):
+        value = value.get("href")
+    return str(value) if value else None
+
+
+def _next_href(payload: dict) -> str | None:
+    value = (payload.get("links") or {}).get("next")
+    if isinstance(value, dict):
+        value = value.get("href")
+    return str(value) if value else None
+
+
+def _registration_doi(payload: dict) -> str | None:
+    for row in payload.get("data") or []:
+        attrs = row.get("attributes") or {}
+        if str(attrs.get("category") or "").casefold() == "doi":
+            return _normalize_doi(attrs.get("value"))
+    return None
+
+
+def _publication_dois(payload: dict) -> list[str]:
+    result = []
+    for row in payload.get("data") or []:
+        attrs = row.get("attributes") or {}
+        if str(attrs.get("resource_type") or "").casefold() not in {"paper", "papers"}:
+            continue
+        doi = _normalize_doi(attrs.get("pid"))
+        if doi and doi not in result:
+            result.append(doi)
+    return result
+
+
+def _normalize_doi(value: Any) -> str | None:
+    token = str(value or "").strip().casefold()
+    for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
+        token = token.removeprefix(prefix)
+    return token if token.startswith("10.") else None
 
 
 def _contributors(payload: dict) -> list[dict[str, Any]]:

@@ -768,7 +768,8 @@ def test_methods_pane_regrouped_details_data_statistics_checklists():
 
 def test_registration_discovery_is_explicit_metadata_egress_and_never_auto_attaches():
     raw = assemble_jsx()
-    assert "<RegistrationDiscovery paperId={paperId} paperTitle={meta.title} onOpenPaper={onOpenPaper} />" in raw
+    assert "<RegistrationDiscovery paperId={paperId} paperTitle={meta.title} onOpenPaper={onOpenPaper}" in raw
+    assert "refreshKey={registrationRefresh}" in raw
     assert "Search public registry metadata?" in raw
     assert "Sends: <b>" in raw
     assert "Used only on this machine for matching" in raw
@@ -788,9 +789,9 @@ def test_registration_acquisition_is_explicit_versioned_and_not_a_comparison():
     assert "No comparison has run yet." in raw
     assert "Callosum will not try to download an unavailable artifact." in raw
     # Loading the panel reads only persisted local state; acquisition remains inside the click handler.
-    component = raw.split("function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper })", 1)[1].split(
-        "function RegistrationCandidateCard", 1
-    )[0]
+    component = raw.split("function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper, refreshKey = 0 })", 1)[
+        1
+    ].split("function RegistrationCandidateCard", 1)[0]
     effect = component.split("useEffect(() =>", 1)[1].split("const showDisclosure", 1)[0]
     assert "/acquire" not in effect
 

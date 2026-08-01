@@ -28,6 +28,8 @@ class CommitmentRetrieval:
     sections_searched: tuple[str, ...]
     whole_article_expanded: bool
     supplements_searched: bool
+    searched_chunk_ids: tuple[int, ...]
+    searched_attachment_ids: tuple[int, ...]
     study_mapping: Literal["matched", "unscoped", "ambiguous"]
     study_labels_found: tuple[str, ...]
     hits: tuple[PublicationEvidenceHit, ...]

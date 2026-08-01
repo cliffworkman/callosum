@@ -929,6 +929,8 @@ when it occurs near registration language. A PDF link hidden behind words such a
 PDF annotation and shown as a link target rather than misrepresented as printed text. You will see one of four local
 states: **not detected**, **language detected**, **reference detected**, or **multiple references detected**. Each
 reference retains its evidence and source page where available.
+When a pasted reference and a printed reference normalize to the same provider identity, Callosum shows one reference
+and prefers the printed, source-anchored evidence.
 
 If extraction cannot locate the reference, you can paste a registration URL/DOI/identifier, attach a local
 registration PDF, or mark an existing attachment as the registration. These actions only save/process local evidence:
@@ -954,8 +956,10 @@ established at this stage, so Callosum says **registration**, not “preregistra
 After you confirm a public OSF or AsPredicted candidate, **Acquire registration** downloads that selected public
 artifact. This is a separate explicit action: it never runs on panel open or confirmation. OSF structured responses
 are rendered deterministically for local reading while their original question IDs, ordering, schema version,
-amendments, and source metadata are retained; AsPredicted keeps its validated timestamped PDF. A local PDF uses the
-same downstream path without a network request.
+amendments, registration/publication DOI metadata, bounded storage-file manifest, and source metadata are retained;
+AsPredicted keeps its validated timestamped PDF. Related OSF file bytes are not silently downloaded: the structured
+registration is the primary record, and a useful related file can be attached deliberately. A local PDF uses the same
+downstream path without a network request.
 
 The panel then says **Registration attached, not compared** and shows the stored version hash and retrieval date.
 **Check for an updated version** is also explicit. Identical content reuses the existing version; changed content is
@@ -989,7 +993,9 @@ thresholds, named model families, and named outcomes. If wording needs semantic 
 not comparable rather than forcing a verdict.
 
 Every row keeps both source passages and locations when available, explains why it surfaced, states uncertainty, and
-lists the sections/expansion/supplement scope searched. Registration timing has its own cautious details such as
+lists the sections/expansion/supplement scope searched plus the exact searched chunk/source receipt. If no canonical
+commitment can be extracted, the run shows **extraction uncertain** and does not present an empty crosswalk as a clean
+result. Registration timing has its own cautious details such as
 **prospective timing supported**, **registration appears after data collection began**, or **insufficient dates to
 compare**. You can mark a row reviewed, dismiss it, or add a note; those actions never rewrite source evidence.
 
@@ -1002,6 +1008,8 @@ If the selected artifact is the wrong registration, choose **Incorrect registrat
 historical evidence but marks its comparison stale and refuses another comparison against that rejected link. Confirm
 a different candidate, run a fresh search, or attach a manual source before comparing again. On narrow screens the two
 evidence columns stack so neither document is hidden.
+Changing a local registration attachment's document role away from **Preregistration** also makes that link
+unavailable and stales its comparisons; mark it correctly and reconfirm before re-running.
 
 **Checking the whole library.** In the same section, **Whole library → Check all papers** runs the auditor over every paper. Each paper's *detected* disclosures become evidence-carrying marks in its **Review** section. When the data disclosure list isn't empty, the Library header shows a **🔎 Open Data · N** chip that jumps to papers where the auditor detected an open-data disclosure. The section also fills review queues for disclosures *not detected* in extracted text; those queues are prompts to look — *the paper may still share artifacts elsewhere* — never claims that it hides anything, and there is no score or ranking.
 

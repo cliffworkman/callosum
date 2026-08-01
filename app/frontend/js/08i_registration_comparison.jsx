@@ -221,6 +221,8 @@ function RegistrationComparisonRow({ row, onUpdated, onOpenRegistration, onOpenP
       <div>{scope.whole_article_expanded ? "Whole-article expansion occurred." : "Search remained bounded to expected sections."}</div>
       <div>{scope.supplements_searched ? "Relevant supplements were searched." : "Supplements were not searched for this field."}</div>
       <div>Study mapping: {scope.study_mapping || "not applicable"}</div>
+      <div>Publication sources: {(scope.publication_sources || []).map(source =>
+        `attachment ${source.attachment_id}${source.checksum ? ` (${source.checksum.slice(0, 12)})` : ""}`).join(", ") || "none"}</div>
       <div>{row.uncertainty}</div>
     </details>
     <div className="registration-row-review">

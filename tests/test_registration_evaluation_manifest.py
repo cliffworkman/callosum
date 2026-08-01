@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 
@@ -45,3 +46,11 @@ def test_registration_evaluation_manifest_covers_required_failure_modes_without_
     raw = FIXTURE.read_text(encoding="utf-8").casefold()
     assert "composite" not in raw
     assert "compliance-score" not in raw
+
+    for case in cases:
+        target_file, target_name = case["exercised_by"].split("::", 1)
+        source = Path(target_file)
+        assert source.is_file(), f"{case['id']} points to missing test file {target_file}"
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        functions = {node.name for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        assert target_name in functions, f"{case['id']} points to missing executable test {case['exercised_by']}"
