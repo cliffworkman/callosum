@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Connection, insert, select, update
 
 from app.backend.persistence.registration_schema import paper_registration_links
+from app.backend.persistence.registration_versions_repo import record_local_registration_version
 from app.backend.registration_discovery.domain import RegistrationCandidate
 
 
@@ -91,6 +92,7 @@ def confirm_local_registration_attachment(conn: Connection, paper_id: int, attac
     }
     if existing is not None:
         conn.execute(update(paper_registration_links).where(paper_registration_links.c.id == existing).values(**values))
+        record_local_registration_version(conn, paper_id, int(existing), attachment_id)
         return int(existing)
     result = conn.execute(
         insert(paper_registration_links).values(
@@ -100,7 +102,9 @@ def confirm_local_registration_attachment(conn: Connection, paper_id: int, attac
             **values,
         )
     )
-    return int(result.inserted_primary_key[0])
+    link_id = int(result.inserted_primary_key[0])
+    record_local_registration_version(conn, paper_id, link_id, attachment_id)
+    return link_id
 
 
 def _candidate_values(candidate: RegistrationCandidate) -> dict:

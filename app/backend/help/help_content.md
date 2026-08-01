@@ -951,6 +951,19 @@ remain visible, and one registry failing does not erase candidates from another.
 candidate was located through the searched metadata routes—not that no registration exists. Timing has not yet been
 established at this stage, so Callosum says **registration**, not “preregistration,” for registry candidates.
 
+After you confirm a public OSF or AsPredicted candidate, **Acquire registration** downloads that selected public
+artifact. This is a separate explicit action: it never runs on panel open or confirmation. OSF structured responses
+are rendered deterministically for local reading while their original question IDs, ordering, schema version,
+amendments, and source metadata are retained; AsPredicted keeps its validated timestamped PDF. A local PDF uses the
+same downstream path without a network request.
+
+The panel then says **Registration attached, not compared** and shows the stored version hash and retrieval date.
+**Check for an updated version** is also explicit. Identical content reuses the existing version; changed content is
+stored as a new version without deleting the earlier basis. Acquisition establishes only which artifact was stored—it
+does not establish prospective timing, a correct match, or whether the paper followed the registration. Comparison is
+a later, separate action. Withdrawn, unavailable, and embargoed artifacts are shown but not downloaded through the
+public acquisition route.
+
 **Checking the whole library.** In the same section, **Whole library → Check all papers** runs the auditor over every paper. Each paper's *detected* disclosures become evidence-carrying marks in its **Review** section. When the data disclosure list isn't empty, the Library header shows a **🔎 Open Data · N** chip that jumps to papers where the auditor detected an open-data disclosure. The section also fills review queues for disclosures *not detected* in extracted text; those queues are prompts to look — *the paper may still share artifacts elsewhere* — never claims that it hides anything, and there is no score or ranking.
 
 <!-- section: converting-effect-sizes -->

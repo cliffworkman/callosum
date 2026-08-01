@@ -139,12 +139,26 @@ def reject_registration_link(paper_id: int, link_id: int, engine: Engine = Depen
 
 def _change_link(engine: Engine, paper_id: int, link_id: int, status: str, *, user_confirmed: bool):
     def write(conn: Connection):
+        row = next(
+            (item for item in list_registration_links(conn, paper_id, include_rejected=True) if item["id"] == link_id),
+            None,
+        )
+        if row is None:
+            raise HTTPException(status_code=404, detail="Registration candidate not found on this paper")
+        if status == "confirmed" and (
+            row["link_status"] in {"withdrawn", "unavailable", "embargoed"}
+            or row["registration_status"] in {"withdrawn", "unavailable", "embargoed"}
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="An unavailable, withdrawn, or embargoed registration cannot be confirmed.",
+            )
         if not set_registration_link_status(conn, paper_id, link_id, status, user_confirmed=user_confirmed):
             raise HTTPException(status_code=404, detail="Registration candidate not found on this paper")
-        row = next(
+        changed = next(
             item for item in list_registration_links(conn, paper_id, include_rejected=True) if item["id"] == link_id
         )
-        return _link_out(row)
+        return _link_out(changed)
 
     return run_write(engine, write)
 

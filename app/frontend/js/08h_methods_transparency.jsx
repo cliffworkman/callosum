@@ -226,15 +226,21 @@ function RegistrationReferenceActions({ paperId, attachments, onChanged }) {
 // already-local candidate state. Confirmation records a link; acquisition remains a separate user action.
 function RegistrationDiscovery({ paperId }) {
   const [links, setLinks] = useState([]);
+  const [versions, setVersions] = useState([]);
   const [state, setState] = useState({ status: "idle" });
   const pollTimer = useRef(null);
-  const loadLinks = useCallback(() => api(`/papers/${paperId}/registration-links`).then(r => {
-    if (r.ok) setLinks(r.data || []);
-  }), [paperId]);
+  const loadLocalState = useCallback(async () => {
+    const [linkResult, versionResult] = await Promise.all([
+      api(`/papers/${paperId}/registration-links`),
+      api(`/papers/${paperId}/registration-versions`),
+    ]);
+    if (linkResult.ok) setLinks(linkResult.data || []);
+    if (versionResult.ok) setVersions(versionResult.data || []);
+  }, [paperId]);
   useEffect(() => {
-    setState({ status: "idle" }); setLinks([]); loadLinks();
+    setState({ status: "idle" }); setLinks([]); setVersions([]); loadLocalState();
     return () => { if (pollTimer.current) clearTimeout(pollTimer.current); };
-  }, [loadLinks]);
+  }, [loadLocalState]);
   const showDisclosure = async () => {
     const r = await api(`/papers/${paperId}/registration-discovery/preview`);
     setState(r.ok ? { status: "consent", preview: r.data } : { status: "error", error: r.error });
@@ -259,14 +265,38 @@ function RegistrationDiscovery({ paperId }) {
     setState({ status: "working", linkId: link.id });
     const r = await apiPost(`/papers/${paperId}/registration-links/${link.id}/${action}`, {});
     if (!r.ok) return setState({ status: "error", error: r.error });
-    await loadLinks();
+    await loadLocalState();
     setState({ status: "done", message: action === "confirm"
       ? "Registration link confirmed. No registration content has been downloaded yet."
       : "Candidate dismissed. It will stay hidden unless you request a fresh search." });
   };
+  const acquire = async link => {
+    setState({ status: "acquiring", linkId: link.id });
+    const started = await apiPost(`/papers/${paperId}/registration-links/${link.id}/acquire`, {});
+    if (!started.ok) return setState({ status: "error", error: started.error });
+    const poll = async () => {
+      const result = await api(`/registration-acquisition/${started.data.job_id}`);
+      if (!result.ok) return setState({ status: "error", error: result.error });
+      if (result.data.status === "done") {
+        await loadLocalState();
+        return setState({
+          status: "done",
+          message: result.data.changed
+            ? "Registration acquired as a new local version. It has not been compared yet."
+            : "The public registration matches the version already stored locally.",
+        });
+      }
+      if (result.data.status === "error") {
+        return setState({ status: "error", error: result.data.detail || "Registration acquisition failed." });
+      }
+      pollTimer.current = setTimeout(poll, 1200);
+    };
+    poll();
+  };
   const confirmed = links.filter(link => link.link_status === "confirmed");
   const candidates = links.filter(link => link.link_status === "candidate" || link.link_status === "withdrawn" || link.link_status === "unavailable");
-  const statusLabel = confirmed.length ? "Registration linked, not acquired"
+  const statusLabel = versions.length ? "Registration attached, not compared"
+    : confirmed.length ? "Registration linked, not acquired"
     : candidates.length ? "Candidates found, choose"
       : "No registration linked";
   return <div className="registration-discovery">
@@ -287,12 +317,16 @@ function RegistrationDiscovery({ paperId }) {
       </div>
     </div>}
     {state.status === "running" && <ProgressBar label="Searching public registration metadata…" />}
-    {state.status === "error" && <div className="settings-note settings-note-err">Discovery failed: {state.error}</div>}
+    {state.status === "acquiring" && <ProgressBar label="Acquiring the confirmed public registration…" />}
+    {state.status === "error" && <div className="settings-note settings-note-err">Registration workflow failed: {state.error}</div>}
     {state.message && <div className="settings-note">{state.message}</div>}
     {(state.providers || []).map(report => report.status !== "ok" && <div className="axis-hint" key={report.provider}>
       {report.provider}: {report.detail || report.status}
     </div>)}
-    {confirmed.map(link => <RegistrationCandidateCard key={link.id} link={link} confirmed />)}
+    {confirmed.map(link => <RegistrationCandidateCard key={link.id} link={link} confirmed
+      versions={versions.filter(version => version.link_id === link.id)}
+      busy={state.status === "acquiring" && state.linkId === link.id}
+      onAcquire={() => acquire(link)} />)}
     {candidates.map(link => <RegistrationCandidateCard key={link.id} link={link}
       busy={state.status === "working" && state.linkId === link.id}
       onConfirm={() => change(link, "confirm")} onReject={() => change(link, "reject")} />)}
@@ -304,7 +338,7 @@ function RegistrationDiscovery({ paperId }) {
   </div>;
 }
 
-function RegistrationCandidateCard({ link, confirmed, busy, onConfirm, onReject }) {
+function RegistrationCandidateCard({ link, confirmed, versions = [], busy, onConfirm, onReject, onAcquire }) {
   const evidence = link.match_evidence || [];
   const evidenceLabel = item => item.kind === "datacite-related-identifier"
     ? `DataCite relation: ${item.relation_type || "typed relation"} · ${item.doi || ""}`
@@ -314,6 +348,9 @@ function RegistrationCandidateCard({ link, confirmed, busy, onConfirm, onReject 
           : item.kind === "title-terms" ? `Shared title terms: ${(item.terms || []).join(", ")}`
             : item.kind === "date-order" ? `Registered ${item.registration_year}; paper published ${item.publication_year}`
               : item.kind.replaceAll("-", " ");
+  const canAcquire = ["osf", "aspredicted", "manual-local"].includes(link.provider)
+    && !["withdrawn", "unavailable", "embargoed"].includes(link.registration_status);
+  const latestVersion = versions[0];
   return <div className="registration-candidate-card">
     <div className="registration-candidate-top">
       <span className={`registration-linkage ${link.linkage_class}`}>{confirmed ? "Linked by you" : link.linkage_label}</span>
@@ -323,12 +360,26 @@ function RegistrationCandidateCard({ link, confirmed, busy, onConfirm, onReject 
     <div className="axis-hint">{link.provider} · {link.registration_doi || link.external_id}{link.registered_at ? ` · ${link.registered_at.slice(0, 10)}` : ""}</div>
     {!!(link.contributors || []).length && <div className="axis-hint">{link.contributors.join(", ")}</div>}
     {!!evidence.length && <ul className="registration-candidate-evidence">{evidence.map((item, index) => <li key={index}>{evidenceLabel(item)}</li>)}</ul>}
-    {link.registration_status === "withdrawn" && <div className="settings-note settings-note-err">The registry reports this registration as withdrawn. Inspect its public metadata before relying on the match.</div>}
+    {["withdrawn", "unavailable", "embargoed"].includes(link.registration_status) && <div className="settings-note settings-note-err">
+      The registry reports this registration as {link.registration_status}. Inspect its public metadata; Callosum will not try to download an unavailable artifact.
+    </div>}
+    {confirmed && latestVersion && <div className="registration-version-summary">
+      <b>Stored locally</b>
+      <div className="axis-hint">
+        Version {latestVersion.content_hash.slice(0, 12)} · retrieved {new Date(latestVersion.retrieved_at).toLocaleDateString()}
+        {versions.length > 1 ? ` · ${versions.length} preserved versions` : ""}
+      </div>
+      <div className="axis-hint">Registration content is attached and can be inspected independently. No comparison has run yet.</div>
+    </div>}
     <div className="settings-actions">
       {link.canonical_url && <button className="axis-link" onClick={() => window.open(link.canonical_url, "_blank", "noopener")}>Open externally</button>}
-      {!confirmed && <button className="btn btn-secondary" disabled={busy || link.registration_status === "withdrawn"} onClick={onConfirm}>Confirm link</button>}
+      {!confirmed && <button className="btn btn-secondary" disabled={busy || ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status)} onClick={onConfirm}>Confirm link</button>}
       {!confirmed && <button className="btn-link" disabled={busy} onClick={onReject}>Dismiss</button>}
+      {confirmed && canAcquire && <button className="btn btn-secondary" disabled={busy} onClick={onAcquire}>
+        {latestVersion ? "Check for an updated version" : "Acquire registration"}
+      </button>}
     </div>
+    {confirmed && !latestVersion && !canAcquire && <div className="axis-hint">This provider has no bounded acquisition route. Attach a local registration PDF below.</div>}
     <div className="axis-hint">Candidate evidence supports inspection, not a claim that this is the paper's correct registration or that the paper followed it.</div>
   </div>;
 }

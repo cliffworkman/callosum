@@ -169,6 +169,11 @@ def test_attach_local_registration_pdf_chunks_only_that_attachment(temp_db_url: 
     assert link["provider"] == "manual-local"
     assert link["link_status"] == "confirmed"
     assert link["attachment_id"] == attachment_id
+    versions = client.get(f"/papers/{paper_id}/registration-versions").json()
+    assert len(versions) == 1
+    assert versions[0]["provider"] == "manual-local"
+    assert versions[0]["attachment_id"] == attachment_id
+    assert versions[0]["content_hash"] == attachment["checksum"]
 
 
 def test_local_registration_upload_rejects_non_pdf(temp_db_url: str) -> None:

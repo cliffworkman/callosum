@@ -85,3 +85,28 @@ paper_registration_links = Table(
     Index("ix_registration_links_paper_status", "paper_id", "link_status"),
     Index("ix_registration_links_external", "provider", "external_id"),
 )
+
+registration_document_versions = Table(
+    "registration_document_versions",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("link_id", ForeignKey("paper_registration_links.id", ondelete="CASCADE"), nullable=False),
+    Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), nullable=False),
+    Column("attachment_id", ForeignKey("attachments.id", ondelete="SET NULL")),
+    Column("provider", String(100), nullable=False),
+    Column("external_id", String(500), nullable=False),
+    Column("content_hash", String(128), nullable=False),
+    Column("canonical_url", Text),
+    Column("registered_at", String(100)),
+    Column("registration_status", String(100)),
+    Column("schema_name", Text),
+    Column("schema_version", String(100)),
+    Column("structured_json", JSON, nullable=False),
+    Column("rendered_text", Text),
+    Column("source_metadata_json", JSON, nullable=False),
+    Column("retrieved_at", DateTime, nullable=False),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    UniqueConstraint("link_id", "content_hash", name="uq_registration_document_version_hash"),
+    Index("ix_registration_versions_paper_id", "paper_id"),
+    Index("ix_registration_versions_link_id", "link_id"),
+)

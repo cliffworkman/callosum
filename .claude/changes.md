@@ -9,7 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 427 — explicit registration discovery and candidate lifecycle -->
+<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 428 — confirmed registration acquisition and immutable versions -->
+
+## 2026-07-31 — Increment 428: confirmed registration acquisition and immutable versions
+
+- **Files:** `app/backend/registration_acquisition/*`, `app/backend/api/routers/registration_acquisition.py`,
+  `app/backend/persistence/registration_versions_repo.py`, migration 0061, Methods UI, tests/help/QA/security notes.
+- **What:** explicit acquisition of a confirmed public OSF structured record or validated AsPredicted PDF now creates
+  a managed preregistration attachment and immutable content-hash version. Raw schema responses/amendments/provider
+  snapshots survive deterministic OSF rendering; local PDFs use the same version seam without egress. Same-hash
+  re-acquisition reuses the version, while changed content preserves both attachments.
+- **Why:** every later commitment and comparison row must name the exact registration artifact it read. Confirmation,
+  acquisition, and comparison remain separate epistemic/user actions.
+- **Revert:** revert Increment 428. Migration 0061 has a no-op downgrade; export structured/source snapshots and retain
+  referenced managed attachments before manually dropping version rows.
 
 ## 2026-07-31 — Increment 427: explicit registration discovery and candidate matching
 

@@ -778,6 +778,23 @@ def test_registration_discovery_is_explicit_metadata_egress_and_never_auto_attac
     assert "Fresh search, including dismissed candidates" in raw
 
 
+def test_registration_acquisition_is_explicit_versioned_and_not_a_comparison():
+    raw = assemble_jsx()
+    assert "Acquire registration" in raw
+    assert "Check for an updated version" in raw
+    assert "registration-acquisition/${started.data.job_id}" in raw
+    assert "registration-versions" in raw
+    assert "Registration attached, not compared" in raw
+    assert "No comparison has run yet." in raw
+    assert "Callosum will not try to download an unavailable artifact." in raw
+    # Loading the panel reads only persisted local state; acquisition remains inside the click handler.
+    component = raw.split("function RegistrationDiscovery({ paperId })", 1)[1].split(
+        "function RegistrationCandidateCard", 1
+    )[0]
+    effect = component.split("useEffect(() =>", 1)[1].split("const showDisclosure", 1)[0]
+    assert "/acquire" not in effect
+
+
 def test_set_critical_review_modal_shipped():
     """Backlog #12 (set critical review): the multi-paper modal + its two entry points assemble, and the
     honesty framing (fact-matrix caption, amber candidate reuse, no score) ships with it."""

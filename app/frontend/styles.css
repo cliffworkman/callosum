@@ -542,6 +542,7 @@
   .registration-discovery-head, .registration-candidate-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .registration-discovery-consent { margin: 9px 0 0; line-height: 1.5; }
   .registration-candidate-card { margin-top: 9px; padding: 9px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); }
+  .registration-version-summary { margin-top: 8px; padding: 8px; border-left: 2px solid var(--accent-line); background: var(--accent-soft); }
   .registration-linkage { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; color: var(--ink-2); background: var(--hover); }
   .registration-linkage.explicit-linkage { color: var(--accent); }
   .registration-candidate-evidence { margin: 7px 0 5px; padding-left: 18px; color: var(--ink-2); font-size: 11.5px; line-height: 1.45; }
