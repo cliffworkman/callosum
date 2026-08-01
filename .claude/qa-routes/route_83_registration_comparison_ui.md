@@ -1,5 +1,5 @@
 <!-- qa-coverage
-fe: 08h_methods_transparency.jsx, 08i_registration_comparison.jsx
+fe: 08h_methods_transparency.jsx, 08i_registration_comparison.jsx, 40_app.jsx
 -->
 
 # ROUTE 83 — End-to-end registration comparison UI
@@ -15,8 +15,10 @@ withdrawn candidate. Capture browser requests, console, and page errors. AI egre
 
 ## Steps
 
-1. Open Transparency. Verify local detection/reference state and no registry/acquisition/comparison request on open.
-2. Run candidate discovery through its disclosure, confirm one candidate, acquire it explicitly, and inspect the
+1. Open Transparency. Verify local detection/reference state, the compact **Open Meta-Preregistration** handoff, and
+   no registry/acquisition/comparison request on open. Follow it to **Synthesize → Meta-Preregistration** and verify
+   the tab appears immediately after Critique. Opening the workspace may read local saved state but sends nothing.
+2. In Meta-Preregistration, run candidate discovery through its disclosure, confirm one candidate, acquire it explicitly, and inspect the
    stored registration independently. Verify each preceding state and that no step silently starts the next.
 3. Select a version, toggle relevant supplements/expansion, and choose **Compare now**. Navigate away/back during the
    job; verify Status and final state. Double-submit is disabled.
@@ -37,7 +39,11 @@ withdrawn candidate. Capture browser requests, console, and page errors. AI egre
     link becomes unavailable, and existing runs stale.
 11. Inspect a timing row and verify its searched chunk IDs/source attachment checksums match the visible evidence;
     an out-of-scope dated passage must not change the result.
-12. Repeat at 375px. Verify evidence columns stack, controls do not overflow, and source/review actions remain usable.
+12. Compare the source, candidate, comparison, input, select, note, and action treatments with Settings. Verify they
+    share the standard card/field/input/action/note vocabulary and radius/spacing rhythm; domain-specific evidence
+    cards may retain semantic left rules and paired-source layout.
+13. Repeat at 375px. Verify evidence columns and source rows stack, controls do not overflow, and source/review
+    actions remain usable.
 
 ## Pass criteria
 

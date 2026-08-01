@@ -207,6 +207,11 @@ function App() {
     selectWorkspace("work");
     if (mobile) setMobilePane("library");
   }, [mobile, requestWorkspaceTab, selectWorkspace, setMobilePane]);
+  const openMetaPreregistration = useCallback(() => {
+    requestWorkspaceTab("synthesis", "meta-preregistration");
+    selectWorkspace("synthesis");
+    if (mobile) setMobilePane("library");
+  }, [mobile, requestWorkspaceTab, selectWorkspace, setMobilePane]);
   // inc 415: Status-popover click-through, keyed on which JobStore the row belongs to. Reuses each
   // destination's existing navigation function verbatim — a 4th job kind just needs one more branch here
   // (plus, if it has a specific entity to reopen, a `nav` payload published at its own mark_done() call).
@@ -378,6 +383,7 @@ function App() {
     onFindingsChanged: () => setFindingsRefresh(n => n + 1),
     onReferenceWarningsChanged: () => setReferenceWarningsRefresh(n => n + 1),
     onOpenTextHealth: openTextHealth,
+    onOpenMetaPreregistration: openMetaPreregistration,
     onOpenSettings: () => selectWorkspace("settings"), settingsNonce,  // inc 148 / inc 280: synthesis egress nudge → Settings workspace
     onCriticalReviewSources: (ids) => setCritSetIds(ids),  // #12: synthesis → critically review its source papers as a set
   };

@@ -222,6 +222,8 @@
   .app.mobile .registration-evidence-columns { grid-template-columns: 1fr; }
   .app.mobile .registration-comparison-toolbar { align-items: stretch; flex-direction: column; }
   .app.mobile .registration-comparison-toolbar > .btn { align-self: flex-end; }
+  .app.mobile .registration-source-row, .app.mobile .registration-workspace-cue { align-items: stretch; flex-direction: column; }
+  .app.mobile .registration-source-row > .btn, .app.mobile .registration-workspace-cue > .btn { align-self: flex-end; }
   /* QA 2026-07-19 mobile-CSS batch (browser-verified with Playwright): 4 spacing fixes at 375px. */
   /* (1) Discover Feed's All/Unread/Starred filter buttons were flex:1 (from the shared .tags-srcfilter-btn base),
      so 3 buttons squeezed into equal thirds and "Unread (391)" wrapped mid-word. Content-sized + let the
@@ -541,25 +543,42 @@
   .provider-add-btn:not(:disabled):hover { background: var(--verified-soft); }
   .provider-add-btn:disabled { opacity: .4; cursor: default; }
   .transparency-queues { margin-top: 5px; line-height: 1.7; }   /* inc 251: the 7 review-queue links (not detected — go look, never a verdict) */
-  .registration-discovery { margin-top: 10px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel-2); }
+  /* inc 434: Meta-Preregistration is a full Synthesize workspace. Its general layout deliberately reuses the
+     Settings card/field/input/action vocabulary; only domain-specific candidate and evidence cards are custom. */
+  .meta-preregistration { box-sizing: border-box; width: 100%; max-width: 1400px; margin: 0 auto; }
+  .meta-preregistration-intro { margin-bottom: 14px; }
+  .meta-preregistration-intro .eyebrow { margin: 0 0 5px; }
+  .meta-preregistration-grid, .registration-workflow { display: grid; gap: 14px; }
+  .registration-workspace-cue { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+  .registration-workspace-cue > .btn { flex: none; }
+  .registration-discovery { min-width: 0; }
   .registration-discovery-head, .registration-candidate-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .registration-discovery-head, .registration-comparison-toolbar { max-width: none !important; padding-top: 0; }
+  .registration-discovery-head .settings-card-title, .registration-comparison-toolbar .settings-card-title { margin-bottom: 3px; }
   .registration-discovery-consent { margin: 9px 0 0; line-height: 1.5; }
-  .registration-candidate-card { margin-top: 9px; padding: 9px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); }
-  .registration-version-summary { margin-top: 8px; padding: 8px; border-left: 2px solid var(--accent-line); background: var(--accent-soft); }
-  .registration-linkage { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; color: var(--ink-2); background: var(--hover); }
+  .registration-candidate-card { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+  .registration-candidate-card > b { display: block; margin: 8px 0 3px; font-size: 12.5px; }
+  .registration-candidate-card .settings-sub { margin-top: 3px; }
+  .registration-candidate-caveat { padding-top: 4px; }
+  .registration-version-summary { margin-top: 10px; padding: 10px 12px; border-left: 2px solid var(--accent-line); border-radius: 0 var(--radius) var(--radius) 0; background: var(--accent-soft); }
+  .registration-linkage { display: inline-block; padding: 2px 7px; border-radius: var(--radius-pill); font-size: 10.5px; font-weight: 700; color: var(--ink-2); background: var(--hover); }
   .registration-linkage.explicit-linkage { color: var(--accent); }
-  .registration-candidate-evidence { margin: 7px 0 5px; padding-left: 18px; color: var(--ink-2); font-size: 11.5px; line-height: 1.45; }
-  .registration-comparison-workspace { margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--line); }
+  .registration-candidate-evidence { margin: 9px 0 6px; padding-left: 20px; color: var(--ink-2); font-size: 12px; line-height: 1.5; }
+  .registration-reference-actions > .settings-sub { margin-bottom: 12px; }
+  .registration-source-row { align-items: center; flex-wrap: nowrap; }
+  .registration-source-row .settings-input { flex: 1 1 auto; min-width: 0; }
+  .registration-source-row > .btn { flex: none; }
+  .registration-comparison-workspace { min-width: 0; }
   .registration-comparison-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-  .registration-comparison-options { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 9px 0; font-size: 11.5px; color: var(--ink-2); }
+  .registration-comparison-options { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 10px 0 12px; font-size: 12px; color: var(--ink-2); }
   .registration-comparison-options > label { display: flex; align-items: center; gap: 6px; }
-  .registration-comparison-options select { max-width: 210px; }
-  .registration-raw-record { margin: 9px 0; padding: 9px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); }
-  .registration-raw-record pre { max-height: 320px; overflow: auto; margin: 6px 0 0; white-space: pre-wrap; font-family: var(--mono); font-size: 10.5px; line-height: 1.45; color: var(--ink-2); }
-  .registration-stale-note { margin-top: 9px; }
-  .registration-crosswalk { display: flex; flex-direction: column; gap: 9px; margin-top: 10px; }
-  .registration-crosswalk-framing { padding: 8px 10px; border: 1px solid var(--flag-line); border-radius: var(--radius-sm); background: var(--flag-soft); color: var(--flag-ink); font-size: 11.5px; line-height: 1.45; }
-  .registration-comparison-row { padding: 10px; border: 1px solid var(--line); border-left: 3px solid var(--line-2); border-radius: var(--radius-sm); background: var(--panel); }
+  .registration-comparison-options select { width: auto; max-width: 240px; }
+  .registration-raw-record { margin: 10px 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+  .registration-raw-record pre { max-height: 320px; overflow: auto; margin: 8px 0 0; white-space: pre-wrap; font-family: var(--mono); font-size: 11px; line-height: 1.5; color: var(--ink-2); }
+  .registration-stale-note { margin-top: 10px; }
+  .registration-crosswalk { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+  .registration-crosswalk-framing { padding: 10px 12px; border: 1px solid var(--flag-line); border-radius: var(--radius); background: var(--flag-soft); color: var(--flag-ink); font-size: 12px; line-height: 1.5; }
+  .registration-comparison-row { padding: 14px 16px; border: 1px solid var(--line); border-left: 3px solid var(--line-2); border-radius: var(--radius); background: var(--panel); }
   .registration-comparison-row.status-potentially-changed,
   .registration-comparison-row.status-planned-item-not-located-in-publication,
   .registration-comparison-row.status-reported-item-not-located-in-registration,
@@ -567,18 +586,18 @@
   .registration-comparison-row.status-extraction-uncertain { border-left-color: var(--flag); }
   .registration-comparison-row.status-disclosed-deviation { border-left-color: var(--accent); }
   .registration-comparison-row.review-dismissed { opacity: .65; }
-  .registration-comparison-row-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-  .registration-comparison-status { margin-top: 2px; color: var(--ink); font-size: 12px; font-weight: 650; }
+  .registration-comparison-row-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .registration-comparison-status { margin-top: 3px; color: var(--ink); font-size: 12.5px; font-weight: 650; }
   .registration-timing-status { max-width: 48%; padding: 2px 7px; border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--accent); font-size: 10.5px; font-weight: 600; text-align: right; }
-  .registration-evidence-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 9px; }
-  .registration-evidence-column { min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel-2); font-size: 11.5px; }
-  .registration-evidence-column blockquote { margin: 6px 0; padding-left: 8px; border-left: 2px solid var(--accent-line); color: var(--ink-2); font-family: var(--serif); line-height: 1.45; white-space: pre-wrap; }
-  .registration-comparison-why { margin-top: 9px; font-size: 11.5px; line-height: 1.45; color: var(--ink-2); }
-  .registration-search-scope { margin-top: 7px; color: var(--ink-3); font-size: 10.5px; line-height: 1.45; }
+  .registration-evidence-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+  .registration-evidence-column { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-size: 12px; }
+  .registration-evidence-column blockquote { margin: 8px 0; padding-left: 10px; border-left: 2px solid var(--accent-line); color: var(--ink-2); font-family: var(--serif); line-height: 1.5; white-space: pre-wrap; }
+  .registration-comparison-why { margin-top: 12px; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+  .registration-search-scope { margin-top: 9px; color: var(--ink-3); font-size: 11px; line-height: 1.5; }
   .registration-search-scope summary { cursor: pointer; color: var(--ink-2); }
-  .registration-row-review { margin-top: 8px; }
-  .registration-row-review textarea { width: 100%; min-height: 48px; resize: vertical; font-size: 11.5px; line-height: 1.4; }
-  .registration-comparison-basis { margin-top: 8px; overflow-wrap: anywhere; }
+  .registration-row-review { margin-top: 12px; }
+  .registration-row-review textarea { width: 100%; min-height: 58px; resize: vertical; line-height: 1.45; }
+  .registration-comparison-basis { margin-top: 10px; overflow-wrap: anywhere; }
   /* B1 SP2: the agent-activity review list (one row per agent write + a Revert action). */
   .agent-activity { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; }
   .agent-activity-row { display: flex; align-items: center; justify-content: space-between; gap: 8px;

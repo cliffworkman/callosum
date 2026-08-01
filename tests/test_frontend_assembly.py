@@ -768,8 +768,9 @@ def test_methods_pane_regrouped_details_data_statistics_checklists():
 
 def test_registration_discovery_is_explicit_metadata_egress_and_never_auto_attaches():
     raw = assemble_jsx()
-    assert "<RegistrationDiscovery paperId={paperId} paperTitle={meta.title} onOpenPaper={onOpenPaper}" in raw
-    assert "refreshKey={registrationRefresh}" in raw
+    assert "function MetaPreregistrationPane({ ctx, active })" in raw
+    assert "<RegistrationDiscovery paperId={paperId} paperTitle={meta.title} onOpenPaper={ctx.onOpenPaper}" in raw
+    assert "refreshKey={refreshKey}" in raw
     assert "Search public registry metadata?" in raw
     assert "Sends: <b>" in raw
     assert "Used only on this machine for matching" in raw
@@ -777,6 +778,38 @@ def test_registration_discovery_is_explicit_metadata_egress_and_never_auto_attac
     assert "Registration link confirmed. No registration content has been downloaded yet." in raw
     assert "Candidate evidence supports inspection" in raw
     assert "Fresh search, including dismissed candidates" in raw
+
+
+def test_meta_preregistration_is_a_settings_consistent_synthesis_workspace_after_critique():
+    raw = assemble_jsx()
+    registration_source = "\n".join(
+        (FRONTEND_DIR / "js" / name).read_text(encoding="utf-8")
+        for name in ("08h_methods_transparency.jsx", "08i_registration_comparison.jsx")
+    )
+    transparency = raw.split("function TransparencyPaper(", 1)[1].split("function TransparencyChecklist", 1)[0]
+    workspace = raw.split("function MetaPreregistrationPane(", 1)[1].split("registerWorkspaceTab(", 1)[0]
+    css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
+
+    assert 'id: "critique", label: "Critique", order: 20' in raw
+    assert 'id: "meta-preregistration", label: "Meta-Preregistration", order: 30' in raw
+    assert 'requestWorkspaceTab("synthesis", "meta-preregistration")' in raw
+    assert "onOpenMetaPreregistration={ctx.onOpenMetaPreregistration}" in raw
+    assert "Open Meta-Preregistration" in transparency
+    assert "<RegistrationDiscovery" not in transparency
+    assert "<RegistrationReferenceActions" not in transparency
+    assert "<RegistrationDiscovery" in workspace and "<RegistrationReferenceActions" in workspace
+
+    # General UI structure and controls reuse Settings conventions; domain evidence remains purpose-built.
+    assert 'className="settings-card registration-discovery"' in raw
+    assert 'className="settings-card registration-comparison-workspace"' in raw
+    assert 'className="settings-card registration-reference-actions"' in raw
+    assert 'className="settings-input"' in raw
+    assert 'textarea className="settings-input"' in raw
+    assert 'className="btn btn-ghost"' in registration_source
+    assert 'className="btn btn-secondary"' not in registration_source
+    assert ".meta-preregistration-grid, .registration-workflow { display: grid; gap: 14px; }" in css
+    assert ".registration-candidate-card { margin-top: 12px; padding: 12px;" in css
+    assert "border-radius: var(--radius);" in css
 
 
 def test_registration_acquisition_is_explicit_versioned_and_not_a_comparison():
@@ -788,7 +821,7 @@ def test_registration_acquisition_is_explicit_versioned_and_not_a_comparison():
     assert "Registration attached, not compared" in raw
     assert "No comparison has run yet." in raw
     assert "Callosum will not try to download an unavailable artifact." in raw
-    # Loading the panel reads only persisted local state; acquisition remains inside the click handler.
+    # Loading the workspace reads only persisted local state; acquisition remains inside the click handler.
     component = raw.split("function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper, refreshKey = 0 })", 1)[
         1
     ].split("function RegistrationCandidateCard", 1)[0]

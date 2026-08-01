@@ -55,10 +55,9 @@ const TRANSPARENCY_CSL = [
 
 // Per-paper audit. The section gets only the paper id via ctx, so it self-fetches title + chunk_count. Auto-runs
 // when its section is the open one (like statcheck / the LMM / meta auditors).
-function TransparencyPaper({ paperId, onOpenPaper, active }) {
+function TransparencyPaper({ paperId, onOpenPaper, onOpenMetaPreregistration, active }) {
   const [meta, setMeta] = useState(null); // { title, hasText } | null
   const [state, setState] = useState({ status: "idle" });
-  const [registrationRefresh, setRegistrationRefresh] = useState(0);
   useEffect(() => {
     setState({ status: "idle" }); setMeta(null);
     if (paperId == null) return;
@@ -84,13 +83,6 @@ function TransparencyPaper({ paperId, onOpenPaper, active }) {
     const target = methodEvidenceTarget(paperId, title, evidence, key);
     if (target) onOpenPaper({ id: paperId, title }, target);
   };
-  const registrationSourceChanged = () => {
-    setRegistrationRefresh(value => value + 1);
-    api(`/papers/${paperId}`).then(r => {
-      if (r.ok) setMeta({ title: r.data.title, hasText: (r.data.chunk_count || 0) > 0, attachments: r.data.attachments || [] });
-    });
-    run();
-  };
   if (paperId == null) return <div className="tag-suggest-empty">Select a paper to check its transparency disclosures.</div>;
   const hasText = meta ? meta.hasText : false;
   const d = state.data;
@@ -108,10 +100,10 @@ function TransparencyPaper({ paperId, onOpenPaper, active }) {
       {state.status === "error" && <div className="axis-err">Couldn't check: {state.error}</div>}
       {state.status === "done" && d && <TransparencyChecklist checks={d.checks} onOpen={open}
         references={d.registration_references} referenceState={d.registration_reference_state} />}
-      {meta && <RegistrationDiscovery paperId={paperId} paperTitle={meta.title} onOpenPaper={onOpenPaper}
-        refreshKey={registrationRefresh} />}
-      {meta && <RegistrationReferenceActions paperId={paperId} attachments={meta.attachments}
-        onChanged={registrationSourceChanged} />}
+      {meta && onOpenMetaPreregistration && <div className="settings-note registration-workspace-cue">
+        <span>Find, attach, and compare registrations in the full Synthesize workspace.</span>
+        <button className="btn btn-ghost" onClick={onOpenMetaPreregistration}>Open Meta-Preregistration</button>
+      </div>}
     </div>
   );
 }
@@ -209,31 +201,37 @@ function RegistrationReferenceActions({ paperId, attachments, onChanged }) {
     if (!r.ok) return setStatus({ state: "error", error: r.error });
     setStatus({ state: "done", message: "Local registration PDF attached and processed." }); onChanged();
   };
-  return <div className="statcheck-caveat">
-    <b>Add a registration source</b>
-    <div className="axis-hint">These actions are local. Saving a reference does not fetch it or confirm that it belongs to this paper.</div>
-    <div className="settings-actions">
-      <input value={value} onChange={e => setValue(e.target.value)} placeholder="Registration URL, DOI, or identifier" aria-label="Registration URL, DOI, or identifier" />
-      <button className="btn btn-secondary" disabled={status.state === "working" || !value.trim()} onClick={addReference}>Save reference</button>
+  return <section className="settings-card registration-reference-actions">
+    <h2 className="settings-card-title">Add or correct a source</h2>
+    <div className="settings-sub">These actions are local. Saving a reference does not fetch it or confirm that it belongs to this paper.</div>
+    <div className="settings-field">
+      <label className="settings-field-label" htmlFor={`registration-reference-${paperId}`}>Registration URL, DOI, or identifier</label>
+      <div className="settings-actions registration-source-row">
+        <input id={`registration-reference-${paperId}`} className="settings-input" value={value} onChange={e => setValue(e.target.value)} placeholder="https://osf.io/… or 10.17605/OSF.IO/…" />
+        <button className="btn btn-ghost" disabled={status.state === "working" || !value.trim()} onClick={addReference}>Save reference</button>
+      </div>
     </div>
     <div className="settings-actions">
       <input ref={fileInput} type="file" accept="application/pdf,.pdf" onChange={attachFile} style={{display: "none"}} />
-      <button className="btn btn-secondary" disabled={status.state === "working"} onClick={() => fileInput.current && fileInput.current.click()}>Attach local preregistration PDF</button>
+      <button className="btn btn-ghost" disabled={status.state === "working"} onClick={() => fileInput.current && fileInput.current.click()}>Attach local preregistration PDF</button>
     </div>
-    {!!attachments.length && <div className="settings-actions">
-      <select value={selectedAttachment} onChange={e => setSelectedAttachment(e.target.value)} aria-label="Existing attachment">
-        <option value="">Choose an existing attachment…</option>
-        {attachments.filter(a => a.role !== "preregistration").map(a => <option value={a.id} key={a.id}>{a.filename || `Attachment ${a.id}`} · {a.role || "legacy role"}</option>)}
-      </select>
-      <button className="btn btn-secondary" disabled={status.state === "working" || !selectedAttachment} onClick={markAttachment}>Mark as preregistration</button>
+    {!!attachments.length && <div className="settings-field">
+      <label className="settings-field-label" htmlFor={`registration-attachment-${paperId}`}>Existing attachment</label>
+      <div className="settings-actions registration-source-row">
+        <select id={`registration-attachment-${paperId}`} className="settings-input" value={selectedAttachment} onChange={e => setSelectedAttachment(e.target.value)}>
+          <option value="">Choose an existing attachment…</option>
+          {attachments.filter(a => a.role !== "preregistration").map(a => <option value={a.id} key={a.id}>{a.filename || `Attachment ${a.id}`} · {a.role || "legacy role"}</option>)}
+        </select>
+        <button className="btn btn-ghost" disabled={status.state === "working" || !selectedAttachment} onClick={markAttachment}>Mark as preregistration</button>
+      </div>
     </div>}
-    {status.state === "error" && <div className="axis-err">{status.error}</div>}
-    {status.state === "done" && <div className="axis-hint">{status.message}</div>}
-  </div>;
+    {status.state === "error" && <div className="settings-note settings-note-err">{status.error}</div>}
+    {status.state === "done" && <div className="settings-note">{status.message}</div>}
+  </section>;
 }
 
-// inc 427: registry discovery is an explicit metadata-egress action. Merely opening Methods fetches only
-// already-local candidate state. Confirmation records a link; acquisition remains a separate user action.
+// inc 427 / 434: registry discovery is an explicit metadata-egress action. Opening Meta-Preregistration fetches
+// already-local candidate state only. Confirmation records a link; acquisition remains a separate user action.
 function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper, refreshKey = 0 }) {
   const [links, setLinks] = useState([]);
   const [versions, setVersions] = useState([]);
@@ -313,45 +311,47 @@ function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper, refreshKey = 
     : confirmed.length ? "Registration linked, not acquired"
     : candidates.length ? "Candidates found, choose"
       : "No registration linked";
-  return <div className="registration-discovery">
-    <div className="registration-discovery-head">
-      <div><b>Registration comparison</b><div className="axis-hint">{statusLabel}</div></div>
-      <button className="btn btn-secondary" disabled={state.status === "running" || state.status === "working"} onClick={showDisclosure}>
-        {links.length ? "Search again" : "Find registration"}
-      </button>
-    </div>
-    {state.status === "consent" && <div className="provider-egress-warn registration-discovery-consent">
-      <b>Search public registry metadata?</b>
-      <div>{state.preview.notice}</div>
-      <div>Sends: <b>{(state.preview.metadata_fields || []).join(", ") || "no paper metadata"}</b>.</div>
-      {!!(state.preview.local_match_fields || []).length && <div>Used only on this machine for matching: {state.preview.local_match_fields.join(", ")}.</div>}
-      <div className="settings-actions">
-        <button className="btn btn-primary" onClick={() => search(false)}>Search OSF and DataCite</button>
-        <button className="btn btn-secondary" onClick={() => setState({ status: "idle" })}>Cancel</button>
+  return <div className="registration-workflow">
+    <section className="settings-card registration-discovery">
+      <div className="settings-row registration-discovery-head">
+        <div><h2 className="settings-card-title">Registration source</h2><div className="settings-sub">{statusLabel}</div></div>
+        <button className="btn btn-ghost" disabled={state.status === "running" || state.status === "working"} onClick={showDisclosure}>
+          {links.length ? "Search again" : "Find registration"}
+        </button>
       </div>
-    </div>}
-    {state.status === "running" && <ProgressBar label="Searching public registration metadata…" />}
-    {state.status === "acquiring" && <ProgressBar label="Acquiring the confirmed public registration…" />}
-    {state.status === "error" && <div className="settings-note settings-note-err">Registration workflow failed: {state.error}</div>}
-    {state.message && <div className="settings-note">{state.message}</div>}
-    {(state.providers || []).map(report => report.status !== "ok" && <div className="axis-hint" key={report.provider}>
-      {report.provider}: {report.detail || report.status}
-    </div>)}
-    {!!rejected.length && !confirmed.length && <div className="provider-egress-warn">
-      <b>Incorrect registration match.</b> Choose another candidate or run a fresh search. Saved comparisons remain inspectable and are marked stale.
-    </div>}
-    {confirmed.map(link => <RegistrationCandidateCard key={link.id} link={link} confirmed
-      versions={versions.filter(version => version.link_id === link.id)}
-      busy={(state.status === "acquiring" || state.status === "working") && state.linkId === link.id}
-      onAcquire={() => acquire(link)} onIncorrect={() => change(link, "reject", true)} />)}
-    {candidates.map(link => <RegistrationCandidateCard key={link.id} link={link}
-      busy={state.status === "working" && state.linkId === link.id}
-      onConfirm={() => change(link, "confirm")} onReject={() => change(link, "reject")} />)}
-    {state.status === "done" && !links.length && <div className="axis-hint">
-      No candidate was located through the searched metadata routes. This is not evidence that no registration exists.
-      You can add a known reference or local PDF below.
-    </div>}
-    {state.status === "done" && <button className="btn-link" onClick={() => search(true)}>Fresh search, including dismissed candidates</button>}
+      {state.status === "consent" && <div className="provider-egress-warn registration-discovery-consent">
+        <b>Search public registry metadata?</b>
+        <div>{state.preview.notice}</div>
+        <div>Sends: <b>{(state.preview.metadata_fields || []).join(", ") || "no paper metadata"}</b>.</div>
+        {!!(state.preview.local_match_fields || []).length && <div>Used only on this machine for matching: {state.preview.local_match_fields.join(", ")}.</div>}
+        <div className="settings-actions">
+          <button className="btn btn-primary" onClick={() => search(false)}>Search OSF and DataCite</button>
+          <button className="btn btn-ghost" onClick={() => setState({ status: "idle" })}>Cancel</button>
+        </div>
+      </div>}
+      {state.status === "running" && <ProgressBar label="Searching public registration metadata…" />}
+      {state.status === "acquiring" && <ProgressBar label="Acquiring the confirmed public registration…" />}
+      {state.status === "error" && <div className="settings-note settings-note-err">Registration workflow failed: {state.error}</div>}
+      {state.message && <div className="settings-note">{state.message}</div>}
+      {(state.providers || []).map(report => report.status !== "ok" && <div className="settings-note" key={report.provider}>
+        {report.provider}: {report.detail || report.status}
+      </div>)}
+      {!!rejected.length && !confirmed.length && <div className="provider-egress-warn">
+        <b>Incorrect registration match.</b> Choose another candidate or run a fresh search. Saved comparisons remain inspectable and are marked stale.
+      </div>}
+      {confirmed.map(link => <RegistrationCandidateCard key={link.id} link={link} confirmed
+        versions={versions.filter(version => version.link_id === link.id)}
+        busy={(state.status === "acquiring" || state.status === "working") && state.linkId === link.id}
+        onAcquire={() => acquire(link)} onIncorrect={() => change(link, "reject", true)} />)}
+      {candidates.map(link => <RegistrationCandidateCard key={link.id} link={link}
+        busy={state.status === "working" && state.linkId === link.id}
+        onConfirm={() => change(link, "confirm")} onReject={() => change(link, "reject")} />)}
+      {state.status === "done" && !links.length && <div className="settings-note">
+        No candidate was located through the searched metadata routes. This is not evidence that no registration exists.
+        You can add a known reference or local PDF below.
+      </div>}
+      {state.status === "done" && <button className="btn-link" onClick={() => search(true)}>Fresh search, including dismissed candidates</button>}
+    </section>
     {!!versions.length && <RegistrationComparisonWorkspace paperId={paperId} paperTitle={paperTitle}
       versions={versions} onOpenPaper={onOpenPaper} invalidLinkIds={invalid.map(link => link.id)} />}
   </div>;
@@ -374,34 +374,34 @@ function RegistrationCandidateCard({ link, confirmed, versions = [], busy, onCon
   return <div className="registration-candidate-card">
     <div className="registration-candidate-top">
       <span className={`registration-linkage ${link.linkage_class}`}>{confirmed ? "Linked by you" : link.linkage_label}</span>
-      {link.registration_status && <span className="axis-hint">{link.registration_status}</span>}
+      {link.registration_status && <span className="settings-sub">{link.registration_status}</span>}
     </div>
     <b>{link.title || `${link.provider} registration ${link.external_id}`}</b>
-    <div className="axis-hint">{link.provider} · {link.registration_doi || link.external_id}{link.registered_at ? ` · ${link.registered_at.slice(0, 10)}` : ""}</div>
-    {!!(link.contributors || []).length && <div className="axis-hint">{link.contributors.join(", ")}</div>}
+    <div className="settings-sub">{link.provider} · {link.registration_doi || link.external_id}{link.registered_at ? ` · ${link.registered_at.slice(0, 10)}` : ""}</div>
+    {!!(link.contributors || []).length && <div className="settings-sub">{link.contributors.join(", ")}</div>}
     {!!evidence.length && <ul className="registration-candidate-evidence">{evidence.map((item, index) => <li key={index}>{evidenceLabel(item)}</li>)}</ul>}
     {["withdrawn", "unavailable", "embargoed"].includes(link.registration_status) && <div className="settings-note settings-note-err">
       The registry reports this registration as {link.registration_status}. Inspect its public metadata; Callosum will not try to download an unavailable artifact.
     </div>}
     {confirmed && latestVersion && <div className="registration-version-summary">
       <b>Stored locally</b>
-      <div className="axis-hint">
+      <div className="settings-sub">
         Version {latestVersion.content_hash.slice(0, 12)} · retrieved {new Date(latestVersion.retrieved_at).toLocaleDateString()}
         {versions.length > 1 ? ` · ${versions.length} preserved versions` : ""}
       </div>
-      <div className="axis-hint">Registration content is attached and can be inspected independently. No comparison has run yet.</div>
+      <div className="settings-sub">Registration content is attached and can be inspected independently. No comparison has run yet.</div>
     </div>}
     <div className="settings-actions">
       {link.canonical_url && <button className="axis-link" onClick={() => window.open(link.canonical_url, "_blank", "noopener")}>Open externally</button>}
-      {!confirmed && <button className="btn btn-secondary" disabled={busy || unavailableLink || ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status)} onClick={onConfirm}>Confirm link</button>}
+      {!confirmed && <button className="btn btn-ghost" disabled={busy || unavailableLink || ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status)} onClick={onConfirm}>Confirm link</button>}
       {!confirmed && <button className="btn-link" disabled={busy} onClick={onReject}>Dismiss</button>}
-      {confirmed && canAcquire && <button className="btn btn-secondary" disabled={busy} onClick={onAcquire}>
+      {confirmed && canAcquire && <button className="btn btn-ghost" disabled={busy} onClick={onAcquire}>
         {latestVersion ? "Check for an updated version" : "Acquire registration"}
       </button>}
       {confirmed && <button className="btn-link" disabled={busy} onClick={onIncorrect}>Incorrect registration match</button>}
     </div>
-    {confirmed && !latestVersion && !canAcquire && <div className="axis-hint">This provider has no bounded acquisition route. Attach a local registration PDF below.</div>}
-    <div className="axis-hint">Candidate evidence supports inspection, not a claim that this is the paper's correct registration or that the paper followed it.</div>
+    {confirmed && !latestVersion && !canAcquire && <div className="settings-sub">This provider has no bounded acquisition route. Attach a local registration PDF below.</div>}
+    <div className="settings-sub registration-candidate-caveat">Candidate evidence supports inspection, not a claim that this is the paper's correct registration or that the paper followed it.</div>
   </div>;
 }
 
@@ -479,7 +479,8 @@ function TransparencySection({ ctx, active }) {
       <p className="eyebrow">Whole library</p>
       <TransparencyLibrary onReview={ctx.onShowTransparencyReview} onRan={ctx.onTransparencyRan} />
       <p className="eyebrow">This paper</p>
-      <TransparencyPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} />
+      <TransparencyPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper}
+        onOpenMetaPreregistration={ctx.onOpenMetaPreregistration} active={active} />
       <TransparencyCredit />
     </div>
   );

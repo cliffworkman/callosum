@@ -118,11 +118,11 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
   const surfaced = detail ? detail.rows.filter(row => row.comparison_status !== "aligned" && row.review_state === "unreviewed").length : 0;
   const currentRun = runs.find(run => detail && run.id === detail.id);
 
-  return <div className="registration-comparison-workspace">
-    <div className="registration-comparison-toolbar">
+  return <section className="settings-card registration-comparison-workspace">
+    <div className="settings-row registration-comparison-toolbar">
       <div>
-        <b>Publication crosswalk</b>
-        <div className="axis-hint">
+        <h2 className="settings-card-title">Publication crosswalk</h2>
+        <div className="settings-sub">
           {detail ? detail.status === "stale" ? "Comparison stale — source or pipeline changed"
             : surfaced ? `Compared · ${surfaced} item${surfaced === 1 ? "" : "s"} to inspect`
               : "Compared · review the crosswalk; no positive certificate is implied"
@@ -135,8 +135,8 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
     </div>
     {incorrectMatch && <div className="settings-note settings-note-err">This version belongs to a registration link marked as an incorrect match. Select or confirm another registration before comparing.</div>}
     <div className="registration-comparison-options">
-      {versions.length > 1 && <label>Registration version
-        <select value={versionId} onChange={event => setVersionId(event.target.value)}>
+      {versions.length > 1 && <label className="settings-field-label">Registration version
+        <select className="settings-input" value={versionId} onChange={event => setVersionId(event.target.value)}>
           {versions.map(version => <option key={version.id} value={version.id}>
             {version.content_hash.slice(0, 12)} · {new Date(version.retrieved_at).toLocaleDateString()}
           </option>)}
@@ -156,9 +156,9 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
     {state.status === "error" && <div className="settings-note settings-note-err">Comparison failed: {state.error}</div>}
     {state.message && <div className="settings-note">{state.message}</div>}
     {showRaw && <div className="registration-raw-record">
-      <div className="axis-hint">Stored version {selectedVersion?.content_hash} · independently inspectable comparison source</div>
+      <div className="settings-sub">Stored version {selectedVersion?.content_hash} · independently inspectable comparison source</div>
       {rawVersion ? <pre>{rawVersion.rendered_text || JSON.stringify(rawVersion.structured, null, 2)}</pre>
-        : <div className="axis-hint">loading stored registration…</div>}
+        : <div className="settings-sub">loading stored registration…</div>}
     </div>}
     {detail && detail.status === "stale" && <div className="provider-egress-warn registration-stale-note">
       <b>Comparison stale.</b> Re-run before relying on it. Basis changed: {(detail.stale_reasons || []).map(reason => reason.replaceAll("-", " ")).join("; ")}.
@@ -169,10 +169,10 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
         onOpenRegistration={() => openSource(row.registration_source_locator, row.registration_evidence_text, `registration:${row.id}`)}
         onOpenPublication={() => openSource(row.publication_source_locator, row.publication_evidence_text, `publication:${row.id}`)} />)}
     </div>}
-    {currentRun && <div className="axis-hint registration-comparison-basis">
+    {currentRun && <div className="settings-sub registration-comparison-basis">
       Registration {currentRun.registration_content_hash.slice(0, 12)} · commitment {currentRun.commitment_extraction_version} · retrieval {currentRun.retrieval_version} · comparison {currentRun.comparison_version}
     </div>}
-  </div>;
+  </section>;
 }
 
 function RegistrationComparisonRow({ row, onUpdated, onOpenRegistration, onOpenPublication }) {
@@ -198,19 +198,19 @@ function RegistrationComparisonRow({ row, onUpdated, onOpenRegistration, onOpenP
       <div><span className="eyebrow">{row.field_type.replaceAll("-", " ")}</span>
         <div className="registration-comparison-status">{REGISTRATION_STATUS_LABELS[row.comparison_status] || row.comparison_status}</div></div>
       {row.timing_status && <span className="registration-timing-status">{REGISTRATION_TIMING_LABELS[row.timing_status] || row.timing_status}</span>}
-      {row.review_state !== "unreviewed" && <span className="axis-hint">{row.review_state}</span>}
+      {row.review_state !== "unreviewed" && <span className="settings-sub">{row.review_state}</span>}
     </div>
     <div className="registration-evidence-columns">
       <div className="registration-evidence-column">
         <b>Registration</b>
         {row.registration_evidence_text ? <blockquote>{row.registration_evidence_text}</blockquote>
-          : <div className="axis-hint">No extracted registration evidence for this canonical field.</div>}
+          : <div className="settings-sub">No extracted registration evidence for this canonical field.</div>}
         {canOpenRegistration && <button className="btn-link" onClick={onOpenRegistration}>Open registration evidence</button>}
       </div>
       <div className="registration-evidence-column">
         <b>Publication</b>
         {row.publication_evidence_text ? <blockquote>{row.publication_evidence_text}</blockquote>
-          : <div className="axis-hint">Not located in the recorded publication search scope.</div>}
+          : <div className="settings-sub">Not located in the recorded publication search scope.</div>}
         {canOpenPublication && <button className="btn-link" onClick={onOpenPublication}>Open publication evidence</button>}
       </div>
     </div>
@@ -226,9 +226,9 @@ function RegistrationComparisonRow({ row, onUpdated, onOpenRegistration, onOpenP
       <div>{row.uncertainty}</div>
     </details>
     <div className="registration-row-review">
-      <textarea value={note} onChange={event => setNote(event.target.value)} placeholder="Add a private review note…" aria-label="Comparison review note" />
+      <textarea className="settings-input" value={note} onChange={event => setNote(event.target.value)} placeholder="Add a private review note…" aria-label="Comparison review note" />
       <div className="settings-actions">
-        <button className="btn btn-secondary" disabled={busy} onClick={() => save("reviewed")}>Mark reviewed</button>
+        <button className="btn btn-ghost" disabled={busy} onClick={() => save("reviewed")}>Mark reviewed</button>
         <button className="btn-link" disabled={busy} onClick={() => save("dismissed")}>Dismiss flag</button>
         <button className="btn-link" disabled={busy || note === (row.note || "")} onClick={() => save(row.review_state)}>Save note</button>
       </div>
@@ -236,3 +236,50 @@ function RegistrationComparisonRow({ row, onUpdated, onOpenRegistration, onOpenP
     </div>
   </article>;
 }
+
+// inc 434: this comparison is information-dense enough to need a full selected-paper workspace. Transparency
+// keeps local disclosure/reference evidence and links here; discovery, acquisition, source correction, and the
+// evidence crosswalk live together after Critique under Synthesize.
+function MetaPreregistrationPane({ ctx, active }) {
+  const paperId = ctx.selectedPaper;
+  const [meta, setMeta] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const loadPaper = useCallback(async () => {
+    if (paperId == null) return setMeta(null);
+    const result = await api(`/papers/${paperId}`);
+    setMeta(result.ok ? {
+      title: result.data.title,
+      attachments: result.data.attachments || [],
+    } : { error: result.error, title: `Paper ${paperId}`, attachments: [] });
+  }, [paperId]);
+  useEffect(() => {
+    setMeta(null);
+    if (active) loadPaper();
+  }, [active, loadPaper]);
+  const sourceChanged = async () => {
+    await loadPaper();
+    setRefreshKey(value => value + 1);
+  };
+  if (paperId == null) return <div className="meta-preregistration ws-pad">
+    <div className="tag-suggest-empty">Select a Library paper to find, attach, or compare a registration.</div>
+  </div>;
+  return <div className="meta-preregistration ws-pad">
+    <div className="meta-preregistration-intro">
+      <p className="eyebrow">Meta-Preregistration</p>
+      <div className="settings-sub">Compare a publication with a confirmed registration through evidence-bound flags for human inspection. Callosum does not produce a compliance, integrity, or author score, and “not located” never means absent.</div>
+    </div>
+    {!meta && <div className="settings-note">Loading registration workspace…</div>}
+    {meta?.error && <div className="settings-note settings-note-err">Could not load this paper: {meta.error}</div>}
+    {meta && !meta.error && <div className="meta-preregistration-grid">
+      <RegistrationDiscovery paperId={paperId} paperTitle={meta.title} onOpenPaper={ctx.onOpenPaper}
+        refreshKey={refreshKey} />
+      <RegistrationReferenceActions paperId={paperId} attachments={meta.attachments} onChanged={sourceChanged} />
+    </div>}
+  </div>;
+}
+
+registerWorkspaceTab(
+  { id: "synthesis", label: "Synthesize", order: 30 },
+  { id: "meta-preregistration", label: "Meta-Preregistration", order: 30, hideInReadOnly: true,
+    render: (ctx, active) => <MetaPreregistrationPane ctx={ctx} active={active} /> },
+);

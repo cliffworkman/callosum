@@ -662,6 +662,46 @@ def test_cite_opens_the_matched_pdf_attachment_and_names_it(server: str):
         browser.close()
 
 
+def test_meta_preregistration_uses_full_synthesis_workspace_and_settings_chrome(server: str):
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+        page = browser.new_page(viewport={"width": 1366, "height": 900})
+        errors = _mount_app(page, server)
+
+        page.locator(".paper").first.click()
+        page.get_by_role("tab", name="Synthesize", exact=True).click()
+        visible_tabs = page.locator(".workspace-tabs:visible [role=tab]")
+        assert visible_tabs.all_inner_texts() == ["Ask", "Critique", "Meta-Preregistration"]
+        page.get_by_role("tab", name="Meta-Preregistration", exact=True).click()
+        page.locator(".meta-preregistration .settings-card").first.wait_for()
+        assert page.locator(".meta-preregistration .settings-card").count() == 2
+        assert page.locator(".meta-preregistration .settings-input").count() >= 1
+        _assert_no_document_horizontal_overflow(page, "Meta-Preregistration / desktop")
+
+        meta_chrome = page.locator(".meta-preregistration .settings-card").first.evaluate(
+            "el => { const s = getComputedStyle(el); return {padding:s.padding, radius:s.borderRadius, border:s.border, background:s.backgroundColor}; }"
+        )
+        page.get_by_role("tab", name="Settings", exact=True).click()
+        settings_chrome = page.locator(".settings-view .settings-card").first.evaluate(
+            "el => { const s = getComputedStyle(el); return {padding:s.padding, radius:s.borderRadius, border:s.border, background:s.backgroundColor}; }"
+        )
+        assert meta_chrome == settings_chrome
+
+        page.get_by_role("tab", name="Synthesize", exact=True).click()
+        page.set_viewport_size({"width": 375, "height": 812})
+        page.wait_for_timeout(120)
+        _assert_no_document_horizontal_overflow(page, "Meta-Preregistration / mobile")
+        assert (
+            page.locator(".registration-source-row").first.evaluate("el => getComputedStyle(el).flexDirection")
+            == "column"
+        )
+        assert errors == []
+        browser.close()
+
+
 def test_tool_panes_resist_visual_drift(server: str):
     with sync_playwright() as p:
         try:

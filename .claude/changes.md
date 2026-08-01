@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 433 — registration workflow completion hardening -->
+<!-- HELP-DOCS-SYNCED: 2026-08-01 inc 434 — Meta-Preregistration workspace relocation and consistency pass -->
+
+## 2026-08-01 — Increment 434: Meta-Preregistration workspace relocation and consistency pass
+
+- **Files:** `app/frontend/js/{08h_methods_transparency,08i_registration_comparison,40_app}.jsx`, styles/built artifact,
+  frontend assembly tests, DESIGN/help/QA/security/increment notes; no backend, migration, dependency, or egress change.
+- **What:** moved registration discovery, acquisition, manual-source, version, and paired comparison UI out of the
+  Methods side panel into **Synthesize → Meta-Preregistration**, ordered after Critique. Transparency keeps its local
+  checklist/reference evidence and a compact handoff. General UI now reuses Settings cards, rows, field labels,
+  inputs, action rows, notices, spacing, and radii; domain-specific candidate/evidence treatments remain semantic.
+- **Why:** real comparison cards and source controls need center-workspace width, and one established component
+  vocabulary makes this unusually rich workflow feel like Callosum rather than a nested one-off panel.
+- **Verify:** frontend/help target **76 passed**; dedicated Chromium consistency route **1 passed**; full suite **1779
+  passed, 1 skipped**; Ruff format/check, frontend rebuild, line budget, diff hygiene, and QA surface map **351/351
+  API + 1539/1539 frontend** clean.
+- **Revert:** revert Increment 434 and rebuild the frontend. No data/schema rollback is required; all registration
+  links, versions, comparison rows, notes, and review state remain intact.
 
 ## 2026-07-31 — Increment 433: registration workflow completion hardening
 

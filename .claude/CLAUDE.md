@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 433** (see Increment workflow) with **1778 pytest tests
+It is currently at **Increment 434** (see Increment workflow) with **1779 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -70,15 +70,21 @@ the full per-increment narrative for all other increments now lives in the reloc
   Deterministic numeric/threshold/outcome/model checks surface inspectable candidates; unresolved semantics remain
   `not-comparable`. Registration/article/included-supplement and pipeline fingerprints visibly/persistently stale old
   runs. There is no overall compliance/integrity/risk/deviation score, author judgment, or positive certificate.
-- **Registration comparison UI (inc 432):** Transparency now carries the full explicit state machine from reference
-  and candidate through acquisition/version choice, compare/re-run options, responsive side-by-side evidence, source
-  opening/raw inspection, timing/scope/uncertainty, row review/dismiss/note, stale recovery, and incorrect-match
-  correction. Incorrect links cannot start a comparison. The all-aligned state still denies a positive certificate;
-  amber/indigo/neutral chrome never turns the crosswalk into a green paper grade.
+- **Registration comparison UI (inc 432):** the reader-facing state machine covers reference/candidate through
+  acquisition/version choice, compare/re-run options, responsive side-by-side evidence, source opening/raw
+  inspection, timing/scope/uncertainty, row review/dismiss/note, stale recovery, and incorrect-match correction.
+  Incorrect links cannot start a comparison. The all-aligned state still denies a positive certificate;
+  amber/indigo/neutral chrome never turns the crosswalk into a green paper grade. Inc 434 gives the rich workflow its
+  dedicated Synthesize workspace while leaving reference evidence in Transparency.
 - **Registration workflow hardening (inc 433):** OSF collections/file manifests are bounded and paginated; provider
   status and user confirmation are rechecked at transactional writes; empty extraction fails closed; exact searched
   chunks/source checksums constrain timing and remain visible; attachment-role changes invalidate local links; and
   timing incorporates existing-data/update evidence. Every curated evaluation case traces to an executable test.
+- **Meta-Preregistration workspace (inc 434):** the information-dense discovery/acquisition/comparison workflow now
+  lives in **Synthesize → Meta-Preregistration** after Critique. Transparency retains local disclosure/reference
+  evidence plus a compact handoff. General cards, fields, inputs, action rows, notices, spacing, and radii reuse the
+  Settings vocabulary; paired evidence and semantic flag rules remain domain-specific. Navigation or workspace mount
+  performs no registry request, acquisition, or comparison.
 - **Methods (deterministic, local, no-LLM):** statcheck NHST p-value recomputation (`scipy.stats`), inc 95;
   inc 387 conservatively adds clearly headed table rows from local PDF/JATS/XML/HTML/DOCX/ODT attachments
   without mixing reconstructed rows into prose chunks or embeddings; inc 388 keeps the evidence-bearing PDF

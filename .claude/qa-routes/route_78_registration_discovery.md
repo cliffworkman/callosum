@@ -16,7 +16,7 @@ fixtures for CI; live OSF/DataCite checks are an optional provider-health spot c
 
 ## Standing assertions
 
-- Opening **Checklists → Transparency signals** performs no OSF/DataCite request.
+- Opening **Checklists → Transparency signals** or **Synthesize → Meta-Preregistration** performs no OSF/DataCite request.
 - **Find registration** first shows exactly what will be sent and what remains local. Cancel sends nothing.
 - No abstract, chunk, PDF/registration text, notes, annotations, or synthesis appears in outbound payloads.
 - Every candidate shows provider, identifier/DOI, status/date/contributors where returned, and specific match evidence.
@@ -29,8 +29,9 @@ fixtures for CI; live OSF/DataCite checks are an optional provider-health spot c
 
 ## Steps
 
-1. Open a selected paper's Transparency panel. Confirm no registry request and inspect any local printed reference.
-2. Click **Find registration**; verify the disclosure, then Cancel and confirm no off-machine request.
+1. Open a selected paper's Transparency panel. Confirm no registry request, inspect any local printed reference, then
+   use **Open Meta-Preregistration** and verify the dedicated Synthesize tab opens after Critique.
+2. In Meta-Preregistration click **Find registration**; verify the disclosure, then Cancel and confirm no off-machine request.
 3. Repeat and choose **Search OSF and DataCite**. Confirm the Status popover shows Registration discovery while active.
 4. Inspect direct-link, typed-related-identifier, and contextual candidates. Compare the visible evidence to fixture
    metadata; verify no score and no auto-selection.

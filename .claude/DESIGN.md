@@ -544,16 +544,20 @@ Section-definer and workspace-definer metadata is authoritative regardless of ch
 that loads first only seeds a placeholder. Note the esbuild gotcha: a registered-but-unreferenced component can be
 dead-code-eliminated from the build until a consumer references it, so wire the consumer in the same change.
 
-**Registration crosswalk recipe (inc 432).** Registration comparison stays inside Transparency's selected-paper
-flow. The toolbar uses the ordinary compact title/action split; version/options wrap beneath it. A comparison row is a
-neutral `--panel` card with a 3px semantic left rule: `--flag` only for unresolved inspection flags, `--accent` for a
-disclosed-deviation/provenance cue, and neutral `--line-2` for aligned/not-comparable rows—never green “passed” chrome.
-Evidence is a two-column `minmax(0,1fr)` grid of quiet `--panel-2` cells with serif blockquotes and source links; at
-phone width it stacks to one column. Stale/framing notices use the amber `--flag-soft` family. Raw stored records use a
-bounded mono `<pre>`. Review notes use the standard textarea/actions recipe. No row/status treatment may imply an
-overall certificate or paper/author grade. An empty commitment extraction renders one neutral **Extraction uncertain**
-row rather than a blank result, and expanded scope details name the exact source attachments/checksum prefixes so a
-reader can reconcile the visible evidence with the stored search receipt.
+**Registration crosswalk recipe (inc 432, relocated inc 434).** Transparency's selected-paper flow retains the compact
+local disclosure/reference evidence plus one **Open Meta-Preregistration** handoff. The information-dense acquisition,
+candidate, version, correction, and comparison workflow lives in **Synthesize → Meta-Preregistration**, ordered after
+Critique; it must not be embedded back into an accordion side panel. Its general chrome reuses Settings exactly:
+`.settings-card`, `.settings-row`, `.settings-card-title`, `.settings-field(-label)`, `.settings-input`,
+`.settings-actions`, and `.settings-note`, with the normal 14px grid gap and `--radius`. Domain evidence remains
+purpose-built: a comparison row is a neutral `--panel` card with a 3px semantic left rule—`--flag` only for unresolved
+inspection flags, `--accent` for a disclosed-deviation/provenance cue, and neutral `--line-2` for aligned/not-comparable
+rows, never green “passed” chrome. Evidence is a two-column `minmax(0,1fr)` grid of quiet `--panel-2` cells with serif
+blockquotes and source links; at phone width it stacks to one column. Stale/framing notices use the amber `--flag-soft`
+family. Raw stored records use a bounded mono `<pre>`. Review notes use the standard input/actions recipe. No row/status
+treatment may imply an overall certificate or paper/author grade. An empty commitment extraction renders one neutral
+**Extraction uncertain** row rather than a blank result, and expanded scope details name the exact source
+attachments/checksum prefixes so a reader can reconcile the visible evidence with the stored search receipt.
 `PaneAccordion`'s tab strip carries a per-section `pane-tabs-<sectionId>` class hook (e.g. `.pane-tabs-checklists`)
 so one multi-tab section can opt into a bespoke layout (the Checklists 2×2 grid) with a CSS rule only — no change
 to `05_panes.jsx`'s render logic. Every tab/section `render(ctx, isVisible)` also receives whether it is actually

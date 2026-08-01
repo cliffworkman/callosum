@@ -932,7 +932,12 @@ reference retains its evidence and source page where available.
 When a pasted reference and a printed reference normalize to the same provider identity, Callosum shows one reference
 and prefers the printed, source-anchored evidence.
 
-If extraction cannot locate the reference, you can paste a registration URL/DOI/identifier, attach a local
+The Transparency panel keeps this compact local evidence and an **Open Meta-Preregistration** handoff. The richer
+workflow lives in **Synthesize → Meta-Preregistration**, immediately after Critique, where candidate cards, source
+controls, version history, and paired comparison evidence have room to remain inspectable. Select the Library paper
+you want to inspect before opening that tab.
+
+In **Synthesize → Meta-Preregistration**, if extraction cannot locate the reference, you can paste a registration URL/DOI/identifier, attach a local
 registration PDF, or mark an existing attachment as the registration. These actions only save/process local evidence:
 they do not look up the reference, download anything, or confirm that it belongs to the paper. A local PDF is copied
 into the managed library and chunked under the separate `preregistration` document role, so it cannot enter ordinary
@@ -942,7 +947,7 @@ explicitly triggered steps. “Not located” is never equivalent to absent.
 To search public registration metadata, click **Find registration**. Callosum first shows the exact metadata it
 would send: the paper DOI/title and any detected registration identifiers. Author names and publication year may be
 used to compare returned metadata, but stay on your machine. Nothing is sent until you choose **Search OSF and
-DataCite**; opening the Methods panel never starts discovery, and paper/registration text is never sent. OSF and
+DataCite**; opening either Transparency or Meta-Preregistration never starts discovery, and paper/registration text is never sent. OSF and
 DataCite can return incomplete or ambiguous relationships, so results are evidence-bearing candidates labeled
 **Explicitly linked**, **Probable match, confirm**, or **Possible match, inspect**. A candidate card shows the
 registration metadata and why it surfaced. It is never attached automatically.
@@ -961,7 +966,7 @@ AsPredicted keeps its validated timestamped PDF. Related OSF file bytes are not 
 registration is the primary record, and a useful related file can be attached deliberately. A local PDF uses the same
 downstream path without a network request.
 
-The panel then says **Registration attached, not compared** and shows the stored version hash and retrieval date.
+The workspace then says **Registration attached, not compared** and shows the stored version hash and retrieval date.
 **Check for an updated version** is also explicit. Identical content reuses the existing version; changed content is
 stored as a new version without deleting the earlier basis. Acquisition establishes only which artifact was stored—it
 does not establish prospective timing, a correct match, or whether the paper followed the registration. Comparison is

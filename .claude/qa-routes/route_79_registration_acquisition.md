@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: POST /papers/{paper_id}/registration-links/{link_id}/acquire, GET /registration-acquisition/{job_id}, GET /papers/{paper_id}/registration-versions, GET /papers/{paper_id}/registration-versions/{version_id}
-fe: 08h_methods_transparency.jsx
+fe: 08h_methods_transparency.jsx, 08i_registration_comparison.jsx
 -->
 
 # ROUTE 79 — Confirmed registration acquisition and version preservation
@@ -15,14 +15,14 @@ page, a local PDF, and OSF/AsPredicted error cases. Keep a browser network log.
 
 ## Steps
 
-1. Open Transparency on a paper with a confirmed link. Verify “Registration linked, not acquired” and no provider
-   request on open/reload.
+1. Open **Synthesize → Meta-Preregistration** on a paper with a confirmed link. Verify “Registration linked, not
+   acquired” and no provider request on open/reload.
 2. Click **Acquire registration**. Verify only the selected provider is contacted and Status shows acquisition.
 3. For OSF, inspect the managed Markdown attachment and version detail: question IDs/labels/order, schema version,
    responses, amendment metadata, contributors/resources/files metadata, retrieval time, and hash are preserved.
 4. For AsPredicted, verify a valid PDF is stored and numbered questions are exposed where readable. Exercise the
    legacy page and verify only its same-origin PDF is followed.
-5. Verify the panel reads “Registration attached, not compared,” exposes the hash/date, and makes no claim about
+5. Verify the workspace reads “Registration attached, not compared,” exposes the hash/date, and makes no claim about
    prospective timing, adherence, compliance, or integrity.
 6. Click **Check for an updated version** with identical bytes: no duplicate attachment/version appears. Change the
    fixture bytes and repeat: a second immutable version appears and the first remains inspectable.
@@ -35,5 +35,4 @@ page, a local PDF, and OSF/AsPredicted error cases. Keep a browser network log.
 ## Pass criteria
 
 Acquisition is explicit and fixed-provider; content is bounded, validated, hashed, and versioned; failure cannot
-corrupt prior state; panel load has no egress; and acquisition is never presented as a comparison or verdict.
-
+corrupt prior state; workspace load has no egress; and acquisition is never presented as a comparison or verdict.
