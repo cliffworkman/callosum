@@ -9,7 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 428 — confirmed registration acquisition and immutable versions -->
+<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 429 — canonical evidence-bearing registration commitments -->
+
+## 2026-07-31 — Increment 429: canonical evidence-bearing registration commitments
+
+- **Files:** `app/backend/registration_commitments/*`, commitments router/repository/schema, migration 0062, tests,
+  help/QA/increment notes.
+- **What:** deterministic OSF/AsPredicted/local-PDF extraction stores each plan field with structured value, verbatim
+  evidence, source locator, study label, mapping uncertainty, extractor version, and exact registration hash.
+- **Why:** comparison must operate on bounded, auditable claims rather than one opaque whole-document prompt.
+- **Revert:** revert Increment 429. Migration 0062 preserves rows on downgrade; export any comparison-linked evidence
+  before manually dropping the table.
 
 ## 2026-07-31 — Increment 428: confirmed registration acquisition and immutable versions
 

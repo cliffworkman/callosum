@@ -202,6 +202,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         "/papers/{paper_id}/registration-links",
         "/papers/{paper_id}/registration-versions",
         "/papers/{paper_id}/registration-versions/{version_id}",
+        "/papers/{paper_id}/registration-versions/{version_id}/commitments",
         "/reference-integrity/overview",
         "/reference-integrity/run/{job_id}",
         "/papers/{paper_id}/findings",
@@ -320,6 +321,10 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/papers/{paper_id}/registration-links/{link_id}/confirm", frozenset({"POST"})),
         ("/papers/{paper_id}/registration-links/{link_id}/reject", frozenset({"POST"})),
         ("/papers/{paper_id}/registration-links/{link_id}/acquire", frozenset({"POST"})),
+        (
+            "/papers/{paper_id}/registration-versions/{version_id}/commitments/extract",
+            frozenset({"POST"}),
+        ),
         ("/reference-integrity/run-selected", frozenset({"POST"})),
         ("/reference-integrity/instances/{instance_id}/review", frozenset({"POST"})),
         ("/findings/{finding_id}/review", frozenset({"POST"})),

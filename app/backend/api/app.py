@@ -68,6 +68,7 @@ from app.backend.api.routers import (
     reading_queue,
     reference_integrity,
     registration_acquisition,
+    registration_commitments,
     registration_discovery,
     saved_searches,
     settings,
@@ -339,6 +340,7 @@ def create_app(
     api.include_router(transparency.router)  # /papers/{id}/transparency — transparency-signals auditor (#44, inc 250)
     api.include_router(registration_discovery.router)  # explicit metadata-only registration candidate discovery
     api.include_router(registration_acquisition.router)  # confirmed public registration artifact acquisition
+    api.include_router(registration_commitments.router)  # local canonical registration plan extraction
     api.include_router(findings.router)  # /papers/{id}/findings — the FACT-vs-CANDIDATE store (inc 130)
     api.include_router(gaps.router)  # /gaps/* — literature gap-finder (inc 135)
     api.include_router(overlooked.router)  # /overlooked/* — overlooked-work lens: per-axis discovery (#37)

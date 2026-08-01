@@ -964,6 +964,15 @@ does not establish prospective timing, a correct match, or whether the paper fol
 a later, separate action. Withdrawn, unavailable, and embargoed artifacts are shown but not downloaded through the
 public acquisition route.
 
+Callosum can next extract a **canonical plan** locally. Rather than asking one model to judge two whole documents, it
+maps individual registration questions or passages into bounded fields such as hypotheses, primary outcomes, sample
+size, stopping rules, exclusions, and statistical models. Every extracted item keeps the verbatim registration text,
+question or section, source attachment/page where available, extraction method/confidence, and registration version
+hash. Structured OSF and numbered AsPredicted questions use deterministic mappings; local free-text PDFs are mapped
+conservatively and uncertain passages may remain unmapped. This step uses no AI or network request and still performs
+no comparison. A field label is an extraction aid, not a claim that the plan is clear, complete, prospective, or
+followed.
+
 **Checking the whole library.** In the same section, **Whole library → Check all papers** runs the auditor over every paper. Each paper's *detected* disclosures become evidence-carrying marks in its **Review** section. When the data disclosure list isn't empty, the Library header shows a **🔎 Open Data · N** chip that jumps to papers where the auditor detected an open-data disclosure. The section also fills review queues for disclosures *not detected* in extracted text; those queues are prompts to look — *the paper may still share artifacts elsewhere* — never claims that it hides anything, and there is no score or ranking.
 
 <!-- section: converting-effect-sizes -->

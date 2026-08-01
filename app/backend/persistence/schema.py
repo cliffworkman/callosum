@@ -120,6 +120,7 @@ attachments = Table(
 from app.backend.persistence.registration_schema import (  # noqa: E402, F401
     paper_registration_links,
     paper_registration_references,
+    registration_commitments,
     registration_document_versions,
 )
 
