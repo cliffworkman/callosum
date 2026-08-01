@@ -768,7 +768,7 @@ def test_methods_pane_regrouped_details_data_statistics_checklists():
 
 def test_registration_discovery_is_explicit_metadata_egress_and_never_auto_attaches():
     raw = assemble_jsx()
-    assert "<RegistrationDiscovery paperId={paperId} />" in raw
+    assert "<RegistrationDiscovery paperId={paperId} paperTitle={meta.title} onOpenPaper={onOpenPaper} />" in raw
     assert "Search public registry metadata?" in raw
     assert "Sends: <b>" in raw
     assert "Used only on this machine for matching" in raw
@@ -788,11 +788,44 @@ def test_registration_acquisition_is_explicit_versioned_and_not_a_comparison():
     assert "No comparison has run yet." in raw
     assert "Callosum will not try to download an unavailable artifact." in raw
     # Loading the panel reads only persisted local state; acquisition remains inside the click handler.
-    component = raw.split("function RegistrationDiscovery({ paperId })", 1)[1].split(
+    component = raw.split("function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper })", 1)[1].split(
         "function RegistrationCandidateCard", 1
     )[0]
     effect = component.split("useEffect(() =>", 1)[1].split("const showDisclosure", 1)[0]
     assert "/acquire" not in effect
+
+
+def test_registration_comparison_ui_is_paired_reviewable_stale_aware_and_scoreless():
+    raw = assemble_jsx()
+    source = (FRONTEND_DIR / "js" / "08i_registration_comparison.jsx").read_text(encoding="utf-8")
+    css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
+    assert "function RegistrationComparisonWorkspace(" in raw
+    assert "Compare now" in source and "Re-run comparison" in source
+    assert "Include relevant supplements" in source
+    assert "Expand beyond expected sections when bounded search is weak" in source
+    assert "Open registration evidence" in source and "Open publication evidence" in source
+    assert "Inspect stored registration" in source and "Open registration attachment" in source
+    assert "Mark reviewed" in source and "Dismiss flag" in source and "Save note" in source
+    assert "Incorrect registration match" in raw
+    assert "Comparison stale" in source
+    assert "no positive certificate is implied" in source
+    assert "Not located” is not proof of absence" in source
+    for status in (
+        "Potentially changed",
+        "Planned item not located in publication",
+        "Reported item not located in registration",
+        "Ambiguous study mapping",
+        "Not comparable",
+        "Extraction uncertain",
+    ):
+        assert status in source
+    for forbidden_field in ("compliance_score", "integrity_score", "risk_score", "deviation_score", "author_score"):
+        assert forbidden_field not in source
+    # Merely mounting/loading the workspace reads persisted state; comparison POST stays inside the click handler.
+    effect = source.split("useEffect(() =>", 2)[2].split("const compare = async", 1)[0]
+    assert "apiPost(`/papers/${paperId}/registration-comparisons`" not in effect
+    assert ".registration-evidence-columns { display: grid; grid-template-columns: repeat(2" in css
+    assert ".app.mobile .registration-evidence-columns { grid-template-columns: 1fr; }" in css
 
 
 def test_set_critical_review_modal_shipped():

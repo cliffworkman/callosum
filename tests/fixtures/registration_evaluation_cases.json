@@ -1,0 +1,20 @@
+[
+  {"id":"printed-osf-url","stage":"reference-extraction","input":"Preregistered at https://osf.io/ab12c/","expected":"osf:ab12c","evidence":"printed"},
+  {"id":"printed-osf-doi","stage":"reference-extraction","input":"https://doi.org/10.17605/OSF.IO/AB12C","expected":"osf:ab12c","evidence":"printed"},
+  {"id":"hidden-here-link","stage":"reference-extraction","input":"The registration is available here.","target":"https://osf.io/ab12c/","expected":"osf:ab12c","evidence":"pdf-hyperlink"},
+  {"id":"multiple-registration-candidates","stage":"candidate-discovery","expected":"multiple-confirmation-required"},
+  {"id":"registration-multiple-papers","stage":"candidate-persistence","expected":"same-external-id-multiple-paper-links"},
+  {"id":"false-overlapping-title-authors","stage":"candidate-ranking","expected":"similarity-candidate-never-auto-attached"},
+  {"id":"multi-study-one-registered","stage":"publication-retrieval","expected":"study-1-bounded-or-ambiguous"},
+  {"id":"different-sample-sizes","stage":"comparison","registration":"n=120","publication":"n=118","expected":"potentially-changed"},
+  {"id":"different-exclusion-threshold","stage":"comparison","registration":"either check","publication":"both checks","expected":"potentially-changed"},
+  {"id":"primary-outcome-changed","stage":"comparison","registration":"response accuracy","publication":"recall score","expected":"potentially-changed"},
+  {"id":"planned-outcome-not-located","stage":"comparison","registration":"response accuracy","publication":null,"expected":"planned-item-not-located-in-publication"},
+  {"id":"new-reported-outcome","stage":"comparison","registration":null,"publication":"primary outcome: recall","expected":"reported-item-not-located-in-registration"},
+  {"id":"disclosed-deviation","stage":"comparison","publication":"We deviated from the registered exclusion rule.","expected":"disclosed-deviation"},
+  {"id":"registration-after-data-collection","stage":"timing","registered":"2021-06-01","collection_began":"2020-01-10","expected":"registration-appears-after-data-collection-began"},
+  {"id":"underspecified-registration","stage":"comparison","registration":"To be determined.","expected":"underspecified-in-registration"},
+  {"id":"manual-local-pdf","stage":"acquisition","expected":"manual-local-version-no-egress"},
+  {"id":"registration-amendment","stage":"commitment-extraction","expected":"deviation-amendment-statement"},
+  {"id":"inaccessible-withdrawn-registration","stage":"acquisition","expected":"visible-classified-error-no-attachment"}
+]

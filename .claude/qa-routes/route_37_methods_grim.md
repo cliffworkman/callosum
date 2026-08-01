@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /methods/grim, GET/POST /papers/{paper_id}/grim-checks, DELETE /papers/{paper_id}/grim-checks/{check_id}
+api: /methods/grim, GET /papers/{paper_id}/grim-checks, POST /papers/{paper_id}/grim-checks, DELETE /papers/{paper_id}/grim-checks/{check_id}
 fe: 07_methods_grim.jsx
 -->
 

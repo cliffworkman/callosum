@@ -998,6 +998,11 @@ versions. If any basis changes, the saved comparison is marked **stale** but rem
 the new versions. There is no overall compliance, integrity, risk, or deviation score; even a crosswalk with no
 surfaced differences is not a certificate that the paper followed its registration.
 
+If the selected artifact is the wrong registration, choose **Incorrect registration match**. Callosum keeps the
+historical evidence but marks its comparison stale and refuses another comparison against that rejected link. Confirm
+a different candidate, run a fresh search, or attach a manual source before comparing again. On narrow screens the two
+evidence columns stack so neither document is hidden.
+
 **Checking the whole library.** In the same section, **Whole library → Check all papers** runs the auditor over every paper. Each paper's *detected* disclosures become evidence-carrying marks in its **Review** section. When the data disclosure list isn't empty, the Library header shows a **🔎 Open Data · N** chip that jumps to papers where the auditor detected an open-data disclosure. The section also fills review queues for disclosures *not detected* in extracted text; those queues are prompts to look — *the paper may still share artifacts elsewhere* — never claims that it hides anything, and there is no score or ranking.
 
 <!-- section: converting-effect-sizes -->

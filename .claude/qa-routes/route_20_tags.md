@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: GET /tags, GET /tags/colors, POST /tags/{tag_id}/color, GET /papers/{paper_id}/suggested-tags, POST /papers/{paper_id}/tags, POST /papers/{paper_id}/tags/{tag_id}/lock, DELETE /papers/{paper_id}/tags/{tag_id}
-fe: 10_pdf_layer.jsx, 25_detail.jsx, 25b_tags.jsx
+fe: 10_pdf_layer.jsx, 10e_tagspanel.jsx, 25_detail.jsx, 25b_tags.jsx
 -->
 
 # ROUTE 20 - Tags and tag filters
@@ -33,6 +33,8 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 1. Load the library and open the **Tags tab** — the second tab of the **AXES** section in the left (THEORY) pane
    (inc 139: Tags is a tab, not its own section). Confirm `/tags` counts match visible seeded filters.
 2. Filter by a tag. Confirm the paper list updates, empty states are explicit, and counts do not imply ranking or quality.
+   With enough tags to expose it, exercise the text filter and the All/Yours/Keywords source controls; each tag-row
+   button must preserve the visible provenance grouping and apply the intended library filter.
 3. Open a paper detail pane. Add a new tag (`POST /papers/{paper_id}/tags`); confirm the chip appears in detail and the global tag panel (the AXES → Tags tab) without switching papers.
 4. Add the same tag again by rapid double-submit. Confirm idempotent behavior or a clean duplicate message, never duplicate chips.
    **inc 257: a rejected add/color/remove is no longer silent** — a failed `POST /papers/{id}/tags` (or `/color` or

@@ -118,12 +118,16 @@ def registration_discovery_status(job_id: str, request: Request) -> DiscoveryRes
 
 
 @router.get("/papers/{paper_id}/registration-links", response_model=list[RegistrationLinkOut])
-def registration_links(paper_id: int, conn: Connection = Depends(get_connection)) -> list[RegistrationLinkOut]:
+def registration_links(
+    paper_id: int,
+    include_rejected: bool = False,
+    conn: Connection = Depends(get_connection),
+) -> list[RegistrationLinkOut]:
     try:
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    return [_link_out(row) for row in list_registration_links(conn, paper_id)]
+    return [_link_out(row) for row in list_registration_links(conn, paper_id, include_rejected=include_rejected)]
 
 
 @router.post("/papers/{paper_id}/registration-links/{link_id}/confirm", response_model=RegistrationLinkOut)

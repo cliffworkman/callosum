@@ -128,6 +128,13 @@ def start_registration_comparison(
     version = get_registration_version(conn, paper_id, payload.version_id)
     if version is None:
         raise HTTPException(status_code=404, detail="Registration version not found on this paper")
+    link = (
+        conn.execute(select(paper_registration_links).where(paper_registration_links.c.id == version["link_id"]))
+        .mappings()
+        .one()
+    )
+    if link["link_status"] != "confirmed" or not link["user_confirmed"]:
+        raise HTTPException(status_code=409, detail="Confirm the registration match before comparing this version.")
     job_id = request.app.state.registration_comparison_jobs.create()
     background.add_task(_run_comparison_job, request.app, job_id, paper_id, payload.model_dump())
     return ComparisonStart(job_id=job_id, status="pending")
@@ -202,6 +209,15 @@ def _run_comparison_job(app: FastAPI, job_id: str, paper_id: int, configuration:
             version = get_registration_version(conn, paper_id, version_id)
             if version is None:
                 raise ValueError("Registration version is no longer available on this paper.")
+            link = (
+                conn.execute(
+                    select(paper_registration_links).where(paper_registration_links.c.id == version["link_id"])
+                )
+                .mappings()
+                .one()
+            )
+            if link["link_status"] != "confirmed" or not link["user_confirmed"]:
+                raise ValueError("The registration match is no longer confirmed.")
             commitments = list_registration_commitments(
                 conn, paper_id, version_id, extraction_version=EXTRACTION_VERSION
             )

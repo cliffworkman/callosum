@@ -358,7 +358,7 @@ def test_comparison_api_persists_evidence_review_state_and_detects_document_stal
         conn.execute(
             update(paper_registration_links)
             .where(paper_registration_links.c.id == link_id)
-            .values(content_hash="new-hash")
+            .values(content_hash="new-hash", link_status="rejected", user_confirmed=False)
         )
         create_chunk(
             conn,
@@ -378,6 +378,12 @@ def test_comparison_api_persists_evidence_review_state_and_detects_document_stal
     stale = client.get(f"/papers/{paper_id}/registration-comparisons/{job['run_id']}").json()
     assert stale["status"] == "stale"
     assert "registration-content-changed" in stale["stale_reasons"]
+    assert "confirmed-registration-changed" in stale["stale_reasons"]
     assert "article-attachment-or-extraction-changed" in stale["stale_reasons"]
     assert stale["rows"][0]["review_state"] == "reviewed"
+    assert (
+        client.post(f"/papers/{paper_id}/registration-comparisons", json={"version_id": version_id}).status_code == 409
+    )
+    rejected = client.get(f"/papers/{paper_id}/registration-links?include_rejected=true").json()
+    assert rejected[0]["link_status"] == "rejected"
     engine.dispose()

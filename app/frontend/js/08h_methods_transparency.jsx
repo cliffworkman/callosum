@@ -100,7 +100,7 @@ function TransparencyPaper({ paperId, onOpenPaper, active }) {
       {state.status === "error" && <div className="axis-err">Couldn't check: {state.error}</div>}
       {state.status === "done" && d && <TransparencyChecklist checks={d.checks} onOpen={open}
         references={d.registration_references} referenceState={d.registration_reference_state} />}
-      {meta && <RegistrationDiscovery paperId={paperId} />}
+      {meta && <RegistrationDiscovery paperId={paperId} paperTitle={meta.title} onOpenPaper={onOpenPaper} />}
       {meta && <RegistrationReferenceActions paperId={paperId} attachments={meta.attachments} onChanged={run} />}
     </div>
   );
@@ -224,14 +224,14 @@ function RegistrationReferenceActions({ paperId, attachments, onChanged }) {
 
 // inc 427: registry discovery is an explicit metadata-egress action. Merely opening Methods fetches only
 // already-local candidate state. Confirmation records a link; acquisition remains a separate user action.
-function RegistrationDiscovery({ paperId }) {
+function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper }) {
   const [links, setLinks] = useState([]);
   const [versions, setVersions] = useState([]);
   const [state, setState] = useState({ status: "idle" });
   const pollTimer = useRef(null);
   const loadLocalState = useCallback(async () => {
     const [linkResult, versionResult] = await Promise.all([
-      api(`/papers/${paperId}/registration-links`),
+      api(`/papers/${paperId}/registration-links?include_rejected=true`),
       api(`/papers/${paperId}/registration-versions`),
     ]);
     if (linkResult.ok) setLinks(linkResult.data || []);
@@ -261,13 +261,14 @@ function RegistrationDiscovery({ paperId }) {
     };
     poll();
   };
-  const change = async (link, action) => {
+  const change = async (link, action, incorrect = false) => {
     setState({ status: "working", linkId: link.id });
     const r = await apiPost(`/papers/${paperId}/registration-links/${link.id}/${action}`, {});
     if (!r.ok) return setState({ status: "error", error: r.error });
     await loadLocalState();
     setState({ status: "done", message: action === "confirm"
       ? "Registration link confirmed. No registration content has been downloaded yet."
+      : incorrect ? "Registration link marked as an incorrect match. Its saved comparisons will be shown as stale."
       : "Candidate dismissed. It will stay hidden unless you request a fresh search." });
   };
   const acquire = async link => {
@@ -294,8 +295,10 @@ function RegistrationDiscovery({ paperId }) {
     poll();
   };
   const confirmed = links.filter(link => link.link_status === "confirmed");
+  const rejected = links.filter(link => link.link_status === "rejected");
   const candidates = links.filter(link => link.link_status === "candidate" || link.link_status === "withdrawn" || link.link_status === "unavailable");
-  const statusLabel = versions.length ? "Registration attached, not compared"
+  const statusLabel = rejected.length && !confirmed.length ? "Incorrect registration match"
+    : versions.length ? "Registration attached, not compared"
     : confirmed.length ? "Registration linked, not acquired"
     : candidates.length ? "Candidates found, choose"
       : "No registration linked";
@@ -323,10 +326,13 @@ function RegistrationDiscovery({ paperId }) {
     {(state.providers || []).map(report => report.status !== "ok" && <div className="axis-hint" key={report.provider}>
       {report.provider}: {report.detail || report.status}
     </div>)}
+    {!!rejected.length && !confirmed.length && <div className="provider-egress-warn">
+      <b>Incorrect registration match.</b> Choose another candidate or run a fresh search. Saved comparisons remain inspectable and are marked stale.
+    </div>}
     {confirmed.map(link => <RegistrationCandidateCard key={link.id} link={link} confirmed
       versions={versions.filter(version => version.link_id === link.id)}
-      busy={state.status === "acquiring" && state.linkId === link.id}
-      onAcquire={() => acquire(link)} />)}
+      busy={(state.status === "acquiring" || state.status === "working") && state.linkId === link.id}
+      onAcquire={() => acquire(link)} onIncorrect={() => change(link, "reject", true)} />)}
     {candidates.map(link => <RegistrationCandidateCard key={link.id} link={link}
       busy={state.status === "working" && state.linkId === link.id}
       onConfirm={() => change(link, "confirm")} onReject={() => change(link, "reject")} />)}
@@ -335,10 +341,12 @@ function RegistrationDiscovery({ paperId }) {
       You can add a known reference or local PDF below.
     </div>}
     {state.status === "done" && <button className="btn-link" onClick={() => search(true)}>Fresh search, including dismissed candidates</button>}
+    {!!versions.length && <RegistrationComparisonWorkspace paperId={paperId} paperTitle={paperTitle}
+      versions={versions} onOpenPaper={onOpenPaper} invalidLinkIds={rejected.map(link => link.id)} />}
   </div>;
 }
 
-function RegistrationCandidateCard({ link, confirmed, versions = [], busy, onConfirm, onReject, onAcquire }) {
+function RegistrationCandidateCard({ link, confirmed, versions = [], busy, onConfirm, onReject, onAcquire, onIncorrect }) {
   const evidence = link.match_evidence || [];
   const evidenceLabel = item => item.kind === "datacite-related-identifier"
     ? `DataCite relation: ${item.relation_type || "typed relation"} · ${item.doi || ""}`
@@ -378,6 +386,7 @@ function RegistrationCandidateCard({ link, confirmed, versions = [], busy, onCon
       {confirmed && canAcquire && <button className="btn btn-secondary" disabled={busy} onClick={onAcquire}>
         {latestVersion ? "Check for an updated version" : "Acquire registration"}
       </button>}
+      {confirmed && <button className="btn-link" disabled={busy} onClick={onIncorrect}>Incorrect registration match</button>}
     </div>
     {confirmed && !latestVersion && !canAcquire && <div className="axis-hint">This provider has no bounded acquisition route. Attach a local registration PDF below.</div>}
     <div className="axis-hint">Candidate evidence supports inspection, not a claim that this is the paper's correct registration or that the paper followed it.</div>

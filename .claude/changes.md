@@ -9,7 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 431 — evidence-bound crosswalks and staleness -->
+<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 432 — inspectable registration comparison UI -->
+
+## 2026-07-31 — Increment 432: inspectable registration comparison UI
+
+- **Files:** `app/frontend/js/{08h_methods_transparency.jsx,08i_registration_comparison.jsx}`, styles/built artifact,
+  rejected-link comparison guard, tests, DESIGN/help/QA/security/evaluation/increment notes.
+- **What:** the complete registration workflow is now usable from Transparency, including version/config choice,
+  background compare/re-run, responsive paired evidence, source/raw inspection, review/dismiss/note, stale reasons,
+  and incorrect-match recovery. A curated manifest evaluates stages separately rather than as one metric.
+- **Why:** persisted evidence is only useful if a reader can reach both sources, understand search limits, record their
+  review, and recover from changed documents or a wrong match without being handed a verdict.
+- **Verify:** focused registration/UI suite **116 passed**; full `pytest -n auto -q` **1766 passed, 1 skipped**;
+  Ruff, frontend rebuild, line-budget, diff hygiene, and QA surface map **351/351 API + 1537/1537 FE** clean.
+- **Revert:** revert Increment 432 UI/docs/test changes. Keep Increment 431 database rows and review notes.
 
 ## 2026-07-31 — Increment 431: evidence-bound crosswalks and staleness
 

@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: GET /status/jobs, POST /status/jobs/{store}/{job_id}/dismiss, POST /status/jobs/clear-finished
-fe: 04c_status.jsx, 04b_workspaces.jsx, 40_app.jsx, 20_synthesis.jsx
+fe: 04c_status.jsx, 04d_update.jsx, 04b_workspaces.jsx, 40_app.jsx, 20_synthesis.jsx
 -->
 
 # ROUTE 76 — Status popover: aggregation, dismissal, and click-to-navigate
@@ -57,6 +57,9 @@ Clean seeded instance (`_TEMPLATE.md` → Environment). Egress unset (nothing he
 6. Confirm the pre-existing dismiss `×` and "Clear all finished" still work unaffected by the new click
    target (dismissing a row must not also trigger navigation, and vice versa).
 7. Adversarial: rapid-click a navigable row several times in a row; resize to `375x812` and repeat steps 2-4.
+8. In the desktop shell, inject the updater's `update-ready` event. Confirm **Restart now** invokes the install command
+   for a restart action, **Open release page** invokes the release action on Linux, **Later** collapses to an
+   **Update ready** pill, and the pill restores the notice without duplicating event listeners.
 
 ## Pass criteria
 
