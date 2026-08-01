@@ -9,7 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-01 inc 436 — global AI/progress Status contract -->
+<!-- HELP-DOCS-SYNCED: 2026-08-01 inc 437 — quiet routine scans in Status -->
+
+## 2026-08-01 — Increment 437: remove routine Library/WIP scans from Status
+
+- **Files:** Status aggregation, backend regression tests, help/design/QA/increment documentation.
+- **What:** excluded `library_scan_jobs` and `wip_scan_jobs` from both running and finished Status rows while preserving
+  their existing source-surface state and inline Library-scan progress. The centralized `STATUS_HIDDEN_STORES` set is
+  the only exception seam; all other backend jobs retain destination/compute-category coverage.
+- **Why:** these maintenance scans run frequently enough to crowd out operations for which the global popover is
+  useful. Their source UI already provides the relevant feedback.
+- **Verify:** focused Status suite **17 passed**; full suite **1787 passed, 1 skipped**; Ruff, format, line budget, and
+  strict QA surface map **352/352 API + 1545/1545 frontend** clean.
+- **Revert:** remove the two names from `STATUS_HIDDEN_STORES` and restore their label/navigation/compute mappings.
 
 ## 2026-08-01 — Increment 436: global AI and long-operation Status contract
 

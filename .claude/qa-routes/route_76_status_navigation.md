@@ -6,8 +6,9 @@ fe: 04c_status.jsx, 04d_update.jsx, 04b_workspaces.jsx, 40_app.jsx, 20_synthesis
 # ROUTE 76 — Status popover: aggregation, dismissal, and click-to-navigate
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust the global operation contract: every backend job, synchronous provider/local AI call, and shared
-progress indicator appears in Status, exposes honest progress/ETA, and clicks back to its exact UI destination.
+**Goal:** Exhaust the global operation contract: actionable backend jobs, synchronous provider/local AI calls, and
+shared progress indicators appear in Status, expose honest progress/ETA, and click back to their exact UI destination;
+routine Library/WIP scans remain inline-only and cannot crowd the list.
 
 ## Environment
 
@@ -17,9 +18,10 @@ Clean seeded instance (`_TEMPLATE.md` → Environment). Egress unset (nothing he
 
 - **Console-error budget = 0.** Any console `error` ≥ Medium; any `pageerror` ≥ High.
 - **No uncompletable control.**
-- **No dead clicks.** Every application `JobStore`, tracked AI request, and auto-registered `ProgressBar` has a
-  bounded destination. The desktop-updater receipt is the deliberate exception because its action remains in the
-  updater toast.
+- **No dead clicks.** Every visible application `JobStore`, tracked AI request, and auto-registered `ProgressBar` has
+  a bounded destination. The desktop-updater receipt is the deliberate navigation exception because its action
+  remains in the updater toast. `library_scan_jobs` and `wip_scan_jobs` are deliberate visibility exceptions: neither
+  running work nor finished receipts may appear in Status, while their source UI continues to show state.
 - **`job.result` never leaks.** `GET /status/jobs` may add only `compute_kind` and a bounded `nav` descriptor to
   `{store, job_id, label, status, detail, progress}`. `nav` contains server-owned workspace/pane/tab/modal tokens plus
   typed paper/summary ids; never results, prompts, passages, URLs, paths, or secrets.
@@ -39,6 +41,7 @@ Clean seeded instance (`_TEMPLATE.md` → Environment). Egress unset (nothing he
 - leave a synchronous AI surface while its request is held open; Status must retain the operation and its route back
 - exercise a local-AI call and a provider-AI call; neither may disappear because it lacks a backend `JobStore`
 - mount an ordinary unowned `ProgressBar`; it must self-register exactly once, then leave a finished receipt
+- run repeated Library and WIP folder scans; neither may add a Status row or receipt
 - resize to `375x812` — popover still opens/closes/navigates correctly, no overflow
 
 ## Steps
@@ -61,8 +64,10 @@ Clean seeded instance (`_TEMPLATE.md` → Environment). Egress unset (nothing he
 6. Trigger one synchronous **local-AI** path (for example suggested tags or citation evidence). Confirm it produces
    one Status row, identifies `Local AI`, and navigates to the exact pane/tab and selected paper. Trigger an unowned
    inline progress bar and confirm automatic registration without adding feature-specific Status code.
-7. Trigger at least three other backend job families (duplicate scan, axis score, OCR, registration comparison, WIP
-   scan). Every label must be clickable and land on its exact modal/pane/workspace; none may open an unrelated fallback.
+7. Trigger at least three other backend job families (duplicate scan, axis score, OCR, registration comparison).
+   Every label must be clickable and land on its exact modal/pane/workspace; none may open an unrelated fallback.
+   Separately trigger Library and WIP folder scans repeatedly: their inline state must work, while Status remains free
+   of both running and finished scan rows.
 8. Confirm the pre-existing dismiss `×` and "Clear all finished" still work unaffected by the new click
    target (dismissing a row must not also trigger navigation, and vice versa).
 9. Adversarial: rapid-click a navigable row several times; resize to `375x812`, confirm Status remains beside the
@@ -74,6 +79,7 @@ Clean seeded instance (`_TEMPLATE.md` → Environment). Egress unset (nothing he
 ## Pass criteria
 
 - Backend, synchronous-AI, and auto-progress examples each appear exactly once and navigate to the relevant UI.
+- Routine Library/WIP scans never appear in Status and retain their source-surface feedback.
 - Provider and installed-local AI are both covered and labeled accurately.
 - `job.result` is never present in a `GET /status/jobs` response; navigation stays bounded and typed.
 - Determinate completion/ETA is evidence-backed; unmeasurable work says so instead of fabricating values.

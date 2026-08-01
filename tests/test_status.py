@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
 from app.backend.api.job_store import JobStore
-from app.backend.api.routers.status import JOB_COMPUTE_KINDS, JOB_NAV_DEFAULTS, discover_stores
+from app.backend.api.routers.status import JOB_COMPUTE_KINDS, JOB_NAV_DEFAULTS, STATUS_HIDDEN_STORES, discover_stores
 
 
 def _client(temp_db_url: str) -> TestClient:
@@ -120,10 +120,27 @@ def test_status_navigation_rejects_free_text_urls_and_destination_overrides(temp
 def test_every_application_job_store_has_a_bounded_navigation_home(temp_db_url):
     app = create_app(db_url=temp_db_url)
     stores = discover_stores(app.state)
-    assert set(stores) <= set(JOB_NAV_DEFAULTS)
-    assert set(stores) <= set(JOB_COMPUTE_KINDS)
+    visible_stores = set(stores) - STATUS_HIDDEN_STORES
+    assert STATUS_HIDDEN_STORES <= set(stores)
+    assert visible_stores <= set(JOB_NAV_DEFAULTS)
+    assert visible_stores <= set(JOB_COMPUTE_KINDS)
+    assert STATUS_HIDDEN_STORES.isdisjoint(JOB_NAV_DEFAULTS)
+    assert STATUS_HIDDEN_STORES.isdisjoint(JOB_COMPUTE_KINDS)
     for nav in JOB_NAV_DEFAULTS.values():
         assert set(nav) <= {"workspace", "tab", "pane", "section", "modal", "view"}
+
+
+def test_routine_library_and_wip_scans_do_not_appear_in_status(temp_db_url):
+    app = create_app(db_url=temp_db_url)
+    for store_name in STATUS_HIDDEN_STORES:
+        store = getattr(app.state, store_name)
+        job_id = store.create()
+        store.mark_running(job_id)
+    visible_id = app.state.summary_jobs.create()
+    app.state.summary_jobs.mark_running(visible_id)
+
+    rows = TestClient(app).get("/status/jobs").json()["jobs"]
+    assert [row["store"] for row in rows] == ["summary_jobs"]
 
 
 def test_job_navigation_survives_running_progress_and_error_transitions(temp_db_url):

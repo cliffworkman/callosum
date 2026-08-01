@@ -278,11 +278,16 @@ the surface's `busy`/`running` flag. **Progress and Status are one invariant (in
 destination. A background `JobStore` or explicitly tracked synchronous request instead owns the Status row and marks
 the inline bar with `managedBy` to prevent duplication.
 
+**Noise exception (inc 437):** routine Library and WIP folder scans keep their inline controls/progress but do not
+produce Status rows or finished receipts. They run often enough to crowd out operations that require attention. This
+is a centralized `STATUS_HIDDEN_STORES` exception, not permission for individual features to omit Status ad hoc.
+
 This includes **every AI use**, not only cloud LLM egress: installed/local embeddings, NLI, OCR, clustering, semantic
 retrieval, loopback models, and consent-gated provider models all receive visible progress plus a Status entry. New
 backend jobs must have a bounded home in `JOB_NAV_DEFAULTS`; new synchronous AI endpoints must be listed in
 `TRACKED_AI_REQUESTS`. Every row names its compute boundary (`Local AI`, `Provider AI`, or an accurate combination),
-and clicking it returns to the relevant workspace, pane/section/tab, modal, and paper/summary when known.
+and clicking it returns to the relevant workspace, pane/section/tab, modal, and paper/summary when known. The two
+routine-scan exceptions above remain inline-only even where library processing invokes local embeddings.
 
 Determinate fill and an ETA appear only when real `current`/`total` progress exists. Until then retain the animated
 indeterminate bar and explicitly say completion/ETA are not measurable; never infer a percentage from elapsed time.

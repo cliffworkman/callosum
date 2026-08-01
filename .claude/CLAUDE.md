@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 436** (see Increment workflow) with **1786 pytest tests
+It is currently at **Increment 437** (see Increment workflow) with **1787 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -94,7 +94,9 @@ the full per-increment narrative for all other increments now lives in the reloc
   all synchronous provider-AI and installed-local-AI routes are explicitly tracked. Status names the compute boundary,
   shows real completion/ETA when measurable and an honest indeterminate state otherwise, works on mobile, and never
   serializes job results, prompts, passages, file paths, or arbitrary URLs. New `JobStore`s must extend
-  `JOB_NAV_DEFAULTS`; new synchronous AI endpoints must extend `TRACKED_AI_REQUESTS`.
+  `JOB_NAV_DEFAULTS`; new synchronous AI endpoints must extend `TRACKED_AI_REQUESTS`. **Inc 437 noise exception:**
+  routine `library_scan_jobs` and `wip_scan_jobs` retain inline progress but never enter Status (running or finished),
+  because their frequency crowds out actionable work; `STATUS_HIDDEN_STORES` and a regression test pin that choice.
 - **Methods (deterministic, local, no-LLM):** statcheck NHST p-value recomputation (`scipy.stats`), inc 95;
   inc 387 conservatively adds clearly headed table rows from local PDF/JATS/XML/HTML/DOCX/ODT attachments
   without mixing reconstructed rows into prose chunks or embeddings; inc 388 keeps the evidence-bearing PDF
@@ -364,7 +366,10 @@ tests. The analogue of a brand promise: never break it.
    `JOB_NAV_DEFAULTS` for background work, `TRACKED_AI_REQUESTS` for synchronous AI HTTP calls, and the shared
    `ProgressBar`/`StatusScope` path for other visible work; set `managedBy` when one operation already has an owner so
    duplicate rows are impossible. Never invent percentages or ETAs, and never put prompts, passages, results, paths,
-   secrets, or arbitrary URLs in a status navigation payload.
+   secrets, or arbitrary URLs in a status navigation payload. The deliberate exception is routine library/WIP folder
+   scanning: it remains visible inline at its source but is excluded from the global popover because its high frequency
+   overwhelms more actionable work. Add any future exclusion only to `STATUS_HIDDEN_STORES`, with an explicit noise
+   rationale and regression test; do not silently bypass Status at a call site.
 
 ---
 

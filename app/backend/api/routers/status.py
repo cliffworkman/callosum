@@ -1,17 +1,18 @@
 """Cross-feature async-job status (inc 406) — the "Status" menu popover's backend.
 
 ~30 independent features each keep their own :class:`~app.backend.api.job_store.JobStore` on
-``api.state`` (axis scoring, dedup scan, library scan/import, statcheck-all, meta-analysis
+``api.state`` (axis scoring, dedup scan, library import, statcheck-all, meta-analysis
 batches, Synthesize > Ask, ...) but there was no single place to ask "what's running right now,
 across the whole app." This router answers that by **reflecting over ``api.state``** for every
 ``JobStore``-typed attribute rather than hand-maintaining the aggregation list. A structural test separately
-requires every application store to declare a bounded UI destination, so new jobs cannot ship as dead rows.
+requires every visible application store to declare a bounded UI destination, so new jobs cannot ship as dead rows.
+Routine library and WIP folder scans are explicit noise exclusions; their own surfaces retain inline status.
 
 A job's row *label* comes from which store it lives in (``JOB_LABELS``, falling back to an
 auto-prettified attribute name), not from data the job itself carries — this is deliberate: most
 of the ~30 job kinds never call ``mark_progress`` and so have no per-job label, and fixing that at
 every call site would be a much larger change than this feature needs. Jobs that DO report real
-progress (library scan/import, citation-count refresh) still show it via the existing
+progress (library import, citation-count refresh) still show it via the existing
 ``JobProgress``/``eta_seconds()`` machinery, verbatim.
 
 Pure in-memory aggregation: no DB, no filesystem, no external calls. The only externally-supplied
@@ -35,6 +36,10 @@ router = APIRouter(tags=["status"])
 # accumulate finished rows forever if nobody clears them.
 _FINISHED_TTL_SECONDS = 60 * 60
 
+# High-frequency maintenance scans keep their own inline state but add little value to the global activity list.
+# Keep them discoverable for cleanup/dismiss APIs while omitting both running rows and finished receipts from Status.
+STATUS_HIDDEN_STORES = frozenset({"library_scan_jobs", "wip_scan_jobs"})
+
 # Friendly names for the job kinds most likely to be visible at once. Anything not listed here
 # still appears (via _prettify), just with a plainer auto-generated label.
 JOB_LABELS: dict[str, str] = {
@@ -42,7 +47,6 @@ JOB_LABELS: dict[str, str] = {
     "axis_score_jobs": "Axis scoring",
     "axis_suggest_jobs": "Axis suggest",
     "dedup_jobs": "Duplicate scan",
-    "library_scan_jobs": "Library scan",
     "library_import_jobs": "Library import",
     "library_bundle_import_jobs": "Library bundle import",
     "statcheck_jobs": "statcheck (library-wide)",
@@ -78,7 +82,6 @@ JOB_LABELS: dict[str, str] = {
     "my_publication_gap_jobs": "Co-citation gap scan",
     "my_publication_citing_author_jobs": "Citing-authors scan",
     "my_publication_topic_jobs": "Emerging-topics scan",
-    "wip_scan_jobs": "WIP folder scan",
 }
 
 # Every backend job family has a stable UI home. A job may add a narrower entity hint (paper_id, summary_id, ...)
@@ -89,7 +92,6 @@ JOB_NAV_DEFAULTS: dict[str, dict[str, Any]] = {
     "axis_score_jobs": {"pane": "theory", "section": "axes", "tab": "axes"},
     "axis_suggest_jobs": {"pane": "theory", "section": "axes", "tab": "axes"},
     "dedup_jobs": {"workspace": "library", "modal": "duplicates"},
-    "library_scan_jobs": {"workspace": "library", "modal": "scan"},
     "library_import_jobs": {"workspace": "library", "modal": "import"},
     "library_bundle_import_jobs": {"workspace": "library", "modal": "bundle-import"},
     "statcheck_jobs": {"pane": "methods", "section": "statcheck"},
@@ -125,7 +127,6 @@ JOB_NAV_DEFAULTS: dict[str, dict[str, Any]] = {
     "my_publication_gap_jobs": {"workspace": "profile"},
     "my_publication_citing_author_jobs": {"workspace": "profile"},
     "my_publication_topic_jobs": {"workspace": "profile"},
-    "wip_scan_jobs": {"workspace": "library", "view": "wip"},
 }
 
 JOB_COMPUTE_KINDS: dict[str, str] = {
@@ -133,7 +134,6 @@ JOB_COMPUTE_KINDS: dict[str, str] = {
     "axis_score_jobs": "Local AI",
     "axis_suggest_jobs": "Local AI + optional provider AI",
     "dedup_jobs": "Local AI",
-    "library_scan_jobs": "Local AI",
     "library_import_jobs": "Local AI",
     "library_bundle_import_jobs": "Local AI",
     "statcheck_jobs": "Local deterministic check",
@@ -169,7 +169,6 @@ JOB_COMPUTE_KINDS: dict[str, str] = {
     "my_publication_gap_jobs": "Public metadata + local analysis",
     "my_publication_citing_author_jobs": "Public metadata + local analysis",
     "my_publication_topic_jobs": "Public metadata + local analysis",
-    "wip_scan_jobs": "Local filesystem scan",
 }
 
 _NAV_ENTITY_IDS = {"paper_id", "summary_id"}
@@ -272,6 +271,8 @@ def list_status_jobs(request: Request) -> StatusResponse:
     jobs_by_id: dict[str, Job] = {}
     for store_name, store in stores.items():
         store.prune_finished_older_than(_FINISHED_TTL_SECONDS)
+        if store_name in STATUS_HIDDEN_STORES:
+            continue
         for job_id, job in store.list_all():
             if job.status == "pending" and job.started_at is None and job.finished_at is None:
                 # Freshly created, not yet picked up by the background task — not worth a row yet.
