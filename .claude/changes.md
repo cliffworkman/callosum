@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-01 — Increment 438: make axis scoring immune to duplicate embeddings
+
+- **Files:** axis scoring, its focused regression, the Axes QA route, and project/increment documentation.
+- **What:** collapsed vector hits to one deterministic score per paper before tiering and assignment: strongest
+  confidence wins, with the oldest embedding id breaking identical-vector ties. A five-copy regression reproduces the
+  desktop failure exactly. Existing duplicate embedding rows remain untouched and harmless.
+- **Why:** overlapping first-time axis jobs had created multiple logically current embeddings for some papers in the
+  persistent desktop DB. The scorer treated embedding identity as paper identity and attempted the same
+  `cluster_node_papers` primary-key insert repeatedly; a fresh browser/dev DB lacked that history.
+- **Verify:** focused Axes suites **42 passed**; full suite **1788 passed, 1 skipped**; a backup of the affected desktop
+  DB scored axis 2 successfully (**23 assigned, 12 uncertain; 30/30 unique returned members**); Ruff, line budget, and
+  strict QA surface map **352/352 API + 1545/1545 frontend** clean.
+- **Revert:** restore the append-only raw-score list in `_score_candidate_embeddings`; no schema or user-data rollback.
+
 <!-- HELP-DOCS-SYNCED: 2026-08-01 inc 437 — quiet routine scans in Status -->
 
 ## 2026-08-01 — Increment 437: remove routine Library/WIP scans from Status

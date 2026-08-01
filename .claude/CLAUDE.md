@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 437** (see Increment workflow) with **1787 pytest tests
+It is currently at **Increment 438** (see Increment workflow) with **1788 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -34,6 +34,11 @@ the full per-increment narrative for all other increments now lives in the reloc
 - **Vectors:** `sqlite-vec` (in-process, no separate daemon) + sentence-transformers
   (default embed model `all-MiniLM-L6-v2`; `bge-base-en-v1.5` also supported).
 - **Clustering:** scikit-learn agglomerative clustering + local axis scoring.
+- **Axis-scoring identity (inc 438):** the deterministic scoring stream is one row per paper even if a long-lived
+  database contains duplicate current embedding records from overlapping first-time jobs. Scoring keeps the strongest
+  hit per paper and breaks identical-vector ties by the oldest embedding id before assignment/status calculation, so
+  legacy storage duplication cannot inflate counts or violate the `cluster_node_papers` primary key. Existing embedding
+  history is left intact; this is a read-time canonicalization invariant, not a destructive repair migration.
 - **Document scope (inc 425):** chunk reads are explicit about canonical attachment roles
   (`article-fulltext`, `supplement`, `preregistration`, `protocol`, `other`). The ordinary paper/synthesis/search
   paths cannot read registration chunks by fallback; exact attachment reads remain available for future paired

@@ -323,7 +323,10 @@ def _score_candidate_embeddings(
     embedding_to_paper: dict[int, int],
     config: AxisScoringConfig,
 ) -> list[PaperAxisScore]:
-    raw_scores: list[tuple[int, int, float]] = []
+    # A long-lived DB can contain duplicate current embedding rows when concurrent first-time jobs both pass the
+    # check-before-insert seam. Storage history must never become duplicate paper signals: keep the strongest hit per
+    # paper, with the oldest embedding id as a deterministic tie-break for identical vectors.
+    raw_scores_by_paper: dict[int, tuple[int, int, float]] = {}
     for candidate_ids in _candidate_batches(set(embedding_to_paper), vector_store=vector_store):
         hits = vector_store.search(
             conn,
@@ -333,7 +336,16 @@ def _score_candidate_embeddings(
         )
         for hit in hits:
             confidence = _confidence_from_cosine_distance(hit.distance)
-            raw_scores.append((embedding_to_paper[hit.embedding_id], hit.embedding_id, confidence))
+            paper_id = embedding_to_paper[hit.embedding_id]
+            candidate = (paper_id, hit.embedding_id, confidence)
+            previous = raw_scores_by_paper.get(paper_id)
+            if (
+                previous is None
+                or confidence > previous[2]
+                or (confidence == previous[2] and hit.embedding_id < previous[1])
+            ):
+                raw_scores_by_paper[paper_id] = candidate
+    raw_scores = list(raw_scores_by_paper.values())
     raw_scores.sort(key=lambda score: (-score[2], score[0]))
     if config.assignment_mode == "natural_break":
         statuses = _natural_break_statuses(raw_scores, config=config)

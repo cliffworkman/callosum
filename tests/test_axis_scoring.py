@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import insert, select, update
 
 from alembic import command
 from alembic.config import Config
@@ -101,6 +101,64 @@ def test_axis_scoring_records_clear_and_borderline_assignments(tmp_path: Path) -
     assert assignments[paper_ids["clear_facial"]] > assignments[paper_ids["borderline"]]
     assert paper_ids["borderline"] in assignments
     assert paper_ids["unrelated"] not in assignments
+
+
+def test_axis_scoring_collapses_duplicate_current_embeddings_to_one_paper_score(tmp_path: Path) -> None:
+    """Concurrent first-time desktop scores can leave several current embedding rows for one paper.
+
+    That storage duplication must not become duplicate paper scores or duplicate assignment inserts.
+    """
+    engine = _migrated_engine(tmp_path)
+    model = AxisFakeEmbeddingModel()
+    vector_store = InMemoryVectorStore()
+    config = AxisScoringConfig(assignment_mode="absolute", assignment_threshold=0.8, uncertainty_threshold=0.65)
+
+    with engine.begin() as conn:
+        paper_ids = _create_axis_fixture_papers(conn)
+        axis_id = create_axis(conn, label="Facial Anomalies")
+        score_axis(conn, axis_id=axis_id, model=model, vector_store=vector_store, config=config)
+        original = (
+            conn.execute(
+                select(embeddings).where(
+                    embeddings.c.target_type == "paper",
+                    embeddings.c.target_id == paper_ids["clear_facial"],
+                )
+            )
+            .mappings()
+            .one()
+        )
+        original_id = int(original["id"])
+        metadata = {
+            column: original[column]
+            for column in (
+                "target_type",
+                "target_id",
+                "model_name",
+                "model_version",
+                "dimension",
+                "normalization",
+                "source_text_version",
+                "source_chunk_version",
+                "vector_store_kind",
+            )
+        }
+        for _ in range(4):  # mirror the five-copy failure observed in the long-lived desktop DB
+            duplicate_id = int(
+                conn.execute(insert(embeddings).values(**metadata, vector_store_ref="pending")).inserted_primary_key[0]
+            )
+            vector_ref = vector_store.add(
+                conn,
+                embedding_id=duplicate_id,
+                vector=vector_store.vectors[original_id],
+            )
+            conn.execute(update(embeddings).where(embeddings.c.id == duplicate_id).values(vector_store_ref=vector_ref))
+
+        rescored = score_axis(conn, axis_id=axis_id, model=model, vector_store=vector_store, config=config)
+        assignments = _assignments(conn, rescored.cluster_node_id)
+
+    score_ids = [score.paper_id for score in rescored.scores]
+    assert len(score_ids) == len(set(score_ids)) == len(paper_ids)
+    assert set(assignments) == {paper_ids["clear_facial"], paper_ids["borderline"]}
 
 
 def test_nested_axis_scores_only_parent_assigned_subset(tmp_path: Path) -> None:
