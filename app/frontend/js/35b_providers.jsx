@@ -358,6 +358,7 @@ function AiSettings({ agentSettings }) {
         </div>
         {agentSettings}
       </div>
+      {testing && <ProgressBar label="Testing the active AI provider…" managedBy="tracked-request" />}
       {msg && <div className="settings-note">{msg}</div>}
     </>
   );

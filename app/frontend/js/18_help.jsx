@@ -60,6 +60,7 @@ function HelpChat({ titleById }) {
               </div>}
           </div>)}
         {busy && <div className="help-msg help-msg-assistant"><div className="help-msg-text help-msg-thinking">Thinking…</div></div>}
+        {busy && <ProgressBar label="Drafting a Help answer…" managedBy="tracked-request" />}
       </div>
       {notice && <p className="help-chat-notice">{notice}</p>}
       <div className="help-ask-row">

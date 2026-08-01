@@ -63,24 +63,29 @@ class JobStore(Generic[R]):
         self._jobs: dict[str, Job[R]] = {}
         self._lock = Lock()
 
-    def create(self) -> str:
+    def create(self, nav: dict[str, Any] | None = None) -> str:
         job_id = uuid4().hex
         with self._lock:
-            self._jobs[job_id] = Job(status="pending")
+            self._jobs[job_id] = Job(status="pending", nav=nav)
         return job_id
 
     def mark_running(self, job_id: str) -> None:
         with self._lock:
-            self._jobs[job_id] = Job(status="running", started_at=self._started_at(job_id))
+            previous = self._jobs.get(job_id)
+            self._jobs[job_id] = Job(
+                status="running", started_at=self._started_at(job_id), nav=previous.nav if previous else None
+            )
 
     def mark_progress(self, job_id: str, current: int, total: int, label: str) -> None:
         """Update a running job's determinate progress (inc 142). Cheap + frequent (per item); the UI polls it.
         Preserves the job's `started_at` (inc 225) so the ETA measures from when the job began, not the last tick."""
         with self._lock:
+            previous = self._jobs.get(job_id)
             self._jobs[job_id] = Job(
                 status="running",
                 progress=JobProgress(current=current, total=total, label=label),
                 started_at=self._started_at(job_id),
+                nav=previous.nav if previous else None,
             )
 
     def _started_at(self, job_id: str) -> float:
@@ -104,7 +109,7 @@ class JobStore(Generic[R]):
                 progress=final_progress,
                 started_at=prev.started_at if prev is not None else None,
                 finished_at=time.monotonic(),
-                nav=nav,
+                nav=nav if nav is not None else (prev.nav if prev is not None else None),
             )
 
     def mark_error(self, job_id: str, detail: str) -> None:
@@ -115,6 +120,7 @@ class JobStore(Generic[R]):
                 detail=detail,
                 started_at=prev.started_at if prev is not None else None,
                 finished_at=time.monotonic(),
+                nav=prev.nav if prev is not None else None,
             )
 
     def get(self, job_id: str) -> Job[R] | None:

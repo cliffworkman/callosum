@@ -1,4 +1,4 @@
-const { useState, useEffect, useCallback, useRef } = React;
+const { useState, useEffect, useCallback, useContext, useRef } = React;
 
 // App-wide read-only signal (inc 308 — QA fix): tri-state from /health — `undefined` until it resolves, then
 // `true` (CALLOSUM_READ_ONLY) / `false`. Components that fire a read-implemented-as-POST (e.g. the credit-status
@@ -104,22 +104,22 @@ function tagDisplayName(t) {
   return t ? t.name : "";
 }
 const PAGE_SIZE = 50;
-
-// thin fetch helper — returns {ok, data, error}
 async function api(path) {
+  const tracked = _startTrackedApiOperation("GET", path); const finish = result => { _finishTrackedApiOperation(tracked, result); return result; };
   try {
     const res = await fetch(API_BASE + path, { headers: { "Accept": "application/json" } });
     if (!res.ok) {
-      if (res.status === 401) { _notifyAuthRequired(); return { ok: false, status: 401, authRequired: true, error: `HTTP 401 on ${path}` }; }
-      return { ok: false, error: `HTTP ${res.status} on ${path}` };
+      if (res.status === 401) { _notifyAuthRequired(); return finish({ ok: false, status: 401, authRequired: true, error: `HTTP 401 on ${path}` }); }
+      return finish({ ok: false, error: `HTTP ${res.status} on ${path}` });
     }
-    return { ok: true, data: await res.json() };
+    return finish({ ok: true, data: await res.json() });
   } catch (e) {
-    return { ok: false, error: `Could not reach the ${API_LABEL}. Is uvicorn running?` };
+    return finish({ ok: false, error: `Could not reach the ${API_LABEL}. Is uvicorn running?` });
   }
 }
 
 async function apiPost(path, body) {
+  const tracked = _startTrackedApiOperation("POST", path); const finish = result => { _finishTrackedApiOperation(tracked, result); return result; };
   try {
     const res = await fetch(API_BASE + path, {
       method: "POST",
@@ -129,13 +129,13 @@ async function apiPost(path, body) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const detail = data && data.detail ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)) : `HTTP ${res.status} on ${path}`;
-      if (res.status === 401) { _notifyAuthRequired(); return { ok: false, status: 401, authRequired: true, error: detail }; }
+      if (res.status === 401) { _notifyAuthRequired(); return finish({ ok: false, status: 401, authRequired: true, error: detail }); }
       console.warn("[callosum] request failed:", path, detail);
-      return { ok: false, error: detail };
+      return finish({ ok: false, error: detail });
     }
-    return { ok: true, data };
+    return finish({ ok: true, data });
   } catch (e) {
-    return { ok: false, error: `Could not reach the ${API_LABEL}. Is uvicorn running?` };
+    return finish({ ok: false, error: `Could not reach the ${API_LABEL}. Is uvicorn running?` });
   }
 }
 

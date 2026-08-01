@@ -101,7 +101,8 @@ def funding_run(body: FundingRunRequest, background_tasks: BackgroundTasks, requ
         with request.app.state.engine.connect() as conn:
             if get_manuscript(conn, int(body.manuscript_id)) is None:
                 raise HTTPException(status_code=404, detail="WIP manuscript not found")
-    job_id = request.app.state.funding_jobs.create()
+    nav = {"paper_id": int(body.paper_id)} if body.paper_id is not None else None
+    job_id = request.app.state.funding_jobs.create(nav=nav)
     background_tasks.add_task(_run_funding_job, request.app, job_id, body)
     return FundingRunResponse(job_id=job_id, status="pending")
 

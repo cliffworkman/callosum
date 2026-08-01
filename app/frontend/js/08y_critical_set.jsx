@@ -176,7 +176,7 @@ function CriticalSetModal({ ids, onClose, onOpenPaper }) {
           you confirm</b>. Never a score; the critique is of the work, never the authors.
         </div>
 
-        {phase === "loading" && <ProgressBar label="Assembling the scrutiny surface…" />}
+        {phase === "loading" && <ProgressBar label="Assembling the scrutiny surface…" managedBy="backend-job" />}
         {phase === "error" && <div className="axis-err">Couldn’t assemble: {String(err)}</div>}
         {phase === "ready" && report && <React.Fragment>
           <div className="cr-set-section">

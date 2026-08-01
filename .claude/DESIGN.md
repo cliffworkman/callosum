@@ -272,12 +272,22 @@ begin with, so the mechanism doesn't apply there).
 
 ### Feedback — long async ops get a progress bar (a standing rule)
 **Any user-triggered async operation that can take more than ~1s shows the indeterminate `ProgressBar`** while
-it is pending — never a frozen-looking idle control. The shared component is `<ProgressBar />` (an indeterminate
-sliding `.progress-bar`/`.progress-bar-fill`); render it gated on the pane's `busy`/`running` flag. Already on:
-summary generation (`.synth` busy), axis score / axis suggest / dedup scan / statcheck-all, library scan / import /
-wanted re-check (the async-job modals). When you add a new async job (a `JobStore[R]` subsystem or any
-poll-until-done call), wire its pending state to `ProgressBar` too. (Convention named inc 116 / TDL #45; the
-component itself predates it.)
+it is pending — never a frozen-looking idle control. The shared component is `<ProgressBar />`; render it gated on
+the surface's `busy`/`running` flag. **Progress and Status are one invariant (inc 436):** every mounted shared
+`ProgressBar` automatically registers a live row in the global Status popover, carrying its nearest `StatusScope`
+destination. A background `JobStore` or explicitly tracked synchronous request instead owns the Status row and marks
+the inline bar with `managedBy` to prevent duplication.
+
+This includes **every AI use**, not only cloud LLM egress: installed/local embeddings, NLI, OCR, clustering, semantic
+retrieval, loopback models, and consent-gated provider models all receive visible progress plus a Status entry. New
+backend jobs must have a bounded home in `JOB_NAV_DEFAULTS`; new synchronous AI endpoints must be listed in
+`TRACKED_AI_REQUESTS`. Every row names its compute boundary (`Local AI`, `Provider AI`, or an accurate combination),
+and clicking it returns to the relevant workspace, pane/section/tab, modal, and paper/summary when known.
+
+Determinate fill and an ETA appear only when real `current`/`total` progress exists. Until then retain the animated
+indeterminate bar and explicitly say completion/ETA are not measurable; never infer a percentage from elapsed time.
+Keep finished/error receipts dismissible. Status navigation is a bounded descriptor, never a URL/callback, and must
+not contain prompts, document passages, results, secrets, or file paths. Structural tests pin both coverage rules.
 
 ---
 
@@ -462,7 +472,8 @@ On phone-width screens (inc 302), that same center-pane menu bar renders as a co
 instead of the desktop horizontal tab strip. It switches the same visible workspaces/utilities and stays separate
 from the bottom `.mobile-nav`, which only chooses the visible region: Library / Panels / Details. **Status
 (04c_status.jsx, inc 406) is not part of this `<select>`** — it's a live-polling popover, not a navigable
-workspace, so on phone-width it's simply not shown yet (a deliberate Phase-1 scope cut, not an oversight).
+workspace. Since inc 436 **Status remains visible beside the selector on phone widths**; moving away from a
+running operation never hides the only route back to it.
 
 **"Status" popover recipe (inc 406).** The first hover/click popover anchored to the menu bar itself (distinct
 from `.add-menu-pop`'s library-header dropdowns, §above): `.status-menu-toggle` reuses `.menubar-item` for a
@@ -471,11 +482,18 @@ consistent look, so it reads as one more utility button beside Help/Settings rat
 the far right of the bar and a left-anchored popover would run off the viewport edge. The count badge
 (`.status-badge`) reuses `.finding-badge`'s exact recipe (`--accent`/`--accent-soft`/`--accent-line`, `radius-pill`)
 — indigo for "N processes," never green/amber/red, which are reserved for citation-verification status (rule #8).
-Each row's progress reuses `ProgressBar` (10_pdf_layer.jsx) unmodified for `running`/`pending` jobs (real fill+ETA
+Each row's progress reuses `ProgressBar` (10_pdf_layer.jsx) for `running`/`pending` jobs (real fill+ETA
 when the job reports progress, the existing indeterminate sweep otherwise — never a faked percentage); a `done`
 row deliberately does NOT use `ProgressBar` — its animated sweep would misleadingly read as still-working for a
 job that's finished, so `.status-row-done` is a static text line instead. `.status-row-error` gets a `--danger`
 left border (the retraction-chip precedent: red for a negative *fact*, not only for destructive actions).
+Rows are clickable whenever they have a bounded destination. `StatusJob.compute_kind` names the locality/egress
+class; `StatusScope` supplies the current UI destination to client-side progress; and the central App dispatcher is
+the only code allowed to interpret navigation descriptors. Server job metadata can add typed entity ids but cannot
+override the server-owned destination or publish free text/URLs. Synchronous AI calls use the client registry around
+the normal request seam, so they remain visible after their originating surface is left. If a determinate operation
+has advanced, the client derives the same approximate linear ETA convention used by `JobStore`; otherwise the UI
+states that completion and ETA are not measurable.
 
 **Desktop-shell auto-updater notice recipe (`04d_update.jsx`).** `.update-toast`/`.update-pill` — a neutral
 "something's ready" notice, not an error, so it deliberately does **not** reuse `.pdf-toast`'s red/cream error

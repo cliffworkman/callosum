@@ -80,6 +80,12 @@ function PaneAccordion({ paneId, ctx, openId, onOpen }) {
     setTabState(m => ({ ...m, [sid]: tid }));
     _saveLayout("callosum.panetab." + sid, tid);
   };
+  const requested = ctx?.paneTabRequest;
+  useEffect(() => {
+    if (!requested || requested.pane !== paneId) return;
+    if (requested.section) onOpen(requested.section);
+    if (requested.section && requested.tab) setTab(requested.section, requested.tab);
+  }, [requested?.nonce, paneId]);
   return (
     <div className="pane-accordion">
       {sections.map(s => {
@@ -109,11 +115,15 @@ function PaneAccordion({ paneId, ctx, openId, onOpen }) {
                       also be the selected one (inc: the Checklists 2x2-grid tab group, 2026-07-21). */}
                   {tabs.map(t => (
                     <div key={t.id} className={"pane-tab" + (t.id === at ? " active" : "")}>
-                      {t.render(ctx, s.id === active && t.id === at)}
+                      <StatusScope nav={{ pane: paneId, section: s.id, tab: t.id, paper_id: ctx?.selectedPaper ?? null }}>
+                        {t.render(ctx, s.id === active && t.id === at)}
+                      </StatusScope>
                     </div>
                   ))}
                 </React.Fragment>
-              ) : tabs[0].render(ctx, s.id === active)}
+              ) : <StatusScope nav={{ pane: paneId, section: s.id, tab: tabs[0].id, paper_id: ctx?.selectedPaper ?? null }}>
+                    {tabs[0].render(ctx, s.id === active)}
+                  </StatusScope>}
             </div>
           </section>
         );

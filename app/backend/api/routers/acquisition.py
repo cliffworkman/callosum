@@ -59,7 +59,7 @@ def acquire_oa_start(
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    job_id = request.app.state.acquire_jobs.create()
+    job_id = request.app.state.acquire_jobs.create(nav={"paper_id": paper_id})
     background_tasks.add_task(_run_acquire_job, request.app, job_id, paper_id)
     return AcquireOaStartResponse(job_id=job_id, status="pending")
 

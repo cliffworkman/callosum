@@ -66,7 +66,7 @@ function ImportModalBody({ onClose, onImported }) {
         </button>
       </div>
       {file && imp.status === "idle" && <div className="axis-hint">{file.name} — ready to import.</div>}
-      {imp.status === "running" && <ProgressBar label="Parsing + embedding…" progress={imp.progress} />}
+      {imp.status === "running" && <ProgressBar label="Parsing + embedding…" progress={imp.progress} managedBy="backend-job" />}
       {imp.status === "error" && <div className="axis-err">Import failed: {imp.error}</div>}
       {imp.status === "done" && s &&
         <div className="scan-summary">

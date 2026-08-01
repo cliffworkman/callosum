@@ -268,7 +268,7 @@ function FundingDiscoveryPanel({ ctx }) {
         <button className="btn btn-primary" disabled={!canRun} onClick={run}>
           {state.status === "done" ? "Search again" : "Discover funding"}
         </button>}
-      {state.status === "running" && <ProgressBar progress={state.progress} label="Discovering funding prospects…" />}
+      {state.status === "running" && <ProgressBar progress={state.progress} label="Discovering funding prospects…" managedBy="backend-job" />}
       {state.status === "error" && <div className="axis-err">Funding Discovery failed: {state.error}</div>}
       <SavedFundingItems items={savedItems} onChanged={refreshSaved} />
       <FundingRunHistory runs={recentRuns} currentRunId={report && report.run_id} loadState={runLoadState}
@@ -277,7 +277,7 @@ function FundingDiscoveryPanel({ ctx }) {
       <FundingRunActions report={report} />
       <FundingLlmTriageControls report={report} ready={triageReady}
         running={triageState.status === "running"} onRun={runTriage} />
-      {triageState.status === "running" && <ProgressBar label="Evaluating apparent funding fit…" />}
+      {triageState.status === "running" && <ProgressBar label="Evaluating apparent funding fit…" managedBy="tracked-request" />}
       {triageState.status === "error" && <div className="axis-err">AI fit triage failed: {triageState.error}</div>}
       {report && <FundingLlmStatus status={report.llm_triage_status} />}
       <FundingViewToggle triageOnly={effectiveTriageOnly} setTriageOnly={setTriageOnly} enabled={triageReady} />

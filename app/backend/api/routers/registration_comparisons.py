@@ -151,7 +151,7 @@ def start_registration_comparison(
     )
     if link["link_status"] != "confirmed" or not link["user_confirmed"]:
         raise HTTPException(status_code=409, detail="Confirm the registration match before comparing this version.")
-    job_id = request.app.state.registration_comparison_jobs.create()
+    job_id = request.app.state.registration_comparison_jobs.create(nav={"paper_id": paper_id})
     background.add_task(_run_comparison_job, request.app, job_id, paper_id, payload.model_dump())
     return ComparisonStart(job_id=job_id, status="pending")
 

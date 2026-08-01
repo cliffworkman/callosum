@@ -1252,9 +1252,8 @@ def test_desktop_update_progress_surfaces_in_status_popover_and_settings():
     # navigable (the toast already owns the restart action — no second, driftable trigger).
     assert "function desktopUpdateStatusJob(update)" in raw
     assert 'const DESKTOP_UPDATE_STORE = "desktop_update";' in raw
-    assert "STATUS_NAVIGABLE_STORES = new Set([" in raw
-    navigable_line = next(line for line in raw.splitlines() if "STATUS_NAVIGABLE_STORES = new Set([" in line)
-    assert "desktop_update" not in navigable_line
+    assert "const STATUS_NAVIGABLE_STORES" not in raw
+    assert "const navigable = !!job.nav" in raw
     assert "desktopUpdate" in raw.split("function StatusMenu(", 1)[1].split("\n", 1)[0]
 
     # Settings: an on-demand "Check for updates" button, desktop-shell-only (returns null without Tauri).
@@ -1264,6 +1263,39 @@ def test_desktop_update_progress_surfaces_in_status_popover_and_settings():
     assert "function DesktopUpdateSettings(" in raw
     assert '!("__TAURI__" in window)) return null' in raw
     assert "Check for updates" in raw
+
+
+def test_status_tracks_every_progress_bar_and_synchronous_ai_request_with_navigation():
+    raw = assemble_jsx()
+    status = (PROJECT_ROOT / "app/frontend/js/04c_status.jsx").read_text(encoding="utf-8")
+    progress = (PROJECT_ROOT / "app/frontend/js/10_pdf_layer.jsx").read_text(encoding="utf-8")
+    assert "useProgressStatus({ label, progress, managedBy })" in progress
+    assert "StatusScope nav={{ workspace: ws.id, tab: t.id" in raw
+    assert "StatusScope nav={{ pane: paneId, section: s.id" in raw
+    assert "Completion and ETA are not measurable yet." in status
+    assert "compute_kind" in status and "const navigable = !!job.nav" in status
+    assert (
+        "<StatusMenu onNavigate={onStatusNavigate} desktopUpdate={desktopUpdate} />"
+        in raw.split('className="menubar menubar-mobile"', 1)[1]
+    )
+    for route_fragment in (
+        "axes\\/suggest-terms",
+        "suggested-tags",
+        "citations\\/suggest",
+        "critical-read\\/candidates\\/generate",
+        "discovery\\/relevance",
+        "funding-discovery\\/llm-triage",
+        "help\\/ask",
+        "my-publications\\/summary\\/generate",
+        "registration-comparisons",
+        "settings\\/test-key",
+        "summaries",
+        "workbench\\/rows",
+    ):
+        assert route_fragment in status
+    assert "setPaneTabRequest" in raw
+    for modal in ("duplicates", "wanted", "text-health", "gaps", "overlooked", "scan", "import", "bundle-import"):
+        assert f'nav.modal === "{modal}"' in raw
     assert 'invoke("check_for_updates_now")' in raw
     assert '<SettingsCard title="Desktop app">' not in raw
     assert "<DesktopUpdateSettings desktopUpdate={desktopUpdate} />" in raw

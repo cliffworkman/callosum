@@ -100,7 +100,7 @@ def citation_equity_run(
         raise HTTPException(status_code=404, detail="Paper not found")
     if not row["doi"]:
         raise HTTPException(status_code=422, detail="This paper has no DOI, so OpenAlex can't resolve its references.")
-    job_id = request.app.state.citation_equity_jobs.create()
+    job_id = request.app.state.citation_equity_jobs.create(nav={"paper_id": body.paper_id})
     background_tasks.add_task(_run_citation_equity_job, request.app, job_id, body.paper_id)
     return CitationEquityResponse(job_id=job_id, status="pending")
 
@@ -236,7 +236,7 @@ def overlooked_run(
         raise HTTPException(status_code=404, detail="Paper not found")
     if not row["doi"]:
         raise HTTPException(status_code=422, detail="This paper has no DOI, so OpenAlex can't resolve related work.")
-    job_id = request.app.state.overlooked_jobs.create()
+    job_id = request.app.state.overlooked_jobs.create(nav={"paper_id": body.paper_id})
     background_tasks.add_task(_run_overlooked_job, request.app, job_id, body.paper_id)
     return OverlookedResponse(job_id=job_id, status="pending")
 

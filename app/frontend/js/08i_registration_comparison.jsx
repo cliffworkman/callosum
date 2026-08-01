@@ -183,7 +183,7 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
           id: `file:${selectedVersion.attachment_id}`, paperId, attachmentId: selectedVersion.attachment_id,
         })}>Open registration attachment</button>}
     </div>
-    {state.status === "running" && <ProgressBar label="Comparing bounded registration fields with publication passages…" />}
+    {state.status === "running" && <ProgressBar label="Comparing bounded registration fields with publication passages…" managedBy="backend-job" />}
     {state.status === "error" && <div className="settings-note settings-note-err">Comparison failed: {state.error}</div>}
     {state.message && <div className="settings-note">{state.message}</div>}
     {showRaw && <div className="registration-raw-record">
@@ -224,7 +224,7 @@ function RegistrationLlmTriageControls({ detail, status, running, triageOnly, hi
         {ready ? "Re-triage rows with AI" : "Triage rows with AI"}
       </button>
     </div>
-    {running && <ProgressBar label="Triaging comparison rows from bounded evidence…" />}
+    {running && <ProgressBar label="Triaging comparison rows from bounded evidence…" managedBy="tracked-request" />}
     {status && ["unavailable", "failed"].includes(status.status) &&
       <div className="settings-note settings-note-err">{status.warning || "AI triage is unavailable."}</div>}
     {stale && <div className="settings-note">Saved AI triage is stale. Re-run the comparison, then triage the new rows.</div>}

@@ -329,8 +329,8 @@ function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper, refreshKey = 
           <button className="btn btn-ghost" onClick={() => setState({ status: "idle" })}>Cancel</button>
         </div>
       </div>}
-      {state.status === "running" && <ProgressBar label="Searching public registration metadata…" />}
-      {state.status === "acquiring" && <ProgressBar label="Acquiring the confirmed public registration…" />}
+      {state.status === "running" && <ProgressBar label="Searching public registration metadata…" managedBy="backend-job" />}
+      {state.status === "acquiring" && <ProgressBar label="Acquiring the confirmed public registration…" managedBy="backend-job" />}
       {state.status === "error" && <div className="settings-note settings-note-err">Registration workflow failed: {state.error}</div>}
       {state.message && <div className="settings-note">{state.message}</div>}
       {(state.providers || []).map(report => report.status !== "ok" && <div className="settings-note" key={report.provider}>
@@ -441,7 +441,7 @@ function TransparencyLibrary({ onReview, onRan }) {
           {run.status === "running" ? "Detecting…" : "Check all papers"}
         </button>
       </div>
-      {run.status === "running" && <ProgressBar label="Detecting transparency signals…" />}
+      {run.status === "running" && <ProgressBar label="Detecting transparency signals…" managedBy="backend-job" />}
       {run.status === "error" && <div className="settings-note settings-note-err">Detection failed: {run.error}</div>}
       {run.status === "done" && s &&
         <div className="settings-note">

@@ -13,6 +13,7 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly 
   const [input, setInput] = useState("");
   const [suggestions, setSuggestions] = useState([]);   // inc-72: c-TF-IDF candidates
   const [suggested, setSuggested] = useState(false);    // have we fetched candidates at least once?
+  const [suggesting, setSuggesting] = useState(false);
   const [palette, setPalette] = useState([]);           // inc-207: the fixed tag-color palette keys
   const [picking, setPicking] = useState(null);         // inc-207: the tag id whose color popover is open
   const [error, setError] = useState("");               // a rejected add/color/remove was previously silent (QA route_20/30)
@@ -71,7 +72,9 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly 
     else setError(r.error || "Couldn't remove that tag.");
   };
   const suggest = async () => {   // inc-72: local c-TF-IDF — propose distinctive terms, the user opts in
+    setSuggesting(true);
     const r = await api(`/papers/${paperId}/suggested-tags`);
+    setSuggesting(false);
     setSuggested(true);
     if (r.ok) setSuggestions(r.data.suggestions || []);
   };
@@ -110,8 +113,8 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly 
             onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
             onBlur={() => add()} />
           <datalist id="tag-suggestions">{all.map(t => <option key={t.id} value={t.name} />)}</datalist>
-          <button className="btn-link" title="Suggest tags from this paper's text (local, no AI sent off-device)"
-            onClick={suggest}>✨ Suggest</button>
+          <button className="btn-link" disabled={suggesting} title="Suggest tags from this paper's text (local, no AI sent off-device)"
+            onClick={suggest}>{suggesting ? "suggesting…" : "✨ Suggest"}</button>
           {suggestions.map(name => (
             <button key={"sug-" + name} className="term-chip tag-suggest-chip" title="Add this suggested tag"
               onClick={() => add(name)}>+ {name}</button>
@@ -119,6 +122,7 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly 
           {suggested && suggestions.length === 0 && <span className="tag-suggest-empty">no new suggestions</span>}
         </React.Fragment>}
       </div>
+      {suggesting && <ProgressBar label="Suggesting tags locally…" managedBy="tracked-request" />}
       {error && <div id={errorId} className="axis-err tag-error" role="alert">{error}</div>}
     </div>
   );

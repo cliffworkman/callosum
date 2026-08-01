@@ -261,7 +261,7 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
             </button>
           </span>
         </div>
-        {gen.status === "running" && <ProgressBar label="Writing a draft from your publications…" />}
+        {gen.status === "running" && <ProgressBar label="Writing a draft from your publications…" managedBy="tracked-request" />}
         {gen.status === "error" && <div className="axis-err">{gen.error}</div>}
         <textarea
           className="mypubs-summary-text" rows={5}
@@ -282,7 +282,7 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
         <div className="mypubs-summary-head">
           <span>Research domains{domains.length > 0 && <span className="mypubs-source"> · grouped by similarity — click to filter the chart</span>}</span>
         </div>
-        {domainJob.status === "running" && <ProgressBar label="Clustering your publications…" />}
+        {domainJob.status === "running" && <ProgressBar label="Clustering your publications…" managedBy="backend-job" />}
         {domainJob.status === "error" && <div className="axis-err">{domainJob.error}</div>}
         {domainJob.status === "too-few" && <div className="axis-hint">Need at least a few confirmed publications to break down by domain.</div>}
         {domains.length === 0 && domainJob.status === "idle" &&
@@ -347,7 +347,7 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
             {refreshing ? "Refreshing…" : "↻ Refresh from OpenAlex"}
           </button>
         </div>
-        {refreshing && <ProgressBar label="Resolving via OpenAlex…" />}
+        {refreshing && <ProgressBar label="Resolving via OpenAlex…" managedBy="backend-job" />}
       </section>
 
       <MissingWorksModal

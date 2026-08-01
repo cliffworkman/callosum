@@ -104,7 +104,7 @@ function CitationContextPaper({ paperId, direction }) {
       </div>
       {meta && !meta.hasDoi &&
         <div className="tag-suggest-empty">This paper has no DOI, so Semantic Scholar can't look up its citation graph. Add one under Identifiers in the Detail pane to enable it.</div>}
-      {state.status === "running" && <ProgressBar progress={state.progress} label="Fetching + classifying…" />}
+      {state.status === "running" && <ProgressBar progress={state.progress} label="Fetching + classifying…" managedBy="backend-job" />}
       {state.status === "error" && <div className="axis-err">Couldn't fetch {D.noun}: {state.error}</div>}
       {state.status === "done" && rep && (rep.total_citations === 0
         ? <div className="tag-suggest-empty">{D.empty}</div>

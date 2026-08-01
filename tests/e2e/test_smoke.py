@@ -873,6 +873,61 @@ def test_meta_preregistration_ai_triage_is_reversible_and_restores_all_rows(serv
         browser.close()
 
 
+def test_status_popover_tracks_synchronous_ai_and_navigates_to_its_ui(server: str):
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+        page = browser.new_page(viewport={"width": 1366, "height": 900})
+        errors = _mount_app(page, server)
+        page.evaluate(
+            """() => {
+              const originalFetch = window.fetch;
+              window.__finishHelpRequest = null;
+              window.fetch = (input, init) => {
+                if (String(input).includes('/help/ask')) {
+                  return new Promise(resolve => {
+                    window.__finishHelpRequest = () => resolve(new Response(
+                      JSON.stringify({answer:'Use Add or drag a PDF into Callosum.', references:[]}),
+                      {status:200, headers:{'Content-Type':'application/json'}}));
+                  });
+                }
+                return originalFetch(input, init);
+              };
+            }"""
+        )
+
+        page.get_by_role("tab", name="Help", exact=True).click()
+        page.get_by_placeholder("Ask the help assistant…").fill("How do I import a PDF?")
+        page.get_by_role("button", name="Ask", exact=True).click()
+        page.wait_for_function("() => typeof window.__finishHelpRequest === 'function'")
+        assert errors == [], f"unexpected console/page errors while Help AI is running: {errors}"
+        assert page.get_by_role("tab", name="Library", exact=True).count() == 1, page.locator("body").inner_text()[
+            :1000
+        ]
+
+        page.get_by_role("tab", name="Library", exact=True).click()
+        page.locator(".status-menu-toggle").click()
+        row = page.locator(".status-row", has_text="Drafting a Help answer")
+        row.wait_for()
+        assert row.get_by_text("Provider AI", exact=True).is_visible()
+        assert row.get_by_text("Completion and ETA are not measurable yet.", exact=True).is_visible()
+        row.get_by_role("button", name="Drafting a Help answer", exact=True).click()
+        assert page.get_by_role("tab", name="Help", exact=True).get_attribute("aria-selected") == "true"
+
+        page.evaluate("window.__finishHelpRequest()")
+        page.locator(".status-menu-toggle").click()
+        done_row = page.locator(".status-row", has_text="Drafting a Help answer")
+        done_row.get_by_text("Done", exact=True).wait_for()
+
+        page.set_viewport_size({"width": 375, "height": 812})
+        page.locator(".status-menu-toggle").wait_for(state="visible")
+        _assert_no_document_horizontal_overflow(page, "Status popover / mobile")
+        assert errors == []
+        browser.close()
+
+
 def test_tool_panes_resist_visual_drift(server: str):
     with sync_playwright() as p:
         try:

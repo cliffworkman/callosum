@@ -115,7 +115,7 @@ function MyPubsCitingAuthors({ domains, onSelectPaper }) {
           </span>
         </div>}
 
-      {running && <ProgressBar label={`Checking repeated citing authors for ${scopeLabel} through OpenAlex…`} />}
+      {running && <ProgressBar label={`Checking repeated citing authors for ${scopeLabel} through OpenAlex…`} managedBy="backend-job" />}
       {refresh.status === "error" && <div className="axis-err">{refresh.error}</div>}
       {state.status === "error" && <div className="axis-err">{state.error}</div>}
       {state.status === "loading" && <div className="axis-hint">Loading the local citing-author snapshot…</div>}

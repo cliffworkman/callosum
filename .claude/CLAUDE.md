@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 435** (see Increment workflow) with **1782 pytest tests
+It is currently at **Increment 436** (see Increment workflow) with **1786 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -89,6 +89,12 @@ the full per-increment narrative for all other increments now lives in the reloc
   crosswalk as prioritize/uncertain/likely lower-yield from bounded paired passages. It is a reversible display layer:
   **All rows** restores the unchanged crosswalk, missing/malformed labels fail open, and evidence/prompt/document drift
   makes annotations stale. Whole documents, source locators, chunk IDs, notes, and review state are not sent.
+- **Status/progress invariant (inc 436):** every backend job family has a bounded click destination, every shared
+  `ProgressBar` registers with the Status popover unless a backend job or tracked request owns the same operation, and
+  all synchronous provider-AI and installed-local-AI routes are explicitly tracked. Status names the compute boundary,
+  shows real completion/ETA when measurable and an honest indeterminate state otherwise, works on mobile, and never
+  serializes job results, prompts, passages, file paths, or arbitrary URLs. New `JobStore`s must extend
+  `JOB_NAV_DEFAULTS`; new synchronous AI endpoints must extend `TRACKED_AI_REQUESTS`.
 - **Methods (deterministic, local, no-LLM):** statcheck NHST p-value recomputation (`scipy.stats`), inc 95;
   inc 387 conservatively adds clearly headed table rows from local PDF/JATS/XML/HTML/DOCX/ODT attachments
   without mixing reconstructed rows into prose chunks or embeddings; inc 388 keeps the evidence-bearing PDF
@@ -349,6 +355,16 @@ tests. The analogue of a brand promise: never break it.
    quotes, and page numbers are always visible. The score reflects semantic + lexical overlap,
    not logical entailment — the user sees the quote and decides. Never hide a low-confidence or
    flagged claim.
+
+5. **Visible work is globally findable.** Any operation that uses AI—whether a consent-gated external provider, a
+   loopback model, or Callosum's installed local embedding/NLI/OCR/clustering tools—must show a progress indicator and
+   a live entry in the global **Status** popover. The same is true of every other lengthy operation represented by a
+   progress bar. A Status entry must identify local/provider computation, expose honest completion and ETA only when
+   measurable, and click back to the exact relevant workspace, pane/tab, modal, and entity. Use `JobStore` plus
+   `JOB_NAV_DEFAULTS` for background work, `TRACKED_AI_REQUESTS` for synchronous AI HTTP calls, and the shared
+   `ProgressBar`/`StatusScope` path for other visible work; set `managedBy` when one operation already has an owner so
+   duplicate rows are impossible. Never invent percentages or ETAs, and never put prompts, passages, results, paths,
+   secrets, or arbitrary URLs in a status navigation payload.
 
 ---
 

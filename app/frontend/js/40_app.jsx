@@ -31,6 +31,7 @@ function App() {
   const [activeWorkspace, setActiveWorkspace] = useState(() =>
     window.location.hash === "#citation-styles" ? "settings" : _loadLayout("callosum.workspace", "library"));
   const [workspaceTabRequest, setWorkspaceTabRequest] = useState(null);
+  const [paneTabRequest, setPaneTabRequest] = useState(null);
   const selectWorkspace = useCallback((id) => {
     // leaving Settings re-reads egress state in the panes (inc 148), the old modal-close behavior.
     setActiveWorkspace(prev => { if (prev === "settings" && id !== "settings") setSettingsNonce(n => n + 1); return id; });
@@ -212,14 +213,33 @@ function App() {
     selectWorkspace("synthesis");
     if (mobile) setMobilePane("library");
   }, [mobile, requestWorkspaceTab, selectWorkspace, setMobilePane]);
-  // inc 415: Status-popover click-through, keyed on which JobStore the row belongs to. Reuses each
-  // destination's existing navigation function verbatim — a 4th job kind just needs one more branch here
-  // (plus, if it has a specific entity to reopen, a `nav` payload published at its own mark_done() call).
+  useEffect(() => { setStatusFallbackNav({ workspace: activeWorkspace, paper_id: selected }); }, [activeWorkspace, selected]);
+  // inc 436: one dispatcher interprets bounded Status descriptors; rows never carry a URL or arbitrary callback.
   const onStatusNavigate = useCallback((job) => {
-    if (job.store === "meta_jobs") { showMetaFlagged(); return; }
-    if (job.store === "citation_count_jobs") { gotoLibrary("library"); libraryBits.onSortChange("citations_desc"); return; }
-    if (job.store === "summary_jobs") { openSynthesisSummary(job.nav && job.nav.summary_id != null ? job.nav.summary_id : null); return; }
-  }, [showMetaFlagged, gotoLibrary, libraryBits, openSynthesisSummary]);
+    const nav = job.nav || {};
+    if (nav.paper_id != null) setSelected(nav.paper_id);
+    if (nav.summary_id != null) { openSynthesisSummary(nav.summary_id); return; }
+    if (nav.workspace) {
+      selectWorkspace(nav.workspace);
+      if (nav.tab) requestWorkspaceTab(nav.workspace, nav.tab);
+    }
+    if (nav.pane) {
+      if (nav.pane === "methods") { setMethodsOpen(nav.section || "details"); if (mobile) setMobilePane("methods"); }
+      if (nav.pane === "theory") { setTheoryOpen(nav.section || "axes"); if (mobile) setMobilePane("theory"); }
+      setPaneTabRequest(prev => ({ ...nav, nonce: (prev ? prev.nonce : 0) + 1 }));
+    }
+    if (nav.view === "citations") { gotoLibrary("library"); libraryBits.onSortChange("citations_desc"); }
+    if (nav.view === "wip") { selectWorkspace("library"); setActiveTab("wip"); if (mobile) setMobilePane("library"); }
+    if (nav.modal === "duplicates") setDuplicatesOpen(true);
+    if (nav.modal === "merge" && Array.isArray(nav.paper_ids) && nav.paper_ids.length > 1) setMergeIds(nav.paper_ids);
+    if (nav.modal === "wanted") setWantedOpen(true);
+    if (nav.modal === "text-health") { setTextHealthContext(null); setTextHealthOpen(true); }
+    if (nav.modal === "gaps") setGapsOpen(true);
+    if (nav.modal === "overlooked") setOverlookedOpen(true);
+    if (nav.modal === "scan") setScanOpen(true);
+    if (nav.modal === "import") setImportOpen(true);
+    if (nav.modal === "bundle-import") setBundleImportOpen(true);
+  }, [gotoLibrary, libraryBits, mobile, openSynthesisSummary, requestWorkspaceTab, selectWorkspace, setMethodsOpen, setMobilePane, setTheoryOpen]);
   // backlog #26 (F1 discoverability): jump from PUBLISHERS ("Where to submit") to the CRediT builder — both
   // already operate on the same globally-selected paper, so no re-select is needed, just a workspace/tab switch.
   const openCreditBuilder = useCallback(() => {
@@ -406,6 +426,7 @@ function App() {
     selectedOpenPaperTab: wipModeActive ? null : selectedOpenPaperTab,
     onActivatePaperTab: activatePaperTab,
     workspaceTabRequest,
+    paneTabRequest,
     requestedSummary,  // inc 415: Status-popover → reopen a specific saved synthesis (SynthesisPane only)
     capture, onArmCapture: armCapture, onCaptureApplied: clearCapture,
   };
@@ -485,8 +506,10 @@ function App() {
           onChanged={() => setLibRefresh(n => n + 1)} onMerge={(ids) => setMergeIds(ids)}
           mergedIds={dupMergedIds} onMergeDone={() => setDupMergedIds(null)} />}
       {mergeIds &&
-        <MergePapersModal ids={mergeIds} onClose={() => setMergeIds(null)}
-          onMerged={(survivorId) => { if (duplicatesOpen) setDupMergedIds(mergeIds); onMerged(survivorId); }} />}
+        <StatusScope nav={{ workspace: "library", modal: "merge", paper_ids: mergeIds }}>
+          <MergePapersModal ids={mergeIds} onClose={() => setMergeIds(null)}
+            onMerged={(survivorId) => { if (duplicatesOpen) setDupMergedIds(mergeIds); onMerged(survivorId); }} />
+        </StatusScope>}
       {critSetIds &&
         <CriticalSetModal ids={critSetIds} onClose={() => setCritSetIds(null)} onOpenPaper={openPdf} />}
       {wantedOpen &&

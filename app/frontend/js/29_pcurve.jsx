@@ -90,7 +90,7 @@ function PcurveModal({ paperIds, onClose, onOpenPaper, onChanged }) {
           verdict, and it never describes any single paper or author.</b>
         </div>
 
-        {state.status === "running" && <ProgressBar label="Extracting and analysing p-values…" />}
+        {state.status === "running" && <ProgressBar label="Extracting and analysing p-values…" managedBy="backend-job" />}
         {state.status === "error" &&
           <div className="errbox" style={{ margin: "12px 0 0" }}><b>p-curve could not run.</b><br />{state.error}</div>}
 

@@ -99,6 +99,7 @@ function AxisEditModalBody({ mode, axisId, initialTitle, initialDescription, ini
         <button className="axis-link" onClick={addCustom}>add</button>
         <button className="axis-link" disabled={searching} onClick={runSearch}>{searching ? "searching…" : "search related terms"}</button>
       </div>
+      {searching && <ProgressBar label="Suggesting related terms…" managedBy="tracked-request" />}
       {searchMsg && <div className="axis-hint">{searchMsg}</div>}
 
       {error && <div className="axis-err">{error}</div>}

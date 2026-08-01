@@ -125,7 +125,7 @@ function AcquireOaRow({ paperId, onAcquired }) {
         title="Fetch a free, rights-holder-authorized open-access copy via OpenAlex and import it locally">
         {status === "running" ? "Acquiring…" : "Acquire OA copy"}
       </button>
-      {status === "running" && <ProgressBar label="Searching open-access sources…" />}
+      {status === "running" && <ProgressBar label="Searching open-access sources…" managedBy="backend-job" />}
       {msg && <span className={"detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "")}>{msg}</span>}
       {missed && (
         <button className="btn" onClick={getViaLibrary}
@@ -172,7 +172,7 @@ function OcrRow({ paperId, onOcred }) {
         title="This PDF has no text layer (it looks scanned). Run local OCR to make it searchable + citable — nothing leaves your machine.">
         {status === "running" ? "Running OCR…" : "OCR this paper (scanned)"}
       </button>
-      {status === "running" && <ProgressBar label="Reading pages…" progress={prog} />}
+      {status === "running" && <ProgressBar label="Reading pages…" progress={prog} managedBy="backend-job" />}
       {msg && <span className={"detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "")}>{msg}</span>}
     </div>
   );

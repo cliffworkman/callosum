@@ -299,7 +299,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
             {busy ? (state.message || "Generating and verifying") : "query scope · top 8 chunks"}
           </span>
         </div>
-        {busy && <ProgressBar />}
+        {busy && <ProgressBar managedBy="backend-job" />}
       </React.Fragment>}
 
       {!readOnly && egressOff && state.status !== "error" && egressNudge}

@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
 from app.backend.api.job_store import JobStore
+from app.backend.api.routers.status import JOB_COMPUTE_KINDS, JOB_NAV_DEFAULTS, discover_stores
 
 
 def _client(temp_db_url: str) -> TestClient:
@@ -82,9 +83,10 @@ def test_status_job_nav_is_none_when_the_job_never_published_one(temp_db_url):
     # inc 415: most job kinds never set Job.nav — it must serialize cleanly as None, not crash or default
     # to something else.
     app = create_app(db_url=temp_db_url)
-    jid = app.state.dedup_jobs.create()
-    app.state.dedup_jobs.mark_running(jid)
-    app.state.dedup_jobs.mark_done(jid, result=None)
+    app.state.zzz_demo_feature_jobs = JobStore()
+    jid = app.state.zzz_demo_feature_jobs.create()
+    app.state.zzz_demo_feature_jobs.mark_running(jid)
+    app.state.zzz_demo_feature_jobs.mark_done(jid, result=None)
     client = TestClient(app)
 
     row = client.get("/status/jobs").json()["jobs"][0]
@@ -92,8 +94,8 @@ def test_status_job_nav_is_none_when_the_job_never_published_one(temp_db_url):
 
 
 def test_status_job_surfaces_a_published_nav_payload(temp_db_url):
-    # inc 415: a job that DID publish a navigation hint (e.g. Ask's summary_id) surfaces it verbatim —
-    # never job.result itself, which StatusJob has no field for at all.
+    # inc 415/436: a job may add a typed entity id to its server-owned destination — never job.result itself,
+    # which StatusJob has no field for at all.
     app = create_app(db_url=temp_db_url)
     jid = app.state.summary_jobs.create()
     app.state.summary_jobs.mark_running(jid)
@@ -101,7 +103,40 @@ def test_status_job_surfaces_a_published_nav_payload(temp_db_url):
     client = TestClient(app)
 
     row = client.get("/status/jobs").json()["jobs"][0]
-    assert row["nav"] == {"summary_id": 99}
+    assert row["nav"] == {"workspace": "synthesis", "tab": "ask", "summary_id": 99}
+
+
+def test_status_navigation_rejects_free_text_urls_and_destination_overrides(temp_db_url):
+    app = create_app(db_url=temp_db_url)
+    jid = app.state.summary_jobs.create(
+        nav={"workspace": "settings", "url": "file:///secret", "detail": "private", "paper_id": 12}
+    )
+    app.state.summary_jobs.mark_running(jid)
+
+    row = TestClient(app).get("/status/jobs").json()["jobs"][0]
+    assert row["nav"] == {"workspace": "synthesis", "tab": "ask", "paper_id": 12}
+
+
+def test_every_application_job_store_has_a_bounded_navigation_home(temp_db_url):
+    app = create_app(db_url=temp_db_url)
+    stores = discover_stores(app.state)
+    assert set(stores) <= set(JOB_NAV_DEFAULTS)
+    assert set(stores) <= set(JOB_COMPUTE_KINDS)
+    for nav in JOB_NAV_DEFAULTS.values():
+        assert set(nav) <= {"workspace", "tab", "pane", "section", "modal", "view"}
+
+
+def test_job_navigation_survives_running_progress_and_error_transitions(temp_db_url):
+    app = create_app(db_url=temp_db_url)
+    jid = app.state.critical_review_jobs.create(nav={"paper_id": 42})
+    app.state.critical_review_jobs.mark_running(jid)
+    app.state.critical_review_jobs.mark_progress(jid, 1, 3, "Embedding claims")
+    assert app.state.critical_review_jobs.get(jid).nav == {"paper_id": 42}
+    app.state.critical_review_jobs.mark_error(jid, "fixture failure")
+
+    row = TestClient(app).get("/status/jobs").json()["jobs"][0]
+    assert row["nav"] == {"workspace": "synthesis", "tab": "critique", "paper_id": 42}
+    assert row["compute_kind"] == "Provider AI + local verification"
 
 
 def test_unregistered_job_store_falls_back_to_a_prettified_label(temp_db_url):

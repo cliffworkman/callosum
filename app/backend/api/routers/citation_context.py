@@ -98,7 +98,7 @@ def citation_context_run(
         raise HTTPException(
             status_code=422, detail="This paper has no DOI, so Semantic Scholar can't look up its citation graph."
         )
-    job_id = request.app.state.citation_context_jobs.create()
+    job_id = request.app.state.citation_context_jobs.create(nav={"paper_id": body.paper_id})
     background_tasks.add_task(_run_citation_context_job, request.app, job_id, body.paper_id, body.direction)
     return CitationContextResponse(job_id=job_id, status="pending")
 

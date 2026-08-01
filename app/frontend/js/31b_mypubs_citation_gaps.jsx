@@ -142,7 +142,7 @@ function MyPubsCitationGaps({ domains, onSelectPaper, onLibraryChanged }) {
           </span>
         </div>}
 
-      {running && <ProgressBar label={`Tracing shared references for ${scopeLabel} through OpenAlex…`} />}
+      {running && <ProgressBar label={`Tracing shared references for ${scopeLabel} through OpenAlex…`} managedBy="backend-job" />}
       {refresh.status === "error" && <div className="axis-err">{refresh.error}</div>}
       {state.status === "error" && <div className="axis-err">{state.error}</div>}
       {state.status === "loading" && <div className="axis-hint">Loading the local citation-gap snapshot…</div>}

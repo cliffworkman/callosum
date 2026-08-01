@@ -136,7 +136,7 @@ function CitationEquityPaper({ paperId, meta }) {
       </div>
       {meta && !meta.hasDoi &&
         <div className="tag-suggest-empty">This paper has no DOI, so OpenAlex can't resolve its references. Add one under Identifiers in the Detail pane to enable this audit.</div>}
-      {state.status === "running" && <ProgressBar progress={state.progress} label="Resolving references…" />}
+      {state.status === "running" && <ProgressBar progress={state.progress} label="Resolving references…" managedBy="backend-job" />}
       {state.status === "error" && <div className="axis-err">Couldn't run the audit: {state.error}</div>}
       {state.status === "done" && rep && (rep.references_total === 0
         ? <div className="tag-suggest-empty">OpenAlex has no reference-list data for this paper, so there's nothing to audit.</div>
@@ -231,7 +231,7 @@ function OverlookedWork({ paperId, hasDoi }) {
       </div>
       {hasDoi === false &&
         <div className="tag-suggest-empty">This paper has no DOI, so OpenAlex can't relate work to it. Add one under Identifiers in the Detail pane to enable the overlooked-work search.</div>}
-      {state.status === "running" && <ProgressBar progress={state.progress} label="Finding related work…" />}
+      {state.status === "running" && <ProgressBar progress={state.progress} label="Finding related work…" managedBy="backend-job" />}
       {state.status === "error" && <div className="axis-err">Couldn't search: {state.error}</div>}
       {state.status === "done" && rep && (rep.shown === 0
         ? <div className="tag-suggest-empty">Nothing clearly relevant that your reference list missed — or OpenAlex relates too few works to this paper. (Considered {rep.considered} candidates you don't already cite.)</div>

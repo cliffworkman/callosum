@@ -116,7 +116,7 @@ function MyPubsEmergingTopics({ domains, onSelectPaper }) {
           </span>
         </div>}
 
-      {running && <ProgressBar label={`Comparing citing-topic windows for ${scopeLabel} through OpenAlex…`} />}
+      {running && <ProgressBar label={`Comparing citing-topic windows for ${scopeLabel} through OpenAlex…`} managedBy="backend-job" />}
       {refresh.status === "error" && <div className="axis-err">{refresh.error}</div>}
       {state.status === "error" && <div className="axis-err">{state.error}</div>}
       {state.status === "loading" && <div className="axis-hint">Loading the local emerging-topic snapshot…</div>}

@@ -108,7 +108,7 @@ function OverlookedLensModal({ onClose, onChanged }) {
               : "Not computed yet for this axis — Refresh to scan OpenAlex for this topic's works."}
         </div>
 
-        {running && <ProgressBar label="Scanning this topic's works against OpenAlex…" />}
+        {running && <ProgressBar label="Scanning this topic's works against OpenAlex…" managedBy="backend-job" />}
         {refresh.status === "error" && <div className="axis-err">{refresh.error}</div>}
         {!running && axisId && computedAt && rows.length === 0 &&
           <div className="axis-hint">Nothing surfaced for this axis — that isn't evidence none exists; low citations can just mean low-impact, and only works with enough same-year peers to rank are shown.</div>}

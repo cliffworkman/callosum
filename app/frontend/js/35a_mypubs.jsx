@@ -111,7 +111,7 @@ function MyPubsSettings({ onRefreshed }) {
           </button>
         </div>
       </div>
-      {refresh.status === "running" && <ProgressBar label="Resolving via OpenAlex…" />}
+      {refresh.status === "running" && <ProgressBar label="Resolving via OpenAlex…" managedBy="backend-job" />}
       {refresh.status === "error" && <div className="settings-note settings-note-err">Refresh failed: {refresh.error}</div>}
       {refresh.status === "done" && <div className="settings-note">{summaryText}</div>}
     </>

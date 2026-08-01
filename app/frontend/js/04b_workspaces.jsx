@@ -75,6 +75,7 @@ function MenuBar({ active, onActivate, readOnly, mobile, onStatusNavigate, deskt
               {utils.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
             </optgroup>}
         </select>
+        <StatusMenu onNavigate={onStatusNavigate} desktopUpdate={desktopUpdate} />
       </div>
     );
   }
@@ -169,7 +170,9 @@ function WorkspacePane({ ws, ctx, readOnly, wsActive }) {
         </div>}
       {tabs.map(t => (
         <div key={t.id} className={"workspace-body pane-tab" + (t.id === at ? " active" : "")}>
-          {t.render(ctx, !!wsActive && t.id === at)}
+          <StatusScope nav={{ workspace: ws.id, tab: t.id, paper_id: ctx?.selectedPaper ?? null }}>
+            {t.render(ctx, !!wsActive && t.id === at)}
+          </StatusScope>
         </div>
       ))}
     </div>

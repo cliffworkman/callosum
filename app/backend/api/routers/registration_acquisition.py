@@ -94,7 +94,7 @@ def start_registration_acquisition(
             status_code=409,
             detail=f"The confirmed registration is {link['registration_status']} and has no public artifact to acquire.",
         )
-    job_id = request.app.state.registration_acquisition_jobs.create()
+    job_id = request.app.state.registration_acquisition_jobs.create(nav={"paper_id": paper_id})
     background.add_task(_run_acquisition_job, request.app, job_id, paper_id, link_id)
     return AcquisitionStart(job_id=job_id, status="pending")
 

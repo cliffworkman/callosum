@@ -119,7 +119,7 @@ def critical_read_start(
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    job_id = request.app.state.critical_review_jobs.create()
+    job_id = request.app.state.critical_review_jobs.create(nav={"paper_id": paper_id})
     background_tasks.add_task(_run_critical_read_job, request.app, job_id, paper_id)
     return CriticalReadStartResponse(job_id=job_id, status="pending")
 
@@ -287,7 +287,7 @@ def set_critical_read_start(
             get_paper(conn, pid)
         except NoResultFound:
             raise HTTPException(status_code=404, detail=f"Paper {pid} not found") from None
-    job_id = request.app.state.critical_review_set_jobs.create()
+    job_id = request.app.state.critical_review_set_jobs.create(nav={"paper_ids": ids})
     background_tasks.add_task(_run_set_critical_read_job, request.app, job_id, ids, bool(body.llm))
     return SetCriticalReadResponse(job_id=job_id, status="pending")
 

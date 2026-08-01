@@ -108,7 +108,8 @@ def text_reprocess_start(
 ) -> TextReprocessResponse:
     if payload.mode == "selected" and not payload.paper_ids:
         raise HTTPException(status_code=422, detail="Choose at least one paper to reprocess.")
-    job_id = request.app.state.text_health_jobs.create()
+    nav = {"paper_ids": payload.paper_ids} if payload.paper_ids else None
+    job_id = request.app.state.text_health_jobs.create(nav=nav)
     background_tasks.add_task(_run_text_reprocess_job, request.app, job_id, payload)
     return TextReprocessResponse(job_id=job_id, status="pending")
 

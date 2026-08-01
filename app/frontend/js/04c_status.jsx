@@ -5,11 +5,111 @@
 // Mirrors AddMenu/SavedSearchMenu's click-toggle-popover pattern (10b_libmenus.jsx) rather than inventing a
 // new interaction; reuses ProgressBar (10_pdf_layer.jsx) unmodified for each row.
 
-// inc 415: which job stores' rows get a clickable destination at all — App owns what "navigate" actually
-// means per store (onStatusNavigate, 40_app.jsx); this is only the allowlist deciding whether a row gets the
-// affordance, so a job kind nobody's wired a destination for yet renders an honest, non-clickable label
-// instead of a dead click.
-const STATUS_NAVIGABLE_STORES = new Set(["meta_jobs", "citation_count_jobs", "summary_jobs"]);
+// inc 436: local/provider AI calls that complete inside one HTTP request do not have a backend JobStore. The small
+// client registry gives those operations the same popover contract. ProgressBar also registers itself here unless a
+// backend/tracked request already owns the row, structurally covering every visible running bar.
+const StatusNavContext = React.createContext(null);
+const _clientStatusJobs = new Map();
+const _clientStatusListeners = new Set();
+let _statusFallbackNav = { workspace: "library" };
+let _clientStatusSequence = 0;
+
+function StatusScope({ nav, children }) {
+  return <StatusNavContext.Provider value={nav}>{children}</StatusNavContext.Provider>;
+}
+
+function setStatusFallbackNav(nav) { _statusFallbackNav = nav || { workspace: "library" }; }
+function _emitClientStatus() { _clientStatusListeners.forEach(fn => fn()); }
+function _clientStatusSnapshot() {
+  const cutoff = Date.now() - (60 * 60 * 1000);
+  for (const [id, job] of _clientStatusJobs) if (job.status !== "running" && job.updated_at < cutoff) _clientStatusJobs.delete(id);
+  return [..._clientStatusJobs.values()].sort((a, b) => (a.status === "running" ? -1 : 1) - (b.status === "running" ? -1 : 1) || b.updated_at - a.updated_at);
+}
+function _startClientStatus({ id, label, nav, computeKind, progress }) {
+  const jobId = id || `client-${++_clientStatusSequence}`;
+  const previous = _clientStatusJobs.get(jobId);
+  _clientStatusJobs.set(jobId, {
+    store: "client_operations", job_id: jobId, label: label || "Working", status: "running",
+    detail: null, progress: progress || null, nav: nav || _statusFallbackNav,
+    compute_kind: computeKind || "Local operation", started_at: previous?.started_at || Date.now(), updated_at: Date.now(),
+  });
+  _emitClientStatus();
+  return jobId;
+}
+function _updateClientStatus(jobId, patch) {
+  const previous = _clientStatusJobs.get(jobId);
+  if (!previous) return;
+  const progress = patch.progress ? { ...patch.progress } : previous.progress ? { ...previous.progress } : null;
+  if (progress && progress.total > 0 && progress.current > 0 && progress.eta_seconds == null) {
+    const elapsed = (Date.now() - previous.started_at) / 1000;
+    const remaining = Math.max(0, progress.total - progress.current);
+    progress.eta_seconds = remaining ? Math.round(elapsed / progress.current * remaining) : 0;
+  }
+  _clientStatusJobs.set(jobId, { ...previous, ...patch, progress, updated_at: Date.now() });
+  _emitClientStatus();
+}
+function _finishClientStatus(jobId, ok = true, detail = null) {
+  _updateClientStatus(jobId, { status: ok ? "done" : "error", detail });
+}
+function _dismissClientStatus(jobId) { _clientStatusJobs.delete(jobId); _emitClientStatus(); }
+function _clearFinishedClientStatus() {
+  for (const [id, job] of _clientStatusJobs) if (job.status === "done" || job.status === "error") _clientStatusJobs.delete(id);
+  _emitClientStatus();
+}
+function useClientStatusJobs() {
+  const [, refresh] = useState(0);
+  useEffect(() => { const fn = () => refresh(n => n + 1); _clientStatusListeners.add(fn); return () => _clientStatusListeners.delete(fn); }, []);
+  return _clientStatusSnapshot();
+}
+
+const TRACKED_AI_REQUESTS = [
+  { method: "POST", re: /^\/axes\/suggest-terms$/, label: "Suggesting axis terms", kind: "Provider AI", nav: { pane: "theory", section: "axes", tab: "axes" } },
+  { method: "GET", re: /^\/papers\/\d+\/suggested-tags$/, label: "Suggesting tags", kind: "Local AI", nav: { pane: "theory", section: "axes", tab: "tags" } },
+  { method: "POST", re: /^\/citations\/suggest$/, label: "Finding citation evidence", kind: "Local AI", nav: { workspace: "work", tab: "cite" } },
+  { method: "POST", re: /^\/papers\/\d+\/critical-read\/candidates\/generate$/, label: "Suggesting grounded critiques", kind: "Provider AI + local verification", nav: { workspace: "synthesis", tab: "critique" } },
+  { method: "POST", re: /^\/discovery\/relevance$/, label: "Scoring literature relevance", kind: "Local AI", nav: { workspace: "discover", tab: "search" } },
+  { method: "POST", re: /^\/funding-discovery\/llm-triage$/, label: "Triaging funding results", kind: "Provider AI", nav: { workspace: "discover", tab: "funding" } },
+  { method: "POST", re: /^\/help\/ask$/, label: "Drafting a Help answer", kind: "Provider AI", nav: { workspace: "help" } },
+  { method: "POST", re: /^\/my-publications\/summary\/generate$/, label: "Drafting research summary", kind: "Provider AI", nav: { workspace: "profile" } },
+  { method: "POST", re: /^\/papers\/\d+\/registration-comparisons\/\d+\/llm-triage$/, label: "Triaging registration comparison", kind: "Provider AI", nav: { workspace: "synthesis", tab: "meta-preregistration" } },
+  { method: "POST", re: /^\/papers\/\d+\/registration-evidence\/retrieve$/, label: "Retrieving publication evidence", kind: "Local AI", nav: { workspace: "synthesis", tab: "meta-preregistration" } },
+  { method: "POST", re: /^\/papers\/\d+\/reprocess-pdf$/, label: "Reprocessing and embedding PDF", kind: "Local AI", nav: { pane: "methods", section: "details" } },
+  { method: "POST", re: /^\/settings\/test-key$/, label: "Testing AI provider", kind: "Provider AI", nav: { workspace: "settings" } },
+  { method: "POST", re: /^\/summaries\/\d+\/reverify$/, label: "Re-verifying synthesis evidence", kind: "Local AI", nav: { workspace: "synthesis", tab: "ask" } },
+  { method: "POST", re: /^\/workbench\/rows\/\d+\/propose$/, label: "Drafting extraction candidates", kind: "Provider AI + local retrieval", nav: { workspace: "work", tab: "meta-analyze" } },
+];
+
+function _startTrackedApiOperation(method, path) {
+  const cleanPath = path.split("?")[0];
+  const route = TRACKED_AI_REQUESTS.find(item => item.method === method && item.re.test(cleanPath));
+  if (!route) return null;
+  const paperMatch = cleanPath.match(/^\/papers\/(\d+)\//);
+  const nav = paperMatch ? { ...route.nav, paper_id: Number(paperMatch[1]) } : route.nav;
+  return _startClientStatus({ label: route.label, nav, computeKind: route.kind });
+}
+function _finishTrackedApiOperation(jobId, result) {
+  if (!jobId) return;
+  _finishClientStatus(jobId, !!result?.ok, result?.ok ? null : result?.error || "Operation failed.");
+}
+
+function _statusDestinationKey(nav) {
+  if (!nav) return "";
+  const keys = ["workspace", "tab", "pane", "section", "modal", "view"];
+  return keys.map(key => `${key}:${nav[key] || ""}`).join("|");
+}
+
+function useProgressStatus({ label, progress, managedBy }) {
+  const nav = useContext(StatusNavContext) || _statusFallbackNav;
+  const idRef = useRef(null);
+  useEffect(() => {
+    if (managedBy) return undefined;
+    idRef.current = _startClientStatus({ label: label || progress?.label || "Working", nav, progress });
+    return () => { if (idRef.current) _finishClientStatus(idRef.current, true); };
+  }, [managedBy]);
+  useEffect(() => {
+    if (idRef.current) _updateClientStatus(idRef.current, { label: label || progress?.label || "Working", progress: progress || null, nav });
+  }, [label, progress?.current, progress?.total, progress?.label, progress?.eta_seconds, nav]);
+}
 
 // The desktop auto-updater (updater.rs) is NOT a backend JobStore — it lives entirely in the Tauri/Rust
 // process, so it can never appear via GET /status/jobs. Instead this shapes the shared `desktopUpdate`
@@ -28,19 +128,19 @@ function desktopUpdateStatusJob(update) {
       : null;
     return {
       store: DESKTOP_UPDATE_STORE, job_id: "desktop-update", label: `Downloading update v${update.version}`,
-      status: "running", detail: null, progress, nav: null,
+      status: "running", detail: null, progress, nav: null, compute_kind: "Desktop updater",
     };
   }
   // "ready" — the download finished; the toast already offers Restart now / Open release page.
   return {
     store: DESKTOP_UPDATE_STORE, job_id: "desktop-update", label: `Update ready — v${update.version}`,
-    status: "done", detail: null, progress: null, nav: null,
+    status: "done", detail: null, progress: null, nav: null, compute_kind: "Desktop updater",
   };
 }
 
 function StatusJobRow({ job, onDismiss, onNavigate }) {
   const finished = job.status === "done" || job.status === "error";
-  const navigable = STATUS_NAVIGABLE_STORES.has(job.store);
+  const navigable = !!job.nav;
   return (
     <div className={"status-row" + (job.status === "error" ? " status-row-error" : "")}>
       <div className="status-row-head">
@@ -52,6 +152,7 @@ function StatusJobRow({ job, onDismiss, onNavigate }) {
           <button className="status-row-dismiss" title="Dismiss" aria-label={`Dismiss ${job.label}`}
             onClick={() => onDismiss(job)}>×</button>}
       </div>
+      {job.compute_kind && <div className="status-row-kind">{job.compute_kind}</div>}
       {job.status === "error"
         ? <div className="status-row-error-detail">{job.detail || "Failed."}</div>
         : job.status === "done"
@@ -59,7 +160,10 @@ function StatusJobRow({ job, onDismiss, onNavigate }) {
           ? <div className="status-row-done">
               {job.progress ? `${job.progress.label} — ${job.progress.current} / ${job.progress.total}` : "Done"}
             </div>
-          : <ProgressBar label="Working…" progress={job.progress} />}
+          : <React.Fragment>
+              <ProgressBar label="Working…" progress={job.progress} managedBy="status-popover" />
+              {!job.progress && <div className="status-row-eta">Completion and ETA are not measurable yet.</div>}
+            </React.Fragment>}
     </div>
   );
 }
@@ -68,6 +172,7 @@ function StatusMenu({ onNavigate, desktopUpdate }) {
   const [open, setOpen] = useState(false);
   const [jobs, setJobs] = useState([]);
   const [pos, setPos] = useState(null);  // {top, right} in viewport px, computed from the toggle button
+  const clientJobs = useClientStatusJobs();
   // The synthetic desktop-update row's own dismiss state (component-local — there's no backend job to
   // dismiss). Keyed by phase, not just a bool: dismissing "downloading" hides only that phase, so the
   // later "ready" transition (genuinely new information) still surfaces once.
@@ -108,6 +213,7 @@ function StatusMenu({ onNavigate, desktopUpdate }) {
 
   const dismiss = (job) => {
     if (job.store === DESKTOP_UPDATE_STORE) { setUpdateDismissedPhase(desktopUpdate.phase); return; }
+    if (job.store === "client_operations") { _dismissClientStatus(job.job_id); return; }
     setJobs(js => js.filter(j => j.job_id !== job.job_id));  // optimistic — the next poll reconciles either way
     apiPost(`/status/jobs/${job.store}/${job.job_id}/dismiss`, {});
   };
@@ -115,6 +221,7 @@ function StatusMenu({ onNavigate, desktopUpdate }) {
     if (updateJob && updateJob.status === "done") setUpdateDismissedPhase(desktopUpdate.phase);
     setJobs(js => js.filter(j => j.status !== "done" && j.status !== "error"));
     apiPost("/status/jobs/clear-finished", {});
+    _clearFinishedClientStatus();
   };
   const navigate = (job) => {
     setOpen(false);
@@ -123,7 +230,10 @@ function StatusMenu({ onNavigate, desktopUpdate }) {
 
   const updateJob = desktopUpdate && desktopUpdate.phase !== updateDismissedPhase
     ? desktopUpdateStatusJob(desktopUpdate) : null;
-  const displayJobs = updateJob ? [updateJob, ...jobs] : jobs;
+  const backendDestinations = new Set(jobs.filter(j => j.status === "running" && j.nav).map(j => _statusDestinationKey(j.nav)));
+  const uniqueClientJobs = clientJobs.filter(j => !(j.status === "running" && j.nav && backendDestinations.has(_statusDestinationKey(j.nav))));
+  const allJobs = [...uniqueClientJobs, ...jobs];
+  const displayJobs = updateJob ? [updateJob, ...allJobs] : allJobs;
   const hasFinished = displayJobs.some(j => j.status === "done" || j.status === "error");
 
   return (

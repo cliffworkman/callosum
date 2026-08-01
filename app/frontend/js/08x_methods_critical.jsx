@@ -182,7 +182,7 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
           title="Compose this paper's method-check flags + any corpus-contested claims — local, no AI">
           Run critical read
         </button>}
-      {t1.status === "running" && <ProgressBar label="Assembling the scrutiny surface…" />}
+      {t1.status === "running" && <ProgressBar label="Assembling the scrutiny surface…" managedBy="backend-job" />}
       {t1.status === "error" && <div className="axis-err">Couldn’t assemble: {t1.error}</div>}
       {t1.status === "done" && t1.backbone && <ScrutinyBackboneView backbone={t1.backbone} onOpen={open} />}
 
@@ -200,6 +200,7 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
               title="The AI proposes concerns; each must quote the paper verbatim, and you confirm or reject it.">
               {gen === "generating" ? "Suggesting…" : "Suggest critiques (AI)"}
             </button>}
+        {gen === "generating" && <ProgressBar label="Suggesting and locally verifying critiques…" managedBy="tracked-request" />}
         {gen === "error" && <div className="axis-err">Couldn’t suggest critiques — is AI enabled with a key (Settings)?</div>}
         {shown.map(c => <CriticalCandidate key={c.id} c={c} onAccept={() => act(c.id, "accept")} onReject={() => act(c.id, "reject")} />)}
       </div>

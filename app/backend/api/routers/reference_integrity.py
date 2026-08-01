@@ -142,7 +142,7 @@ def reference_integrity_run(paper_id: int, background_tasks: BackgroundTasks, re
                 status_code=422,
                 detail="This paper has no DOI, so Semantic Scholar can't supply its linked reference list.",
             )
-    job_id = request.app.state.reference_integrity_jobs.create()
+    job_id = request.app.state.reference_integrity_jobs.create(nav={"paper_id": paper_id})
     background_tasks.add_task(_run_reference_integrity_job, request.app, job_id, paper_id)
     return ReferenceRunResponse(job_id=job_id, status="pending")
 
@@ -160,7 +160,7 @@ def reference_integrity_run_selected(
         raise HTTPException(status_code=422, detail="Select at least one paper.")
     if len(paper_ids) > 200:
         raise HTTPException(status_code=422, detail="Reference checks are limited to 200 selected papers at a time.")
-    job_id = request.app.state.reference_integrity_jobs.create()
+    job_id = request.app.state.reference_integrity_jobs.create(nav={"paper_ids": paper_ids})
     background_tasks.add_task(_run_reference_integrity_bulk_job, request.app, job_id, paper_ids)
     return ReferenceRunResponse(job_id=job_id, status="pending")
 

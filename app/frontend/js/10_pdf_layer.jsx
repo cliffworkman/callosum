@@ -128,7 +128,8 @@ function _fmtEta(s) {
   return `${Math.round(s / 3600)}h`;
 }
 
-function ProgressBar({ label, progress }) {
+function ProgressBar({ label, progress, managedBy = null }) {
+  useProgressStatus({ label, progress, managedBy });
   const det = progress && progress.total > 0;
   const pct = det ? Math.min(100, Math.round((progress.current / progress.total) * 100)) : null;
   const eta = det && progress.eta_seconds != null && progress.eta_seconds > 0 ? ` · ~${_fmtEta(progress.eta_seconds)} left` : "";

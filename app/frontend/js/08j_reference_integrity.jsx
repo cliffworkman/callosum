@@ -175,7 +175,7 @@ function MetaReferenceList({ ctx }) {
             </button>}
         </div>
       </div>
-      {state.status === "running" && <ProgressBar progress={state.progress} label="Checking reference list…" />}
+      {state.status === "running" && <ProgressBar progress={state.progress} label="Checking reference list…" managedBy="backend-job" />}
       {state.status === "error" && <div className="axis-err">Reference check failed: {state.error}</div>}
       {state.status === "loading" && <div className="tag-suggest-empty">Loading reference signals…</div>}
       {data && <div className="ref-summary">

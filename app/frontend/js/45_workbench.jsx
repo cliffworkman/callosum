@@ -330,8 +330,8 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
       {draftMsg && <div className="wb-note">{draftMsg}</div>}
       {aiErr && <div className="wb-note wb-ai-note">{aiErr}</div>}
       {draftBatch
-        ? <ProgressBar progress={{ label: "Drafting rows", current: draftBatch.current, total: draftBatch.total }} />
-        : draftingRow && <ProgressBar label="Drafting candidate values…" />}
+        ? <ProgressBar progress={{ label: "Drafting rows", current: draftBatch.current, total: draftBatch.total }} managedBy="tracked-request" />
+        : draftingRow && <ProgressBar label="Drafting candidate values…" managedBy="tracked-request" />}
 
       <div className="wb-gridwrap">
         <table className="wb-grid">

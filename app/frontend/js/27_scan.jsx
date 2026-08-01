@@ -112,7 +112,7 @@ function ScanModalBody({ onClose, onScanned, onShowUnsorted }) {
           {scan.status === "running" ? "Scanning…" : "Add + scan"}
         </button>
       </div>
-      {scan.status === "running" && <ProgressBar label="Scanning + processing PDFs…" progress={scan.progress} />}
+      {scan.status === "running" && <ProgressBar label="Scanning + processing PDFs…" progress={scan.progress} managedBy="backend-job" />}
       {scan.status === "error" && <div className="axis-err">Scan failed: {scan.error}</div>}
       {scan.status === "done" && s &&
         <div className="scan-summary">

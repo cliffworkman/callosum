@@ -87,7 +87,7 @@ function GapsModal({ onClose, onChanged }) {
           {lastScan && ` Scanned ${lastScan.checked} of ${lastScan.total} papers (the rest have no DOI). ${lastScan.note}`}
         </div>
 
-        {running && <ProgressBar label="Scanning your library against OpenAlex…" />}
+        {running && <ProgressBar label="Scanning your library against OpenAlex…" managedBy="backend-job" />}
         {refresh.status === "error" && <div className="axis-err">{refresh.error}</div>}
         {!running && computedAt && rows.length === 0 &&
           <div className="axis-hint">No gaps in this scope — everything related to several of your papers is already in your library.</div>}

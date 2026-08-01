@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-01 inc 435 — evidence-bounded Meta-Preregistration LLM triage -->
+<!-- HELP-DOCS-SYNCED: 2026-08-01 inc 436 — global AI/progress Status contract -->
+
+## 2026-08-01 — Increment 436: global AI and long-operation Status contract
+
+- **Files:** shared job/status infrastructure; AI and background-job routers; workspace/pane navigation; every
+  progress-bearing frontend surface; Status/help/design/QA/security/increment notes; backend/frontend/browser tests.
+- **What:** made Status the global operation surface. Every backend job gets a bounded click destination; synchronous
+  provider and installed-local AI requests register client-side; and every shared `ProgressBar` self-registers unless
+  an existing backend/request owner is declared. Rows identify local/provider compute, show real completion and ETA
+  when measurable (explicitly unavailable otherwise), navigate to the relevant UI/entity, and remain available on
+  mobile. Backend navigation now discards URLs, free text, and destination overrides.
+- **Why:** leaving a surface must not make expensive local or external AI work disappear, and the presence of an
+  inline bar must guarantee that the same operation is globally findable rather than creating dozens of fragile
+  feature-specific integrations.
+- **Verify:** focused backend/frontend suite **87 passed**; Chromium smoke **9 passed**; full suite **1786 passed,
+  1 skipped**; Ruff format/check, frontend rebuild, line budget, and strict QA surface map **352/352 API + 1545/1545
+  frontend** clean.
+- **Revert:** revert Increment 436 and rebuild the frontend. No migration, persistence, dependency, or provider/egress
+  rollback is required.
 
 ## 2026-08-01 — Increment 435: evidence-bounded Meta-Preregistration LLM triage
 

@@ -115,7 +115,7 @@ function TextHealthModal({ onClose, onOpenPaper, onOpenDetails, onShowLibrary, o
               onClick={runScopedReprocess}>Reprocess scoped papers</button>}
           <button className="axis-link" onClick={refresh}>Refresh</button>
         </div>
-        {run.status === "running" && <ProgressBar label="Reprocessing PDF text…" />}
+        {run.status === "running" && <ProgressBar label="Reprocessing PDF text…" managedBy="backend-job" />}
         {run.status === "error" && <div className="axis-err">{run.error || "Reprocess failed."}</div>}
         {run.status === "done" && run.summary &&
           <div className="wanted-summary">

@@ -149,7 +149,8 @@ def summarize_start(
     request: Request,
 ) -> SummarizeStartResponse:
     _validate_summary_request(payload)
-    job_id = request.app.state.summary_jobs.create()
+    nav = {"paper_ids": payload.paper_ids} if payload.paper_ids else None
+    job_id = request.app.state.summary_jobs.create(nav=nav)
     background_tasks.add_task(_run_summarize_job, request.app, job_id, payload)
     return SummarizeStartResponse(job_id=job_id, status="pending")
 

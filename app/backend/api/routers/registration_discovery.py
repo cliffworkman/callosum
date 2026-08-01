@@ -104,7 +104,7 @@ def start_registration_discovery(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
     fields = _metadata_fields(paper, list_registration_references(conn, paper_id))
-    job_id = request.app.state.registration_discovery_jobs.create()
+    job_id = request.app.state.registration_discovery_jobs.create(nav={"paper_id": paper_id})
     background.add_task(_run_discovery_job, request.app, job_id, paper_id, payload.fresh, fields)
     return DiscoveryStart(job_id=job_id, status="pending", metadata_fields=fields)
 

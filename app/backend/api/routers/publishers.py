@@ -121,7 +121,8 @@ def publishers_run(body: PublishersRequest, background_tasks: BackgroundTasks, r
         with request.app.state.engine.connect() as conn:
             if get_manuscript(conn, int(body.manuscript_id)) is None:
                 raise HTTPException(status_code=404, detail="WIP manuscript not found")
-    job_id = request.app.state.publishers_jobs.create()
+    nav = {"paper_id": int(body.paper_id)} if body.paper_id is not None else None
+    job_id = request.app.state.publishers_jobs.create(nav=nav)
     background_tasks.add_task(_run_publishers_job, request.app, job_id, body)
     return PublishersResponse(job_id=job_id, status="pending")
 

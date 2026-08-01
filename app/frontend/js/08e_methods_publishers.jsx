@@ -318,7 +318,7 @@ function PublishersPanel({ ctx }) {
             title="Clear recent Journals search history stored in this browser">Clear history</button>
         </div>}
 
-      {state.status === "running" && <ProgressBar progress={state.progress} label="Matching journals…" />}
+      {state.status === "running" && <ProgressBar progress={state.progress} label="Matching journals…" managedBy="backend-job" />}
       {state.status === "error" && <div className="axis-err">Couldn't search: {state.error}</div>}
 
       {state.status === "done" && rep &&

@@ -74,7 +74,7 @@ def ocr_run(body: OcrRequest, background_tasks: BackgroundTasks, request: Reques
                 status_code=422,
                 detail="This paper already has extractable text; OCR is only for scanned PDFs with none.",
             )
-    job_id = request.app.state.ocr_jobs.create()
+    job_id = request.app.state.ocr_jobs.create(nav={"paper_id": body.paper_id})
     background_tasks.add_task(_run_ocr_job, request.app, job_id, body.paper_id)
     return OcrResponse(job_id=job_id, status="pending")
 

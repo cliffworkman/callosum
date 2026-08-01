@@ -217,7 +217,7 @@ function CitePane({ ctx }) {
         <span>Also search beyond my library</span>
         <small>Uses public metadata providers. Abstract-level stance is weaker than full-text library evidence.</small>
       </label>
-      {busy && <ProgressBar />}
+      {busy && <ProgressBar label="Finding citation evidence locally…" managedBy="tracked-request" />}
       {state.status === "error" &&
         <div className="errbox" style={{ margin: "12px 0 0" }}><b>Couldn't get suggestions.</b><br />{state.error}</div>}
       {state.status === "idle" &&

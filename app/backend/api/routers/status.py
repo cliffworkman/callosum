@@ -4,8 +4,8 @@
 ``api.state`` (axis scoring, dedup scan, library scan/import, statcheck-all, meta-analysis
 batches, Synthesize > Ask, ...) but there was no single place to ask "what's running right now,
 across the whole app." This router answers that by **reflecting over ``api.state``** for every
-``JobStore``-typed attribute rather than hand-maintaining a list — so a future feature that adds
-its own ``JobStore`` shows up automatically, never silently missing from this view.
+``JobStore``-typed attribute rather than hand-maintaining the aggregation list. A structural test separately
+requires every application store to declare a bounded UI destination, so new jobs cannot ship as dead rows.
 
 A job's row *label* comes from which store it lives in (``JOB_LABELS``, falling back to an
 auto-prettified attribute name), not from data the job itself carries — this is deliberate: most
@@ -15,8 +15,9 @@ progress (library scan/import, citation-count refresh) still show it via the exi
 ``JobProgress``/``eta_seconds()`` machinery, verbatim.
 
 Pure in-memory aggregation: no DB, no filesystem, no external calls. The only externally-supplied
-value is the ``store`` path segment on the dismiss endpoint, checked against the same allowlist
-used for labels — never used to resolve an arbitrary attribute off ``api.state``.
+value is the ``store`` path segment on the dismiss endpoint, checked against the discovered-store map — never used
+to resolve an arbitrary attribute off ``api.state``. Per-job navigation is reduced to typed entity ids and merged
+with server-owned destinations; URLs, free text, and destination overrides are discarded.
 """
 
 from __future__ import annotations
@@ -80,6 +81,121 @@ JOB_LABELS: dict[str, str] = {
     "wip_scan_jobs": "WIP folder scan",
 }
 
+# Every backend job family has a stable UI home. A job may add a narrower entity hint (paper_id, summary_id, ...)
+# through Job.nav; these defaults make running rows clickable before a result exists and keep new callers from
+# having to duplicate workspace knowledge. No arbitrary path/URL is accepted here.
+JOB_NAV_DEFAULTS: dict[str, dict[str, Any]] = {
+    "summary_jobs": {"workspace": "synthesis", "tab": "ask"},
+    "axis_score_jobs": {"pane": "theory", "section": "axes", "tab": "axes"},
+    "axis_suggest_jobs": {"pane": "theory", "section": "axes", "tab": "axes"},
+    "dedup_jobs": {"workspace": "library", "modal": "duplicates"},
+    "library_scan_jobs": {"workspace": "library", "modal": "scan"},
+    "library_import_jobs": {"workspace": "library", "modal": "import"},
+    "library_bundle_import_jobs": {"workspace": "library", "modal": "bundle-import"},
+    "statcheck_jobs": {"pane": "methods", "section": "statcheck"},
+    "pcurve_jobs": {"workspace": "library"},
+    "retraction_jobs": {"pane": "methods", "section": "details"},
+    "retraction_db_jobs": {"workspace": "settings"},
+    "lmm_jobs": {"pane": "methods", "section": "checklists", "tab": "lmm"},
+    "meta_jobs": {"pane": "methods", "section": "checklists", "tab": "meta"},
+    "bayes_jobs": {"pane": "methods", "section": "checklists", "tab": "bayes"},
+    "transparency_jobs": {"pane": "methods", "section": "checklists", "tab": "transparency"},
+    "registration_discovery_jobs": {"workspace": "synthesis", "tab": "meta-preregistration"},
+    "registration_acquisition_jobs": {"workspace": "synthesis", "tab": "meta-preregistration"},
+    "registration_comparison_jobs": {"workspace": "synthesis", "tab": "meta-preregistration"},
+    "citation_count_jobs": {"workspace": "library", "view": "citations"},
+    "citation_equity_jobs": {"pane": "methods", "section": "citation-equity"},
+    "citation_context_jobs": {"workspace": "work", "tab": "meta-reference"},
+    "critical_review_jobs": {"workspace": "synthesis", "tab": "critique"},
+    "critical_review_set_jobs": {"workspace": "synthesis", "tab": "critique"},
+    "metadata_enrich_jobs": {"workspace": "library"},
+    "ocr_jobs": {"pane": "methods", "section": "details"},
+    "text_health_jobs": {"workspace": "library", "modal": "text-health"},
+    "gap_jobs": {"workspace": "discover", "tab": "search", "modal": "gaps"},
+    "overlooked_jobs": {"pane": "methods", "section": "citation-equity"},
+    "overlooked_lens_jobs": {"workspace": "discover", "tab": "search", "modal": "overlooked"},
+    "publishers_jobs": {"workspace": "discover", "tab": "journals"},
+    "reference_integrity_jobs": {"workspace": "work", "tab": "meta-reference"},
+    "funding_jobs": {"workspace": "discover", "tab": "funding"},
+    "feed_jobs": {"workspace": "discover", "tab": "feed"},
+    "acquire_jobs": {"workspace": "library"},
+    "wanted_jobs": {"workspace": "library", "modal": "wanted"},
+    "mypubs_jobs": {"workspace": "profile"},
+    "mypubs_domain_jobs": {"workspace": "profile"},
+    "my_publication_gap_jobs": {"workspace": "profile"},
+    "my_publication_citing_author_jobs": {"workspace": "profile"},
+    "my_publication_topic_jobs": {"workspace": "profile"},
+    "wip_scan_jobs": {"workspace": "library", "view": "wip"},
+}
+
+JOB_COMPUTE_KINDS: dict[str, str] = {
+    "summary_jobs": "Provider AI + local verification",
+    "axis_score_jobs": "Local AI",
+    "axis_suggest_jobs": "Local AI + optional provider AI",
+    "dedup_jobs": "Local AI",
+    "library_scan_jobs": "Local AI",
+    "library_import_jobs": "Local AI",
+    "library_bundle_import_jobs": "Local AI",
+    "statcheck_jobs": "Local deterministic check",
+    "pcurve_jobs": "Local deterministic check",
+    "retraction_jobs": "Public metadata",
+    "retraction_db_jobs": "Public database download",
+    "lmm_jobs": "Local deterministic check",
+    "meta_jobs": "Local deterministic check",
+    "bayes_jobs": "Local deterministic check",
+    "transparency_jobs": "Local deterministic check",
+    "registration_discovery_jobs": "Public registry metadata",
+    "registration_acquisition_jobs": "Public registry + local processing",
+    "registration_comparison_jobs": "Local AI",
+    "citation_count_jobs": "Public metadata",
+    "citation_context_jobs": "Local AI + public metadata",
+    "citation_equity_jobs": "Public metadata",
+    "critical_review_jobs": "Provider AI + local verification",
+    "critical_review_set_jobs": "Provider AI + local verification",
+    "metadata_enrich_jobs": "Public metadata",
+    "ocr_jobs": "Local AI",
+    "text_health_jobs": "Local AI",
+    "gap_jobs": "Public metadata + local analysis",
+    "overlooked_jobs": "Local AI + public metadata",
+    "overlooked_lens_jobs": "Local AI + public metadata",
+    "publishers_jobs": "Local AI + public metadata",
+    "reference_integrity_jobs": "Local AI + public metadata",
+    "funding_jobs": "Public metadata + optional provider AI",
+    "feed_jobs": "Public metadata",
+    "acquire_jobs": "Public acquisition + local AI",
+    "wanted_jobs": "Public acquisition + local AI",
+    "mypubs_jobs": "Public metadata + local analysis",
+    "mypubs_domain_jobs": "Local AI + public metadata",
+    "my_publication_gap_jobs": "Public metadata + local analysis",
+    "my_publication_citing_author_jobs": "Public metadata + local analysis",
+    "my_publication_topic_jobs": "Public metadata + local analysis",
+    "wip_scan_jobs": "Local filesystem scan",
+}
+
+_NAV_ENTITY_IDS = {"paper_id", "summary_id"}
+
+
+def _bounded_nav(store_name: str, job_nav: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Merge only typed entity ids into the server-owned destination descriptor.
+
+    Job producers may identify the paper/summary they operate on, but they cannot publish URLs, free text, or
+    override the destination vocabulary. This keeps Status navigation useful without turning ``Job.nav`` into a
+    generic serialization channel.
+    """
+    nav = dict(JOB_NAV_DEFAULTS.get(store_name, {}))
+    for key in _NAV_ENTITY_IDS:
+        value = (job_nav or {}).get(key)
+        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+            nav[key] = value
+    paper_ids = (job_nav or {}).get("paper_ids")
+    if isinstance(paper_ids, list):
+        bounded = [
+            value for value in paper_ids[:500] if isinstance(value, int) and not isinstance(value, bool) and value > 0
+        ]
+        if bounded:
+            nav["paper_ids"] = bounded
+    return nav or None
+
 
 def _prettify(attr_name: str) -> str:
     base = attr_name[:-5] if attr_name.endswith("_jobs") else attr_name
@@ -113,6 +229,7 @@ class StatusJob(BaseModel):
     # inc 415: a narrow, opt-in navigation hint (e.g. {"summary_id": 42}) a job may publish at mark_done()
     # time — NOT job.result, which stays deliberately unread here (inc 406 audit). Most jobs never set it.
     nav: dict[str, Any] | None = None
+    compute_kind: str | None = None
 
 
 class StatusResponse(BaseModel):
@@ -137,7 +254,8 @@ def _to_status_job(store_name: str, job_id: str, job: Job) -> StatusJob:
         status=job.status,
         detail=job.detail,
         progress=progress,
-        nav=job.nav,
+        nav=_bounded_nav(store_name, job.nav),
+        compute_kind=JOB_COMPUTE_KINDS.get(store_name),
     )
 
 
