@@ -150,3 +150,71 @@ registration_commitments = Table(
     Index("ix_registration_commitments_version", "version_id", "ordinal"),
     Index("ix_registration_commitments_paper", "paper_id", "field_type"),
 )
+
+registration_comparison_runs = Table(
+    "registration_comparison_runs",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), nullable=False),
+    Column("link_id", ForeignKey("paper_registration_links.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "registration_version_id", ForeignKey("registration_document_versions.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column("status", String(30), nullable=False, server_default="completed"),
+    Column("registration_content_hash", String(128), nullable=False),
+    Column("article_fingerprint", String(128), nullable=False),
+    Column("supplement_fingerprint", String(128)),
+    Column("article_source_json", JSON, nullable=False),
+    Column("supplement_source_json", JSON, nullable=False),
+    Column("commitment_extraction_version", String(100), nullable=False),
+    Column("retrieval_version", String(100), nullable=False),
+    Column("comparison_version", String(100), nullable=False),
+    Column("configuration_json", JSON, nullable=False),
+    Column("model_versions_json", JSON, nullable=False),
+    Column("stale_reasons_json", JSON, nullable=False),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    Column("completed_at", DateTime),
+    Column("updated_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    CheckConstraint("status IN ('completed','stale')", name="registration_comparison_run_status_valid"),
+    Index("ix_registration_comparison_runs_paper", "paper_id", "created_at"),
+)
+
+registration_comparison_rows = Table(
+    "registration_comparison_rows",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("run_id", ForeignKey("registration_comparison_runs.id", ondelete="CASCADE"), nullable=False),
+    Column("commitment_id", ForeignKey("registration_commitments.id", ondelete="SET NULL")),
+    Column("field_type", String(100), nullable=False),
+    Column("registration_value_json", JSON),
+    Column("registration_evidence_text", Text),
+    Column("registration_source_locator_json", JSON),
+    Column("publication_value_json", JSON),
+    Column("publication_evidence_text", Text),
+    Column("publication_source_locator_json", JSON),
+    Column("comparison_status", String(80), nullable=False),
+    Column("timing_status", String(100)),
+    Column("explanation", Text, nullable=False),
+    Column("uncertainty", Text, nullable=False),
+    Column("search_scope_json", JSON, nullable=False),
+    Column("registration_version_id", Integer, nullable=False),
+    Column("registration_content_hash", String(128), nullable=False),
+    Column("publication_attachment_id", ForeignKey("attachments.id", ondelete="SET NULL")),
+    Column("publication_attachment_checksum", String(128)),
+    Column("review_state", String(30), nullable=False, server_default="unreviewed"),
+    Column("note", Text),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    Column("updated_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    CheckConstraint(
+        "comparison_status IN ('aligned','potentially-changed','planned-item-not-located-in-publication',"
+        "'reported-item-not-located-in-registration','disclosed-deviation','underspecified-in-registration',"
+        "'underspecified-in-publication','ambiguous-study-mapping','not-comparable','extraction-uncertain')",
+        name="registration_comparison_status_valid",
+    ),
+    CheckConstraint(
+        "review_state IN ('unreviewed','reviewed','dismissed')",
+        name="registration_comparison_review_state_valid",
+    ),
+    Index("ix_registration_comparison_rows_run", "run_id", "id"),
+    Index("ix_registration_comparison_rows_review", "review_state", "comparison_status"),
+)

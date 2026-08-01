@@ -121,6 +121,8 @@ from app.backend.persistence.registration_schema import (  # noqa: E402, F401
     paper_registration_links,
     paper_registration_references,
     registration_commitments,
+    registration_comparison_rows,
+    registration_comparison_runs,
     registration_document_versions,
 )
 

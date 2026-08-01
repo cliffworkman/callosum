@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 430** (see Increment workflow) with **1749 pytest tests
+It is currently at **Increment 431** (see Increment workflow) with **1749 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -65,6 +65,11 @@ the full per-increment narrative for all other increments now lives in the reloc
   weak bounded search. Supplements are explicit opt-in scope; registration chunks are unreachable as publication
   candidates. Results preserve sections searched, expansion/supplement state, exact evidence anchors, and study labels;
   multi-study uncertainty is `ambiguous`, and a miss is never proof of non-reporting.
+- **Registration comparisons (inc 431):** a local background job persists versioned, paired-evidence crosswalk rows
+  with bounded statuses, explanations/uncertainty, exact search scope, timing detail, and human review/note state.
+  Deterministic numeric/threshold/outcome/model checks surface inspectable candidates; unresolved semantics remain
+  `not-comparable`. Registration/article/included-supplement and pipeline fingerprints visibly/persistently stale old
+  runs. There is no overall compliance/integrity/risk/deviation score, author judgment, or positive certificate.
 - **Methods (deterministic, local, no-LLM):** statcheck NHST p-value recomputation (`scipy.stats`), inc 95;
   inc 387 conservatively adds clearly headed table rows from local PDF/JATS/XML/HTML/DOCX/ODT attachments
   without mixing reconstructed rows into prose chunks or embeddings; inc 388 keeps the evidence-bearing PDF

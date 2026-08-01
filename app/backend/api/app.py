@@ -69,6 +69,7 @@ from app.backend.api.routers import (
     reference_integrity,
     registration_acquisition,
     registration_commitments,
+    registration_comparisons,
     registration_discovery,
     registration_retrieval,
     saved_searches,
@@ -199,6 +200,7 @@ def create_app(
     api.state.registration_discovery_registry = registration_discovery_registry
     api.state.registration_acquisition_jobs = JobStore()
     api.state.registration_acquisition_registry = registration_acquisition_registry
+    api.state.registration_comparison_jobs = JobStore()
     api.state.retraction_db_jobs = JobStore()  # inc 132: Retraction Watch DB download
     api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
@@ -343,6 +345,7 @@ def create_app(
     api.include_router(registration_acquisition.router)  # confirmed public registration artifact acquisition
     api.include_router(registration_commitments.router)  # local canonical registration plan extraction
     api.include_router(registration_retrieval.router)  # bounded article/supplement evidence retrieval
+    api.include_router(registration_comparisons.router)  # persisted evidence crosswalk + review/staleness
     api.include_router(findings.router)  # /papers/{id}/findings — the FACT-vs-CANDIDATE store (inc 130)
     api.include_router(gaps.router)  # /gaps/* — literature gap-finder (inc 135)
     api.include_router(overlooked.router)  # /overlooked/* — overlooked-work lens: per-axis discovery (#37)

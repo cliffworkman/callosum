@@ -54,6 +54,7 @@ JOB_LABELS: dict[str, str] = {
     "transparency_jobs": "Transparency signals",
     "registration_discovery_jobs": "Registration discovery",
     "registration_acquisition_jobs": "Registration acquisition",
+    "registration_comparison_jobs": "Registration comparison",
     "citation_count_jobs": "Cited-by refresh",
     "citation_equity_jobs": "Citation-equity audit",
     "citation_context_jobs": "Citation context",

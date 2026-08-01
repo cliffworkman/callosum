@@ -981,6 +981,23 @@ Supplements are searched only when you request them. Study/Experiment labels con
 uncertain multi-study mapping is marked ambiguous. A search miss always names the sections and scope searched and is
 never presented as proof that the publication omitted the item.
 
+**Compare now** runs that pipeline in the background and saves a side-by-side crosswalk. A row may be **aligned**,
+**potentially changed**, **planned item not located in publication**, **reported item not located in registration**,
+**disclosed deviation**, **underspecified**, **ambiguous study mapping**, **not comparable**, or **extraction
+uncertain**. Deterministic checks handle explicit differences such as sample-size numbers, either/both exclusion
+thresholds, named model families, and named outcomes. If wording needs semantic interpretation, Callosum leaves the row
+not comparable rather than forcing a verdict.
+
+Every row keeps both source passages and locations when available, explains why it surfaced, states uncertainty, and
+lists the sections/expansion/supplement scope searched. Registration timing has its own cautious details such as
+**prospective timing supported**, **registration appears after data collection began**, or **insufficient dates to
+compare**. You can mark a row reviewed, dismiss it, or add a note; those actions never rewrite source evidence.
+
+The run records the exact registration hash, article and included-supplement checksums/extraction basis, and pipeline
+versions. If any basis changes, the saved comparison is marked **stale** but remains inspectable. Re-run it to compare
+the new versions. There is no overall compliance, integrity, risk, or deviation score; even a crosswalk with no
+surfaced differences is not a certificate that the paper followed its registration.
+
 **Checking the whole library.** In the same section, **Whole library → Check all papers** runs the auditor over every paper. Each paper's *detected* disclosures become evidence-carrying marks in its **Review** section. When the data disclosure list isn't empty, the Library header shows a **🔎 Open Data · N** chip that jumps to papers where the auditor detected an open-data disclosure. The section also fills review queues for disclosures *not detected* in extracted text; those queues are prompts to look — *the paper may still share artifacts elsewhere* — never claims that it hides anything, and there is no score or ranking.
 
 <!-- section: converting-effect-sizes -->

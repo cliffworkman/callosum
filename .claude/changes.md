@@ -9,7 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 430 — section- and study-aware publication retrieval -->
+<!-- HELP-DOCS-SYNCED: 2026-07-31 inc 431 — evidence-bound crosswalks and staleness -->
+
+## 2026-07-31 — Increment 431: evidence-bound crosswalks and staleness
+
+- **Files:** `app/backend/registration_comparison/*`, comparisons router/repository/schema, migration 0063,
+  status/tests/help/QA/increment notes.
+- **What:** local background comparisons persist paired source evidence, bounded statuses, timing details, uncertainty,
+  search scope, document/pipeline fingerprints, and per-row review/note state. Changed source or pipeline bases mark
+  prior runs stale while leaving them inspectable.
+- **Why:** registration comparison must remain an auditable reading aid, not a whole-document prompt, paper score, or
+  author/integrity verdict.
+- **Revert:** revert Increment 431. Migration 0063 preserves evidence/reviews on downgrade; export them before any
+  manual table removal.
 
 ## 2026-07-31 — Increment 430: section- and study-aware publication retrieval
 
