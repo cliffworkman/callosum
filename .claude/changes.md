@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-01 inc 434 — Meta-Preregistration workspace relocation and consistency pass -->
+<!-- HELP-DOCS-SYNCED: 2026-08-01 inc 435 — evidence-bounded Meta-Preregistration LLM triage -->
+
+## 2026-08-01 — Increment 435: evidence-bounded Meta-Preregistration LLM triage
+
+- **Files:** registration comparison evaluator/router/persistence/schema, migration 0064, Meta-Preregistration UI and
+  styles/built artifact, backend/frontend/browser tests, help/design/QA/security/evaluation/increment notes.
+- **What:** added an explicit **Triage rows with AI** action for current saved crosswalks, using the existing configured
+  provider and egress gate. It persists bounded prioritize/uncertain/likely-lower-yield annotations with provider,
+  model, prompt, and evidence fingerprints. **AI-focused** hides only valid lower-yield labels; **All rows** restores
+  the unchanged deterministic crosswalk, and missing/malformed/truncated output fails open.
+- **Why:** a full evidence crosswalk can be information-rich enough to obscure the distinctions most worth reading.
+  A reversible, evidence-bounded display layer can reduce apparent noise without turning model output into a verdict.
+- **Verify:** focused backend/frontend suite **76 passed**; migration/startup suite **10 passed**; dedicated Chromium
+  Meta-Preregistration routes **2 passed**; full suite **1782 passed, 1 skipped**; Ruff format/check, frontend rebuild,
+  line budget, and QA surface map **352/352 API + 1545/1545 frontend** clean.
+- **Revert:** revert Increment 435 and rebuild the frontend. Migration 0064 preserves annotation receipts on downgrade;
+  all links, versions, commitments, comparison evidence, notes, and review state remain intact.
 
 ## 2026-08-01 — Increment 434: Meta-Preregistration workspace relocation and consistency pass
 

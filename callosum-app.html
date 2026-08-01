@@ -248,6 +248,9 @@
   .app.mobile .registration-comparison-toolbar > .btn { align-self: flex-end; }
   .app.mobile .registration-source-row, .app.mobile .registration-workspace-cue { align-items: stretch; flex-direction: column; }
   .app.mobile .registration-source-row > .btn, .app.mobile .registration-workspace-cue > .btn { align-self: flex-end; }
+  .app.mobile .registration-llm-triage-head { align-items: stretch; flex-direction: column; }
+  .app.mobile .registration-llm-triage-head > .btn { align-self: flex-end; }
+  .app.mobile .registration-triage-view { align-items: flex-start; flex-direction: column; }
   /* QA 2026-07-19 mobile-CSS batch (browser-verified with Playwright): 4 spacing fixes at 375px. */
   /* (1) Discover Feed's All/Unread/Starred filter buttons were flex:1 (from the shared .tags-srcfilter-btn base),
      so 3 buttons squeezed into equal thirds and "Unread (391)" wrapped mid-word. Content-sized + let the
@@ -597,6 +600,13 @@
   .registration-comparison-options { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 10px 0 12px; font-size: 12px; color: var(--ink-2); }
   .registration-comparison-options > label { display: flex; align-items: center; gap: 6px; }
   .registration-comparison-options select { width: auto; max-width: 240px; }
+  .registration-llm-triage { margin-top: 14px; }
+  .registration-llm-triage-head { max-width: none; align-items: flex-start; }
+  .registration-llm-triage-head .eyebrow { margin: 0 0 4px; }
+  .registration-llm-triage-head > div { max-width: 820px; }
+  .registration-llm-triage-head > .btn { flex: none; }
+  .registration-triage-view { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+  .registration-triage-view .tags-srcfilter { flex: none; margin: 0; }
   .registration-raw-record { margin: 10px 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
   .registration-raw-record pre { max-height: 320px; overflow: auto; margin: 8px 0 0; white-space: pre-wrap; font-family: var(--mono); font-size: 11px; line-height: 1.5; color: var(--ink-2); }
   .registration-stale-note { margin-top: 10px; }
@@ -617,6 +627,13 @@
   .registration-evidence-column { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-size: 12px; }
   .registration-evidence-column blockquote { margin: 8px 0; padding-left: 10px; border-left: 2px solid var(--accent-line); color: var(--ink-2); font-family: var(--serif); line-height: 1.5; white-space: pre-wrap; }
   .registration-comparison-why { margin-top: 12px; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+  .registration-row-triage { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); color: var(--ink-2); font-size: 12px; line-height: 1.5; }
+  .registration-row-triage > b { display: block; margin-bottom: 3px; color: var(--ink); }
+  .registration-row-triage.triage-prioritize { border-color: var(--flag-line); background: var(--flag-soft); }
+  .registration-row-triage.triage-uncertain { border-color: var(--accent-line); background: var(--accent-soft); }
+  .registration-row-triage.triage-likely_noise { color: var(--ink-3); }
+  .registration-row-triage.stale { opacity: .7; }
+  .registration-row-triage small { display: block; margin-top: 4px; color: var(--ink-3); }
   .registration-search-scope { margin-top: 9px; color: var(--ink-3); font-size: 11px; line-height: 1.5; }
   .registration-search-scope summary { cursor: pointer; color: var(--ink-2); }
   .registration-row-review { margin-top: 12px; }
@@ -7006,6 +7023,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     "registration-appears-after-analysis": "Registration appears after analysis",
     "insufficient-dates-to-compare": "Insufficient dates to compare"
   };
+  const REGISTRATION_TRIAGE_LABELS = {
+    "prioritize": "Prioritize for review",
+    "uncertain": "Keep in focused view \u2014 uncertain",
+    "likely_noise": "Likely lower-yield"
+  };
   function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpenPaper, invalidLinkIds = [] }) {
     const [versionId, setVersionId] = useState(versions[0] ? versions[0].id : "");
     const [includeSupplements, setIncludeSupplements] = useState(false);
@@ -7015,6 +7037,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [rawVersion, setRawVersion] = useState(null);
     const [showRaw, setShowRaw] = useState(false);
     const [state, setState] = useState({ status: "idle" });
+    const [triageState, setTriageState] = useState({ status: "idle" });
+    const [triageOnly, setTriageOnly] = useState(false);
     const pollTimer = useRef(null);
     const selectedVersion = versions.find((version) => String(version.id) === String(versionId)) || versions[0];
     const incorrectMatch = !!selectedVersion && invalidLinkIds.includes(selectedVersion.link_id);
@@ -7026,10 +7050,14 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       const latest = allRuns.find((run) => String(run.registration_version_id) === String(requestedVersion));
       if (!latest) {
         setDetail(null);
+        setTriageOnly(false);
         return;
       }
       const full = await api(`/papers/${paperId}/registration-comparisons/${latest.id}`);
-      if (full.ok) setDetail(full.data);
+      if (full.ok) {
+        setDetail(full.data);
+        setTriageOnly(full.data.llm_triage_status?.status === "success");
+      }
     }, [paperId, versionId]);
     useEffect(() => {
       if (!versions.some((version) => String(version.id) === String(versionId))) setVersionId(versions[0]?.id || "");
@@ -7039,6 +7067,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       setRawVersion(null);
       setShowRaw(false);
       setState({ status: "idle" });
+      setTriageState({ status: "idle" });
+      setTriageOnly(false);
       if (versionId) load(versionId);
       return () => {
         if (pollTimer.current) clearTimeout(pollTimer.current);
@@ -7077,6 +7107,19 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       }
       setShowRaw((value) => !value);
     };
+    const triage = async () => {
+      if (!detail || detail.status === "stale") return;
+      setTriageState({ status: "running" });
+      const result = await apiPost(`/papers/${paperId}/registration-comparisons/${detail.id}/llm-triage`, {});
+      if (!result.ok) return setTriageState({ status: "error", error: result.error });
+      const triageStatus2 = result.data.llm_triage_status || {};
+      if (triageStatus2.status !== "success") {
+        return setTriageState({ status: "done", triageStatus: triageStatus2 });
+      }
+      await load(selectedVersion.id);
+      setTriageOnly(true);
+      setTriageState({ status: "done", triageStatus: triageStatus2 });
+    };
     const openSource = (locator, quote, key) => {
       if (!locator || !onOpenPaper || locator.attachment_id == null) return;
       const page = locator.page_start || locator.page || null;
@@ -7099,11 +7142,16 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     };
     const updateRow = (updated) => setDetail((current) => current && {
       ...current,
-      rows: current.rows.map((row) => row.id === updated.id ? updated : row),
+      rows: current.rows.map((row) => row.id === updated.id ? { ...updated, llm_triage: row.llm_triage } : row),
       unreviewed_count: current.rows.filter((row) => row.id !== updated.id && row.review_state === "unreviewed").length + (updated.review_state === "unreviewed" ? 1 : 0)
     });
     const surfaced = detail ? detail.rows.filter((row) => row.comparison_status !== "aligned" && row.review_state === "unreviewed").length : 0;
     const currentRun = runs.find((run) => detail && run.id === detail.id);
+    const triageStatus = triageState.triageStatus || detail?.llm_triage_status || null;
+    const triageReady = detail?.llm_triage_status?.status === "success";
+    const effectiveTriageOnly = triageOnly && triageReady;
+    const visibleRows = detail ? detail.rows.filter((row) => !effectiveTriageOnly || !row.llm_triage || row.llm_triage.show_in_triage) : [];
+    const triageHidden = detail ? detail.rows.length - visibleRows.length : 0;
     return /* @__PURE__ */ React.createElement("section", { className: "settings-card registration-comparison-workspace" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row registration-comparison-toolbar" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { className: "settings-card-title" }, "Publication crosswalk"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, detail ? detail.status === "stale" ? "Comparison stale \u2014 source or pipeline changed" : surfaced ? `Compared \xB7 ${surfaced} item${surfaced === 1 ? "" : "s"} to inspect` : "Compared \xB7 review the crosswalk; no positive certificate is implied" : "Registration attached, not compared")), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: state.status === "running" || !selectedVersion || incorrectMatch, onClick: compare }, detail ? "Re-run comparison" : "Compare now")), incorrectMatch && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "This version belongs to a registration link marked as an incorrect match. Select or confirm another registration before comparing."), /* @__PURE__ */ React.createElement("div", { className: "registration-comparison-options" }, versions.length > 1 && /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Registration version", /* @__PURE__ */ React.createElement("select", { className: "settings-input", value: versionId, onChange: (event) => setVersionId(event.target.value) }, versions.map((version) => /* @__PURE__ */ React.createElement("option", { key: version.id, value: version.id }, version.content_hash.slice(0, 12), " \xB7 ", new Date(version.retrieved_at).toLocaleDateString())))), /* @__PURE__ */ React.createElement("label", { className: "settings-check" }, /* @__PURE__ */ React.createElement(
       "input",
       {
@@ -7129,7 +7177,18 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         })
       },
       "Open registration attachment"
-    )), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Comparing bounded registration fields with publication passages\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Comparison failed: ", state.error), state.message && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, state.message), showRaw && /* @__PURE__ */ React.createElement("div", { className: "registration-raw-record" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Stored version ", selectedVersion?.content_hash, " \xB7 independently inspectable comparison source"), rawVersion ? /* @__PURE__ */ React.createElement("pre", null, rawVersion.rendered_text || JSON.stringify(rawVersion.structured, null, 2)) : /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "loading stored registration\u2026")), detail && detail.status === "stale" && /* @__PURE__ */ React.createElement("div", { className: "provider-egress-warn registration-stale-note" }, /* @__PURE__ */ React.createElement("b", null, "Comparison stale."), " Re-run before relying on it. Basis changed: ", (detail.stale_reasons || []).map((reason) => reason.replaceAll("-", " ")).join("; "), "."), detail && /* @__PURE__ */ React.createElement("div", { className: "registration-crosswalk" }, /* @__PURE__ */ React.createElement("div", { className: "registration-crosswalk-framing" }, detail.framing, " Each row is a flag to inspect. \u201CNot located\u201D is not proof of absence."), detail.rows.map((row) => /* @__PURE__ */ React.createElement(
+    )), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Comparing bounded registration fields with publication passages\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Comparison failed: ", state.error), state.message && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, state.message), showRaw && /* @__PURE__ */ React.createElement("div", { className: "registration-raw-record" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Stored version ", selectedVersion?.content_hash, " \xB7 independently inspectable comparison source"), rawVersion ? /* @__PURE__ */ React.createElement("pre", null, rawVersion.rendered_text || JSON.stringify(rawVersion.structured, null, 2)) : /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "loading stored registration\u2026")), detail && detail.status === "stale" && /* @__PURE__ */ React.createElement("div", { className: "provider-egress-warn registration-stale-note" }, /* @__PURE__ */ React.createElement("b", null, "Comparison stale."), " Re-run before relying on it. Basis changed: ", (detail.stale_reasons || []).map((reason) => reason.replaceAll("-", " ")).join("; "), "."), detail && /* @__PURE__ */ React.createElement(
+      RegistrationLlmTriageControls,
+      {
+        detail,
+        status: triageStatus,
+        running: triageState.status === "running",
+        triageOnly: effectiveTriageOnly,
+        hiddenCount: triageHidden,
+        onRun: triage,
+        onView: setTriageOnly
+      }
+    ), triageState.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "AI triage failed: ", triageState.error), detail && /* @__PURE__ */ React.createElement("div", { className: "registration-crosswalk" }, /* @__PURE__ */ React.createElement("div", { className: "registration-crosswalk-framing" }, detail.framing, " Each row is a flag to inspect. \u201CNot located\u201D is not proof of absence."), !visibleRows.length && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "No rows were selected for the focused view. Switch to ", /* @__PURE__ */ React.createElement("b", null, "All rows"), " to inspect the complete crosswalk."), visibleRows.map((row) => /* @__PURE__ */ React.createElement(
       RegistrationComparisonRow,
       {
         key: row.id,
@@ -7139,6 +7198,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onOpenPublication: () => openSource(row.publication_source_locator, row.publication_evidence_text, `publication:${row.id}`)
       }
     ))), currentRun && /* @__PURE__ */ React.createElement("div", { className: "settings-sub registration-comparison-basis" }, "Registration ", currentRun.registration_content_hash.slice(0, 12), " \xB7 commitment ", currentRun.commitment_extraction_version, " \xB7 retrieval ", currentRun.retrieval_version, " \xB7 comparison ", currentRun.comparison_version));
+  }
+  function RegistrationLlmTriageControls({ detail, status, running, triageOnly, hiddenCount, onRun, onView }) {
+    const ready = detail.llm_triage_status?.status === "success";
+    const stale = detail.status === "stale" || detail.llm_triage_status?.status === "stale";
+    return /* @__PURE__ */ React.createElement("div", { className: "settings-subsection registration-llm-triage" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row registration-llm-triage-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI triage"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Sends only the saved comparison fields and bounded registration/publication passages to your configured model. The model adds reversible display labels; it cannot alter evidence, statuses, or review state.")), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: running || detail.status === "stale", onClick: onRun }, ready ? "Re-triage rows with AI" : "Triage rows with AI")), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Triaging comparison rows from bounded evidence\u2026" }), status && ["unavailable", "failed"].includes(status.status) && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, status.warning || "AI triage is unavailable."), stale && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Saved AI triage is stale. Re-run the comparison, then triage the new rows."), ready && !stale && /* @__PURE__ */ React.createElement("div", { className: "registration-triage-view" }, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter", role: "group", "aria-label": "Registration comparison row view" }, /* @__PURE__ */ React.createElement("button", { className: "tags-srcfilter-btn" + (!triageOnly ? " on" : ""), onClick: () => onView(false) }, "All rows"), /* @__PURE__ */ React.createElement("button", { className: "tags-srcfilter-btn" + (triageOnly ? " on" : ""), onClick: () => onView(true) }, "AI-focused")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, triageOnly ? `${hiddenCount} lower-yield row${hiddenCount === 1 ? "" : "s"} hidden from this display.` : "The complete deterministic crosswalk is visible.")), status?.status === "success" && status.warning && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, status.warning));
   }
   function RegistrationComparisonRow({ row, onUpdated, onOpenRegistration, onOpenPublication }) {
     const [note, setNote] = useState(row.note || "");
@@ -7159,7 +7223,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const scope = row.search_scope || {};
     const canOpenRegistration = row.registration_source_locator && row.registration_source_locator.attachment_id != null;
     const canOpenPublication = row.publication_source_locator && row.publication_source_locator.attachment_id != null;
-    return /* @__PURE__ */ React.createElement("article", { className: `registration-comparison-row status-${row.comparison_status} review-${row.review_state}` }, /* @__PURE__ */ React.createElement("div", { className: "registration-comparison-row-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "eyebrow" }, row.field_type.replaceAll("-", " ")), /* @__PURE__ */ React.createElement("div", { className: "registration-comparison-status" }, REGISTRATION_STATUS_LABELS[row.comparison_status] || row.comparison_status)), row.timing_status && /* @__PURE__ */ React.createElement("span", { className: "registration-timing-status" }, REGISTRATION_TIMING_LABELS[row.timing_status] || row.timing_status), row.review_state !== "unreviewed" && /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, row.review_state)), /* @__PURE__ */ React.createElement("div", { className: "registration-evidence-columns" }, /* @__PURE__ */ React.createElement("div", { className: "registration-evidence-column" }, /* @__PURE__ */ React.createElement("b", null, "Registration"), row.registration_evidence_text ? /* @__PURE__ */ React.createElement("blockquote", null, row.registration_evidence_text) : /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "No extracted registration evidence for this canonical field."), canOpenRegistration && /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onOpenRegistration }, "Open registration evidence")), /* @__PURE__ */ React.createElement("div", { className: "registration-evidence-column" }, /* @__PURE__ */ React.createElement("b", null, "Publication"), row.publication_evidence_text ? /* @__PURE__ */ React.createElement("blockquote", null, row.publication_evidence_text) : /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Not located in the recorded publication search scope."), canOpenPublication && /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onOpenPublication }, "Open publication evidence"))), /* @__PURE__ */ React.createElement("div", { className: "registration-comparison-why" }, /* @__PURE__ */ React.createElement("b", null, "Why this was surfaced"), /* @__PURE__ */ React.createElement("div", null, row.explanation)), /* @__PURE__ */ React.createElement("details", { className: "registration-search-scope" }, /* @__PURE__ */ React.createElement("summary", null, "Search scope and uncertainty"), /* @__PURE__ */ React.createElement("div", null, "Expected sections: ", (scope.expected_section_families || []).join(", ") || "not applicable"), /* @__PURE__ */ React.createElement("div", null, "Sections searched: ", (scope.sections_searched || []).join(", ") || "none located"), /* @__PURE__ */ React.createElement("div", null, scope.whole_article_expanded ? "Whole-article expansion occurred." : "Search remained bounded to expected sections."), /* @__PURE__ */ React.createElement("div", null, scope.supplements_searched ? "Relevant supplements were searched." : "Supplements were not searched for this field."), /* @__PURE__ */ React.createElement("div", null, "Study mapping: ", scope.study_mapping || "not applicable"), /* @__PURE__ */ React.createElement("div", null, "Publication sources: ", (scope.publication_sources || []).map((source) => `attachment ${source.attachment_id}${source.checksum ? ` (${source.checksum.slice(0, 12)})` : ""}`).join(", ") || "none"), /* @__PURE__ */ React.createElement("div", null, row.uncertainty)), /* @__PURE__ */ React.createElement("div", { className: "registration-row-review" }, /* @__PURE__ */ React.createElement("textarea", { className: "settings-input", value: note, onChange: (event) => setNote(event.target.value), placeholder: "Add a private review note\u2026", "aria-label": "Comparison review note" }), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => save("reviewed") }, "Mark reviewed"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: () => save("dismissed") }, "Dismiss flag"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy || note === (row.note || ""), onClick: () => save(row.review_state) }, "Save note")), error && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, error)));
+    return /* @__PURE__ */ React.createElement("article", { className: `registration-comparison-row status-${row.comparison_status} review-${row.review_state}` }, /* @__PURE__ */ React.createElement("div", { className: "registration-comparison-row-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "eyebrow" }, row.field_type.replaceAll("-", " ")), /* @__PURE__ */ React.createElement("div", { className: "registration-comparison-status" }, REGISTRATION_STATUS_LABELS[row.comparison_status] || row.comparison_status)), row.timing_status && /* @__PURE__ */ React.createElement("span", { className: "registration-timing-status" }, REGISTRATION_TIMING_LABELS[row.timing_status] || row.timing_status), row.review_state !== "unreviewed" && /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, row.review_state)), /* @__PURE__ */ React.createElement("div", { className: "registration-evidence-columns" }, /* @__PURE__ */ React.createElement("div", { className: "registration-evidence-column" }, /* @__PURE__ */ React.createElement("b", null, "Registration"), row.registration_evidence_text ? /* @__PURE__ */ React.createElement("blockquote", null, row.registration_evidence_text) : /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "No extracted registration evidence for this canonical field."), canOpenRegistration && /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onOpenRegistration }, "Open registration evidence")), /* @__PURE__ */ React.createElement("div", { className: "registration-evidence-column" }, /* @__PURE__ */ React.createElement("b", null, "Publication"), row.publication_evidence_text ? /* @__PURE__ */ React.createElement("blockquote", null, row.publication_evidence_text) : /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Not located in the recorded publication search scope."), canOpenPublication && /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onOpenPublication }, "Open publication evidence"))), /* @__PURE__ */ React.createElement("div", { className: "registration-comparison-why" }, /* @__PURE__ */ React.createElement("b", null, "Why this was surfaced"), /* @__PURE__ */ React.createElement("div", null, row.explanation)), row.llm_triage && /* @__PURE__ */ React.createElement("div", { className: `registration-row-triage triage-${row.llm_triage.label} ${row.llm_triage.status || "current"}` }, /* @__PURE__ */ React.createElement("b", null, "AI triage \xB7 ", REGISTRATION_TRIAGE_LABELS[row.llm_triage.label] || row.llm_triage.label), row.llm_triage.rationale && /* @__PURE__ */ React.createElement("div", null, row.llm_triage.rationale), !!(row.llm_triage.concerns || []).length && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Review caveat: ", row.llm_triage.concerns.join(" \xB7 ")), /* @__PURE__ */ React.createElement("small", null, "Display aid only \u2014 not a revised comparison status or a judgment about the paper or authors.")), /* @__PURE__ */ React.createElement("details", { className: "registration-search-scope" }, /* @__PURE__ */ React.createElement("summary", null, "Search scope and uncertainty"), /* @__PURE__ */ React.createElement("div", null, "Expected sections: ", (scope.expected_section_families || []).join(", ") || "not applicable"), /* @__PURE__ */ React.createElement("div", null, "Sections searched: ", (scope.sections_searched || []).join(", ") || "none located"), /* @__PURE__ */ React.createElement("div", null, scope.whole_article_expanded ? "Whole-article expansion occurred." : "Search remained bounded to expected sections."), /* @__PURE__ */ React.createElement("div", null, scope.supplements_searched ? "Relevant supplements were searched." : "Supplements were not searched for this field."), /* @__PURE__ */ React.createElement("div", null, "Study mapping: ", scope.study_mapping || "not applicable"), /* @__PURE__ */ React.createElement("div", null, "Publication sources: ", (scope.publication_sources || []).map((source) => `attachment ${source.attachment_id}${source.checksum ? ` (${source.checksum.slice(0, 12)})` : ""}`).join(", ") || "none"), /* @__PURE__ */ React.createElement("div", null, row.uncertainty)), /* @__PURE__ */ React.createElement("div", { className: "registration-row-review" }, /* @__PURE__ */ React.createElement("textarea", { className: "settings-input", value: note, onChange: (event) => setNote(event.target.value), placeholder: "Add a private review note\u2026", "aria-label": "Comparison review note" }), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => save("reviewed") }, "Mark reviewed"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: () => save("dismissed") }, "Dismiss flag"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy || note === (row.note || ""), onClick: () => save(row.review_state) }, "Save note")), error && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, error)));
   }
   function MetaPreregistrationPane({ ctx, active }) {
     const paperId = ctx.selectedPaper;

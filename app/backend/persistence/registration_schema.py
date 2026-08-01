@@ -218,3 +218,27 @@ registration_comparison_rows = Table(
     Index("ix_registration_comparison_rows_run", "run_id", "id"),
     Index("ix_registration_comparison_rows_review", "review_state", "comparison_status"),
 )
+
+registration_comparison_triage_annotations = Table(
+    "registration_comparison_triage_annotations",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("run_id", ForeignKey("registration_comparison_runs.id", ondelete="CASCADE"), nullable=False),
+    Column("row_id", ForeignKey("registration_comparison_rows.id", ondelete="CASCADE"), nullable=False),
+    Column("label", String(40), nullable=False),
+    Column("show_in_triage", Integer, nullable=False, server_default="0"),
+    Column("rationale", Text),
+    Column("concerns_json", JSON, nullable=False),
+    Column("basis", Text),
+    Column("provider_id", String(120), nullable=False),
+    Column("model_id", String(200)),
+    Column("prompt_version", String(120), nullable=False),
+    Column("evidence_fingerprint", String(128), nullable=False),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    CheckConstraint(
+        "label IN ('prioritize','uncertain','likely_noise')",
+        name="registration_comparison_triage_label_valid",
+    ),
+    UniqueConstraint("row_id", name="uq_registration_comparison_triage_row"),
+    Index("ix_registration_comparison_triage_run", "run_id", "row_id"),
+)

@@ -558,6 +558,14 @@ family. Raw stored records use a bounded mono `<pre>`. Review notes use the stan
 treatment may imply an overall certificate or paper/author grade. An empty commitment extraction renders one neutral
 **Extraction uncertain** row rather than a blank result, and expanded scope details name the exact source
 attachments/checksum prefixes so a reader can reconcile the visible evidence with the stored search receipt.
+
+The optional **LLM triage** layer (inc 435) is an explicit, egress-gated display aid inside the comparison Settings
+card. It may receive only saved comparison fields plus bounded paired evidence passages—not whole documents, source
+locators, chunk IDs, review state, or notes. Its quiet neutral/amber/indigo label can prioritize, retain as uncertain,
+or mark a row as likely lower-yield, but it cannot rewrite the deterministic status, evidence, order, review state, or
+notes. **All rows** is always available; **AI-focused** hides only a valid `likely_noise` annotation and fails open for
+missing/malformed/truncated labels. Changed comparison evidence, prompt version, or stale document basis disables the
+focused view until re-triage. Never use green/pass styling or turn the annotation into a compliance/integrity signal.
 `PaneAccordion`'s tab strip carries a per-section `pane-tabs-<sectionId>` class hook (e.g. `.pane-tabs-checklists`)
 so one multi-tab section can opt into a bespoke layout (the Checklists 2×2 grid) with a CSS rule only — no change
 to `05_panes.jsx`'s render logic. Every tab/section `render(ctx, isVisible)` also receives whether it is actually

@@ -3,20 +3,26 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
-from sqlalchemy import insert, update
+from sqlalchemy import insert, select, update
 
 from app.backend.api import create_app
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.registration_schema import (
     paper_registration_links,
     registration_commitments,
+    registration_comparison_triage_annotations,
     registration_document_versions,
 )
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
 from app.backend.registration_commitments import EXTRACTION_VERSION
 from app.backend.registration_comparison import compare_registration_to_publication
+from app.backend.registration_comparison.llm_triage import (
+    TRIAGE_PROMPT_VERSION,
+    RegistrationComparisonTriageEvaluator,
+)
 from app.backend.registration_retrieval.domain import CommitmentRetrieval, PublicationEvidenceHit
 
 
@@ -516,4 +522,136 @@ def test_comparison_api_persists_evidence_review_state_and_detects_document_stal
     )
     rejected = client.get(f"/papers/{paper_id}/registration-links?include_rejected=true").json()
     assert rejected[0]["link_status"] == "rejected"
+    engine.dispose()
+
+
+def test_registration_llm_triage_is_bounded_advisory_and_keeps_unlabeled_rows_visible() -> None:
+    prompts = []
+
+    def complete_fn(config, prompt):
+        prompts.append(prompt)
+        return SimpleNamespace(
+            text='{"rows":[{"row_id":1,"label":"likely_noise","show_in_triage":true,'
+            '"rationale":"Wording variation.","concerns":["Inspect both passages."]}]}'
+        )
+
+    rows = [
+        {
+            "id": 1,
+            "field_type": "outcome",
+            "comparison_status": "potentially-changed",
+            "registration_evidence_text": "Registered accuracy outcome.",
+            "publication_evidence_text": "Reported accuracy measure.",
+            "explanation": "Terms differ.",
+            "uncertainty": "May be equivalent.",
+            "search_scope_json": {
+                "sections_searched": ["results"],
+                "searched_chunk_ids": [99],
+                "study_mapping": "Study 1 " + ("x" * 10000),
+            },
+        },
+        {
+            "id": 2,
+            "field_type": "sample-size-target",
+            "comparison_status": "potentially-changed",
+            "registration_evidence_text": "Recruit 120.",
+            "publication_evidence_text": "Analyzed 118.",
+            "explanation": "Numeric difference.",
+            "uncertainty": "Attrition may explain it.",
+            "search_scope_json": {},
+        },
+    ]
+    evaluator = RegistrationComparisonTriageEvaluator(
+        config=SimpleNamespace(provider="local", model="fixture-model"), complete_fn=complete_fn
+    )
+    result = evaluator.evaluate(rows=rows)
+    assert result["status"]["status"] == "success"
+    assert result["annotations"][1]["label"] == "likely_noise"
+    assert result["annotations"][1]["show_in_triage"] is False
+    assert result["annotations"][2]["label"] == "uncertain"
+    assert result["annotations"][2]["show_in_triage"] is True
+    assert "searched_chunk_ids" not in prompts[0]
+    assert "x" * 1000 not in prompts[0]
+    assert "compliance" in prompts[0] and "Return JSON only" in prompts[0]
+
+
+def test_registration_llm_triage_endpoint_persists_without_changing_crosswalk(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id, version_id, _, _ = _seed_api_comparison(conn)
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=ComparisonEmbeddingModel()))
+    started = client.post(f"/papers/{paper_id}/registration-comparisons", json={"version_id": version_id}).json()
+    job = client.get(f"/registration-comparisons/jobs/{started['job_id']}").json()
+    before = client.get(f"/papers/{paper_id}/registration-comparisons/{job['run_id']}").json()
+    row = before["rows"][0]
+
+    class Evaluator:
+        def evaluate(self, *, rows):
+            assert rows[0]["registration_evidence_text"] == "We will recruit 120 participants."
+            return {
+                "status": {
+                    "status": "success",
+                    "provider_id": "local",
+                    "model_id": "fixture-model",
+                    "prompt_version": TRIAGE_PROMPT_VERSION,
+                    "focused_count": 0,
+                },
+                "annotations": {
+                    row["id"]: {
+                        "label": "likely_noise",
+                        "show_in_triage": True,
+                        "rationale": "The final sample may reflect ordinary attrition.",
+                        "concerns": ["Inspect recruitment and exclusion reporting."],
+                        "basis": "Bounded paired evidence.",
+                    }
+                },
+            }
+
+    client.app.state.registration_comparison_triage_evaluator = Evaluator()
+    triaged = client.post(
+        f"/papers/{paper_id}/registration-comparisons/{job['run_id']}/llm-triage",
+        json={},
+    )
+    assert triaged.status_code == 200, triaged.text
+    assert triaged.json()["llm_triage_status"]["annotated_count"] == 1
+    after = client.get(f"/papers/{paper_id}/registration-comparisons/{job['run_id']}").json()
+    assert after["rows"][0]["comparison_status"] == row["comparison_status"]
+    assert after["rows"][0]["registration_evidence_text"] == row["registration_evidence_text"]
+    assert after["rows"][0]["llm_triage"]["label"] == "likely_noise"
+    assert after["rows"][0]["llm_triage"]["show_in_triage"] is False
+    assert after["llm_triage_status"]["status"] == "success"
+    with engine.connect() as conn:
+        stored = conn.execute(select(registration_comparison_triage_annotations)).mappings().one()
+    assert stored["provider_id"] == "local" and stored["model_id"] == "fixture-model"
+    engine.dispose()
+
+
+def test_registration_llm_triage_honors_egress_gate_and_refuses_stale_run(temp_db_url: str, monkeypatch) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id, version_id, link_id, _ = _seed_api_comparison(conn)
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=ComparisonEmbeddingModel()))
+    started = client.post(f"/papers/{paper_id}/registration-comparisons", json={"version_id": version_id}).json()
+    job = client.get(f"/registration-comparisons/jobs/{started['job_id']}").json()
+
+    class MustNotRun:
+        def evaluate(self, *, rows):
+            raise AssertionError("egress gate must run before the evaluator")
+
+    client.app.state.registration_comparison_triage_evaluator = MustNotRun()
+    monkeypatch.delenv("CALLOSUM_ALLOW_DATA_EGRESS")
+    blocked = client.post(f"/papers/{paper_id}/registration-comparisons/{job['run_id']}/llm-triage", json={})
+    assert blocked.status_code == 200
+    assert blocked.json()["llm_triage_status"]["status"] == "unavailable"
+    assert "egress consent" in blocked.json()["llm_triage_status"]["warning"]
+
+    with engine.begin() as conn:
+        conn.execute(
+            update(paper_registration_links)
+            .where(paper_registration_links.c.id == link_id)
+            .values(content_hash="changed-registration")
+        )
+    stale = client.post(f"/papers/{paper_id}/registration-comparisons/{job['run_id']}/llm-triage", json={})
+    assert stale.status_code == 409
+    assert "Re-run the stale comparison" in stale.json()["detail"]
     engine.dispose()

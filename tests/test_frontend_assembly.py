@@ -860,6 +860,19 @@ def test_registration_comparison_ui_is_paired_reviewable_stale_aware_and_scorele
     assert "apiPost(`/papers/${paperId}/registration-comparisons`" not in effect
     assert ".registration-evidence-columns { display: grid; grid-template-columns: repeat(2" in css
     assert ".app.mobile .registration-evidence-columns { grid-template-columns: 1fr; }" in css
+    # inc 435: optional AI triage is an explicit, reversible display layer over the unchanged crosswalk.
+    assert "function RegistrationLlmTriageControls(" in source
+    assert "Triage rows with AI" in source and "Re-triage rows with AI" in source
+    assert "saved comparison fields and bounded registration/publication passages" in source
+    assert "it cannot alter evidence, statuses, or review state" in source
+    assert "All rows" in source and "AI-focused" in source
+    assert "!row.llm_triage || row.llm_triage.show_in_triage" in source
+    assert "Display aid only — not a revised comparison status" in source
+    assert "/llm-triage`" in source
+    assert "/llm-triage`" not in source.split("const triage = async", 1)[0]
+    assert "Re-run the comparison, then triage the new rows." in source
+    assert ".registration-row-triage.triage-likely_noise" in css
+    assert ".app.mobile .registration-llm-triage-head" in css
 
 
 def test_set_critical_review_modal_shipped():

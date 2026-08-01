@@ -702,6 +702,177 @@ def test_meta_preregistration_uses_full_synthesis_workspace_and_settings_chrome(
         browser.close()
 
 
+def test_meta_preregistration_ai_triage_is_reversible_and_restores_all_rows(server: str):
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+        page = browser.new_page(viewport={"width": 1366, "height": 900})
+        triaged = {"value": False}
+        version = {
+            "id": 71,
+            "link_id": 61,
+            "attachment_id": 51,
+            "provider": "manual-local",
+            "content_hash": "a" * 64,
+            "retrieved_at": "2026-08-01T12:00:00",
+        }
+        link = {
+            "id": 61,
+            "link_status": "confirmed",
+            "linkage_class": "explicit-linkage",
+            "linkage_label": "Explicitly linked",
+            "provider": "manual-local",
+            "external_id": "local-registration",
+            "title": "Reader-confirmed registration",
+            "contributors": [],
+            "match_evidence": [{"kind": "paper-reference", "printed": True}],
+            "registration_status": "public",
+        }
+        summary = {
+            "id": 91,
+            "paper_id": 1,
+            "registration_version_id": 71,
+            "status": "completed",
+            "stale_reasons": [],
+            "registration_content_hash": "a" * 64,
+            "article_content_hash": "b" * 64,
+            "supplement_content_hashes": [],
+            "commitment_extraction_version": "test-extraction",
+            "section_extraction_version": "test-sections",
+            "retrieval_version": "test-retrieval",
+            "comparison_version": "test-comparison",
+            "configuration": {},
+            "model_provider": None,
+            "model_name": None,
+            "created_at": "2026-08-01T12:00:00",
+            "completed_at": "2026-08-01T12:00:01",
+            "row_count": 2,
+            "unreviewed_count": 2,
+        }
+
+        def comparison_detail():
+            def triage_annotation(label, show, rationale):
+                return {
+                    "label": label,
+                    "show_in_triage": show,
+                    "rationale": rationale,
+                    "concerns": [],
+                    "basis": "Bounded paired evidence",
+                    "provider_id": "fixture",
+                    "model_id": "fixture-model",
+                    "prompt_version": "registration-comparison-triage-v1",
+                    "status": "current",
+                    "stale_reasons": [],
+                }
+
+            row_base = {
+                "run_id": 91,
+                "timing_status": None,
+                "registration_source_locator": None,
+                "publication_source_locator": None,
+                "search_scope": {
+                    "expected_section_families": ["Methods"],
+                    "sections_searched": ["Methods"],
+                    "whole_article_expanded": False,
+                    "supplements_searched": False,
+                    "study_mapping": "Study 1",
+                    "publication_sources": [],
+                },
+                "uncertainty": "Human inspection remains necessary.",
+                "registration_content_hash": "a" * 64,
+                "publication_attachment_checksum": "b" * 64,
+                "review_state": "unreviewed",
+                "note": None,
+            }
+            rows = [
+                {
+                    **row_base,
+                    "id": 101,
+                    "field_type": "primary-outcome",
+                    "comparison_status": "potentially-changed",
+                    "registration_evidence_text": "Accuracy was the planned primary outcome.",
+                    "publication_evidence_text": "Response time was reported as the primary outcome.",
+                    "explanation": "The named primary outcomes differ.",
+                    "llm_triage": triage_annotation(
+                        "prioritize", True, "A named primary-outcome distinction merits review"
+                    )
+                    if triaged["value"]
+                    else None,
+                },
+                {
+                    **row_base,
+                    "id": 102,
+                    "field_type": "design",
+                    "comparison_status": "not-comparable",
+                    "registration_evidence_text": "The study uses an online task.",
+                    "publication_evidence_text": "Participants completed the task online.",
+                    "explanation": "The descriptions use slightly different wording.",
+                    "llm_triage": triage_annotation(
+                        "likely_noise", False, "The paired passages appear substantively redundant"
+                    )
+                    if triaged["value"]
+                    else None,
+                },
+            ]
+            return {
+                **summary,
+                "article_source": [],
+                "supplement_source": [],
+                "rows": rows,
+                "llm_triage_status": {
+                    "status": "success" if triaged["value"] else "not_searched",
+                    "annotated_count": 2 if triaged["value"] else 0,
+                    "focused_count": 1 if triaged["value"] else 0,
+                    "warning": None,
+                },
+                "framing": "Evidence crosswalk for human inspection, not a verdict.",
+            }
+
+        page.route("**/papers/1/registration-links?include_rejected=true", lambda route: route.fulfill(json=[link]))
+        page.route("**/papers/1/registration-versions", lambda route: route.fulfill(json=[version]))
+        page.route("**/papers/1/registration-comparisons", lambda route: route.fulfill(json=[summary]))
+        page.route("**/papers/1/registration-comparisons/91", lambda route: route.fulfill(json=comparison_detail()))
+
+        def run_triage(route):
+            triaged["value"] = True
+            route.fulfill(
+                json={
+                    "run_id": 91,
+                    "llm_triage_status": {
+                        "status": "success",
+                        "annotated_count": 2,
+                        "focused_count": 1,
+                        "warning": None,
+                    },
+                }
+            )
+
+        page.route("**/papers/1/registration-comparisons/91/llm-triage", run_triage)
+        errors = _mount_app(page, server)
+
+        page.locator(".paper").first.click()
+        page.get_by_role("tab", name="Synthesize", exact=True).click()
+        page.get_by_role("tab", name="Meta-Preregistration", exact=True).click()
+        page.get_by_role("button", name="Triage rows with AI", exact=True).wait_for()
+        assert page.locator(".registration-comparison-row").count() == 2
+
+        page.get_by_role("button", name="Triage rows with AI", exact=True).click()
+        page.get_by_role("button", name="AI-focused", exact=True).wait_for()
+        assert page.locator(".registration-comparison-row").count() == 1
+        assert page.get_by_text("A named primary-outcome distinction merits review", exact=True).is_visible()
+        assert page.get_by_text("The descriptions use slightly different wording.", exact=True).count() == 0
+
+        page.get_by_role("button", name="All rows", exact=True).click()
+        assert page.locator(".registration-comparison-row").count() == 2
+        assert page.get_by_text("The descriptions use slightly different wording.", exact=True).is_visible()
+        page.set_viewport_size({"width": 375, "height": 812})
+        _assert_no_document_horizontal_overflow(page, "Meta-Preregistration AI triage / mobile")
+        assert errors == []
+        browser.close()
+
+
 def test_tool_panes_resist_visual_drift(server: str):
     with sync_playwright() as p:
         try:

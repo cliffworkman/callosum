@@ -201,6 +201,7 @@ def create_app(
     api.state.registration_acquisition_jobs = JobStore()
     api.state.registration_acquisition_registry = registration_acquisition_registry
     api.state.registration_comparison_jobs = JobStore()
+    api.state.registration_comparison_triage_evaluator = None
     api.state.retraction_db_jobs = JobStore()  # inc 132: Retraction Watch DB download
     api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder

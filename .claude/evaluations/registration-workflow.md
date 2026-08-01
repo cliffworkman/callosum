@@ -16,8 +16,12 @@ precision cannot compensate for a wrong registration match, weak publication ret
 | Comparison classification accuracy | Numeric sample, either/both, outcome/model, disclosed deviation, underspecification, timing | Bounded deterministic rule assigned wrong status or semantic uncertainty forced into verdict |
 | Evidence-anchor correctness | Attachment/chunk/page/bbox assertions on both sides | Evidence opens a different attachment/page or claims unavailable precision |
 | False “not located” rate | Whole-article expansion, optional supplements, one-sided outcome, explicit scope note | Not-located status emitted despite evidence in searched scope, or rendered as absence |
+| Optional LLM-triage utility | Bounded-payload, label-validation, fail-open, persistence/staleness, and All-rows restoration tests | Important/uncertain row hidden, malformed or missing label hidden, underlying crosswalk mutated, or stale label shown as current |
 
 Every manifest row names its executable pytest function through `exercised_by`, and
 `test_registration_evaluation_manifest.py` validates that trace. The tests remain a curated regression set, not a
 claim of field-wide validation. Live registry health checks remain optional and are not CI dependencies. Add
 discipline/domain-specific cases to the manifest and a corresponding stage test without combining the dimensions.
+Treat triage noise reduction and false-hidden-important-row rate as separate measures. A smaller focused list is not
+an improvement if it suppresses an uncertain or inspection-worthy row, and it does not alter any upstream accuracy
+dimension.

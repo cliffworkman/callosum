@@ -34,11 +34,20 @@ from app.backend.persistence.registration_comparisons_repo import (
     source_snapshot,
 )
 from app.backend.persistence.registration_schema import paper_registration_links
+from app.backend.persistence.registration_triage_repo import (
+    attach_registration_comparison_triage,
+    load_registration_comparison_triage,
+    persist_registration_comparison_triage,
+)
 from app.backend.persistence.repository import get_chunks_for_attachment, get_chunks_for_paper
 from app.backend.persistence.schema import attachments
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.registration_commitments import EXTRACTION_VERSION, extract_commitments
 from app.backend.registration_comparison import COMPARISON_VERSION, compare_registration_to_publication
+from app.backend.registration_comparison.llm_triage import (
+    TRIAGE_PROMPT_VERSION,
+    RegistrationComparisonTriageEvaluator,
+)
 from app.backend.registration_retrieval import RETRIEVAL_VERSION, retrieve_publication_evidence
 
 router = APIRouter()
@@ -106,12 +115,14 @@ class ComparisonRowOut(BaseModel):
     publication_attachment_checksum: str | None = None
     review_state: Literal["unreviewed", "reviewed", "dismissed"]
     note: str | None = None
+    llm_triage: dict[str, Any] | None = None
 
 
 class ComparisonRunDetail(ComparisonRunSummary):
     article_source: list[dict[str, Any]]
     supplement_source: list[dict[str, Any]]
     rows: list[ComparisonRowOut]
+    llm_triage_status: dict[str, Any]
     framing: str = (
         "This is an evidence crosswalk for human inspection, not a compliance, integrity, or author judgment."
     )
@@ -176,6 +187,13 @@ def registration_comparison_detail(
     with engine.connect() as conn:
         refreshed = get_comparison_run(conn, paper_id, run_id)
         rows = list_comparison_rows(conn, run_id)
+        triage_annotations = load_registration_comparison_triage(conn, run_id)
+    attached_triage, triage_status = attach_registration_comparison_triage(
+        rows,
+        triage_annotations,
+        comparison_stale=refreshed["status"] == "stale",
+        current_prompt_version=TRIAGE_PROMPT_VERSION,
+    )
     return ComparisonRunDetail(
         **(
             summary.model_dump()
@@ -184,7 +202,8 @@ def registration_comparison_detail(
                 "stale_reasons": list(refreshed["stale_reasons_json"] or []),
                 "article_source": list(refreshed["article_source_json"] or []),
                 "supplement_source": list(refreshed["supplement_source_json"] or []),
-                "rows": [_row_out(row) for row in rows],
+                "rows": [_row_out(row, attached_triage.get(int(row["id"]))) for row in rows],
+                "llm_triage_status": triage_status,
             }
         )
     )
@@ -203,6 +222,40 @@ def review_registration_comparison_row(
     if row is None:
         raise HTTPException(status_code=404, detail="Registration comparison row not found")
     return _row_out(row)
+
+
+@router.post("/papers/{paper_id}/registration-comparisons/{run_id}/llm-triage")
+def triage_registration_comparison(
+    paper_id: int,
+    run_id: int,
+    request: Request,
+    engine: Engine = Depends(get_engine),
+) -> dict[str, Any]:
+    with engine.connect() as conn:
+        run = get_comparison_run(conn, paper_id, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Registration comparison not found on this paper")
+    summary = _run_summary(engine, run)
+    if summary.status == "stale":
+        raise HTTPException(status_code=409, detail="Re-run the stale comparison before asking AI to triage it.")
+    with engine.connect() as conn:
+        rows = list_comparison_rows(conn, run_id)
+    if not rows:
+        raise HTTPException(status_code=422, detail="No comparison rows are available to triage.")
+    result = _run_registration_comparison_triage(request.app, [dict(row) for row in rows])
+    status = result["status"]
+    if status.get("status") == "success":
+        inserted = run_write(
+            engine,
+            lambda conn: persist_registration_comparison_triage(
+                conn,
+                run_id=run_id,
+                rows=rows,
+                result=result,
+            ),
+        )
+        status["annotated_count"] = inserted
+    return {"run_id": run_id, "llm_triage_status": status}
 
 
 def _run_comparison_job(app: FastAPI, job_id: str, paper_id: int, configuration: dict[str, Any]) -> None:
@@ -398,7 +451,58 @@ def _stale_reasons(engine: Engine, run) -> list[str]:
     return reasons
 
 
-def _row_out(row) -> ComparisonRowOut:
+def _run_registration_comparison_triage(app: FastAPI, rows: list[dict[str, Any]]) -> dict[str, Any]:
+    from app.backend.llm.providers import requires_egress
+    from integrations.gemini import GeminiConfig
+
+    try:
+        config = GeminiConfig.from_environment()
+        if requires_egress(config) and not config.data_egress_enabled:
+            return {
+                "status": {
+                    "provider_id": "configured-llm",
+                    "status": "unavailable",
+                    "warning": "AI triage needs AI features/data-egress consent in Settings.",
+                    "prompt_version": TRIAGE_PROMPT_VERSION,
+                },
+                "annotations": {},
+            }
+        evaluator = getattr(app.state, "registration_comparison_triage_evaluator", None)
+        if evaluator is None:
+            if requires_egress(config) and not config.resolved_api_key():
+                return {
+                    "status": {
+                        "provider_id": "configured-llm",
+                        "status": "unavailable",
+                        "warning": "AI triage needs an API key in Settings.",
+                        "prompt_version": TRIAGE_PROMPT_VERSION,
+                    },
+                    "annotations": {},
+                }
+            evaluator = RegistrationComparisonTriageEvaluator(config=config)
+        result = evaluator.evaluate(rows=rows)
+        result.setdefault("annotations", {})
+        status = result.setdefault("status", {})
+        status.setdefault("provider_id", str(getattr(config, "provider", None) or "configured-llm"))
+        status.setdefault("model_id", str(getattr(config, "model", None) or "configured-model"))
+        status.setdefault("prompt_version", TRIAGE_PROMPT_VERSION)
+        return result
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "status": {
+                "provider_id": "configured-llm",
+                "status": "failed",
+                "warning": (
+                    "AI triage failed; the complete deterministic crosswalk is still available. "
+                    f"{type(exc).__name__}: {exc}"
+                ),
+                "prompt_version": TRIAGE_PROMPT_VERSION,
+            },
+            "annotations": {},
+        }
+
+
+def _row_out(row, llm_triage: dict[str, Any] | None = None) -> ComparisonRowOut:
     return ComparisonRowOut(
         id=row["id"],
         run_id=row["run_id"],
@@ -425,4 +529,5 @@ def _row_out(row) -> ComparisonRowOut:
         publication_attachment_checksum=row["publication_attachment_checksum"],
         review_state=row["review_state"],
         note=row["note"],
+        llm_triage=llm_triage,
     )

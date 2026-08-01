@@ -123,6 +123,7 @@ from app.backend.persistence.registration_schema import (  # noqa: E402, F401
     registration_commitments,
     registration_comparison_rows,
     registration_comparison_runs,
+    registration_comparison_triage_annotations,
     registration_document_versions,
 )
 

@@ -1,5 +1,6 @@
 <!-- qa-coverage
 fe: 08h_methods_transparency.jsx, 08i_registration_comparison.jsx, 40_app.jsx
+api: POST /papers/{paper_id}/registration-comparisons/{run_id}/llm-triage
 -->
 
 # ROUTE 83 — End-to-end registration comparison UI
@@ -42,10 +43,19 @@ withdrawn candidate. Capture browser requests, console, and page errors. AI egre
 12. Compare the source, candidate, comparison, input, select, note, and action treatments with Settings. Verify they
     share the standard card/field/input/action/note vocabulary and radius/spacing rhythm; domain-specific evidence
     cards may retain semantic left rules and paired-source layout.
-13. Repeat at 375px. Verify evidence columns and source rows stack, controls do not overflow, and source/review
+13. With AI egress disabled, choose **Triage rows with AI**. Verify the inline Settings/egress instruction, no saved
+    annotations, and the complete crosswalk remains visible. Enabling AI must not trigger triage until another click.
+14. With a hermetic model fixture, triage the current run. Verify the disclosed payload contains only saved comparison
+    fields plus bounded paired passages—no whole documents, source locators, chunk IDs, review state, or notes. Verify
+    **AI-focused** hides only a valid lower-yield label, an unlabeled/malformed row remains visible, and **All rows**
+    restores the unchanged statuses, evidence, order, review state, and notes. Reload and verify labels persist.
+15. Change the comparison basis and verify old triage is visibly stale and cannot focus the list. Exercise provider
+    failure and a stale-run submission; both must leave the full crosswalk intact and explain recovery.
+16. Repeat at 375px. Verify evidence columns and source rows stack, triage/view controls do not overflow, and source/review
     actions remain usable.
 
 ## Pass criteria
 
 The workflow is discoverable, explicit, recoverable, paired-evidence-first, responsive, and state-complete; all
 egress is gated; source anchors are honest; stale/incorrect matches cannot appear current; and no verdict/score exists.
+LLM triage is explicit, bounded, reversible, fail-open, and never changes or suppresses the underlying saved crosswalk.

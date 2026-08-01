@@ -23,6 +23,12 @@ const REGISTRATION_TIMING_LABELS = {
   "insufficient-dates-to-compare": "Insufficient dates to compare",
 };
 
+const REGISTRATION_TRIAGE_LABELS = {
+  "prioritize": "Prioritize for review",
+  "uncertain": "Keep in focused view — uncertain",
+  "likely_noise": "Likely lower-yield",
+};
+
 function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpenPaper, invalidLinkIds = [] }) {
   const [versionId, setVersionId] = useState(versions[0] ? versions[0].id : "");
   const [includeSupplements, setIncludeSupplements] = useState(false);
@@ -32,6 +38,8 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
   const [rawVersion, setRawVersion] = useState(null);
   const [showRaw, setShowRaw] = useState(false);
   const [state, setState] = useState({ status: "idle" });
+  const [triageState, setTriageState] = useState({ status: "idle" });
+  const [triageOnly, setTriageOnly] = useState(false);
   const pollTimer = useRef(null);
   const selectedVersion = versions.find(version => String(version.id) === String(versionId)) || versions[0];
   const incorrectMatch = !!selectedVersion && invalidLinkIds.includes(selectedVersion.link_id);
@@ -42,9 +50,12 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
     const allRuns = result.data || [];
     setRuns(allRuns);
     const latest = allRuns.find(run => String(run.registration_version_id) === String(requestedVersion));
-    if (!latest) { setDetail(null); return; }
+    if (!latest) { setDetail(null); setTriageOnly(false); return; }
     const full = await api(`/papers/${paperId}/registration-comparisons/${latest.id}`);
-    if (full.ok) setDetail(full.data);
+    if (full.ok) {
+      setDetail(full.data);
+      setTriageOnly(full.data.llm_triage_status?.status === "success");
+    }
   }, [paperId, versionId]);
 
   useEffect(() => {
@@ -52,6 +63,7 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
   }, [versions, versionId]);
   useEffect(() => {
     setDetail(null); setRawVersion(null); setShowRaw(false); setState({ status: "idle" });
+    setTriageState({ status: "idle" }); setTriageOnly(false);
     if (versionId) load(versionId);
     return () => { if (pollTimer.current) clearTimeout(pollTimer.current); };
   }, [paperId, versionId, load]);
@@ -91,6 +103,20 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
     setShowRaw(value => !value);
   };
 
+  const triage = async () => {
+    if (!detail || detail.status === "stale") return;
+    setTriageState({ status: "running" });
+    const result = await apiPost(`/papers/${paperId}/registration-comparisons/${detail.id}/llm-triage`, {});
+    if (!result.ok) return setTriageState({ status: "error", error: result.error });
+    const triageStatus = result.data.llm_triage_status || {};
+    if (triageStatus.status !== "success") {
+      return setTriageState({ status: "done", triageStatus });
+    }
+    await load(selectedVersion.id);
+    setTriageOnly(true);
+    setTriageState({ status: "done", triageStatus });
+  };
+
   const openSource = (locator, quote, key) => {
     if (!locator || !onOpenPaper || locator.attachment_id == null) return;
     const page = locator.page_start || locator.page || null;
@@ -111,12 +137,17 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
 
   const updateRow = updated => setDetail(current => current && ({
     ...current,
-    rows: current.rows.map(row => row.id === updated.id ? updated : row),
+    rows: current.rows.map(row => row.id === updated.id ? { ...updated, llm_triage: row.llm_triage } : row),
     unreviewed_count: current.rows.filter(row => row.id !== updated.id && row.review_state === "unreviewed").length
       + (updated.review_state === "unreviewed" ? 1 : 0),
   }));
   const surfaced = detail ? detail.rows.filter(row => row.comparison_status !== "aligned" && row.review_state === "unreviewed").length : 0;
   const currentRun = runs.find(run => detail && run.id === detail.id);
+  const triageStatus = triageState.triageStatus || detail?.llm_triage_status || null;
+  const triageReady = detail?.llm_triage_status?.status === "success";
+  const effectiveTriageOnly = triageOnly && triageReady;
+  const visibleRows = detail ? detail.rows.filter(row => !effectiveTriageOnly || !row.llm_triage || row.llm_triage.show_in_triage) : [];
+  const triageHidden = detail ? detail.rows.length - visibleRows.length : 0;
 
   return <section className="settings-card registration-comparison-workspace">
     <div className="settings-row registration-comparison-toolbar">
@@ -163,9 +194,14 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
     {detail && detail.status === "stale" && <div className="provider-egress-warn registration-stale-note">
       <b>Comparison stale.</b> Re-run before relying on it. Basis changed: {(detail.stale_reasons || []).map(reason => reason.replaceAll("-", " ")).join("; ")}.
     </div>}
+    {detail && <RegistrationLlmTriageControls detail={detail} status={triageStatus}
+      running={triageState.status === "running"} triageOnly={effectiveTriageOnly}
+      hiddenCount={triageHidden} onRun={triage} onView={setTriageOnly} />}
+    {triageState.status === "error" && <div className="settings-note settings-note-err">AI triage failed: {triageState.error}</div>}
     {detail && <div className="registration-crosswalk">
       <div className="registration-crosswalk-framing">{detail.framing} Each row is a flag to inspect. “Not located” is not proof of absence.</div>
-      {detail.rows.map(row => <RegistrationComparisonRow key={row.id} row={row} onUpdated={updateRow}
+      {!visibleRows.length && <div className="settings-note">No rows were selected for the focused view. Switch to <b>All rows</b> to inspect the complete crosswalk.</div>}
+      {visibleRows.map(row => <RegistrationComparisonRow key={row.id} row={row} onUpdated={updateRow}
         onOpenRegistration={() => openSource(row.registration_source_locator, row.registration_evidence_text, `registration:${row.id}`)}
         onOpenPublication={() => openSource(row.publication_source_locator, row.publication_evidence_text, `publication:${row.id}`)} />)}
     </div>}
@@ -173,6 +209,34 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
       Registration {currentRun.registration_content_hash.slice(0, 12)} · commitment {currentRun.commitment_extraction_version} · retrieval {currentRun.retrieval_version} · comparison {currentRun.comparison_version}
     </div>}
   </section>;
+}
+
+function RegistrationLlmTriageControls({ detail, status, running, triageOnly, hiddenCount, onRun, onView }) {
+  const ready = detail.llm_triage_status?.status === "success";
+  const stale = detail.status === "stale" || detail.llm_triage_status?.status === "stale";
+  return <div className="settings-subsection registration-llm-triage">
+    <div className="settings-row registration-llm-triage-head">
+      <div>
+        <p className="eyebrow">AI triage</p>
+        <div className="settings-sub">Sends only the saved comparison fields and bounded registration/publication passages to your configured model. The model adds reversible display labels; it cannot alter evidence, statuses, or review state.</div>
+      </div>
+      <button className="btn btn-ghost" disabled={running || detail.status === "stale"} onClick={onRun}>
+        {ready ? "Re-triage rows with AI" : "Triage rows with AI"}
+      </button>
+    </div>
+    {running && <ProgressBar label="Triaging comparison rows from bounded evidence…" />}
+    {status && ["unavailable", "failed"].includes(status.status) &&
+      <div className="settings-note settings-note-err">{status.warning || "AI triage is unavailable."}</div>}
+    {stale && <div className="settings-note">Saved AI triage is stale. Re-run the comparison, then triage the new rows.</div>}
+    {ready && !stale && <div className="registration-triage-view">
+      <div className="tags-srcfilter" role="group" aria-label="Registration comparison row view">
+        <button className={"tags-srcfilter-btn" + (!triageOnly ? " on" : "")} onClick={() => onView(false)}>All rows</button>
+        <button className={"tags-srcfilter-btn" + (triageOnly ? " on" : "")} onClick={() => onView(true)}>AI-focused</button>
+      </div>
+      <span className="settings-sub">{triageOnly ? `${hiddenCount} lower-yield row${hiddenCount === 1 ? "" : "s"} hidden from this display.` : "The complete deterministic crosswalk is visible."}</span>
+    </div>}
+    {status?.status === "success" && status.warning && <div className="settings-note">{status.warning}</div>}
+  </div>;
 }
 
 function RegistrationComparisonRow({ row, onUpdated, onOpenRegistration, onOpenPublication }) {
@@ -215,6 +279,12 @@ function RegistrationComparisonRow({ row, onUpdated, onOpenRegistration, onOpenP
       </div>
     </div>
     <div className="registration-comparison-why"><b>Why this was surfaced</b><div>{row.explanation}</div></div>
+    {row.llm_triage && <div className={`registration-row-triage triage-${row.llm_triage.label} ${row.llm_triage.status || "current"}`}>
+      <b>AI triage · {REGISTRATION_TRIAGE_LABELS[row.llm_triage.label] || row.llm_triage.label}</b>
+      {row.llm_triage.rationale && <div>{row.llm_triage.rationale}</div>}
+      {!!(row.llm_triage.concerns || []).length && <div className="settings-sub">Review caveat: {row.llm_triage.concerns.join(" · ")}</div>}
+      <small>Display aid only — not a revised comparison status or a judgment about the paper or authors.</small>
+    </div>}
     <details className="registration-search-scope"><summary>Search scope and uncertainty</summary>
       <div>Expected sections: {(scope.expected_section_families || []).join(", ") || "not applicable"}</div>
       <div>Sections searched: {(scope.sections_searched || []).join(", ") || "none located"}</div>

@@ -997,6 +997,16 @@ uncertain**. Deterministic checks handle explicit differences such as sample-siz
 thresholds, named model families, and named outcomes. If wording needs semantic interpretation, Callosum leaves the row
 not comparable rather than forcing a verdict.
 
+If the saved crosswalk is still current, **Triage rows with AI** can add a reversible reading-order annotation. This
+is an explicit action behind the same AI-features/data-egress setting as other model calls. Callosum sends only the
+saved comparison fields and bounded registration/publication evidence passages—not whole documents, source
+locations, chunk IDs, your notes, or review state. The model can label a row **Prioritize**, **Uncertain**, or
+**Likely lower-yield**; it cannot change the comparison status, either passage, row order, note, or review state.
+Switch between **All rows** and **AI-focused** at any time. The focused view hides only rows carrying a valid
+lower-yield label; missing or malformed labels remain visible. Saved labels record their provider, model, prompt
+version, and evidence fingerprint, and become stale if that basis changes. “Likely lower-yield” is neither dismissal
+nor evidence of compliance, and a successful triage is never a paper or author judgment.
+
 Every row keeps both source passages and locations when available, explains why it surfaced, states uncertainty, and
 lists the sections/expansion/supplement scope searched plus the exact searched chunk/source receipt. If no canonical
 commitment can be extracted, the run shows **extraction uncertain** and does not present an empty crosswalk as a clean
