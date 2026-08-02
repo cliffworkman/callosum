@@ -108,6 +108,21 @@ Sentence-level API responses mark a sentence `flagged` when it has no citations 
 - `dismissed_duplicate_pairs`: canonical `(paper_id_low, paper_id_high)` pairs the user marked "not a duplicate".
 - `jobs` / `job_errors`: durable job schema exists; current async API routers also use in-process `JobStore` state for summarize, axis score/suggest, and duplicate scan jobs.
 
+## Feedback (non-persistent)
+
+Feedback request schema version 1 is defined in `app/backend/feedback/domain.py` as a strict discriminated union of
+bug and feature reports. Both variants require a random `fb_` + 32-hex report ID, timezone-bearing timestamp, title,
+description, component, app version, OS, and installation type. Bug reports additionally carry observed/expected
+behavior, 1–12 reproduction steps, reproducibility, and explicitly reporter-assessed impact. Feature reports carry
+the requested capability, addressed workflow/problem, optional workaround, and why it matters. Optional contact data
+is valid only with `contact_permitted=true`. Unknown fields and arbitrary objects—including Slack blocks, channel,
+and webhook controls—are rejected. Requests are capped at 32 KiB before decoding.
+
+The contract is transported but never stored: the local API validates and forwards it to a fixed relay; the hosted
+relay validates again and gives the domain model to an injected `FeedbackPublisher`. Success means that publisher
+confirmed publication. There is no database table, migration, successful-report retention, durable outbox, device
+identifier, or automatic diagnostic attachment.
+
 ## Honesty Contracts
 
 - `coordinate_precision=exact`: draw only the stored rectangles.

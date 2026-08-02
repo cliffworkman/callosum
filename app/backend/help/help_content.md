@@ -18,7 +18,7 @@ Start by:
 ## Finding your way around
 Callosum has three panes, plus a **menu bar** across the top of the center pane that switches **workspaces** (what you're doing right now):
 
-- **Menu bar (top of the center pane):** switch between **My Publications** (your publications + impact), **Library** (your collection + open PDFs), **Synthesize** (Ask, Critique, and Meta-Preregistration), **Discover** (Feed, Search, Wanted, Gaps, Overlooked, Journals, Funding), and **Work** (Cite, Meta-Reference, CRediT, Meta-Analyze — citing, reference-list analysis, credit statements, and meta-analysis dataset prep). **Help**, **Settings**, and the **Status** popover sit at the right of the menu bar.
+- **Menu bar (top of the center pane):** switch between **My Publications** (your publications + impact), **Library** (your collection + open PDFs), **Synthesize** (Ask, Critique, and Meta-Preregistration), **Discover** (Feed, Search, Wanted, Gaps, Overlooked, Journals, Funding), and **Work** (Cite, Meta-Reference, CRediT, Meta-Analyze — citing, reference-list analysis, credit statements, and meta-analysis dataset prep). **Help**, **Settings**, **Feedback**, and the **Status** popover sit at the right of the menu bar.
 - **Left pane:** an **accordion** with **Axes** (plus a **Tags** tab — your labels alongside your conceptual lenses), the reading queue, and review/findings sections — click a section header to open it (one at a time).
 - **Right pane:** a **Details** accordion — the editable bibliographic info for the paper you've selected (a hint until you select one).
 
@@ -33,7 +33,7 @@ Tips:
 - Select a paper once to inspect its metadata in **Details** (right pane).
 - Double-click a paper in the Library to open its PDF.
 - Click paper titles inside an axis to open their PDFs and follow them in Details.
-- **Help** and **Settings** are on the menu bar (top-right of the center pane).
+- **Help**, **Settings**, and **Feedback** are on the menu bar (top-right of the center pane).
 
 <!-- section: importing-from-zotero -->
 ## Importing your library from Zotero
@@ -1422,6 +1422,29 @@ is clean.
 WIP is local-only. It is hidden from read-only/remote views, excluded from cross-device sync, and never sent to an
 AI provider by these workspace features. A teal treatment plus a visible **WIP** badge distinguishes unpublished
 manuscripts from papers in tabs, Details, and Synthesize/Discover/Work context cues.
+
+<!-- section: sending-feedback -->
+## Sending a bug report or feature request
+
+Choose **Feedback** at the right side of the workspace menu (or beside the mobile Workspace selector). Select **Bug
+report** or **Feature request**, fill in the relevant fields, and review **Exact transmission preview** before pressing
+**Submit report**. Callosum sends exactly that displayed JSON to a Callosum-controlled relay outside your device; the
+desktop never connects to Slack directly. You can edit the reported Callosum version, operating system, packaging
+type, component, and all report text. The random report ID and creation timestamp are displayed with the preview.
+
+Contact information is optional. It is included only when you check that the Callosum team may contact you. Your
+report never automatically includes PDF contents, extracted text, citations or references, manuscript/library item
+titles, watched folders, local paths or usernames, database rows, keys/tokens/environment variables, clipboard or
+search history, prompts/responses, application logs, stack traces, or a persistent machine/device identifier.
+
+Callosum shows success only after the hosted relay confirms publication, together with the report ID. If the service
+is unavailable, times out, rate-limits you, or rejects the report, the dialog says that submission was not confirmed
+and keeps your entered text available for **Retry submission** or **Copy exact report**. It does not silently retry,
+create a durable outbox, or retain the report after you close the dialog. When reporting is not configured, drafting
+and copying remain available but submission is disabled.
+
+Do not paste secrets, unpublished material, or sensitive vulnerability details into an ordinary report. GitHub issue
+creation and automatic diagnostic attachments are not part of this version.
 
 <!-- section: privacy-and-data-egress -->
 ## Privacy and data egress

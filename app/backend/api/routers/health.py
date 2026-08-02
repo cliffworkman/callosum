@@ -84,6 +84,11 @@ class HealthResponse(BaseModel):
     app_version: str | None = None
 
 
+def reported_app_version() -> str | None:
+    """One release/version label shared by health and explicit low-risk feedback metadata."""
+    return os.getenv("CALLOSUM_APP_VERSION") or _dev_git_version()
+
+
 def _database_status(conn: Connection) -> tuple[bool, bool, str | None, str | None]:
     """(reachable, at_head, current_revision, head_revision).
 
@@ -118,5 +123,5 @@ def health(conn: Connection = Depends(get_connection)) -> HealthResponse:
         db_head_revision=head,
         read_only=app_settings.read_only_mode(),
         onboarding_completed=app_settings.stored_onboarding_completed(),
-        app_version=os.getenv("CALLOSUM_APP_VERSION") or _dev_git_version(),
+        app_version=reported_app_version(),
     )

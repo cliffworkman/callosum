@@ -75,6 +75,7 @@ function MenuBar({ active, onActivate, readOnly, mobile, onStatusNavigate, deskt
               {utils.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
             </optgroup>}
         </select>
+        <FeedbackLauncher compact />
         <StatusMenu onNavigate={onStatusNavigate} desktopUpdate={desktopUpdate} />
       </div>
     );
@@ -89,6 +90,7 @@ function MenuBar({ active, onActivate, readOnly, mobile, onStatusNavigate, deskt
       <nav className="menubar-nav" role="tablist" aria-label="Workspaces">{primary.map(item)}</nav>
       <div className="menubar-utils">
         {utils.map(item)}
+        <FeedbackLauncher />
         <StatusMenu onNavigate={onStatusNavigate} desktopUpdate={desktopUpdate} />
       </div>
     </div>

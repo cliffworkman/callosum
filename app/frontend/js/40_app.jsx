@@ -239,6 +239,7 @@ function App() {
     if (nav.modal === "scan") setScanOpen(true);
     if (nav.modal === "import") setImportOpen(true);
     if (nav.modal === "bundle-import") setBundleImportOpen(true);
+    if (nav.modal === "feedback") window.dispatchEvent(new Event("callosum:open-feedback"));
   }, [gotoLibrary, libraryBits, mobile, openSynthesisSummary, requestWorkspaceTab, selectWorkspace, setMethodsOpen, setMobilePane, setTheoryOpen]);
   // backlog #26 (F1 discoverability): jump from PUBLISHERS ("Where to submit") to the CRediT builder — both
   // already operate on the same globally-selected paper, so no re-select is needed, just a workspace/tab switch.

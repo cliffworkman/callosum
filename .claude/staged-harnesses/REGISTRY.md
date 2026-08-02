@@ -19,7 +19,7 @@ activating it means moving its config into the live location named in its own fi
 | [`hypothesis.md`](hypothesis.md) | Property-based tests on gnarly pure functions | Per-target: next time `paper_edits` merge, the dedup union-find, citation export, or quote-matching is touched | drafted |
 | [`embedding-drift.md`](embedding-drift.md) | Vector-schema versioning + re-index path | Before changing the embedding model (`all-MiniLM-L6-v2` / `bge-base-en-v1.5`) | drafted |
 | [`performance-monitoring.md`](performance-monitoring.md) | Query latency + storage growth | A real library crosses ~1-2k PDFs | drafted |
-| [`bandit.md`](bandit.md) | Security static analysis (Python) | Before any public/hosted exposure, or when adding a new network or file-write surface | drafted |
+| Bandit (`pyproject.toml`, `.bandit-baseline.json`, CI, pre-commit) | Security static analysis (Python; ratcheted against the reviewed activation baseline) | Fired by the hosted feedback relay (inc 439) | **active** |
 
 ## Why these stayed dormant instead of turning on now
 

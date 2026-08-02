@@ -809,6 +809,39 @@
   }
   .axis-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; margin-bottom: 8px; }
   .axis-modal-note { font-size: 11.5px; color: var(--ink-3); line-height: 1.45; margin: 8px 0 6px; }
+  /* inc 439: explicit feedback egress. Reuses the canonical modal, form, button, and Status recipes. */
+  .feedback-overlay { z-index: 90; }
+  .feedback-modal { width: min(900px, 96vw); max-height: 92vh; padding: 18px 20px; }
+  .feedback-head { align-items: flex-start; }
+  .feedback-head h2 { margin: 0 0 3px; color: var(--ink); font-size: 16px; }
+  .feedback-head p { margin: 0; color: var(--ink-3); font-size: 11.5px; }
+  .feedback-privacy { margin: 8px 0 12px; padding: 8px 10px; border: 1px solid var(--accent-line); border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--ink-2); font-size: 11.5px; line-height: 1.5; }
+  .feedback-type-tabs { display: flex; gap: 18px; margin: 0 0 8px; padding: 0; border: 0; color: var(--ink-2); font-size: 12px; }
+  .feedback-type-tabs legend { float: left; margin-right: 14px; color: var(--ink-3); font-size: 11px; }
+  .feedback-type-tabs label, .feedback-contact > label { display: inline-flex; align-items: center; gap: 5px; }
+  .feedback-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  .feedback-textarea { resize: vertical; min-height: 66px; line-height: 1.45; }
+  .feedback-metadata, .feedback-preview { margin: 10px 0; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel-2); }
+  .feedback-metadata > summary, .feedback-preview > summary { padding: 7px 9px; color: var(--ink-2); font-size: 11.5px; cursor: pointer; }
+  .feedback-metadata[open] > summary, .feedback-preview[open] > summary { border-bottom: 1px solid var(--line); }
+  .feedback-metadata > .feedback-grid, .feedback-readonly-meta { padding: 0 9px; }
+  .feedback-readonly-meta { padding-bottom: 8px; color: var(--ink-3); font-size: 10.5px; overflow-wrap: anywhere; }
+  .feedback-readonly-meta code, .feedback-state code { font-family: var(--mono); }
+  .feedback-contact { margin: 10px 0; color: var(--ink-2); font-size: 11.5px; }
+  .feedback-contact .settings-field { margin-left: 22px; }
+  .feedback-preview pre { max-height: 260px; overflow: auto; margin: 0; padding: 10px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink-2); font: 10.5px/1.45 var(--mono); }
+  .feedback-state { margin: 8px 0; padding: 7px 9px; border-radius: var(--radius-sm); background: var(--panel-2); color: var(--ink-2); font-size: 11.5px; line-height: 1.45; }
+  .feedback-state.success { color: var(--verified); border: 1px solid var(--verified); }
+  .feedback-state.error, .feedback-state.unavailable { color: var(--flag-ink); border: 1px solid var(--flag-line); background: var(--flag-soft); }
+  .feedback-actions { align-items: center; margin-top: 12px; }
+  .feedback-action-spacer { flex: 1; }
+  @media (max-width: 680px) {
+    .feedback-overlay { padding: 8px; }
+    .feedback-modal { width: 100%; max-height: 96vh; padding: 14px; }
+    .feedback-grid { grid-template-columns: 1fr; }
+    .feedback-actions { flex-wrap: wrap; }
+    .feedback-action-spacer { flex-basis: 100%; height: 0; }
+  }
   /* inc 254: remote-access LOCKOUT recovery overlay. Reuses the .axis-modal shell (backdrop/card/shadow/radius);
      only the lockout-specific bits are new. Amber (--flag) = the unresolved/locked status color (DESIGN §4). */
   .lockout-card { width: min(520px, 94vw); }

@@ -11,6 +11,10 @@ Callosum is a working local-first MVP at Increment 73. It runs as a localhost Fa
 - Retrieval and clustering: local embedding retrieval plus scikit-learn agglomerative clustering, axis scoring, duplicate detection, and c-TF-IDF tag/axis suggestions.
 - Summarization: Gemini `gemini-2.5-flash-lite` is optional, off by default, and used only to propose summary sentences/candidate citations. Local verification is authoritative.
 - Frontend: `app/frontend/` contains `index.html`, `styles.css`, and ordered `js/*.jsx` React chunks. `app/backend/api/frontend.py` assembles them for FastAPI; `tools/build_frontend.py` rebuilds `callosum-app.html`.
+- Feedback: `app/backend/feedback/` owns the shared strict schema and fixed-destination local relay client;
+  `feedback_relay/` is a separately deployed FastAPI service with rate limiting and a generic publisher protocol.
+  Only the hosted service imports the Slack publisher/webhook configuration, so Tauri staging contains no Slack
+  credential or publication code.
 
 ## Backend Modules
 
@@ -42,3 +46,8 @@ External LLM output is never final citation evidence. Summary generation propose
 ## Local-First Boundary
 
 Extraction, embeddings, retrieval, clustering, duplicate detection, tag suggestion, citation verification, and PDF display are local. Gemini calls are blocked unless `CALLOSUM_ALLOW_DATA_EGRESS` is explicitly set to `1`, `true`, or `yes`; the authoritative wrapper is `app/backend/llm/egress.py`.
+
+Feedback is a separate, explicit, previewed egress channel. The React dialog sends the displayed version-1 JSON to
+the local `/feedback/reports` proxy; that proxy can reach only `CALLOSUM_FEEDBACK_RELAY_URL`. The hosted relay repeats
+strict validation, rate-limits by verified account or IP, and invokes `FeedbackPublisher`. Slack is the sole current
+publisher. No feedback content is persisted, automatically retried, or derived from library/WIP/PDF state.

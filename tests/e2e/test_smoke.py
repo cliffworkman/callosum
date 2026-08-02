@@ -10,6 +10,7 @@ manual checks used to verify by hand.
 
 from __future__ import annotations
 
+import json
 import os
 import socket
 import subprocess
@@ -134,6 +135,117 @@ def test_reading_mode_keeps_center_visible_and_does_not_persist_panel_collapse(s
         assert page.evaluate("localStorage.getItem('callosum.leftOpen')") != "0"
         assert page.evaluate("localStorage.getItem('callosum.rightOpen')") != "0"
         assert page.evaluate("localStorage.getItem('callosum.readingMode')") is None
+        browser.close()
+
+
+def test_feedback_dialog_end_to_end_states(server: str):
+    """A bounded browser flow with a mock local relay: bug retry, feature success, disabled state, and focus."""
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+
+        capability = {
+            "enabled": True,
+            "schema_version": 1,
+            "report_id": "fb_1234567890abcdef1234567890abcdef",
+            "app_version": "0.3.8",
+            "operating_system": "Windows 11",
+            "installation_type": "tauri",
+        }
+        page = browser.new_page()
+        errors = _mount_app(page, server)
+        page.route("**/feedback/capability", lambda route: route.fulfill(json=capability))
+        attempts: list[dict] = []
+        pending: list[object] = []
+
+        def submit_bug(route):
+            attempts.append(route.request.post_data_json)
+            if len(attempts) == 1:
+                pending.append(route)
+            else:
+                route.fulfill(
+                    status=201, json={"ok": True, "report_id": capability["report_id"], "status": "published"}
+                )
+
+        page.route("**/feedback/reports", submit_bug)
+        launcher = page.get_by_role("button", name="Feedback").first
+        launcher.click()
+        dialog = page.get_by_role("dialog", name="Report a bug or request a feature")
+        assert dialog.get_attribute("aria-modal") == "true"
+        page.get_by_label("Title").fill("PDF viewer stays blank")
+        page.get_by_label("Brief description").fill("The PDF tab opens but no page is rendered.")
+        page.get_by_label("What happened").fill("The viewer remains blank after reopening the tab.")
+        page.get_by_label("What you expected").fill("The previously selected PDF should render normally.")
+        page.get_by_label("Reproduction steps").fill("Open a manuscript\nOpen a PDF\nClose and reopen the PDF")
+        preview = json.loads(page.locator(".feedback-preview pre").inner_text())
+        assert preview["report_type"] == "bug"
+        assert preview["report_id"] == capability["report_id"]
+        assert preview["app_version"] == "0.3.8"
+        assert {"pdf_contents", "logs", "local_paths", "library_contents"}.isdisjoint(preview)
+
+        submit = page.get_by_role("button", name="Submit report")
+        submit.click()
+        page.wait_for_function("() => document.querySelector('.feedback-actions button[type=submit]')?.disabled")
+        assert len(attempts) == 1
+        pending[0].fulfill(
+            status=503,
+            json={
+                "ok": False,
+                "report_id": capability["report_id"],
+                "error": {"code": "feedback_service_unavailable", "message": "Feedback service unavailable."},
+            },
+        )
+        page.get_by_text("Feedback service unavailable.").wait_for()
+        assert page.get_by_label("Title").input_value() == "PDF viewer stays blank"
+        page.get_by_role("button", name="Retry submission").click()
+        page.get_by_text("Submitted successfully.").wait_for()
+        assert len(attempts) == 2
+        assert attempts[0] == attempts[1]
+        errors = [error for error in errors if "status of 503" not in error]
+        assert errors == []
+
+        feature = browser.new_page()
+        feature_errors = _mount_app(feature, server)
+        feature.route("**/feedback/capability", lambda route: route.fulfill(json=capability))
+        submitted_features: list[dict] = []
+
+        def submit_feature(route):
+            submitted_features.append(route.request.post_data_json)
+            route.fulfill(status=201, json={"ok": True, "report_id": capability["report_id"], "status": "published"})
+
+        feature.route("**/feedback/reports", submit_feature)
+        feature_launcher = feature.get_by_role("button", name="Feedback").first
+        feature_launcher.click()
+        feature.get_by_label("Feature request").check()
+        feature.get_by_role("button", name="Submit report").click()
+        feature.get_by_text("Please add a title").wait_for()
+        feature.get_by_label("Title").fill("Add a compact reading timer")
+        feature.get_by_label("Brief description").fill("An optional timer would support focused reading sessions.")
+        feature.get_by_label("Requested capability").fill("Provide an optional timer in the PDF reader.")
+        feature.get_by_label("Problem or workflow").fill("I currently leave Callosum to time focused reading sessions.")
+        feature.get_by_label("Why this matters").fill("It would keep focused reading work in one place.")
+        feature.get_by_role("button", name="Submit report").click()
+        feature.get_by_text("Submitted successfully.").wait_for()
+        assert submitted_features[0]["report_type"] == "feature"
+        assert "actual_behavior" not in submitted_features[0]
+        feature.keyboard.press("Escape")
+        assert feature.get_by_role("dialog").count() == 0
+        assert feature_launcher.evaluate("el => el === document.activeElement")
+        assert feature_errors == []
+
+        disabled = browser.new_page()
+        disabled_errors = _mount_app(disabled, server)
+        disabled.route("**/feedback/capability", lambda route: route.fulfill(json={**capability, "enabled": False}))
+        disabled_launcher = disabled.get_by_role("button", name="Feedback").first
+        disabled_launcher.click()
+        disabled.get_by_text("Feedback submission is unavailable").wait_for()
+        assert disabled.get_by_role("button", name="Submit report").is_disabled()
+        disabled.keyboard.press("Escape")
+        assert disabled.get_by_role("dialog").count() == 0
+        assert disabled_launcher.evaluate("el => el === document.activeElement")
+        assert disabled_errors == []
         browser.close()
 
 

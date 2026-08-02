@@ -9,6 +9,28 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-08-02 inc 439 — explicit feedback workflow and privacy/failure behavior -->
+
+## 2026-08-02 — Increment 439: explicit in-app feedback through a hosted Slack relay
+
+- **Files:** feedback schema/local proxy/dialog; separate hosted relay/publisher; Slack formatter; config/security
+  harness; backend/frontend/browser tests; help/architecture/ops/privacy/security/QA/increment documentation.
+- **What:** added editable bug/feature forms with exact JSON preview and confirmed success; a fixed-destination local
+  proxy; a strict, rate-limited hosted relay with a generic publisher protocol; and a server-only Slack incoming-
+  webhook implementation using neutralized `plain_text` blocks. Failures preserve the open report for explicit retry
+  or copy; no feedback persistence/outbox or automatic diagnostic attachment was added.
+- **Why:** users need a discoverable support channel without distributing Slack authority or silently exporting the
+  sensitive scholarly/local context Callosum handles. A generic server publisher seam keeps future GitHub/Slack-bot
+  work independent of the submission workflow.
+- **Security:** both boundaries cap/validate strict schema-1 JSON; no client destination control; per-account/IP
+  limits; bounded timeouts; no body/contact/secret logging; mass/entity/group/link Slack controls neutralized. Bandit
+  is now a baseline-ratcheted CI/pre-commit gate; the new code has zero findings.
+- **Verify:** focused domain/local/relay/frontend suites, in-process vertical path, real Chromium retry/feature/
+  disabled/accessibility flow, full suite, Ruff, frontend build, line budget, QA map, Bandit, audits, and secret/diff
+  scans are recorded with exact results in `INCREMENT-439-NOTES.md`.
+- **Revert:** remove inc-439 UI/API/relay/config/tests/docs and Bandit activation, rebuild frontend/lockfile; no DB or
+  user-data rollback.
+
 ## 2026-08-01 — Increment 438: make axis scoring immune to duplicate embeddings
 
 - **Files:** axis scoring, its focused regression, the Axes QA route, and project/increment documentation.

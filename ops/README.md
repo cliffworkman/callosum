@@ -9,6 +9,8 @@ Implemented local operations are simple:
 - Run tests with `pytest`.
 - Apply migrations with `alembic upgrade head` when needed; the app also checks migrations on startup.
 - Keep secrets in environment variables such as `GOOGLE_API_KEY`, `CALLOSUM_DB_URL`, and `CALLOSUM_ALLOW_DATA_EGRESS`.
+- Deploy the optional hosted feedback relay separately; its Slack secret and abuse controls are documented in
+  [`feedback_relay/README.md`](../feedback_relay/README.md). The relay is not part of the desktop sidecar.
 
 Packaging, desktop distribution, OS keychain integration, and GROBID service operations are planned or
 exploratory, not implemented here — tracked under **"Packaging & distribution (post-V1)"** (Theme 4) in

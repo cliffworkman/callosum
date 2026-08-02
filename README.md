@@ -105,7 +105,8 @@ then it works offline. The SQLite database auto-migrates to the latest schema on
 
 ## Configuration & privacy
 
-Everything is local by default. The only data that can leave your machine is **AI generation you turn on**.
+Everything is local by default. Data leaves only through an explicit feature you invoke: configured AI generation,
+opt-in encrypted sync, or a feedback report whose exact payload you review before submitting.
 
 | Setting | Effect |
 |---|---|
@@ -113,11 +114,20 @@ Everything is local by default. The only data that can leave your machine is **A
 | `CALLOSUM_ALLOW_DATA_EGRESS` = `1`/`true`/`yes` | Consent gate for AI **summary generation** (off by default). |
 | `CALLOSUM_HELP_ASSISTANT_ENABLED` | Separate gate for the AI help assistant (sends only the question + public help docs, never your library). |
 | `CALLOSUM_LIBRARY_DIR` | The watched library folder (default: `library/`). |
+| `CALLOSUM_FEEDBACK_RELAY_URL` | Optional fixed HTTPS Callosum feedback relay endpoint. The Slack secret never belongs in the desktop. |
 
 **BYOK from the UI:** you can also set your API key + provider and toggle AI features in **Settings → AI features**
 (stored in your OS keychain or a local file under `~/.callosum/`, never in the repo, never returned over the wire).
 Public-metadata lookups (Crossref/OpenAlex) are not the AI gate — set a contact email in **Settings → Metadata
 access** for the polite pool.
+
+**Feedback:** choose **Feedback** at the right of the workspace menu to report a bug or request a feature. The dialog
+shows the exact JSON that will leave the device and lets you edit every report/system field before submitting. It
+never automatically includes PDFs, library/manuscript/citation data, paths, logs, prompts, or a device identifier.
+Contact information is optional and is sent only with the follow-up-permission checkbox. Failed reports stay in the
+open dialog for explicit retry or copy; Callosum does not keep a feedback outbox. The desktop talks only to a fixed
+Callosum relay—never Slack—and success is shown only after publication is confirmed. Relay deployment and webhook
+rotation are documented in [`feedback_relay/README.md`](feedback_relay/README.md).
 
 ### Choosing a stable database location
 

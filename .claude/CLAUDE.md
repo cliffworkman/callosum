@@ -21,8 +21,8 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 438** (see Increment workflow) with **1788 pytest tests
-passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
+It is currently at **Increment 439** (see Increment workflow) with **1830 root-suite pytest tests
+passing** (+ 10 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
 the full per-increment narrative for all other increments now lives in the relocated
@@ -34,6 +34,11 @@ the full per-increment narrative for all other increments now lives in the reloc
 - **Vectors:** `sqlite-vec` (in-process, no separate daemon) + sentence-transformers
   (default embed model `all-MiniLM-L6-v2`; `bge-base-en-v1.5` also supported).
 - **Clustering:** scikit-learn agglomerative clustering + local axis scoring.
+- **Explicit feedback (inc 439):** the top-menu Feedback dialog builds either a bug or feature report and shows the
+  exact strict version-1 JSON before explicit egress. The local API can reach only `CALLOSUM_FEEDBACK_RELAY_URL`; the
+  separately deployed `feedback_relay/` repeats validation, rate-limits by existing verified account or source IP,
+  and injects a generic publisher. Slack webhook/config/formatting stays server-only and uses neutralized plain-text
+  blocks. No scholarly diagnostics, persistence/outbox, silent retry, device identifier, or GitHub publisher exists.
 - **Axis-scoring identity (inc 438):** the deterministic scoring stream is one row per paper even if a long-lived
   database contains duplicate current embedding records from overlapping first-time jobs. Scoring keeps the strongest
   hit per paper and breaks identical-vector ties by the oldest embedding id before assignment/status calculation, so
@@ -671,7 +676,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 435). Each increment of real work
+callosum is built in **numbered increments** (currently at 439). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

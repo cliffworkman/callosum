@@ -38,6 +38,7 @@ from app.backend.api.routers import (
     discovery,
     duplicates,
     feed,
+    feedback,
     findings,
     fulltext,
     funding,
@@ -95,6 +96,7 @@ from app.backend.discovery.feed import FeedRegistry, build_default_feed_registry
 from app.backend.discovery.providers import SourceRegistry, build_default_registry
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import VectorStore
+from app.backend.feedback.relay_client import FeedbackRelayClient, HttpFeedbackRelayClient
 from app.backend.help.assistant import HelpAssistant
 from app.backend.methods.retraction import DEFAULT_CHECKERS as DEFAULT_RETRACTION_CHECKERS
 from app.backend.persistence.database import make_engine
@@ -148,6 +150,7 @@ def create_app(
     registration_acquisition_registry: RegistrationAcquisitionRegistry | None = None,
     oidc_client: OidcClient | None = None,
     sync_transport: object | None = None,
+    feedback_relay_client: FeedbackRelayClient | None = None,
 ) -> FastAPI:
     resolved_db_url = db_url or os.environ.get("CALLOSUM_DB_URL", DEFAULT_DB_URL)
     resolved_frontend_path = _resolve_frontend_path(frontend_path)
@@ -255,6 +258,7 @@ def create_app(
     api.state.sync_transport = (
         sync_transport  # SP3b: a test injects one bound to the in-process server; else built per-run
     )
+    api.state.feedback_relay_client = feedback_relay_client or HttpFeedbackRelayClient.from_env()
 
     api.add_middleware(
         CORSMiddleware,
@@ -293,6 +297,7 @@ def create_app(
         return _assembly_unavailable_response()
 
     api.include_router(health.router)
+    api.include_router(feedback.router)  # explicit, bounded proxy to the separately hosted feedback relay
     api.include_router(duplicates.router)  # before papers so "/papers/duplicates*" wins over "/papers/{paper_id}"
     api.include_router(acquisition.router)  # before papers so "/papers/acquire-oa*" wins over "/papers/{paper_id}"
     api.include_router(fulltext.router)  # before papers so "/papers/fulltext" wins over "/papers/{paper_id}" (inc 209)

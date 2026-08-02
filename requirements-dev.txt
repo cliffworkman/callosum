@@ -18,6 +18,7 @@ httpx2>=2,<3  # starlette 1.x (inc 305) prefers httpx2 under TestClient and warn
 # Pin ruff EXACTLY: its 0.x minor releases change lint/format behavior (an unpinned `>=0.9,<1` let CI grab
 # 0.15.x, which flagged import-ordering the dev version accepted → red CI). Bump deliberately, reformatting then.
 ruff==0.9.6
+bandit>=1.8,<2  # hosted feedback relay activates the staged Python security scan (inc 439)
 pip-audit>=2.7
 pre-commit>=4  # `.pre-commit-config.yaml` — install the hook with `pre-commit install`
 playwright>=1.40

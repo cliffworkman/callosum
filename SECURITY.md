@@ -18,6 +18,13 @@ internal security-review discipline before it ships (`.claude/security-audits/` 
 each ending in an explicit PASS or a recorded, accepted risk). That's project-internal process, not a public
 guarantee, but it's why the project can say plainly what has and hasn't been reviewed.
 
+The optional in-app **Feedback** action is an explicit egress surface to a separately hosted relay. The desktop never
+contains the private Slack webhook and cannot choose a destination. The relay strictly validates and size-limits
+reports, neutralizes Slack mentions/markup, and rate-limits verified accounts or anonymous source IPs. Because a
+distributed desktop secret would not authenticate clients, anonymous spam remains a documented residual risk; see
+[`feedback_relay/README.md`](feedback_relay/README.md). Do not put credentials, unpublished material, or sensitive
+vulnerability details into an ordinary feedback report.
+
 ## Reporting a vulnerability
 
 <!-- TODO(maintainer): add a preferred private contact (email, or enable GitHub's private vulnerability
