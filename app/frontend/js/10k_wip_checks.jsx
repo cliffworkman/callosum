@@ -1,4 +1,4 @@
-// WIP deterministic checks (statcheck + transparency; inc 403/404 add funding-discovery/journal-fit receipts).
+// WIP deterministic checks (statcheck + transparency + LMM reporting; inc 403/404 add funding/journal receipts).
 // WipChecks itself is presentational (given data via props) so it can be mounted
 // from two places: WipDetails' own "Checks" tab (10f_wip.jsx, the WIP tab's own home) and, as of inc 402, the
 // Methods panel's "Statistics" section (self-fetching wrapper below) -- both read/write the same manuscript-scoped
@@ -46,6 +46,10 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
           onClick={() => runCheck("transparency", "Transparency check could not run.")}>
           {runningTool === "transparency" ? "Checking…" : "Check transparency"}
         </button>
+        <button className="axis-btn" disabled={running}
+          onClick={() => runCheck("lmm", "Mixed-model reporting audit could not run.")}>
+          {runningTool === "lmm" ? "Auditing…" : "Audit LMM reporting"}
+        </button>
       </div>
     </div>
     {running && <ProgressBar />}
@@ -54,7 +58,7 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
       No checks run yet. An empty history is not a clean manuscript.
     </p> : checks.runs.map(run => <div className="wip-tool-run" key={run.id}>
       <div className="wip-tool-run-head">
-        <strong>{run.tool_id === "transparency" ? "Transparency" : "Statcheck"}</strong>
+        <strong>{wipToolLabel(run.tool_id)}</strong>
         <span className={`wip-identity-${run.validity}`}>{run.validity.replace(/-/g, " ")}</span>
         <time>{wipWhen(run.executed_at)}</time>
       </div>
@@ -62,6 +66,8 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
       <small>v{run.tool_version} · snapshot {run.snapshot_id} · {run.coverage}</small>
       <div><button className="btn-link" onClick={() => openSourceFile(run.file_id)}>Open source file</button></div>
       {run.tool_id === "transparency" && <WipTransparencyResult run={run}
+        onOpenSource={() => openSourceFile(run.file_id)} />}
+      {run.tool_id === "lmm" && <WipLmmResult run={run}
         onOpenSource={() => openSourceFile(run.file_id)} />}
       {(run.findings || []).filter(finding => finding.kind === "candidate").map(finding => <div className="wip-finding-row" key={finding.id}>
         <div>
@@ -75,9 +81,10 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
           {["open", "acknowledged", "resolved", "dismissed", "false-positive", "deferred", "superseded"]
             .map(value => <option key={value} value={value}>{value.replace(/-/g, " ")}</option>)}
         </select>
-        <blockquote>{finding.quote}</blockquote>
-        <p>{finding.context}</p>
-        <small>Reported {finding.details_json.reported_p}; recomputed p = {finding.details_json.computed_p}</small>
+        {finding.quote && <blockquote>{finding.quote}</blockquote>}
+        {finding.context && <p>{finding.context}</p>}
+        {finding.finding_type.startsWith("statcheck-") &&
+          <small>Reported {finding.details_json.reported_p}; recomputed p = {finding.details_json.computed_p}</small>}
       </div>)}
     </div>)}
     <div className="wip-checkpoint-heading">
@@ -101,6 +108,12 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
   </section>;
 }
 
+function wipToolLabel(toolId) {
+  if (toolId === "transparency") return "Transparency";
+  if (toolId === "lmm") return "Mixed-model reporting";
+  return "Statcheck";
+}
+
 function WipTransparencyResult({ run, onOpenSource }) {
   const checks = (run.structured_result_json || {}).checks || [];
   if (!checks.length) return null;
@@ -113,9 +126,24 @@ function WipTransparencyResult({ run, onOpenSource }) {
   </div>;
 }
 
-// The Checklists → Transparency surface for a WIP manuscript. It reads the same stored run as the manuscript's own
-// Checks tab, while keeping Library-wide paper checks and registration workflows out of manuscript context.
-function WipTransparencySection({ manuscript, ctx }) {
+function WipLmmResult({ run, onOpenSource }) {
+  const result = run.structured_result_json || {};
+  if (!result.is_lmm) return <div className="statcheck-caveat">
+    No linear mixed-model language was detected, so the seven-item reporting checklist was not applied. This does
+    not prove the manuscript uses no mixed model.
+  </div>;
+  return <div className="wip-lmm-result">
+    <LmmChecklist checks={result.checks || []} onOpen={onOpenSource} />
+    <div className="statcheck-caveat">
+      Each “not found” row is retained as a reviewable candidate, not a claim that reporting is absent. Review
+      dispositions are available in the WIP Checks tab.
+    </div>
+  </div>;
+}
+
+// Shared self-fetching shell for WIP checklist tools. It reads the same stored run as the manuscript's own Checks
+// tab while keeping Library-wide paper batches and paper-only workflows out of manuscript context.
+function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText, selectText, renderResult }) {
   const manuscriptId = manuscript ? manuscript.id : null;
   const [checks, setChecks] = useState({ tools: [], runs: [] });
   const [state, setState] = useState({ status: "idle" });
@@ -130,7 +158,7 @@ function WipTransparencySection({ manuscript, ctx }) {
   }, [manuscriptId, ctx.wipRefresh]);
   const start = async () => {
     setState({ status: "running" });
-    const result = await apiPost(`/wip/manuscripts/${manuscriptId}/checks/transparency`, {});
+    const result = await apiPost(`/wip/manuscripts/${manuscriptId}/checks/${toolId}`, {});
     if (!result.ok) return setState({ status: "error", error: result.error });
     setChecks(current => ({ ...current, runs: [result.data, ...(current.runs || [])] }));
     setState({ status: "done" });
@@ -140,32 +168,50 @@ function WipTransparencySection({ manuscript, ctx }) {
     const result = await apiPost(`/wip/manuscripts/${manuscriptId}/files/${fileId}/open`, {});
     if (!result.ok) setState({ status: "error", error: result.error || "Could not open the source file." });
   };
-  if (manuscriptId == null) return <div className="axis-hint">Select a WIP manuscript to check its disclosures.</div>;
-  const latest = (checks.runs || []).find(run => run.tool_id === "transparency");
+  if (manuscriptId == null) return <div className="axis-hint">{selectText}</div>;
+  const latest = (checks.runs || []).find(run => run.tool_id === toolId);
   return <div className="detail-statcheck">
     <span className="detail-cite-label">{manuscript.display_title || manuscript.derived_title || "This manuscript"}</span>
     <div className="settings-actions">
       <button className="btn btn-primary" disabled={state.status === "running"} onClick={start}>
-        {state.status === "running" ? "Checking…" : latest ? "Check disclosures again" : "Check disclosures"}
+        {state.status === "running" ? labels.running : latest ? labels.again : labels.first}
       </button>
     </div>
-    {state.status === "running" && <ProgressBar label="Checking manuscript disclosures…" />}
-    {state.status === "error" && <div className="axis-err">Transparency check failed: {state.error}</div>}
+    {state.status === "running" && <ProgressBar label={labels.progress} />}
+    {state.status === "error" && <div className="axis-err">{labels.error}: {state.error}</div>}
     {!latest && state.status !== "running" && <p className="axis-hint">
-      No transparency check run yet. An empty history is not a clean manuscript.
+      {emptyText}
     </p>}
     {latest && <div className="wip-tool-run">
       <div className="wip-tool-run-head">
-        <strong>Transparency</strong>
+        <strong>{label}</strong>
         <span className={`wip-identity-${latest.validity}`}>{latest.validity.replace(/-/g, " ")}</span>
         <time>{wipWhen(latest.executed_at)}</time>
       </div>
       <p>{latest.result_summary}</p>
       <small>v{latest.tool_version} · snapshot {latest.snapshot_id} · {latest.coverage}</small>
       <div><button className="btn-link" onClick={() => openSource(latest.file_id)}>Open source file</button></div>
-      <WipTransparencyResult run={latest} onOpenSource={() => openSource(latest.file_id)} />
+      {renderResult(latest, () => openSource(latest.file_id))}
     </div>}
   </div>;
+}
+
+function WipTransparencySection({ manuscript, ctx }) {
+  return <WipChecklistSection manuscript={manuscript} ctx={ctx} toolId="transparency" label="Transparency"
+    labels={{ first: "Check disclosures", again: "Check disclosures again", running: "Checking…",
+      progress: "Checking manuscript disclosures…", error: "Transparency check failed" }}
+    emptyText="No transparency check run yet. An empty history is not a clean manuscript."
+    selectText="Select a WIP manuscript to check its disclosures."
+    renderResult={(run, openSource) => <WipTransparencyResult run={run} onOpenSource={openSource} />} />;
+}
+
+function WipLmmSection({ manuscript, ctx }) {
+  return <WipChecklistSection manuscript={manuscript} ctx={ctx} toolId="lmm" label="Mixed-model reporting"
+    labels={{ first: "Audit reporting", again: "Audit reporting again", running: "Auditing…",
+      progress: "Auditing mixed-model reporting…", error: "Mixed-model reporting audit failed" }}
+    emptyText="No mixed-model reporting audit yet. An empty history says nothing about the manuscript."
+    selectText="Select a WIP manuscript to audit its mixed-model reporting."
+    renderResult={(run, openSource) => <WipLmmResult run={run} onOpenSource={openSource} />} />;
 }
 
 // inc 402: the Methods panel's "Statistics" section, for a WIP manuscript instead of a Library paper. Self-fetches

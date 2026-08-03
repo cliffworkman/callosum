@@ -247,6 +247,16 @@ function LmmCredit() {
 }
 
 function LmmSection({ ctx, active }) {
+  if (ctx.researchContext.kind === "manuscript") return (
+    <div className="statcheck-section">
+      <div className="settings-sub">Audit the current manuscript's <b>mixed-model reporting</b> against its exact
+        primary-file checkpoint. Local, no AI, and never a correctness verdict or score. “Not found” creates a
+        review prompt to inspect the draft, not a claim that reporting is absent.</div>
+      <p className="eyebrow">This manuscript</p>
+      <WipLmmSection manuscript={ctx.researchContext.entity} ctx={ctx} />
+      <LmmCredit />
+    </div>
+  );
   return (
     <div className="statcheck-section">
       <div className="settings-sub">Audit a paper's <b>mixed-model reporting</b> — does it report the random-effects structure, df/inference method, convergence, estimation (REML/ML), ICC, R², and (for longitudinal designs with dropout) a missing-data sensitivity analysis? Local, no AI. It flags what's not reported, with a grounded recommendation — never a verdict.</div>

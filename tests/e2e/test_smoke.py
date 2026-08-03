@@ -138,8 +138,8 @@ def test_reading_mode_keeps_center_visible_and_does_not_persist_panel_collapse(s
         browser.close()
 
 
-def test_wip_transparency_is_snapshot_bound_local_and_visible_in_both_surfaces(server: str, tmp_path):
-    _run_wip_transparency_e2e(server, tmp_path)
+def test_wip_checklists_are_snapshot_bound_local_and_visible_in_both_surfaces(server: str, tmp_path):
+    _run_wip_checklists_e2e(server, tmp_path)
 
 
 def test_feedback_dialog_end_to_end_states(server: str):
@@ -265,12 +265,13 @@ def _mount_app(page, server: str) -> list[str]:
     return errors
 
 
-def _run_wip_transparency_e2e(server: str, tmp_path):
-    folder = tmp_path / "WIP Transparency Draft"
+def _run_wip_checklists_e2e(server: str, tmp_path):
+    folder = tmp_path / "WIP Checklist Draft"
     folder.mkdir()
     (folder / "draft.md").write_text(
         "Data are available at https://osf.io/abcd. The authors declare no conflicts of interest. "
-        "This project received no funding. No other disclosure language appears here.",
+        "This project received no funding. We fit a linear mixed-effects model with a random intercept for "
+        "participant using REML. The model converged without a singular fit.",
         encoding="utf-8",
     )
     root = httpx.post(
@@ -300,6 +301,19 @@ def _run_wip_transparency_e2e(server: str, tmp_path):
         timeout=30,
     )
     assert selected.status_code == 200
+    transparency_response = httpx.post(
+        server + f"/wip/manuscripts/{manuscript['id']}/checks/transparency",
+        json={},
+        timeout=30,
+    )
+    assert transparency_response.status_code == 200
+    lmm_response = httpx.post(
+        server + f"/wip/manuscripts/{manuscript['id']}/checks/lmm",
+        json={},
+        timeout=30,
+    )
+    assert lmm_response.status_code == 200
+    assert lmm_response.json()["structured_result_json"]["is_lmm"] is True
 
     with sync_playwright() as p:
         try:
@@ -307,22 +321,43 @@ def _run_wip_transparency_e2e(server: str, tmp_path):
         except Exception as exc:
             pytest.skip(f"chromium not launchable: {exc}")
         page = browser.new_page(viewport={"width": 1440, "height": 900})
+        page.set_default_timeout(90000)
         errors = _mount_app(page, server)
         outbound: list[str] = []
         page.on("request", lambda request: outbound.append(request.url) if not request.url.startswith(server) else None)
 
         page.get_by_role("button", name="WIP", exact=True).click()
+        # Opening WIP deliberately starts its launch/focus rescan. Let that bounded
+        # writer finish before exercising a check run so this scenario tests the
+        # checklist workflow rather than racing two unrelated SQLite writes.
+        page.get_by_role("button", name="Rescan", exact=True).wait_for()
         card = page.get_by_role("button", name=f"WIP manuscript: {folder.name}")
         card.dblclick()
         page.locator(".acc-header", has_text="Checklists").click()
-        page.get_by_role("tab", name="Transparency signals", exact=True).click()
-        page.get_by_role("button", name="Check disclosures", exact=True).click()
+        transparency_tab = page.get_by_role("tab", name="Transparency signals", exact=True)
+        transparency_tab.click()
+        page.locator(".detail-statcheck .wip-transparency-result:visible").wait_for()
 
-        disclosure_heading = page.get_by_text("Open-science disclosures", exact=True).first
-        disclosure_heading.wait_for()
-        active_checklist = disclosure_heading.locator(
-            "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' wip-transparency-result ')][1]"
-        )
+        page.get_by_role("button", name="Checks", exact=True).click()
+        wip_checks = page.locator(".wip-work-view:visible")
+        wip_run = wip_checks.locator(".wip-tool-run").filter(has_text="Transparency")
+        wip_run.wait_for()
+        assert wip_run.count() == 1
+        assert wip_run.locator("select").count() == 0
+        assert "snapshot" in wip_run.inner_text()
+        assert "not detected" in wip_run.inner_text().lower()
+
+        lmm_button = wip_checks.get_by_role("button", name="Audit LMM reporting", exact=True)
+        lmm_button.wait_for()
+        lmm_run = wip_checks.locator(".wip-tool-run").filter(has_text="Mixed-model reporting")
+        lmm_run.wait_for()
+        assert lmm_run.count() == 1
+        assert lmm_run.locator("select").count() >= 1
+        assert "not proof of omission" in lmm_run.inner_text()
+
+        transparency_tab.click()
+        active_checklist = page.locator(".detail-statcheck .wip-transparency-result:visible")
+        active_checklist.wait_for()
         assert active_checklist.get_by_text("Data availability", exact=True).count() == 1
         assert active_checklist.get_by_text("not detected", exact=True).count() >= 1
         assert (
@@ -334,16 +369,17 @@ def _run_wip_transparency_e2e(server: str, tmp_path):
         )
         assert "transparency score or judgment" in checklist_run.inner_text()
 
-        page.get_by_role("button", name="Checks", exact=True).click()
-        wip_run = page.locator(".wip-work-view .wip-tool-run").filter(has_text="Transparency")
-        wip_run.wait_for()
-        assert wip_run.count() == 1
-        assert wip_run.locator("select").count() == 0
-        assert "snapshot" in wip_run.inner_text()
-        assert "not detected" in wip_run.inner_text().lower()
+        lmm_tab = page.get_by_role("tab", name="Mixed-model reporting", exact=True)
+        lmm_tab.click()
+        lmm_result = page.locator(".detail-statcheck .wip-lmm-result:visible")
+        lmm_result.wait_for()
+        assert lmm_result.get_by_text("Random-effects structure", exact=True).count() == 1
+        assert lmm_result.get_by_text("not found", exact=True).count() >= 1
+        assert "never a verdict, never a score, never an accusation" in lmm_result.inner_text().lower()
+        assert "reviewable candidate" in lmm_result.inner_text()
         page.set_viewport_size({"width": 375, "height": 812})
-        _assert_no_document_horizontal_overflow(page, "WIP transparency / mobile")
-        _assert_tool_panes_do_not_overflow(page, "WIP transparency / mobile")
+        _assert_no_document_horizontal_overflow(page, "WIP checklists / mobile")
+        _assert_tool_panes_do_not_overflow(page, "WIP checklists / mobile")
         assert outbound == []
         assert errors == []
         browser.close()

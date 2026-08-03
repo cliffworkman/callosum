@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-08-03 inc 442 — WIP mixed-model reporting audit -->
+
+## 2026-08-03 — Increment 442: mixed-model reporting checks for WIP manuscripts
+
+- **Files:** WIP check router/repository; existing LMM detector version; shared WIP checklist frontend and Methods
+  manuscript branch; backend/frontend/Chromium tests; help/backlog/future-track/QA/security/increment documentation.
+- **What:** added an explicit local mixed-model reporting audit over a WIP manuscript's registered primary file. Each
+  run retains the exact snapshot/file/hash, detector version, coverage, and all seven statuses. Detector misses become
+  reviewable `info` candidates—not omission claims—while present/n-a rows remain receipt evidence; a gate-off run
+  stores no findings and never implies that no mixed model is present. The same run appears in WIP **Checks** and
+  **Methods → Checklists → Mixed-model reporting** through a shared checklist shell.
+- **Why:** an author preparing a manuscript needs the existing reporting prompts before submission without importing
+  the unpublished draft into the published-paper model or turning detector silence into a grade.
+- **Security:** local-only, server-owned detector and primary-file selection; no request options, provider, model,
+  network client, new secret, migration, score, background retry, or arbitrary path. Non-PDF synthetic pages are
+  cleared; evidence remains React-escaped and exact-snapshot-bound.
+- **Verify:** focused backend/frontend suite and Chromium workflow passed; full-suite, QA-map, dependency/security,
+  formatting, build, and diff/secret results are recorded in `INCREMENT-442-NOTES.md`.
+- **Revert:** remove the LMM WIP route/store/UI/tests/docs and rebuild the frontend. Existing generic WIP tables and
+  Library-paper LMM behavior need no migration or data rollback.
+
 <!-- HELP-DOCS-SYNCED: 2026-08-02 inc 439 — explicit feedback workflow and privacy/failure behavior -->
 
 ## 2026-08-02 — Increment 439: explicit in-app feedback through a hosted Slack relay

@@ -6473,6 +6473,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Methods:"), " random-effects structure \u2014 Barr et al. (2013), Matuschek et al. (2017); df/inference \u2014 Luke (2017); convergence & estimation \u2014 Bates et al. (2015, ", /* @__PURE__ */ React.createElement("i", null, "lme4"), "); R\xB2 \u2014 Nakagawa & Schielzeth (2013); missing-data sensitivity \u2014 FDA ICH E9(R1), Troendle et al. (2025), Cro et al. (2020), Moreno-Betancur & Chavance (2016).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: LMM_CSL }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "A reading aid \u2014 it never runs a model, imputation, or sensitivity analysis. Surfaced via D. Lakens' automated-review catalog."));
   }
   function LmmSection({ ctx, active }) {
+    if (ctx.researchContext.kind === "manuscript") return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Audit the current manuscript's ", /* @__PURE__ */ React.createElement("b", null, "mixed-model reporting"), " against its exact primary-file checkpoint. Local, no AI, and never a correctness verdict or score. \u201CNot found\u201D creates a review prompt to inspect the draft, not a claim that reporting is absent."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This manuscript"), /* @__PURE__ */ React.createElement(WipLmmSection, { manuscript: ctx.researchContext.entity, ctx }), /* @__PURE__ */ React.createElement(LmmCredit, null));
     return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Audit a paper's ", /* @__PURE__ */ React.createElement("b", null, "mixed-model reporting"), " \u2014 does it report the random-effects structure, df/inference method, convergence, estimation (REML/ML), ICC, R\xB2, and (for longitudinal designs with dropout) a missing-data sensitivity analysis? Local, no AI. It flags what's not reported, with a grounded recommendation \u2014 never a verdict."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Whole library"), /* @__PURE__ */ React.createElement(LmmLibrary, { onShowFlagged: ctx.onShowLmmFlagged, onRan: ctx.onLmmRan }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(LmmPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active }));
   }
   registerPaneTab(
@@ -10824,8 +10825,22 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onClick: () => runCheck("transparency", "Transparency check could not run.")
       },
       runningTool === "transparency" ? "Checking\u2026" : "Check transparency"
-    ))), running && /* @__PURE__ */ React.createElement(ProgressBar, null), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error), (checks.runs || []).length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No checks run yet. An empty history is not a clean manuscript.") : checks.runs.map((run) => /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run", key: run.id }, /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run-head" }, /* @__PURE__ */ React.createElement("strong", null, run.tool_id === "transparency" ? "Transparency" : "Statcheck"), /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${run.validity}` }, run.validity.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(run.executed_at))), /* @__PURE__ */ React.createElement("p", null, run.result_summary), /* @__PURE__ */ React.createElement("small", null, "v", run.tool_version, " \xB7 snapshot ", run.snapshot_id, " \xB7 ", run.coverage), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => openSourceFile(run.file_id) }, "Open source file")), run.tool_id === "transparency" && /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-btn",
+        disabled: running,
+        onClick: () => runCheck("lmm", "Mixed-model reporting audit could not run.")
+      },
+      runningTool === "lmm" ? "Auditing\u2026" : "Audit LMM reporting"
+    ))), running && /* @__PURE__ */ React.createElement(ProgressBar, null), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error), (checks.runs || []).length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No checks run yet. An empty history is not a clean manuscript.") : checks.runs.map((run) => /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run", key: run.id }, /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run-head" }, /* @__PURE__ */ React.createElement("strong", null, wipToolLabel(run.tool_id)), /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${run.validity}` }, run.validity.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(run.executed_at))), /* @__PURE__ */ React.createElement("p", null, run.result_summary), /* @__PURE__ */ React.createElement("small", null, "v", run.tool_version, " \xB7 snapshot ", run.snapshot_id, " \xB7 ", run.coverage), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => openSourceFile(run.file_id) }, "Open source file")), run.tool_id === "transparency" && /* @__PURE__ */ React.createElement(
       WipTransparencyResult,
+      {
+        run,
+        onOpenSource: () => openSourceFile(run.file_id)
+      }
+    ), run.tool_id === "lmm" && /* @__PURE__ */ React.createElement(
+      WipLmmResult,
       {
         run,
         onOpenSource: () => openSourceFile(run.file_id)
@@ -10834,14 +10849,24 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       const result = await apiPatch(`/wip/findings/${finding.id}`, { disposition: event.target.value });
       if (result.ok) onReload();
       else setError(result.error || "Could not update the finding.");
-    } }, ["open", "acknowledged", "resolved", "dismissed", "false-positive", "deferred", "superseded"].map((value) => /* @__PURE__ */ React.createElement("option", { key: value, value }, value.replace(/-/g, " ")))), /* @__PURE__ */ React.createElement("blockquote", null, finding.quote), /* @__PURE__ */ React.createElement("p", null, finding.context), /* @__PURE__ */ React.createElement("small", null, "Reported ", finding.details_json.reported_p, "; recomputed p = ", finding.details_json.computed_p))))), /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-heading" }, /* @__PURE__ */ React.createElement("h3", null, "Content checkpoints"), /* @__PURE__ */ React.createElement("p", null, "Exact local hashes and bounded context; never a copy of the manuscript file.")), snapshots.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No content checkpoints yet.") : snapshots.map((snapshot) => /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-row", key: snapshot.id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, snapshot.reason.replace(/-/g, " ")), snapshot.reason_detail && /* @__PURE__ */ React.createElement("span", null, snapshot.reason_detail), /* @__PURE__ */ React.createElement("small", null, snapshot.extraction_provider, " ", snapshot.extraction_version, " \xB7 ", snapshot.extracted_char_count.toLocaleString(), " extracted characters")), /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-state" }, /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${snapshot.identity_status}` }, snapshot.identity_status.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(snapshot.created_at))), /* @__PURE__ */ React.createElement("p", null, snapshot.status_detail))), /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No tool result is implied by a content checkpoint. Deterministic checks will appear here after they run."));
+    } }, ["open", "acknowledged", "resolved", "dismissed", "false-positive", "deferred", "superseded"].map((value) => /* @__PURE__ */ React.createElement("option", { key: value, value }, value.replace(/-/g, " ")))), finding.quote && /* @__PURE__ */ React.createElement("blockquote", null, finding.quote), finding.context && /* @__PURE__ */ React.createElement("p", null, finding.context), finding.finding_type.startsWith("statcheck-") && /* @__PURE__ */ React.createElement("small", null, "Reported ", finding.details_json.reported_p, "; recomputed p = ", finding.details_json.computed_p))))), /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-heading" }, /* @__PURE__ */ React.createElement("h3", null, "Content checkpoints"), /* @__PURE__ */ React.createElement("p", null, "Exact local hashes and bounded context; never a copy of the manuscript file.")), snapshots.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No content checkpoints yet.") : snapshots.map((snapshot) => /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-row", key: snapshot.id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, snapshot.reason.replace(/-/g, " ")), snapshot.reason_detail && /* @__PURE__ */ React.createElement("span", null, snapshot.reason_detail), /* @__PURE__ */ React.createElement("small", null, snapshot.extraction_provider, " ", snapshot.extraction_version, " \xB7 ", snapshot.extracted_char_count.toLocaleString(), " extracted characters")), /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-state" }, /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${snapshot.identity_status}` }, snapshot.identity_status.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(snapshot.created_at))), /* @__PURE__ */ React.createElement("p", null, snapshot.status_detail))), /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No tool result is implied by a content checkpoint. Deterministic checks will appear here after they run."));
+  }
+  function wipToolLabel(toolId) {
+    if (toolId === "transparency") return "Transparency";
+    if (toolId === "lmm") return "Mixed-model reporting";
+    return "Statcheck";
   }
   function WipTransparencyResult({ run, onOpenSource }) {
     const checks = (run.structured_result_json || {}).checks || [];
     if (!checks.length) return null;
     return /* @__PURE__ */ React.createElement("div", { className: "wip-transparency-result" }, /* @__PURE__ */ React.createElement(TransparencyChecklist, { checks, onOpen: onOpenSource, showRegistrationReferences: false }), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Detected rows are retained as evidence-backed facts. \u201CNot detected\u201D rows never become negative findings or claims about the manuscript."));
   }
-  function WipTransparencySection({ manuscript, ctx }) {
+  function WipLmmResult({ run, onOpenSource }) {
+    const result = run.structured_result_json || {};
+    if (!result.is_lmm) return /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "No linear mixed-model language was detected, so the seven-item reporting checklist was not applied. This does not prove the manuscript uses no mixed model.");
+    return /* @__PURE__ */ React.createElement("div", { className: "wip-lmm-result" }, /* @__PURE__ */ React.createElement(LmmChecklist, { checks: result.checks || [], onOpen: onOpenSource }), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Each \u201Cnot found\u201D row is retained as a reviewable candidate, not a claim that reporting is absent. Review dispositions are available in the WIP Checks tab."));
+  }
+  function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText, selectText, renderResult }) {
     const manuscriptId = manuscript ? manuscript.id : null;
     const [checks, setChecks] = useState({ tools: [], runs: [] });
     const [state, setState] = useState({ status: "idle" });
@@ -10861,7 +10886,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     }, [manuscriptId, ctx.wipRefresh]);
     const start = async () => {
       setState({ status: "running" });
-      const result = await apiPost(`/wip/manuscripts/${manuscriptId}/checks/transparency`, {});
+      const result = await apiPost(`/wip/manuscripts/${manuscriptId}/checks/${toolId}`, {});
       if (!result.ok) return setState({ status: "error", error: result.error });
       setChecks((current) => ({ ...current, runs: [result.data, ...current.runs || []] }));
       setState({ status: "done" });
@@ -10871,9 +10896,51 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       const result = await apiPost(`/wip/manuscripts/${manuscriptId}/files/${fileId}/open`, {});
       if (!result.ok) setState({ status: "error", error: result.error || "Could not open the source file." });
     };
-    if (manuscriptId == null) return /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a WIP manuscript to check its disclosures.");
-    const latest = (checks.runs || []).find((run) => run.tool_id === "transparency");
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, manuscript.display_title || manuscript.derived_title || "This manuscript"), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: state.status === "running", onClick: start }, state.status === "running" ? "Checking\u2026" : latest ? "Check disclosures again" : "Check disclosures")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Checking manuscript disclosures\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Transparency check failed: ", state.error), !latest && state.status !== "running" && /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No transparency check run yet. An empty history is not a clean manuscript."), latest && /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run" }, /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run-head" }, /* @__PURE__ */ React.createElement("strong", null, "Transparency"), /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${latest.validity}` }, latest.validity.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(latest.executed_at))), /* @__PURE__ */ React.createElement("p", null, latest.result_summary), /* @__PURE__ */ React.createElement("small", null, "v", latest.tool_version, " \xB7 snapshot ", latest.snapshot_id, " \xB7 ", latest.coverage), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => openSource(latest.file_id) }, "Open source file")), /* @__PURE__ */ React.createElement(WipTransparencyResult, { run: latest, onOpenSource: () => openSource(latest.file_id) })));
+    if (manuscriptId == null) return /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, selectText);
+    const latest = (checks.runs || []).find((run) => run.tool_id === toolId);
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, manuscript.display_title || manuscript.derived_title || "This manuscript"), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: state.status === "running", onClick: start }, state.status === "running" ? labels.running : latest ? labels.again : labels.first)), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: labels.progress }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, labels.error, ": ", state.error), !latest && state.status !== "running" && /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, emptyText), latest && /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run" }, /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run-head" }, /* @__PURE__ */ React.createElement("strong", null, label), /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${latest.validity}` }, latest.validity.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(latest.executed_at))), /* @__PURE__ */ React.createElement("p", null, latest.result_summary), /* @__PURE__ */ React.createElement("small", null, "v", latest.tool_version, " \xB7 snapshot ", latest.snapshot_id, " \xB7 ", latest.coverage), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => openSource(latest.file_id) }, "Open source file")), renderResult(latest, () => openSource(latest.file_id))));
+  }
+  function WipTransparencySection({ manuscript, ctx }) {
+    return /* @__PURE__ */ React.createElement(
+      WipChecklistSection,
+      {
+        manuscript,
+        ctx,
+        toolId: "transparency",
+        label: "Transparency",
+        labels: {
+          first: "Check disclosures",
+          again: "Check disclosures again",
+          running: "Checking\u2026",
+          progress: "Checking manuscript disclosures\u2026",
+          error: "Transparency check failed"
+        },
+        emptyText: "No transparency check run yet. An empty history is not a clean manuscript.",
+        selectText: "Select a WIP manuscript to check its disclosures.",
+        renderResult: (run, openSource) => /* @__PURE__ */ React.createElement(WipTransparencyResult, { run, onOpenSource: openSource })
+      }
+    );
+  }
+  function WipLmmSection({ manuscript, ctx }) {
+    return /* @__PURE__ */ React.createElement(
+      WipChecklistSection,
+      {
+        manuscript,
+        ctx,
+        toolId: "lmm",
+        label: "Mixed-model reporting",
+        labels: {
+          first: "Audit reporting",
+          again: "Audit reporting again",
+          running: "Auditing\u2026",
+          progress: "Auditing mixed-model reporting\u2026",
+          error: "Mixed-model reporting audit failed"
+        },
+        emptyText: "No mixed-model reporting audit yet. An empty history says nothing about the manuscript.",
+        selectText: "Select a WIP manuscript to audit its mixed-model reporting.",
+        renderResult: (run, openSource) => /* @__PURE__ */ React.createElement(WipLmmResult, { run, onOpenSource: openSource })
+      }
+    );
   }
   function WipStatcheckSection({ manuscript, ctx }) {
     const manuscriptId = manuscript ? manuscript.id : null;

@@ -550,13 +550,15 @@ the Principles + A-A gates before build.)*
   see `INCREMENT-402/403/404-NOTES.md` for the exact mechanism (branch on `ctx.researchContext.kind ===
   "manuscript"` in `06_methods_statcheck.jsx`'s precedent; a small per-tool receipt table or an already-generic
   provenance column, never the full result cache, surfaced in `WipDetails`'s Checks tab via `10f_wip.jsx`).
-  Three pieces remain, each scoped by today's research:
+    Three pieces remain, each scoped by today's research:
   - **Checklists** (Bayes/LMM/meta-analysis/transparency, the 2×2 tab group in `05_panes.jsx`/`08d/08f/08g/
     08h_methods_*.jsx`) — **Transparency shipped inc 441** as the first template: exact primary-file checkpoint,
-    existing pure detector, seven-status receipt, positive evidence-backed `wip_findings` FACTs only, and shared
-    Checks-tab/Checklists UI with no provider call or migration. **Bayesian, mixed-model, and meta-analysis remain**;
-    each still needs its own on-demand extraction-to-findings pipeline following this template and its own
-    method-specific evidence/coverage contract — three separate builds, not one.
+      existing pure detector, seven-status receipt, positive evidence-backed `wip_findings` FACTs only, and shared
+      Checks-tab/Checklists UI with no provider call or migration. **Mixed-model reporting shipped inc 442** using
+      the same snapshot/run seam but its own semantics: a fixed mixed-model gate, all seven statuses in the receipt,
+      and one reviewable `info` candidate per `not-found` row; a gate-off run creates no findings and never implies
+      that no mixed model is present. **Bayesian and meta-analysis remain**; each still needs its own on-demand
+      extraction-to-findings pipeline and method-specific evidence/coverage contract — two separate builds, not one.
   - **Synthesize > Critique** (`08x_methods_critical.jsx`/`critical_review.py`) — deeply coupled to `papers`/
     `chunks`/`embeddings`/`open_science_signals`/`paper_findings`/`critical_review_candidates`, all FK'd to
     `papers.id`; no freeform mode exists in the UI. Needs a parallel text-extraction-driven "stored signals"

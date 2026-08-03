@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from sqlalchemy import Connection, desc, func, insert, select, update
 
+from app.backend.methods.lmm import LMM_VERSION, LmmReport
 from app.backend.methods.statcheck import STATCHECK_VERSION, StatcheckReport
 from app.backend.methods.transparency import TRANSPARENCY_VERSION, TransparencyReport
 from app.backend.persistence.schema import tool_runs, wip_findings, wip_journal_runs, wip_tool_runs
@@ -26,6 +27,13 @@ TRANSPARENCY_COVERAGE = (
     "registration, preregistration, and 'available upon request'. Checks only the extracted primary manuscript; "
     "it does not inspect journal metadata, linked repositories, or files outside that primary source. "
     "'Not detected' never means absent, and no result is a transparency score or judgment."
+)
+LMM_COVERAGE = (
+    "A fixed text gate first checks for linear mixed-model language. When detected, seven reporting checks cover "
+    "random-effects structure, df or inference method, convergence, REML or ML estimation, ICC, marginal or "
+    "conditional R-squared, and missing-data sensitivity when its longitudinal-dropout precondition holds. "
+    "Checks only the extracted primary manuscript; tables are not fully read. 'Not detected' is a review prompt, "
+    "not proof of omission. The auditor never runs a model and produces no correctness verdict or score."
 )
 OPEN_DISPOSITIONS = {"open", "acknowledged", "deferred"}
 FINDING_DISPOSITIONS = OPEN_DISPOSITIONS | {
@@ -193,6 +201,92 @@ def store_transparency_run(
             "tool_version": TRANSPARENCY_VERSION,
             "snapshot_id": snapshot_id,
         },
+        related_entity_type="tool-run",
+        related_entity_id=str(tool_run_id),
+    )
+    return get_tool_run(conn, tool_run_id) or {}
+
+
+def store_lmm_run(
+    conn: Connection,
+    prepared: PreparedSnapshot,
+    snapshot_id: int,
+    report: LmmReport,
+) -> dict:
+    present = sum(check.status == "present" for check in report.checks)
+    not_found = [check for check in report.checks if check.status == "not-found"]
+    not_applicable = sum(check.status == "not-applicable" for check in report.checks)
+    if report.is_lmm:
+        summary = (
+            f"Mixed-model language detected; {present} reported, {len(not_found)} not detected, "
+            f"and {not_applicable} not applicable across {len(report.checks)} checks."
+        )
+    else:
+        summary = "Mixed-model language was not detected in the primary manuscript; no checklist was applied."
+    has_real_pages = Path(prepared.relative_path).suffix.casefold() == ".pdf"
+    checks = [
+        check.to_dict()
+        | {
+            "page": check.page if has_real_pages else None,
+            "coordinate_precision": "region" if has_real_pages and check.page is not None else None,
+        }
+        for check in report.checks
+    ]
+    run_result = conn.execute(
+        insert(tool_runs).values(
+            uid=str(uuid4()),
+            tool_id="lmm",
+            tool_version=LMM_VERSION,
+            callosum_version=_callosum_version(),
+            parameters_json={},
+            result_summary=summary,
+            structured_result_json={
+                "is_lmm": report.is_lmm,
+                "present": present,
+                "not_found": len(not_found),
+                "not_applicable": not_applicable,
+                "checks": checks,
+            },
+            coverage=LMM_COVERAGE,
+            status="complete",
+        )
+    )
+    tool_run_id = int(run_result.inserted_primary_key[0])
+    conn.execute(
+        insert(wip_tool_runs).values(
+            tool_run_id=tool_run_id,
+            manuscript_id=prepared.manuscript_id,
+            file_id=prepared.file_id,
+            snapshot_id=snapshot_id,
+            relevant_content_hash=prepared.identity.extracted_text_hash,
+        )
+    )
+    checks_by_key = {check["key"]: check for check in checks}
+    for check in not_found:
+        stored_check = checks_by_key[check.key]
+        conn.execute(
+            insert(wip_findings).values(
+                uid=str(uuid4()),
+                tool_run_id=tool_run_id,
+                manuscript_id=prepared.manuscript_id,
+                file_id=prepared.file_id,
+                kind="candidate",
+                finding_type=f"lmm-{check.key}-not-detected",
+                severity="info",
+                summary=f"Review {check.label.lower()} reporting",
+                details_json=stored_check,
+                quote=None,
+                context=check.note or check.explainer,
+                coordinate_precision=None,
+                disposition="open",
+            )
+        )
+    add_activity(
+        conn,
+        prepared.manuscript_id,
+        "tool-run-completed",
+        summary,
+        metadata={"tool_id": "lmm", "tool_version": LMM_VERSION, "snapshot_id": snapshot_id},
         related_entity_type="tool-run",
         related_entity_id=str(tool_run_id),
     )

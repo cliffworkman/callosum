@@ -18,6 +18,8 @@ from sqlalchemy import Connection
 from app.backend.persistence.findings_repo import upsert_findings
 from app.backend.persistence.signals_repo import store_lmm
 
+LMM_VERSION = "1"
+
 
 @dataclass(frozen=True)
 class LmmCheck:

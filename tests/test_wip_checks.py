@@ -49,6 +49,7 @@ def test_statcheck_run_is_snapshot_bound_reviewable_and_hash_invalidated(temp_db
     empty = client.get(f"/wip/manuscripts/{manuscript_id}/checks").json()
     assert empty["tools"][0]["id"] == "statcheck"
     assert empty["tools"][1]["id"] == "transparency"
+    assert empty["tools"][2]["id"] == "lmm"
     assert empty["runs"] == []
     run = client.post(f"/wip/manuscripts/{manuscript_id}/checks/statcheck", json={})
     assert run.status_code == 200
@@ -185,6 +186,9 @@ def test_transparency_rejects_missing_manuscript_and_missing_primary_file(temp_d
     missing = client.post("/wip/manuscripts/999/checks/transparency", json={})
     assert missing.status_code == 404
     assert missing.json()["detail"] == "WIP manuscript not found"
+    missing_lmm = client.post("/wip/manuscripts/999/checks/lmm", json={})
+    assert missing_lmm.status_code == 404
+    assert missing_lmm.json()["detail"] == "WIP manuscript not found"
 
     folder = tmp_path / "Draft"
     folder.mkdir()
@@ -200,6 +204,97 @@ def test_transparency_rejects_missing_manuscript_and_missing_primary_file(temp_d
     no_primary = client.post(f"/wip/manuscripts/{manuscript_id}/checks/transparency", json={})
     assert no_primary.status_code == 422
     assert no_primary.json()["detail"] == "Select a primary manuscript file before creating a checkpoint"
+    no_primary_lmm = client.post(f"/wip/manuscripts/{manuscript_id}/checks/lmm", json={})
+    assert no_primary_lmm.status_code == 422
+    assert no_primary_lmm.json()["detail"] == "Select a primary manuscript file before creating a checkpoint"
+
+
+def test_lmm_run_is_snapshot_bound_and_persists_review_candidates(temp_db_url: str, tmp_path: Path) -> None:
+    folder = tmp_path / "Draft"
+    folder.mkdir()
+    draft = folder / "draft.md"
+    draft.write_text(
+        "We fit a linear mixed-effects model with a random intercept for participant using REML. "
+        "The model converged without a singular fit.",
+        encoding="utf-8",
+    )
+    client = TestClient(create_app(db_url=temp_db_url))
+    root_id, manuscript_id, _ = _setup(client, folder)
+
+    response = client.post(f"/wip/manuscripts/{manuscript_id}/checks/lmm", json={})
+
+    assert response.status_code == 200
+    run = response.json()
+    assert run["tool_id"] == "lmm"
+    assert run["tool_version"] == "1"
+    assert run["validity"] == "current-with-findings"
+    assert "never runs a model" in run["coverage"]
+    result = run["structured_result_json"]
+    assert result["is_lmm"] is True
+    assert len(result["checks"]) == 7
+    assert result["present"] >= 3
+    assert result["not_found"] >= 1
+    assert len(run["findings"]) == result["not_found"]
+    assert all(finding["kind"] == "candidate" for finding in run["findings"])
+    assert all(finding["disposition"] == "open" for finding in run["findings"])
+    assert all(finding["quote"] is None for finding in run["findings"])
+    assert all(finding["finding_type"].endswith("-not-detected") for finding in run["findings"])
+    assert all("not detected" in finding["context"].lower() for finding in run["findings"])
+    assert all(check["coordinate_precision"] is None for check in result["checks"])
+
+    for finding in run["findings"]:
+        reviewed = client.patch(f"/wip/findings/{finding['id']}", json={"disposition": "resolved"})
+        assert reviewed.status_code == 200
+    runs = client.get(f"/wip/manuscripts/{manuscript_id}/checks").json()["runs"]
+    assert runs[0]["validity"] == "current"
+
+    draft.write_text("We now report a different analysis.", encoding="utf-8")
+    scan = client.post(f"/wip/watch-roots/{root_id}/scan").json()
+    _poll(client, scan["job_id"])
+    runs = client.get(f"/wip/manuscripts/{manuscript_id}/checks").json()["runs"]
+    assert runs[0]["validity"] == "potentially-stale"
+
+
+def test_lmm_gate_off_records_honest_receipt_without_findings(temp_db_url: str, tmp_path: Path) -> None:
+    folder = tmp_path / "Draft"
+    folder.mkdir()
+    (folder / "draft.txt").write_text("We ran an ordinary least-squares regression.", encoding="utf-8")
+    client = TestClient(create_app(db_url=temp_db_url))
+    _, manuscript_id, _ = _setup(client, folder)
+
+    run = client.post(f"/wip/manuscripts/{manuscript_id}/checks/lmm", json={}).json()
+
+    assert run["validity"] == "current"
+    assert run["findings"] == []
+    assert run["structured_result_json"] == {
+        "is_lmm": False,
+        "present": 0,
+        "not_found": 0,
+        "not_applicable": 0,
+        "checks": [],
+    }
+    assert "no checklist was applied" in run["result_summary"]
+    assert "not proof of omission" in run["coverage"]
+
+
+def test_lmm_preserves_region_page_only_for_pdf_evidence(temp_db_url: str, tmp_path: Path) -> None:
+    folder = tmp_path / "Draft"
+    folder.mkdir()
+    draft = folder / "draft.pdf"
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "A linear mixed model used a random intercept for participant and REML estimation.")
+    document.save(draft)
+    document.close()
+    client = TestClient(create_app(db_url=temp_db_url))
+    _, manuscript_id, _ = _setup(client, folder)
+
+    run = client.post(f"/wip/manuscripts/{manuscript_id}/checks/lmm", json={}).json()
+
+    random_check = next(check for check in run["structured_result_json"]["checks"] if check["key"] == "random_effects")
+    assert random_check["status"] == "present"
+    assert random_check["page"] == 1
+    assert random_check["coordinate_precision"] == "region"
 
 
 def test_wip_check_routes_remain_local_only(temp_db_url: str) -> None:
@@ -208,4 +303,5 @@ def test_wip_check_routes_remain_local_only(temp_db_url: str) -> None:
     assert client.get("/wip/manuscripts/1/checks", headers=headers).status_code == 403
     assert client.post("/wip/manuscripts/1/checks/statcheck", headers=headers).status_code == 403
     assert client.post("/wip/manuscripts/1/checks/transparency", headers=headers).status_code == 403
+    assert client.post("/wip/manuscripts/1/checks/lmm", headers=headers).status_code == 403
     assert client.patch("/wip/findings/1", headers=headers, json={"disposition": "resolved"}).status_code == 403

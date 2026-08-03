@@ -878,6 +878,14 @@ Read it as a prompt, not a report card:
 
 **Whole library.** Above the per-paper checklist, click **Audit all papers** to batch-check your whole library at once; a red **🔗 LMM · N** chip appears in the library header for papers with an incomplete checklist — click it to filter the library to just those papers. (Viewing a single paper's checklist already keeps that paper's own count current — the batch just catches up every paper you haven't opened yet.)
 
+With a **WIP manuscript** active, this tab instead offers **Audit reporting** for the registered primary manuscript.
+The explicit local run creates an exact content checkpoint and saves all seven statuses, tool version, and coverage
+boundary. Each **not found** row becomes an `info`-level review candidate in the manuscript's **Checks** tab so the
+author can acknowledge, resolve, dismiss, defer, or supersede the prompt without changing the stored receipt.
+Detected and not-applicable rows remain in that receipt and do not become findings. If mixed-model language is not
+detected, Callosum stores an honest no-checklist-applied receipt rather than implying the manuscript uses no mixed
+model. No manuscript text is sent to a provider, and no model is run.
+
 <!-- section: auditing-meta-analysis-reporting -->
 ## Auditing meta-analysis reporting
 A **meta-analysis** pools results across studies, and the reader needs to see the choices behind the pooled number. The meta-analysis reporting auditor reads a *published* meta-analysis's extracted text and flags whether it *reports* seven such things — it never pools, models heterogeneity, re-computes an effect size, or does bias inference (that's metafor / JASP / RevMan territory). It's local, deterministic, and uses no AI.
@@ -1399,9 +1407,9 @@ Double-click a WIP card to open its manuscript workspace:
 - **Tasks** records manuscript work and can scope a task to a section.
 - **Files** assigns roles and lets you explicitly choose one primary manuscript.
 - **References** links existing Library papers without copying their bibliographic records.
-- **Checks** creates and inspects local content checkpoints, and runs deterministic Statcheck and Transparency
-  disclosure checks over the current primary manuscript. Choosing a primary file and changing stage also create
-  checkpoints when text extraction is available.
+- **Checks** creates and inspects local content checkpoints, and runs deterministic Statcheck, Transparency
+  disclosure, and mixed-model reporting checks over the current primary manuscript. Choosing a primary file and
+  changing stage also create checkpoints when text extraction is available.
 - **Activity** records important workspace changes.
 
 Right-click a WIP card, or focus it and press **Shift+F10**, for manuscript actions: open the workspace, change
@@ -1430,6 +1438,14 @@ disclosures are evidence-backed facts, not items to resolve; not-detected checks
 page evidence is region-level; non-PDF drafts keep the quote without inventing page
 precision. The same result appears under **Methods → Checklists → Transparency signals** while that WIP is active.
 It is a text detector, not a transparency score, completeness certificate, or judgment of the manuscript or author.
+
+Each mixed-model reporting run is likewise bound to the exact primary-file checkpoint and retains all seven
+method-specific statuses. When mixed-model language is detected, **not found** rows become reviewable `info`
+candidates; that means only that the fixed text detector did not find reporting language within its stated
+coverage, not that the item is absent or incorrect. Present rows keep their evidence in the receipt, and conditional
+items can remain **n/a**. When the initial gate does not detect mixed-model language, no checklist or findings are
+applied. The same receipt appears under **Methods → Checklists → Mixed-model reporting**. This audit never runs a
+model and never produces a correctness verdict, score, rank, or accusation.
 
 WIP is local-only. It is hidden from read-only/remote views, excluded from cross-device sync, and never sent to an
 AI provider by these workspace features. A teal treatment plus a visible **WIP** badge distinguishes unpublished

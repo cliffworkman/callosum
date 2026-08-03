@@ -9,12 +9,14 @@ from pydantic import BaseModel, Field
 
 from app.backend.api.wip_security import require_local_wip
 from app.backend.funding.run_report import funding_run_summaries
+from app.backend.methods.lmm import audit_lmm
 from app.backend.methods.statcheck import run_statcheck
 from app.backend.methods.transparency import detect_transparency
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.persistence.wip_checks_repo import (
     list_journal_runs,
     list_tool_runs,
+    store_lmm_run,
     store_statcheck_run,
     store_transparency_run,
     update_finding_disposition,
@@ -48,6 +50,7 @@ def checks_list(manuscript_id: int, request: Request) -> dict:
             "tools": [
                 {"id": "statcheck", "label": "Statcheck", "kind": "deterministic-local"},
                 {"id": "transparency", "label": "Transparency", "kind": "deterministic-local"},
+                {"id": "lmm", "label": "Mixed-model reporting", "kind": "deterministic-local"},
             ],
             "runs": list_tool_runs(conn, manuscript_id),
         }
@@ -128,6 +131,38 @@ def transparency_run(manuscript_id: int, request: Request) -> dict:
     def persist(conn):
         snapshot, _ = record_snapshot(conn, prepared, reason="tool-run", reason_detail="transparency")
         return store_transparency_run(conn, prepared, int(snapshot["id"]), report)
+
+    return run_write(request.app.state.engine, persist)
+
+
+@router.post("/manuscripts/{manuscript_id}/checks/lmm")
+def lmm_run(manuscript_id: int, request: Request) -> dict:
+    with request.app.state.engine.connect() as conn:
+        if get_manuscript(conn, manuscript_id) is None:
+            raise HTTPException(status_code=404, detail="WIP manuscript not found")
+    run_write(
+        request.app.state.engine,
+        lambda conn: add_activity(conn, manuscript_id, "tool-run-started", "Started mixed-model reporting audit"),
+    )
+    try:
+        with request.app.state.engine.connect() as conn:
+            prepared = prepare_snapshot(conn, manuscript_id)
+    except ContentIdentityError as exc:
+        run_write(
+            request.app.state.engine,
+            lambda conn: add_activity(
+                conn,
+                manuscript_id,
+                "tool-run-failed",
+                "Mixed-model reporting audit could not run",
+            ),
+        )
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    report = audit_lmm(list(prepared.identity.blocks))
+
+    def persist(conn):
+        snapshot, _ = record_snapshot(conn, prepared, reason="tool-run", reason_detail="lmm")
+        return store_lmm_run(conn, prepared, int(snapshot["id"]), report)
 
     return run_write(request.app.state.engine, persist)
 
