@@ -106,13 +106,11 @@
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
 - ✅ **#45 My Publications example name — CLOSED 2026-07-22.** Swapped "e.g. Ada Lovelace"/"e.g. A. Lovelace" for
   "e.g. Karen Spärck Jones"/"e.g. K. Spärck Jones" in the name/alt-names placeholders (`35a_mypubs.jsx`).
-- **#51 [housekeeping] a flaky test:** `tests/test_funding_discovery.py::test_selected_paper_mode_and_provider_partial_failure_visibility`
-  failed once in CI (`lint-and-test`, the v0.3.4 release push, 2026-07-30) but passed reliably every time locally
-  — 5/5 in isolation, clean alongside its sibling tests in the same file, and in the immediately-prior full-suite
-  run (1712/1712). A CI rerun of the same commit passed clean. Likely a timing/ordering-sensitive assertion around
-  the "at least one provider succeeds while another fails" multi-provider scenario — worth a real look (is there
-  a race in how partial-provider-failure results get aggregated?) next time someone's in that file, not urgent
-  enough to have blocked the v0.3.4 release.
+- ✅ **#51 funding partial-provider test flake — CLOSED inc 440 (2026-08-02).** The aggregation had no race:
+  the test stubbed only the intentionally failing Grants.gov call, then let the default OpenAlex and Crossref
+  providers make live requests and implicitly relied on their changing results to produce the asserted prospect.
+  It now supplies a matching local award and explicit empty-success fixtures for both scholarly providers. The
+  same selected-paper + partial-failure contract is covered without network, timing, or third-party-data dependence.
 
 ---
 
@@ -132,6 +130,18 @@
 
 ## 3. Gated — destructive / security / outward-facing sign-off, or an explicit maintainer decision
 
+- **#52 Activate the hosted feedback relay and private Slack destination.** [non-code] [infra] [outward-facing]
+  The in-app workflow and deployable relay shipped in inc 439; publication remains intentionally disabled until
+  Cliff has a focused operations window. Create/select the private Slack channel and Slack app, enable an incoming
+  webhook for that fixed destination, store `CALLOSUM_FEEDBACK_SLACK_WEBHOOK_URL` only in the hosted secret manager,
+  deploy one HTTPS relay process behind a trusted reverse proxy, and configure clients with only the public
+  `CALLOSUM_FEEDBACK_RELAY_URL`. Before enabling broadly: suppress bodies and authorization headers in proxy/APM
+  capture for `/feedback/reports`; keep the relay's one-process limiter or add a shared ingress limiter before
+  scaling; verify `/health` exposes only the configured boolean; submit a synthetic previewed report from Callosum;
+  exercise missing-webhook, timeout, rate-limit, and disable paths; and confirm the message lands only in the
+  intended private channel. Record the relay host/owner, monitoring and rotation procedure, then rotate by replacing
+  the hosted secret, testing, and revoking the old webhook. Never put the webhook in a client `.env`, frontend/Tauri
+  config, installer, log, issue, or feedback report. Full runbook: `feedback_relay/README.md`.
 - ✅ **#14 Permanent delete removes managed on-disk attachments — CLOSED inc 340 (2026-07-22).** Delete forever
   and Empty Trash now remove only root-contained `managed` files; linked, URL, out-of-root, shared, and unsafe
   paths survive. Reversible staging coordinates filesystem cleanup with DB/vector rollback; audit PASS.

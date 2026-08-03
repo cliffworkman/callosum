@@ -1080,7 +1080,22 @@ def test_selected_paper_mode_and_provider_partial_failure_visibility(temp_db_url
         )
     engine.dispose()
     client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.funding_award_provider = FixtureAwardHistoryProvider(
+        awards=[
+            HistoricalAward(
+                "Freshwater Research Foundation",
+                "irs_990_pf",
+                "pf-selected-paper",
+                purpose_text="field sampling and environmental DNA infrastructure",
+                provenance=_prov("pf-selected-paper"),
+            )
+        ]
+    )
     client.app.state.funding_grants_gov_client = GrantsGovClient(fetcher=lambda *a, **k: (500, {"error": "down"}))
+    client.app.state.funding_openalex_provider = OpenAlexFundingProvider(fetcher=lambda *a, **k: (200, {"results": []}))
+    client.app.state.funding_crossref_provider = CrossrefFundingProvider(
+        fetcher=lambda *a, **k: (200, {"message": {"items": []}})
+    )
     r = client.post("/funding-discovery/run", json={"paper_id": pid})
     assert r.status_code == 202
     job_id = r.json()["job_id"]
@@ -1092,6 +1107,7 @@ def test_selected_paper_mode_and_provider_partial_failure_visibility(temp_db_url
     assert done["status"] == "done", done
     statuses = done["report"]["provider_statuses"]
     assert any(s["provider_id"] == "grants-gov" and s["status"] == "failed" for s in statuses)
+    assert any(s["provider_id"] == "local-funding-history" and s["status"] == "success" for s in statuses)
     assert done["report"]["funding_prospects"]
 
 
