@@ -9,10 +9,12 @@ from pydantic import BaseModel, Field
 
 from app.backend.api.wip_security import require_local_wip
 from app.backend.funding.run_report import funding_run_summaries
+from app.backend.methods.bayes import audit_completeness, run_bayes
 from app.backend.methods.lmm import audit_lmm
 from app.backend.methods.statcheck import run_statcheck
 from app.backend.methods.transparency import detect_transparency
 from app.backend.persistence.sqlite_retry import run_write
+from app.backend.persistence.wip_bayes_repo import store_bayes_run
 from app.backend.persistence.wip_checks_repo import (
     list_journal_runs,
     list_tool_runs,
@@ -51,6 +53,7 @@ def checks_list(manuscript_id: int, request: Request) -> dict:
                 {"id": "statcheck", "label": "Statcheck", "kind": "deterministic-local"},
                 {"id": "transparency", "label": "Transparency", "kind": "deterministic-local"},
                 {"id": "lmm", "label": "Mixed-model reporting", "kind": "deterministic-local"},
+                {"id": "bayes", "label": "Bayesian reporting", "kind": "deterministic-local"},
             ],
             "runs": list_tool_runs(conn, manuscript_id),
         }
@@ -163,6 +166,40 @@ def lmm_run(manuscript_id: int, request: Request) -> dict:
     def persist(conn):
         snapshot, _ = record_snapshot(conn, prepared, reason="tool-run", reason_detail="lmm")
         return store_lmm_run(conn, prepared, int(snapshot["id"]), report)
+
+    return run_write(request.app.state.engine, persist)
+
+
+@router.post("/manuscripts/{manuscript_id}/checks/bayes")
+def bayes_run(manuscript_id: int, request: Request) -> dict:
+    with request.app.state.engine.connect() as conn:
+        if get_manuscript(conn, manuscript_id) is None:
+            raise HTTPException(status_code=404, detail="WIP manuscript not found")
+    run_write(
+        request.app.state.engine,
+        lambda conn: add_activity(conn, manuscript_id, "tool-run-started", "Started Bayesian reporting audit"),
+    )
+    try:
+        with request.app.state.engine.connect() as conn:
+            prepared = prepare_snapshot(conn, manuscript_id)
+    except ContentIdentityError as exc:
+        run_write(
+            request.app.state.engine,
+            lambda conn: add_activity(
+                conn,
+                manuscript_id,
+                "tool-run-failed",
+                "Bayesian reporting audit could not run",
+            ),
+        )
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    chunks = list(prepared.identity.blocks)
+    report = run_bayes(chunks)
+    completeness = audit_completeness(chunks)
+
+    def persist(conn):
+        snapshot, _ = record_snapshot(conn, prepared, reason="tool-run", reason_detail="bayes")
+        return store_bayes_run(conn, prepared, int(snapshot["id"]), report, completeness)
 
     return run_write(request.app.state.engine, persist)
 

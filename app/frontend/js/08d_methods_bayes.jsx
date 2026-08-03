@@ -242,6 +242,16 @@ function BayesLibrary({ onShowFlagged, onRan }) {
 }
 
 function BayesSection({ ctx, active }) {
+  if (ctx.researchContext.kind === "manuscript") return (
+    <div className="statcheck-section">
+      <div className="settings-sub">Recompute the current manuscript's supported inline <b>Bayes factors</b> and
+        audit its Bayesian reporting against the exact primary-file checkpoint. Local, no AI. Default-prior
+        mismatches and text-detection prompts require review; none is a correctness verdict, score, or accusation.</div>
+      <p className="eyebrow">This manuscript</p>
+      <WipBayesSection manuscript={ctx.researchContext.entity} ctx={ctx} />
+      <BayesCredit />
+    </div>
+  );
   return (
     <div className="statcheck-section">
       <div className="settings-sub">Recompute a paper's reported <b>default Bayes factors</b> for inline t-test and correlation results — the Bayesian analogue of statcheck. Local, no AI. It flags where a reported BF₁₀ doesn't reproduce under the standard default prior; usually a different prior, not an error — a prompt to look, never a verdict.</div>

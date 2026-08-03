@@ -9,7 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-03 inc 442 — WIP mixed-model reporting audit -->
+<!-- HELP-DOCS-SYNCED: 2026-08-03 inc 443 — WIP Bayesian reporting audit -->
+
+## 2026-08-03 — Increment 443: Bayesian reporting checks for WIP manuscripts
+
+- **Files:** Bayesian detector version; WIP check router and dedicated persistence adapter; shared checklist UI and
+  Methods manuscript branch; backend/frontend/Chromium tests; help/backlog/QA/security/increment documentation.
+- **What:** added one explicit local WIP run combining supported inline default-Bayes-factor recomputation with the
+  existing prior/convergence/sensitivity checklist and bounded expert advisories. The receipt retains exact
+  snapshot/file/hash, fixed prior/tolerance assumptions, every result/status/advisory, and real PDF region evidence.
+  Mismatches, checklist gaps/coherence flags, and advisories become separate reviewable `info` candidates; reproduced,
+  present, and n/a rows do not. A gate-off run stores no findings and denies that detector silence proves absence.
+- **Why:** manuscript authors need the same inspectable Bayesian pre-submission prompts as Library papers without
+  importing an unpublished draft into `papers`, treating a default-prior mismatch as error, or creating a score.
+- **Security:** local-only, synchronous, bounded existing detector over the server-selected registered primary file;
+  no provider/model/network client, request options, arbitrary path, background retry, dependency, secret, or
+  migration. Non-PDF synthetic pages are cleared and all rendered evidence remains React-escaped.
+- **Verify:** focused backend/frontend and Chromium workflow passed; full-suite, QA-map, dependency/security,
+  formatting, build, and diff/secret results are recorded in `INCREMENT-443-NOTES.md`.
+- **Revert:** remove the WIP Bayesian route/store/UI/tests/docs and rebuild the frontend. Existing generic WIP tables
+  and Library-paper Bayesian behavior require no migration or user-data rollback.
 
 ## 2026-08-03 — Increment 442: mixed-model reporting checks for WIP manuscripts
 

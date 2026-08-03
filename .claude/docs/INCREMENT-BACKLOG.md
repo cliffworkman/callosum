@@ -557,8 +557,11 @@ the Principles + A-A gates before build.)*
       Checks-tab/Checklists UI with no provider call or migration. **Mixed-model reporting shipped inc 442** using
       the same snapshot/run seam but its own semantics: a fixed mixed-model gate, all seven statuses in the receipt,
       and one reviewable `info` candidate per `not-found` row; a gate-off run creates no findings and never implies
-      that no mixed model is present. **Bayesian and meta-analysis remain**; each still needs its own on-demand
-      extraction-to-findings pipeline and method-specific evidence/coverage contract — two separate builds, not one.
+      that no mixed model is present. **Bayesian reporting shipped inc 443** as its own combined recomputation +
+      checklist build: fixed default-prior/tolerance assumptions and every BF/check/advisory remain in the exact-
+      snapshot receipt; BF mismatches, not-found/coherence rows, and conservative advisories become separate
+      reviewable `info` candidates only when the Bayesian gate is on. Gate-off creates no findings and never proves
+      absence. **Meta-analysis remains** and still needs its own method-specific evidence/coverage build.
   - **Synthesize > Critique** (`08x_methods_critical.jsx`/`critical_review.py`) — deeply coupled to `papers`/
     `chunks`/`embeddings`/`open_science_signals`/`paper_findings`/`critical_review_candidates`, all FK'd to
     `papers.id`; no freeform mode exists in the UI. Needs a parallel text-extraction-driven "stored signals"

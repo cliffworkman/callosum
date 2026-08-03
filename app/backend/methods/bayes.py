@@ -42,6 +42,7 @@ from app.backend.persistence.signals_repo import store_bayes
 
 DEFAULT_R = math.sqrt(2) / 2  # ≈ 0.7071 — the JZS/Cauchy default prior scale (Rouder et al. 2009)
 DEFAULT_KAPPA = 1.0  # the default stretched-beta prior width for the correlation test (JASP/BayesFactor default)
+BAYES_VERSION = "1"
 MAX_RESULTS = 500  # bound the work on an untrusted/huge text (rule #4)
 # A reproduction tolerance on the log10 scale: BFs are reported to ~2–3 sig figs and are prior-scale-sensitive, so we
 # flag only gross discrepancies. 0.3 ≈ a factor of 2 — a reported 3 that recomputes to 30 is a real mismatch; 3 vs 4

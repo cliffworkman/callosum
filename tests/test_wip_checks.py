@@ -50,6 +50,7 @@ def test_statcheck_run_is_snapshot_bound_reviewable_and_hash_invalidated(temp_db
     assert empty["tools"][0]["id"] == "statcheck"
     assert empty["tools"][1]["id"] == "transparency"
     assert empty["tools"][2]["id"] == "lmm"
+    assert empty["tools"][3]["id"] == "bayes"
     assert empty["runs"] == []
     run = client.post(f"/wip/manuscripts/{manuscript_id}/checks/statcheck", json={})
     assert run.status_code == 200
@@ -189,6 +190,9 @@ def test_transparency_rejects_missing_manuscript_and_missing_primary_file(temp_d
     missing_lmm = client.post("/wip/manuscripts/999/checks/lmm", json={})
     assert missing_lmm.status_code == 404
     assert missing_lmm.json()["detail"] == "WIP manuscript not found"
+    missing_bayes = client.post("/wip/manuscripts/999/checks/bayes", json={})
+    assert missing_bayes.status_code == 404
+    assert missing_bayes.json()["detail"] == "WIP manuscript not found"
 
     folder = tmp_path / "Draft"
     folder.mkdir()
@@ -207,6 +211,9 @@ def test_transparency_rejects_missing_manuscript_and_missing_primary_file(temp_d
     no_primary_lmm = client.post(f"/wip/manuscripts/{manuscript_id}/checks/lmm", json={})
     assert no_primary_lmm.status_code == 422
     assert no_primary_lmm.json()["detail"] == "Select a primary manuscript file before creating a checkpoint"
+    no_primary_bayes = client.post(f"/wip/manuscripts/{manuscript_id}/checks/bayes", json={})
+    assert no_primary_bayes.status_code == 422
+    assert no_primary_bayes.json()["detail"] == "Select a primary manuscript file before creating a checkpoint"
 
 
 def test_lmm_run_is_snapshot_bound_and_persists_review_candidates(temp_db_url: str, tmp_path: Path) -> None:
@@ -297,6 +304,117 @@ def test_lmm_preserves_region_page_only_for_pdf_evidence(temp_db_url: str, tmp_p
     assert random_check["coordinate_precision"] == "region"
 
 
+def test_bayes_run_persists_assumptions_receipt_and_conservative_candidates(temp_db_url: str, tmp_path: Path) -> None:
+    folder = tmp_path / "Draft"
+    folder.mkdir()
+    draft = folder / "draft.md"
+    draft.write_text(
+        "We ran a Bayesian t-test with a Cauchy prior. The result was t(19) = 2.53, BF10 = 500. "
+        "Posterior samples came from MCMC; R-hat = 1.21. We report a 95% confidence interval.",
+        encoding="utf-8",
+    )
+    client = TestClient(create_app(db_url=temp_db_url))
+    root_id, manuscript_id, _ = _setup(client, folder)
+
+    response = client.post(f"/wip/manuscripts/{manuscript_id}/checks/bayes", json={})
+
+    assert response.status_code == 200
+    run = response.json()
+    assert run["tool_id"] == "bayes"
+    assert run["tool_version"] == "1"
+    assert run["validity"] == "current-with-findings"
+    assert "never fits a model or produces a correctness verdict or score" in run["coverage"]
+    assert run["parameters_json"] == {
+        "jzs_prior_scale": 0.7071,
+        "correlation_prior_kappa": 1.0,
+        "log10_tolerance": 0.3,
+    }
+    result = run["structured_result_json"]
+    assert result["checked"] == 1
+    assert result["not_reproduced"] == 1
+    assert result["prior_scale"] == 0.7071
+    assert result["results"][0]["consistency"] == "not-reproduced"
+    assert result["results"][0]["coordinate_precision"] is None
+    completeness = result["completeness"]
+    assert completeness["is_bayesian"] is True
+    assert {item["key"] for item in completeness["items"]} == {"prior", "convergence", "sensitivity"}
+    assert next(item for item in completeness["items"] if item["key"] == "convergence")["status"] == "coherence-flag"
+    assert {item["key"] for item in completeness["advisories"]} == {"credible-confidence"}
+
+    # One BF mismatch + convergence coherence prompt + sensitivity miss + terminology advisory. Every row remains
+    # reporter-reviewable info, never an objective severity or a claimed error.
+    assert len(run["findings"]) == 4
+    assert all(finding["kind"] == "candidate" for finding in run["findings"])
+    assert all(finding["severity"] == "info" for finding in run["findings"])
+    assert all(finding["disposition"] == "open" for finding in run["findings"])
+    assert all(finding["coordinate_precision"] is None for finding in run["findings"])
+    finding_types = {finding["finding_type"] for finding in run["findings"]}
+    assert finding_types == {
+        "bayes-factor-not-reproduced",
+        "bayes-convergence-coherence-flag",
+        "bayes-sensitivity-not-found",
+        "bayes-advisory-credible-confidence",
+    }
+    mismatch = next(finding for finding in run["findings"] if finding["finding_type"] == "bayes-factor-not-reproduced")
+    assert mismatch["quote"] == "t(19) = 2.53, BF10 = 500"
+    assert mismatch["details_json"]["jzs_prior_scale"] == 0.7071
+    assert "commonly explains a mismatch" in mismatch["context"]
+
+    for finding in run["findings"]:
+        assert client.patch(f"/wip/findings/{finding['id']}", json={"disposition": "resolved"}).status_code == 200
+    assert client.get(f"/wip/manuscripts/{manuscript_id}/checks").json()["runs"][0]["validity"] == "current"
+
+    draft.write_text("The Bayesian analysis changed.", encoding="utf-8")
+    scan = client.post(f"/wip/watch-roots/{root_id}/scan").json()
+    _poll(client, scan["job_id"])
+    assert client.get(f"/wip/manuscripts/{manuscript_id}/checks").json()["runs"][0]["validity"] == "potentially-stale"
+
+
+def test_bayes_gate_off_records_receipt_without_findings(temp_db_url: str, tmp_path: Path) -> None:
+    folder = tmp_path / "Draft"
+    folder.mkdir()
+    (folder / "draft.txt").write_text("We ran an ordinary least-squares regression.", encoding="utf-8")
+    client = TestClient(create_app(db_url=temp_db_url))
+    _, manuscript_id, _ = _setup(client, folder)
+
+    run = client.post(f"/wip/manuscripts/{manuscript_id}/checks/bayes", json={}).json()
+
+    assert run["validity"] == "current"
+    assert run["findings"] == []
+    assert run["structured_result_json"]["checked"] == 0
+    assert run["structured_result_json"]["results"] == []
+    assert run["structured_result_json"]["completeness"] == {
+        "is_bayesian": False,
+        "items": [],
+        "advisories": [],
+    }
+    assert "no checklist was applied" in run["result_summary"]
+    assert "not detected' never proves omission" in run["coverage"]
+
+
+def test_bayes_pdf_correlation_match_retains_real_region_without_finding(temp_db_url: str, tmp_path: Path) -> None:
+    folder = tmp_path / "Draft"
+    folder.mkdir()
+    draft = folder / "draft.pdf"
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "A Bayesian correlation gave r(58) = .42, BF10 = 37.4 using a Cauchy prior.")
+    document.save(draft)
+    document.close()
+    client = TestClient(create_app(db_url=temp_db_url))
+    _, manuscript_id, _ = _setup(client, folder)
+
+    run = client.post(f"/wip/manuscripts/{manuscript_id}/checks/bayes", json={}).json()
+
+    result = run["structured_result_json"]
+    bf = result["results"][0]
+    assert bf["consistency"] == "reproduced"
+    assert bf["matched_design"] == "correlation"
+    assert bf["page"] == 1
+    assert bf["coordinate_precision"] == "region"
+    assert not any(finding["finding_type"] == "bayes-factor-not-reproduced" for finding in run["findings"])
+
+
 def test_wip_check_routes_remain_local_only(temp_db_url: str) -> None:
     client = TestClient(create_app(db_url=temp_db_url))
     headers = {"host": "example.com"}
@@ -304,4 +422,5 @@ def test_wip_check_routes_remain_local_only(temp_db_url: str) -> None:
     assert client.post("/wip/manuscripts/1/checks/statcheck", headers=headers).status_code == 403
     assert client.post("/wip/manuscripts/1/checks/transparency", headers=headers).status_code == 403
     assert client.post("/wip/manuscripts/1/checks/lmm", headers=headers).status_code == 403
+    assert client.post("/wip/manuscripts/1/checks/bayes", headers=headers).status_code == 403
     assert client.patch("/wip/findings/1", headers=headers, json={"disposition": "resolved"}).status_code == 403

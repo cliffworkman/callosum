@@ -6045,6 +6045,7 @@
     return /* @__PURE__ */ React.createElement("div", { className: "statcheck-lib" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Audit Bayesian statistics across your whole library \u2014 local, no AI. Papers where a Bayes factor didn't reproduce, or the reporting checklist found a gap, appear below, filterable from the library header."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: run.status === "running", onClick: start }, run.status === "running" ? "Auditing\u2026" : "Audit all papers")), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Auditing Bayesian statistics\u2026" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Audit failed: ", run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.total, " paper", s.total === 1 ? "" : "s", " checked \xB7 ", /* @__PURE__ */ React.createElement("b", null, s.detected), " detectably Bayesian", s.flagged > 0 && onShowFlagged && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", "\xB7 ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onShowFlagged }, s.flagged, " flagged")), s.flagged === 0 && s.detected > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 0 flagged")));
   }
   function BayesSection({ ctx, active }) {
+    if (ctx.researchContext.kind === "manuscript") return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Recompute the current manuscript's supported inline ", /* @__PURE__ */ React.createElement("b", null, "Bayes factors"), " and audit its Bayesian reporting against the exact primary-file checkpoint. Local, no AI. Default-prior mismatches and text-detection prompts require review; none is a correctness verdict, score, or accusation."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This manuscript"), /* @__PURE__ */ React.createElement(WipBayesSection, { manuscript: ctx.researchContext.entity, ctx }), /* @__PURE__ */ React.createElement(BayesCredit, null));
     return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Recompute a paper's reported ", /* @__PURE__ */ React.createElement("b", null, "default Bayes factors"), " for inline t-test and correlation results \u2014 the Bayesian analogue of statcheck. Local, no AI. It flags where a reported BF\u2081\u2080 doesn't reproduce under the standard default prior; usually a different prior, not an error \u2014 a prompt to look, never a verdict."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Whole library"), /* @__PURE__ */ React.createElement(BayesLibrary, { onShowFlagged: ctx.onShowBayesFlagged, onRan: ctx.onBayesRan }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(BayesPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active }));
   }
   registerPaneTab(
@@ -10833,6 +10834,14 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onClick: () => runCheck("lmm", "Mixed-model reporting audit could not run.")
       },
       runningTool === "lmm" ? "Auditing\u2026" : "Audit LMM reporting"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-btn",
+        disabled: running,
+        onClick: () => runCheck("bayes", "Bayesian reporting audit could not run.")
+      },
+      runningTool === "bayes" ? "Auditing\u2026" : "Audit Bayesian reporting"
     ))), running && /* @__PURE__ */ React.createElement(ProgressBar, null), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error), (checks.runs || []).length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No checks run yet. An empty history is not a clean manuscript.") : checks.runs.map((run) => /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run", key: run.id }, /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run-head" }, /* @__PURE__ */ React.createElement("strong", null, wipToolLabel(run.tool_id)), /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${run.validity}` }, run.validity.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(run.executed_at))), /* @__PURE__ */ React.createElement("p", null, run.result_summary), /* @__PURE__ */ React.createElement("small", null, "v", run.tool_version, " \xB7 snapshot ", run.snapshot_id, " \xB7 ", run.coverage), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => openSourceFile(run.file_id) }, "Open source file")), run.tool_id === "transparency" && /* @__PURE__ */ React.createElement(
       WipTransparencyResult,
       {
@@ -10841,6 +10850,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       }
     ), run.tool_id === "lmm" && /* @__PURE__ */ React.createElement(
       WipLmmResult,
+      {
+        run,
+        onOpenSource: () => openSourceFile(run.file_id)
+      }
+    ), run.tool_id === "bayes" && /* @__PURE__ */ React.createElement(
+      WipBayesResult,
       {
         run,
         onOpenSource: () => openSourceFile(run.file_id)
@@ -10854,6 +10869,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   function wipToolLabel(toolId) {
     if (toolId === "transparency") return "Transparency";
     if (toolId === "lmm") return "Mixed-model reporting";
+    if (toolId === "bayes") return "Bayesian reporting";
     return "Statcheck";
   }
   function WipTransparencyResult({ run, onOpenSource }) {
@@ -10865,6 +10881,30 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const result = run.structured_result_json || {};
     if (!result.is_lmm) return /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "No linear mixed-model language was detected, so the seven-item reporting checklist was not applied. This does not prove the manuscript uses no mixed model.");
     return /* @__PURE__ */ React.createElement("div", { className: "wip-lmm-result" }, /* @__PURE__ */ React.createElement(LmmChecklist, { checks: result.checks || [], onOpen: onOpenSource }), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Each \u201Cnot found\u201D row is retained as a reviewable candidate, not a claim that reporting is absent. Review dispositions are available in the WIP Checks tab."));
+  }
+  function WipBayesResult({ run, onOpenSource }) {
+    const result = run.structured_result_json || {};
+    const completeness = result.completeness || {};
+    if (!completeness.is_bayesian) return /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Bayesian analysis language was not detected, so the reporting checklist was not applied and no review candidates were created. This does not prove the manuscript contains no Bayesian analysis.");
+    return /* @__PURE__ */ React.createElement("div", { className: "wip-bayes-result" }, result.checked === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No supported inline Bayes factors were available to recompute.") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "statcheck-summary" }, result.checked, " checked \xB7 ", result.not_reproduced, " couldn't reproduce under the default prior"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-list" }, (result.results || []).map((item, index) => /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        key: index,
+        className: "statcheck-item" + (item.consistency !== "reproduced" ? " flagged-row" : "")
+      },
+      /* @__PURE__ */ React.createElement("button", { type: "button", className: "statcheck-item-main", onClick: onOpenSource }, /* @__PURE__ */ React.createElement(
+        EvidenceQuote,
+        {
+          text: item.raw,
+          match: item.raw,
+          label: "Reported result",
+          precision: item.coordinate_precision,
+          hasSourcePage: item.page != null,
+          className: "statcheck-context",
+          maxChars: 220
+        }
+      ), /* @__PURE__ */ React.createElement("span", { className: "statcheck-computed" }, "reported BF\u2081\u2080 = ", item.reported_bf10, " \xB7 recomputed ", reBfLabel(item)), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (item.consistency === "reproduced" ? "verified" : "flagged") }, item.consistency === "reproduced" ? "reproduces" : "couldn't reproduce"))
+    )))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Recomputed only under the displayed default-prior assumptions. A mismatch commonly reflects a different prior or design interpretation and is a review prompt, never an error verdict."), /* @__PURE__ */ React.createElement(BayesChecklist, { items: completeness.items || [], onOpen: onOpenSource }), (completeness.advisories || []).length > 0 && /* @__PURE__ */ React.createElement(BayesAdvisories, { notes: completeness.advisories, onOpen: onOpenSource }), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Mismatches, reporting gaps, coherence flags, and advisories are retained as reviewable ", /* @__PURE__ */ React.createElement("b", null, "info"), " candidates. Their dispositions are available in the WIP Checks tab; none is a score, verdict, or accusation."));
   }
   function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText, selectText, renderResult }) {
     const manuscriptId = manuscript ? manuscript.id : null;
@@ -10939,6 +10979,27 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         emptyText: "No mixed-model reporting audit yet. An empty history says nothing about the manuscript.",
         selectText: "Select a WIP manuscript to audit its mixed-model reporting.",
         renderResult: (run, openSource) => /* @__PURE__ */ React.createElement(WipLmmResult, { run, onOpenSource: openSource })
+      }
+    );
+  }
+  function WipBayesSection({ manuscript, ctx }) {
+    return /* @__PURE__ */ React.createElement(
+      WipChecklistSection,
+      {
+        manuscript,
+        ctx,
+        toolId: "bayes",
+        label: "Bayesian reporting",
+        labels: {
+          first: "Audit reporting",
+          again: "Audit reporting again",
+          running: "Auditing\u2026",
+          progress: "Auditing Bayesian reporting\u2026",
+          error: "Bayesian reporting audit failed"
+        },
+        emptyText: "No Bayesian reporting audit yet. An empty history says nothing about the manuscript.",
+        selectText: "Select a WIP manuscript to audit its Bayesian reporting.",
+        renderResult: (run, openSource) => /* @__PURE__ */ React.createElement(WipBayesResult, { run, onOpenSource: openSource })
       }
     );
   }

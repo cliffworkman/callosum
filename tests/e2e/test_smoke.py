@@ -271,7 +271,8 @@ def _run_wip_checklists_e2e(server: str, tmp_path):
     (folder / "draft.md").write_text(
         "Data are available at https://osf.io/abcd. The authors declare no conflicts of interest. "
         "This project received no funding. We fit a linear mixed-effects model with a random intercept for "
-        "participant using REML. The model converged without a singular fit.",
+        "participant using REML. The model converged without a singular fit. We also ran a Bayesian t-test with a "
+        "Cauchy prior: t(19) = 2.53, BF10 = 500. We report a 95% confidence interval.",
         encoding="utf-8",
     )
     root = httpx.post(
@@ -314,6 +315,13 @@ def _run_wip_checklists_e2e(server: str, tmp_path):
     )
     assert lmm_response.status_code == 200
     assert lmm_response.json()["structured_result_json"]["is_lmm"] is True
+    bayes_response = httpx.post(
+        server + f"/wip/manuscripts/{manuscript['id']}/checks/bayes",
+        json={},
+        timeout=30,
+    )
+    assert bayes_response.status_code == 200
+    assert bayes_response.json()["structured_result_json"]["completeness"]["is_bayesian"] is True
 
     with sync_playwright() as p:
         try:
@@ -355,6 +363,12 @@ def _run_wip_checklists_e2e(server: str, tmp_path):
         assert lmm_run.locator("select").count() >= 1
         assert "not proof of omission" in lmm_run.inner_text()
 
+        bayes_run = wip_checks.locator(".wip-tool-run").filter(has_text="Bayesian reporting")
+        bayes_run.wait_for()
+        assert bayes_run.count() == 1
+        assert bayes_run.locator("select").count() >= 1
+        assert "default-prior assumptions" in bayes_run.inner_text()
+
         transparency_tab.click()
         active_checklist = page.locator(".detail-statcheck .wip-transparency-result:visible")
         active_checklist.wait_for()
@@ -377,6 +391,16 @@ def _run_wip_checklists_e2e(server: str, tmp_path):
         assert lmm_result.get_by_text("not found", exact=True).count() >= 1
         assert "never a verdict, never a score, never an accusation" in lmm_result.inner_text().lower()
         assert "reviewable candidate" in lmm_result.inner_text()
+
+        bayes_tab = page.get_by_role("tab", name="Bayesian statistics", exact=True)
+        bayes_tab.click()
+        bayes_result = page.locator(".detail-statcheck .wip-bayes-result:visible")
+        bayes_result.wait_for()
+        assert "500" in bayes_result.inner_text()
+        assert "couldn't reproduce" in bayes_result.inner_text()
+        assert bayes_result.get_by_text("Prior stated (family/scale)", exact=True).count() == 1
+        assert "expert judgment" in bayes_result.inner_text().lower()
+        assert "never an error verdict" in bayes_result.inner_text().lower()
         page.set_viewport_size({"width": 375, "height": 812})
         _assert_no_document_horizontal_overflow(page, "WIP checklists / mobile")
         _assert_tool_panes_do_not_overflow(page, "WIP checklists / mobile")

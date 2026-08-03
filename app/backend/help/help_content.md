@@ -1408,8 +1408,8 @@ Double-click a WIP card to open its manuscript workspace:
 - **Files** assigns roles and lets you explicitly choose one primary manuscript.
 - **References** links existing Library papers without copying their bibliographic records.
 - **Checks** creates and inspects local content checkpoints, and runs deterministic Statcheck, Transparency
-  disclosure, and mixed-model reporting checks over the current primary manuscript. Choosing a primary file and
-  changing stage also create checkpoints when text extraction is available.
+  disclosure, mixed-model reporting, and Bayesian reporting checks over the current primary manuscript. Choosing a
+  primary file and changing stage also create checkpoints when text extraction is available.
 - **Activity** records important workspace changes.
 
 Right-click a WIP card, or focus it and press **Shift+F10**, for manuscript actions: open the workspace, change
@@ -1446,6 +1446,17 @@ coverage, not that the item is absent or incorrect. Present rows keep their evid
 items can remain **n/a**. When the initial gate does not detect mixed-model language, no checklist or findings are
 applied. The same receipt appears under **Methods → Checklists → Mixed-model reporting**. This audit never runs a
 model and never produces a correctness verdict, score, rank, or accusation.
+
+Each Bayesian reporting run combines two existing local checks against the same exact primary-file checkpoint. It
+recomputes supported inline t-test and Pearson-correlation Bayes factors under fixed, displayed default-prior
+assumptions, then retains all prior/convergence/sensitivity checklist rows and bounded terminology/direction
+advisories. A Bayes factor that does not reproduce under that default is an `info` review candidate—not an error:
+the manuscript may use a different prior, test definition, or design interpretation. Checklist **not found** rows,
+reported convergence values that cross a cited convention, and advisories are also separate `info` prompts requiring
+human judgment. Reproduced, present, and n/a rows remain in the receipt without becoming findings. If Bayesian
+language is not detected, no checklist or findings are applied; that never proves the manuscript has no Bayesian
+analysis. The same stored receipt appears under **Methods → Checklists → Bayesian statistics**. Tables and
+unsupported designs remain outside coverage, and no result is a correctness verdict, score, rank, or accusation.
 
 WIP is local-only. It is hidden from read-only/remote views, excluded from cross-device sync, and never sent to an
 AI provider by these workspace features. A teal treatment plus a visible **WIP** badge distinguishes unpublished

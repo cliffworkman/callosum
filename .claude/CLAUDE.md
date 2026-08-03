@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 442** (see Increment workflow) with **1837 root-suite pytest tests
+It is currently at **Increment 443** (see Increment workflow) with **1840 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -146,7 +146,12 @@ the full per-increment narrative for all other increments now lives in the reloc
   meaning: all seven statuses remain in the receipt, each `not-found` row becomes one reviewable `info` candidate,
   and present/not-applicable rows do not become findings. A gate-off run records that no checklist was applied and
   creates no finding; it never proves that the manuscript uses no mixed model. No model, provider, score, verdict,
-  migration, or egress is involved.
+  migration, or egress is involved. **Inc 443** brings the combined Bayesian auditor to the same WIP seam: the exact
+  receipt preserves supported inline BF recomputations, fixed default-prior/tolerance assumptions, all three
+  checklist rows, and bounded advisories. Default-prior mismatches, `not-found`/`coherence-flag` rows, and advisories
+  become separate reviewable `info` candidates only when Bayesian language is detected; reproduced/present/n-a rows
+  remain receipt-only and gate-off creates no findings. A mismatch commonly reflects a different prior or design,
+  and every prompt remains local, non-scoring, non-verdict, migration-free, and exact-snapshot-bound.
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):

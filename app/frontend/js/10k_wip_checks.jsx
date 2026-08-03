@@ -1,4 +1,4 @@
-// WIP deterministic checks (statcheck + transparency + LMM reporting; inc 403/404 add funding/journal receipts).
+// WIP deterministic checks (statcheck + transparency + LMM/Bayesian reporting; inc 403/404 add funding/journal receipts).
 // WipChecks itself is presentational (given data via props) so it can be mounted
 // from two places: WipDetails' own "Checks" tab (10f_wip.jsx, the WIP tab's own home) and, as of inc 402, the
 // Methods panel's "Statistics" section (self-fetching wrapper below) -- both read/write the same manuscript-scoped
@@ -50,6 +50,10 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
           onClick={() => runCheck("lmm", "Mixed-model reporting audit could not run.")}>
           {runningTool === "lmm" ? "Auditing…" : "Audit LMM reporting"}
         </button>
+        <button className="axis-btn" disabled={running}
+          onClick={() => runCheck("bayes", "Bayesian reporting audit could not run.")}>
+          {runningTool === "bayes" ? "Auditing…" : "Audit Bayesian reporting"}
+        </button>
       </div>
     </div>
     {running && <ProgressBar />}
@@ -68,6 +72,8 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
       {run.tool_id === "transparency" && <WipTransparencyResult run={run}
         onOpenSource={() => openSourceFile(run.file_id)} />}
       {run.tool_id === "lmm" && <WipLmmResult run={run}
+        onOpenSource={() => openSourceFile(run.file_id)} />}
+      {run.tool_id === "bayes" && <WipBayesResult run={run}
         onOpenSource={() => openSourceFile(run.file_id)} />}
       {(run.findings || []).filter(finding => finding.kind === "candidate").map(finding => <div className="wip-finding-row" key={finding.id}>
         <div>
@@ -111,6 +117,7 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
 function wipToolLabel(toolId) {
   if (toolId === "transparency") return "Transparency";
   if (toolId === "lmm") return "Mixed-model reporting";
+  if (toolId === "bayes") return "Bayesian reporting";
   return "Statcheck";
 }
 
@@ -137,6 +144,47 @@ function WipLmmResult({ run, onOpenSource }) {
     <div className="statcheck-caveat">
       Each “not found” row is retained as a reviewable candidate, not a claim that reporting is absent. Review
       dispositions are available in the WIP Checks tab.
+    </div>
+  </div>;
+}
+
+function WipBayesResult({ run, onOpenSource }) {
+  const result = run.structured_result_json || {};
+  const completeness = result.completeness || {};
+  if (!completeness.is_bayesian) return <div className="statcheck-caveat">
+    Bayesian analysis language was not detected, so the reporting checklist was not applied and no review
+    candidates were created. This does not prove the manuscript contains no Bayesian analysis.
+  </div>;
+  return <div className="wip-bayes-result">
+    {result.checked === 0
+      ? <div className="tag-suggest-empty">No supported inline Bayes factors were available to recompute.</div>
+      : <>
+          <div className="statcheck-summary">{result.checked} checked · {result.not_reproduced} couldn't reproduce under the default prior</div>
+          <div className="statcheck-list">
+            {(result.results || []).map((item, index) => <div key={index}
+              className={"statcheck-item" + (item.consistency !== "reproduced" ? " flagged-row" : "")}>
+              <button type="button" className="statcheck-item-main" onClick={onOpenSource}>
+                <EvidenceQuote text={item.raw} match={item.raw} label="Reported result"
+                  precision={item.coordinate_precision} hasSourcePage={item.page != null}
+                  className="statcheck-context" maxChars={220} />
+                <span className="statcheck-computed">reported BF₁₀ = {item.reported_bf10} · recomputed {reBfLabel(item)}</span>
+                <span className={"cite-status " + (item.consistency === "reproduced" ? "verified" : "flagged")}>
+                  {item.consistency === "reproduced" ? "reproduces" : "couldn't reproduce"}
+                </span>
+              </button>
+            </div>)}
+          </div>
+        </>}
+    <div className="statcheck-caveat">
+      Recomputed only under the displayed default-prior assumptions. A mismatch commonly reflects a different
+      prior or design interpretation and is a review prompt, never an error verdict.
+    </div>
+    <BayesChecklist items={completeness.items || []} onOpen={onOpenSource} />
+    {(completeness.advisories || []).length > 0 &&
+      <BayesAdvisories notes={completeness.advisories} onOpen={onOpenSource} />}
+    <div className="statcheck-caveat">
+      Mismatches, reporting gaps, coherence flags, and advisories are retained as reviewable <b>info</b> candidates.
+      Their dispositions are available in the WIP Checks tab; none is a score, verdict, or accusation.
     </div>
   </div>;
 }
@@ -212,6 +260,15 @@ function WipLmmSection({ manuscript, ctx }) {
     emptyText="No mixed-model reporting audit yet. An empty history says nothing about the manuscript."
     selectText="Select a WIP manuscript to audit its mixed-model reporting."
     renderResult={(run, openSource) => <WipLmmResult run={run} onOpenSource={openSource} />} />;
+}
+
+function WipBayesSection({ manuscript, ctx }) {
+  return <WipChecklistSection manuscript={manuscript} ctx={ctx} toolId="bayes" label="Bayesian reporting"
+    labels={{ first: "Audit reporting", again: "Audit reporting again", running: "Auditing…",
+      progress: "Auditing Bayesian reporting…", error: "Bayesian reporting audit failed" }}
+    emptyText="No Bayesian reporting audit yet. An empty history says nothing about the manuscript."
+    selectText="Select a WIP manuscript to audit its Bayesian reporting."
+    renderResult={(run, openSource) => <WipBayesResult run={run} onOpenSource={openSource} />} />;
 }
 
 // inc 402: the Methods panel's "Statistics" section, for a WIP manuscript instead of a Library paper. Self-fetches
