@@ -108,7 +108,7 @@ function TransparencyPaper({ paperId, onOpenPaper, onOpenMetaPreregistration, ac
   );
 }
 
-function TransparencyChecklist({ checks, onOpen, references, referenceState }) {
+function TransparencyChecklist({ checks, onOpen, references, referenceState, showRegistrationReferences = true }) {
   if (!checks || !checks.length) return null;
   const present = checks.filter(c => c.status === "present").length;
   const notFound = checks.filter(c => c.status === "not-found").length;
@@ -137,7 +137,7 @@ function TransparencyChecklist({ checks, onOpen, references, referenceState }) {
           {c.evidence && <EvidenceTrail detector="Transparency signals" matched={c.evidence}
             precision={c.coordinate_precision} hasSourcePage={c.page != null} page={c.page}
             caveat="Disclosure signals are text detections only; not detected does not mean absent." />}
-          {c.key === "preregistration" &&
+          {showRegistrationReferences && c.key === "preregistration" &&
             <RegistrationReferences references={references || []} state={referenceState} onOpen={onOpen} />}
         </div>
       ))}
@@ -473,6 +473,16 @@ const TRANSPARENCY_QUEUES = [
 ];
 
 function TransparencySection({ ctx, active }) {
+  if (ctx.researchContext.kind === "manuscript") return (
+    <div className="statcheck-section">
+      <div className="settings-sub">Detect <b>reported open-science disclosures</b> in the current manuscript's
+        exact primary-file checkpoint. Local, no AI, rule-based. Detected disclosures retain their evidence as facts;
+        “not detected” is only detector coverage, never a score or claim that an artifact is absent.</div>
+      <p className="eyebrow">This manuscript</p>
+      <WipTransparencySection manuscript={ctx.researchContext.entity} ctx={ctx} />
+      <TransparencyCredit />
+    </div>
+  );
   return (
     <div className="statcheck-section">
       <div className="settings-sub">Detect a paper's <b>open-science disclosures</b> — does it state where the data &amp; code live, declare conflicts of interest &amp; funding, and (for a trial/review) report a registration or preregistration? Local, no AI, rule-based. It surfaces what's <i>reported</i>, with the matched sentence — never a transparency score, and “not detected” never means the artifact is absent.</div>

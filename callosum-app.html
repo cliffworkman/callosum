@@ -6825,7 +6825,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       }
     ), meta && onOpenMetaPreregistration && /* @__PURE__ */ React.createElement("div", { className: "settings-note registration-workspace-cue" }, /* @__PURE__ */ React.createElement("span", null, "Find, attach, and compare registrations in the full Synthesize workspace."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: onOpenMetaPreregistration }, "Open Meta-Preregistration")));
   }
-  function TransparencyChecklist({ checks, onOpen, references, referenceState }) {
+  function TransparencyChecklist({ checks, onOpen, references, referenceState, showRegistrationReferences = true }) {
     if (!checks || !checks.length) return null;
     const present = checks.filter((c) => c.status === "present").length;
     const notFound = checks.filter((c) => c.status === "not-found").length;
@@ -6852,7 +6852,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         page: c.page,
         caveat: "Disclosure signals are text detections only; not detected does not mean absent."
       }
-    ), c.key === "preregistration" && /* @__PURE__ */ React.createElement(RegistrationReferences, { references: references || [], state: referenceState, onOpen }))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Detects ", /* @__PURE__ */ React.createElement("b", null, "reported disclosures"), " in the extracted text \u2014 it does not judge a paper's openness. ", /* @__PURE__ */ React.createElement("b", null, "\u201CNot detected\u201D means not found in the text, NOT that the artifact is absent"), " \u2014 a data-availability statement can live in an appendix, a footnote, or the journal's structured metadata this reader doesn't fully see. It's a prompt to look, never a score, and never an accusation of the authors. \u201CAvailable upon request\u201D is shown as a weaker signal than an open link, not a concern in itself."));
+    ), showRegistrationReferences && c.key === "preregistration" && /* @__PURE__ */ React.createElement(RegistrationReferences, { references: references || [], state: referenceState, onOpen }))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Detects ", /* @__PURE__ */ React.createElement("b", null, "reported disclosures"), " in the extracted text \u2014 it does not judge a paper's openness. ", /* @__PURE__ */ React.createElement("b", null, "\u201CNot detected\u201D means not found in the text, NOT that the artifact is absent"), " \u2014 a data-availability statement can live in an appendix, a footnote, or the journal's structured metadata this reader doesn't fully see. It's a prompt to look, never a score, and never an accusation of the authors. \u201CAvailable upon request\u201D is shown as a weaker signal than an open link, not a concern in itself."));
   }
   function RegistrationReferences({ references, state, onOpen }) {
     const stateLabel = state === "multiple-references-detected" ? "Multiple registration references detected" : state === "reference-detected" ? "Registration reference detected" : state === "language-detected" ? "Preregistration language detected; no actionable reference located" : "No registration reference detected";
@@ -7057,6 +7057,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     { key: "transparency-upon-request", label: "available upon request" }
   ];
   function TransparencySection({ ctx, active }) {
+    if (ctx.researchContext.kind === "manuscript") return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Detect ", /* @__PURE__ */ React.createElement("b", null, "reported open-science disclosures"), " in the current manuscript's exact primary-file checkpoint. Local, no AI, rule-based. Detected disclosures retain their evidence as facts; \u201Cnot detected\u201D is only detector coverage, never a score or claim that an artifact is absent."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This manuscript"), /* @__PURE__ */ React.createElement(WipTransparencySection, { manuscript: ctx.researchContext.entity, ctx }), /* @__PURE__ */ React.createElement(TransparencyCredit, null));
     return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Detect a paper's ", /* @__PURE__ */ React.createElement("b", null, "open-science disclosures"), " \u2014 does it state where the data & code live, declare conflicts of interest & funding, and (for a trial/review) report a registration or preregistration? Local, no AI, rule-based. It surfaces what's ", /* @__PURE__ */ React.createElement("i", null, "reported"), ", with the matched sentence \u2014 never a transparency score, and \u201Cnot detected\u201D never means the artifact is absent."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Whole library"), /* @__PURE__ */ React.createElement(TransparencyLibrary, { onReview: ctx.onShowTransparencyReview, onRan: ctx.onTransparencyRan }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(
       TransparencyPaper,
       {
@@ -10784,8 +10785,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   }
   function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
     const [creating, setCreating] = useState(false);
-    const [running, setRunning] = useState(false);
+    const [runningTool, setRunningTool] = useState("");
     const [error, setError] = useState("");
+    const running = runningTool !== "";
     const createCheckpoint = async () => {
       setCreating(true);
       setError("");
@@ -10794,25 +10796,84 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       if (result.ok) onReload();
       else setError(result.error || "Could not create checkpoint.");
     };
-    const runStatcheck = async () => {
-      setRunning(true);
+    const runCheck = async (toolId, failureMessage) => {
+      setRunningTool(toolId);
       setError("");
-      const result = await apiPost(`/wip/manuscripts/${manuscriptId}/checks/statcheck`, {});
-      setRunning(false);
+      const result = await apiPost(`/wip/manuscripts/${manuscriptId}/checks/${toolId}`, {});
+      setRunningTool("");
       if (result.ok) onReload();
-      else setError(result.error || "Statcheck could not run.");
+      else setError(result.error || failureMessage);
     };
-    return /* @__PURE__ */ React.createElement("section", { className: "wip-work-view" }, /* @__PURE__ */ React.createElement("div", { className: "wip-check-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", null, "Deterministic checks"), /* @__PURE__ */ React.createElement("p", null, "Each run names its exact checkpoint, tool version, coverage, and reviewable findings.")), /* @__PURE__ */ React.createElement("div", { className: "wip-check-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-ghost", disabled: creating, onClick: createCheckpoint }, creating ? "Creating\u2026" : "Create checkpoint"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: running, onClick: runStatcheck }, running ? "Running\u2026" : "Run statcheck"))), running && /* @__PURE__ */ React.createElement(ProgressBar, null), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error), (checks.runs || []).length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No checks run yet. An empty history is not a clean manuscript.") : checks.runs.map((run) => /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run", key: run.id }, /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run-head" }, /* @__PURE__ */ React.createElement("strong", null, run.tool_id), /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${run.validity}` }, run.validity.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(run.executed_at))), /* @__PURE__ */ React.createElement("p", null, run.result_summary), /* @__PURE__ */ React.createElement("small", null, "v", run.tool_version, " \xB7 snapshot ", run.snapshot_id, " \xB7 ", run.coverage), (run.findings || []).map((finding) => /* @__PURE__ */ React.createElement("div", { className: "wip-finding-row", key: finding.id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Candidate"), " ", /* @__PURE__ */ React.createElement("span", null, finding.summary), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: async () => {
-      const result = await apiPost(
-        `/wip/manuscripts/${manuscriptId}/files/${finding.file_id}/open`,
-        {}
-      );
+    const openSourceFile = async (fileId) => {
+      const result = await apiPost(`/wip/manuscripts/${manuscriptId}/files/${fileId}/open`, {});
       if (!result.ok) setError(result.error || "Could not open the source file.");
-    } }, "Open source file")), /* @__PURE__ */ React.createElement("select", { value: finding.disposition || "open", onChange: async (event) => {
+    };
+    return /* @__PURE__ */ React.createElement("section", { className: "wip-work-view" }, /* @__PURE__ */ React.createElement("div", { className: "wip-check-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", null, "Deterministic checks"), /* @__PURE__ */ React.createElement("p", null, "Each run names its exact checkpoint, tool version, coverage, and reviewable findings.")), /* @__PURE__ */ React.createElement("div", { className: "wip-check-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-ghost", disabled: creating, onClick: createCheckpoint }, creating ? "Creating\u2026" : "Create checkpoint"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-btn",
+        disabled: running,
+        onClick: () => runCheck("statcheck", "Statcheck could not run.")
+      },
+      runningTool === "statcheck" ? "Running\u2026" : "Run statcheck"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-btn",
+        disabled: running,
+        onClick: () => runCheck("transparency", "Transparency check could not run.")
+      },
+      runningTool === "transparency" ? "Checking\u2026" : "Check transparency"
+    ))), running && /* @__PURE__ */ React.createElement(ProgressBar, null), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error), (checks.runs || []).length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No checks run yet. An empty history is not a clean manuscript.") : checks.runs.map((run) => /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run", key: run.id }, /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run-head" }, /* @__PURE__ */ React.createElement("strong", null, run.tool_id === "transparency" ? "Transparency" : "Statcheck"), /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${run.validity}` }, run.validity.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(run.executed_at))), /* @__PURE__ */ React.createElement("p", null, run.result_summary), /* @__PURE__ */ React.createElement("small", null, "v", run.tool_version, " \xB7 snapshot ", run.snapshot_id, " \xB7 ", run.coverage), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => openSourceFile(run.file_id) }, "Open source file")), run.tool_id === "transparency" && /* @__PURE__ */ React.createElement(
+      WipTransparencyResult,
+      {
+        run,
+        onOpenSource: () => openSourceFile(run.file_id)
+      }
+    ), (run.findings || []).filter((finding) => finding.kind === "candidate").map((finding) => /* @__PURE__ */ React.createElement("div", { className: "wip-finding-row", key: finding.id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Candidate"), " ", /* @__PURE__ */ React.createElement("span", null, finding.summary)), /* @__PURE__ */ React.createElement("select", { value: finding.disposition || "open", onChange: async (event) => {
       const result = await apiPatch(`/wip/findings/${finding.id}`, { disposition: event.target.value });
       if (result.ok) onReload();
       else setError(result.error || "Could not update the finding.");
     } }, ["open", "acknowledged", "resolved", "dismissed", "false-positive", "deferred", "superseded"].map((value) => /* @__PURE__ */ React.createElement("option", { key: value, value }, value.replace(/-/g, " ")))), /* @__PURE__ */ React.createElement("blockquote", null, finding.quote), /* @__PURE__ */ React.createElement("p", null, finding.context), /* @__PURE__ */ React.createElement("small", null, "Reported ", finding.details_json.reported_p, "; recomputed p = ", finding.details_json.computed_p))))), /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-heading" }, /* @__PURE__ */ React.createElement("h3", null, "Content checkpoints"), /* @__PURE__ */ React.createElement("p", null, "Exact local hashes and bounded context; never a copy of the manuscript file.")), snapshots.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No content checkpoints yet.") : snapshots.map((snapshot) => /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-row", key: snapshot.id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, snapshot.reason.replace(/-/g, " ")), snapshot.reason_detail && /* @__PURE__ */ React.createElement("span", null, snapshot.reason_detail), /* @__PURE__ */ React.createElement("small", null, snapshot.extraction_provider, " ", snapshot.extraction_version, " \xB7 ", snapshot.extracted_char_count.toLocaleString(), " extracted characters")), /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-state" }, /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${snapshot.identity_status}` }, snapshot.identity_status.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(snapshot.created_at))), /* @__PURE__ */ React.createElement("p", null, snapshot.status_detail))), /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No tool result is implied by a content checkpoint. Deterministic checks will appear here after they run."));
+  }
+  function WipTransparencyResult({ run, onOpenSource }) {
+    const checks = (run.structured_result_json || {}).checks || [];
+    if (!checks.length) return null;
+    return /* @__PURE__ */ React.createElement("div", { className: "wip-transparency-result" }, /* @__PURE__ */ React.createElement(TransparencyChecklist, { checks, onOpen: onOpenSource, showRegistrationReferences: false }), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Detected rows are retained as evidence-backed facts. \u201CNot detected\u201D rows never become negative findings or claims about the manuscript."));
+  }
+  function WipTransparencySection({ manuscript, ctx }) {
+    const manuscriptId = manuscript ? manuscript.id : null;
+    const [checks, setChecks] = useState({ tools: [], runs: [] });
+    const [state, setState] = useState({ status: "idle" });
+    useEffect(() => {
+      setState({ status: "idle" });
+      if (manuscriptId == null) {
+        setChecks({ tools: [], runs: [] });
+        return void 0;
+      }
+      let live = true;
+      api(`/wip/manuscripts/${manuscriptId}/checks`).then((result) => {
+        if (live && result.ok) setChecks(result.data || { tools: [], runs: [] });
+      });
+      return () => {
+        live = false;
+      };
+    }, [manuscriptId, ctx.wipRefresh]);
+    const start = async () => {
+      setState({ status: "running" });
+      const result = await apiPost(`/wip/manuscripts/${manuscriptId}/checks/transparency`, {});
+      if (!result.ok) return setState({ status: "error", error: result.error });
+      setChecks((current) => ({ ...current, runs: [result.data, ...current.runs || []] }));
+      setState({ status: "done" });
+      if (ctx.onReloadWip) ctx.onReloadWip();
+    };
+    const openSource = async (fileId) => {
+      const result = await apiPost(`/wip/manuscripts/${manuscriptId}/files/${fileId}/open`, {});
+      if (!result.ok) setState({ status: "error", error: result.error || "Could not open the source file." });
+    };
+    if (manuscriptId == null) return /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a WIP manuscript to check its disclosures.");
+    const latest = (checks.runs || []).find((run) => run.tool_id === "transparency");
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, manuscript.display_title || manuscript.derived_title || "This manuscript"), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: state.status === "running", onClick: start }, state.status === "running" ? "Checking\u2026" : latest ? "Check disclosures again" : "Check disclosures")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Checking manuscript disclosures\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Transparency check failed: ", state.error), !latest && state.status !== "running" && /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No transparency check run yet. An empty history is not a clean manuscript."), latest && /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run" }, /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run-head" }, /* @__PURE__ */ React.createElement("strong", null, "Transparency"), /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${latest.validity}` }, latest.validity.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(latest.executed_at))), /* @__PURE__ */ React.createElement("p", null, latest.result_summary), /* @__PURE__ */ React.createElement("small", null, "v", latest.tool_version, " \xB7 snapshot ", latest.snapshot_id, " \xB7 ", latest.coverage), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => openSource(latest.file_id) }, "Open source file")), /* @__PURE__ */ React.createElement(WipTransparencyResult, { run: latest, onOpenSource: () => openSource(latest.file_id) })));
   }
   function WipStatcheckSection({ manuscript, ctx }) {
     const manuscriptId = manuscript ? manuscript.id : null;

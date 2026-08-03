@@ -294,6 +294,11 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
     assert '["overview", "structure", "tasks", "files", "references", "checks", "activity"]' in raw
     assert "Create checkpoint" in raw
     assert "Run statcheck" in raw
+    assert "Check transparency" in raw
+    assert "function WipTransparencySection({ manuscript, ctx })" in raw
+    assert "`/wip/manuscripts/${manuscriptId}/checks/transparency`" in raw
+    assert "Detected rows are retained as evidence-backed facts." in raw
+    assert "showRegistrationReferences={false}" in raw
     assert "running && <ProgressBar />" in raw
     assert "Open source file" in raw
     assert "An empty history is not a clean manuscript." in raw
@@ -739,6 +744,9 @@ def test_methods_pane_regrouped_details_data_statistics_checklists():
     assert 'id: "meta", label: "Meta-analysis reporting", order: 40, hideInReadOnly: true' in raw
     # Each section's render signature now takes `active` as a real prop (not re-derived from ctx.methodsOpen).
     assert "function TransparencySection({ ctx, active })" in raw
+    assert 'ctx.researchContext.kind === "manuscript"' in raw
+    assert "<WipTransparencySection manuscript={ctx.researchContext.entity} ctx={ctx} />" in raw
+    assert "exact primary-file checkpoint" in raw
     assert "function BayesSection({ ctx, active })" in raw
     assert "function LmmSection({ ctx, active })" in raw
     assert "function MetaSection({ ctx, active })" in raw

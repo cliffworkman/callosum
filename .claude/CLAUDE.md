@@ -21,8 +21,8 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 439** (see Increment workflow) with **1830 root-suite pytest tests
-passing** (+ 10 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
+It is currently at **Increment 441** (see Increment workflow) with **1834 root-suite pytest tests
+passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
 the full per-increment narrative for all other increments now lives in the relocated
@@ -135,7 +135,13 @@ the full per-increment narrative for all other increments now lives in the reloc
   is manuscript-tagged, leaving the existing paper/abstract paths untouched. Live verification also caught and
   fixed a real latent bug shared by both Funding and Journals: their input-mode only initialized once and never
   self-corrected when a stale "paper" mode became unusable (e.g. a WIP manuscript became active after a Library
-  paper had been selected earlier in the same session) — both now correct to the freeform mode automatically.
+  paper had been selected earlier in the same session) — both now correct to the freeform mode automatically;
+  **inc 441** brings the existing seven-rule Transparency disclosure detector to WIP as the first Checklists tool.
+  Each explicit run reads only the registered primary manuscript, records the exact file/hash snapshot and all
+  detector statuses, and persists positive quoted detections as non-reviewable FACTs; not-detected/not-applicable
+  rows never become negative findings, a score, or a manuscript judgment. The same stored run appears in the WIP
+  Checks tab and Methods → Checklists → Transparency. It remains local-only, deterministic, and migration-free;
+  non-PDF extractors' synthetic page 1 is cleared rather than presented as real coordinate precision.
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):

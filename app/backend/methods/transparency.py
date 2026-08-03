@@ -14,6 +14,8 @@ from __future__ import annotations
 import re
 from dataclasses import asdict, dataclass
 
+TRANSPARENCY_VERSION = "1"
+
 
 @dataclass(frozen=True)
 class TransparencySignal:

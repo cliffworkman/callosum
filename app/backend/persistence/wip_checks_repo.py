@@ -5,11 +5,13 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import datetime
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 from uuid import uuid4
 
 from sqlalchemy import Connection, desc, func, insert, select, update
 
 from app.backend.methods.statcheck import STATCHECK_VERSION, StatcheckReport
+from app.backend.methods.transparency import TRANSPARENCY_VERSION, TransparencyReport
 from app.backend.persistence.schema import tool_runs, wip_findings, wip_journal_runs, wip_tool_runs
 from app.backend.persistence.wip_provenance_repo import PreparedSnapshot, list_snapshots
 from app.backend.persistence.wip_repo import add_activity
@@ -18,6 +20,12 @@ STATCHECK_COVERAGE = (
     "Inline APA-style t, F, r, chi-square, and z results in extracted running text only. "
     "Tables, Bayesian results, confidence intervals, and unsupported reporting styles are not checked. "
     "No surfaced inconsistency never means the manuscript is clean."
+)
+TRANSPARENCY_COVERAGE = (
+    "Seven rule-based text checks: data and code availability, conflict of interest, funding, protocol or trial "
+    "registration, preregistration, and 'available upon request'. Checks only the extracted primary manuscript; "
+    "it does not inspect journal metadata, linked repositories, or files outside that primary source. "
+    "'Not detected' never means absent, and no result is a transparency score or judgment."
 )
 OPEN_DISPOSITIONS = {"open", "acknowledged", "deferred"}
 FINDING_DISPOSITIONS = OPEN_DISPOSITIONS | {
@@ -105,6 +113,92 @@ def store_statcheck_run(
     return get_tool_run(conn, tool_run_id) or {}
 
 
+def store_transparency_run(
+    conn: Connection,
+    prepared: PreparedSnapshot,
+    snapshot_id: int,
+    report: TransparencyReport,
+) -> dict:
+    present = [check for check in report.checks if check.status == "present"]
+    not_found = sum(check.status == "not-found" for check in report.checks)
+    not_applicable = sum(check.status == "not-applicable" for check in report.checks)
+    summary = (
+        f"Detected {len(present)} reported disclosure{'s' if len(present) != 1 else ''} across "
+        f"{len(report.checks)} checks; {not_found} not detected; {not_applicable} not applicable."
+    )
+    has_real_pages = Path(prepared.relative_path).suffix.casefold() == ".pdf"
+    checks = [
+        check.to_dict()
+        | {
+            "page": check.page if has_real_pages else None,
+            "coordinate_precision": "region" if has_real_pages and check.page is not None else None,
+        }
+        for check in report.checks
+    ]
+    run_result = conn.execute(
+        insert(tool_runs).values(
+            uid=str(uuid4()),
+            tool_id="transparency",
+            tool_version=TRANSPARENCY_VERSION,
+            callosum_version=_callosum_version(),
+            parameters_json={},
+            result_summary=summary,
+            structured_result_json={
+                "present": len(present),
+                "not_found": not_found,
+                "not_applicable": not_applicable,
+                "checks": checks,
+            },
+            coverage=TRANSPARENCY_COVERAGE,
+            status="complete",
+        )
+    )
+    tool_run_id = int(run_result.inserted_primary_key[0])
+    conn.execute(
+        insert(wip_tool_runs).values(
+            tool_run_id=tool_run_id,
+            manuscript_id=prepared.manuscript_id,
+            file_id=prepared.file_id,
+            snapshot_id=snapshot_id,
+            relevant_content_hash=prepared.identity.extracted_text_hash,
+        )
+    )
+    checks_by_key = {check["key"]: check for check in checks}
+    for check in present:
+        stored_check = checks_by_key[check.key]
+        conn.execute(
+            insert(wip_findings).values(
+                uid=str(uuid4()),
+                tool_run_id=tool_run_id,
+                manuscript_id=prepared.manuscript_id,
+                file_id=prepared.file_id,
+                kind="fact",
+                finding_type=f"transparency-{check.key}-detected",
+                severity="info",
+                summary=f"{check.label} disclosure detected",
+                details_json=stored_check,
+                quote=check.evidence,
+                context=check.explainer,
+                coordinate_precision=stored_check["coordinate_precision"],
+                disposition=None,
+            )
+        )
+    add_activity(
+        conn,
+        prepared.manuscript_id,
+        "tool-run-completed",
+        summary,
+        metadata={
+            "tool_id": "transparency",
+            "tool_version": TRANSPARENCY_VERSION,
+            "snapshot_id": snapshot_id,
+        },
+        related_entity_type="tool-run",
+        related_entity_id=str(tool_run_id),
+    )
+    return get_tool_run(conn, tool_run_id) or {}
+
+
 def list_tool_runs(conn: Connection, manuscript_id: int) -> list[dict]:
     rows = conn.execute(
         select(tool_runs, wip_tool_runs.c.manuscript_id, wip_tool_runs.c.file_id, wip_tool_runs.c.snapshot_id)
@@ -144,6 +238,8 @@ def update_finding_disposition(
     row = conn.execute(select(wip_findings).where(wip_findings.c.id == finding_id)).mappings().first()
     if row is None:
         return None
+    if row["kind"] != "candidate":
+        raise ValueError("Only candidate findings have a review disposition")
     conn.execute(
         update(wip_findings)
         .where(wip_findings.c.id == finding_id)
@@ -153,7 +249,7 @@ def update_finding_disposition(
         conn,
         int(row["manuscript_id"]),
         "finding-status-changed",
-        f"Statcheck finding marked {disposition.replace('-', ' ')}",
+        f"Finding marked {disposition.replace('-', ' ')}",
         related_entity_type="finding",
         related_entity_id=str(finding_id),
     )

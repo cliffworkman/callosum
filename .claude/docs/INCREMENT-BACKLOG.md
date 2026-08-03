@@ -552,11 +552,11 @@ the Principles + A-A gates before build.)*
   provenance column, never the full result cache, surfaced in `WipDetails`'s Checks tab via `10f_wip.jsx`).
   Three pieces remain, each scoped by today's research:
   - **Checklists** (Bayes/LMM/meta-analysis/transparency, the 2×2 tab group in `05_panes.jsx`/`08d/08f/08g/
-    08h_methods_*.jsx`) — **zero WIP backend exists**; each needs its own on-demand-extraction-to-findings
-    pipeline mirroring `wip_checks.py`'s statcheck shape (`extract_content_identity` → duck-typed chunks → the
-    existing pure computation → a `wip_findings` row). Transparency is the best first target (closest in shape
-    to statcheck: local pattern-detection over prose, no external calls) as a template for the other three —
-    four separate builds, not one.
+    08h_methods_*.jsx`) — **Transparency shipped inc 441** as the first template: exact primary-file checkpoint,
+    existing pure detector, seven-status receipt, positive evidence-backed `wip_findings` FACTs only, and shared
+    Checks-tab/Checklists UI with no provider call or migration. **Bayesian, mixed-model, and meta-analysis remain**;
+    each still needs its own on-demand extraction-to-findings pipeline following this template and its own
+    method-specific evidence/coverage contract — three separate builds, not one.
   - **Synthesize > Critique** (`08x_methods_critical.jsx`/`critical_review.py`) — deeply coupled to `papers`/
     `chunks`/`embeddings`/`open_science_signals`/`paper_findings`/`critical_review_candidates`, all FK'd to
     `papers.id`; no freeform mode exists in the UI. Needs a parallel text-extraction-driven "stored signals"

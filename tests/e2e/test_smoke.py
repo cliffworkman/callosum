@@ -138,6 +138,10 @@ def test_reading_mode_keeps_center_visible_and_does_not_persist_panel_collapse(s
         browser.close()
 
 
+def test_wip_transparency_is_snapshot_bound_local_and_visible_in_both_surfaces(server: str, tmp_path):
+    _run_wip_transparency_e2e(server, tmp_path)
+
+
 def test_feedback_dialog_end_to_end_states(server: str):
     """A bounded browser flow with a mock local relay: bug retry, feature success, disabled state, and focus."""
     with sync_playwright() as p:
@@ -259,6 +263,90 @@ def _mount_app(page, server: str) -> list[str]:
         timeout=30000,
     )
     return errors
+
+
+def _run_wip_transparency_e2e(server: str, tmp_path):
+    folder = tmp_path / "WIP Transparency Draft"
+    folder.mkdir()
+    (folder / "draft.md").write_text(
+        "Data are available at https://osf.io/abcd. The authors declare no conflicts of interest. "
+        "This project received no funding. No other disclosure language appears here.",
+        encoding="utf-8",
+    )
+    root = httpx.post(
+        server + "/wip/watch-roots",
+        json={"path": str(folder), "discovery_mode": "folder"},
+        timeout=30,
+    ).json()
+    scan = httpx.post(server + f"/wip/watch-roots/{root['id']}/scan", timeout=30).json()
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        status = httpx.get(server + f"/wip/scan/{scan['job_id']}", timeout=30).json()
+        if status["status"] in {"done", "error"}:
+            assert status["status"] == "done", status
+            break
+        time.sleep(0.1)
+    else:
+        raise AssertionError("WIP scan did not finish")
+    manuscript = next(
+        item
+        for item in httpx.get(server + "/wip/manuscripts", timeout=30).json()
+        if item["display_title"] == folder.name
+    )
+    primary = httpx.get(server + f"/wip/manuscripts/{manuscript['id']}/files", timeout=30).json()[0]
+    selected = httpx.patch(
+        server + f"/wip/manuscripts/{manuscript['id']}/files/{primary['id']}",
+        json={"is_primary": True},
+        timeout=30,
+    )
+    assert selected.status_code == 200
+
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        errors = _mount_app(page, server)
+        outbound: list[str] = []
+        page.on("request", lambda request: outbound.append(request.url) if not request.url.startswith(server) else None)
+
+        page.get_by_role("button", name="WIP", exact=True).click()
+        card = page.get_by_role("button", name=f"WIP manuscript: {folder.name}")
+        card.dblclick()
+        page.locator(".acc-header", has_text="Checklists").click()
+        page.get_by_role("tab", name="Transparency signals", exact=True).click()
+        page.get_by_role("button", name="Check disclosures", exact=True).click()
+
+        disclosure_heading = page.get_by_text("Open-science disclosures", exact=True).first
+        disclosure_heading.wait_for()
+        active_checklist = disclosure_heading.locator(
+            "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' wip-transparency-result ')][1]"
+        )
+        assert active_checklist.get_by_text("Data availability", exact=True).count() == 1
+        assert active_checklist.get_by_text("not detected", exact=True).count() >= 1
+        assert (
+            active_checklist.get_by_text("Detected rows are retained as evidence-backed facts.", exact=False).count()
+            == 1
+        )
+        checklist_run = active_checklist.locator(
+            "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' wip-tool-run ')][1]"
+        )
+        assert "transparency score or judgment" in checklist_run.inner_text()
+
+        page.get_by_role("button", name="Checks", exact=True).click()
+        wip_run = page.locator(".wip-work-view .wip-tool-run").filter(has_text="Transparency")
+        wip_run.wait_for()
+        assert wip_run.count() == 1
+        assert wip_run.locator("select").count() == 0
+        assert "snapshot" in wip_run.inner_text()
+        assert "not detected" in wip_run.inner_text().lower()
+        page.set_viewport_size({"width": 375, "height": 812})
+        _assert_no_document_horizontal_overflow(page, "WIP transparency / mobile")
+        _assert_tool_panes_do_not_overflow(page, "WIP transparency / mobile")
+        assert outbound == []
+        assert errors == []
+        browser.close()
 
 
 def _assert_no_document_horizontal_overflow(page, label: str) -> None:

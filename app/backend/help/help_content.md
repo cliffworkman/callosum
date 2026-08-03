@@ -923,6 +923,12 @@ Read it as a prompt, not a report card:
 - There is **no transparency score, no rank, and no verdict**; a present check opens its evidence in the PDF.
 - The section credits each detector's source and offers a one-click **add missing to library**.
 
+With a **WIP manuscript** active, this same tab becomes manuscript-scoped: **Check disclosures** reads only the
+current primary manuscript file, creates an exact content checkpoint, and saves the seven-status receipt with the
+tool version and coverage boundary. Detected rows retain their quotes as evidence-backed facts; not-detected rows do
+not become negative findings or review tasks. **Open source file** returns to the registered draft. This WIP path is
+local and does not run registry discovery, attach files, or send unpublished text anywhere.
+
 The **Preregistration** row also distinguishes language from an actionable reference. It recognizes printed OSF
 links and DOIs, AsPredicted links/identifiers, ClinicalTrials.gov and PROSPERO identifiers, and a generic DOI or URL
 when it occurs near registration language. A PDF link hidden behind words such as “available here” is read from the
@@ -1393,9 +1399,9 @@ Double-click a WIP card to open its manuscript workspace:
 - **Tasks** records manuscript work and can scope a task to a section.
 - **Files** assigns roles and lets you explicitly choose one primary manuscript.
 - **References** links existing Library papers without copying their bibliographic records.
-- **Checks** creates and inspects local content checkpoints, and runs deterministic Statcheck over the current
-  primary manuscript. Choosing a primary file and changing stage also create checkpoints when text extraction is
-  available.
+- **Checks** creates and inspects local content checkpoints, and runs deterministic Statcheck and Transparency
+  disclosure checks over the current primary manuscript. Choosing a primary file and changing stage also create
+  checkpoints when text extraction is available.
 - **Activity** records important workspace changes.
 
 Right-click a WIP card, or focus it and press **Shift+F10**, for manuscript actions: open the workspace, change
@@ -1418,6 +1424,12 @@ superseded without deleting the run, and **Open source file** returns directly t
 the run still refers to the manuscript's current extracted text; **current with findings** means candidate review
 remains. No findings means only that this check surfaced none within its stated coverage, never that the manuscript
 is clean.
+
+Each Transparency run uses the same exact-checkpoint contract and retains all seven detector statuses. Positive
+disclosures are evidence-backed facts, not items to resolve; not-detected checks never become findings. For PDFs,
+page evidence is region-level; non-PDF drafts keep the quote without inventing page
+precision. The same result appears under **Methods → Checklists → Transparency signals** while that WIP is active.
+It is a text detector, not a transparency score, completeness certificate, or judgment of the manuscript or author.
 
 WIP is local-only. It is hidden from read-only/remote views, excluded from cross-device sync, and never sent to an
 AI provider by these workspace features. A teal treatment plus a visible **WIP** badge distinguishes unpublished
