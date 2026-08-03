@@ -41,7 +41,7 @@ repos:
         types_or: [python, jsx]
       - id: bandit
         name: bandit security scan
-        entry: bandit -q -c pyproject.toml -b .bandit-baseline.json -r app/backend integrations sync_server feedback_relay
+        entry: python tools/run_bandit.py
         language: system
         pass_filenames: false
         types: [python]

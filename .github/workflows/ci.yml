@@ -28,7 +28,7 @@ jobs:
       - name: Ruff format check
         run: uv run ruff format --check .
       - name: Bandit (Python security static analysis)
-        run: uv run bandit -q -c pyproject.toml -b .bandit-baseline.json -r app/backend integrations sync_server feedback_relay
+        run: uv run python tools/run_bandit.py
       - name: Line budget (rule #1 — 600-line cap on app/ + integrations/)
         run: uv run python tools/check_line_budget.py
       - name: "Alembic migration check (fresh temp DB: upgrade head + zero model/migration drift)"

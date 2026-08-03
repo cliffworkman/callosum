@@ -69,6 +69,11 @@ rerun; no blocking experience issue remained.
   patterns returned no matches. `gitleaks` was unavailable and is not claimed as run.
 - The complete staged pre-commit gate passed: whitespace/EOF/conflict/large-file hygiene, Ruff format/lint, line
   budget, and Bandit.
+- Post-push Linux CI exposed a pre-existing portability defect in the inc-439 Bandit activation: its reviewed
+  baseline stored Windows backslashes, while Bandit compares filename strings verbatim. `tools/run_bandit.py` now
+  writes an OS-native temporary copy under `.local/` and runs the unchanged config, baseline findings, and targets;
+  both pre-commit and CI use that one entry point. No rule or finding was suppressed. The original CI run's Chromium
+  job and CodeQL passed; the corrected CI result is recorded after the follow-up push.
 
 ## Scope left open
 
