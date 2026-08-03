@@ -208,7 +208,145 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
   );
 }
 
+function WipCriticalReadResult({ run, ctx, onOpenSource }) {
+  const result = run.structured_result_json || {};
+  const retrieval = result.retrieval || {};
+  const claims = result.claims || [];
+  const contested = result.contested_claims || [];
+  const methods = result.method_signals || [];
+  const retrievalMessage = {
+    "no-claims": "No bounded claim sentences were available in the extracted primary manuscript.",
+    "empty-library-corpus": "No matching-model article-fulltext embeddings are available in the Library corpus.",
+    "nli-unavailable": "Nearby Library passages were found, but the local stance model was unavailable; no stance was guessed.",
+    "local-model-unavailable": "The configured local embedding or retrieval model was unavailable; method receipts remain inspectable.",
+    "no-retrievable-passages": "Eligible embeddings existed, but no passage could be resolved for local comparison.",
+  }[retrieval.status];
+  const openOther = item => {
+    if (!ctx.onOpenPaper) return;
+    ctx.onOpenPaper(
+      { id: item.other_paper_id, title: item.other_paper_title || "Library paper" },
+      { id: `wip-critical:${run.id}:${item.other_paper_id}`, paperId: item.other_paper_id,
+        attachmentId: item.attachment_id, page: item.page, precision: item.other_coordinate_precision }
+    );
+  };
+  return <div className="wip-critical-result">
+    <p className="eyebrow">Current-checkpoint method coverage</p>
+    <div className="bayes-checklist">
+      {methods.map(item => <div className="bayes-check-item" key={item.tool_id}>
+        <div className="bayes-check-head">
+          <span className="bayes-check-label">{item.label}</span>
+          <span className={item.status === "available" ? "cite-status verified" : "bayes-check-muted"}>
+            {item.status === "available" ? "current receipt" : "unavailable"}
+          </span>
+        </div>
+        {item.status === "available"
+          ? <div className="bayes-check-note">{item.result_summary}
+              {item.unresolved_candidate_count > 0 && ` · ${item.unresolved_candidate_count} unresolved review prompt${item.unresolved_candidate_count === 1 ? "" : "s"}`}
+            </div>
+          : <div className="bayes-check-note">{item.detail}</div>}
+      </div>)}
+    </div>
+    <p className="eyebrow">Claims compared locally</p>
+    {retrievalMessage && <div className="tag-suggest-empty">{retrievalMessage}</div>}
+    {!retrievalMessage && contested.length === 0 && <div className="tag-suggest-empty">
+      No high-confidence contrasting stance surfaced within this run’s bounded Library comparison. That is not a
+      clean bill of health or evidence that the claims are uncontested.
+    </div>}
+    {contested.map((item, index) => <div className="bayes-check-item" key={index}>
+      <div className="bayes-check-note"><b>This manuscript:</b> “{item.claim}”</div>
+      <button type="button" className="bayes-check-ev" onClick={() => openOther(item)}>
+        <b>{item.other_paper_title || `Library paper ${item.other_paper_id}`}:</b> “{item.passage}”
+      </button>
+      <div className="lmm-basis">local NLI stance: contrast · confidence {Math.round(item.confidence * 100)}%</div>
+    </div>)}
+    <details className="evidence-trail">
+      <summary>{claims.length} bounded manuscript claim sentence{claims.length === 1 ? "" : "s"} inspected</summary>
+      {claims.map((claim, index) => <blockquote key={index}>{claim.text}</blockquote>)}
+    </details>
+    <div className="statcheck-caveat">
+      Exact checkpoint {run.snapshot_id} · local models {run.parameters_json.embedding_model} / {run.parameters_json.stance_model}.
+      Query embeddings are transient and never stored as paper embeddings. Only article-fulltext Library passages
+      are eligible. This surfaces disagreement; it does not decide which claim is correct.
+    </div>
+    <button className="btn-link" onClick={onOpenSource}>Open primary manuscript file</button>
+  </div>;
+}
+
+function CriticalReadWip({ manuscript, ctx }) {
+  const manuscriptId = manuscript ? manuscript.id : null;
+  const [latest, setLatest] = useState(null);
+  const [state, setState] = useState({ status: "idle" });
+  useEffect(() => {
+    setState({ status: "idle" }); setLatest(null);
+    if (manuscriptId == null) return undefined;
+    let live = true;
+    api(`/wip/manuscripts/${manuscriptId}/checks`).then(r => {
+      if (live && r.ok) setLatest((r.data.runs || []).find(run => run.tool_id === "critical-read") || null);
+    });
+    return () => { live = false; };
+  }, [manuscriptId, ctx.wipRefresh]);
+  const start = async () => {
+    setState({ status: "running" });
+    const response = await apiPost(`/wip/manuscripts/${manuscriptId}/critical-read`, {});
+    if (!response.ok) return setState({ status: "error", error: response.error });
+    const poll = jobId => api(`/wip/critical-read/${jobId}`).then(result => {
+      if (!result.ok) return setState({ status: "error", error: result.error });
+      if (result.data.status === "done") {
+        setLatest(result.data.run); setState({ status: "done" });
+        if (ctx.onReloadWip) ctx.onReloadWip();
+      } else if (result.data.status === "error") {
+        setState({ status: "error", error: result.data.detail || "Local critical read failed." });
+      } else setTimeout(() => poll(jobId), 1000);
+    });
+    poll(response.data.job_id);
+  };
+  const openSource = async () => {
+    const result = await apiPost(`/wip/manuscripts/${manuscriptId}/files/${latest.file_id}/open`, {});
+    if (!result.ok) setState({ status: "error", error: result.error || "Could not open the source file." });
+  };
+  if (manuscriptId == null) return <div className="tag-suggest-empty">Select a WIP manuscript to read it critically.</div>;
+  return <div className="detail-statcheck">
+    <span className="detail-cite-label">{manuscript.display_title || manuscript.derived_title || "This manuscript"}</span>
+    <div className="settings-actions">
+      <button className="btn btn-primary" disabled={state.status === "running"} onClick={start}>
+        {state.status === "running" ? "Running…" : latest ? "Run local critical read again" : "Run local critical read"}
+      </button>
+    </div>
+    {state.status === "running" && <ProgressBar label="Comparing bounded claims with local Library evidence…" managedBy="backend-job" />}
+    {state.status === "error" && <div className="axis-err">Couldn’t complete the local critical read: {state.error}
+      {latest && <span> The previous receipt remains below.</span>}
+    </div>}
+    {!latest && state.status !== "running" && <div className="tag-suggest-empty">
+      No local critical-read receipt yet. An empty history says nothing about the manuscript.
+    </div>}
+    {latest && <div className="wip-tool-run">
+      <div className="wip-tool-run-head">
+        <strong>Local critical read</strong>
+        <span className={`wip-identity-${latest.validity}`}>{latest.validity.replace(/-/g, " ")}</span>
+        <time>{wipWhen(latest.executed_at)}</time>
+      </div>
+      <p>{latest.result_summary}</p>
+      <small>v{latest.tool_version} · snapshot {latest.snapshot_id} · {latest.coverage}</small>
+      <WipCriticalReadResult run={latest} ctx={ctx} onOpenSource={openSource} />
+    </div>}
+  </div>;
+}
+
 function CriticalReadSection({ ctx }) {
+  if (ctx.researchContext.kind === "manuscript") return (
+    <div className="statcheck-section ws-pad">
+      <div className="settings-sub">
+        A local critical read of the exact primary-manuscript checkpoint: current method receipts plus claims that
+        receive a high-confidence contrasting stance from article-fulltext passages in your Library. It embeds draft
+        claims transiently, sends nothing to a provider, and surfaces disagreement without deciding who is correct.
+      </div>
+      <CriticalReadWip manuscript={ctx.researchContext.entity} ctx={ctx} />
+      <div className="statcheck-caveat">
+        AI-suggested critique candidates are deliberately unavailable for WIP in this version. Sending unpublished
+        text would require a separate exact transmission preview and explicit consent design.
+      </div>
+    </div>
+  );
   return (
     <div className="statcheck-section ws-pad">
       <div className="settings-sub">

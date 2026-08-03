@@ -47,7 +47,7 @@ callosum/
    │                          lmm [LMM-reporting completeness auditor, #23, inc 247],
    │                          metaanalysis [meta-analysis reporting auditor, #36 consumer-side, inc 249],
    │                          transparency [transparency-signals auditor: open-science-disclosure detectors + the library batch/summary/review-queue persistence, #44, inc 250/251],
-   │                          help}.py [models + handlers])
+   │                          help,wip_critical_review [local exact-snapshot WIP Critique job, inc 445]}.py [models + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core core tables] + schema_base.py [shared metadata] +
 │   │   │                          schema_findings.py [findings/signals/retraction/gap tables] + schema_feed.py
 │   │   │                          [feed_subscriptions/feed_items, inc 187] + schema_sync.py [sync_state/sync_conflicts/
@@ -66,7 +66,8 @@ callosum/
    │   │                          reading_queue_repo.py [reading_queue: the ordered to-read list, inc 219],
    │   │                          paper_lifecycle_repo.py [trash/purge/tier + read/priority setters, split inc 220],
    │   │                          summaries_repo.py [synthesis CRUD, split inc 220] [both re-exported from repository];
-   │   │                          database.py sets PRAGMA journal_mode=WAL + busy_timeout=5000, inc 219)
+   │   │                          wip_critical_review_repo.py [generic exact-snapshot WIP critical-read receipt,
+   │   │                          inc 445]; database.py sets PRAGMA journal_mode=WAL + busy_timeout=5000, inc 219)
 │   │   ├── pdf_processing/        (extraction.py [PyMuPDF text + canonicalize], quote_matching.py
 │   │   │                          [locate_quote → bbox rects], ingest.py, library_scan.py [folder scan, inc 87],
 │   │   │                          ocr.py [scanned PDF → searchable PDF via local Tesseract binary, inc 231],
@@ -89,7 +90,8 @@ callosum/
    │   │                          metaanalysis.py [meta-analysis reporting auditor: reads a published meta-analysis's reported text, flags 7 reporting checks, never pools/models/re-computes, #36, inc 249],
    │   │                          transparency.py [transparency-signals auditor: ODDPub/rtransparent-derived, detects 7 open-science disclosures in reported text, never scores/accuses, #44, inc 250] +
    │   │                          transparency_findings.py [persist present disclosures as findings-FACTs + per-disclosure status → 7 library review queues + chip, #44 inc 1b, inc 251] +
-   │   │                          effectsize.py [deterministic effect-size converter: one study's stats → Hedges' g/Fisher's z/log OR/RR + variance + CI, cited formulas, NEVER pools/models, meta-analysis workbench SP1, inc 252])
+   │   │                          effectsize.py [deterministic effect-size converter: one study's stats → Hedges' g/Fisher's z/log OR/RR + variance + CI, cited formulas, NEVER pools/models, meta-analysis workbench SP1, inc 252],
+   │   │                          critical_review.py [paper + transient-query WIP contested-claim backbone, inc 266/445])
 │   │   ├── discovery/             (providers.py [SourceProvider registry + normalized Item + cross-provider dedup],
    │   │                          crossref_provider.py [Crossref /works keyword search], pubmed_provider.py [NCBI
    │   │                          E-utilities esearch→esummary: PubMed Search provider (SP1a inc 186) + PubMedKeywordFeedSource

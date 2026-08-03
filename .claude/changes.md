@@ -9,7 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-03 inc 444 — WIP meta-analysis reporting audit -->
+<!-- HELP-DOCS-SYNCED: 2026-08-03 inc 445 — local exact-snapshot WIP critical read -->
+
+## 2026-08-03 — Increment 445: local grounded critical reading for WIP manuscripts
+
+- **Files:** shared critical-review domain helpers; local-only WIP async router, job store, and exact-snapshot
+  persistence adapter; Synthesize → Critique manuscript branch and Status navigation; backend/frontend/Chromium
+  tests; help/backlog/QA/security/increment documentation.
+- **What:** added an explicit local critical read over the registered primary WIP file. It composes only method-run
+  receipts whose extracted-text hash matches the current checkpoint, extracts at most 12 verbatim claim sentences,
+  embeds those queries transiently, and compares them only with matching-model article-fulltext chunk embeddings in
+  live Library papers. High-confidence local-NLI contrast is shown as paired manuscript claim + Library passage with
+  paper/attachment/page/model provenance. Contrasts remain reading signals and create no defect finding.
+- **Why:** give authors an inspectable skeptical-reading backbone before publication without inventing a `papers`
+  row, uploading unpublished prose, treating stale method checks as current, or turning disagreement into a verdict.
+- **Security:** loopback-only, explicit action, fixed bounds, server-selected document/model/vector scope, read-only
+  vector search, no persisted WIP embedding, provider, egress, migration, raw exception, automatic retry, score, or
+  author accusation. Status receives only a typed manuscript id and never the job result or manuscript passages.
+- **Verify:** focused backend/frontend and Chromium workflow passed; full-suite, QA-map, dependency/security,
+  formatting, build, and diff/secret results are recorded in `INCREMENT-445-NOTES.md`.
+- **Revert:** remove the WIP critical-read route/store/UI/tests/docs and rebuild the frontend. Existing generic WIP
+  receipts and Library-paper critical reading require no migration or data rollback.
 
 ## 2026-08-03 — Increment 444: meta-analysis reporting checks for WIP manuscripts
 

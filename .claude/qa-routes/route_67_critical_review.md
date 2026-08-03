@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /papers/{paper_id}/critical-read*, /critical-read/*, /papers/{paper_id}/findings, /findings/{finding_id}/review, /findings/overview
+api: /papers/{paper_id}/critical-read*, /critical-read/*, /wip/manuscripts/{manuscript_id}/critical-read, /wip/critical-read/{job_id}, /papers/{paper_id}/findings, /findings/{finding_id}/review, /findings/overview
 fe: 08x_methods_critical.jsx, 04b_workspaces.jsx
 -->
 
@@ -41,6 +41,10 @@ egress enabled + a fake/loopback provider. Register listeners before navigation.
 - **Tier 1 is user-triggered, not auto-run (2026-07-20).** Opening Critique on a paper with text must NOT by
   itself fire `POST /papers/{id}/critical-read` — a **"Run critical read"** button must be clicked first. An
   automatic Tier-1 POST on mount/paper-switch, with no prior click, is **High**.
+- **WIP is a separate local-only trust path (inc 445).** Opening Critique on a manuscript never calls the paper
+  route or provider candidate route. Only an explicit **Run local critical read** starts the loopback WIP job. Draft
+  query embeddings are transient; only matching-model article-fulltext Library embeddings may be searched. Status
+  may receive `manuscript_id`, never claims, passages, paths, or the job result.
 
 ## Adversarial checklist
 
@@ -90,6 +94,12 @@ egress enabled + a fake/loopback provider. Register listeners before navigation.
     (silent, matching the Tier-2 candidates list's own empty convention — no empty-state clutter).
 11. Adversarial: unknown paper/job/candidate/finding ids → 404; an unknown review `state` → 422; empty-reason
     Accepted is not saveable; confirm messaging, not a crash.
+12. Open a WIP with a registered primary file, then Synthesize → Critique. Confirm no request runs on mount and no
+    provider-suggestion control exists. Click **Run local critical read**; confirm the exact snapshot receipt lists
+    same-hash method coverage, bounded draft claims, model/vector provenance, and either an honest no-claims/
+    empty-corpus/model-unavailable state or paired draft claim + verbatim other-paper passage. A paired result opens
+    the exact Library attachment/page and creates no WIP finding. Change/rescan the draft and confirm the receipt
+    stales. Capture traffic: no external request. Status labels the job Local AI and contains no draft/result text.
 
 ## Pass criteria
 

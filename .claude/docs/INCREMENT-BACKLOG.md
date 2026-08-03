@@ -550,7 +550,8 @@ the Principles + A-A gates before build.)*
   see `INCREMENT-402/403/404-NOTES.md` for the exact mechanism (branch on `ctx.researchContext.kind ===
   "manuscript"` in `06_methods_statcheck.jsx`'s precedent; a small per-tool receipt table or an already-generic
   provenance column, never the full result cache, surfaced in `WipDetails`'s Checks tab via `10f_wip.jsx`).
-    Three pieces remain, each scoped by today's research:
+    Three pieces were scoped by the research; Checklists and local Critique are now delivered, leaving the feasible
+    explicitly-linked Meta-Reference slice:
   - **Checklists** (Bayes/LMM/meta-analysis/transparency, the 2×2 tab group in `05_panes.jsx`/`08d/08f/08g/
     08h_methods_*.jsx`) — **Transparency shipped inc 441** as the first template: exact primary-file checkpoint,
       existing pure detector, seven-status receipt, positive evidence-backed `wip_findings` FACTs only, and shared
@@ -566,13 +567,13 @@ the Principles + A-A gates before build.)*
       gate triggers; present/n-a rows remain receipt-only and gate-off creates no findings. The fixed coverage states
       that tables/figures are incompletely read and silence never proves omission. **The Checklists group is now
       complete for WIP.**
-  - **Synthesize > Critique** (`08x_methods_critical.jsx`/`critical_review.py`) — deeply coupled to `papers`/
-    `chunks`/`embeddings`/`open_science_signals`/`paper_findings`/`critical_review_candidates`, all FK'd to
-    `papers.id`; no freeform mode exists in the UI. Needs a parallel text-extraction-driven "stored signals"
-    source (WIP's own `wip_findings`, not `paper_findings`) and either reuse of the existing embeddings/vector
-    search (`find_contested_claims` doesn't strictly require the source itself to be embedded — feasible) or a
-    new WIP-scoped candidate table mirroring `critical_review_candidates`. A genuine new feature, not a wiring
-    task.
+  - **Synthesize > Critique shipped inc 445** (`08x_methods_critical.jsx`/`wip_critical_review.py`) as an explicit,
+    local-only exact-snapshot job. It composes current-hash WIP method receipts and compares at most 12 bounded draft
+    claims, using transient query embeddings, only against matching-model article-fulltext embeddings from live
+    Library papers. A high-confidence local-NLI contrast retains paired verbatim evidence plus paper/attachment/page
+    and model provenance, but creates no defect finding or score. Status sees only a typed manuscript id. There is
+    no paper-row shim, stored draft embedding, provider/egress path, migration, or automatic run; provider-suggested
+    WIP critique remains deferred until it has its own exact transmission preview and consent design.
   - **Work > Meta-Reference** (`37b_meta_reference.jsx` composing `08j_reference_integrity.jsx` +
     `08b_methods_citation_equity.jsx` + `08c_methods_citation_context.jsx`) — reference-integrity and
     citation-concentration are moderately tractable by running the existing per-reference detectors against the

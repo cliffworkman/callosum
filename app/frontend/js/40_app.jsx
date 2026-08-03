@@ -200,7 +200,6 @@ function App() {
     setMethodsOpen("details");
     if (mobile) setMobilePane("methods");
   }, [mobile, setMethodsOpen, setMobilePane]);
-
   const openReferenceWarnings = useCallback((paper) => {
     if (!paper || paper.id == null) return;
     setSelected(paper.id);
@@ -218,6 +217,7 @@ function App() {
   const onStatusNavigate = useCallback((job) => {
     const nav = job.nav || {};
     if (nav.paper_id != null) setSelected(nav.paper_id);
+    if (nav.manuscript_id != null) { const manuscript = wip.manuscripts.find(item => item.id === nav.manuscript_id); if (manuscript) openWip(manuscript); }
     if (nav.summary_id != null) { openSynthesisSummary(nav.summary_id); return; }
     if (nav.workspace) {
       selectWorkspace(nav.workspace);
@@ -240,7 +240,7 @@ function App() {
     if (nav.modal === "import") setImportOpen(true);
     if (nav.modal === "bundle-import") setBundleImportOpen(true);
     if (nav.modal === "feedback") window.dispatchEvent(new Event("callosum:open-feedback"));
-  }, [gotoLibrary, libraryBits, mobile, openSynthesisSummary, requestWorkspaceTab, selectWorkspace, setMethodsOpen, setMobilePane, setTheoryOpen]);
+  }, [gotoLibrary, libraryBits, mobile, openSynthesisSummary, openWip, requestWorkspaceTab, selectWorkspace, setMethodsOpen, setMobilePane, setTheoryOpen, wip.manuscripts]);
   // backlog #26 (F1 discoverability): jump from PUBLISHERS ("Where to submit") to the CRediT builder — both
   // already operate on the same globally-selected paper, so no re-select is needed, just a workspace/tab switch.
   const openCreditBuilder = useCallback(() => {

@@ -619,6 +619,29 @@ def test_single_paper_critical_read_lives_in_synthesize_critique():
     assert "Run critical read" in raw
 
 
+def test_wip_critical_read_is_explicit_local_snapshot_bound_and_has_no_provider_action():
+    raw = assemble_jsx()
+    assert 'if (ctx.researchContext.kind === "manuscript")' in raw
+    assert "function CriticalReadWip({ manuscript, ctx })" in raw
+    assert "function WipCriticalReadResult({ run, ctx, onOpenSource })" in raw
+    assert "Run local critical read" in raw
+    assert "Comparing bounded claims with local Library evidence" in raw
+    assert "Query embeddings are transient and never stored as paper embeddings" in raw
+    assert "article-fulltext Library passages" in raw
+    assert "surfaces disagreement; it does not decide which claim is correct" in raw
+    assert "separate exact transmission preview and explicit consent design" in raw
+    assert "`/wip/manuscripts/${manuscriptId}/critical-read`" in raw
+    assert "`/wip/critical-read/${jobId}`" in raw
+    assert "attachmentId: item.attachment_id" in raw
+    assert "paperId: item.other_paper_id" in raw
+    wip_branch = raw[
+        raw.index('if (ctx.researchContext.kind === "manuscript")') : raw.index(
+            "return (", raw.index('if (ctx.researchContext.kind === "manuscript")') + 1
+        )
+    ]
+    assert "/candidates/generate" not in wip_branch
+
+
 def test_pdf_text_health_controls_are_present_and_local_only_worded():
     raw = assemble_jsx()
     assert "function TextHealthButton(" in raw

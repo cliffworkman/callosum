@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 444** (see Increment workflow) with **1843 root-suite pytest tests
+It is currently at **Increment 445** (see Increment workflow) with **1853 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -157,6 +157,13 @@ the full per-increment narrative for all other increments now lives in the reloc
   row only when the meta-analysis gate is on. Present/n-a rows remain receipt-only, gate-off creates no findings,
   and the copy repeatedly states that detector silence is not proof of omission. It never pools, models, recomputes,
   scores, or judges the analysis, and adds no provider, migration, egress, or paper-row shim.
+  **Inc 445** adds an explicit local critical read for WIP in Synthesize → Critique. The registered primary file is
+  prepared synchronously as an exact checkpoint; a separate background job composes only same-hash WIP method
+  receipts, extracts at most 12 bounded claim sentences, transiently embeds them, and searches only matching-model
+  article-fulltext embeddings from live Library papers. Local NLI surfaces high-confidence contrast as paired
+  verbatim draft/Library evidence with paper, attachment, page, confidence, and model provenance. It never persists
+  a draft embedding, borrows stale receipts, creates a defect finding, invents a `papers` row, auto-runs, scores, or
+  calls a provider. Status labels it Local AI and receives only a typed manuscript id, never the result passages.
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):

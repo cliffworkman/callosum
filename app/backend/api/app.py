@@ -85,6 +85,7 @@ from app.backend.api.routers import (
     wanted,
     wip,
     wip_checks,
+    wip_critical_review,
     wip_provenance,
     wip_workflow,
     word,
@@ -211,6 +212,7 @@ def create_app(
     api.state.overlooked_lens_jobs = JobStore()  # backlog #37: overlooked-work lens (per-axis discovery)
     api.state.citation_count_jobs = JobStore()  # inc 210 (A2): library-wide OpenAlex cited-by refresh
     api.state.critical_review_jobs = JobStore()  # backlog #12: single-paper critical-read (scrutiny surface)
+    api.state.wip_critical_review_jobs = JobStore()  # inc 445: local exact-snapshot WIP critical read
     api.state.critical_review_set_jobs = JobStore()  # backlog #12: set (multi-paper) critical review
     api.state.critical_review_set_generator = None  # test seam for the Tier-2 set generator
     api.state.citation_equity_jobs = JobStore()  # inc 227 (#25): per-paper structural citation-equity audit
@@ -366,6 +368,7 @@ def create_app(
     api.include_router(library.router)
     api.include_router(wip.router)  # /wip/* — local-only unpublished manuscript workspaces
     api.include_router(wip_checks.router)
+    api.include_router(wip_critical_review.router)
     api.include_router(wip_provenance.router)
     api.include_router(wip_workflow.router)
     api.include_router(library_enrich.router)  # /library/enrich/refresh — split out of library.py (rule #1)

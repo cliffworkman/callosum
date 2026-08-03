@@ -1091,7 +1091,7 @@ Open **Synthesize → Critique** with a paper selected. It assembles a *scrutiny
 
 It has two tiers, kept deliberately distinct:
 
-- **Tier 1 — facts (local, no AI, runs automatically).** It gathers what the app already knows: the paper's method-check flags (statcheck, GRIM, LMM-reporting, transparency, retraction…) and **claims the rest of your corpus contests** — sentences from this paper that another paper in your library takes a confident *contrasting* stance toward, shown with the contradicting passage (verbatim, with its page) and a confidence. This surfaces disagreement your own library already contains; it never resolves it for you.
+- **Tier 1 — facts (local, no provider AI, runs when you choose Run critical read).** It gathers what the app already knows: the paper's method-check flags (statcheck, GRIM, LMM-reporting, transparency, retraction…) and **claims the rest of your corpus contests** — sentences from this paper that another paper in your library takes a confident *contrasting* stance toward, shown with the contradicting passage (verbatim, with its page) and a confidence. This surfaces disagreement your own library already contains; it never resolves it for you.
 - **Tier 2 — AI-suggested critiques (opt-in, off by default).** Only when you've enabled AI features, a **Suggest critiques (AI)** button asks the model to propose concerns. Each suggestion is a **candidate you confirm** (shown in amber, distinct from the Tier-1 facts): it is admitted only if it quotes the paper **verbatim** (an ungrounded suggestion is dropped), and it carries a stance + confidence. You **Accept** the ones worth keeping and **Reject** the rest — a rejected suggestion is never proposed again. With AI off, Tier 1 still works fully.
 
 "Nothing surfaced by these checks" is **not** a clean bill of health — it means these particular signals found nothing to flag. The reading judgment is always yours.
@@ -1473,6 +1473,18 @@ reviewable `info` candidate; present rows and the mini-meta-analysis **n/a** sea
 When the gate does not trigger, no checklist or findings are applied, which never proves the draft contains no
 meta-analysis. The same receipt appears under **Methods → Checklists → Meta-analysis reporting**. Tables and figures
 are not fully read, and this check never pools, models, recomputes, scores, ranks, or judges the analysis.
+
+With a WIP active, **Synthesize → Critique** offers an explicit **Run local critical read** action over the exact
+registered primary-file checkpoint. It summarizes only WIP method receipts that match that extracted-text hash;
+older receipts are shown as unavailable, never borrowed as current. Callosum takes at most 12 bounded verbatim claim
+sentences from the draft and embeds those query sentences transiently. It does not store them as Library embeddings.
+The search can inspect only matching-model **article-fulltext** chunk embeddings from live Library papers—never
+supplements, registrations, or the unpublished draft as a paper. A surfaced contrast pairs the draft claim with the
+verbatim Library passage, paper, attachment, page, local-NLI stance/confidence, and model provenance so you can open
+the other source. It means the local model found disagreement, not that either claim is correct or defective, and it
+creates no finding or score. The run appears in Status as **Local AI** without serializing its claims or passages.
+Provider-suggested WIP critiques are deliberately absent: any future version would need a separate exact
+transmission preview and explicit consent before unpublished text could leave the device.
 
 WIP is local-only. It is hidden from read-only/remote views, excluded from cross-device sync, and never sent to an
 AI provider by these workspace features. A teal treatment plus a visible **WIP** badge distinguishes unpublished

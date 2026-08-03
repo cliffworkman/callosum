@@ -8809,7 +8809,75 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       gen === "generating" ? "Suggesting\u2026" : "Suggest critiques (AI)"
     ), gen === "generating" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Suggesting and locally verifying critiques\u2026", managedBy: "tracked-request" }), gen === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t suggest critiques \u2014 is AI enabled with a key (Settings)?"), shown.map((c) => /* @__PURE__ */ React.createElement(CriticalCandidate, { key: c.id, c, onAccept: () => act(c.id, "accept"), onReject: () => act(c.id, "reject") }))));
   }
+  function WipCriticalReadResult({ run, ctx, onOpenSource }) {
+    const result = run.structured_result_json || {};
+    const retrieval = result.retrieval || {};
+    const claims = result.claims || [];
+    const contested = result.contested_claims || [];
+    const methods = result.method_signals || [];
+    const retrievalMessage = {
+      "no-claims": "No bounded claim sentences were available in the extracted primary manuscript.",
+      "empty-library-corpus": "No matching-model article-fulltext embeddings are available in the Library corpus.",
+      "nli-unavailable": "Nearby Library passages were found, but the local stance model was unavailable; no stance was guessed.",
+      "local-model-unavailable": "The configured local embedding or retrieval model was unavailable; method receipts remain inspectable.",
+      "no-retrievable-passages": "Eligible embeddings existed, but no passage could be resolved for local comparison."
+    }[retrieval.status];
+    const openOther = (item) => {
+      if (!ctx.onOpenPaper) return;
+      ctx.onOpenPaper(
+        { id: item.other_paper_id, title: item.other_paper_title || "Library paper" },
+        {
+          id: `wip-critical:${run.id}:${item.other_paper_id}`,
+          paperId: item.other_paper_id,
+          attachmentId: item.attachment_id,
+          page: item.page,
+          precision: item.other_coordinate_precision
+        }
+      );
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "wip-critical-result" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Current-checkpoint method coverage"), /* @__PURE__ */ React.createElement("div", { className: "bayes-checklist" }, methods.map((item) => /* @__PURE__ */ React.createElement("div", { className: "bayes-check-item", key: item.tool_id }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-head" }, /* @__PURE__ */ React.createElement("span", { className: "bayes-check-label" }, item.label), /* @__PURE__ */ React.createElement("span", { className: item.status === "available" ? "cite-status verified" : "bayes-check-muted" }, item.status === "available" ? "current receipt" : "unavailable")), item.status === "available" ? /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, item.result_summary, item.unresolved_candidate_count > 0 && ` \xB7 ${item.unresolved_candidate_count} unresolved review prompt${item.unresolved_candidate_count === 1 ? "" : "s"}`) : /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, item.detail)))), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Claims compared locally"), retrievalMessage && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, retrievalMessage), !retrievalMessage && contested.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No high-confidence contrasting stance surfaced within this run\u2019s bounded Library comparison. That is not a clean bill of health or evidence that the claims are uncontested."), contested.map((item, index) => /* @__PURE__ */ React.createElement("div", { className: "bayes-check-item", key: index }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, /* @__PURE__ */ React.createElement("b", null, "This manuscript:"), " \u201C", item.claim, "\u201D"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "bayes-check-ev", onClick: () => openOther(item) }, /* @__PURE__ */ React.createElement("b", null, item.other_paper_title || `Library paper ${item.other_paper_id}`, ":"), " \u201C", item.passage, "\u201D"), /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "local NLI stance: contrast \xB7 confidence ", Math.round(item.confidence * 100), "%"))), /* @__PURE__ */ React.createElement("details", { className: "evidence-trail" }, /* @__PURE__ */ React.createElement("summary", null, claims.length, " bounded manuscript claim sentence", claims.length === 1 ? "" : "s", " inspected"), claims.map((claim, index) => /* @__PURE__ */ React.createElement("blockquote", { key: index }, claim.text))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Exact checkpoint ", run.snapshot_id, " \xB7 local models ", run.parameters_json.embedding_model, " / ", run.parameters_json.stance_model, ". Query embeddings are transient and never stored as paper embeddings. Only article-fulltext Library passages are eligible. This surfaces disagreement; it does not decide which claim is correct."), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onOpenSource }, "Open primary manuscript file"));
+  }
+  function CriticalReadWip({ manuscript, ctx }) {
+    const manuscriptId = manuscript ? manuscript.id : null;
+    const [latest, setLatest] = useState(null);
+    const [state, setState] = useState({ status: "idle" });
+    useEffect(() => {
+      setState({ status: "idle" });
+      setLatest(null);
+      if (manuscriptId == null) return void 0;
+      let live = true;
+      api(`/wip/manuscripts/${manuscriptId}/checks`).then((r) => {
+        if (live && r.ok) setLatest((r.data.runs || []).find((run) => run.tool_id === "critical-read") || null);
+      });
+      return () => {
+        live = false;
+      };
+    }, [manuscriptId, ctx.wipRefresh]);
+    const start = async () => {
+      setState({ status: "running" });
+      const response = await apiPost(`/wip/manuscripts/${manuscriptId}/critical-read`, {});
+      if (!response.ok) return setState({ status: "error", error: response.error });
+      const poll = (jobId) => api(`/wip/critical-read/${jobId}`).then((result) => {
+        if (!result.ok) return setState({ status: "error", error: result.error });
+        if (result.data.status === "done") {
+          setLatest(result.data.run);
+          setState({ status: "done" });
+          if (ctx.onReloadWip) ctx.onReloadWip();
+        } else if (result.data.status === "error") {
+          setState({ status: "error", error: result.data.detail || "Local critical read failed." });
+        } else setTimeout(() => poll(jobId), 1e3);
+      });
+      poll(response.data.job_id);
+    };
+    const openSource = async () => {
+      const result = await apiPost(`/wip/manuscripts/${manuscriptId}/files/${latest.file_id}/open`, {});
+      if (!result.ok) setState({ status: "error", error: result.error || "Could not open the source file." });
+    };
+    if (manuscriptId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a WIP manuscript to read it critically.");
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, manuscript.display_title || manuscript.derived_title || "This manuscript"), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: state.status === "running", onClick: start }, state.status === "running" ? "Running\u2026" : latest ? "Run local critical read again" : "Run local critical read")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Comparing bounded claims with local Library evidence\u2026", managedBy: "backend-job" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t complete the local critical read: ", state.error, latest && /* @__PURE__ */ React.createElement("span", null, " The previous receipt remains below.")), !latest && state.status !== "running" && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No local critical-read receipt yet. An empty history says nothing about the manuscript."), latest && /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run" }, /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run-head" }, /* @__PURE__ */ React.createElement("strong", null, "Local critical read"), /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${latest.validity}` }, latest.validity.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(latest.executed_at))), /* @__PURE__ */ React.createElement("p", null, latest.result_summary), /* @__PURE__ */ React.createElement("small", null, "v", latest.tool_version, " \xB7 snapshot ", latest.snapshot_id, " \xB7 ", latest.coverage), /* @__PURE__ */ React.createElement(WipCriticalReadResult, { run: latest, ctx, onOpenSource: openSource })));
+  }
   function CriticalReadSection({ ctx }) {
+    if (ctx.researchContext.kind === "manuscript") return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section ws-pad" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "A local critical read of the exact primary-manuscript checkpoint: current method receipts plus claims that receive a high-confidence contrasting stance from article-fulltext passages in your Library. It embeds draft claims transiently, sends nothing to a provider, and surfaces disagreement without deciding who is correct."), /* @__PURE__ */ React.createElement(CriticalReadWip, { manuscript: ctx.researchContext.entity, ctx }), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "AI-suggested critique candidates are deliberately unavailable for WIP in this version. Sending unpublished text would require a separate exact transmission preview and explicit consent design."));
     return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section ws-pad" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "A ", /* @__PURE__ */ React.createElement("b", null, "critical read"), ": what to check before you cite \u2014 the paper\u2019s method-check flags, claims the rest of your corpus contests, and (opt-in) AI-suggested critique candidates you confirm. A reading aid, never a verdict or a score."), /* @__PURE__ */ React.createElement(CriticalReadPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, onFindingsChanged: ctx.onFindingsChanged }));
   }
   registerWorkspaceTab({ id: "synthesis" }, {
@@ -19493,6 +19561,10 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const onStatusNavigate = useCallback((job) => {
       const nav = job.nav || {};
       if (nav.paper_id != null) setSelected(nav.paper_id);
+      if (nav.manuscript_id != null) {
+        const manuscript = wip.manuscripts.find((item) => item.id === nav.manuscript_id);
+        if (manuscript) openWip(manuscript);
+      }
       if (nav.summary_id != null) {
         openSynthesisSummary(nav.summary_id);
         return;
@@ -19534,7 +19606,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       if (nav.modal === "import") setImportOpen(true);
       if (nav.modal === "bundle-import") setBundleImportOpen(true);
       if (nav.modal === "feedback") window.dispatchEvent(new Event("callosum:open-feedback"));
-    }, [gotoLibrary, libraryBits, mobile, openSynthesisSummary, requestWorkspaceTab, selectWorkspace, setMethodsOpen, setMobilePane, setTheoryOpen]);
+    }, [gotoLibrary, libraryBits, mobile, openSynthesisSummary, openWip, requestWorkspaceTab, selectWorkspace, setMethodsOpen, setMobilePane, setTheoryOpen, wip.manuscripts]);
     const openCreditBuilder = useCallback(() => {
       requestWorkspaceTab("work", "credit");
       selectWorkspace("work");

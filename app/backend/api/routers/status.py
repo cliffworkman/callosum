@@ -64,6 +64,7 @@ JOB_LABELS: dict[str, str] = {
     "citation_equity_jobs": "Citation-equity audit",
     "citation_context_jobs": "Citation context",
     "critical_review_jobs": "Critical Read",
+    "wip_critical_review_jobs": "WIP Critical Read",
     "critical_review_set_jobs": "Critical Read (set)",
     "metadata_enrich_jobs": "Metadata enrichment",
     "ocr_jobs": "OCR",
@@ -109,6 +110,7 @@ JOB_NAV_DEFAULTS: dict[str, dict[str, Any]] = {
     "citation_equity_jobs": {"pane": "methods", "section": "citation-equity"},
     "citation_context_jobs": {"workspace": "work", "tab": "meta-reference"},
     "critical_review_jobs": {"workspace": "synthesis", "tab": "critique"},
+    "wip_critical_review_jobs": {"workspace": "synthesis", "tab": "critique"},
     "critical_review_set_jobs": {"workspace": "synthesis", "tab": "critique"},
     "metadata_enrich_jobs": {"workspace": "library"},
     "ocr_jobs": {"pane": "methods", "section": "details"},
@@ -151,6 +153,7 @@ JOB_COMPUTE_KINDS: dict[str, str] = {
     "citation_context_jobs": "Local AI + public metadata",
     "citation_equity_jobs": "Public metadata",
     "critical_review_jobs": "Provider AI + local verification",
+    "wip_critical_review_jobs": "Local AI",
     "critical_review_set_jobs": "Provider AI + local verification",
     "metadata_enrich_jobs": "Public metadata",
     "ocr_jobs": "Local AI",
@@ -171,7 +174,7 @@ JOB_COMPUTE_KINDS: dict[str, str] = {
     "my_publication_topic_jobs": "Public metadata + local analysis",
 }
 
-_NAV_ENTITY_IDS = {"paper_id", "summary_id"}
+_NAV_ENTITY_IDS = {"paper_id", "summary_id", "manuscript_id"}
 
 
 def _bounded_nav(store_name: str, job_nav: dict[str, Any] | None) -> dict[str, Any] | None:

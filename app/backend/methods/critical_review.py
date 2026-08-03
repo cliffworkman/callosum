@@ -32,6 +32,12 @@ from app.backend.persistence.repository import get_chunks_for_paper, get_paper
 from app.backend.persistence.schema import attachments, chunks, embeddings, open_science_signals, papers
 from app.backend.summarization.verification import StanceScorer
 
+CRITICAL_REVIEW_VERSION = "1"
+MAX_CRITIQUE_CLAIMS = 12
+MAX_CRITIQUE_CLAIM_CHARS = 1000
+CRITIQUE_TOP_K = 5
+CRITIQUE_CONTRADICTION_THRESHOLD = 0.55
+
 
 @dataclass(frozen=True)
 class ContestedClaim:
@@ -41,6 +47,9 @@ class ContestedClaim:
     page: int | None
     stance: str  # always "contrast" here
     confidence: float
+    other_paper_title: str | None = None
+    attachment_id: int | None = None
+    claim_page: int | None = None
 
 
 @dataclass(frozen=True)
@@ -48,6 +57,25 @@ class ChunkInfo:
     paper_id: int
     text: str
     page: int | None
+    title: str | None = None
+    attachment_id: int | None = None
+
+
+@dataclass(frozen=True)
+class ClaimSentence:
+    text: str
+    page: int | None
+    coordinate_precision: str | None
+
+
+@dataclass(frozen=True)
+class ContestedSearchReport:
+    contested_claims: list[ContestedClaim]
+    claims_considered: int
+    eligible_chunk_embeddings: int
+    retrieved_passages: int
+    classified_passages: int
+    retrieval_status: str
 
 
 def find_contested_claims(
@@ -73,11 +101,52 @@ def find_contested_claims(
     ``contradiction_threshold``; only the single highest-confidence contradicter is recorded
     (claims with none are skipped). Support/mention/None stances never surface a claim.
     """
-    if not claim_sentences or not other_chunk_ids:
-        return []
+    return search_contested_claims(
+        conn,
+        paper_id,
+        embed_model=embed_model,
+        vector_store=vector_store,
+        stance_scorer=stance_scorer,
+        resolve_chunk=resolve_chunk,
+        claim_sentences=claim_sentences,
+        other_chunk_ids=other_chunk_ids,
+        contradiction_threshold=contradiction_threshold,
+        top_k=top_k,
+        max_claims=max_claims,
+    ).contested_claims
+
+
+def search_contested_claims(
+    conn,
+    paper_id,
+    *,
+    embed_model: EmbeddingModel,
+    vector_store: VectorStore,
+    stance_scorer: StanceScorer,
+    resolve_chunk: Callable[[VectorHit], ChunkInfo | None],
+    claim_sentences: list[str],
+    other_chunk_ids: set[int],
+    contradiction_threshold: float = CRITIQUE_CONTRADICTION_THRESHOLD,
+    top_k: int = CRITIQUE_TOP_K,
+    max_claims: int = MAX_CRITIQUE_CLAIMS,
+    on_progress: Callable[[int, int], None] | None = None,
+) -> ContestedSearchReport:
+    """Detailed form of :func:`find_contested_claims` with bounded coverage accounting.
+
+    The report distinguishes an empty claim/corpus scope from unavailable local NLI. Query embeddings remain
+    transient: this function only calls ``encode_texts`` and ``search``; it never adds an embedding.
+    ``paper_id`` may be ``None`` for an unpublished WIP because the eligible-id set already defines the corpus.
+    """
+    bounded_claims = claim_sentences[:max_claims]
+    if not bounded_claims:
+        return ContestedSearchReport([], 0, len(other_chunk_ids), 0, 0, "no-claims")
+    if not other_chunk_ids:
+        return ContestedSearchReport([], len(bounded_claims), 0, 0, 0, "empty-library-corpus")
 
     contested: list[ContestedClaim] = []
-    for claim in claim_sentences[:max_claims]:
+    retrieved_passages = 0
+    classified_passages = 0
+    for claim_index, claim in enumerate(bounded_claims, start=1):
         vector = embed_model.encode_texts([claim])[0]
         hits = vector_store.search(
             conn,
@@ -87,11 +156,20 @@ def find_contested_claims(
         )
         best: ContestedClaim | None = None
         for hit in hits:
+            # Treat the SQL-selected eligible set as the authority even if a vector backend is buggy or replaced.
+            # A returned id outside it must never widen WIP comparison into supplements, registrations, or stale
+            # model spaces.
+            if hit.embedding_id not in other_chunk_ids:
+                continue
             chunk = resolve_chunk(hit)
             if chunk is None:
                 continue
+            retrieved_passages += 1
             stance = stance_scorer.classify_stance(sentence=claim, passage=chunk.text)
-            if stance is None or stance.label != "contrast":
+            if stance is None:
+                continue
+            classified_passages += 1
+            if stance.label != "contrast":
                 continue
             if stance.confidence < contradiction_threshold:
                 continue
@@ -103,10 +181,24 @@ def find_contested_claims(
                     page=chunk.page,
                     stance="contrast",
                     confidence=stance.confidence,
+                    other_paper_title=chunk.title,
+                    attachment_id=chunk.attachment_id,
                 )
         if best is not None:
             contested.append(best)
-    return contested
+        if on_progress is not None:
+            on_progress(claim_index, len(bounded_claims))
+    status = (
+        "complete" if classified_passages else "nli-unavailable" if retrieved_passages else "no-retrievable-passages"
+    )
+    return ContestedSearchReport(
+        contested,
+        len(bounded_claims),
+        len(other_chunk_ids),
+        retrieved_passages,
+        classified_passages,
+        status,
+    )
 
 
 # --- Tier 1: the deterministic scrutiny backbone (compose signals that already exist) ---------------------------
@@ -259,6 +351,33 @@ def extract_claim_sentences(conn, paper_id, *, max_claims: int = 12) -> list[str
     return _split_sentences(text)[:max_claims]
 
 
+def extract_block_claim_sentences(blocks: list, *, has_real_pages: bool) -> list[ClaimSentence]:
+    """Bounded claim candidates from an exact WIP content snapshot.
+
+    This is deliberately a transparent sentence heuristic, not claim adjudication. Overlong fragments are skipped
+    rather than truncated so every retained claim remains verbatim within the normalized extracted block. Duplicate
+    sentences are retained once. Non-PDF extractors' synthetic pages are never presented as source coordinates.
+    """
+    claims: list[ClaimSentence] = []
+    seen: set[str] = set()
+    for block in blocks:
+        page = getattr(block, "page_start", None) if has_real_pages else None
+        for sentence in _split_sentences(str(getattr(block, "text", "") or "")):
+            if not 20 <= len(sentence) <= MAX_CRITIQUE_CLAIM_CHARS or sentence in seen:
+                continue
+            seen.add(sentence)
+            claims.append(
+                ClaimSentence(
+                    text=sentence,
+                    page=int(page) if page is not None else None,
+                    coordinate_precision="region" if page is not None else None,
+                )
+            )
+            if len(claims) >= MAX_CRITIQUE_CLAIMS:
+                return claims
+    return claims
+
+
 def paper_full_text(conn, paper_id) -> str:
     """The paper's full extracted text (abstract + every stored chunk, in order) — the verbatim haystack the
     Tier-2 #13 bar (``canonical_text_contains``) checks a candidate's anchor_quote against. Local, no LLM."""
@@ -292,6 +411,39 @@ def other_paper_chunk_embedding_ids(conn, paper_id) -> set[int]:
     return {int(row[0]) for row in rows}
 
 
+def library_article_chunk_embedding_ids(
+    conn,
+    *,
+    model_name: str,
+    model_version: str,
+    normalization: str,
+) -> set[int]:
+    """Matching-model article-fulltext chunk embeddings from live Library papers.
+
+    WIP query vectors are transient and have no ``paper_id`` to exclude. Model/version/normalization matching avoids
+    comparing unlike vector spaces; document-role and soft-delete predicates keep registration, supplement, and
+    removed-paper text out of the eligible evidence corpus.
+    """
+    corpus = (
+        embeddings.join(chunks, embeddings.c.target_id == chunks.c.id)
+        .join(attachments, attachments.c.id == chunks.c.attachment_id)
+        .join(papers, papers.c.id == chunks.c.paper_id)
+    )
+    rows = conn.execute(
+        select(embeddings.c.id)
+        .select_from(corpus)
+        .where(
+            embeddings.c.target_type == "chunk",
+            embeddings.c.model_name == model_name,
+            embeddings.c.model_version == model_version,
+            embeddings.c.normalization == normalization,
+            papers.c.deleted_at.is_(None),
+            attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES),
+        )
+    )
+    return {int(row[0]) for row in rows}
+
+
 def make_chunk_resolver(conn) -> Callable[[VectorHit], ChunkInfo | None]:
     """Return a resolver mapping a retrieval ``VectorHit`` → the :class:`ChunkInfo` (paper_id, text, page) of its
     chunk, or ``None`` when the hit's embedding is not a resolvable chunk-embedding. Mirrors the verifier's
@@ -300,8 +452,18 @@ def make_chunk_resolver(conn) -> Callable[[VectorHit], ChunkInfo | None]:
     def resolve(hit: VectorHit) -> ChunkInfo | None:
         row = (
             conn.execute(
-                select(chunks.c.paper_id, chunks.c.text, chunks.c.page_start)
-                .select_from(embeddings.join(chunks, embeddings.c.target_id == chunks.c.id))
+                select(
+                    chunks.c.paper_id,
+                    chunks.c.attachment_id,
+                    chunks.c.text,
+                    chunks.c.page_start,
+                    papers.c.title,
+                )
+                .select_from(
+                    embeddings.join(chunks, embeddings.c.target_id == chunks.c.id).join(
+                        papers, papers.c.id == chunks.c.paper_id
+                    )
+                )
                 .where(embeddings.c.id == hit.embedding_id, embeddings.c.target_type == "chunk")
             )
             .mappings()
@@ -314,6 +476,8 @@ def make_chunk_resolver(conn) -> Callable[[VectorHit], ChunkInfo | None]:
             paper_id=int(row["paper_id"]),
             text=str(row["text"]),
             page=int(page) if page is not None else None,
+            title=str(row["title"] or "") or None,
+            attachment_id=int(row["attachment_id"]),
         )
 
     return resolve

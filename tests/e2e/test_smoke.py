@@ -330,6 +330,22 @@ def _run_wip_checklists_e2e(server: str, tmp_path):
     )
     assert meta_response.status_code == 200
     assert meta_response.json()["structured_result_json"]["is_meta_analysis"] is True
+    critical_start = httpx.post(
+        server + f"/wip/manuscripts/{manuscript['id']}/critical-read",
+        json={},
+        timeout=30,
+    )
+    assert critical_start.status_code == 202
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        critical_job = httpx.get(server + f"/wip/critical-read/{critical_start.json()['job_id']}", timeout=30).json()
+        if critical_job["status"] in {"done", "error"}:
+            assert critical_job["status"] == "done", critical_job
+            assert critical_job["run"]["structured_result_json"]["retrieval"]["status"] == "empty-library-corpus"
+            break
+        time.sleep(0.1)
+    else:
+        raise AssertionError("WIP critical read did not finish")
 
     with sync_playwright() as p:
         try:
@@ -423,9 +439,23 @@ def _run_wip_checklists_e2e(server: str, tmp_path):
         assert meta_result.get_by_text("not found", exact=True).count() >= 1
         assert "never proof of omission" in meta_result.inner_text().lower()
         assert "reviewable info candidate" in meta_result.inner_text().lower()
+
+        page.get_by_role("tab", name="Synthesize", exact=True).click()
+        page.get_by_role("tab", name="Critique", exact=True).click()
+        critique = page.locator(".wip-critical-result:visible")
+        critique.wait_for()
+        page.get_by_role("button", name="Run local critical read again", exact=True).wait_for()
+        assert "No matching-model article-fulltext embeddings" in critique.inner_text()
+        assert "current receipt" in critique.inner_text().lower()
+        assert "transient and never stored" in critique.inner_text()
+        assert "does not decide which claim is correct" in critique.inner_text()
+        assert (
+            page.get_by_text("separate exact transmission preview and explicit consent design", exact=False).count()
+            == 1
+        )
         page.set_viewport_size({"width": 375, "height": 812})
-        _assert_no_document_horizontal_overflow(page, "WIP checklists / mobile")
-        _assert_tool_panes_do_not_overflow(page, "WIP checklists / mobile")
+        _assert_no_document_horizontal_overflow(page, "WIP critical read / mobile")
+        _assert_tool_panes_do_not_overflow(page, "WIP critical read / mobile")
         assert outbound == []
         assert errors == []
         browser.close()
