@@ -561,7 +561,11 @@ the Principles + A-A gates before build.)*
       checklist build: fixed default-prior/tolerance assumptions and every BF/check/advisory remain in the exact-
       snapshot receipt; BF mismatches, not-found/coherence rows, and conservative advisories become separate
       reviewable `info` candidates only when the Bayesian gate is on. Gate-off creates no findings and never proves
-      absence. **Meta-analysis remains** and still needs its own method-specific evidence/coverage build.
+      absence. **Meta-analysis reporting shipped inc 444** with the same exact-snapshot seam and its own seven-item
+      receipt: each detector `not-found` row becomes one reviewable `info` candidate only after the meta-analysis
+      gate triggers; present/n-a rows remain receipt-only and gate-off creates no findings. The fixed coverage states
+      that tables/figures are incompletely read and silence never proves omission. **The Checklists group is now
+      complete for WIP.**
   - **Synthesize > Critique** (`08x_methods_critical.jsx`/`critical_review.py`) — deeply coupled to `papers`/
     `chunks`/`embeddings`/`open_science_signals`/`paper_findings`/`critical_review_candidates`, all FK'd to
     `papers.id`; no freeform mode exists in the UI. Needs a parallel text-extraction-driven "stored signals"

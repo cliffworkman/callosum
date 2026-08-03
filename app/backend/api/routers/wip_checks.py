@@ -11,6 +11,7 @@ from app.backend.api.wip_security import require_local_wip
 from app.backend.funding.run_report import funding_run_summaries
 from app.backend.methods.bayes import audit_completeness, run_bayes
 from app.backend.methods.lmm import audit_lmm
+from app.backend.methods.metaanalysis import audit_meta_analysis
 from app.backend.methods.statcheck import run_statcheck
 from app.backend.methods.transparency import detect_transparency
 from app.backend.persistence.sqlite_retry import run_write
@@ -23,6 +24,7 @@ from app.backend.persistence.wip_checks_repo import (
     store_transparency_run,
     update_finding_disposition,
 )
+from app.backend.persistence.wip_meta_analysis_repo import store_meta_analysis_run
 from app.backend.persistence.wip_provenance_repo import prepare_snapshot, record_snapshot
 from app.backend.persistence.wip_repo import add_activity, get_manuscript
 from app.backend.wip.content import ContentIdentityError
@@ -54,6 +56,7 @@ def checks_list(manuscript_id: int, request: Request) -> dict:
                 {"id": "transparency", "label": "Transparency", "kind": "deterministic-local"},
                 {"id": "lmm", "label": "Mixed-model reporting", "kind": "deterministic-local"},
                 {"id": "bayes", "label": "Bayesian reporting", "kind": "deterministic-local"},
+                {"id": "meta-analysis", "label": "Meta-analysis reporting", "kind": "deterministic-local"},
             ],
             "runs": list_tool_runs(conn, manuscript_id),
         }
@@ -200,6 +203,38 @@ def bayes_run(manuscript_id: int, request: Request) -> dict:
     def persist(conn):
         snapshot, _ = record_snapshot(conn, prepared, reason="tool-run", reason_detail="bayes")
         return store_bayes_run(conn, prepared, int(snapshot["id"]), report, completeness)
+
+    return run_write(request.app.state.engine, persist)
+
+
+@router.post("/manuscripts/{manuscript_id}/checks/meta-analysis")
+def meta_analysis_run(manuscript_id: int, request: Request) -> dict:
+    with request.app.state.engine.connect() as conn:
+        if get_manuscript(conn, manuscript_id) is None:
+            raise HTTPException(status_code=404, detail="WIP manuscript not found")
+    run_write(
+        request.app.state.engine,
+        lambda conn: add_activity(conn, manuscript_id, "tool-run-started", "Started meta-analysis reporting audit"),
+    )
+    try:
+        with request.app.state.engine.connect() as conn:
+            prepared = prepare_snapshot(conn, manuscript_id)
+    except ContentIdentityError as exc:
+        run_write(
+            request.app.state.engine,
+            lambda conn: add_activity(
+                conn,
+                manuscript_id,
+                "tool-run-failed",
+                "Meta-analysis reporting audit could not run",
+            ),
+        )
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    report = audit_meta_analysis(list(prepared.identity.blocks))
+
+    def persist(conn):
+        snapshot, _ = record_snapshot(conn, prepared, reason="tool-run", reason_detail="meta-analysis")
+        return store_meta_analysis_run(conn, prepared, int(snapshot["id"]), report)
 
     return run_write(request.app.state.engine, persist)
 

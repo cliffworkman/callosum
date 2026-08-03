@@ -273,6 +273,16 @@ function MetaCredit() {
 }
 
 function MetaSection({ ctx, active }) {
+  if (ctx.researchContext.kind === "manuscript") return (
+    <div className="statcheck-section">
+      <div className="settings-sub">Audit the current manuscript's <b>meta-analysis reporting</b> against the exact
+        primary-file checkpoint. Seven text-detection checks are local and deterministic; “not detected” remains a
+        review prompt, never proof of omission, a correctness verdict, or a score.</div>
+      <p className="eyebrow">This manuscript</p>
+      <WipMetaAnalysisSection manuscript={ctx.researchContext.entity} ctx={ctx} />
+      <MetaCredit />
+    </div>
+  );
   return (
     <div className="statcheck-section">
       <div className="settings-sub">Audit a published <b>meta-analysis's reporting</b> — does it state the effect-size metric, the model (fixed vs random-effects), heterogeneity, a publication-bias assessment, a sensitivity/influence analysis, the number of studies pooled, and (for a systematic review) the search &amp; selection? Local, no AI. It flags what's not reported, with a grounded recommendation — never a verdict, and it never pools or re-computes.</div>

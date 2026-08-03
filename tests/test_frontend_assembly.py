@@ -297,6 +297,7 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
     assert "Check transparency" in raw
     assert "Audit LMM reporting" in raw
     assert "Audit Bayesian reporting" in raw
+    assert "Audit meta-analysis reporting" in raw
     assert (
         "function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText, selectText, renderResult })"
         in raw
@@ -304,10 +305,12 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
     assert "function WipTransparencySection({ manuscript, ctx })" in raw
     assert "function WipLmmSection({ manuscript, ctx })" in raw
     assert "function WipBayesSection({ manuscript, ctx })" in raw
+    assert "function WipMetaAnalysisSection({ manuscript, ctx })" in raw
     assert "`/wip/manuscripts/${manuscriptId}/checks/${toolId}`" in raw
     assert 'toolId="transparency"' in raw
     assert 'toolId="lmm"' in raw
     assert 'toolId="bayes"' in raw
+    assert 'toolId="meta-analysis"' in raw
     assert "Detected rows are retained as evidence-backed facts." in raw
     assert "retained as a reviewable candidate" in raw
     assert "Mismatches, reporting gaps, coherence flags, and advisories are retained" in raw
@@ -767,6 +770,7 @@ def test_methods_pane_regrouped_details_data_statistics_checklists():
     assert "<WipLmmSection manuscript={ctx.researchContext.entity} ctx={ctx} />" in raw
     assert "never a correctness verdict or score" in raw
     assert "function MetaSection({ ctx, active })" in raw
+    assert "<WipMetaAnalysisSection manuscript={ctx.researchContext.entity} ctx={ctx} />" in raw
     for stale in (
         'ctx.methodsOpen === "transparency"',
         'ctx.methodsOpen === "bayes"',

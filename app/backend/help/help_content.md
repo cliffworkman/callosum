@@ -910,6 +910,14 @@ Read it as a prompt, not a report card:
 
 **Whole library.** Above the per-paper checklist, click **Audit all papers** to batch-check your whole library at once; a red **∑ Meta · N** chip appears in the library header for papers with an incomplete checklist — click it to filter the library to just those papers. (Viewing a single paper's checklist already keeps that paper's own count current — the batch just catches up every paper you haven't opened yet.)
 
+With a **WIP manuscript** active, this tab instead offers **Audit reporting** for the registered primary manuscript.
+The explicit local run binds all seven statuses and the fixed coverage boundary to an exact content checkpoint. Each
+**not found** row becomes a separate `info`-level review candidate in the manuscript's **Checks** tab; present and
+not-applicable rows remain in the receipt without becoming findings. If the meta-analysis gate does not trigger,
+Callosum stores a no-checklist/no-findings receipt and does not claim that the manuscript contains no meta-analysis.
+Tables and figures are not fully read, so detector silence is never proof of omission. No manuscript text is sent to
+a provider, and the audit never pools, models, recomputes, scores, or judges the analysis.
+
 <!-- section: auditing-transparency-signals -->
 ## Auditing transparency signals
 Before relying on a paper it helps to see what it *discloses* — where its data and code live, whether it declares conflicts and funding, and whether a trial or review was registered. The transparency-signals auditor reads a paper's extracted text and detects whether it *reports* seven open-science artifacts. It's local, rule-based (derived from the published **ODDPub** and **rtransparent** tools), and uses no AI.
@@ -1408,8 +1416,8 @@ Double-click a WIP card to open its manuscript workspace:
 - **Files** assigns roles and lets you explicitly choose one primary manuscript.
 - **References** links existing Library papers without copying their bibliographic records.
 - **Checks** creates and inspects local content checkpoints, and runs deterministic Statcheck, Transparency
-  disclosure, mixed-model reporting, and Bayesian reporting checks over the current primary manuscript. Choosing a
-  primary file and changing stage also create checkpoints when text extraction is available.
+  disclosure, mixed-model reporting, Bayesian reporting, and meta-analysis reporting checks over the current primary
+  manuscript. Choosing a primary file and changing stage also create checkpoints when text extraction is available.
 - **Activity** records important workspace changes.
 
 Right-click a WIP card, or focus it and press **Shift+F10**, for manuscript actions: open the workspace, change
@@ -1457,6 +1465,14 @@ human judgment. Reproduced, present, and n/a rows remain in the receipt without 
 language is not detected, no checklist or findings are applied; that never proves the manuscript has no Bayesian
 analysis. The same stored receipt appears under **Methods → Checklists → Bayesian statistics**. Tables and
 unsupported designs remain outside coverage, and no result is a correctness verdict, score, rank, or accusation.
+
+Each meta-analysis reporting run uses that same exact-checkpoint contract for the existing seven-item reporting
+checklist: effect-size metric, pooling model, heterogeneity, publication-bias assessment, sensitivity/influence,
+study count, and search/selection. When the meta-analysis text gate triggers, every **not found** row becomes its own
+reviewable `info` candidate; present rows and the mini-meta-analysis **n/a** search row remain receipt evidence only.
+When the gate does not trigger, no checklist or findings are applied, which never proves the draft contains no
+meta-analysis. The same receipt appears under **Methods → Checklists → Meta-analysis reporting**. Tables and figures
+are not fully read, and this check never pools, models, recomputes, scores, ranks, or judges the analysis.
 
 WIP is local-only. It is hidden from read-only/remote views, excluded from cross-device sync, and never sent to an
 AI provider by these workspace features. A teal treatment plus a visible **WIP** badge distinguishes unpublished

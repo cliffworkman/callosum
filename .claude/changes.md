@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-03 inc 443 — WIP Bayesian reporting audit -->
+<!-- HELP-DOCS-SYNCED: 2026-08-03 inc 444 — WIP meta-analysis reporting audit -->
+
+## 2026-08-03 — Increment 444: meta-analysis reporting checks for WIP manuscripts
+
+- **Files:** meta-analysis detector version; WIP check router and dedicated persistence adapter; shared checklist UI
+  and Methods manuscript branch; backend/frontend/Chromium tests; help/backlog/QA/security/increment documentation.
+- **What:** added one explicit local audit over a WIP primary manuscript using the existing seven meta-analysis
+  reporting checks. The receipt retains the exact snapshot/file/hash, every present/not-found/not-applicable row,
+  tool version, fixed coverage, and real PDF region evidence. Each `not-found` row becomes its own reviewable `info`
+  candidate; present/n-a rows do not. A gate-off run stores no findings and denies that silence proves absence.
+- **Why:** complete WIP's Checklists group with inspectable pre-submission reporting prompts without importing an
+  unpublished draft into `papers`, performing a synthesis, or turning fixed-pattern detection into a grade.
+- **Security:** local-only, synchronous, bounded existing detector over the server-selected registered primary file;
+  no provider/model/network client, request options, arbitrary path, background retry, dependency, secret, or
+  migration. Non-PDF synthetic pages are cleared and rendered text remains React-escaped.
+- **Verify:** focused backend/frontend and Chromium workflow passed; full-suite, QA-map, dependency/security,
+  formatting, build, and diff/secret results are recorded in `INCREMENT-444-NOTES.md`.
+- **Revert:** remove the WIP meta-analysis route/store/UI/tests/docs and rebuild the frontend. Existing generic WIP
+  tables and Library-paper meta-analysis behavior require no migration or user-data rollback.
 
 ## 2026-08-03 — Increment 443: Bayesian reporting checks for WIP manuscripts
 

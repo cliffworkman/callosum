@@ -272,7 +272,8 @@ def _run_wip_checklists_e2e(server: str, tmp_path):
         "Data are available at https://osf.io/abcd. The authors declare no conflicts of interest. "
         "This project received no funding. We fit a linear mixed-effects model with a random intercept for "
         "participant using REML. The model converged without a singular fit. We also ran a Bayesian t-test with a "
-        "Cauchy prior: t(19) = 2.53, BF10 = 500. We report a 95% confidence interval.",
+        "Cauchy prior: t(19) = 2.53, BF10 = 500. We report a 95% confidence interval. We also performed a "
+        "random-effects meta-analysis of Hedges' g across the literature.",
         encoding="utf-8",
     )
     root = httpx.post(
@@ -322,6 +323,13 @@ def _run_wip_checklists_e2e(server: str, tmp_path):
     )
     assert bayes_response.status_code == 200
     assert bayes_response.json()["structured_result_json"]["completeness"]["is_bayesian"] is True
+    meta_response = httpx.post(
+        server + f"/wip/manuscripts/{manuscript['id']}/checks/meta-analysis",
+        json={},
+        timeout=30,
+    )
+    assert meta_response.status_code == 200
+    assert meta_response.json()["structured_result_json"]["is_meta_analysis"] is True
 
     with sync_playwright() as p:
         try:
@@ -369,6 +377,12 @@ def _run_wip_checklists_e2e(server: str, tmp_path):
         assert bayes_run.locator("select").count() >= 1
         assert "default-prior assumptions" in bayes_run.inner_text()
 
+        meta_run = wip_checks.locator(".wip-tool-run").filter(has_text="Meta-analysis reporting")
+        meta_run.wait_for()
+        assert meta_run.count() == 1
+        assert meta_run.locator("select").count() >= 1
+        assert "never proof of omission" in meta_run.inner_text()
+
         transparency_tab.click()
         active_checklist = page.locator(".detail-statcheck .wip-transparency-result:visible")
         active_checklist.wait_for()
@@ -401,6 +415,14 @@ def _run_wip_checklists_e2e(server: str, tmp_path):
         assert bayes_result.get_by_text("Prior stated (family/scale)", exact=True).count() == 1
         assert "expert judgment" in bayes_result.inner_text().lower()
         assert "never an error verdict" in bayes_result.inner_text().lower()
+        meta_tab = page.get_by_role("tab", name="Meta-analysis reporting", exact=True)
+        meta_tab.click()
+        meta_result = page.locator(".detail-statcheck .wip-meta-analysis-result:visible")
+        meta_result.wait_for()
+        assert meta_result.get_by_text("Effect-size metric", exact=True).count() == 1
+        assert meta_result.get_by_text("not found", exact=True).count() >= 1
+        assert "never proof of omission" in meta_result.inner_text().lower()
+        assert "reviewable info candidate" in meta_result.inner_text().lower()
         page.set_viewport_size({"width": 375, "height": 812})
         _assert_no_document_horizontal_overflow(page, "WIP checklists / mobile")
         _assert_tool_panes_do_not_overflow(page, "WIP checklists / mobile")

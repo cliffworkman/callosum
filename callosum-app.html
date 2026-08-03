@@ -6722,6 +6722,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Methods:"), " effect sizes & general \u2014 Borenstein et al. (2009), Viechtbauer (2010, ", /* @__PURE__ */ React.createElement("i", null, "metafor"), "); model \u2014 DerSimonian & Laird (1986), IntHout et al. (2014); heterogeneity \u2014 Higgins et al. (2003); publication bias \u2014 Egger et al. (1997), Duval & Tweedie (2000), Sterne et al. (2011); influence \u2014 Viechtbauer & Cheung (2010); reporting \u2014 PRISMA 2020 (Page et al. 2021).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: META_CSL }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "A reading aid \u2014 it never pools, models, or re-computes a meta-analysis. Surfaced via D. Lakens' automated-review catalog."));
   }
   function MetaSection({ ctx, active }) {
+    if (ctx.researchContext.kind === "manuscript") return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Audit the current manuscript's ", /* @__PURE__ */ React.createElement("b", null, "meta-analysis reporting"), " against the exact primary-file checkpoint. Seven text-detection checks are local and deterministic; \u201Cnot detected\u201D remains a review prompt, never proof of omission, a correctness verdict, or a score."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This manuscript"), /* @__PURE__ */ React.createElement(WipMetaAnalysisSection, { manuscript: ctx.researchContext.entity, ctx }), /* @__PURE__ */ React.createElement(MetaCredit, null));
     return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Audit a published ", /* @__PURE__ */ React.createElement("b", null, "meta-analysis's reporting"), " \u2014 does it state the effect-size metric, the model (fixed vs random-effects), heterogeneity, a publication-bias assessment, a sensitivity/influence analysis, the number of studies pooled, and (for a systematic review) the search & selection? Local, no AI. It flags what's not reported, with a grounded recommendation \u2014 never a verdict, and it never pools or re-computes."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Whole library"), /* @__PURE__ */ React.createElement(MetaLibrary, { onShowFlagged: ctx.onShowMetaFlagged, onRan: ctx.onMetaRan }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(MetaPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active }));
   }
   registerPaneTab(
@@ -10842,6 +10843,14 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onClick: () => runCheck("bayes", "Bayesian reporting audit could not run.")
       },
       runningTool === "bayes" ? "Auditing\u2026" : "Audit Bayesian reporting"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-btn",
+        disabled: running,
+        onClick: () => runCheck("meta-analysis", "Meta-analysis reporting audit could not run.")
+      },
+      runningTool === "meta-analysis" ? "Auditing\u2026" : "Audit meta-analysis reporting"
     ))), running && /* @__PURE__ */ React.createElement(ProgressBar, null), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error), (checks.runs || []).length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No checks run yet. An empty history is not a clean manuscript.") : checks.runs.map((run) => /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run", key: run.id }, /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run-head" }, /* @__PURE__ */ React.createElement("strong", null, wipToolLabel(run.tool_id)), /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${run.validity}` }, run.validity.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(run.executed_at))), /* @__PURE__ */ React.createElement("p", null, run.result_summary), /* @__PURE__ */ React.createElement("small", null, "v", run.tool_version, " \xB7 snapshot ", run.snapshot_id, " \xB7 ", run.coverage), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => openSourceFile(run.file_id) }, "Open source file")), run.tool_id === "transparency" && /* @__PURE__ */ React.createElement(
       WipTransparencyResult,
       {
@@ -10860,6 +10869,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         run,
         onOpenSource: () => openSourceFile(run.file_id)
       }
+    ), run.tool_id === "meta-analysis" && /* @__PURE__ */ React.createElement(
+      WipMetaAnalysisResult,
+      {
+        run,
+        onOpenSource: () => openSourceFile(run.file_id)
+      }
     ), (run.findings || []).filter((finding) => finding.kind === "candidate").map((finding) => /* @__PURE__ */ React.createElement("div", { className: "wip-finding-row", key: finding.id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Candidate"), " ", /* @__PURE__ */ React.createElement("span", null, finding.summary)), /* @__PURE__ */ React.createElement("select", { value: finding.disposition || "open", onChange: async (event) => {
       const result = await apiPatch(`/wip/findings/${finding.id}`, { disposition: event.target.value });
       if (result.ok) onReload();
@@ -10870,6 +10885,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     if (toolId === "transparency") return "Transparency";
     if (toolId === "lmm") return "Mixed-model reporting";
     if (toolId === "bayes") return "Bayesian reporting";
+    if (toolId === "meta-analysis") return "Meta-analysis reporting";
     return "Statcheck";
   }
   function WipTransparencyResult({ run, onOpenSource }) {
@@ -10905,6 +10921,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         }
       ), /* @__PURE__ */ React.createElement("span", { className: "statcheck-computed" }, "reported BF\u2081\u2080 = ", item.reported_bf10, " \xB7 recomputed ", reBfLabel(item)), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (item.consistency === "reproduced" ? "verified" : "flagged") }, item.consistency === "reproduced" ? "reproduces" : "couldn't reproduce"))
     )))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Recomputed only under the displayed default-prior assumptions. A mismatch commonly reflects a different prior or design interpretation and is a review prompt, never an error verdict."), /* @__PURE__ */ React.createElement(BayesChecklist, { items: completeness.items || [], onOpen: onOpenSource }), (completeness.advisories || []).length > 0 && /* @__PURE__ */ React.createElement(BayesAdvisories, { notes: completeness.advisories, onOpen: onOpenSource }), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Mismatches, reporting gaps, coherence flags, and advisories are retained as reviewable ", /* @__PURE__ */ React.createElement("b", null, "info"), " candidates. Their dispositions are available in the WIP Checks tab; none is a score, verdict, or accusation."));
+  }
+  function WipMetaAnalysisResult({ run, onOpenSource }) {
+    const result = run.structured_result_json || {};
+    if (!result.is_meta_analysis) return /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Meta-analysis language was not detected, so the seven-item reporting checklist was not applied and no review candidates were created. This does not prove the manuscript contains no meta-analysis.");
+    return /* @__PURE__ */ React.createElement("div", { className: "wip-meta-analysis-result" }, /* @__PURE__ */ React.createElement(MetaChecklist, { checks: result.checks || [], onOpen: onOpenSource }), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Each \u201Cnot found\u201D row is retained as a reviewable ", /* @__PURE__ */ React.createElement("b", null, "info"), " candidate, never proof of omission or a claim that reporting is absent. Review dispositions are available in the WIP Checks tab; none is a score, verdict, or accusation."));
   }
   function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText, selectText, renderResult }) {
     const manuscriptId = manuscript ? manuscript.id : null;
@@ -11000,6 +11021,27 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         emptyText: "No Bayesian reporting audit yet. An empty history says nothing about the manuscript.",
         selectText: "Select a WIP manuscript to audit its Bayesian reporting.",
         renderResult: (run, openSource) => /* @__PURE__ */ React.createElement(WipBayesResult, { run, onOpenSource: openSource })
+      }
+    );
+  }
+  function WipMetaAnalysisSection({ manuscript, ctx }) {
+    return /* @__PURE__ */ React.createElement(
+      WipChecklistSection,
+      {
+        manuscript,
+        ctx,
+        toolId: "meta-analysis",
+        label: "Meta-analysis reporting",
+        labels: {
+          first: "Audit reporting",
+          again: "Audit reporting again",
+          running: "Auditing\u2026",
+          progress: "Auditing meta-analysis reporting\u2026",
+          error: "Meta-analysis reporting audit failed"
+        },
+        emptyText: "No meta-analysis reporting audit yet. An empty history says nothing about the manuscript.",
+        selectText: "Select a WIP manuscript to audit its meta-analysis reporting.",
+        renderResult: (run, openSource) => /* @__PURE__ */ React.createElement(WipMetaAnalysisResult, { run, onOpenSource: openSource })
       }
     );
   }

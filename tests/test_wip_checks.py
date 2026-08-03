@@ -51,6 +51,7 @@ def test_statcheck_run_is_snapshot_bound_reviewable_and_hash_invalidated(temp_db
     assert empty["tools"][1]["id"] == "transparency"
     assert empty["tools"][2]["id"] == "lmm"
     assert empty["tools"][3]["id"] == "bayes"
+    assert empty["tools"][4]["id"] == "meta-analysis"
     assert empty["runs"] == []
     run = client.post(f"/wip/manuscripts/{manuscript_id}/checks/statcheck", json={})
     assert run.status_code == 200
@@ -193,6 +194,9 @@ def test_transparency_rejects_missing_manuscript_and_missing_primary_file(temp_d
     missing_bayes = client.post("/wip/manuscripts/999/checks/bayes", json={})
     assert missing_bayes.status_code == 404
     assert missing_bayes.json()["detail"] == "WIP manuscript not found"
+    missing_meta = client.post("/wip/manuscripts/999/checks/meta-analysis", json={})
+    assert missing_meta.status_code == 404
+    assert missing_meta.json()["detail"] == "WIP manuscript not found"
 
     folder = tmp_path / "Draft"
     folder.mkdir()
@@ -214,6 +218,9 @@ def test_transparency_rejects_missing_manuscript_and_missing_primary_file(temp_d
     no_primary_bayes = client.post(f"/wip/manuscripts/{manuscript_id}/checks/bayes", json={})
     assert no_primary_bayes.status_code == 422
     assert no_primary_bayes.json()["detail"] == "Select a primary manuscript file before creating a checkpoint"
+    no_primary_meta = client.post(f"/wip/manuscripts/{manuscript_id}/checks/meta-analysis", json={})
+    assert no_primary_meta.status_code == 422
+    assert no_primary_meta.json()["detail"] == "Select a primary manuscript file before creating a checkpoint"
 
 
 def test_lmm_run_is_snapshot_bound_and_persists_review_candidates(temp_db_url: str, tmp_path: Path) -> None:
@@ -415,6 +422,99 @@ def test_bayes_pdf_correlation_match_retains_real_region_without_finding(temp_db
     assert not any(finding["finding_type"] == "bayes-factor-not-reproduced" for finding in run["findings"])
 
 
+def test_meta_analysis_run_is_snapshot_bound_and_persists_not_found_candidates(
+    temp_db_url: str, tmp_path: Path
+) -> None:
+    folder = tmp_path / "Draft"
+    folder.mkdir()
+    draft = folder / "draft.md"
+    draft.write_text(
+        "We performed a random-effects meta-analysis of Hedges' g across the literature.",
+        encoding="utf-8",
+    )
+    client = TestClient(create_app(db_url=temp_db_url))
+    root_id, manuscript_id, _ = _setup(client, folder)
+
+    response = client.post(f"/wip/manuscripts/{manuscript_id}/checks/meta-analysis", json={})
+
+    assert response.status_code == 200
+    run = response.json()
+    assert run["tool_id"] == "meta-analysis"
+    assert run["tool_version"] == "1"
+    assert run["parameters_json"] == {}
+    assert run["validity"] == "current-with-findings"
+    assert "never pools, models, recomputes, scores, or judges" in run["coverage"]
+    result = run["structured_result_json"]
+    assert result["is_meta_analysis"] is True
+    assert len(result["checks"]) == 7
+    assert result["present"] == 2
+    assert result["not_found"] == 5
+    assert result["not_applicable"] == 0
+    assert len(run["findings"]) == result["not_found"]
+    missing_keys = {check["key"] for check in result["checks"] if check["status"] == "not-found"}
+    assert {finding["finding_type"] for finding in run["findings"]} == {
+        f"meta-analysis-{key}-not-detected" for key in missing_keys
+    }
+    assert all(finding["kind"] == "candidate" for finding in run["findings"])
+    assert all(finding["severity"] == "info" for finding in run["findings"])
+    assert all(finding["disposition"] == "open" for finding in run["findings"])
+    assert all(finding["quote"] is None for finding in run["findings"])
+    assert all(finding["coordinate_precision"] is None for finding in run["findings"])
+    assert all(check["coordinate_precision"] is None for check in result["checks"])
+
+    for finding in run["findings"]:
+        assert client.patch(f"/wip/findings/{finding['id']}", json={"disposition": "resolved"}).status_code == 200
+    assert client.get(f"/wip/manuscripts/{manuscript_id}/checks").json()["runs"][0]["validity"] == "current"
+
+    draft.write_text("The synthesis changed.", encoding="utf-8")
+    scan = client.post(f"/wip/watch-roots/{root_id}/scan").json()
+    _poll(client, scan["job_id"])
+    assert client.get(f"/wip/manuscripts/{manuscript_id}/checks").json()["runs"][0]["validity"] == "potentially-stale"
+
+
+def test_meta_analysis_gate_off_records_receipt_without_findings(temp_db_url: str, tmp_path: Path) -> None:
+    folder = tmp_path / "Draft"
+    folder.mkdir()
+    (folder / "draft.txt").write_text("We ran a randomized controlled trial.", encoding="utf-8")
+    client = TestClient(create_app(db_url=temp_db_url))
+    _, manuscript_id, _ = _setup(client, folder)
+
+    run = client.post(f"/wip/manuscripts/{manuscript_id}/checks/meta-analysis", json={}).json()
+
+    assert run["validity"] == "current"
+    assert run["findings"] == []
+    assert run["structured_result_json"] == {
+        "is_meta_analysis": False,
+        "present": 0,
+        "not_found": 0,
+        "not_applicable": 0,
+        "checks": [],
+    }
+    assert "no checklist was applied" in run["result_summary"]
+    assert "'not detected' is never proof of omission" in run["coverage"]
+
+
+def test_meta_analysis_pdf_retains_real_region_for_present_evidence(temp_db_url: str, tmp_path: Path) -> None:
+    folder = tmp_path / "Draft"
+    folder.mkdir()
+    draft = folder / "draft.pdf"
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "We performed a random-effects meta-analysis of Hedges' g. Heterogeneity I2 = 10%.")
+    document.save(draft)
+    document.close()
+    client = TestClient(create_app(db_url=temp_db_url))
+    _, manuscript_id, _ = _setup(client, folder)
+
+    run = client.post(f"/wip/manuscripts/{manuscript_id}/checks/meta-analysis", json={}).json()
+
+    result = run["structured_result_json"]
+    effect = next(check for check in result["checks"] if check["key"] == "effect_size_metric")
+    assert effect["status"] == "present"
+    assert effect["page"] == 1
+    assert effect["coordinate_precision"] == "region"
+
+
 def test_wip_check_routes_remain_local_only(temp_db_url: str) -> None:
     client = TestClient(create_app(db_url=temp_db_url))
     headers = {"host": "example.com"}
@@ -423,4 +523,5 @@ def test_wip_check_routes_remain_local_only(temp_db_url: str) -> None:
     assert client.post("/wip/manuscripts/1/checks/transparency", headers=headers).status_code == 403
     assert client.post("/wip/manuscripts/1/checks/lmm", headers=headers).status_code == 403
     assert client.post("/wip/manuscripts/1/checks/bayes", headers=headers).status_code == 403
+    assert client.post("/wip/manuscripts/1/checks/meta-analysis", headers=headers).status_code == 403
     assert client.patch("/wip/findings/1", headers=headers, json={"disposition": "resolved"}).status_code == 403

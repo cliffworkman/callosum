@@ -54,6 +54,10 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
           onClick={() => runCheck("bayes", "Bayesian reporting audit could not run.")}>
           {runningTool === "bayes" ? "Auditing…" : "Audit Bayesian reporting"}
         </button>
+        <button className="axis-btn" disabled={running}
+          onClick={() => runCheck("meta-analysis", "Meta-analysis reporting audit could not run.")}>
+          {runningTool === "meta-analysis" ? "Auditing…" : "Audit meta-analysis reporting"}
+        </button>
       </div>
     </div>
     {running && <ProgressBar />}
@@ -74,6 +78,8 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
       {run.tool_id === "lmm" && <WipLmmResult run={run}
         onOpenSource={() => openSourceFile(run.file_id)} />}
       {run.tool_id === "bayes" && <WipBayesResult run={run}
+        onOpenSource={() => openSourceFile(run.file_id)} />}
+      {run.tool_id === "meta-analysis" && <WipMetaAnalysisResult run={run}
         onOpenSource={() => openSourceFile(run.file_id)} />}
       {(run.findings || []).filter(finding => finding.kind === "candidate").map(finding => <div className="wip-finding-row" key={finding.id}>
         <div>
@@ -118,6 +124,7 @@ function wipToolLabel(toolId) {
   if (toolId === "transparency") return "Transparency";
   if (toolId === "lmm") return "Mixed-model reporting";
   if (toolId === "bayes") return "Bayesian reporting";
+  if (toolId === "meta-analysis") return "Meta-analysis reporting";
   return "Statcheck";
 }
 
@@ -185,6 +192,22 @@ function WipBayesResult({ run, onOpenSource }) {
     <div className="statcheck-caveat">
       Mismatches, reporting gaps, coherence flags, and advisories are retained as reviewable <b>info</b> candidates.
       Their dispositions are available in the WIP Checks tab; none is a score, verdict, or accusation.
+    </div>
+  </div>;
+}
+
+function WipMetaAnalysisResult({ run, onOpenSource }) {
+  const result = run.structured_result_json || {};
+  if (!result.is_meta_analysis) return <div className="statcheck-caveat">
+    Meta-analysis language was not detected, so the seven-item reporting checklist was not applied and no review
+    candidates were created. This does not prove the manuscript contains no meta-analysis.
+  </div>;
+  return <div className="wip-meta-analysis-result">
+    <MetaChecklist checks={result.checks || []} onOpen={onOpenSource} />
+    <div className="statcheck-caveat">
+      Each “not found” row is retained as a reviewable <b>info</b> candidate, never proof of omission or a claim that
+      reporting is absent. Review dispositions are available in the WIP Checks tab; none is a score, verdict, or
+      accusation.
     </div>
   </div>;
 }
@@ -269,6 +292,16 @@ function WipBayesSection({ manuscript, ctx }) {
     emptyText="No Bayesian reporting audit yet. An empty history says nothing about the manuscript."
     selectText="Select a WIP manuscript to audit its Bayesian reporting."
     renderResult={(run, openSource) => <WipBayesResult run={run} onOpenSource={openSource} />} />;
+}
+
+function WipMetaAnalysisSection({ manuscript, ctx }) {
+  return <WipChecklistSection manuscript={manuscript} ctx={ctx} toolId="meta-analysis"
+    label="Meta-analysis reporting"
+    labels={{ first: "Audit reporting", again: "Audit reporting again", running: "Auditing…",
+      progress: "Auditing meta-analysis reporting…", error: "Meta-analysis reporting audit failed" }}
+    emptyText="No meta-analysis reporting audit yet. An empty history says nothing about the manuscript."
+    selectText="Select a WIP manuscript to audit its meta-analysis reporting."
+    renderResult={(run, openSource) => <WipMetaAnalysisResult run={run} onOpenSource={openSource} />} />;
 }
 
 // inc 402: the Methods panel's "Statistics" section, for a WIP manuscript instead of a Library paper. Self-fetches

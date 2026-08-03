@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 443** (see Increment workflow) with **1840 root-suite pytest tests
+It is currently at **Increment 444** (see Increment workflow) with **1843 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -151,7 +151,12 @@ the full per-increment narrative for all other increments now lives in the reloc
   checklist rows, and bounded advisories. Default-prior mismatches, `not-found`/`coherence-flag` rows, and advisories
   become separate reviewable `info` candidates only when Bayesian language is detected; reproduced/present/n-a rows
   remain receipt-only and gate-off creates no findings. A mismatch commonly reflects a different prior or design,
-  and every prompt remains local, non-scoring, non-verdict, migration-free, and exact-snapshot-bound.
+  and every prompt remains local, non-scoring, non-verdict, migration-free, and exact-snapshot-bound. **Inc 444**
+  completes the four-tool Checklists group by bringing the existing seven-item meta-analysis reporting audit to WIP.
+  Its receipt retains every present/not-found/not-applicable row; one `info` candidate is created per `not-found`
+  row only when the meta-analysis gate is on. Present/n-a rows remain receipt-only, gate-off creates no findings,
+  and the copy repeatedly states that detector silence is not proof of omission. It never pools, models, recomputes,
+  scores, or judges the analysis, and adds no provider, migration, egress, or paper-row shim.
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):
