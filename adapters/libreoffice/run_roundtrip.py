@@ -132,6 +132,7 @@ def seed_db() -> tuple[str, int, int]:
             conn,
             model=SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL),
             vector_store=SQLiteVecVectorStore(),
+            document_roles=("article-fulltext",),
         )
     engine.dispose()
     return db_url, p1, p2

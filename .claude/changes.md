@@ -11,6 +11,31 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-03 inc 445 — local exact-snapshot WIP critical read -->
 
+## 2026-08-03 — Increment 446: expose state for three "state-blind" LibreOffice adapter toggles
+
+- **Files:** `adapters/libreoffice/callosum_cite.py` (`diagnose_document`, `document_diagnostics_interactive`,
+  the three `toggle_*_interactive` functions), `adapters/libreoffice/oxt/description.xml` (version bump),
+  `adapters/libreoffice/selftest_uno.py` (real-UNO spike extensions), `adapters/libreoffice/run_roundtrip.py`
+  (unrelated pre-existing bug fix), `tests/test_libreoffice_adapter.py`, `tests/test_libreoffice_oxt.py`,
+  backlog/increment documentation.
+- **What:** closed the backlog #33/#34 UX debt where three per-document Writer toggles (automatic bibliography
+  rebuilding, citation-to-bibliography links, bibliography title/DOI links) only announced their new state
+  after acting, with no way to check current state first. "Document diagnostics…" now always reports all
+  three as ON/OFF; each toggle's message now states the ON→OFF/OFF→ON transition, not just the destination.
+  A fourth flagged item (an explicit "Restore References" affordance) was evaluated and closed with no code
+  change — the existing dialog already pre-fills current state and explains the reset path.
+- **Why:** three end-user-experience-pass follow-ups (incs 374/375/376/382/383) flagged these as discoverability
+  debt; LibreOffice's Job-dispatch architecture here can't show a live menu checkmark, so passive read-only
+  surfacing plus clearer transition wording is the aligned fix within the existing architecture.
+- **Also fixed along the way:** `run_roundtrip.py`'s DB-seeding call to `embed_chunks` had silently broken
+  against inc 425's document-scope invariant (missing `document_roles`), blocking the real-UNO verification
+  gate for any adapter change since then — added the missing scope argument.
+- **Verify:** `pytest tests/test_libreoffice_adapter.py tests/test_libreoffice_oxt.py
+  tests/test_frontend_assembly.py -q` → 202 passed; full details, including the real headless-UNO round-trip
+  result, in `INCREMENT-446-NOTES.md`.
+- **Revert:** revert the `callosum_cite.py`/`description.xml`/test-file edits; keep the `run_roundtrip.py` fix
+  regardless (an independent correctness fix, not part of the feature).
+
 ## 2026-08-03 — Increment 445: local grounded critical reading for WIP manuscripts
 
 - **Files:** shared critical-review domain helpers; local-only WIP async router, job store, and exact-snapshot

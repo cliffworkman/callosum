@@ -1624,6 +1624,7 @@ def test_diagnose_document_clean_document_reports_nothing(monkeypatch) -> None:
         "bibliography": "ok",
         "section_bibliographies": {"count": 0, "damaged": []},
         "refresh_pending": {"citations": False, "bibliography": False},
+        "preferences": {"bib_auto": True, "bibliography_links": False, "bibliography_external_links": False},
     }
 
 

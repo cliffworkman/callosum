@@ -5256,9 +5256,10 @@ def set_journal_abbreviations_interactive(doc, base: str) -> None:
 
 def toggle_bibliography_links_interactive(doc, base: str) -> None:
     """Toggle internal navigation for citation clusters with exactly one bibliography entry."""
-    enabled = set_bibliography_links(doc, not bibliography_links_enabled(doc), base)
+    was_enabled = bibliography_links_enabled(doc)
+    enabled = set_bibliography_links(doc, not was_enabled, base)
     _msgbox(
-        f"Citation-to-bibliography links are now {'ON' if enabled else 'OFF'}."
+        f"Citation-to-bibliography links: {'ON' if was_enabled else 'OFF'} → {'ON' if enabled else 'OFF'}."
         + (
             " Single-work citations now open their bibliography entry; grouped citations remain unlinked."
             if enabled
@@ -5270,10 +5271,11 @@ def toggle_bibliography_links_interactive(doc, base: str) -> None:
 def toggle_bib_auto_interactive(doc, base: str) -> None:
     """Flip whether the bibliography auto-rebuilds on refresh (P0 phase 7) — citations still update either way;
     this only pauses/resumes the bibliography block itself."""
-    enabled = not bib_auto_enabled(doc)
+    was_enabled = bib_auto_enabled(doc)
+    enabled = not was_enabled
     set_bib_auto(doc, enabled)
     _msgbox(
-        f"Automatic bibliography rebuilding is now {'ON' if enabled else 'OFF'}."
+        f"Automatic bibliography rebuilding: {'ON' if was_enabled else 'OFF'} → {'ON' if enabled else 'OFF'}."
         + (
             ""
             if enabled
@@ -5284,14 +5286,15 @@ def toggle_bib_auto_interactive(doc, base: str) -> None:
 
 def toggle_bibliography_external_links_interactive(doc, base: str) -> None:
     """Toggle web links over visible DOI/URL text or a uniquely matched source title fallback."""
-    enabled, link_count = set_bibliography_external_links(doc, not bibliography_external_links_enabled(doc), base)
+    was_enabled = bibliography_external_links_enabled(doc)
+    enabled, link_count = set_bibliography_external_links(doc, not was_enabled, base)
     if enabled and link_count:
         detail = f" {link_count} bibliography link{'s are' if link_count != 1 else ' is'} now clickable."
     elif enabled:
         detail = " No safe DOI or URL could be matched to a visible title or identifier."
     else:
         detail = " Managed bibliography web links were removed; the rendered text is unchanged."
-    _msgbox(f"Bibliography title/DOI links are now {'ON' if enabled else 'OFF'}.{detail}")
+    _msgbox(f"Bibliography title/DOI links: {'ON' if was_enabled else 'OFF'} → {'ON' if enabled else 'OFF'}.{detail}")
 
 
 def toggle_cite_auto_interactive(doc, base: str) -> None:
@@ -5352,7 +5355,10 @@ def diagnose_document(doc, base: str = DEFAULT_BASE) -> dict:
     every other action in this file, rather than being misreported as "these citations are orphaned."
 
     Returns ``{"malformed": [name, ...], "unsupported_version": [rnd, ...], "duplicate_ids": [rnd, ...],
-    "orphaned": [paper_id, ...], "bibliography": "ok" | "damaged" | "not_built" | "n/a"}``.
+    "orphaned": [paper_id, ...], "bibliography": "ok" | "damaged" | "not_built" | "n/a", "preferences":
+    {"bib_auto", "bibliography_links", "bibliography_external_links"}}``. ``preferences`` is a read-only
+    surfacing of the three otherwise state-blind toggles below — this dialog is the one place a user can check
+    their current ON/OFF state without side-effecting it by clicking a toggle command.
     """
     malformed = []
     unsupported = []
@@ -5410,6 +5416,11 @@ def diagnose_document(doc, base: str = DEFAULT_BASE) -> dict:
             "citations": citation_dirty,
             "bibliography": bibliography_dirty,
         },
+        "preferences": {
+            "bib_auto": bib_auto_enabled(doc),
+            "bibliography_links": bibliography_links_enabled(doc),
+            "bibliography_external_links": bibliography_external_links_enabled(doc),
+        },
     }
 
 
@@ -5459,7 +5470,18 @@ def document_diagnostics_interactive(doc, base: str) -> None:
             f"{len(section_report['damaged'])} section bibliography block(s) have missing scope/start/end markers. "
             "Remove their remaining Callosum bookmarks before inserting replacements."
         )
-    _msgbox("\n\n".join(lines) if lines else "No issues found.", title="callosum — document diagnostics")
+    issues_text = "\n\n".join(lines) if lines else "No issues found."
+
+    prefs = report["preferences"]
+    settings_text = "Current settings:\n" + "\n".join(
+        f"- {label}: {'ON' if prefs[key] else 'OFF'}"
+        for key, label in (
+            ("bib_auto", "Automatic bibliography rebuilding"),
+            ("bibliography_links", "Citation-to-bibliography links"),
+            ("bibliography_external_links", "Bibliography title/DOI links"),
+        )
+    )
+    _msgbox(f"{issues_text}\n\n{settings_text}", title="callosum — document diagnostics")
 
 
 _RETRACTION_LABEL = {"retracted": "RETRACTED", "correction": "CORRECTION", "concern": "EXPRESSION OF CONCERN"}

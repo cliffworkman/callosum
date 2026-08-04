@@ -1264,6 +1264,10 @@ def spike_toggle_bib_auto(ctx, base, p1, p2):
     `toggle_bib_auto_interactive` always shows a confirmation message box (unlike most other interactive
     actions, which only message-box on a failure/edge case) — the real `.oxt` dispatcher sets `cc._DISPATCH_CTX`
     before calling it (`callosum_addon.py`); this spike calls it directly, so it must set the same thing itself.
+
+    Also proves the state-blind-toggle UX follow-up (backlog #33/#34, inc 446): `diagnose_document`'s
+    "preferences" key tracks bib_auto through both toggles, and the message names the ON/OFF transition, not
+    just the destination.
     """
     log("spike (phase 7): toggle bibliography auto-rebuild")
     cc._DISPATCH_CTX = ctx
@@ -1279,9 +1283,27 @@ def spike_toggle_bib_auto(ctx, base, p1, p2):
     cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_range("XXX0")))
     check(cc.bib_auto_enabled(doc), "bibliography auto-rebuild should default to enabled")
     check(text.getString().count(cc.BIB_HEADING) == 1, "expected exactly 1 bibliography heading after the first cite")
+    check(
+        cc.diagnose_document(doc, base)["preferences"]["bib_auto"] is True,
+        "diagnostics should report bib_auto=True before any toggle",
+    )
 
-    cc.toggle_bib_auto_interactive(doc, base)
+    captured = []
+    original_msgbox = cc._msgbox
+    cc._msgbox = lambda message, title="callosum": captured.append(message)
+    try:
+        cc.toggle_bib_auto_interactive(doc, base)
+    finally:
+        cc._msgbox = original_msgbox
     check(not cc.bib_auto_enabled(doc), "toggle did not disable bib auto")
+    check(
+        captured and captured[0].startswith("Automatic bibliography rebuilding: ON → OFF."),
+        f"unexpected toggle-off message: {captured}",
+    )
+    check(
+        cc.diagnose_document(doc, base)["preferences"]["bib_auto"] is False,
+        "diagnostics did not reflect bib_auto=False right after toggling off",
+    )
 
     cc.insert_citation(doc, p2, base, cursor=text.createTextCursorByRange(find_range("XXX1")))
     body = text.getString()
@@ -1292,11 +1314,27 @@ def spike_toggle_bib_auto(ctx, base, p1, p2):
     marks = cc.scan_citations_in_order(doc)
     check(len(marks) == 2, f"expected 2 citation marks (citations still update), found {len(marks)}")
 
-    cc.toggle_bib_auto_interactive(doc, base)
+    captured.clear()
+    cc._msgbox = lambda message, title="callosum": captured.append(message)
+    try:
+        cc.toggle_bib_auto_interactive(doc, base)
+    finally:
+        cc._msgbox = original_msgbox
     check(cc.bib_auto_enabled(doc), "toggle did not re-enable bib auto")
+    check(
+        captured and captured[0].startswith("Automatic bibliography rebuilding: OFF → ON."),
+        f"unexpected toggle-on message: {captured}",
+    )
+    check(
+        cc.diagnose_document(doc, base)["preferences"]["bib_auto"] is True,
+        "diagnostics did not reflect bib_auto=True right after re-enabling",
+    )
     cc.refresh(doc, base)
     check(cc.BIB_HEADING in text.getString(), "bibliography missing after re-enabling + a refresh")
-    log("spike (phase 7): OK — bibliography stayed frozen while auto-rebuild was off; citations kept updating")
+    log(
+        "spike (phase 7): OK — bibliography stayed frozen while auto-rebuild was off; citations kept updating; "
+        "diagnostics + message wording reflected each transition"
+    )
 
 
 def spike_prepare_submission_copy(ctx, base, p1):
@@ -1707,7 +1745,34 @@ def spike_document_diagnostics(ctx, base, p1, p2):
         f"a clean document reported findings: {report}",
     )
     check(report["bibliography"] == "ok", f"clean doc bibliography state was {report['bibliography']!r}")
+    check(
+        report["preferences"] == {"bib_auto": True, "bibliography_links": False, "bibliography_external_links": False},
+        f"a fresh document's preferences should all be at their defaults, got {report['preferences']}",
+    )
     log("spike (phase 9): OK — a normal, healthy document reports no findings")
+
+    log(
+        "spike (phase 9): document_diagnostics_interactive reports both issues and current settings (backlog #33/#34, inc 446)"
+    )
+    cc._DISPATCH_CTX = ctx
+    captured = []
+    original_msgbox = cc._msgbox
+    cc._msgbox = lambda message, title="callosum": captured.append((message, title))
+    try:
+        cc.document_diagnostics_interactive(doc, base)
+    finally:
+        cc._msgbox = original_msgbox
+    message, title = captured[0]
+    check(title == "callosum — document diagnostics", f"unexpected diagnostics dialog title: {title!r}")
+    check("No issues found." in message, f"clean-document diagnostics message missing the issues line: {message!r}")
+    check(
+        "Current settings" in message
+        and "Automatic bibliography rebuilding: ON" in message
+        and "Citation-to-bibliography links: OFF" in message
+        and "Bibliography title/DOI links: OFF" in message,
+        f"diagnostics message did not report all three current preference states: {message!r}",
+    )
+    log("spike (phase 9): OK — document_diagnostics_interactive reports both issues and current settings")
 
     log("spike (phase 9): malformed / unsupported-version / duplicate-id / orphaned marks are all detected")
     doc2 = new_writer(ctx)
@@ -2506,6 +2571,69 @@ def spike_bibliography_links(ctx, base, p1, p2):
     insertion("LINK").setPropertyValue("HyperLinkURL", "https://example.test/manual")
     check(not cc.bibliography_links_enabled(doc), "bibliography links must default off")
     check(not cc.bibliography_external_links_enabled(doc), "bibliography title/DOI links must default off")
+
+    # UX follow-up (backlog #33/#34, inc 446): prove the interactive toggle wrappers themselves under real
+    # headless UNO — previously only the direct setters below (set_bibliography_links/
+    # set_bibliography_external_links) were exercised here. One isolated round trip per toggle, then back to
+    # defaults before the existing scenario (driven through the direct setters) continues unmodified.
+    cc._DISPATCH_CTX = ctx
+    captured = []
+    original_msgbox = cc._msgbox
+
+    def toggle_and_capture(fn):
+        captured.clear()
+        cc._msgbox = lambda message, title="callosum": captured.append(message)
+        try:
+            fn(doc, base)
+        finally:
+            cc._msgbox = original_msgbox
+
+    toggle_and_capture(cc.toggle_bibliography_links_interactive)
+    check(cc.bibliography_links_enabled(doc), "interactive toggle did not enable bibliography links")
+    check(
+        captured and captured[0].startswith("Citation-to-bibliography links: OFF → ON."),
+        f"unexpected bibliography-links toggle-on message: {captured}",
+    )
+    check(
+        cc.diagnose_document(doc, base)["preferences"]["bibliography_links"] is True,
+        "diagnostics did not reflect bibliography_links=True after the interactive toggle",
+    )
+
+    toggle_and_capture(cc.toggle_bibliography_links_interactive)
+    check(not cc.bibliography_links_enabled(doc), "interactive toggle did not disable bibliography links")
+    check(
+        captured and captured[0].startswith("Citation-to-bibliography links: ON → OFF."),
+        f"unexpected bibliography-links toggle-off message: {captured}",
+    )
+    check(
+        cc.diagnose_document(doc, base)["preferences"]["bibliography_links"] is False,
+        "diagnostics did not reflect bibliography_links=False after toggling back off",
+    )
+
+    toggle_and_capture(cc.toggle_bibliography_external_links_interactive)
+    check(cc.bibliography_external_links_enabled(doc), "interactive toggle did not enable bibliography external links")
+    check(
+        captured and captured[0].startswith("Bibliography title/DOI links: OFF → ON."),
+        f"unexpected bibliography-external-links toggle-on message: {captured}",
+    )
+    check(
+        cc.diagnose_document(doc, base)["preferences"]["bibliography_external_links"] is True,
+        "diagnostics did not reflect bibliography_external_links=True after the interactive toggle",
+    )
+
+    toggle_and_capture(cc.toggle_bibliography_external_links_interactive)
+    check(
+        not cc.bibliography_external_links_enabled(doc),
+        "interactive toggle did not disable bibliography external links",
+    )
+    check(
+        captured and captured[0].startswith("Bibliography title/DOI links: ON → OFF."),
+        f"unexpected bibliography-external-links toggle-off message: {captured}",
+    )
+    check(
+        cc.diagnose_document(doc, base)["preferences"]["bibliography_external_links"] is False,
+        "diagnostics did not reflect bibliography_external_links=False after toggling back off",
+    )
 
     cc.set_bibliography_links(doc, True, base)
     fields = cc.scan_citations_in_order(doc)

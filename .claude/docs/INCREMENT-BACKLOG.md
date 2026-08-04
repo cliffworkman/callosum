@@ -461,15 +461,14 @@ the Principles + A-A gates before build.)*
   leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,
   pre-submission citation-integrity preflight, Citavi-style evidence-card insertion, open-science statement
   insertion, cross-manager conversion) — see the roadmap doc for the full prioritized list + a test plan.
-  **UX follow-up (deadline writer, inc 374):** expose the current ON/OFF state of automatic bibliography
-  rebuilding instead of a state-blind toggle, and consider an explicit **Restore References** affordance in the
-  heading dialog. The shipped blank-to-reset path is documented and unblocked; these are discoverability polish.
-  **UX follow-up (deadline writer, incs 375/383):** expose a checked ON/OFF state for
-  citation-to-bibliography links; the current state-blind toggle is functional but requires testing a citation
-  after reopen. The grouped-source chooser itself is now shipped.
-  **UX follow-up (deadline author, incs 376/382):** expose a checked ON/OFF state for bibliography title/DOI
-  links alongside the inc-375 internal-link state. The shipped confirmation reports the applied link count and
-  explains a zero-result bibliography instead of leaving an unchanged bibliography looking like failure.
+  **UX follow-ups (incs 374/375/376/382/383) — CLOSED inc 446.** All three state-blind toggles (automatic
+  bibliography rebuilding, citation-to-bibliography links, bibliography title/DOI links) now expose current
+  ON/OFF state via "Document diagnostics…" (always-present, read-only) and each toggle's own message now states
+  the ON→OFF/OFF→ON transition rather than only the destination. LibreOffice's Job-dispatch architecture here
+  can't show a live menu checkmark (confirmed, no `XDispatch`/`FeatureStateEvent` anywhere in the codebase), so
+  this is the aligned fix within the existing architecture rather than a larger dispatch rewire. The **Restore
+  References** affordance was evaluated and closed with no code change — the heading dialog already pre-fills
+  the current value and states the reset mechanism inline. See `INCREMENT-446-NOTES.md`.
   **#43** (a true Google Workspace Marketplace one-click install) is its own project (GCP project, OAuth
   verification, a public privacy policy, Google app review) — likely overkill for a local-first single-user
   tool; build only if a one-click install becomes worth the ongoing maintenance cost.
