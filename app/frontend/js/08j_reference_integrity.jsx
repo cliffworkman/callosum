@@ -194,4 +194,103 @@ function MetaReferenceList({ ctx }) {
   );
 }
 
+// backlog #48 (inc 447): the WIP-manuscript variant. A WIP reference is a direct link to an already-known,
+// DOI'd Library paper (not a raw discovered citation string), so its item card is its own thin component —
+// reusing RefSignalBadge/RefEvidence/RefReviewControls (the truly reusable atoms) rather than forcing the
+// backend response to fake RefItem's title/authors/raw_text shape.
+function WipRefItem({ item, onReview, onOpenPaper }) {
+  const title = item.paper_title || "Untitled reference";
+  const meta = [item.paper_year, item.doi ? "doi:" + item.doi : null].filter(Boolean).join(" · ");
+  return (
+    <div className={"ref-card " + item.review_state}>
+      <div className="ref-card-head">
+        <button type="button" className="btn-link ref-title" onClick={() => onOpenPaper && onOpenPaper({ id: item.paper_id, title })}>
+          {title}
+        </button>
+        <RefReviewControls item={item} onReview={onReview} />
+      </div>
+      {meta && <div className="ref-meta">{meta}</div>}
+      <div className="ref-signals">
+        {item.signals.map(s => <RefSignalBadge key={s.id} signal={s} />)}
+      </div>
+      {item.signals.map(s => <RefEvidence key={"e" + s.id} signal={s} onOpenPaper={onOpenPaper} />)}
+      <div className="ref-state">
+        {item.review_state === "dismissed" ? "Reviewed and dismissed"
+          : item.review_state === "confirmed_problem" ? "Reviewed and confirmed as a concern"
+          : "Requires review"}
+      </div>
+    </div>
+  );
+}
+
+function WipMetaReferenceList({ manuscriptId, onOpenPaper, onReload, refreshKey }) {
+  const [state, setState] = useState({ status: "idle", data: null });
+  const hasPartialCoverage = !!(state.data && (state.data.provider_statuses || []).some(s => ["failed", "partial"].includes(s.status)));
+  const load = () => {
+    if (manuscriptId == null) { setState({ status: "idle", data: null }); return; }
+    setState(s => ({ ...s, status: s.data ? "ready" : "loading" }));
+    api(`/wip/manuscripts/${manuscriptId}/reference-integrity`).then(r => setState(r.ok ? { status: "ready", data: r.data } : { status: "error", error: r.error, data: null }));
+  };
+  useEffect(load, [manuscriptId, refreshKey]);
+  const run = async () => {
+    if (manuscriptId == null) return;
+    setState({ status: "running", data: state.data, progress: null });
+    const start = await apiPost(`/wip/manuscripts/${manuscriptId}/reference-integrity/run`, {});
+    if (!start.ok) { setState({ status: "error", error: start.error, data: state.data }); return; }
+    const poll = (jid) => api(`/wip/reference-integrity/run/${jid}`).then(r => {
+      if (!r.ok) { setState({ status: "error", error: r.error, data: state.data }); return; }
+      if (r.data.status === "done") {
+        setState({ status: "ready", data: r.data.report });
+        if (onReload) onReload();
+      } else if (r.data.status === "error") setState({ status: "error", error: r.data.detail || "Check failed.", data: state.data });
+      else {
+        setState(s => ({ ...s, status: "running", progress: r.data.progress || null }));
+        setTimeout(() => poll(jid), 1400);
+      }
+    });
+    poll(start.data.job_id);
+  };
+  const review = async (referenceId, reviewState) => {
+    const r = await apiPost(`/wip/reference-integrity/${referenceId}/review`, { state: reviewState });
+    if (r.ok) {
+      setState({ status: "ready", data: r.data });
+      if (onReload) onReload();
+    }
+  };
+  if (manuscriptId == null) return null;
+  const data = state.data;
+  return (
+    <div className="ref-panel">
+      <div className="meta-ref-action-row">
+        <div className="meta-ref-action-copy ref-intro">
+          Checks this manuscript's "cited" Library references for the same three negative signals as a published
+          paper: could not verify, known retraction signal, and prior local flag propagation. Search misses are not
+          conclusions, and clearing signals is not positive verification.
+        </div>
+        <div className="meta-ref-action-slot">
+          {state.status !== "running" &&
+            <button className="btn btn-primary" onClick={run}>
+              {state.status === "error" || hasPartialCoverage ? "Retry reference check" : "Check references"}
+            </button>}
+        </div>
+      </div>
+      {state.status === "running" && <ProgressBar progress={state.progress} label="Checking reference list…" managedBy="backend-job" />}
+      {state.status === "error" && <div className="axis-err">Reference check failed: {state.error}</div>}
+      {state.status === "loading" && <div className="tag-suggest-empty">Loading reference signals…</div>}
+      {data && <div className="ref-summary">
+        Checked {data.checked_count || 0} cited reference{(data.checked_count || 0) === 1 ? "" : "s"} ·{" "}
+        {data.active_count} active reference signal{data.active_count === 1 ? "" : "s"}.
+        {data.last_checked_at ? <> Last checked {data.last_checked_at}.</> : null}
+        Dismissed items do not count; confirmed concerns and unreviewed signals do.
+      </div>}
+      {data && <RefProviderStatusList statuses={data.provider_statuses} />}
+      {data && (data.checked_count || 0) === 0 &&
+        <div className="tag-suggest-empty">No Library references are marked "cited" for this manuscript yet — link one from the References tab first.</div>}
+      {data && data.items.length === 0 && (data.checked_count || 0) > 0 &&
+        <div className="tag-suggest-empty">No active reference signals from these checks. This is not positive verification of the references.</div>}
+      {data && data.items.map(item => <WipRefItem key={item.id} item={item} onReview={review} onOpenPaper={onOpenPaper} />)}
+    </div>
+  );
+}
+
 // Rendered directly by MetaReferencePane (37b_meta_reference.jsx) as Work → Meta-Reference's first subsection.

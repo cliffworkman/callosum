@@ -11,6 +11,30 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-03 inc 445 — local exact-snapshot WIP critical read -->
 
+## 2026-08-04 — Increment 447: Meta-Reference for WIP manuscripts (closes backlog #48)
+
+- **Files:** new `schema_wip_reference_integrity.py` + migration `0065`, new `wip_reference_integrity_repo.py`,
+  new routers `wip_reference_integrity.py` + `wip_citation_equity.py`, `app.py`/`status.py` wiring,
+  `08j_reference_integrity.jsx`/`08b_methods_citation_equity.jsx`/`37b_meta_reference.jsx`/`10f_wip.jsx`,
+  new test files, security audit, QA routes 51/68, backlog/increment documentation.
+- **What:** brought reference-integrity and citation-concentration to WIP manuscripts under Work →
+  Meta-Reference, reusing both Library-paper pure detector functions completely unmodified against the
+  manuscript's own "cited" `wip_references` links instead of a discovered reference list. Reference-integrity
+  persists into two new, purely additive tables (never retrofitting the Library-paper `reference_instances` or
+  the generic file-shaped `wip_tool_runs`/`wip_findings`); citation-concentration stays fully ephemeral, exactly
+  like its Library-paper version. Citation-context stays permanently out of scope for WIP (no DOI, no citation
+  graph), with a plain explanatory note instead of silently vanishing.
+- **Why:** backlog #48's last open slice — this closes the WIP-integration track that started with Checklists
+  (incs 441-444) and Critique (inc 445).
+- **Also fixed along the way:** `status.py`'s `citation_equity_jobs`/`overlooked_jobs` Status entries pointed at
+  a nonexistent Methods-pane section, silently landing on the wrong destination — fixed to Work → Meta-Reference.
+- **Verify:** targeted suite (`test_wip_reference_integrity.py`, `test_wip_citation_equity.py`,
+  `test_status.py`, `test_reference_integrity.py`, `test_citation_equity.py`, `test_wip_workflow.py`,
+  `test_wip_critical_review.py`, `test_frontend_assembly.py`) → 131 passed; full details in
+  `INCREMENT-447-NOTES.md`.
+- **Revert:** drop the two new tables (additive migration, no data rollback needed), remove the two new
+  routers/job stores/repo file and the frontend additions. Existing Library-paper tools are untouched.
+
 ## 2026-08-03 — Increment 446: expose state for three "state-blind" LibreOffice adapter toggles
 
 - **Files:** `adapters/libreoffice/callosum_cite.py` (`diagnose_document`, `document_diagnostics_interactive`,

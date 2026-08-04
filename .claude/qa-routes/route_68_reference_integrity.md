@@ -1,6 +1,6 @@
 <!-- qa-coverage
-api: /papers/{paper_id}/reference-integrity*, /reference-integrity/*
-fe: 08j_reference_integrity.jsx, 10b_libmenus.jsx, 10_pdf_layer.jsx
+api: /papers/{paper_id}/reference-integrity*, /reference-integrity/*, /wip/manuscripts/{manuscript_id}/reference-integrity*, /wip/reference-integrity/*
+fe: 08j_reference_integrity.jsx, 10b_libmenus.jsx, 10_pdf_layer.jsx, 37b_meta_reference.jsx, 10f_wip.jsx
 -->
 
 # ROUTE 68 - Meta Reference List (reference-integrity signals)
@@ -26,6 +26,11 @@ appears in the retraction registry fixture. Register listeners before navigation
 - **Per-instance review.** Dismissal in Paper A must not suppress the same referenced entity in Paper B.
 - **No positive promotion.** After every reference signal is dismissed, the only change is the reference-derived active
   count; no paper quality/category/status becomes positive.
+- **WIP is a separate local-only path with its own persistence (inc 447).** A WIP manuscript's reference-integrity
+  signals persist in dedicated `wip_reference_signals`/`wip_reference_reviews` tables, never in `reference_instances`
+  (whose `citing_paper_id` is a Library-paper-only FK). The candidate list is the manuscript's own "cited"
+  `wip_references` links, never a Semantic-Scholar/OpenAlex discovery call — no manuscript file text or path leaves
+  the machine at any point in this flow.
 
 ## Adversarial Checklist
 
@@ -71,6 +76,16 @@ appears in the retraction registry fixture. Register listeners before navigation
 14. Click a paper-card **ref signal** badge. Confirm the paper is selected, **Work -> Meta-Reference** opens scrolled
     to the **Meta Reference List** subsection, and the badge text/tooltips frame the count as active signals rather
     than a paper-quality verdict.
+15. Open a WIP manuscript with at least one Library paper linked as **cited** (one retracted, one clean) via the
+    References tab. Open **Work -> Meta-Reference** for the manuscript. Confirm **Check references**
+    (`POST /wip/manuscripts/{id}/reference-integrity/run`, poll `GET /wip/reference-integrity/run/{job}`) surfaces the
+    retracted reference with a **Known retraction signal** badge and clicking its title opens the Library paper.
+16. Dismiss/confirm the WIP reference's signal (`POST /wip/reference-integrity/{reference_id}/review`). Confirm the
+    same receipt appears in the manuscript's own **Checks** tab (`WipDetails`), not just in Work -> Meta-Reference.
+17. Link a paper as **background-reading** (not cited). Re-run the check. Confirm it is never included in
+    `checked_count` or the results — only "cited" references are checked.
+18. Confirm **How it's cited** shows the plain no-DOI explanatory note with no interactive controls for a WIP
+    manuscript (citation-context stays permanently out of scope for WIP).
 
 ## Pass Criteria
 

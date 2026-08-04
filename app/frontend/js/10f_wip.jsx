@@ -485,6 +485,7 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
           <WipChecks manuscriptId={manuscript.id} snapshots={snapshots} checks={checks} onReload={reload} />
           <WipFundingRuns runs={fundingRuns} />
           <WipJournalRuns runs={journalRuns} />
+          <WipMetaReferenceList manuscriptId={manuscript.id} onOpenPaper={onOpenPaper} onReload={reload} refreshKey={nonce} />
         </>}
         {tab === "activity" && activityView}
       </> : <>

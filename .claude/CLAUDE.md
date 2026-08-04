@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 446** (see Increment workflow) with **1853 root-suite pytest tests
+It is currently at **Increment 447** (see Increment workflow) with **1853 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -164,6 +164,16 @@ the full per-increment narrative for all other increments now lives in the reloc
   verbatim draft/Library evidence with paper, attachment, page, confidence, and model provenance. It never persists
   a draft embedding, borrows stale receipts, creates a defect finding, invents a `papers` row, auto-runs, scores, or
   calls a provider. Status labels it Local AI and receives only a typed manuscript id, never the result passages.
+  **Inc 447 completes backlog #48** by bringing reference-integrity and citation-concentration to WIP under
+  Work → Meta-Reference, reusing both Library-paper pure detectors (`inspect_reference`/`audit_reference_list`)
+  completely unmodified against the manuscript's own "cited" `wip_references`-linked Library papers instead of a
+  discovered reference list. Reference-integrity persists into two new, purely additive tables
+  (`wip_reference_signals`/`wip_reference_reviews`) rather than retrofitting the Library-paper
+  `reference_instances` (a NOT NULL FK to `papers.id`) or the generic file-shaped `wip_tool_runs`/`wip_findings`;
+  citation-concentration stays fully ephemeral like its Library-paper version, with an honest no-field-
+  comparison/self-citation-not-computed degraded path rather than a fabricated author or field proxy.
+  Citation-context remains permanently out of scope for WIP (no DOI, no citation graph), stated plainly rather
+  than silently omitted.
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):

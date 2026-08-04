@@ -5761,6 +5761,44 @@
     }, [paperId]);
     return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-section" }, /* @__PURE__ */ React.createElement(CitationEquityPaper, { paperId, meta }), /* @__PURE__ */ React.createElement(OverlookedWork, { paperId, hasDoi: meta ? meta.hasDoi : null }));
   }
+  function CitationEquitySectionWip({ manuscript }) {
+    const [state, setState] = useState({ status: "idle" });
+    useEffect(() => {
+      setState({ status: "idle" });
+    }, [manuscript && manuscript.id]);
+    const run = async () => {
+      setState({ status: "running", progress: null });
+      const poll = (jobId) => api(`/wip/citation-equity/run/${jobId}`).then((r2) => {
+        if (!r2.ok) {
+          setState({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") setState({ status: "done", report: d.report });
+        else if (d.status === "error") setState({ status: "error", error: d.detail || "Audit failed." });
+        else {
+          setState({ status: "running", progress: d.progress });
+          setTimeout(() => poll(jobId), 1500);
+        }
+      });
+      const r = await apiPost(`/wip/manuscripts/${manuscript.id}/citation-equity/run`, {});
+      if (!r.ok) {
+        setState({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    const rep = state.report;
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-section" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity" }, /* @__PURE__ */ React.createElement("div", { className: "meta-ref-action-row" }, /* @__PURE__ */ React.createElement("div", { className: "meta-ref-action-copy" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-intro" }, `How concentrated this manuscript's "cited" Library references are \u2014 does it lean on your own work, famous work, a few venues, a few elite institutions? Descriptive context, never a score or a target.`), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "cite-equity-egress-note" }, "Running fetches public OpenAlex metadata about your cited references \u2014 nothing about your draft leaves your machine.")), /* @__PURE__ */ React.createElement("div", { className: "meta-ref-action-slot" }, state.status === "idle" && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-primary",
+        onClick: run,
+        title: "Resolve this manuscript's cited references via OpenAlex (public metadata) and compute structural signals"
+      },
+      "Run audit"
+    ))), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { progress: state.progress, label: "Resolving references\u2026", managedBy: "backend-job" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't run the audit: ", state.error), state.status === "done" && rep && (rep.references_total === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, `No Library references are marked "cited" for this manuscript yet, so there's nothing to audit.`) : /* @__PURE__ */ React.createElement("div", { className: "cite-equity-report" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-field" }, "No field comparison available for an unpublished manuscript \u2014 showing the list's own shape."), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-caption" }, "The bars show each value descriptively \u2014 context for you to interpret, not a target or a score; neither direction is a verdict."), rep.signals.map((s) => /* @__PURE__ */ React.createElement(CiteEquitySignal, { key: s.key, s })), /* @__PURE__ */ React.createElement(CiteEquityFoot, null)))), /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, `"Find overlooked work" isn't available for WIP manuscripts yet.`));
+  }
   const CITATION_CONTEXT_CSL = [
     {
       type: "article-journal",
@@ -7569,6 +7607,58 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     if (pid == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to inspect reference signals.");
     const data = state.data;
     return /* @__PURE__ */ React.createElement("div", { className: "ref-panel" }, /* @__PURE__ */ React.createElement("div", { className: "meta-ref-action-row" }, /* @__PURE__ */ React.createElement("div", { className: "meta-ref-action-copy ref-intro" }, "Surfaces only three negative signals for review: could not verify, known retraction signal, and prior local flag propagation. Search misses are not conclusions, and clearing signals is not positive verification."), /* @__PURE__ */ React.createElement("div", { className: "meta-ref-action-slot" }, state.status !== "running" && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: run }, state.status === "error" || hasPartialCoverage ? "Retry reference check" : "Check references"))), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { progress: state.progress, label: "Checking reference list\u2026", managedBy: "backend-job" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Reference check failed: ", state.error), state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Loading reference signals\u2026"), data && /* @__PURE__ */ React.createElement("div", { className: "ref-summary" }, "Checked ", data.checked_count || 0, " linked reference", (data.checked_count || 0) === 1 ? "" : "s", " \xB7", " ", data.active_count, " active reference signal", data.active_count === 1 ? "" : "s", ".", data.last_checked_at ? /* @__PURE__ */ React.createElement(React.Fragment, null, " Last checked ", data.last_checked_at, ".") : null, "Dismissed items do not count; confirmed concerns and unreviewed signals do."), data && /* @__PURE__ */ React.createElement(RefProviderStatusList, { statuses: data.provider_statuses }), data && data.items.length === 0 && (data.checked_count || 0) === 0 && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No linked reference records were available from Semantic Scholar or OpenAlex for this DOI."), data && data.items.length === 0 && (data.checked_count || 0) > 0 && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No active reference signals from these checks. This is not positive verification of the references."), data && data.items.map((item) => /* @__PURE__ */ React.createElement(RefItem, { key: item.id, item, onReview: review, onOpenPaper: ctx.onOpenPaper })));
+  }
+  function WipRefItem({ item, onReview, onOpenPaper }) {
+    const title = item.paper_title || "Untitled reference";
+    const meta = [item.paper_year, item.doi ? "doi:" + item.doi : null].filter(Boolean).join(" \xB7 ");
+    return /* @__PURE__ */ React.createElement("div", { className: "ref-card " + item.review_state }, /* @__PURE__ */ React.createElement("div", { className: "ref-card-head" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-link ref-title", onClick: () => onOpenPaper && onOpenPaper({ id: item.paper_id, title }) }, title), /* @__PURE__ */ React.createElement(RefReviewControls, { item, onReview })), meta && /* @__PURE__ */ React.createElement("div", { className: "ref-meta" }, meta), /* @__PURE__ */ React.createElement("div", { className: "ref-signals" }, item.signals.map((s) => /* @__PURE__ */ React.createElement(RefSignalBadge, { key: s.id, signal: s }))), item.signals.map((s) => /* @__PURE__ */ React.createElement(RefEvidence, { key: "e" + s.id, signal: s, onOpenPaper })), /* @__PURE__ */ React.createElement("div", { className: "ref-state" }, item.review_state === "dismissed" ? "Reviewed and dismissed" : item.review_state === "confirmed_problem" ? "Reviewed and confirmed as a concern" : "Requires review"));
+  }
+  function WipMetaReferenceList({ manuscriptId, onOpenPaper, onReload, refreshKey }) {
+    const [state, setState] = useState({ status: "idle", data: null });
+    const hasPartialCoverage = !!(state.data && (state.data.provider_statuses || []).some((s) => ["failed", "partial"].includes(s.status)));
+    const load = () => {
+      if (manuscriptId == null) {
+        setState({ status: "idle", data: null });
+        return;
+      }
+      setState((s) => ({ ...s, status: s.data ? "ready" : "loading" }));
+      api(`/wip/manuscripts/${manuscriptId}/reference-integrity`).then((r) => setState(r.ok ? { status: "ready", data: r.data } : { status: "error", error: r.error, data: null }));
+    };
+    useEffect(load, [manuscriptId, refreshKey]);
+    const run = async () => {
+      if (manuscriptId == null) return;
+      setState({ status: "running", data: state.data, progress: null });
+      const start = await apiPost(`/wip/manuscripts/${manuscriptId}/reference-integrity/run`, {});
+      if (!start.ok) {
+        setState({ status: "error", error: start.error, data: state.data });
+        return;
+      }
+      const poll = (jid) => api(`/wip/reference-integrity/run/${jid}`).then((r) => {
+        if (!r.ok) {
+          setState({ status: "error", error: r.error, data: state.data });
+          return;
+        }
+        if (r.data.status === "done") {
+          setState({ status: "ready", data: r.data.report });
+          if (onReload) onReload();
+        } else if (r.data.status === "error") setState({ status: "error", error: r.data.detail || "Check failed.", data: state.data });
+        else {
+          setState((s) => ({ ...s, status: "running", progress: r.data.progress || null }));
+          setTimeout(() => poll(jid), 1400);
+        }
+      });
+      poll(start.data.job_id);
+    };
+    const review = async (referenceId, reviewState) => {
+      const r = await apiPost(`/wip/reference-integrity/${referenceId}/review`, { state: reviewState });
+      if (r.ok) {
+        setState({ status: "ready", data: r.data });
+        if (onReload) onReload();
+      }
+    };
+    if (manuscriptId == null) return null;
+    const data = state.data;
+    return /* @__PURE__ */ React.createElement("div", { className: "ref-panel" }, /* @__PURE__ */ React.createElement("div", { className: "meta-ref-action-row" }, /* @__PURE__ */ React.createElement("div", { className: "meta-ref-action-copy ref-intro" }, `Checks this manuscript's "cited" Library references for the same three negative signals as a published paper: could not verify, known retraction signal, and prior local flag propagation. Search misses are not conclusions, and clearing signals is not positive verification.`), /* @__PURE__ */ React.createElement("div", { className: "meta-ref-action-slot" }, state.status !== "running" && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: run }, state.status === "error" || hasPartialCoverage ? "Retry reference check" : "Check references"))), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { progress: state.progress, label: "Checking reference list\u2026", managedBy: "backend-job" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Reference check failed: ", state.error), state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Loading reference signals\u2026"), data && /* @__PURE__ */ React.createElement("div", { className: "ref-summary" }, "Checked ", data.checked_count || 0, " cited reference", (data.checked_count || 0) === 1 ? "" : "s", " \xB7", " ", data.active_count, " active reference signal", data.active_count === 1 ? "" : "s", ".", data.last_checked_at ? /* @__PURE__ */ React.createElement(React.Fragment, null, " Last checked ", data.last_checked_at, ".") : null, "Dismissed items do not count; confirmed concerns and unreviewed signals do."), data && /* @__PURE__ */ React.createElement(RefProviderStatusList, { statuses: data.provider_statuses }), data && (data.checked_count || 0) === 0 && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, 'No Library references are marked "cited" for this manuscript yet \u2014 link one from the References tab first.'), data && data.items.length === 0 && (data.checked_count || 0) > 0 && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No active reference signals from these checks. This is not positive verification of the references."), data && data.items.map((item) => /* @__PURE__ */ React.createElement(WipRefItem, { key: item.id, item, onReview: review, onOpenPaper })));
   }
   function fundingProviderDisplayName(id) {
     const names = {
@@ -10464,7 +10554,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onReload: reload,
         onOpenPaper
       }
-    ), tab === "checks" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(WipChecks, { manuscriptId: manuscript.id, snapshots, checks, onReload: reload }), /* @__PURE__ */ React.createElement(WipFundingRuns, { runs: fundingRuns }), /* @__PURE__ */ React.createElement(WipJournalRuns, { runs: journalRuns })), tab === "activity" && activityView) : /* @__PURE__ */ React.createElement(React.Fragment, null, overview, /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Files"), fileView), /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Recent activity"), activityView)));
+    ), tab === "checks" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(WipChecks, { manuscriptId: manuscript.id, snapshots, checks, onReload: reload }), /* @__PURE__ */ React.createElement(WipFundingRuns, { runs: fundingRuns }), /* @__PURE__ */ React.createElement(WipJournalRuns, { runs: journalRuns }), /* @__PURE__ */ React.createElement(WipMetaReferenceList, { manuscriptId: manuscript.id, onOpenPaper, onReload: reload, refreshKey: nonce })), tab === "activity" && activityView) : /* @__PURE__ */ React.createElement(React.Fragment, null, overview, /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Files"), fileView), /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Recent activity"), activityView)));
   }
   function WipRelink({ manuscript, onRelinked }) {
     const [editing, setEditing] = useState(false);
@@ -18938,7 +19028,13 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     { id: "work", label: "Work", order: 50 },
     { id: "cite", label: "Cite", order: 10, render: (ctx) => /* @__PURE__ */ React.createElement(CitePane, { ctx }) }
   );
+  function MetaReferencePaneWip({ ctx, manuscript }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-workspace ws-pad" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Meta Reference List"), /* @__PURE__ */ React.createElement(WipMetaReferenceList, { manuscriptId: manuscript.id, onOpenPaper: ctx.onOpenPaper, onReload: ctx.onReloadWip, refreshKey: ctx.wipRefresh }), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Citation concentration"), /* @__PURE__ */ React.createElement(CitationEquitySectionWip, { manuscript })), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "How it's cited"), /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This manuscript has no DOI, so it can't have an indexed incoming- or outgoing-citation graph in Semantic Scholar \u2014 citation context needs a published record. This becomes available once the manuscript is published and linked to its own Library entry.")));
+  }
   function MetaReferencePane({ ctx }) {
+    if (ctx.researchContext && ctx.researchContext.kind === "manuscript") {
+      return /* @__PURE__ */ React.createElement(MetaReferencePaneWip, { ctx, manuscript: ctx.researchContext.entity });
+    }
     return /* @__PURE__ */ React.createElement("div", { className: "cite-workspace ws-pad" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Meta Reference List"), /* @__PURE__ */ React.createElement(MetaReferenceList, { ctx }), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Citation concentration"), /* @__PURE__ */ React.createElement(CitationEquitySection, { ctx })), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "How it's cited"), /* @__PURE__ */ React.createElement(CitationContextSection, { ctx, direction: "citations" })), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "How it cites its sources"), /* @__PURE__ */ React.createElement(CitationContextSection, { ctx, direction: "references" })));
   }
   registerWorkspaceTab(

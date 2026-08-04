@@ -85,8 +85,10 @@ from app.backend.api.routers import (
     wanted,
     wip,
     wip_checks,
+    wip_citation_equity,
     wip_critical_review,
     wip_provenance,
+    wip_reference_integrity,
     wip_workflow,
     word,
     workbench,
@@ -216,6 +218,7 @@ def create_app(
     api.state.critical_review_set_jobs = JobStore()  # backlog #12: set (multi-paper) critical review
     api.state.critical_review_set_generator = None  # test seam for the Tier-2 set generator
     api.state.citation_equity_jobs = JobStore()  # inc 227 (#25): per-paper structural citation-equity audit
+    api.state.wip_citation_equity_jobs = JobStore()  # backlog #48: WIP-manuscript citation-concentration audit
     api.state.overlooked_jobs = JobStore()  # inc 228 (#25 SP2): topical overlooked-work remediation
     api.state.metadata_enrich_jobs = JobStore()  # inc 217: multi-pass, gap-filling metadata enrichment
     api.state.ocr_jobs = JobStore()  # inc 231 (B3): per-paper OCR of a scanned PDF into a searchable copy
@@ -223,6 +226,7 @@ def create_app(
     api.state.citation_context_jobs = JobStore()  # inc 232 (B4): per-paper "how this paper is cited" (scite analogue)
     api.state.publishers_jobs = JobStore()  # #40: PUBLISHERS "where to submit" journal-finder (SP1a)
     api.state.reference_integrity_jobs = JobStore()  # Meta Reference List: per-paper reference-integrity scan
+    api.state.wip_reference_integrity_jobs = JobStore()  # backlog #48: WIP-manuscript reference-integrity scan
     api.state.funding_jobs = JobStore()  # Funding Discovery: latent prospect discovery and opportunity resolution
     api.state.funding_award_provider = None  # test seam for bounded historical-award evidence
     api.state.funding_grants_gov_client = None  # test seam for current federal-opportunity evidence
@@ -368,8 +372,10 @@ def create_app(
     api.include_router(library.router)
     api.include_router(wip.router)  # /wip/* — local-only unpublished manuscript workspaces
     api.include_router(wip_checks.router)
+    api.include_router(wip_citation_equity.router)  # backlog #48: WIP citation-concentration
     api.include_router(wip_critical_review.router)
     api.include_router(wip_provenance.router)
+    api.include_router(wip_reference_integrity.router)  # backlog #48: WIP reference-integrity
     api.include_router(wip_workflow.router)
     api.include_router(library_enrich.router)  # /library/enrich/refresh — split out of library.py (rule #1)
     api.include_router(axes.router)

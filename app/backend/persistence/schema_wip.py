@@ -139,4 +139,11 @@ from app.backend.persistence.schema_wip_provenance import (  # noqa: E402,F401
     wip_snapshots,
     wip_tool_runs,
 )
+
+# backlog #48: reference-integrity signals for a manuscript's linked Library references (see the module's own
+# docstring for why this is dedicated rather than a retrofit of reference_instances/wip_tool_runs/wip_findings).
+from app.backend.persistence.schema_wip_reference_integrity import (  # noqa: E402,F401
+    wip_reference_reviews,
+    wip_reference_signals,
+)
 from app.backend.persistence.schema_wip_workflow import wip_references, wip_sections, wip_tasks  # noqa: E402,F401

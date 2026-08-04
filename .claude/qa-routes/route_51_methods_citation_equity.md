@@ -1,6 +1,6 @@
 <!-- qa-coverage
-api: /methods/citation-equity*
-fe: 08b_methods_citation_equity.jsx
+api: /methods/citation-equity*, /wip/manuscripts/{manuscript_id}/citation-equity/run, /wip/citation-equity/run/{job_id}
+fe: 08b_methods_citation_equity.jsx, 37b_meta_reference.jsx
 -->
 
 # ROUTE 51 - Methods: Citation concentration (structural reference-list audit; never categorizes the people cited)
@@ -35,6 +35,10 @@ listeners before navigation.
 - **Low coverage is flagged, not hidden (#4/#6 — inc 229).** A signal computed over <50% of the references carries
   `low_coverage:true` + a `coverage_fraction`, and the UI shows a **⚠ low coverage (N%)** badge — the number is
   still shown (never suppressed) but it must not read as comparable to a fully-resolved signal or the field baseline.
+- **WIP has no fabricated field or author identity (inc 447).** A WIP manuscript has no DOI and no stored author
+  list, so `field_topic` is always `None` (an honest "no field comparison available" note, never a guessed topic)
+  and self-citation always reads "not computed" (never a fabricated 0%). The reference list itself comes from the
+  manuscript's own "cited" `wip_references` links, never an OpenAlex `referenced_works` graph traversal.
 
 ## Adversarial checklist
 
@@ -76,6 +80,13 @@ listeners before navigation.
 7. Adversarial: a no-DOI paper -> **both** controls are gated OFF (inc 257) with their own honest no-DOI hints — no
    Run-audit button AND no Find-overlooked-work button (neither POST is reachable, so no silent 422); a fake job id
    -> 404; mobile viewport -> no overflow.
+8. Open a WIP manuscript with at least one Library paper linked as **cited** -> **Work -> Meta-Reference** ->
+   **Citation concentration**. Click **Run audit** (no DOI gate — the button is always available for WIP, unlike
+   the Library-paper path). Confirm the field-comparison line reads "No field comparison available for an
+   unpublished manuscript" and the self-citation signal reads "not computed" rather than a number.
+9. Confirm **Find overlooked work** does not appear for a WIP manuscript — instead a plain
+   "isn't available for WIP manuscripts yet" note, with no reachable control.
+10. Link a paper as **to-cite** (not cited) and confirm it never contributes to `references_total` on a WIP run.
 
 ## Pass criteria
 

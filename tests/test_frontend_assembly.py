@@ -466,9 +466,11 @@ def test_meta_reference_list_sits_before_journal_search_with_accessible_review_c
 
 def test_meta_reference_actions_share_one_aligned_fixed_width_column():
     raw = assemble_jsx()
-    # Four source rows render five controls at runtime because CitationContextPaper is mounted once per direction.
-    assert raw.count('className="meta-ref-action-row"') == 4
-    assert raw.count('className="meta-ref-action-slot"') == 4
+    # Four Library-paper source rows render five controls at runtime because CitationContextPaper is mounted
+    # once per direction. Inc 447 (backlog #48) adds two more source rows for the WIP-manuscript variants
+    # (WipMetaReferenceList, CitationEquitySectionWip), reusing the same recipe rather than inventing new CSS.
+    assert raw.count('className="meta-ref-action-row"') == 6
+    assert raw.count('className="meta-ref-action-slot"') == 6
     css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
     assert "--meta-ref-action-width: 150px" in css
     assert "grid-template-columns: minmax(0, 1fr) var(--meta-ref-action-width)" in css

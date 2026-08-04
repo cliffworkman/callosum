@@ -544,7 +544,8 @@ the Principles + A-A gates before build.)*
   fraught, gated **RegCheck** track: a registration↔paper delta table, human-verified behind the auditability gate;
   **Increment 4** overlaps CRediT #26; the rest of **Increment 5** is a broader consistency registry
   (DEBIT/duplication analysis and perhaps a collection-level z-curve).
-- **#48 WIP integration — remaining tools (Checklists / Critique / Meta-Reference).** Incs 402–404 wired the
+- ✅ **#48 WIP integration — remaining tools (Checklists / Critique / Meta-Reference) — CLOSED inc 447.**
+  Incs 402–404 wired the
   three tractable tools (Statistics/statcheck, Discover > Funding, Discover > Journals) to WIP manuscripts —
   see `INCREMENT-402/403/404-NOTES.md` for the exact mechanism (branch on `ctx.researchContext.kind ===
   "manuscript"` in `06_methods_statcheck.jsx`'s precedent; a small per-tool receipt table or an already-generic
@@ -573,18 +574,22 @@ the Principles + A-A gates before build.)*
     and model provenance, but creates no defect finding or score. Status sees only a typed manuscript id. There is
     no paper-row shim, stored draft embedding, provider/egress path, migration, or automatic run; provider-suggested
     WIP critique remains deferred until it has its own exact transmission preview and consent design.
-  - **Work > Meta-Reference** (`37b_meta_reference.jsx` composing `08j_reference_integrity.jsx` +
-    `08b_methods_citation_equity.jsx` + `08c_methods_citation_context.jsx`) — reference-integrity and
-    citation-concentration are moderately tractable by running the existing per-reference detectors against the
-    manuscript's own `wip_references`-linked library papers (already real, DOI'd `papers` rows) instead of
-    resolving the manuscript's own citation graph, but `reference_instances.citing_paper_id` is a NOT NULL FK to
-    `papers.id` today, so even this half needs a migration (a nullable second FK, or a
-    `wip_reference_instances` table mirroring the `wip_findings`/`wip_tool_runs` pattern). **Citation-context is
-    out of scope for WIP permanently as designed** — "how this manuscript is cited" needs the manuscript's own
-    DOI indexed in Semantic Scholar's citation graph, which an unpublished draft cannot have; when this is
-    eventually built, omit that sub-tool for WIP with a plain explanatory note plus a forward-looking hint that
-    it becomes available once the manuscript is later linked to its own published `papers.id` record (Cliff's
-    call, recorded 2026-07-27).
+  - **Work > Meta-Reference shipped inc 447** (`37b_meta_reference.jsx` composing `08j_reference_integrity.jsx`
+    + `08b_methods_citation_equity.jsx`). Both `inspect_reference` and `audit_reference_list` (the Library-paper
+    pure detectors) are reused completely unmodified, fed the manuscript's own "cited" `wip_references`-linked
+    Library papers directly instead of a Semantic-Scholar/OpenAlex-discovered reference list. Reference-integrity
+    persists into two new, purely additive tables (`wip_reference_signals`/`wip_reference_reviews`) — not a
+    retrofit of `reference_instances` (its `citing_paper_id` NOT NULL FK to `papers.id` was the blocker this
+    entry originally flagged) nor of the generic file-shaped `wip_tool_runs`/`wip_findings`, since this tool's
+    staleness basis is `wip_references` membership, not manuscript file content. A read-only cross-space lookup
+    surfaces "previously flagged elsewhere in your library" without touching the Library-side tables at all.
+    Citation-concentration stays fully ephemeral (no schema change), with an honest "no field comparison
+    available"/self-citation-"not computed" degraded path instead of a fabricated author or field proxy.
+    **Citation-context remains permanently out of scope for WIP as designed** — "how this manuscript is cited"
+    needs the manuscript's own DOI indexed in Semantic Scholar's citation graph, which an unpublished draft
+    cannot have; the shipped UI states this plainly with a forward-looking hint that it becomes available once
+    the manuscript is later linked to its own published `papers.id` record (Cliff's call, recorded 2026-07-27).
+    See `INCREMENT-447-NOTES.md`. **Backlog #48 is now fully closed.**
 
 ---
 

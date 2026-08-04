@@ -263,4 +263,64 @@ function CitationEquitySection({ ctx }) {
   );
 }
 
+// backlog #48 (inc 447): the WIP-manuscript variant. Fully ephemeral like the Library-paper audit (no schema
+// change) — the reference list comes from `wip_references` "cited" rows instead of an OpenAlex DOI lookup, so
+// there is no DOI gate, and there is honestly no field-topic comparison (a manuscript has no OpenAlex record
+// of its own) — audit_reference_list's already-supported field=[]/field_topic=None path handles that.
+// "Find overlooked work" needs a paper's own title+abstract embedding and isn't wired for WIP in this pass.
+function CitationEquitySectionWip({ manuscript }) {
+  const [state, setState] = useState({ status: "idle" });  // idle | running | done | error
+  useEffect(() => { setState({ status: "idle" }); }, [manuscript && manuscript.id]);
+  const run = async () => {
+    setState({ status: "running", progress: null });
+    const poll = (jobId) => api(`/wip/citation-equity/run/${jobId}`).then(r => {
+      if (!r.ok) { setState({ status: "error", error: r.error }); return; }
+      const d = r.data;
+      if (d.status === "done") setState({ status: "done", report: d.report });
+      else if (d.status === "error") setState({ status: "error", error: d.detail || "Audit failed." });
+      else { setState({ status: "running", progress: d.progress }); setTimeout(() => poll(jobId), 1500); }
+    });
+    const r = await apiPost(`/wip/manuscripts/${manuscript.id}/citation-equity/run`, {});
+    if (!r.ok) { setState({ status: "error", error: r.error }); return; }
+    poll(r.data.job_id);
+  };
+  const rep = state.report;
+  return (
+    <div className="cite-equity-section">
+      <div className="cite-equity">
+        <div className="meta-ref-action-row">
+          <div className="meta-ref-action-copy">
+            <div className="cite-equity-intro">
+              How concentrated this manuscript's "cited" Library references are — does it lean on your own work,
+              famous work, a few venues, a few elite institutions? Descriptive context, never a score or a target.
+            </div>
+            {state.status === "idle" &&
+              <div className="cite-equity-egress-note">Running fetches public OpenAlex metadata about your cited references — nothing about your draft leaves your machine.</div>}
+          </div>
+          <div className="meta-ref-action-slot">
+            {state.status === "idle" &&
+              <button className="btn btn-primary" onClick={run}
+                title="Resolve this manuscript's cited references via OpenAlex (public metadata) and compute structural signals">
+                Run audit
+              </button>}
+          </div>
+        </div>
+        {state.status === "running" && <ProgressBar progress={state.progress} label="Resolving references…" managedBy="backend-job" />}
+        {state.status === "error" && <div className="axis-err">Couldn't run the audit: {state.error}</div>}
+        {state.status === "done" && rep && (rep.references_total === 0
+          ? <div className="tag-suggest-empty">No Library references are marked "cited" for this manuscript yet, so there's nothing to audit.</div>
+          : <div className="cite-equity-report">
+              <div className="cite-equity-field">
+                No field comparison available for an unpublished manuscript — showing the list's own shape.
+              </div>
+              <div className="cite-equity-caption">The bars show each value descriptively — context for you to interpret, not a target or a score; neither direction is a verdict.</div>
+              {rep.signals.map(s => <CiteEquitySignal key={s.key} s={s} />)}
+              <CiteEquityFoot />
+            </div>)}
+      </div>
+      <div className="tag-suggest-empty">"Find overlooked work" isn't available for WIP manuscripts yet.</div>
+    </div>
+  );
+}
+
 // Rendered directly by MetaReferencePane (37b_meta_reference.jsx) as a Work → Meta-Reference subsection.
