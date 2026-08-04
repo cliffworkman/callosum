@@ -1,5 +1,6 @@
 <!-- qa-coverage
 api: /methods/citation-equity*, /wip/manuscripts/{manuscript_id}/citation-equity/run, /wip/citation-equity/run/{job_id}
+api: /manuscripts/{manuscript_id}/citation-equity/run, /citation-equity/run/{job_id}
 fe: 08b_methods_citation_equity.jsx, 37b_meta_reference.jsx
 -->
 

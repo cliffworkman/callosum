@@ -11,6 +11,29 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-03 inc 445 — local exact-snapshot WIP critical read -->
 
+## 2026-08-04 — Increment 448: SciELO + TOP Factor legitimacy signals (backlog #40 slice)
+
+- **Files:** new `integrations/scielo/journals.py`, new `integrations/top_factor/adapter.py`, new
+  `top_factor_records` table + migration `0066`, new `top_factor_repo.py`, new router `methods_top_factor.py`,
+  `app.py`/`status.py` wiring, `methods/publishers.py`/`routers/publishers.py`, `08e_methods_publishers.jsx`,
+  new `35e_maintenance.jsx` (split from `35_settings.jsx`), new `tests/test_top_factor.py` + `test_publishers.py`
+  extensions, security-audit addendum, QA route 60 extended + new route 85, backlog/increment documentation.
+- **What:** wired two of PUBLISHERS' four still-deferred legitimacy sources (backlog #40) — a live per-ISSN
+  SciELO regional-index lookup and a locally-mirrored TOP Factor transparency rubric (periodic bulk CSV, no live
+  query API). SciELO shows as an "Indexed in SciELO (...)" signal; TOP Factor's `Total` renders only inside an
+  expanded "show the basis" block beside its category sub-scores — never as a bare per-journal score. The
+  never-downloaded TOP Factor mirror state is an honest report-level note, not silent per-card omission.
+- **Why:** the next open piece of backlog #40, chosen after live-verifying which of the four deferred sources
+  actually have usable public APIs (AJOL/Redalyc/Latindex don't; SciELO/TOP Factor do). Does **not** close #40 —
+  self-archiving/green-route and the remaining regional indexes stay open.
+- **Also fixed along the way:** a pre-existing QA hard-gate failure from inc 447 — `build_surface_map.py check`
+  had 4 uncovered API surfaces because the tool doesn't prepend a router's `APIRouter(prefix=...)` to a route
+  decorator's literal path, so routes 51/68's `/wip`-prefixed `api:` lines never matched. Fixed the same way
+  `route_75_wip_workspace.md` already had (a second, unprefixed `api:` line).
+- **Revert:** drop `top_factor_records` (additive migration); remove the new router mount + `app.py`/`status.py`
+  entries; revert `methods/publishers.py`/`routers/publishers.py` to their pre-inc-448 signatures; remove
+  `integrations/scielo/`, `integrations/top_factor/`, `35e_maintenance.jsx`. DOAJ-only PUBLISHERS is unaffected.
+
 ## 2026-08-04 — Increment 447: Meta-Reference for WIP manuscripts (closes backlog #48)
 
 - **Files:** new `schema_wip_reference_integrity.py` + migration `0065`, new `wip_reference_integrity_repo.py`,

@@ -55,6 +55,7 @@ from app.backend.api.routers import (
     methods_grim_saved,
     methods_retraction,
     methods_statcheck_cache,
+    methods_top_factor,
     my_publication_citing_authors,
     my_publication_gaps,
     my_publication_topics,
@@ -115,7 +116,9 @@ from integrations.gemini.extraction_assistant import ExtractionAssistant
 from integrations.openalex import OpenAlexAuthorClient, OpenAlexClient
 from integrations.openalex.sources import OpenAlexSourcesClient
 from integrations.retraction_watch import RetractionWatchClient
+from integrations.scielo.journals import ScieloJournalsClient
 from integrations.semantic_scholar.adapter import SemanticScholarClient
+from integrations.top_factor import TopFactorClient
 
 DEFAULT_DB_URL = "sqlite:///.local/validation/validation.sqlite"
 FRONTEND_PATH_ENV = "CALLOSUM_FRONTEND_PATH"
@@ -142,6 +145,7 @@ def create_app(
     openalex_author_client: OpenAlexAuthorClient | None = None,
     openalex_sources_client: OpenAlexSourcesClient | None = None,
     doaj_journals_client: DoajJournalsClient | None = None,
+    scielo_journals_client: ScieloJournalsClient | None = None,
     semantic_scholar_client: SemanticScholarClient | None = None,
     research_summary_generator: ResearchSummaryGenerator | None = None,
     overview_generator: OverviewGenerator | None = None,
@@ -210,6 +214,8 @@ def create_app(
     api.state.registration_comparison_triage_evaluator = None
     api.state.retraction_db_jobs = JobStore()  # inc 132: Retraction Watch DB download
     api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
+    api.state.top_factor_db_jobs = JobStore()  # backlog #40: TOP Factor CSV mirror download
+    api.state.top_factor_client = TopFactorClient()  # backlog #40: TOP Factor download client (overridable in tests)
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
     api.state.overlooked_lens_jobs = JobStore()  # backlog #37: overlooked-work lens (per-axis discovery)
     api.state.citation_count_jobs = JobStore()  # inc 210 (A2): library-wide OpenAlex cited-by refresh
@@ -252,6 +258,7 @@ def create_app(
     api.state.openalex_client = openalex_client
     api.state.openalex_sources_client = openalex_sources_client  # #40: OpenAlex journals for the where-to-submit tool
     api.state.doaj_journals_client = doaj_journals_client  # #40: DOAJ journal facts (APC/waiver/Seal/license)
+    api.state.scielo_journals_client = scielo_journals_client  # #40: SciELO regional-index legitimacy signal
     api.state.semantic_scholar_client = semantic_scholar_client  # inc 232 (B4): citation-context data source
     api.state.openalex_author_client = openalex_author_client
     api.state.research_summary_generator = research_summary_generator
@@ -337,6 +344,7 @@ def create_app(
     api.include_router(
         methods_retraction.router
     )  # /methods/retraction/* — retraction findings, split from methods.py (inc 261)
+    api.include_router(methods_top_factor.router)  # /methods/top-factor/* — TOP Factor CSV mirror (backlog #40)
     api.include_router(
         methods_bayes.router
     )  # /papers/{id}/bayes + /methods/bayes/* — Bayesian auditor, split from methods.py (backlog #23, inc 338)

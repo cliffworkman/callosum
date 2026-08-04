@@ -507,6 +507,7 @@ from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     paper_findings,
     paper_statcheck_cache,
     retraction_records,
+    top_factor_records,
 )
 
 # Funding Discovery tables — distinct historical/prospect/scheme/opportunity records.

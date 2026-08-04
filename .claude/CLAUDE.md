@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 447** (see Increment workflow) with **1853 root-suite pytest tests
+It is currently at **Increment 448** (see Increment workflow) with **1853 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -173,7 +173,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   citation-concentration stays fully ephemeral like its Library-paper version, with an honest no-field-
   comparison/self-citation-not-computed degraded path rather than a fabricated author or field proxy.
   Citation-context remains permanently out of scope for WIP (no DOI, no citation graph), stated plainly rather
-  than silently omitted.
+  than silently omitted. **Inc 448** wires two more legitimacy sources into the PUBLISHERS "where to submit"
+  journal-finder (`app/backend/methods/publishers.py`, Discover → Journals, backlog #40): a live per-ISSN
+  **SciELO** regional-index lookup (`integrations/scielo/journals.py`, mirrors the DOAJ client pattern) and a
+  locally-mirrored **TOP Factor** transparency rubric (`integrations/top_factor/adapter.py`, mirrors the
+  Retraction Watch download→parse→replace pattern; new `top_factor_records` table). TOP Factor's `Total` renders
+  only inside an expanded "show the basis" block beside its category sub-scores — never as a bare per-journal
+  score (no opaque composite, commitment #7); the never-downloaded mirror state is an honest report-level note.
+  Backlog #40 stays open (self-archiving/green-route + AJOL/Redalyc/Latindex regional indexes remain unwired).
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):
@@ -714,7 +721,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 439). Each increment of real work
+callosum is built in **numbered increments** (currently at 448). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

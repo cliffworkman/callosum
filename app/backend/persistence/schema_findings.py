@@ -80,6 +80,25 @@ retraction_records = Table(
     Index("ix_retraction_records_original_doi", "original_doi"),
 )
 
+# TOP Factor local mirror (backlog #40 -- Center for Open Science's per-journal transparency/openness rubric).
+# A periodic bulk CSV snapshot (no query API exists), downloaded on demand like retraction_records above.
+# categories_json carries the 9-10 named category sub-scores + justifications so `total` (COS's own defined sum)
+# is never shown without its inspectable basis (Principles #7 -- no opaque scores). issn/eissn are both nullable
+# -- some COS rows carry only one or the other.
+top_factor_records = Table(
+    "top_factor_records",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("issn", String(20)),
+    Column("eissn", String(20)),
+    Column("journal", Text),
+    Column("categories_json", JSON, nullable=False),  # [{"name","score","max","justification"}, ...]
+    Column("total", Integer, nullable=False),
+    Column("retrieved_at", String(40), nullable=False),
+    Index("ix_top_factor_records_issn", "issn"),
+    Index("ix_top_factor_records_eissn", "eissn"),
+)
+
 # Gap-finder persistent cache (inc 137): one row per cached candidate, scoped by (direction, axis_id). A refresh
 # replaces all rows for a scope; GET /gaps reads here and filters dismissed / now-in-library at read time.
 # axis_id is a plain scope tag (no FK) — NULL means the whole library; a stale row for a deleted axis is simply

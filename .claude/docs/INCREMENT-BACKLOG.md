@@ -521,8 +521,14 @@ the Principles + A-A gates before build.)*
   **B.** cross-user impact signal (far-future, gated). Must pass Principles + the A-A values layer (default-deny,
   compute-locally/transmit-summaries-only, public field registry, commons reciprocity). Graduation is your call.
 - **#40 Publishers tool — deferred signals.** SP1a/SP1b (the engine + panel + weighting + first-use choice gate)
-  shipped. Remaining: green-route/TOP-factor/regional-index (AJOL/SciELO/Redalyc/Latindex) legitimacy signals;
-  user exclusion/filtering; thumb auditability; the real field self-citation baseline (= #25 again).
+  shipped. **Inc 448 wires in SciELO (live per-ISSN regional-index lookup) + TOP Factor (locally-mirrored
+  transparency rubric, its `Total` shown only inside an expanded per-category basis block, never bare) — verified
+  live before building (SciELO's ArticleMeta API is free/unauth'd; TOP Factor has no query API, only a periodic
+  OSF-hosted bulk CSV).** Remaining, still open: self-archiving/green-route (needs a Jisc-registered API key only
+  the maintainer can obtain); the other three regional indexes — **AJOL, Redalyc, Latindex** — none confirmed to
+  have a usable public API as of inc 448's live check (Redalyc's API has a TLS hostname mismatch; worth
+  re-checking, not re-assuming); COPE/OASPA membership; PubMed/Scopus indexing; user exclusion/filtering; thumb
+  auditability; the real field self-citation baseline (= #25 again).
 - **#41 User-authored modules (plugins).** [future track — record only] Deferred record of the idea + open
   questions. Do not build a plugin system until a dedicated design pass.
 - **#44 Lakens-catalog integration — registration workflow now in ordered increments.** Increment 1/1b (the transparency-signals

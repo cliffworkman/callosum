@@ -20,6 +20,7 @@ from app.backend.persistence.repository import create_paper
 from integrations.doaj.journals import DoajJournal, DoajJournalsClient, _journal_from_body
 from integrations.openalex.adapter import OpenAlexClient
 from integrations.openalex.sources import OpenAlexSourcesClient, SourceMeta
+from integrations.scielo.journals import ScieloJournal, ScieloJournalsClient
 
 VOCAB = ["memory", "attention", "risk", "plant"]
 
@@ -111,6 +112,27 @@ def _doaj_fetcher(by_issn, *, record=None):
     return fake
 
 
+def _scielo_rec(collection, code, *, title=None, country=None):
+    rec = {"collection": collection, "code": code}
+    if title is not None:
+        rec["v100"] = [{"_": title}]
+    if country is not None:
+        rec["v310"] = [{"_": country}]
+    return rec
+
+
+def _scielo_fetcher(by_issn, *, record=None):
+    """Fake for ScieloJournalsClient — returns a bare list matching the real confirmed API shape (empty = not
+    indexed), keyed directly by the bare ISSN string (unlike DOAJ, no "issn:" prefix)."""
+
+    def fake(issn, *, headers, timeout):
+        if record is not None:
+            record.append(issn)
+        return 200, list(by_issn.get(issn, []))
+
+    return fake
+
+
 def _adapter_fetcher(focal_by_doi, *, record=None):
     """Fake for the DOI→work adapter (paper path → primary_topic). Signature matches OpenAlexClient's fetcher."""
 
@@ -191,6 +213,56 @@ def test_doaj_gold_apc_parse():
     assert j is not None and j.apc_amount == 2000.0 and j.apc_currency == "USD" and j.seal is False
 
 
+def test_scielo_journal_parse_and_validation(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        by_issn = {"0102-311X": [_scielo_rec("scl", "0102-311X-1", title="Test Journal", country="BR")]}
+        client = ScieloJournalsClient(fetcher=_scielo_fetcher(by_issn))
+        j = client.fetch_journal(conn, "0102-311X")
+        assert j is not None and j.collections == ["scl"] and j.title == "Test Journal" and j.country == "BR"
+        assert client.fetch_journal(conn, "not-an-issn") is None  # validated -> no request
+        assert client.fetch_journal(conn, "9999-9999") is None  # confirmed real-API shape: [] -> not indexed
+    engine.dispose()
+
+
+def test_scielo_multi_collection_parse(temp_db_url):
+    """Confirmed real-API shape: a journal indexed under multiple SciELO collections returns one object per
+    collection -- these must merge into one ScieloJournal, not silently keep only the first/last."""
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        by_issn = {
+            "0102-311X": [
+                _scielo_rec("spa", "0102-311X-1", title="Cadernos de Saúde Pública"),
+                _scielo_rec("scl", "0102-311X-2"),
+            ]
+        }
+        client = ScieloJournalsClient(fetcher=_scielo_fetcher(by_issn))
+        j = client.fetch_journal(conn, "0102-311X")
+        assert j.collections == ["spa", "scl"]
+        assert j.codes == ["0102-311X-1", "0102-311X-2"]
+        assert j.title == "Cadernos de Saúde Pública"  # taken from whichever record carries v100 first
+    engine.dispose()
+
+
+def test_scielo_journal_cache_roundtrip(temp_db_url):
+    """A second lookup for the same ISSN reads the cache, not the fetcher -- and preserves the not-indexed
+    verdict across the cache boundary too."""
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        calls: list[str] = []
+        hit_by_issn = {"0102-311X": [_scielo_rec("scl", "0102-311X-1")]}
+        client = ScieloJournalsClient(fetcher=_scielo_fetcher(hit_by_issn, record=calls))
+        assert client.fetch_journal(conn, "0102-311X") is not None
+        assert client.fetch_journal(conn, "0102-311X") is not None
+        assert calls == ["0102-311X"]  # second call served from cache
+
+        miss_client = ScieloJournalsClient(fetcher=_scielo_fetcher({}, record=calls))
+        assert miss_client.fetch_journal(conn, "9999-9999") is None
+        assert miss_client.fetch_journal(conn, "9999-9999") is None
+        assert calls == ["0102-311X", "9999-9999"]  # the not-indexed [] result is cached too
+    engine.dispose()
+
+
 # --- pure engine -------------------------------------------------------------
 
 
@@ -262,21 +334,76 @@ def test_build_profiles_no_composite_score_no_predatory():
     blob = json.dumps(rep.to_dict()).lower()
     assert "predator" not in blob  # never labels a journal predatory
     assert "openness_score" not in blob and "legitimacy_score" not in blob  # no composite score field
-    for p in rep.profiles:  # the only numeric ranking signal shown is the labeled `fit`; no "*score*" key
-        assert not any("score" in k for k in p.to_dict())
+    for p in rep.profiles:  # the only bare numeric ranking signal shown is `fit`; `top_factor.total` is always
+        # accompanied by its category basis (Principles #7), never a bare "*score*" key on the profile itself
+        assert not any(k.endswith("score") for k in p.to_dict())
     # legitimacy absence is shown as neutral fact (a deferred-sources list), never a flag
     assert any("COPE" in s for s in rep.profiles[0].legitimacy_absent)
+    # SciELO + TOP Factor were wired in (backlog #40) -- no longer named as deferred
+    assert not any("SciELO" in s for s in rep.profiles[0].legitimacy_absent)
+    assert not any("TOP Factor" in s for s in rep.profiles[0].legitimacy_absent)
+    assert any("regional indexes (AJOL, Redalyc, Latindex)" == s for s in rep.profiles[0].legitimacy_absent)
+    assert any("self-archiving policy" == s for s in rep.profiles[0].legitimacy_absent)
 
 
 def test_build_profiles_empty():
     rep = build_profiles([], {}, abstract="memory", embedding_model=FakeEmbed())
     assert rep.shown == 0 and rep.considered == 0 and rep.profiles == []
+    assert rep.top_factor_coverage == {"count": 0, "retrieved_at": None}
+
+
+def test_build_profiles_wires_scielo_and_top_factor_facts():
+    cands, doaj = _profiles_setup()
+    scielo_by_issn = {"1111-1111": ScieloJournal(collections=["scl", "spa"], codes=["c1"], title="Memory J")}
+    top_factor_by_issn = {
+        "1111-1111": {
+            "total": 5,
+            "categories": [{"name": "Data transparency", "score": 2, "max": 3, "justification": "Encouraged"}],
+        }
+    }
+    rep = build_profiles(
+        cands,
+        doaj,
+        scielo_by_issn,
+        top_factor_by_issn,
+        abstract="memory attention",
+        embedding_model=FakeEmbed(),
+        weighting=0.0,
+        top_factor_db_status={"count": 812, "retrieved_at": "2026-03-12T00:00:00+00:00"},
+    )
+    s1 = next(p for p in rep.profiles if p.source_id == "S1")
+    assert s1.scielo_collections == ["scl", "spa"]
+    assert s1.top_factor == {
+        "total": 5,
+        "categories": [{"name": "Data transparency", "score": 2, "max": 3, "justification": "Encouraged"}],
+    }
+    assert "Indexed in SciELO (scl, spa)" in s1.legitimacy_signals
+    assert "Has a TOP Factor transparency assessment" in s1.legitimacy_signals
+    s2 = next(p for p in rep.profiles if p.source_id == "S2")  # no SciELO/TOP Factor data for the closed journal
+    assert s2.scielo_collections == [] and s2.top_factor is None
+    assert not any("SciELO" in sig or "TOP Factor" in sig for sig in s2.legitimacy_signals)
+    assert rep.top_factor_coverage == {"count": 812, "retrieved_at": "2026-03-12T00:00:00+00:00"}
+
+
+def test_build_profiles_top_factor_never_downloaded_is_honest():
+    """A per-journal `top_factor: None` is ambiguous in isolation (no row for this journal vs. the mirror was
+    never downloaded at all) -- the report-level `top_factor_coverage` is the disambiguator."""
+    cands, doaj = _profiles_setup()
+    rep = build_profiles(
+        cands,
+        doaj,
+        abstract="memory",
+        embedding_model=FakeEmbed(),
+        top_factor_db_status={"count": 0, "retrieved_at": None},
+    )
+    assert rep.top_factor_coverage == {"count": 0, "retrieved_at": None}
+    assert all(p.top_factor is None for p in rep.profiles)
 
 
 # --- endpoint ----------------------------------------------------------------
 
 
-def _endpoint_app(temp_db_url, *, record_sources=None, record_doaj=None, focal_by_doi=None):
+def _endpoint_app(temp_db_url, *, record_sources=None, record_doaj=None, record_scielo=None, focal_by_doi=None):
     works = [
         _work("S1", "Memory J", "1111-1111"),
         _work("S1", "Memory J", "1111-1111"),
@@ -294,6 +421,8 @@ def _endpoint_app(temp_db_url, *, record_sources=None, record_doaj=None, focal_b
         fetcher=_sources_fetcher({"neuroscience": "T1"}, works, sources, record=record_sources)
     )
     client.app.state.doaj_journals_client = DoajJournalsClient(fetcher=_doaj_fetcher(by_issn, record=record_doaj))
+    # Always wired to a fake (never left to fall back to a real live-HTTP client mid-test), mirroring DOAJ above.
+    client.app.state.scielo_journals_client = ScieloJournalsClient(fetcher=_scielo_fetcher({}, record=record_scielo))
     if focal_by_doi is not None:
         client.app.state.openalex_client = OpenAlexClient(fetcher=_adapter_fetcher(focal_by_doi))
     client.app.state.embedding_model = FakeEmbed()
@@ -361,13 +490,15 @@ def test_abstract_never_transmitted(temp_db_url):
     """The abstract is embedded locally — it must appear in NO outbound request (the load-bearing invariant)."""
     rec_sources: list[str] = []
     rec_doaj: list[str] = []
-    client = _endpoint_app(temp_db_url, record_sources=rec_sources, record_doaj=rec_doaj)
+    rec_scielo: list[str] = []
+    client = _endpoint_app(temp_db_url, record_sources=rec_sources, record_doaj=rec_doaj, record_scielo=rec_scielo)
     token = "SECRETABSTRACTTOKEN"
     _, done = _drive(client, {"abstract": f"{token} memory attention", "subject": "neuroscience"})
     assert done["status"] == "done"
-    outbound = " ".join(rec_sources + rec_doaj)
-    assert token not in outbound  # the abstract text is never in a topic/works/sources/DOAJ request
+    outbound = " ".join(rec_sources + rec_doaj + rec_scielo)
+    assert token not in outbound  # the abstract text is never in a topic/works/sources/DOAJ/SciELO request
     assert rec_sources  # sanity: requests were actually made (topic + works + sources)
+    assert rec_scielo  # sanity: SciELO was actually queried (every candidate gets one live call)
 
 
 # --- WIP manuscript wiring (inc 404) ------------------------------------------

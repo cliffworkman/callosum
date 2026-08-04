@@ -28,11 +28,13 @@ from app.backend.metadata.abstract_display import abstract_plain_text
 from app.backend.methods.publishers import MAX_PROFILES, build_profiles
 from app.backend.persistence.schema import papers
 from app.backend.persistence.sqlite_retry import run_write
+from app.backend.persistence.top_factor_repo import lookup_top_factor_record, top_factor_db_status
 from app.backend.persistence.wip_checks_repo import record_journal_run
 from app.backend.persistence.wip_repo import get_manuscript
-from integrations.doaj.journals import DoajJournalsClient
+from integrations.doaj.journals import DoajJournal, DoajJournalsClient
 from integrations.openalex.adapter import OpenAlexClient
 from integrations.openalex.sources import OpenAlexSourcesClient
+from integrations.scielo.journals import ScieloJournal, ScieloJournalsClient
 
 # SPECTER v1 scientific-paper embeddings — abstract ↔ journal-scope relatedness, via the existing sentence-transformers
 # stack (no new dependency; a ~440 MB model download on first use). Mirrors citation_equity's OVERLOOKED_EMBED_MODEL.
@@ -50,6 +52,18 @@ class PublishersRequest(BaseModel):
     subject: str | None = None
     weighting: float = Field(default=0.0, ge=0.0, le=1.0)
     top_k: int = Field(default=MAX_PROFILES, ge=1, le=50)
+
+
+class TopFactorCategoryModel(BaseModel):
+    name: str
+    score: int
+    max: int
+    justification: str | None = None
+
+
+class TopFactorModel(BaseModel):
+    total: int
+    categories: list[TopFactorCategoryModel] = []
 
 
 class JournalProfileModel(BaseModel):
@@ -71,6 +85,13 @@ class JournalProfileModel(BaseModel):
     legitimacy_signals: list[str] = []
     legitimacy_absent: list[str] = []
     elevated_for: list[str] = []
+    scielo_collections: list[str] = []
+    top_factor: TopFactorModel | None = None
+
+
+class TopFactorCoverageModel(BaseModel):
+    count: int = 0
+    retrieved_at: str | None = None
 
 
 class PublishersReportModel(BaseModel):
@@ -79,6 +100,7 @@ class PublishersReportModel(BaseModel):
     shown: int = 0
     weighting: float = 0.0
     topic_id: str | None = None
+    top_factor_coverage: TopFactorCoverageModel = TopFactorCoverageModel()
 
 
 class PublishersProgress(BaseModel):
@@ -165,20 +187,23 @@ def _run_publishers_job(app: FastAPI, job_id: str, body: PublishersRequest) -> N
     jobs.mark_running(job_id)
     sources_client = app.state.openalex_sources_client or OpenAlexSourcesClient()
     doaj_client = app.state.doaj_journals_client or DoajJournalsClient()
+    scielo_client = app.state.scielo_journals_client or ScieloJournalsClient()
     oa_client = app.state.openalex_client or OpenAlexClient()
     try:
         with app.state.engine.begin() as conn:
-            jobs.mark_progress(job_id, 1, 3, "Resolving topic")
+            jobs.mark_progress(job_id, 1, 4, "Resolving topic")
             topic_id, abstract = _resolve_topic_and_abstract(conn, body, sources_client, oa_client)
             if not topic_id:
                 jobs.mark_error(job_id, "Couldn't resolve a research topic for this input.")
                 return
-            jobs.mark_progress(job_id, 2, 3, "Fetching candidate journals")
+            jobs.mark_progress(job_id, 2, 4, "Fetching candidate journals")
             stubs = sources_client.fetch_candidate_sources(conn, topic_id)
             source_ids = [s.source_id for s in stubs]
             details = sources_client.fetch_source_details(conn, source_ids)
             candidates = [details[sid] for sid in source_ids if sid in details]  # preserve frequency order
-            doaj_by_issn = {}
+
+            jobs.mark_progress(job_id, 3, 4, "Checking legitimacy signals")
+            doaj_by_issn: dict[str, DoajJournal] = {}
             for meta in candidates:
                 if not meta.is_in_doaj:
                     continue
@@ -187,14 +212,38 @@ def _run_publishers_job(app: FastAPI, job_id: str, body: PublishersRequest) -> N
                     journal = doaj_client.fetch_journal(conn, issn)
                     if journal is not None:
                         doaj_by_issn[issn] = journal
-            jobs.mark_progress(job_id, 3, 3, "Ranking journals")
+
+            # No cheap pre-filter exists for SciELO (a closed/non-OA journal can still be SciELO-indexed) — one
+            # live call per candidate, already bounded by MAX_CANDIDATES upstream in fetch_candidate_sources.
+            scielo_by_issn: dict[str, ScieloJournal] = {}
+            for meta in candidates:
+                issn = meta.issn_l or (meta.issns[0] if meta.issns else None)
+                if issn and issn not in scielo_by_issn:
+                    journal = scielo_client.fetch_journal(conn, issn)
+                    if journal is not None:
+                        scielo_by_issn[issn] = journal
+
+            # TOP Factor is a fast local read (no HTTP at request time) — cheap enough to try every alt ISSN.
+            top_factor_by_issn: dict[str, dict] = {}
+            for meta in candidates:
+                for issn in [meta.issn_l, *meta.issns]:
+                    if issn and issn not in top_factor_by_issn:
+                        record = lookup_top_factor_record(conn, issn)
+                        if record is not None:
+                            top_factor_by_issn[issn] = record
+            tf_status = top_factor_db_status(conn)
+
+            jobs.mark_progress(job_id, 4, 4, "Ranking journals")
             report = build_profiles(
                 candidates,
                 doaj_by_issn,
+                scielo_by_issn,
+                top_factor_by_issn,
                 abstract=abstract,
                 embedding_model=_publishers_model(app),
                 weighting=body.weighting,
                 top_k=body.top_k,
+                top_factor_db_status=tf_status,
             )
         model = PublishersReportModel(
             profiles=[JournalProfileModel(**p.to_dict()) for p in report.profiles],
@@ -202,6 +251,7 @@ def _run_publishers_job(app: FastAPI, job_id: str, body: PublishersRequest) -> N
             shown=report.shown,
             weighting=report.weighting,
             topic_id=topic_id,
+            top_factor_coverage=TopFactorCoverageModel(**report.top_factor_coverage),
         )
         if body.manuscript_id is not None:
             manuscript_id = int(body.manuscript_id)

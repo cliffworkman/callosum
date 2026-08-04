@@ -106,6 +106,23 @@ function PublishersGate({ onSaved }) {
   );
 }
 
+// inc 448: credits the TOP Guidelines paper that defines the transparency/openness rubric TOP Factor scores
+// journals against (CREDIT-THE-LINEAGE.md names TOP Factor as this tool's lineage alongside DOAJ). No canonical
+// paper exists for SciELO itself as an index -- not fabricated here.
+const TOP_FACTOR_CSL = {
+  type: "article-journal",
+  title: "Promoting an open research culture",
+  author: [
+    { family: "Nosek", given: "Brian A." }, { family: "Alter", given: "George" },
+    { family: "Banks", given: "George C." }, { family: "Borsboom", given: "Denny" },
+    { family: "Bowman", given: "Sara D." }, { family: "Breckler", given: "Steven J." },
+    { family: "Buck", given: "Stuart" }, { family: "Chambers", given: "Christopher D." },
+    { family: "Chin", given: "Gilbert" }, { family: "Christensen", given: "Garret" },
+  ],
+  "container-title": "Science", volume: "348", issue: "6242", page: "1422-1425",
+  issued: { "date-parts": [[2015]] }, DOI: "10.1126/science.aab2374",
+};
+
 const OA_LABEL = {
   diamond: "Diamond OA — free to publish + free to read",
   gold: "Gold OA — free to read",
@@ -142,6 +159,14 @@ function PubProfileCard({ p, weightingOn }) {
         </div>}
       {p.legitimacy_signals && p.legitimacy_signals.length > 0 &&
         <div className="pub-chips">{p.legitimacy_signals.map((s, i) => <span key={i} className="pub-chip">{s}</span>)}</div>}
+      {p.top_factor &&
+        <details className="cite-equity-basis">
+          <summary>TOP Factor — show the basis ({p.top_factor.categories.length} categor{p.top_factor.categories.length === 1 ? "y" : "ies"})</summary>
+          <ul>{p.top_factor.categories.map((c, i) =>
+            <li key={i}>{c.name}: {c.score}/{c.max}{c.justification ? ` — ${c.justification}` : ""}</li>
+          )}</ul>
+          <div className="pub-caveat">Total (sum of the categories above): {p.top_factor.total}</div>
+        </details>}
       {weightingOn && p.elevated_for && p.elevated_for.length > 0 &&
         <div className="pub-elevated" title="Goods this journal offers that your open-science weighting rewarded — never a mark against the others">
           Elevated for: {p.elevated_for.join(", ")}
@@ -282,6 +307,12 @@ function PublishersPanel({ ctx }) {
           Once you've picked a journal, build your CRediT statement →
         </button>}
 
+      <div className="method-credit">
+        <b>Methods:</b> TOP Factor's transparency/openness rubric (Nosek et al. 2015, <i>Science</i>).{" "}
+        <MethodCreditButton items={[TOP_FACTOR_CSL]} />
+        <div className="method-credit-sub">Scored from the Center for Open Science's public per-journal database — credited, not reused.</div>
+      </div>
+
       <div className="tags-srcfilter pub-mode" role="group" aria-label="Input">
         <button type="button" className={"tags-srcfilter-btn" + (mode === "paper" ? " on" : "")} onClick={() => setMode("paper")}>Selected paper</button>
         <button type="button" className={"tags-srcfilter-btn" + (mode === "abstract" ? " on" : "")} onClick={() => setMode("abstract")}>Paste an abstract</button>
@@ -337,6 +368,12 @@ function PublishersPanel({ ctx }) {
                 {absent && absent.length > 0 &&
                   <div className="pub-absent">Not checked in this version: {absent.join("; ")}. Absence of a signal is
                     common for new + regional journals and is <b>not</b> a mark against a journal.</div>}
+                {rep.top_factor_coverage && rep.top_factor_coverage.count === 0 &&
+                  <div className="pub-absent">
+                    TOP Factor data hasn't been downloaded to this machine yet (Settings → Local maintenance) — this
+                    is different from "no journal has one": the local copy simply hasn't been fetched, so no TOP
+                    Factor fact could be checked for any journal above.
+                  </div>}
               </React.Fragment>}
         </div>}
     </div>

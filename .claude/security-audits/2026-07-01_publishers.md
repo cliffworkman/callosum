@@ -89,3 +89,112 @@ fetch, no new endpoint beyond the additive `/settings` fields, no migration, no 
 **Security Audit: PASS (addendum).** SP1b introduces no new external fetch / endpoint / dependency / migration; the
 new prefs are local, validated at the boundary, and never transmitted externally (the weighting never reaches a
 fetch — proven by the SP1a recording-transport test). The Principles/A-A vetoes remain structural + test-pinned.
+
+---
+
+## Addendum — SP2 (SciELO + TOP Factor legitimacy signals), inc 448
+
+Wires two of the four `LEGITIMACY_DEFERRED` sources: **SciELO** (a live per-ISSN regional-index lookup) and
+**TOP Factor** (a periodic bulk CSV mirror from the Center for Open Science — the first schema/migration this
+tool has ever needed). Open Policy Finder (green-route/self-archiving), AJOL/Redalyc/Latindex, COPE/OASPA
+membership, and PubMed/Scopus indexing remain untouched and deferred.
+
+### Trigger
+- Two new external fetch paths: SciELO's ArticleMeta API (`integrations/scielo/journals.py`, one live call per
+  candidate journal); the TOP Factor CSV bulk download (`integrations/top_factor/adapter.py`, OSF-hosted).
+- Two new endpoints: `GET/POST /methods/top-factor/database[/refresh]` (mirrors the existing, already-audited
+  Retraction Watch DB download-trigger shape).
+- New schema + migration (`top_factor_records`, `alembic/versions/0066_top_factor_records.py`) — additive only,
+  no destructive change, guarded create.
+
+### Threat review
+- **SciELO SSRF/injection.** ISSN validated `^\d{4}-\d{3}[\dX]$` before any request (identical regex to DOAJ's);
+  constant HTTPS host (`https://articlemeta.scielo.org`); the ISSN is passed only as a bound query param, never
+  the host/path. Confirmed live before implementation that the endpoint serves HTTPS (not just the `http://`
+  shown in some third-party documentation) — used HTTPS throughout, matching every other client's posture.
+- **SciELO egress class.** Public bibliographic metadata (journal indexing status), no auth, no API key, cached
+  via `integrations/api_cache.py` (provider `scielo-journals`) exactly like DOAJ; fail-closed (any error →
+  cached error row → `None`, never raises). One live call per candidate journal (no cheap OA/DOAJ-style
+  pre-filter exists — a closed journal can still be SciELO-indexed), bounded by the existing `MAX_CANDIDATES=60`
+  cap already applied upstream in `fetch_candidate_sources`.
+- **TOP Factor is not a live per-request call at all.** It is a periodic bulk-download mirror, downloaded only
+  by an explicit Settings action (never auto-triggered from a Publishers run, unlike Retraction Watch's
+  best-effort auto-refresh) — `build_profiles`'s per-candidate TOP Factor lookups are pure local `SELECT`s
+  against `top_factor_records`, zero HTTP at request time. This was a deliberate design constraint (not an
+  accidental omission) so a Publishers run's network surface stays fully described by the OpenAlex/DOAJ/SciELO
+  calls already covered above.
+- **TOP Factor download bounds (rule #4).** `MAX_TOP_FACTOR_BYTES` (20 MiB, ~5x the confirmed real ~4.2 MiB
+  file) and `MAX_TOP_FACTOR_ROWS` (50,000, TOP Factor covers a few thousand journals) — mirrors
+  `retraction_watch/adapter.py`'s exact size/row-cap posture. Streaming download with `follow_redirects=True`
+  (OSF's real URL redirects twice — `files.osf.io` then a signed `storage.googleapis.com` URL — confirmed live);
+  a malformed/missing score cell omits that category rather than fabricating a 0; a malformed `Total` cell is
+  derived from the sum of the parsed category scores rather than silently accepted or dropping the row.
+- **No SQL written unsafely.** `top_factor_repo.py` uses SQLAlchemy Core bound parameters throughout (`select`/
+  `insert`/`delete`, no string interpolation); `replace_top_factor_records` deletes-then-inserts in one
+  transaction (a fresh snapshot is authoritative, matching `replace_retraction_records`'s exact pattern).
+- **Secret handling.** Neither new client uses a secret — SciELO has no auth at all; TOP Factor's download URL
+  is a fixed public OSF link with no credential.
+- **Supply-chain.** No new dependency — both clients reuse `httpx` (already present) and the existing
+  `integrations/api_cache.py` helper.
+
+### Principles / A-A vetoes (extended, same structural enforcement as SP1a/SP1b)
+- **No opaque score (Principles #7, the new consideration this addendum introduces).** TOP Factor's `Total` is
+  COS's own defined sum, not a callosum-invented composite — but it is never shown bare: the frontend's
+  `<details>` "show the basis" block always sits beside it, exposing all 9-10 category sub-scores +
+  justifications. `legitimacy_signals` deliberately carries only `"Has a TOP Factor transparency assessment"`
+  (a coverage fact), never the bare number as a floating chip.
+- **Gate the boost, never the listing (extended to the 2 new sources).** A journal with neither SciELO nor TOP
+  Factor data still appears unchanged — both new `JournalProfile` fields are simply empty/`None`.
+- **Silence isn't a certificate (Principles #6, the never-downloaded honesty resolution).** A per-journal
+  `top_factor: None` is ambiguous in isolation ("no row for this journal" vs. "the mirror was never
+  downloaded"). Resolved at the **report level**: `PublishersReport.top_factor_coverage` (`{count,
+  retrieved_at}`, the exact shape `retraction_db_status()` already uses) is populated once per run; when
+  `count == 0`, the UI shows one explicit footer note rather than letting every silent `top_factor: None` read
+  as "checked, absent." This can never affect ranking or the candidate list — a display caption only.
+
+### Negative-path checks (new, in `tests/test_publishers.py` + new `tests/test_top_factor.py`)
+- **Abstract still never transmitted** — `test_abstract_never_transmitted` extended to also record + assert on
+  SciELO requests (a `SECRETABSTRACTTOKEN` never appears; SciELO was actually queried — sanity that the test
+  isn't vacuous). ✓
+- **SciELO id validation before any fetch** — `test_scielo_journal_parse_and_validation`: `"not-an-issn"` → no
+  request. ✓
+- **SciELO fail-closed on the confirmed real "not indexed" shape** — an empty `[]` response → `None`, no
+  exception; cached and reproduced identically on a second lookup (`test_scielo_journal_cache_roundtrip`). ✓
+- **SciELO multi-collection merge** — `test_scielo_multi_collection_parse`: a journal indexed under multiple
+  SciELO collections merges into one `ScieloJournal`, not silently truncated to the first hit. ✓
+- **No new opaque score** — `test_build_profiles_no_composite_score_no_predatory` extended: no key on a profile
+  ends with `"score"` (the only bare numeric fact is the pre-existing labeled `fit`); the narrowed
+  `LEGITIMACY_DEFERRED` strings are asserted exactly. ✓
+- **Gate the boost, not the listing (2 new sources)** — `test_build_profiles_wires_scielo_and_top_factor_facts`:
+  a candidate with no SciELO/TOP Factor data still appears with empty/`None` fields and no fabricated signal
+  chips. ✓
+- **Never-downloaded honesty** — `test_build_profiles_top_factor_never_downloaded_is_honest` +
+  `test_top_factor_db_status_reports_never_downloaded_then_counts`: an empty mirror reports
+  `{"count": 0, "retrieved_at": None}` at both the repo and report level, distinguishable from "checked,
+  absent" at the UI. ✓
+- **TOP Factor CSV parse bounds** — `test_malformed_score_cell_omits_category_not_fabricates_zero`,
+  `test_malformed_total_cell_is_derived_from_summed_category_scores`, `test_parse_maps_categories_and_skips_rows_without_any_issn`
+  (a row with neither ISSN nor EISSN is unreachable by matching and is skipped, not stored with a null key). ✓
+- **TOP Factor mirror is authoritative** — `test_replace_is_authoritative`: a re-download that no longer lists
+  a journal removes it, matching Retraction Watch's exact replace-all posture. ✓
+- **Migration drift** — `test_top_factor_records_table_is_at_head` (`tests/test_migrations.py`): the migration's
+  columns match the SQLAlchemy model exactly (CI's `alembic check` gate). ✓
+
+### Result
+**Security Audit: PASS (SP2 addendum).** SSRF is closed for SciELO by the same id-validation + constant-host +
+bound-param posture as DOAJ; TOP Factor introduces zero request-time HTTP (a local mirror only), with its one
+download path bounded, streaming, and fail-closed on oversize/network error. No new secret, no new dependency.
+The new schema is additive-only and migration-drift-tested. The Principles/A-A vetoes — now including the
+never-downloaded honesty resolution and TOP Factor's basis-always-visible treatment — are enforced structurally
+and pinned by 41 tests across `tests/test_publishers.py` + `tests/test_top_factor.py`. Live-verified against the
+real SciELO API and a real TOP Factor download (3,209 journals) before this audit was written, not assumed.
+
+**Post-audit correction (same session, before shipping).** The "basis-always-visible" claim above describes the
+intended design; a first pass of the frontend actually violated it — `<summary>TOP Factor: {total} — show the
+basis</summary>` rendered the bare `Total` on every card whether or not the `<details>` was expanded, since a
+`<summary>` is always visible on a collapsed `<details>` element. Live Playwright verification with real
+downloaded TOP Factor data caught this directly (the rendered page text showed "TOP Factor: 4" with nothing
+expanded) — no pytest coverage exercises rendered DOM text, so this was only catchable by actually looking at the
+page. Fixed by moving `Total` out of the `<summary>` into the expanded content only; re-verified live that the
+collapsed state carries no number. No test asserted the old (wrong) behavior, so no test needed updating — this
+was a pure frontend-markup fix.

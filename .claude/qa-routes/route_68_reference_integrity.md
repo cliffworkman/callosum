@@ -1,5 +1,6 @@
 <!-- qa-coverage
 api: /papers/{paper_id}/reference-integrity*, /reference-integrity/*, /wip/manuscripts/{manuscript_id}/reference-integrity*, /wip/reference-integrity/*
+api: /manuscripts/{manuscript_id}/reference-integrity*
 fe: 08j_reference_integrity.jsx, 10b_libmenus.jsx, 10_pdf_layer.jsx, 37b_meta_reference.jsx, 10f_wip.jsx
 -->
 

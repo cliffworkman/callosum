@@ -12,12 +12,18 @@ while preserving the veto-level lines (no composite score, no "predatory" label,
 abstract never leaves the machine). SP1a shipped the backend (2 API endpoints); **SP1b (inc 246)** adds the THEORY
 panel (`08e_methods_publishers.jsx`; moved METHODS -> THEORY in inc 261's authoring-cluster reorg) — the first-use
 choice gate, the paper/abstract input, the profile cards, and the always-visible open-science weighting thumb.
+**Inc 448** wires in two more legitimacy sources (backlog #40, still-open item): **SciELO** (a live per-ISSN regional-
+index lookup, same request shape as the existing DOAJ call) and **TOP Factor** (a locally-mirrored per-journal
+transparency rubric — the database-refresh flow itself is route 85; this route only covers how its per-journal facts
+render in a run's results).
 
 ## Environment
 
-Clean seeded instance (`_TEMPLATE.md` -> Environment). The two external fetches (OpenAlex `/topics`+`/works`+
-`/sources`; DOAJ journals) hit **public bibliographic metadata**, NOT the Gemini gate. In a seeded QA run the live
-network is available; the hermetic pytest suite (`tests/test_publishers.py`) covers the deterministic contract.
+Clean seeded instance (`_TEMPLATE.md` -> Environment). The three external fetches (OpenAlex `/topics`+`/works`+
+`/sources`; DOAJ journals; SciELO ArticleMeta journal lookup) hit **public bibliographic metadata**, NOT the Gemini
+gate. TOP Factor is a local-only read (`lookup_top_factor_record`) — never a live fetch during a run; its mirror is
+populated via route 85's Settings refresh. In a seeded QA run the live network is available; the hermetic pytest
+suite (`tests/test_publishers.py`) covers the deterministic contract.
 
 ## Standing assertions
 
@@ -37,7 +43,17 @@ network is available; the hermetic pytest suite (`tests/test_publishers.py`) cov
   offers: diamond/gold OA, DOAJ Seal); absence of a legitimacy signal is a neutral `legitimacy_absent` fact, never a
   flag/deficit. A deficit-framed or accusatory rationale is **High**.
 - **Honest coverage (#6).** `legitimacy_absent` names the sources this version does NOT check (COPE/OASPA, PubMed/
-  Scopus indexing, regional indexes, self-archiving/TOP) so silence isn't read as a clean bill.
+  Scopus indexing, AJOL/Redalyc/Latindex, self-archiving policy) so silence isn't read as a clean bill. SciELO and
+  TOP Factor must NOT still appear in `legitimacy_absent` after inc 448 — they've moved from deferred to wired.
+- **The abstract never leaves the machine extends to SciELO (veto-level).** The SciELO ArticleMeta call is
+  ISSN-only (`?issn={issn}`, no abstract/title/free-text params); the abstract text appearing in the SciELO request
+  is **Critical**, identical in severity to the existing OpenAlex/DOAJ assertion above.
+- **TOP Factor's `Total` is never a bare/floating number (Principles #7, no opaque composite score — veto-level).**
+  A `top_factor.total` value rendered on a profile card WITHOUT its adjacent category sub-scores + justifications
+  (i.e. outside the "show the basis" `<details>`) is **Critical** — it would read as an opaque per-journal score.
+- **TOP Factor's never-downloaded state is a report-level fact, not silence.** When the local TOP Factor mirror has
+  never been refreshed (route 85), the report names this explicitly (distinct from "checked, no signal") rather than
+  every card silently omitting TOP Factor with no explanation. Silent omission with no report-level note is Medium.
 
 ## Adversarial checklist
 
@@ -47,17 +63,26 @@ network is available; the hermetic pytest suite (`tests/test_publishers.py`) cov
 - `GET /methods/publishers/run/<unknown>` -> 404
 - a run whose topic yields no candidate journals -> `done` with `shown: 0` (honest empty, never a crash)
 - confirm a **closed** journal in the results carries `oa_color: "closed"` + its OpenAlex facts and is NOT filtered out
+- a journal not indexed in SciELO (the common case for most candidates) -> `scielo_collections: []`, no fabricated
+  "Indexed in SciELO" signal, journal still appears unchanged
+- with the TOP Factor mirror never downloaded -> every profile's `top_factor: null`, but `top_factor_coverage`
+  reports `{"count": 0, "retrieved_at": null}` (not silently absent from the report shape)
 
 ## Steps
 
 1. `POST /methods/publishers/run {abstract, subject}` (or `{paper_id}` for a library paper) -> **202** + a `job_id`.
 2. Poll `GET /methods/publishers/run/{job_id}` -> `pending`/`running` (+progress) -> `done` with a `report`.
-3. Confirm the report: `topic_id`, `considered`, `shown`, `weighting`, and a `profiles` list where each profile has
-   `fit`, `oa_color`, `is_in_doaj`, `apc_amount`/`apc_currency`, `apc_waiver`, `license`, `doaj_seal`,
-   `two_year_mean_citedness`/`h_index`/`works_count`, `legitimacy_signals`, `legitimacy_absent`, `elevated_for`.
+3. Confirm the report: `topic_id`, `considered`, `shown`, `weighting`, `top_factor_coverage`, and a `profiles` list
+   where each profile has `fit`, `oa_color`, `is_in_doaj`, `apc_amount`/`apc_currency`, `apc_waiver`, `license`,
+   `doaj_seal`, `two_year_mean_citedness`/`h_index`/`works_count`, `scielo_collections`, `top_factor`,
+   `legitimacy_signals`, `legitimacy_absent`, `elevated_for`.
 4. Confirm **no** `*score*` composite key anywhere; **no** "predatory" string; a closed journal appears.
 5. Re-run with `weighting: 1.0` -> the order shifts to elevate open goods; elevated journals carry a non-empty
    `elevated_for`; a closed journal's `elevated_for` is empty. (SP1b will expose this via the visible weighting slider.)
+6. Run a topic likely to surface a SciELO-indexed and/or TOP-Factor-rated journal (e.g. a Latin-American public
+   health or social-science abstract; TOP Factor coverage requires route 85's mirror to have been refreshed first).
+   Confirm a hit's `scielo_collections` is a non-empty list and/or `top_factor` carries `{total, categories: [...]}`
+   with each category's `name`/`score`/`max`/`justification`.
 
 ## Frontend — the "Where to submit" panel (SP1b, `08e_methods_publishers.jsx`)
 
@@ -79,14 +104,23 @@ Open Discover → **Journals**. Assert:
   legitimacy signals / `elevated_for`; each links to its source (journal homepage, OpenAlex, DOAJ). A closed journal
   renders with its facts (not filtered). A "predatory" label or a composite/openness **score** shown per journal is
   **Critical**. Framing must be positive (goods offered), never a deficit of the others.
-- **0 genai-host requests** during the flow; the abstract text is in no outbound request (SP1a's guarantee, unchanged).
+- **SciELO + TOP Factor (inc 448).** A SciELO-indexed card shows an "Indexed in SciELO (<collections>)" signal chip.
+  A TOP-Factor-rated card shows a **"show the basis"** `<details>` block (reusing `08b_methods_citation_equity.jsx`'s
+  idiom) — expanding it must reveal every category name + its sub-score + `/max` + justification text; the `Total`
+  must NOT appear anywhere on the card outside this expanded block. If the local TOP Factor mirror was never
+  refreshed (route 85), the results view shows one report-level footer note ("TOP Factor data hasn't been
+  downloaded yet…") rather than every card silently having no TOP Factor section with no explanation.
+- **0 genai-host requests** during the flow; the abstract text is in no outbound request (SP1a's guarantee, unchanged;
+  now also covers the SciELO fetch).
 
 ## Pass criteria
 
 - The endpoint resolves a topic, returns uniform per-journal profiles ranked by local fit, and applies the weighting
   as a re-order (no displayed composite).
-- 0 genai-host requests; the abstract text is in no outbound request.
+- 0 genai-host requests; the abstract text is in no outbound request (OpenAlex, DOAJ, and SciELO alike).
 - No composite score, no "predatory" label; closed journals + no-signal journals still appear.
+- SciELO/TOP Factor facts render as inspectable evidence (collections list; category-by-category basis), never a
+  bare score; TOP Factor's never-downloaded state is an honest report-level note, not silent omission.
 - Neither/both-input -> 422; nonexistent/no-DOI paper -> 404/422; unknown job -> 404; empty topic -> honest `shown:0`.
 - Recent journal-search recall re-runs stored inputs for fresh results; clearing history only clears the local recall
   list and does not affect settings or saved papers.
@@ -94,4 +128,5 @@ Open Discover → **Journals**. Assert:
 ## Deposit
 
 Write `.claude/qa-inbox/<RUN_ID>/route_60_publishers.md` + `screenshots/` (see `_TEMPLATE.md`) — capture the
-first-use choice gate (nothing pre-selected), a results view with the output thumb, and a profile card.
+first-use choice gate (nothing pre-selected), a results view with the output thumb, a profile card, and (if a
+SciELO/TOP-Factor hit is reachable) the expanded TOP Factor "show the basis" block.

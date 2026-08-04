@@ -17,25 +17,27 @@ Load-bearing (the future-track doc's veto-level lines — the Principles + A-A g
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
 
 from integrations.doaj.journals import DoajJournal
 from integrations.openalex.sources import SourceMeta
+from integrations.scielo.journals import ScieloJournal
 
 MAX_CANDIDATES = 60  # defensive cap on the pool to embed (rule #4)
 MAX_PROFILES = 25  # cap on profiles returned
 
 # Legitimacy sources this version does NOT check — shown as neutral fact so silence isn't read as a clean bill (#6).
-# The full multi-route + regional set (COPE/OASPA, PubMed/Scopus indexing, AJOL/SciELO/Redalyc/Latindex,
-# self-archiving/TOP) has no data source yet — deferred, named honestly, never inferred.
+# The remaining multi-route + regional set (COPE/OASPA, PubMed/Scopus indexing, AJOL/Redalyc/Latindex,
+# self-archiving) has no data source yet — deferred, named honestly, never inferred. SciELO and TOP Factor were
+# wired in and removed from this list (backlog #40).
 LEGITIMACY_DEFERRED = [
     "COPE / OASPA membership",
     "PubMed / Scopus indexing",
-    "regional indexes (AJOL, SciELO, Redalyc, Latindex)",
-    "self-archiving policy / TOP Factor",
+    "regional indexes (AJOL, Redalyc, Latindex)",
+    "self-archiving policy",
 ]
 
 # OA color → an internal openness ordering weight (used ONLY to re-order; never displayed). +Seal bump below.
@@ -59,9 +61,11 @@ class JournalProfile:
     two_year_mean_citedness: float | None
     h_index: int | None
     works_count: int | None
-    legitimacy_signals: list[str]  # positive signals present (DOAJ inclusion, Seal)
+    legitimacy_signals: list[str]  # positive signals present (DOAJ inclusion, Seal, SciELO, TOP Factor)
     legitimacy_absent: list[str]  # sources not checked in this version — neutral fact, never a flag
     elevated_for: list[str]  # goods the weighting rewarded (empty when weighting == 0)
+    scielo_collections: list[str]  # raw SciELO collection codes this journal appears under; [] = not confirmed
+    top_factor: dict[str, Any] | None  # {"total", "categories": [{"name","score","max","justification"}, ...]}
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -83,6 +87,8 @@ class JournalProfile:
             "legitimacy_signals": self.legitimacy_signals,
             "legitimacy_absent": self.legitimacy_absent,
             "elevated_for": self.elevated_for,
+            "scielo_collections": self.scielo_collections,
+            "top_factor": self.top_factor,
         }
 
 
@@ -92,6 +98,10 @@ class PublishersReport:
     considered: int  # distinct candidate journals profiled
     shown: int  # how many returned (= len(profiles))
     weighting: float
+    # {count, retrieved_at} of the local TOP Factor mirror — the disambiguator between "this journal has no TOP
+    # Factor row" (mirror downloaded, absent) and "the mirror was never downloaded" (every profile's top_factor
+    # is None either way). Never affects ranking or the candidate list — a display honesty caption only.
+    top_factor_coverage: dict[str, Any] = field(default_factory=lambda: {"count": 0, "retrieved_at": None})
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -99,6 +109,7 @@ class PublishersReport:
             "considered": self.considered,
             "shown": self.shown,
             "weighting": self.weighting,
+            "top_factor_coverage": self.top_factor_coverage,
         }
 
 
@@ -111,10 +122,12 @@ def derive_oa_color(meta: SourceMeta, doaj: DoajJournal | None) -> str:
     return "oa-other" if meta.is_oa else "closed"
 
 
-def _doaj_for(meta: SourceMeta, doaj_by_issn: dict[str, DoajJournal]) -> DoajJournal | None:
+def _by_issn(meta: SourceMeta, table: dict[str, Any]) -> Any | None:
+    """Try `issn_l` then each alternate ISSN against a per-ISSN lookup table (DOAJ/SciELO/TOP Factor all share
+    this shape)."""
     for issn in [meta.issn_l, *meta.issns]:
-        if issn and issn in doaj_by_issn:
-            return doaj_by_issn[issn]
+        if issn and issn in table:
+            return table[issn]
     return None
 
 
@@ -151,20 +164,28 @@ def _elevated_goods(oa_color: str, doaj: DoajJournal | None) -> list[str]:
 def build_profiles(
     candidates: list[SourceMeta],
     doaj_by_issn: dict[str, DoajJournal],
+    scielo_by_issn: dict[str, ScieloJournal] | None = None,
+    top_factor_by_issn: dict[str, dict[str, Any]] | None = None,
     *,
     abstract: str,
     embedding_model: Any,
     weighting: float = 0.0,
     top_k: int = MAX_PROFILES,
+    top_factor_db_status: dict[str, Any] | None = None,
 ) -> PublishersReport:
     """Assemble a uniform profile per candidate + rank by local fit, moved by `weighting` (0.0 = fit-only).
     Every candidate is returned (top_k by the blended order). No composite score, no predatory label."""
+    scielo_by_issn = scielo_by_issn or {}
+    top_factor_by_issn = top_factor_by_issn or {}
+    coverage = dict(top_factor_db_status) if top_factor_db_status else {"count": 0, "retrieved_at": None}
     pool = list(candidates)[:MAX_CANDIDATES]
     weighting = max(0.0, min(1.0, float(weighting)))
     if not pool:
-        return PublishersReport(profiles=[], considered=0, shown=0, weighting=weighting)
+        return PublishersReport(profiles=[], considered=0, shown=0, weighting=weighting, top_factor_coverage=coverage)
 
-    doaj_for = [_doaj_for(m, doaj_by_issn) for m in pool]
+    doaj_for = [_by_issn(m, doaj_by_issn) for m in pool]
+    scielo_for = [_by_issn(m, scielo_by_issn) for m in pool]
+    top_factor_for = [_by_issn(m, top_factor_by_issn) for m in pool]
     colors = [derive_oa_color(m, d) for m, d in zip(pool, doaj_for, strict=False)]
     scope_texts = [_scope_text(m, d) for m, d in zip(pool, doaj_for, strict=False)]
 
@@ -193,11 +214,16 @@ def build_profiles(
     profiles: list[JournalProfile] = []
     for i, _ in rows[:top_k]:
         meta, doaj, color = pool[i], doaj_for[i], colors[i]
+        scielo, top_factor = scielo_for[i], top_factor_for[i]
         signals: list[str] = []
         if meta.is_in_doaj:
             signals.append("Indexed in DOAJ")
         if doaj is not None and doaj.seal:
             signals.append("DOAJ Seal")
+        if scielo is not None and scielo.collections:
+            signals.append(f"Indexed in SciELO ({', '.join(scielo.collections)})")
+        if top_factor is not None:
+            signals.append("Has a TOP Factor transparency assessment")
         profiles.append(
             JournalProfile(
                 source_id=meta.source_id,
@@ -220,6 +246,10 @@ def build_profiles(
                 legitimacy_signals=signals,
                 legitimacy_absent=list(LEGITIMACY_DEFERRED),
                 elevated_for=(_elevated_goods(color, doaj) if weighting > 0 else []),
+                scielo_collections=list(scielo.collections) if scielo is not None else [],
+                top_factor=top_factor,
             )
         )
-    return PublishersReport(profiles=profiles, considered=len(pool), shown=len(profiles), weighting=weighting)
+    return PublishersReport(
+        profiles=profiles, considered=len(pool), shown=len(profiles), weighting=weighting, top_factor_coverage=coverage
+    )
