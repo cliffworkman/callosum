@@ -9,6 +9,10 @@
 // the manuscript's own DOI indexed in Semantic Scholar's citation graph, which an unpublished draft cannot
 // have — omitted with a plain explanatory note rather than silently vanishing (maintainer decision, 2026-07-27).
 function MetaReferencePaneWip({ ctx, manuscript }) {
+  // researchContext.kind can read "manuscript" before researchContext.entity itself has loaded (the same
+  // manuscript-null-guard pattern as CriticalReadWip/WipStatcheckSection) -- never dereference manuscript.id
+  // unchecked here.
+  if (!manuscript) return <div className="tag-suggest-empty">Select a WIP manuscript to inspect reference signals.</div>;
   return (
     <div className="cite-workspace ws-pad">
       <p className="eyebrow">Meta Reference List</p>

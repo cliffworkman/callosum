@@ -63,9 +63,7 @@ def upgrade() -> None:
                 "state IN ('unreviewed', 'dismissed', 'confirmed_problem')",
                 name="wip_reference_review_state_valid",
             ),
-            sa.UniqueConstraint(
-                "reference_id", "signal_fingerprint", name="uq_wip_reference_reviews_ref_fingerprint"
-            ),
+            sa.UniqueConstraint("reference_id", "signal_fingerprint", name="uq_wip_reference_reviews_ref_fingerprint"),
         )
         op.create_index("ix_wip_reference_reviews_reference", "wip_reference_reviews", ["reference_id"])
 
