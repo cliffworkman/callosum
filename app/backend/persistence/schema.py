@@ -497,6 +497,7 @@ from app.backend.persistence.schema_critical_review import critical_review_candi
 from app.backend.persistence.schema_feed import feed_items, feed_subscriptions  # noqa: E402,F401
 from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     agent_writes,
+    ajol_records,
     gap_candidates,
     my_publication_citation_gap_cache,
     my_publication_citing_author_cache,

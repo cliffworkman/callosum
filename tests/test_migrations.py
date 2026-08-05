@@ -57,6 +57,26 @@ def test_top_factor_records_table_is_at_head(tmp_path):
     engine.dispose()
 
 
+def test_ajol_records_table_is_at_head(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'migration-ajol.sqlite'}"
+    cfg = _config_for(db_url)
+    command.upgrade(cfg, "head")
+    engine = create_engine(db_url)
+    columns = {column["name"] for column in inspect(engine).get_columns("ajol_records")}
+    assert columns == {
+        "id",
+        "issn",
+        "eissn",
+        "journal",
+        "country",
+        "jpps_status",
+        "is_diamond",
+        "source_url",
+        "retrieved_at",
+    }
+    engine.dispose()
+
+
 def test_usage_events_table_is_at_head(tmp_path):
     db_url = f"sqlite:///{tmp_path / 'migration-usage-events.sqlite'}"
     cfg = _config_for(db_url)

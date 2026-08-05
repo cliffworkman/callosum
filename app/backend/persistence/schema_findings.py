@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -97,6 +98,29 @@ top_factor_records = Table(
     Column("retrieved_at", String(40), nullable=False),
     Index("ix_top_factor_records_issn", "issn"),
     Index("ix_top_factor_records_eissn", "eissn"),
+)
+
+# AJOL (African Journals Online) local mirror (backlog #40, inc 451) -- a third-party CC-BY-4.0 compiled snapshot
+# (Alonso-Álvarez 2025, Zenodo DOI 10.5281/zenodo.14899380), NOT AJOL's own official feed. jpps_status is AJOL's
+# own official "Journal Publishing Practices and Standards" rating (the real CSV column is the typo'd
+# jjps_status -- stored here under the correct term). is_diamond is nullable: a malformed cell parses to unknown,
+# never fabricated False. source_url is validated (rule #4) to actually start with https://www.ajol.info/ before
+# storage. retrieved_at is the LOCAL download timestamp -- distinct from the data's own fixed February-2024
+# vintage (a Zenodo record is immutable; see integrations/ajol/adapter.py's AJOL_SNAPSHOT_DATE).
+ajol_records = Table(
+    "ajol_records",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("issn", String(20)),
+    Column("eissn", String(20)),
+    Column("journal", Text),
+    Column("country", String(80)),
+    Column("jpps_status", String(40)),
+    Column("is_diamond", Boolean),
+    Column("source_url", Text),
+    Column("retrieved_at", String(40), nullable=False),
+    Index("ix_ajol_records_issn", "issn"),
+    Index("ix_ajol_records_eissn", "eissn"),
 )
 
 # Gap-finder persistent cache (inc 137): one row per cached candidate, scoped by (direction, axis_id). A refresh

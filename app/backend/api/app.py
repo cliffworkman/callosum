@@ -51,6 +51,7 @@ from app.backend.api.routers import (
     lmm,
     metaanalysis,
     methods,
+    methods_ajol,
     methods_bayes,
     methods_grim_saved,
     methods_retraction,
@@ -110,6 +111,7 @@ from app.backend.registration_discovery.domain import RegistrationDiscoveryRegis
 from app.backend.summarization.generators import SummaryGenerator
 from app.backend.summarization.overview import OverviewGenerator
 from app.backend.summarization.verification import StanceScorer, SupportScorer, VerificationConfig
+from integrations.ajol import AjolClient
 from integrations.crossref import CrossrefClient
 from integrations.doaj.journals import DoajJournalsClient
 from integrations.gemini import AxisClusterLabeler, AxisTermSuggester, ResearchSummaryGenerator
@@ -217,6 +219,8 @@ def create_app(
     api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
     api.state.top_factor_db_jobs = JobStore()  # backlog #40: TOP Factor CSV mirror download
     api.state.top_factor_client = TopFactorClient()  # backlog #40: TOP Factor download client (overridable in tests)
+    api.state.ajol_db_jobs = JobStore()  # backlog #40: AJOL CSV mirror download
+    api.state.ajol_client = AjolClient()  # backlog #40: AJOL download client (overridable in tests)
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
     api.state.overlooked_lens_jobs = JobStore()  # backlog #37: overlooked-work lens (per-axis discovery)
     api.state.citation_count_jobs = JobStore()  # inc 210 (A2): library-wide OpenAlex cited-by refresh
@@ -346,6 +350,7 @@ def create_app(
         methods_retraction.router
     )  # /methods/retraction/* — retraction findings, split from methods.py (inc 261)
     api.include_router(methods_top_factor.router)  # /methods/top-factor/* — TOP Factor CSV mirror (backlog #40)
+    api.include_router(methods_ajol.router)  # /methods/ajol/* — AJOL CSV mirror (backlog #40)
     api.include_router(
         methods_bayes.router
     )  # /papers/{id}/bayes + /methods/bayes/* — Bayesian auditor, split from methods.py (backlog #23, inc 338)

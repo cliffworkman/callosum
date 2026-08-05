@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 450** (see Increment workflow) with **1853 root-suite pytest tests
+It is currently at **Increment 451** (see Increment workflow) with **1853 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -180,7 +180,17 @@ the full per-increment narrative for all other increments now lives in the reloc
   Retraction Watch download→parse→replace pattern; new `top_factor_records` table). TOP Factor's `Total` renders
   only inside an expanded "show the basis" block beside its category sub-scores — never as a bare per-journal
   score (no opaque composite, commitment #7); the never-downloaded mirror state is an honest report-level note.
-  Backlog #40 stays open (self-archiving/green-route + AJOL/Redalyc/Latindex regional indexes remain unwired).
+  **Inc 451** wires in a fourth source, **AJOL** (African Journals Online): a locally-mirrored, third-party
+  CC-BY-4.0 Zenodo snapshot (`integrations/ajol/adapter.py`, Alonso-Álvarez 2025, mirrors TOP Factor's exact
+  download→parse→replace shape; new `ajol_records` table) of AJOL's own public journal metadata, including its
+  official positive-to-cautionary JPPS rating — shown plainly for every value (never filtered for `Ceased`/
+  `Inactive Title`; only `1/2/3 Stars` ever elevates, gated by set membership, not an exclusion list). The real
+  CSV encodes a missing ISSN as the literal string `"NA"`, not an empty cell — caught before ship, not after.
+  Unlike TOP Factor's periodically-republished file, this is a one-time, immutable, Feb-2024-dated dataset with
+  no update guarantee, so its Settings action reads "Download database," never "Refresh," with the fixed snapshot
+  date kept visibly separate from the local download timestamp. Backlog #40 stays open (self-archiving/green-route
+  + Redalyc — a documented API doubly blocked by a live TLS hostname mismatch and a maintainer-only registration
+  requirement — + Latindex, reconfirmed closed, remain unwired).
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):
@@ -731,7 +741,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 450). Each increment of real work
+callosum is built in **numbered increments** (currently at 451). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

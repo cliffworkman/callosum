@@ -530,11 +530,16 @@ the Principles + A-A gates before build.)*
   shipped. **Inc 448 wires in SciELO (live per-ISSN regional-index lookup) + TOP Factor (locally-mirrored
   transparency rubric, its `Total` shown only inside an expanded per-category basis block, never bare) — verified
   live before building (SciELO's ArticleMeta API is free/unauth'd; TOP Factor has no query API, only a periodic
-  OSF-hosted bulk CSV).** Remaining, still open: self-archiving/green-route (needs a Jisc-registered API key only
-  the maintainer can obtain); the other three regional indexes — **AJOL, Redalyc, Latindex** — none confirmed to
-  have a usable public API as of inc 448's live check (Redalyc's API has a TLS hostname mismatch; worth
-  re-checking, not re-assuming); COPE/OASPA membership; PubMed/Scopus indexing; user exclusion/filtering; thumb
-  auditability; the real field self-citation baseline (= #25 again).
+  OSF-hosted bulk CSV).** **Inc 451 wires in AJOL** (a locally-mirrored, third-party CC-BY-4.0 Zenodo snapshot —
+  Alonso-Álvarez 2025 — of African Journals Online's public metadata, including AJOL's own official JPPS rating
+  shown plainly, positive-to-cautionary alike; "Download," never "Refresh," since the snapshot is a one-time,
+  immutable, Feb-2024-dated academic dataset with no update guarantee, unlike TOP Factor's periodically-republished
+  file). Live re-checked at inc 451, not re-assumed: **Redalyc** has a documented, registration-gated API, but
+  `api.redalyc.org`'s TLS certificate currently fails hostname validation (`SEC_E_WRONG_PRINCIPAL`, reproduced
+  live) — doubly blocked (a broken cert *and* a credential only the maintainer can obtain); **Latindex** remains
+  confirmed closed (403/404 on every plausible endpoint). Remaining, still open: self-archiving/green-route (needs
+  a Jisc-registered API key only the maintainer can obtain); Redalyc/Latindex; COPE/OASPA membership; PubMed/Scopus
+  indexing; user exclusion/filtering; thumb auditability; the real field self-citation baseline (= #25 again).
 - **#41 User-authored modules (plugins).** [future track — record only] Deferred record of the idea + open
   questions. Do not build a plugin system until a dedicated design pass.
 - **#44 Lakens-catalog integration — registration workflow now in ordered increments.** Increment 1/1b (the transparency-signals

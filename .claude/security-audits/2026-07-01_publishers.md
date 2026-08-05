@@ -198,3 +198,107 @@ expanded) — no pytest coverage exercises rendered DOM text, so this was only c
 page. Fixed by moving `Total` out of the `<summary>` into the expanded content only; re-verified live that the
 collapsed state carries no number. No test asserted the old (wrong) behavior, so no test needed updating — this
 was a pure frontend-markup fix.
+
+---
+
+## Addendum — SP3 (AJOL regional-index snapshot), inc 451
+
+Wires a third `LEGITIMACY_DEFERRED` source: **AJOL** (African Journals Online), via a locally-mirrored,
+**third-party CC-BY-4.0** compiled dataset (Alonso-Álvarez 2025, Zenodo) — not a live per-request AJOL API (none
+exists publicly; a real OAI-PMH feed exists but is article-indexed and would need a heavy multi-page harvest,
+deferred). Redalyc (a documented API blocked by a live TLS hostname mismatch on `api.redalyc.org`, reconfirmed
+this session, plus a maintainer-only registration requirement) and Latindex (confirmed still closed, no public
+API on any plausible endpoint) remain deferred.
+
+### Trigger
+- One new external fetch path: the Zenodo record-file download (`integrations/ajol/adapter.py`), mirroring TOP
+  Factor's bulk-mirror shape exactly, not SciELO's live-per-ISSN shape.
+- Two new endpoints: `GET/POST /methods/ajol/database[/refresh]` (mirrors the already-audited TOP Factor
+  download-trigger shape).
+- New schema + migration (`ajol_records`, `alembic/versions/0068_ajol_records.py`) — additive only, no
+  destructive change, guarded create.
+
+### Threat review
+- **AJOL is not a live per-request call at all** — same posture as TOP Factor: a periodic (here, one-time)
+  bulk-download mirror, downloaded only by an explicit Settings action, never auto-triggered from a Publishers
+  run. `build_profiles`'s per-candidate AJOL lookups are pure local `SELECT`s against `ajol_records`, zero HTTP
+  at request time.
+- **Download bounds (rule #4).** `MAX_AJOL_BYTES` (2 MiB, comfortably above the confirmed real file size) and
+  `MAX_AJOL_ROWS` (10,000, the real dataset has 739 rows) bound the streaming download; a malformed `is_diamond`
+  cell parses to `None` (unknown) rather than a fabricated `False`; a row where both `eissn`/`issn_print` are
+  missing (including the real file's `"NA"`-string encoding of "missing," not just an empty cell — the one real
+  correctness bug this feature's design closes) is skipped, never stored with a bogus matchable key.
+- **Untrusted external data, `source_url` (rule #4, new to this addendum).** Only values starting with the fixed
+  `https://www.ajol.info/` prefix are kept; anything else (including a malformed or third-party-injected URL in
+  a future re-download) is dropped rather than stored/rendered as a clickable link to an untrusted host.
+- **No SQL written unsafely.** `ajol_repo.py` uses SQLAlchemy Core bound parameters throughout (`select`/
+  `insert`/`delete`, no string interpolation); `replace_ajol_records` deletes-then-inserts in one transaction
+  (a fresh snapshot is authoritative, matching `replace_top_factor_records`'s exact pattern).
+- **Secret handling.** No secret at all — the Zenodo download URL is a fixed public record-file link, no
+  credential, no auth header.
+- **Supply-chain.** No new dependency — reuses `httpx` (already present).
+
+### Principles / A-A vetoes (extended, same structural enforcement as SP1a/SP1b/SP2)
+- **`jpps_status` renders plainly, including cautionary values — a deliberate, considered choice, not an
+  oversight.** AJOL's own official rating ranges from positive (`1/2/3 Stars`) to cautionary (`Ceased`,
+  `Inactive Title`). `APPROACH-AVOIDANCE.md`'s no-accusation veto is explicitly scoped to *individuals*; an
+  AJOL-tracked journal's own publicly-published operational status is an institutional/venue fact, the same
+  class already shown plainly today via `retraction_records.status`. Principles #6 (silence isn't a certificate)
+  argues affirmatively *for* showing it — an unqualified "Indexed in AJOL" chip with a `Ceased` journal's status
+  hidden would itself be a worse silence-as-certificate failure. Each status carries a plain-language `title=`
+  tooltip gloss (informative, not editorial).
+- **Elevate, don't denigrate — extended with a new gate.** `_AJOL_STAR_TIERS = {"1 Star", "2 Stars", "3 Stars"}`
+  is the *only* set of `jpps_status` values that may ever appear in `elevated_for`; `Inactive Title`/`Ceased`/
+  `Pending`/`NA`/`No Stars` structurally cannot (`_elevated_goods` checks membership in this frozen set, not an
+  exclusion list — a cautionary/neutral status can never accidentally read as a boost by falling through a gap).
+  A confirmed `is_diamond` gets its own independently-labeled `"AJOL-confirmed diamond OA"` string, kept apart
+  from the existing DOAJ-derived diamond bucket (two independently-sourced claims stay provenance-legible).
+- **Gate the boost, never the listing (extended to AJOL).** A journal with no AJOL data still appears unchanged
+  — `ajol_status` is simply `None`.
+- **Silence isn't a certificate (extended to AJOL).** `PublishersReport.ajol_coverage` (`{count, retrieved_at}`,
+  the same shape as `top_factor_coverage`) disambiguates "no AJOL row for this journal" from "the mirror was
+  never downloaded" at the report level.
+- **A new honesty axis TOP Factor didn't need: "Download," never "Refresh."** Unlike TOP Factor (COS
+  periodically republishes the same file) or DOAJ/SciELO (live), this Zenodo record is immutable and dated to a
+  fixed February-2024 vintage — a future update would land at a *new* record id, not this one. Re-running the
+  action always re-fetches byte-identical data. The UI button reads "Download database" (never "Refresh"), and
+  the status line keeps the fixed `AJOL_SNAPSHOT_DATE` constant visibly separate from the local `retrieved_at`
+  download timestamp — reusing TOP Factor's "as of {date}" copy verbatim would make an implicit false-freshness
+  claim on every future click.
+- **Crediting (`CREDIT-THE-LINEAGE.md`).** The credit block cites both Zenodo DOIs the dataset's own `readme.csv`
+  names as the correct citation (the dataset `10.5281/zenodo.14899380` + its companion methods report
+  `10.5281/zenodo.14900054`), framed explicitly as a third-party CC-BY-4.0 compilation of AJOL's own public
+  records — never implying it's AJOL's own official feed.
+
+### Negative-path checks (new, `tests/test_ajol.py` + `tests/test_publishers.py` extensions)
+- **`"NA"`-marker regression** — `test_NA_marker_treated_as_missing_not_a_bogus_issn_key`: confirms no parsed
+  record ever has `issn == "NA"` or `eissn == "NA"`, against a fixture reproducing the real file's encoding. ✓
+- **Malformed `is_diamond` not fabricated** — `test_malformed_is_diamond_cell_is_none_not_fabricated_false`: a
+  malformed cell parses to `None`; a real `"0"` cell parses to `False` cleanly; a `Ceased` status passes through
+  unfiltered. ✓
+- **Untrusted `source_url` dropped** — `test_source_url_outside_ajol_prefix_is_dropped`. ✓
+- **Replace/lookup by issn-or-eissn + authoritative replace + never-downloaded-then-counts + injected-fetcher
+  download + refresh endpoint (asserting `snapshot_date` present even before any download) + unknown-job 404** —
+  `tests/test_ajol.py`, mirroring the full `test_top_factor.py` contract (10 tests total). ✓
+- **Gate the boost, not the listing + star-tier-only elevation** —
+  `test_build_profiles_wires_ajol_facts_and_elevates_only_star_tiers`: a `2 Stars` + confirmed-diamond match
+  produces both `"AJOL 2 Stars rating"` and `"AJOL-confirmed diamond OA"` in `elevated_for` (plus the unfolded
+  DOAJ-derived diamond string, proving the two stay separate); a `Ceased` match's `elevated_for` contains no
+  AJOL string despite full weighting, while its `ajol_status`/`"Indexed in AJOL"` signal still render. ✓
+- **Never-downloaded honesty** — `test_build_profiles_ajol_never_downloaded_is_honest`: an empty mirror reports
+  `{"count": 0, "retrieved_at": None}` at the report level; every profile's `ajol_status` is `None`; no
+  fabricated `"Indexed in AJOL"` signal appears. ✓
+- **Deferred-list narrowing** — `test_build_profiles_no_composite_score_no_predatory` extended: "AJOL" no longer
+  appears in `legitimacy_absent`; "regional indexes (Redalyc, Latindex)" replaces the old three-source string. ✓
+- **Migration drift** — `test_ajol_records_table_is_at_head` (`tests/test_migrations.py`): the migration's
+  columns match the SQLAlchemy model exactly (CI's `alembic check` gate). ✓
+
+### Result
+**Security Audit: PASS (SP3 addendum).** AJOL introduces zero request-time HTTP (a local mirror only, like TOP
+Factor), with its one download path bounded, streaming, and fail-closed on oversize/malformed rows/network
+error; the `"NA"`-marker missing-value bug was caught and fixed before ship, not after. No new secret, no new
+dependency. The new schema is additive-only and migration-drift-tested. The Principles/A-A vetoes — including a
+new structural (set-membership, not exclusion-list) star-tier elevation gate and the "Download never Refresh"
+honesty distinction this source specifically requires — are enforced structurally and pinned by 12 new tests
+across `tests/test_ajol.py` + `tests/test_publishers.py` + `tests/test_migrations.py`. Live-verified against the
+real Zenodo-hosted CSV (739 rows, confirmed 11 real all-`"NA"` rows) before this audit was written, not assumed.

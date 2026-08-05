@@ -32,7 +32,8 @@ consistently (an "about / built on" affordance) and wired to offer each paper to
 - **Bayesian auditor** → Kruschke (BARG, 2021); Vehtari et al. (R-hat / ESS, 2021); the BayesFactor lineage
   (Rouder, Morey et al.).
 - **Citation-equity audit** → Lockhart, King & Munsch (2023); Dworkin et al. (2020); King et al. (2017).
-- **PUBLISHERS** → DOAJ; the TOP Factor (Center for Open Science); Open Policy Finder.
+- **PUBLISHERS** → DOAJ; SciELO; the TOP Factor (Center for Open Science); AJOL journal metadata
+  (Alonso-Álvarez, 2025, Zenodo); Open Policy Finder.
 
 ## Acceptance criteria
 - Every method-implementing tool surfaces its lineage **in-tool** and offers each source paper **to the library**.

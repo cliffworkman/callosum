@@ -11,6 +11,23 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
 
+## 2026-08-05 — Increment 451: AJOL as a fourth PUBLISHERS legitimacy source (backlog #40)
+- **Files:** `integrations/ajol/adapter.py` (new), `app/backend/persistence/ajol_repo.py` (new),
+  `alembic/versions/0068_ajol_records.py` (new), `app/backend/api/routers/methods_ajol.py` (new),
+  `app/backend/persistence/schema_findings.py`, `app/backend/persistence/schema.py`, `app/backend/api/app.py`,
+  `app/backend/api/routers/status.py`, `app/backend/methods/publishers.py`, `app/backend/api/routers/publishers.py`,
+  `app/frontend/js/08e_methods_publishers.jsx`, `app/frontend/js/35e_maintenance.jsx`, `tests/test_ajol.py` (new),
+  `tests/test_publishers.py`, `tests/test_migrations.py`.
+- **What:** wires a fourth legitimacy source, AJOL (African Journals Online), into the PUBLISHERS "where to
+  submit" journal-finder — a locally-mirrored, third-party CC-BY-4.0 Zenodo snapshot of AJOL's public journal
+  metadata, including its own official positive-to-cautionary JPPS rating shown plainly. Fixes a real correctness
+  bug (the real CSV's `"NA"`-string missing-ISSN marker) before ship. Re-verified live that Redalyc/Latindex
+  remain genuinely blocked, not just previously assumed so.
+- **Why:** closes another slice of backlog #40's still-open regional-index list; the maintainer's own live
+  research this session found AJOL had a real, immediately-buildable dataset where prior notes said "no API."
+- **Revert:** see `INCREMENT-451-NOTES.md`'s Rollback section (additive migration; all new files cleanly
+  removable; existing DOAJ/SciELO/TOP Factor sources untouched).
+
 ## 2026-08-05 — Increment 450: Local usage instrumentation + "Your usage" dashboard (backlog #38A)
 
 - **Files:** new `schema_usage.py` + migration `0067`, new `usage_repo.py`, new `app/backend/usage.py` (the

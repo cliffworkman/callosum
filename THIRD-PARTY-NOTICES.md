@@ -215,6 +215,17 @@ The journal-matching tool draws on public bibliographic metadata + a scientific-
   topics) via the `/topics`, `/works`, and `/sources` endpoints. Public metadata; polite-pool `mailto`.
 - **DOAJ — Directory of Open Access Journals** (<https://doaj.org/>) — journal-level facts (APC, waiver, license,
   the DOAJ Seal) via the public journals API.
+- **SciELO — Scientific Electronic Library Online** (<https://scielo.org/>, inc 448) — regional-index coverage
+  (which SciELO collection(s) a journal is indexed under) via the public ArticleMeta API, looked up live per ISSN.
+- **TOP Factor** (<https://topfactor.org/>, Center for Open Science, inc 448) — a per-journal transparency/openness
+  rubric (category sub-scores + a defined `Total`), mirrored locally from a periodically-updated public CSV
+  (OSF-hosted). Shown only alongside its category-by-category basis, never as a bare score.
+- **AJOL — African Journals Online journal metadata** (Alonso-Álvarez, P. (2025). *AJOL Journal Metadata*
+  [Data set]. Zenodo. <https://doi.org/10.5281/zenodo.14899380>; companion methods report:
+  <https://doi.org/10.5281/zenodo.14900054>; CC-BY-4.0, inc 451) — a third-party compilation of African Journals
+  Online's public per-journal metadata, including AJOL's own official Journal Publishing Practices and Standards
+  (JPPS) rating. Mirrored locally from a one-time Zenodo-hosted snapshot (dated February 2024); not an
+  AJOL-official feed. Callosum does not redistribute the dataset beyond the local mirror it downloads on request.
 - **SPECTER** — the scientific-document embedding model (`sentence-transformers/allenai-specter`, Allen Institute for
   AI; Cohan, Feldman, Beltagy, Downey & Weld, *SPECTER: Document-level Representation Learning using Citation-informed
   Transformers*, ACL 2020) — runs **locally** to match the abstract to candidate journals; the abstract is never

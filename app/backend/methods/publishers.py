@@ -30,13 +30,13 @@ MAX_CANDIDATES = 60  # defensive cap on the pool to embed (rule #4)
 MAX_PROFILES = 25  # cap on profiles returned
 
 # Legitimacy sources this version does NOT check — shown as neutral fact so silence isn't read as a clean bill (#6).
-# The remaining multi-route + regional set (COPE/OASPA, PubMed/Scopus indexing, AJOL/Redalyc/Latindex,
-# self-archiving) has no data source yet — deferred, named honestly, never inferred. SciELO and TOP Factor were
-# wired in and removed from this list (backlog #40).
+# The remaining multi-route + regional set (COPE/OASPA, PubMed/Scopus indexing, Redalyc/Latindex,
+# self-archiving) has no data source yet — deferred, named honestly, never inferred. SciELO, TOP Factor, and AJOL
+# were wired in and removed from this list (backlog #40).
 LEGITIMACY_DEFERRED = [
     "COPE / OASPA membership",
     "PubMed / Scopus indexing",
-    "regional indexes (AJOL, Redalyc, Latindex)",
+    "regional indexes (Redalyc, Latindex)",
     "self-archiving policy",
 ]
 
@@ -66,6 +66,8 @@ class JournalProfile:
     elevated_for: list[str]  # goods the weighting rewarded (empty when weighting == 0)
     scielo_collections: list[str]  # raw SciELO collection codes this journal appears under; [] = not confirmed
     top_factor: dict[str, Any] | None  # {"total", "categories": [{"name","score","max","justification"}, ...]}
+    ajol_status: dict[str, Any] | None  # {"country","jpps_status","is_diamond","source_url"}; shown as-is, plain
+    # (jpps_status ranges from positive to cautionary — e.g. "Ceased" — never filtered or softened, per #6)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -89,6 +91,7 @@ class JournalProfile:
             "elevated_for": self.elevated_for,
             "scielo_collections": self.scielo_collections,
             "top_factor": self.top_factor,
+            "ajol_status": self.ajol_status,
         }
 
 
@@ -102,6 +105,8 @@ class PublishersReport:
     # Factor row" (mirror downloaded, absent) and "the mirror was never downloaded" (every profile's top_factor
     # is None either way). Never affects ranking or the candidate list — a display honesty caption only.
     top_factor_coverage: dict[str, Any] = field(default_factory=lambda: {"count": 0, "retrieved_at": None})
+    # Same shape/purpose as top_factor_coverage, for the AJOL mirror. Never affects ranking/listing.
+    ajol_coverage: dict[str, Any] = field(default_factory=lambda: {"count": 0, "retrieved_at": None})
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -110,6 +115,7 @@ class PublishersReport:
             "shown": self.shown,
             "weighting": self.weighting,
             "top_factor_coverage": self.top_factor_coverage,
+            "ajol_coverage": self.ajol_coverage,
         }
 
 
@@ -148,7 +154,11 @@ def _unit_rows(vectors: list[list[float]]) -> np.ndarray:
     return arr / (norms + 1e-12)
 
 
-def _elevated_goods(oa_color: str, doaj: DoajJournal | None) -> list[str]:
+_AJOL_STAR_TIERS = {"1 Star", "2 Stars", "3 Stars"}  # never Inactive Title/Ceased/Pending/NA/No Stars (elevate,
+# don't denigrate — a cautionary or neutral AJOL status must never read as a weighting boost)
+
+
+def _elevated_goods(oa_color: str, doaj: DoajJournal | None, ajol: dict[str, Any] | None = None) -> list[str]:
     goods: list[str] = []
     if oa_color == "diamond":
         goods.append("diamond OA (free to publish + free to read)")
@@ -158,6 +168,12 @@ def _elevated_goods(oa_color: str, doaj: DoajJournal | None) -> list[str]:
         goods.append("open access")
     if doaj is not None and doaj.seal:
         goods.append("DOAJ Seal")
+    if ajol is not None:
+        jpps = ajol.get("jpps_status")
+        if jpps in _AJOL_STAR_TIERS:
+            goods.append(f"AJOL {jpps} rating")
+        if ajol.get("is_diamond") is True:  # a second, independently-sourced diamond-OA claim — kept its own
+            goods.append("AJOL-confirmed diamond OA")  # label, never folded into the DOAJ-derived bucket above
     return goods
 
 
@@ -166,26 +182,38 @@ def build_profiles(
     doaj_by_issn: dict[str, DoajJournal],
     scielo_by_issn: dict[str, ScieloJournal] | None = None,
     top_factor_by_issn: dict[str, dict[str, Any]] | None = None,
+    ajol_by_issn: dict[str, dict[str, Any]] | None = None,
     *,
     abstract: str,
     embedding_model: Any,
     weighting: float = 0.0,
     top_k: int = MAX_PROFILES,
     top_factor_db_status: dict[str, Any] | None = None,
+    ajol_db_status: dict[str, Any] | None = None,
 ) -> PublishersReport:
     """Assemble a uniform profile per candidate + rank by local fit, moved by `weighting` (0.0 = fit-only).
     Every candidate is returned (top_k by the blended order). No composite score, no predatory label."""
     scielo_by_issn = scielo_by_issn or {}
     top_factor_by_issn = top_factor_by_issn or {}
+    ajol_by_issn = ajol_by_issn or {}
     coverage = dict(top_factor_db_status) if top_factor_db_status else {"count": 0, "retrieved_at": None}
+    ajol_coverage = dict(ajol_db_status) if ajol_db_status else {"count": 0, "retrieved_at": None}
     pool = list(candidates)[:MAX_CANDIDATES]
     weighting = max(0.0, min(1.0, float(weighting)))
     if not pool:
-        return PublishersReport(profiles=[], considered=0, shown=0, weighting=weighting, top_factor_coverage=coverage)
+        return PublishersReport(
+            profiles=[],
+            considered=0,
+            shown=0,
+            weighting=weighting,
+            top_factor_coverage=coverage,
+            ajol_coverage=ajol_coverage,
+        )
 
     doaj_for = [_by_issn(m, doaj_by_issn) for m in pool]
     scielo_for = [_by_issn(m, scielo_by_issn) for m in pool]
     top_factor_for = [_by_issn(m, top_factor_by_issn) for m in pool]
+    ajol_for = [_by_issn(m, ajol_by_issn) for m in pool]
     colors = [derive_oa_color(m, d) for m, d in zip(pool, doaj_for, strict=False)]
     scope_texts = [_scope_text(m, d) for m, d in zip(pool, doaj_for, strict=False)]
 
@@ -214,7 +242,7 @@ def build_profiles(
     profiles: list[JournalProfile] = []
     for i, _ in rows[:top_k]:
         meta, doaj, color = pool[i], doaj_for[i], colors[i]
-        scielo, top_factor = scielo_for[i], top_factor_for[i]
+        scielo, top_factor, ajol = scielo_for[i], top_factor_for[i], ajol_for[i]
         signals: list[str] = []
         if meta.is_in_doaj:
             signals.append("Indexed in DOAJ")
@@ -224,6 +252,9 @@ def build_profiles(
             signals.append(f"Indexed in SciELO ({', '.join(scielo.collections)})")
         if top_factor is not None:
             signals.append("Has a TOP Factor transparency assessment")
+        if ajol is not None:
+            signals.append("Indexed in AJOL")  # a coverage fact only -- the jpps_status VALUE stays out of this
+            # same-valence list (it ranges positive-to-cautionary); shown instead via ajol_status, always.
         profiles.append(
             JournalProfile(
                 source_id=meta.source_id,
@@ -245,11 +276,17 @@ def build_profiles(
                 works_count=meta.works_count,
                 legitimacy_signals=signals,
                 legitimacy_absent=list(LEGITIMACY_DEFERRED),
-                elevated_for=(_elevated_goods(color, doaj) if weighting > 0 else []),
+                elevated_for=(_elevated_goods(color, doaj, ajol) if weighting > 0 else []),
                 scielo_collections=list(scielo.collections) if scielo is not None else [],
                 top_factor=top_factor,
+                ajol_status=ajol,
             )
         )
     return PublishersReport(
-        profiles=profiles, considered=len(pool), shown=len(profiles), weighting=weighting, top_factor_coverage=coverage
+        profiles=profiles,
+        considered=len(pool),
+        shown=len(profiles),
+        weighting=weighting,
+        top_factor_coverage=coverage,
+        ajol_coverage=ajol_coverage,
     )

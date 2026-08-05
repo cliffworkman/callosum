@@ -339,10 +339,11 @@ def test_build_profiles_no_composite_score_no_predatory():
         assert not any(k.endswith("score") for k in p.to_dict())
     # legitimacy absence is shown as neutral fact (a deferred-sources list), never a flag
     assert any("COPE" in s for s in rep.profiles[0].legitimacy_absent)
-    # SciELO + TOP Factor were wired in (backlog #40) -- no longer named as deferred
+    # SciELO + TOP Factor + AJOL were wired in (backlog #40) -- no longer named as deferred
     assert not any("SciELO" in s for s in rep.profiles[0].legitimacy_absent)
     assert not any("TOP Factor" in s for s in rep.profiles[0].legitimacy_absent)
-    assert any("regional indexes (AJOL, Redalyc, Latindex)" == s for s in rep.profiles[0].legitimacy_absent)
+    assert not any("AJOL" in s for s in rep.profiles[0].legitimacy_absent)
+    assert any("regional indexes (Redalyc, Latindex)" == s for s in rep.profiles[0].legitimacy_absent)
     assert any("self-archiving policy" == s for s in rep.profiles[0].legitimacy_absent)
 
 
@@ -350,6 +351,7 @@ def test_build_profiles_empty():
     rep = build_profiles([], {}, abstract="memory", embedding_model=FakeEmbed())
     assert rep.shown == 0 and rep.considered == 0 and rep.profiles == []
     assert rep.top_factor_coverage == {"count": 0, "retrieved_at": None}
+    assert rep.ajol_coverage == {"count": 0, "retrieved_at": None}
 
 
 def test_build_profiles_wires_scielo_and_top_factor_facts():
@@ -383,6 +385,64 @@ def test_build_profiles_wires_scielo_and_top_factor_facts():
     assert s2.scielo_collections == [] and s2.top_factor is None
     assert not any("SciELO" in sig or "TOP Factor" in sig for sig in s2.legitimacy_signals)
     assert rep.top_factor_coverage == {"count": 812, "retrieved_at": "2026-03-12T00:00:00+00:00"}
+
+
+def test_build_profiles_wires_ajol_facts_and_elevates_only_star_tiers():
+    cands, doaj = _profiles_setup()
+    ajol_by_issn = {
+        "1111-1111": {
+            "country": "Nigeria",
+            "jpps_status": "2 Stars",
+            "is_diamond": True,
+            "source_url": "https://www.ajol.info/index.php/memj",
+        },
+        "2222-2222": {
+            "country": "Ghana",
+            "jpps_status": "Ceased",  # a cautionary status -- must never read as a weighting boost
+            "is_diamond": False,
+            "source_url": None,
+        },
+    }
+    rep = build_profiles(
+        cands,
+        doaj,
+        None,
+        None,
+        ajol_by_issn,
+        abstract="memory attention",
+        embedding_model=FakeEmbed(),
+        weighting=1.0,
+        ajol_db_status={"count": 739, "retrieved_at": "2026-02-01T00:00:00+00:00"},
+    )
+    s1 = next(p for p in rep.profiles if p.source_id == "S1")
+    assert s1.ajol_status == ajol_by_issn["1111-1111"]
+    assert "Indexed in AJOL" in s1.legitimacy_signals
+    assert "AJOL 2 Stars rating" in s1.elevated_for
+    assert "AJOL-confirmed diamond OA" in s1.elevated_for  # a second, independent diamond-OA claim
+    assert "diamond OA (free to publish + free to read)" in s1.elevated_for  # the DOAJ-derived one, unfolded
+
+    s2 = next(p for p in rep.profiles if p.source_id == "S2")
+    assert s2.ajol_status == ajol_by_issn["2222-2222"]
+    assert "Indexed in AJOL" in s2.legitimacy_signals  # coverage fact shown regardless of status valence
+    assert not any("Ceased" in g for g in s2.elevated_for)  # cautionary status never elevates
+    assert not any("AJOL" in g and "diamond" in g for g in s2.elevated_for)  # is_diamond False -> no claim
+    assert rep.ajol_coverage == {"count": 739, "retrieved_at": "2026-02-01T00:00:00+00:00"}
+
+
+def test_build_profiles_ajol_never_downloaded_is_honest():
+    """Mirrors the TOP Factor never-downloaded test: a per-journal `ajol_status: None` is ambiguous in isolation
+    (no row for this journal vs. the mirror was never downloaded) -- `ajol_coverage` disambiguates at report level."""
+    cands, doaj = _profiles_setup()
+    rep = build_profiles(
+        cands,
+        doaj,
+        abstract="memory",
+        embedding_model=FakeEmbed(),
+        ajol_db_status={"count": 0, "retrieved_at": None},
+    )
+    assert rep.ajol_coverage == {"count": 0, "retrieved_at": None}
+    assert all(p.ajol_status is None for p in rep.profiles)
+    assert not any("Indexed in AJOL" in p.legitimacy_signals for p in rep.profiles)
 
 
 def test_build_profiles_top_factor_never_downloaded_is_honest():

@@ -123,6 +123,41 @@ const TOP_FACTOR_CSL = {
   issued: { "date-parts": [[2015]] }, DOI: "10.1126/science.aab2374",
 };
 
+// inc 451: credits the third-party CC-BY-4.0 dataset AJOL facts are drawn from -- a compilation of AJOL's own
+// public records, NOT an AJOL-official feed (CREDIT-THE-LINEAGE.md: credit by citation, never by appropriating
+// the source's name). Both DOIs readme.csv itself names as the correct citation: the dataset + its companion
+// methods report.
+const AJOL_CSL = [
+  {
+    type: "dataset",
+    title: "AJOL dataset: structured metadata of articles and journals indexed in African Journals Online",
+    author: [{ family: "Alonso-Álvarez", given: "P." }],
+    "container-title": "Zenodo",
+    issued: { "date-parts": [[2025]] }, DOI: "10.5281/zenodo.14899380",
+  },
+  {
+    type: "article",
+    title: "A small step towards the epistemic decentralization of science: a dataset of journals and publications indexed in African Journals Online",
+    author: [{ family: "Alonso-Álvarez", given: "P." }],
+    "container-title": "Zenodo",
+    issued: { "date-parts": [[2025]] }, DOI: "10.5281/zenodo.14900054",
+  },
+];
+
+// Plain-language glosses for AJOL's own JPPS (Journal Publishing Practices and Standards) jargon -- informative,
+// not editorial (mirrors the existing .pub-oa/.pub-fit title= tooltip pattern on this same card).
+const AJOL_JPPS_GLOSS = {
+  "3 Stars": "AJOL's highest active-journal rating on its own JPPS scale.",
+  "2 Stars": "An active-journal rating on AJOL's own JPPS scale.",
+  "1 Star": "An active-journal rating on AJOL's own JPPS scale.",
+  "New Title": "Less than 2 years on AJOL but meets AJOL's basic inclusion criteria.",
+  "No Stars": "Currently not meeting AJOL's basic criteria for inclusion, per AJOL's own assessment.",
+  "Pending": "Awaiting AJOL's own JPPS assessment.",
+  "Inactive Title": "AJOL reports no new content added to this journal in over a year.",
+  "Ceased": "AJOL reports this journal has permanently stopped publishing.",
+  "NA": "Not assessed by AJOL's JPPS rubric.",
+};
+
 const OA_LABEL = {
   diamond: "Diamond OA — free to publish + free to read",
   gold: "Gold OA — free to read",
@@ -134,6 +169,7 @@ function PubProfileCard({ p, weightingOn }) {
   const issn = p.issn_l || (p.issns && p.issns[0]) || null;
   const doajUrl = p.is_in_doaj && issn ? `https://doaj.org/toc/${issn}` : null;
   const oaUrl = p.source_id ? `https://openalex.org/${p.source_id}` : null;
+  const ajolUrl = p.ajol_status && p.ajol_status.source_url ? p.ajol_status.source_url : null;
   const apcText = p.oa_color === "diamond" || p.apc_amount === 0
     ? "No APC — free to publish"
     : (p.apc_amount != null ? `APC: ${p.apc_amount}${p.apc_currency ? " " + p.apc_currency : ""}` : "APC: not listed");
@@ -167,15 +203,22 @@ function PubProfileCard({ p, weightingOn }) {
           )}</ul>
           <div className="pub-caveat">Total (sum of the categories above): {p.top_factor.total}</div>
         </details>}
+      {p.ajol_status &&
+        <div className="pub-card-row" title={AJOL_JPPS_GLOSS[p.ajol_status.jpps_status] || "AJOL's own journal status, shown as reported -- not a Callosum judgment."}>
+          <b>AJOL status:</b> {p.ajol_status.jpps_status || "unknown"}
+          {p.ajol_status.country ? ` · ${p.ajol_status.country}` : ""}
+          {p.ajol_status.is_diamond === true ? " · diamond OA (AJOL-confirmed)" : ""}
+        </div>}
       {weightingOn && p.elevated_for && p.elevated_for.length > 0 &&
         <div className="pub-elevated" title="Goods this journal offers that your open-science weighting rewarded — never a mark against the others">
           Elevated for: {p.elevated_for.join(", ")}
         </div>}
-      {(doajUrl || oaUrl) &&
+      {(doajUrl || oaUrl || ajolUrl) &&
         <div className="pub-sources">
           Sources:{" "}
           {oaUrl && <a href={oaUrl} target="_blank" rel="noopener noreferrer">OpenAlex</a>}
           {doajUrl && <>{oaUrl ? " · " : ""}<a href={doajUrl} target="_blank" rel="noopener noreferrer">DOAJ</a></>}
+          {ajolUrl && <>{(oaUrl || doajUrl) ? " · " : ""}<a href={ajolUrl} target="_blank" rel="noopener noreferrer">AJOL</a></>}
         </div>}
     </div>
   );
@@ -313,6 +356,12 @@ function PublishersPanel({ ctx }) {
         <div className="method-credit-sub">Scored from the Center for Open Science's public per-journal database — credited, not reused.</div>
       </div>
 
+      <div className="method-credit">
+        <b>Methods:</b> AJOL journal facts, from a third-party compiled dataset (Alonso-Álvarez 2025).{" "}
+        <MethodCreditButton items={AJOL_CSL} />
+        <div className="method-credit-sub">A CC-BY-4.0 compilation of AJOL's own public records — not an AJOL-official feed; a static February 2024 snapshot, credited, not reused.</div>
+      </div>
+
       <div className="tags-srcfilter pub-mode" role="group" aria-label="Input">
         <button type="button" className={"tags-srcfilter-btn" + (mode === "paper" ? " on" : "")} onClick={() => setMode("paper")}>Selected paper</button>
         <button type="button" className={"tags-srcfilter-btn" + (mode === "abstract" ? " on" : "")} onClick={() => setMode("abstract")}>Paste an abstract</button>
@@ -373,6 +422,12 @@ function PublishersPanel({ ctx }) {
                     TOP Factor data hasn't been downloaded to this machine yet (Settings → Local maintenance) — this
                     is different from "no journal has one": the local copy simply hasn't been fetched, so no TOP
                     Factor fact could be checked for any journal above.
+                  </div>}
+                {rep.ajol_coverage && rep.ajol_coverage.count === 0 &&
+                  <div className="pub-absent">
+                    AJOL data hasn't been downloaded to this machine yet (Settings → Local maintenance) — this is
+                    different from "no journal is AJOL-indexed": the local copy simply hasn't been fetched, so no
+                    AJOL fact could be checked for any journal above.
                   </div>}
               </React.Fragment>}
         </div>}

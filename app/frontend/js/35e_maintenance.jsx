@@ -71,6 +71,28 @@ function LocalMaintenanceSettings({ onRetractionRan }) {
     poll(r.data.job_id);
   };
 
+  // AJOL mirror (backlog #40, inc 451) — a THIRD-PARTY compiled snapshot (not an AJOL-official feed), dated
+  // to a fixed vintage (snapshot_date) that a re-download can never change -- "Download database" (never
+  // "Refresh") is the honest verb here; TOP Factor/Retraction Watch are periodically republished by their own
+  // source org, this is a one-time academic dataset with no such guarantee.
+  const [ajol, setAjol] = useState(null);  // { count, retrieved_at, snapshot_date } | null
+  const [ajolRun, setAjolRun] = useState({ status: "idle" });
+  const loadAjol = () => api("/methods/ajol/database").then(r => { if (r.ok) setAjol(r.data); });
+  useEffect(() => { loadAjol(); }, []);
+  const downloadAjol = async () => {
+    setAjolRun({ status: "running" });
+    const poll = (jobId) => api(`/methods/ajol/database/refresh/${jobId}`).then(r => {
+      if (!r.ok) { setAjolRun({ status: "error", error: r.error }); return; }
+      const d = r.data;
+      if (d.status === "done") { setAjolRun({ status: "done" }); loadAjol(); }
+      else if (d.status === "error") setAjolRun({ status: "error", error: d.detail || "Download failed." });
+      else setTimeout(() => poll(jobId), 2000);
+    });
+    const r = await apiPost("/methods/ajol/database/refresh", {});
+    if (!r.ok) { setAjolRun({ status: "error", error: r.error }); return; }
+    poll(r.data.job_id);
+  };
+
   return (
     <>
       <p className="eyebrow">Local maintenance</p>
@@ -114,6 +136,26 @@ function LocalMaintenanceSettings({ onRetractionRan }) {
         </div>
       </div>
       {tfRun.status === "error" && <div className="settings-note settings-note-err">{tfRun.error}</div>}
+      <div className="settings-field">
+        <div className="settings-row settings-maintenance-action">
+          <span className="settings-field-label">AJOL database</span>
+          <button className="btn btn-ghost" disabled={ajolRun.status === "running"} onClick={downloadAjol}>
+            {ajolRun.status === "running" ? "Downloading…" : "Download database"}
+          </button>
+        </div>
+        <span className="settings-sub">
+          A third-party, CC-BY-4.0 compiled snapshot of African Journals Online (AJOL) journal metadata — not an
+          AJOL-official feed. A one-time academic dataset, not a periodically-updated source: downloading again
+          will not fetch newer data than the {ajol ? ajol.snapshot_date : "dataset's"} snapshot, and it may not
+          reflect journals AJOL has added, removed, or reclassified since.
+        </span>
+        <div className="settings-note">
+          {ajol && ajol.count > 0
+            ? `${ajol.count.toLocaleString()} journals · ${ajol.snapshot_date} snapshot, downloaded ${ajol.retrieved_at ? ajol.retrieved_at.slice(0, 10) : "?"}`
+            : "Not downloaded — download to include AJOL in Where-to-submit results"}
+        </div>
+      </div>
+      {ajolRun.status === "error" && <div className="settings-note settings-note-err">{ajolRun.error}</div>}
       <div className="settings-field">
         <div className="settings-row settings-maintenance-action">
           <span className="settings-field-label">Synthesis cache</span>

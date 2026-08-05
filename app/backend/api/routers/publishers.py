@@ -26,6 +26,7 @@ from app.backend.api.job_store import JobStore
 from app.backend.embeddings.models import SentenceTransformerEmbeddingModel
 from app.backend.metadata.abstract_display import abstract_plain_text
 from app.backend.methods.publishers import MAX_PROFILES, build_profiles
+from app.backend.persistence.ajol_repo import ajol_db_status, lookup_ajol_record
 from app.backend.persistence.schema import papers
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.persistence.top_factor_repo import lookup_top_factor_record, top_factor_db_status
@@ -66,6 +67,13 @@ class TopFactorModel(BaseModel):
     categories: list[TopFactorCategoryModel] = []
 
 
+class AjolStatusModel(BaseModel):
+    country: str | None = None
+    jpps_status: str | None = None
+    is_diamond: bool | None = None
+    source_url: str | None = None
+
+
 class JournalProfileModel(BaseModel):
     source_id: str
     display_name: str | None = None
@@ -87,9 +95,15 @@ class JournalProfileModel(BaseModel):
     elevated_for: list[str] = []
     scielo_collections: list[str] = []
     top_factor: TopFactorModel | None = None
+    ajol_status: AjolStatusModel | None = None
 
 
 class TopFactorCoverageModel(BaseModel):
+    count: int = 0
+    retrieved_at: str | None = None
+
+
+class AjolCoverageModel(BaseModel):
     count: int = 0
     retrieved_at: str | None = None
 
@@ -101,6 +115,7 @@ class PublishersReportModel(BaseModel):
     weighting: float = 0.0
     topic_id: str | None = None
     top_factor_coverage: TopFactorCoverageModel = TopFactorCoverageModel()
+    ajol_coverage: AjolCoverageModel = AjolCoverageModel()
 
 
 class PublishersProgress(BaseModel):
@@ -233,17 +248,29 @@ def _run_publishers_job(app: FastAPI, job_id: str, body: PublishersRequest) -> N
                             top_factor_by_issn[issn] = record
             tf_status = top_factor_db_status(conn)
 
+            # AJOL is also a fast local read (no HTTP at request time) — cheap enough to try every alt ISSN.
+            ajol_by_issn: dict[str, dict] = {}
+            for meta in candidates:
+                for issn in [meta.issn_l, *meta.issns]:
+                    if issn and issn not in ajol_by_issn:
+                        record = lookup_ajol_record(conn, issn)
+                        if record is not None:
+                            ajol_by_issn[issn] = record
+            ajol_stat = ajol_db_status(conn)
+
             jobs.mark_progress(job_id, 4, 4, "Ranking journals")
             report = build_profiles(
                 candidates,
                 doaj_by_issn,
                 scielo_by_issn,
                 top_factor_by_issn,
+                ajol_by_issn,
                 abstract=abstract,
                 embedding_model=_publishers_model(app),
                 weighting=body.weighting,
                 top_k=body.top_k,
                 top_factor_db_status=tf_status,
+                ajol_db_status=ajol_stat,
             )
         model = PublishersReportModel(
             profiles=[JournalProfileModel(**p.to_dict()) for p in report.profiles],
@@ -252,6 +279,7 @@ def _run_publishers_job(app: FastAPI, job_id: str, body: PublishersRequest) -> N
             weighting=report.weighting,
             topic_id=topic_id,
             top_factor_coverage=TopFactorCoverageModel(**report.top_factor_coverage),
+            ajol_coverage=AjolCoverageModel(**report.ajol_coverage),
         )
         if body.manuscript_id is not None:
             manuscript_id = int(body.manuscript_id)
