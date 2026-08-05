@@ -57,6 +57,16 @@ def test_top_factor_records_table_is_at_head(tmp_path):
     engine.dispose()
 
 
+def test_usage_events_table_is_at_head(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'migration-usage-events.sqlite'}"
+    cfg = _config_for(db_url)
+    command.upgrade(cfg, "head")
+    engine = create_engine(db_url)
+    columns = {column["name"] for column in inspect(engine).get_columns("usage_events")}
+    assert columns == {"id", "event_type", "count", "duration_ms", "created_at"}
+    engine.dispose()
+
+
 def test_wip_tool_run_migration_upgrades_an_existing_0050_database(tmp_path):
     db_url = f"sqlite:///{tmp_path / 'migration-wip-tool-runs.sqlite'}"
     cfg = _config_for(db_url)

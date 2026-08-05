@@ -254,6 +254,9 @@ def test_review_states_drive_active_warning_without_positive_promotion(temp_db_u
     confirmed = client.post(f"/reference-integrity/instances/{iid}/review", json={"state": "confirmed_problem"}).json()
     assert confirmed["active_count"] == 1
     assert confirmed["items"][0]["review_state"] == "confirmed_problem"
+    # backlog #38A: 2 successful reviews above (dismissed + confirmed) → 2 flag_reviewed events
+    usage = client.get("/usage/summary").json()
+    assert next(t for t in usage["types"] if t["event_type"] == "flag_reviewed")["all_time"] == 2
 
 
 def test_new_retraction_signal_invalidates_prior_dismissal_but_unchanged_signal_preserves_it(temp_db_url):

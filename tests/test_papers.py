@@ -387,6 +387,11 @@ def test_export_citations_each_format_and_validation(temp_db_url: str) -> None:
     client.delete(f"/papers/{b}")  # both trashed → no live papers → 422
     assert client.post("/papers/export", json={"paper_ids": [a, b], "format": "bibtex"}).status_code == 422
 
+    # backlog #38A: each successful export records local usage instrumentation, counted by papers exported
+    # (2 + 1 + 1 + 1 across the 4 successful calls above; the 422s record nothing)
+    usage = client.get("/usage/summary").json()
+    assert next(t for t in usage["types"] if t["event_type"] == "citation_export")["all_time"] == 5
+
 
 def test_paper_detail_returns_metadata_and_attachments_and_404(temp_db_url: str) -> None:
     seeded = _seed_library(temp_db_url)
@@ -916,6 +921,9 @@ def test_reresolve_populates_metadata_from_crossref(temp_db_url: str) -> None:
     assert body["year"] == 2020
     assert body["imported_source"] == "crossref"
     assert "Hopper" in body["authors"][0]
+    # backlog #38A: re-resolve records local usage instrumentation (never egresses beyond this DB)
+    usage = client.get("/usage/summary").json()
+    assert next(t for t in usage["types"] if t["event_type"] == "metadata_reresolved")["all_time"] == 1
 
 
 def test_crossref_adapter_captures_and_dedupes_subject() -> None:
@@ -1615,6 +1623,10 @@ def test_dismissed_duplicate_pair_is_not_re_flagged(temp_db_url: str) -> None:
 
     assert client.post("/papers/duplicates/dismiss", json={"paper_ids": [a]}).status_code == 422  # <2 ids
     assert client.post("/papers/duplicates/dismiss", json={"paper_ids": [a, 999999]}).status_code == 422  # <2 existing
+
+    # backlog #38A: 2 successful dismissals above → 2 resolution events (the 422s recorded nothing)
+    usage = client.get("/usage/summary").json()
+    assert next(t for t in usage["types"] if t["event_type"] == "duplicate_resolved")["all_time"] == 2
 
 
 def test_dismissed_pair_can_be_listed_and_undismissed(temp_db_url: str) -> None:

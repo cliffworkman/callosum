@@ -38,6 +38,7 @@ from app.backend.persistence.wip_reference_integrity_repo import (
     set_reference_review_state,
 )
 from app.backend.persistence.wip_repo import add_activity, get_manuscript
+from app.backend.usage import record_event
 from integrations.crossref.adapter import CrossrefClient
 from integrations.openalex.adapter import OpenAlexClient
 
@@ -138,6 +139,7 @@ def wip_reference_integrity_review(
         }
         if result in errors:
             raise HTTPException(status_code=errors[result][0], detail=errors[result][1])
+        record_event(conn, "flag_reviewed", count=1)
         return WipReferenceReportModel(**manuscript_reference_report(conn, int(row["manuscript_id"])))
 
 

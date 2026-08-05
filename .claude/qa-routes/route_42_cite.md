@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /citations/suggest
+api: /citations/suggest, /usage/events
 fe: 37_cite.jsx
 -->
 
@@ -12,7 +12,9 @@ local/no-egress). Cite is now **Work → Cite**'s entire content (no nested tab 
 citation-integrity audits that used to sit alongside it moved to **Work → Meta-Reference** as stacked subsections
 (**Citation concentration**, route_51; **How it's cited**, route_53); this route covers Work → Cite (Suggest) only.
 **Inc 449** adds Semantic Scholar recommendations as a third beyond-library candidate source, anchored on the
-same local Cite matches the existing OpenAlex-neighborhood expansion already uses.
+same local Cite matches the existing OpenAlex-neighborhood expansion already uses. **Inc 450** fires the local
+`quote_located` usage event (backlog #38A, route 35's own surface) from "Open source region" here — the real
+trigger for that event type lives on this route, not Settings.
 
 ## Environment
 
@@ -72,6 +74,9 @@ The seeded `social-perception`/facial papers give a real semantic match for the 
    active file. At `375x812`, confirm the filename remains readable and neither the toolbar nor document overflows.
    Repeat with a non-PDF matched attachment: the button reads **Open primary PDF**, the request omits the matched
    attachment id, and no source page/region overlay is applied to the different file.
+   Confirm a fire-and-forget `POST /usage/events {event_type: "quote_located", count: 1}` fired for the
+   matched-attachment click only — **not** for the "Open primary PDF" degraded-fallback click (Settings →
+   Your usage's count for "Quotes located" should increase by exactly 1, not 2, across both clicks).
 5. Check **"Also search beyond my library"**, submit again -> confirm the request body carries
    `include_beyond_library: true` and beyond-library cards now render, each showing: title/author/year/journal, a
    `relationship_label` line when OpenAlex graph evidence OR a Semantic Scholar recommendation exists (e.g.

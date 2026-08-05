@@ -59,6 +59,7 @@ from app.backend.persistence.repository import (
 from app.backend.persistence.signals_repo import get_retraction_status
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.persistence.tags_repo import get_tags_for_paper
+from app.backend.usage import record_event
 
 router = APIRouter()
 
@@ -336,18 +337,24 @@ def empty_trash_endpoint(request: Request, conn: Connection = Depends(get_connec
 
 
 @router.post("/papers/export")
-def export_citations(payload: ExportCitationsRequest, conn: Connection = Depends(get_connection)) -> Response:
+def export_citations(payload: ExportCitationsRequest, engine: Engine = Depends(get_engine)) -> Response:
     # Render the LIVE selected papers' stored metadata as BibTeX/RIS/CSL-JSON. Read-only, local (no egress);
-    # the filename is a constant (no request data in the path); the renderers escape their output format.
-    rows = get_papers_for_export(conn, payload.paper_ids)
-    if not rows:
-        raise HTTPException(status_code=422, detail="No existing (non-trashed) papers to export")
-    text, media_type, ext = render_citations(rows, payload.format)
-    return Response(
-        content=text,
-        media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="callosum-citations.{ext}"'},
-    )
+    # the filename is a constant (no request data in the path); the renderers escape their output format. Wrapped
+    # in run_write (inc 281) since it now records a usage event -- a short write, retried transaction-level on a
+    # transient SQLite writer lock rather than taking a raw connection and committing directly.
+    def _do(conn: Connection) -> Response:
+        rows = get_papers_for_export(conn, payload.paper_ids)
+        if not rows:
+            raise HTTPException(status_code=422, detail="No existing (non-trashed) papers to export")
+        text, media_type, ext = render_citations(rows, payload.format)
+        record_event(conn, "citation_export", count=len(rows))
+        return Response(
+            content=text,
+            media_type=media_type,
+            headers={"Content-Disposition": f'attachment; filename="callosum-citations.{ext}"'},
+        )
+
+    return run_write(engine, _do)
 
 
 def _vector_store(api: FastAPI) -> VectorStore:

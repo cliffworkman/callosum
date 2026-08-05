@@ -9,7 +9,31 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-04 inc 449 — Semantic Scholar recommendations (beyond-library Cite) -->
+<!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
+
+## 2026-08-05 — Increment 450: Local usage instrumentation + "Your usage" dashboard (backlog #38A)
+
+- **Files:** new `schema_usage.py` + migration `0067`, new `usage_repo.py`, new `app/backend/usage.py` (the
+  `record_event()` seam), new router `usage.py` (4 endpoints), `app_settings.py`/`routers/settings.py` (toggle),
+  6 instrumented call sites across `papers.py`/`citations.py`/`duplicates.py`/`paper_enrich.py`/
+  `reference_integrity.py`/`wip_reference_integrity.py`, new `35f_usage.jsx`, `37_cite.jsx` (the `quote_located`
+  fire), new `tests/test_usage_events.py` + single-line assertions in 5 existing endpoint test files, security
+  audit, QA routes 35/42 extended, `help_content.md`, backlog/increment documentation.
+- **What:** a zero-egress local instrumentation seam + a personal "Your usage" Settings dashboard — counts,
+  never payloads, of five specific actions (citation export, duplicate resolution, metadata re-resolve, locating
+  a quote, reviewing a flagged reference). On by default (nothing here ever leaves the machine); the local log is
+  inspectable, exportable, and deletable at any time regardless of the toggle's state. No opaque "flourishing
+  score" — five separate labeled counts only.
+- **Why:** backlog #38A, the buildable-now half of the "Research-impact analytics" future track. This is
+  genuinely novel, values-heavy work — none of PRINCIPLES.md's worked examples cover self-measurement directly,
+  so the design was derived from A-A's A1/A3/A4/A5 + the no-opaque-score veto (see
+  `INCREMENT-450-NOTES.md`). Project B (a cross-user research signal) remains explicitly gated, not touched here.
+- **Also fixed along the way:** a real `TypeError` in `usage_repo.usage_summary()` (`dict(conn.execute(...))`
+  needs `.all()` first) — caught by the new test suite, not by manual inspection.
+- **Revert:** drop `usage_events` (additive migration); remove `routers/usage.py`'s mount + `app/backend/usage.py`
+  + `usage_repo.py`; revert the 6 instrumented call sites (each a 1-2 line addition) and the settings-toggle
+  wiring; remove `35f_usage.jsx` + its `SettingsCard` + the `37_cite.jsx` fire. No schema change to reverse
+  beyond the one additive table; no other feature is touched.
 
 ## 2026-08-04 — Increment 449: Semantic Scholar recommendations, a third beyond-library Cite source (backlog #30)
 

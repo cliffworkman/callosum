@@ -135,6 +135,9 @@ def test_render_apa_author_date(temp_db_url: str) -> None:
         "<i>" in item["reference_html"] and "<div" not in item["reference_html"]
     )  # sanitized: italics kept, divs dropped
     assert "Attention is all you need" in d["bibliography_text"]
+    # backlog #38A: a successful citation render records local usage instrumentation
+    usage = client.get("/usage/summary").json()
+    assert next(t for t in usage["types"] if t["event_type"] == "citation_export")["all_time"] == 1
 
 
 def test_render_ieee_numeric(temp_db_url: str) -> None:

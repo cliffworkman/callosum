@@ -471,6 +471,10 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
           </div>
         </SettingsCard>
 
+        <SettingsCard title="Your usage">
+          <UsageSettings />
+        </SettingsCard>
+
       </div>
     </div>
   );

@@ -27,6 +27,7 @@ from app.backend.metadata import (
 from app.backend.metadata.enrich_sources import EnrichRef, build_default_enrich_registry
 from app.backend.methods.retraction import auto_check_retractions
 from app.backend.persistence.repository import get_paper
+from app.backend.usage import record_event
 from integrations.crossref import CrossrefClient
 
 router = APIRouter()
@@ -93,6 +94,7 @@ def reresolve_paper(
     )
     # inc 224: a (re-)resolved identifier can newly reveal a retraction — auto-check now (inc-134 hook; best-effort).
     auto_check_retractions(conn, [paper_id], checkers=request.app.state.retraction_checkers)
+    record_event(conn, "metadata_reresolved", count=1)  # the force-refetch itself is the event, regardless of delta
     conn.commit()
     return _detail_for(conn, paper_id)
 
@@ -125,6 +127,8 @@ def fill_metadata(paper_id: int, request: Request, conn: Connection = Depends(ge
         )
         # inc 224: gap-fill can recover a missing DOI (Pass 0) → now checkable; auto-check retraction (inc-134 hook).
         auto_check_retractions(conn, [paper_id], checkers=request.app.state.retraction_checkers)
+        if result.filled_fields:  # a no-op click (nothing found to fill) isn't tedium-reduction
+            record_event(conn, "metadata_reresolved", count=1)
         conn.commit()
     except IntegrityError as exc:
         conn.rollback()

@@ -16,9 +16,9 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.citations import style_store
 from app.backend.citations.beyond_library import (
     MAX_BEYOND_RESULTS,
@@ -64,7 +64,9 @@ from app.backend.citations.suggest import MAX_TEXT_LEN, Suggestion, suggest_cita
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.persistence.repository import get_papers_for_export
+from app.backend.persistence.sqlite_retry import run_write
 from app.backend.summarization.verification import StanceScorer, default_stance_scorer
+from app.backend.usage import record_event
 
 router = APIRouter()
 
@@ -374,20 +376,27 @@ def citation_style_remove(style_id: str) -> dict[str, Any]:
 
 
 @router.post("/citations/render")
-def render_citations(payload: RenderCitationsRequest, conn: Connection = Depends(get_connection)) -> dict[str, Any]:
-    if not style_store.style_exists(payload.style):
-        raise HTTPException(status_code=422, detail="Unknown citation style")
-    rows = get_papers_for_export(conn, payload.paper_ids)
-    if not rows:
-        raise HTTPException(status_code=422, detail="No existing (non-trashed) papers to render")
-    try:
-        return render_papers(rows, style=payload.style, locale=payload.locale)
-    except CitationEngineUnavailable as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+def render_citations(payload: RenderCitationsRequest, engine: Engine = Depends(get_engine)) -> dict[str, Any]:
+    # Wrapped in run_write (inc 281) since it now records a usage event -- a short write, retried transaction-
+    # level on a transient SQLite writer lock rather than taking a raw connection and committing directly.
+    def _do(conn: Connection) -> dict[str, Any]:
+        if not style_store.style_exists(payload.style):
+            raise HTTPException(status_code=422, detail="Unknown citation style")
+        rows = get_papers_for_export(conn, payload.paper_ids)
+        if not rows:
+            raise HTTPException(status_code=422, detail="No existing (non-trashed) papers to render")
+        try:
+            result = render_papers(rows, style=payload.style, locale=payload.locale)
+        except CitationEngineUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        record_event(conn, "citation_export", count=len(rows))
+        return result
+
+    return run_write(engine, _do)
 
 
 @router.post("/citations/render-document")

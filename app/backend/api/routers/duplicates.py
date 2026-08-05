@@ -31,6 +31,7 @@ from app.backend.persistence.dedup_repo import (
 )
 from app.backend.persistence.schema import papers
 from app.backend.persistence.sqlite_retry import run_write
+from app.backend.usage import record_event
 
 router = APIRouter()
 
@@ -129,6 +130,7 @@ def dismiss_duplicates(payload: DismissDuplicatesRequest, engine: Engine = Depen
             )
         pairs = [(ids[i], ids[j]) for i in range(len(ids)) for j in range(i + 1, len(ids))]  # sorted → (low, high)
         dismiss_duplicate_pairs(conn, pairs)
+        record_event(conn, "duplicate_resolved", count=1)  # one resolution decision, not the O(n^2) pair count
         return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
     return run_write(engine, _do)
@@ -216,6 +218,7 @@ def merge_papers_endpoint(payload: MergePapersRequest, engine: Engine = Depends(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except MergeValidationError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+        record_event(conn, "duplicate_resolved", count=1)
         return MergePapersResponse(
             survivor_id=result.survivor_id,
             merged_ids=result.merged_ids,

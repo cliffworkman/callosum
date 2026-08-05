@@ -17433,7 +17433,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onChange: (e) => onAxisCutoffDefault(Number(e.target.value)),
         "aria-label": "Default axis cutoff"
       }
-    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Citation styles", id: "citation-styles" }, /* @__PURE__ */ React.createElement(CitationStylesSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null))))));
+    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Citation styles", id: "citation-styles" }, /* @__PURE__ */ React.createElement(CitationStylesSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Your usage" }, /* @__PURE__ */ React.createElement(UsageSettings, null))));
   }
   function MyPubsSettings({ onRefreshed }) {
     const [name, setName] = useState("");
@@ -18779,6 +18779,54 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     };
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Local maintenance"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Retraction Watch database"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: dbRun.status === "running", onClick: refreshDb }, dbRun.status === "running" ? "Downloading\u2026" : "Refresh database")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The local mirror of the Retraction Watch database (Crossref-hosted, CC0) \u2014 the richest source (reason/date/notice) the library's retraction check can draw on."), /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (stale ? " settings-note-err" : "") }, db && db.count > 0 ? `${db.count.toLocaleString()} records${db.retrieved_at ? " \xB7 as of " + db.retrieved_at.slice(0, 10) : ""}` : "Not downloaded \u2014 refresh to enable the richest source", stale && ` \xB7 ${ageDays} days old \u2014 refresh recommended`), /* @__PURE__ */ React.createElement("label", { className: "auto-refresh-toggle", title: "When enabled, refreshes the mirror and re-checks your library automatically on launch (and when you switch back to Callosum) if the mirror is more than 30 days old." }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: autoRefresh, onChange: toggleAutoRefresh }), " Auto-refresh when stale (checked on launch)")), dbRun.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, dbRun.error), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "TOP Factor database"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: tfRun.status === "running", onClick: refreshTf }, tfRun.status === "running" ? "Downloading\u2026" : "Refresh database")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The Center for Open Science's per-journal transparency/openness rubric \u2014 a periodically-updated public snapshot (no live query API exists) that feeds Discover \u2192 Journals' TOP Factor fact once downloaded."), /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, tf && tf.count > 0 ? `${tf.count.toLocaleString()} journals${tf.retrieved_at ? " \xB7 as of " + tf.retrieved_at.slice(0, 10) : ""}` : "Not downloaded \u2014 refresh to include TOP Factor in Where-to-submit results")), tfRun.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, tfRun.error), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Synthesis cache"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: repairSummaryCache }, busy ? "Scanning\u2026" : "Repair synthesis cache")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Scans cached AI draft summaries and removes only malformed cache rows. Saved syntheses, verified citations, chunks, and evidence records are not changed.")), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
+  function UsageSettings() {
+    const [summary, setSummary] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    const refresh = () => {
+      api("/usage/summary").then((r) => {
+        if (r.ok) setSummary(r.data);
+      });
+    };
+    useEffect(() => {
+      refresh();
+    }, []);
+    const toggle = async () => {
+      setBusy(true);
+      setMsg("");
+      const r = await apiPut("/settings", { usage_events_enabled: !summary.enabled });
+      setBusy(false);
+      if (r.ok) refresh();
+      else setMsg("Couldn't toggle: " + (r.error || "error"));
+    };
+    const exportLog = () => downloadAsset("/usage/export", "callosum-usage-log.json");
+    const clearLog = async () => {
+      if (!window.confirm("Clear your local usage log? This only removes the counts below -- nothing in your library, PDFs, or citations is touched.")) return;
+      setBusy(true);
+      setMsg("");
+      const r = await apiPost("/usage/clear", {});
+      setBusy(false);
+      if (r.ok) {
+        setMsg(`Cleared ${r.data.deleted} local event${r.data.deleted === 1 ? "" : "s"}.`);
+        refresh();
+      } else setMsg("Couldn't clear: " + (r.error || "error"));
+    };
+    if (!summary) return null;
+    const on = summary.enabled;
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-ai-control" }, /* @__PURE__ */ React.createElement("span", { className: "eyebrow settings-ai-control-title" }, "Track local usage"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "settings-switch" + (on ? " on" : ""),
+        role: "switch",
+        "aria-checked": on,
+        "aria-label": "Track local usage",
+        disabled: busy,
+        onClick: toggle
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
+    ), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("b", null, "On by default"), " -- nothing here ever leaves this machine, so this behaves like any other local feature rather than the egress-consent toggles elsewhere on this page. Callosum counts a handful of specific actions (exporting a citation, resolving a duplicate, re-resolving metadata, locating a quote, reviewing a flagged reference) -- never PDF text, searches, library contents, or anything else you type or read. This is a count of actions, not a score: for tedious operations, doing them ", /* @__PURE__ */ React.createElement("i", null, "less"), " is the win, so a rising number here is not itself a goal. Turn it off anytime -- the counts below stay readable and exportable regardless.")), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-ai-agent-details" }, msg), /* @__PURE__ */ React.createElement("div", { className: "settings-field settings-ai-agent-details" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Your counts"), /* @__PURE__ */ React.createElement("div", { className: "agent-activity" }, summary.types.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.event_type, className: "agent-activity-row" }, /* @__PURE__ */ React.createElement("span", { className: "agent-activity-what" }, t.label), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, t.all_time, " all time \xB7 ", t.last_30_days, " in the last 30 days"))))), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost", onClick: exportLog }, "Export usage log"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost", disabled: busy, onClick: clearLog }, "Clear usage log")));
+  }
   function GapsModal({ onClose, onChanged }) {
     const [direction, setDirection] = useState("backward");
     const [axisId, setAxisId] = useState("");
@@ -18977,6 +19025,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const opensMatchedPdf = s.attachment_id != null;
     const open = (event) => {
       event.preventDefault();
+      if (opensMatchedPdf) apiPost("/usage/events", { event_type: "quote_located", count: 1 });
       onOpenCitation({
         paper_id: s.paper_id,
         paper_title: s.title,

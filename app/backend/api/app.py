@@ -83,6 +83,7 @@ from app.backend.api.routers import (
     tags,
     text_health,
     transparency,
+    usage,
     wanted,
     wip,
     wip_checks,
@@ -390,6 +391,7 @@ def create_app(
     api.include_router(summaries.router)
     api.include_router(help.router)
     api.include_router(settings.router)  # /settings — BYOK: Gemini key + egress consent from the UI (inc 146)
+    api.include_router(usage.router)  # /usage/* — local usage instrumentation, zero egress (backlog #38A, inc 450)
     api.include_router(settings_providers.router)  # /settings/providers — unified custom-provider roster (inc 256)
     api.include_router(access.router)  # /access/recover — in-app recovery from a remote-access lockout (inc 254)
     api.include_router(status.router)  # /status/jobs — cross-feature async-job aggregator (inc 406)

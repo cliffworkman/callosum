@@ -62,6 +62,12 @@ function SuggestionCard({ s, onOpenCitation, style }) {
   const opensMatchedPdf = s.attachment_id != null;
   const open = (event) => {
     event.preventDefault();
+    // Local usage instrumentation (backlog #38A): only the genuine "located a matched source passage" moment,
+    // not the degraded "Open primary PDF" fallback. Fire-and-forget — apiPost never throws. Deliberately NOT
+    // hooked through onOpenCitation itself: that callback is shared with the Synthesis pane's citation cards
+    // (a much higher-frequency, conceptually distinct source-tracing signal), and conflating the two would
+    // overcount and blur what this event actually means.
+    if (opensMatchedPdf) apiPost("/usage/events", { event_type: "quote_located", count: 1 });
     onOpenCitation({
       paper_id: s.paper_id, paper_title: s.title, chunk_id: s.chunk_id,
       page_start: opensMatchedPdf ? s.page_start : null, page_end: opensMatchedPdf ? s.page_end : null,

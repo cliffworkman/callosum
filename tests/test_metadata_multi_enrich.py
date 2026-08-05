@@ -313,6 +313,9 @@ def test_fill_metadata_endpoint_gap_fills_one_paper(temp_db_url):
     assert "abstract" in body["filled_fields"] and "venue" in body["filled_fields"]
     assert body["paper"]["venue"] == "J" and body["paper"]["abstract"] == "An abstract."
     assert body["still_missing_doi"] is False
+    # backlog #38A: fill-metadata records local usage instrumentation only when fields were actually filled
+    usage = client.get("/usage/summary").json()
+    assert next(t for t in usage["types"] if t["event_type"] == "metadata_reresolved")["all_time"] == 1
 
 
 def test_fill_metadata_endpoint_legacy_unique_doi_constraint_returns_409(temp_db_url):

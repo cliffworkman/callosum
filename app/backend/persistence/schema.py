@@ -566,6 +566,7 @@ from app.backend.persistence.schema_sync import (  # noqa: E402,F401
     sync_state,
 )
 from app.backend.persistence.schema_tool_runs import tool_runs  # noqa: E402,F401
+from app.backend.persistence.schema_usage import USAGE_EVENT_TYPES, usage_events  # noqa: E402,F401
 from app.backend.persistence.schema_watched import watched_folders  # noqa: E402,F401
 
 # Work-in-Progress manuscript workspace tables — distinct from papers by design.

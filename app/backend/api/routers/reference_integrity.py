@@ -35,6 +35,7 @@ from app.backend.persistence.reference_integrity_repo import (
 from app.backend.persistence.retraction_repo import retraction_db_status
 from app.backend.persistence.schema import papers
 from app.backend.persistence.schema_reference_integrity import reference_instances
+from app.backend.usage import record_event
 from integrations.crossref.adapter import CrossrefClient
 from integrations.openalex.adapter import OpenAlexClient
 from integrations.semantic_scholar.adapter import SemanticScholarClient
@@ -201,6 +202,7 @@ def reference_integrity_review(
         }
         if result in errors:
             raise HTTPException(status_code=errors[result][0], detail=errors[result][1])
+        record_event(conn, "flag_reviewed", count=1)
         return ReferenceReportModel(**paper_reference_report(conn, int(row["citing_paper_id"])))
 
 

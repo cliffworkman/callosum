@@ -1,12 +1,14 @@
 <!-- qa-coverage
-api: /settings, /settings/providers, /settings/providers/{pid}, /settings/test-key, /settings/repair-summary-cache, /settings/access-token, /access/recover, /citations/styles*, /integrations/libreoffice/*, /integrations/word/*
-fe: 35_settings.jsx, 35b_providers.jsx, 35ca_citation_style_provenance.jsx, 35cb_citation_style_editor.jsx, 35d_citation_styles.jsx, 01_recovery.jsx
+api: /settings, /settings/providers, /settings/providers/{pid}, /settings/test-key, /settings/repair-summary-cache, /settings/access-token, /access/recover, /citations/styles*, /integrations/libreoffice/*, /integrations/word/*, /usage/events, /usage/summary, /usage/export, /usage/clear
+fe: 35_settings.jsx, 35b_providers.jsx, 35ca_citation_style_provenance.jsx, 35cb_citation_style_editor.jsx, 35d_citation_styles.jsx, 01_recovery.jsx, 35f_usage.jsx
 -->
 
 # ROUTE 35 - Settings
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust settings controls and persistence boundaries without touching external services.
+**Goal:** Exhaust settings controls and persistence boundaries without touching external services. **Inc 450**
+adds the local-only, zero-egress "Your usage" dashboard (backlog #38A) — the one Settings toggle on this whole
+route that defaults **ON**, since nothing it does ever leaves the machine.
 
 ## Environment
 
@@ -67,6 +69,15 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
   caller recover). A valid code turns remote access **OFF**; a wrong/expired code leaves the gate **ON**. The path
   never reveals the token and can only DISABLE remote access. It is gate-exempt (the user is locked out) but
   rate-limited (429).
+- **Local usage instrumentation is on by default and zero-egress (inc 450, backlog #38A).** Unlike every other
+  toggle on this page, `GET /settings`'s `usage_events_enabled` is **true** on a clean instance — this is
+  intentional (nothing here ever leaves the machine, so the egress-consent "off by default" pattern doesn't
+  apply) and must NOT be flagged as a regression against the usual off-by-default standing assertion. `GET
+  /usage/summary`/`GET /usage/export` must never contain any field beyond `event_type`/`count`/`duration_ms`/
+  `created_at`/`label`/`enabled` — a payload/content/title/query field appearing anywhere in either response is
+  **Critical**. `POST /usage/clear` and `GET /usage/export` must work identically whether the toggle is on or
+  off — gating only recording, never reading/exporting/clearing, is **Critical** if violated. No request to any
+  external host from any `/usage/*` call is **Critical**.
 - **Word add-in is local-only + zero-egress (inc 164).** The `/integrations/word/*` routes serve FIXED bundled task-pane files + the manifest from `adapters/word/`; an undefined filename must be a plain 404 (no traversal). The served `taskpane.html`/`taskpane.js` may reference Microsoft's `appsforoffice.microsoft.com` office.js (the required Office SDK) but **must not** reference any AI/library host (`generativelanguage`/`openai`/`anthropic`/`clffwrkmn.net`) — such a reference is **Critical**. `POST /integrations/word/install` opens a local folder and degrades to `{opened:false}`, never 500. (The in-Word task-pane round-trip is desktop-Word-only and is the user's MANUAL check — not Playwright-drivable.)
 
 ## Adversarial checklist
@@ -76,10 +87,13 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - malformed input where an identifier is expected
 - deep-link / direct state for a non-existent id
 - resize to `375x812`, hard refresh - no horizontal overflow
+- `POST /usage/events` with an unknown `event_type` -> 422; with `count: 0` or `count: 5000` -> 422
+- toggle "Track local usage" OFF, trigger a real instrumented action (e.g. Copy BibTeX) -> the count does not
+  increase; **Export usage log** and **Clear usage log** still work while off
 
 ## Steps
 
-1. Open settings. Confirm all controls render: theme, AI features (key + egress toggle), local maintenance, default axis cutoff, hide uncertain, watched-folder auto-rescan, help assistant section, and **Metadata access** (contact email).
+1. Open settings. Confirm all controls render: theme, AI features (key + egress toggle), local maintenance, default axis cutoff, hide uncertain, watched-folder auto-rescan, help assistant section, **Metadata access** (contact email), and **Your usage**.
 2. Toggle theme on/off. Confirm app chrome changes and PDF page rendering remains light/readable.
 3. Move the default-axis-cutoff slider through min/mid/max. Confirm labels/count previews stay signal-only.
 4. Toggle hide-uncertain and watched-folder auto-rescan. Reload and confirm intended persistence or documented session-only behavior.
@@ -158,6 +172,19 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    reports `remote_access_enabled:false`. Direct API negatives: `{code:"wrong"}` → `invalid` + gate stays ON
    (`GET /papers` still 401); an oversized code → 422; rapid repeats → 429. No genai/external request from any of it.
 16. Resize to mobile while settings is open; confirm controls remain reachable and labels do not overflow.
+17. **Your usage (inc 450, backlog #38A).** Confirm the **Your usage** card renders with the toggle already
+   **ON** (the one on-by-default control on this page) and the honest disclosure paragraph naming what's counted
+   (citation export / duplicate resolution / metadata re-resolve / locating a quote / reviewing a flagged
+   reference) and what never is (PDF text, searches, library contents). Confirm five count rows render, each
+   showing "N all time · M in the last 30 days," in the fixed order above — never sorted by count. Perform a
+   real instrumented action elsewhere (e.g. Work → Cite → "Open source region" on a real match, or Copy BibTeX
+   from a paper card) and return here: confirm the matching count increased by exactly the expected amount.
+   Click **Export usage log**: confirm a `callosum-usage-log.json` download containing only
+   `event_type`/`count`/`duration_ms`/`created_at` per row — no title, DOI, query text, or any other field.
+   Click **Clear usage log**, confirm the browser prompt, confirm: all counts reset to 0, and a confirmation
+   message reports the number of events removed. Toggle **Track local usage** OFF; repeat the same real
+   instrumented action; confirm the count does NOT increase. Toggle it back ON. Confirm zero requests to any
+   external host anywhere in this flow.
 
 ## Pass criteria
 

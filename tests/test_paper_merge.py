@@ -278,6 +278,9 @@ def test_endpoint_merge_happy_path(temp_db_url: str) -> None:
     assert survivor in live_ids and merged not in live_ids
     assert merged not in trash_ids
     assert client.get(f"/papers/{survivor}").json()["doi"] == "10.123/published"
+    # backlog #38A: a successful merge records local usage instrumentation
+    usage = client.get("/usage/summary").json()
+    assert next(t for t in usage["types"] if t["event_type"] == "duplicate_resolved")["all_time"] == 1
 
 
 def test_endpoint_merge_survivor_serves_each_pdf_by_attachment_id(temp_db_url: str, tmp_path: Path) -> None:

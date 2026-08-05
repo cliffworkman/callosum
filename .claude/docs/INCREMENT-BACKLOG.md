@@ -518,9 +518,14 @@ the Principles + A-A gates before build.)*
   **2 principle-fraught forensic candidates** (recorded with the no-index/no-accusation reframing, most need the
   values layer — A-A no-accusation veto applies directly).
 - **#38 Research-impact analytics.** [future track — gated] Opt-in, local-first, commons-structured measurement
-  of whether Callosum changes how people research. **A.** local usage analytics (zero-egress; buildable-now) vs
-  **B.** cross-user impact signal (far-future, gated). Must pass Principles + the A-A values layer (default-deny,
-  compute-locally/transmit-summaries-only, public field registry, commons reciprocity). Graduation is your call.
+  of whether Callosum changes how people research. **Project A (local usage analytics) shipped inc 450** — a
+  zero-egress instrumentation seam + "Settings → Your usage" dashboard: counts (never payloads) of citation
+  export / duplicate resolution / metadata re-resolve / locating a quote / reviewing a flagged reference, on by
+  default (nothing egresses), local log always inspectable/exportable/deletable, no opaque "flourishing score."
+  **Project B (cross-user impact signal) remains far-future, gated** — needs N>1 users, an accounts/hosting
+  decision, and the design doc's own research-grade consent flow (Stage 3 on-device aggregation + Stage 4 opt-in
+  contribution, neither built). Must still pass Principles + the A-A values layer (default-deny,
+  compute-locally/transmit-summaries-only, public field registry, commons reciprocity) at that graduation.
 - **#40 Publishers tool — deferred signals.** SP1a/SP1b (the engine + panel + weighting + first-use choice gate)
   shipped. **Inc 448 wires in SciELO (live per-ISSN regional-index lookup) + TOP Factor (locally-mirrored
   transparency rubric, its `Total` shown only inside an expanded per-category basis block, never bare) — verified

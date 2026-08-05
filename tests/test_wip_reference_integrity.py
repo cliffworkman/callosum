@@ -127,6 +127,10 @@ def test_review_dismiss_persists_and_report_reflects_it(temp_db_url, tmp_path: P
 
     fresh = client.get(f"/wip/manuscripts/{manuscript_id}/reference-integrity").json()
     assert fresh["items"][0]["review_state"] == "dismissed"
+    # backlog #38A: the successful review above records local usage instrumentation (shared event type with
+    # the Library-paper reference-integrity review — both are "reviewing a flagged citation")
+    usage = client.get("/usage/summary").json()
+    assert next(t for t in usage["types"] if t["event_type"] == "flag_reviewed")["all_time"] == 1
 
 
 def test_review_rejects_unknown_reference(temp_db_url) -> None:

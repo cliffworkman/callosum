@@ -436,6 +436,19 @@ def stored_agent_writes() -> bool:
     return bool(load_settings().get("agent_writes_enabled", False))
 
 
+def set_usage_events_enabled(enabled: bool) -> None:
+    data = load_settings()
+    data["usage_events_enabled"] = bool(enabled)
+    _write(data)
+
+
+def stored_usage_events_enabled() -> bool:
+    """Whether local usage instrumentation (backlog #38A) is recording events. Default **ON** — unlike every
+    other flag in this file, since nothing here ever egresses (it behaves like any other local feature, not
+    like the egress-consent gate); the toggle exists for anyone who'd rather not have even a local count kept."""
+    return bool(load_settings().get("usage_events_enabled", True))
+
+
 # --- Optional account (SP1): "Sign in with ORCID" via OIDC to the callosum account platform (Authentik) ---
 # Sign-in is OFF until an issuer + client_id are configured (env, set by the maintainer at standup). Tokens are
 # SECRETS (keychain/file via _set_secret, write-only over the wire); GET /settings reports only a non-secret status.
