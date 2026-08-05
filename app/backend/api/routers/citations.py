@@ -516,6 +516,7 @@ def suggest_citations_endpoint(
             openalex_provider=getattr(request.app.state, "citation_openalex_provider", None),
             anchors=anchors_from_suggestions(conn, items),
             openalex_client=request.app.state.openalex_client,
+            semantic_scholar_client=request.app.state.semantic_scholar_client,
         )
     return SuggestResponse(
         suggestions=[_suggestion_response(item) for item in items],

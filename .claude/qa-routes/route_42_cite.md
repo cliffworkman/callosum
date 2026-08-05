@@ -11,6 +11,8 @@ evidence, and confirm the honesty invariants (region-not-exact, stance-with-quot
 local/no-egress). Cite is now **Work → Cite**'s entire content (no nested tab strip) — the paper-specific
 citation-integrity audits that used to sit alongside it moved to **Work → Meta-Reference** as stacked subsections
 (**Citation concentration**, route_51; **How it's cited**, route_53); this route covers Work → Cite (Suggest) only.
+**Inc 449** adds Semantic Scholar recommendations as a third beyond-library candidate source, anchored on the
+same local Cite matches the existing OpenAlex-neighborhood expansion already uses.
 
 ## Environment
 
@@ -23,9 +25,10 @@ The seeded `social-perception`/facial papers give a real semantic match for the 
 - **Egress gate (Critical).** In-library Suggest + evaluate is **fully local** (local embeddings + local NLI).
   With egress unset, ANY request to a `generativelanguage`/Gemini/genai host while using the Cite pane is
   **Critical**. The **beyond-library** path (backlog #30, "Also search beyond my library" checkbox) is a
-  SEPARATE, opt-in metadata-provider egress (Crossref/PubMed/OpenAlex) — real network egress, but not the
-  Gemini/LLM gate; it must never fire unless the checkbox is explicitly checked, and default-unchecked-on-open
-  is itself a Critical assertion (see `.claude/security-audits/2026-07-11_beyond-library-citation-suggest.md`).
+  SEPARATE, opt-in metadata-provider egress (Crossref/PubMed/OpenAlex/Semantic Scholar) — real network egress,
+  but not the Gemini/LLM gate; it must never fire unless the checkbox is explicitly checked, and
+  default-unchecked-on-open is itself a Critical assertion (see
+  `.claude/security-audits/2026-07-11_beyond-library-citation-suggest.md`).
 - **Coordinate honesty (Critical).** A suggestion's evidence is a chunk -> `region` precision. "Open source
   region" must open the PDF attachment that supplied that chunk, scroll to the page + show the region note, and
   never draw an exact bbox rect. A non-PDF match may open the primary PDF only without transferring the source
@@ -51,6 +54,9 @@ The seeded `social-perception`/facial papers give a real semantic match for the 
   (the beyond-library path must fail as cleanly as the in-library one — no crash, no hung request)
 - toggle the checkbox ON then immediately OFF before the response returns; confirm no stale beyond-library
   cards render from the in-flight request once it resolves
+- an anchor paper's DOI unknown to Semantic Scholar (a real 404) must not crash the run — OpenAlex-neighborhood
+  and keyword-search candidates still return cleanly, and the `semantic-scholar-recommendations` source-coverage
+  entry reflects the miss honestly (not silently reported as "success")
 
 ## Steps
 
@@ -68,9 +74,11 @@ The seeded `social-perception`/facial papers give a real semantic match for the 
    attachment id, and no source page/region overlay is applied to the different file.
 5. Check **"Also search beyond my library"**, submit again -> confirm the request body carries
    `include_beyond_library: true` and beyond-library cards now render, each showing: title/author/year/journal, a
-   `relationship_label` line when OpenAlex graph evidence exists (e.g. "Cited by a locally relevant paper: …"),
-   the `reason` text, an evidence quote (abstract or metadata fallback, labeled as such), a metadata-overlap
-   pill explicitly captioned as a ranking aid (not a correctness score), and an **Add to library** button.
+   `relationship_label` line when OpenAlex graph evidence OR a Semantic Scholar recommendation exists (e.g.
+   "Cited by a locally relevant paper: …" or "Recommended by Semantic Scholar alongside a locally relevant
+   paper: …"), the `reason` text, an evidence quote (abstract or metadata fallback, labeled as such), a
+   metadata-overlap pill explicitly captioned as a ranking aid (not a correctness score), and an **Add to
+   library** button. Confirm no S2-internal score/rank number appears anywhere on a Semantic-Scholar-sourced card.
 6. Click **Add to library** on a beyond-library card -> confirm `POST /discovery/save` fires, the card updates
    to reflect it's now in-library (or a clear success state), and nothing else in the document/library changed
    (no auto-citation, no PDF fetch).

@@ -9,7 +9,30 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-03 inc 445 — local exact-snapshot WIP critical read -->
+<!-- HELP-DOCS-SYNCED: 2026-08-04 inc 449 — Semantic Scholar recommendations (beyond-library Cite) -->
+
+## 2026-08-04 — Increment 449: Semantic Scholar recommendations, a third beyond-library Cite source (backlog #30)
+
+- **Files:** `integrations/semantic_scholar/adapter.py` (new `fetch_recommendations`/`RecommendedPaper`),
+  `app/backend/citations/beyond_library.py` (new `_s2_recommendation_items`, collision-precedence merge fix),
+  `app/backend/api/routers/citations.py`, new `tests/test_semantic_scholar_recommendations.py`,
+  `tests/test_citations_suggest.py` extensions, security-audit addendum, QA route 42, `THIRD-PARTY-NOTICES.md`,
+  `help_content.md`, backlog/increment documentation.
+- **What:** wired Semantic Scholar's `/recommendations` API in as a third Work → Cite "beyond library" candidate
+  source, alongside the existing Crossref/PubMed/OpenAlex keyword search and OpenAlex citation-graph neighborhood
+  expansion — both anchored on the user's top in-library Cite matches. Each S2 candidate is labeled "Recommended
+  by Semantic Scholar alongside a locally relevant paper" (never a bare/opaque S2-internal score — only the
+  paper's own public metadata is ever parsed). Found and fixed two real correctness gaps along the way: a
+  same-paper relation collision between OpenAlex-neighborhood and S2 previously resolved by silent last-write-wins
+  dict-merge ordering, now deliberately resolves in favor of the more verifiable graph-fact relation; and the new
+  S2 channel's per-anchor fetch isolates failures properly (one bad anchor doesn't cost the others' results),
+  unlike the pre-existing `_neighborhood_items`'s early-return-on-first-failure (left untouched, not in scope).
+- **Why:** the last genuinely-open item under backlog #30 (Track C) — verified live before building that S2's
+  recommendations endpoint works with a real DOI and fails cleanly (404) on an unknown one.
+- **Revert:** remove `integrations/semantic_scholar/adapter.py`'s new method/dataclass/fields; remove
+  `beyond_library.py`'s new function/param/relation label and revert the two-line merge-ordering change; remove
+  the one-line kwarg in `routers/citations.py`. No schema/migration, no `app.py` change — DOAJ/OpenAlex/Crossref/
+  PubMed beyond-library behavior is otherwise unaffected.
 
 ## 2026-08-04 — Increment 448: SciELO + TOP Factor legitimacy signals (backlog #40 slice)
 

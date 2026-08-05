@@ -206,6 +206,8 @@ The **"How this paper is cited"** panel (support / contrast / mention over a pap
   not appropriated and its model is not reused — callosum classifies stance with its own local NLI.
 - **Data source:** citing sentences (contexts) come from the **Semantic Scholar Academic Graph API**
   (Allen Institute for AI, <https://www.semanticscholar.org/>) — public bibliographic metadata; credited in-panel.
+  The same client's **Recommendations API** (inc 449) also feeds Work → Cite's beyond-library "Also search beyond
+  my library" candidates — public bibliographic metadata only; no library text leaves the machine.
 
 ### PUBLISHERS "where to submit" journal-finder (inc 245, #40)
 The journal-matching tool draws on public bibliographic metadata + a scientific-paper embedding model:

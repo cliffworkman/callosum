@@ -20,12 +20,14 @@ from app.backend.persistence.repository import find_existing_paper_by_identity
 from app.backend.persistence.schema import papers
 from app.backend.summarization.verification import Stance, StanceScorer
 from integrations.openalex.adapter import OPENALEX_BASE_URL, OpenAlexClient, _meta_with_abstract
+from integrations.semantic_scholar.adapter import RecommendedPaper, SemanticScholarClient
 
 MAX_BEYOND_TEXT_LEN = 4000
 MAX_BEYOND_RESULTS = 20
 EVIDENCE_MAX = 700
 MAX_NEIGHBOR_ANCHORS = 3
 MAX_NEIGHBOR_IDS_PER_KIND = 12
+MAX_S2_RECOMMENDATIONS_PER_ANCHOR = 5
 _WORD_RE = re.compile(r"[a-z][a-z0-9-]{3,}")
 _STOP = {
     "about",
@@ -175,6 +177,7 @@ def suggest_beyond_library(
     openalex_provider: SourceProvider | None = None,
     anchors: list[CitationNeighborhoodAnchor] | None = None,
     openalex_client: OpenAlexClient | None = None,
+    semantic_scholar_client: SemanticScholarClient | None = None,
 ) -> tuple[list[BeyondLibrarySuggestion], list[ProviderStatus]]:
     query = " ".join((text or "").split())[:MAX_BEYOND_TEXT_LEN]
     if not query:
@@ -182,14 +185,25 @@ def suggest_beyond_library(
     limit = max(1, min(top_k, MAX_BEYOND_RESULTS))
     providers = [*registry.providers, openalex_provider or OpenAlexWorkSearchProvider()]
     raw_items, statuses = _search_providers(providers, query, max(limit * 3, 10))
+    s2_items, s2_status = _s2_recommendation_items(
+        conn,
+        anchors=anchors or [],
+        s2_client=semantic_scholar_client or SemanticScholarClient(),
+    )
     neighbor_items, neighbor_status = _neighborhood_items(
         conn,
         anchors=anchors or [],
         openalex_client=openalex_client or OpenAlexClient(),
     )
+    raw_items.extend(item for item, _ in s2_items)
     raw_items.extend(item for item, _ in neighbor_items)
+    statuses.append(s2_status)
     statuses.append(neighbor_status)
-    relations = {item.dedup_key: relation for item, relation in neighbor_items}
+    # Collision precedence: when the same outside paper surfaces from both channels for the same anchor, the
+    # verifiable OpenAlex graph-fact relation (cites/cited_by/related_to) displays over S2's opaque algorithmic
+    # "recommended alongside" — the more inspectable signal wins (commitment #8, inspectability over authority).
+    relations = {item.dedup_key: relation for item, relation in s2_items}
+    relations.update({item.dedup_key: relation for item, relation in neighbor_items})
     items = _dedupe_mark_library(conn, raw_items)
     query_terms = _terms(query)
     suggestions: list[BeyondLibrarySuggestion] = []
@@ -309,11 +323,60 @@ def _item_from_openalex_meta(meta: dict[str, Any], source: str) -> Item:
     )
 
 
+def _s2_recommendation_items(
+    conn: Connection,
+    *,
+    anchors: list[CitationNeighborhoodAnchor],
+    s2_client: SemanticScholarClient,
+) -> tuple[list[tuple[Item, dict[str, Any]]], ProviderStatus]:
+    out: list[tuple[Item, dict[str, Any]]] = []
+    checked = 0
+    failed = 0
+    last_error: str | None = None
+    for anchor in anchors[:MAX_NEIGHBOR_ANCHORS]:
+        if not anchor.doi:
+            continue
+        checked += 1
+        try:
+            recommended = s2_client.fetch_recommendations(conn, anchor.doi, limit=MAX_S2_RECOMMENDATIONS_PER_ANCHOR)
+        except Exception as exc:  # noqa: BLE001
+            failed += 1
+            last_error = f"{type(exc).__name__}: {exc}"
+            continue  # one bad anchor doesn't cost the remaining anchors' legitimate results
+        out.extend(
+            (_item_from_recommended_paper(paper), _relation("recommended_alongside_local_match", anchor))
+            for paper in recommended
+            if paper.title
+        )
+    if not checked:
+        status = "not_searched"
+    elif failed:
+        status = "partial"
+    else:
+        status = "success"
+    return out, ProviderStatus("semantic-scholar-recommendations", status, len(out), last_error if failed else None)
+
+
+def _item_from_recommended_paper(paper: RecommendedPaper) -> Item:
+    return Item(
+        title=str(paper.title),
+        sources=("semantic-scholar-recommendations",),
+        doi=paper.doi,
+        pmid=paper.pmid,
+        abstract=paper.abstract,
+        authors=tuple(paper.authors),
+        journal=paper.journal,
+        year=paper.year,
+        url=paper.url,
+    )
+
+
 def _relation(kind: str, anchor: CitationNeighborhoodAnchor) -> dict[str, Any]:
     labels = {
         "cited_by_local_match": "Cited by a locally relevant paper",
         "cites_local_match": "Cites a locally relevant paper",
         "related_to_local_match": "Related to a locally relevant paper in OpenAlex",
+        "recommended_alongside_local_match": "Recommended by Semantic Scholar alongside a locally relevant paper",
     }
     return {
         "kind": kind,

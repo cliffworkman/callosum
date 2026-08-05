@@ -22,6 +22,7 @@ from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import soft_delete_paper
 from app.backend.persistence.schema import attachments, papers
 from app.backend.summarization.verification import NLIStanceScorer, Stance, _stance_from_scores
+from integrations.semantic_scholar.adapter import RecommendedPaper
 from tests.api_helpers import ApiFakeEmbeddingModel, _seed_summarization_library
 
 FACIAL_QUERY = "Facial anomalies influence social judgments in observers."
@@ -337,6 +338,170 @@ def test_suggest_endpoint_uses_local_matches_as_openalex_neighborhood_anchors(te
     assert graph[0]["anchor_paper_id"] == ids["facial_paper_id"]
     assert graph[0]["anchor_title"] == "API Summarization Facial Paper"
     assert any(row["provider_id"] == "openalex-neighborhood" for row in body["source_coverage"])
+
+
+def test_suggest_endpoint_includes_semantic_scholar_recommendations(temp_db_url: str) -> None:
+    ids = _seed_summarization_library(temp_db_url)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        conn.execute(update(papers).where(papers.c.id == ids["facial_paper_id"]).values(doi="10.123/facial"))
+    engine.dispose()
+    app = _suggest_app(temp_db_url, stance_scorer=FakeStanceScorer("support"))
+    app.state.discovery_registry = SourceRegistry()
+
+    class _S2Recommendations:
+        def fetch_recommendations(self, conn, doi, *, limit=10):  # noqa: ANN001
+            assert doi == "10.123/facial"
+            return [
+                RecommendedPaper(
+                    title="S2 Recommended Facial Study",
+                    doi="10.123/s2-rec",
+                    pmid=None,
+                    year=2023,
+                    authors=["S2 Author"],
+                    journal="S2 Journal",
+                    url="https://www.semanticscholar.org/paper/s2-rec",
+                    abstract="Facial anomalies influence social judgments per Semantic Scholar's recommendation.",
+                )
+            ]
+
+    app.state.semantic_scholar_client = _S2Recommendations()
+    client = TestClient(app)
+
+    resp = client.post(
+        "/citations/suggest",
+        json={"text": FACIAL_QUERY, "top_k": 3, "include_beyond_library": True, "beyond_top_k": 5},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    external = body["beyond_library_suggestions"]
+    s2 = [item for item in external if item["doi"] == "10.123/s2-rec"]
+    assert s2
+    assert s2[0]["relationship_kind"] == "recommended_alongside_local_match"
+    assert s2[0]["relationship_label"] == "Recommended by Semantic Scholar alongside a locally relevant paper"
+    assert s2[0]["anchor_paper_id"] == ids["facial_paper_id"]
+    assert s2[0]["anchor_title"] == "API Summarization Facial Paper"
+    assert any(row["provider_id"] == "semantic-scholar-recommendations" for row in body["source_coverage"])
+
+
+def test_suggest_endpoint_openalex_relation_wins_collision_with_s2(temp_db_url: str) -> None:
+    """When the same outside paper surfaces from both OpenAlex-neighborhood and S2-recommendations for the same
+    anchor, the verifiable graph-fact relation displays — never silently overwritten by S2's opaque algorithmic
+    label (commitment #8, inspectability over authority)."""
+    ids = _seed_summarization_library(temp_db_url)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        conn.execute(update(papers).where(papers.c.id == ids["facial_paper_id"]).values(doi="10.123/facial"))
+    engine.dispose()
+    app = _suggest_app(temp_db_url, stance_scorer=FakeStanceScorer("support"))
+    app.state.discovery_registry = SourceRegistry()
+
+    class _GraphOpenAlex:
+        def fetch_work_id(self, conn, ref):  # noqa: ANN001
+            return "WLOCAL"
+
+        def fetch_work_meta_for(self, conn, ref):  # noqa: ANN001
+            return {"openalex_work_id": "WLOCAL", "related_works": []}
+
+        def fetch_referenced_works(self, conn, ref):  # noqa: ANN001
+            return ["WREF"]
+
+        def fetch_citing_works(self, conn, work_id):  # noqa: ANN001
+            return []
+
+        def fetch_works_by_ids(self, conn, ids, *, with_abstract=True):  # noqa: ANN001, ARG002
+            if ids == ["WREF"]:
+                return [
+                    {
+                        "openalex_work_id": "WREF",
+                        "doi": "10.123/collision",
+                        "title": "Collision Candidate",
+                        "abstract": "Facial anomalies influence social judgments in shared metadata.",
+                        "authors": ["Graph Author"],
+                        "year": 2024,
+                        "venue": "Graph Journal",
+                    }
+                ]
+            return []
+
+    class _S2Recommendations:
+        def fetch_recommendations(self, conn, doi, *, limit=10):  # noqa: ANN001
+            return [
+                RecommendedPaper(
+                    title="Collision Candidate",
+                    doi="10.123/collision",
+                    pmid=None,
+                    year=2024,
+                    authors=["Graph Author"],
+                    journal="Graph Journal",
+                    url=None,
+                    abstract="Facial anomalies influence social judgments in shared metadata.",
+                )
+            ]
+
+    app.state.openalex_client = _GraphOpenAlex()
+    app.state.semantic_scholar_client = _S2Recommendations()
+    client = TestClient(app)
+
+    resp = client.post(
+        "/citations/suggest",
+        json={"text": FACIAL_QUERY, "top_k": 3, "include_beyond_library": True, "beyond_top_k": 5},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    collision = [item for item in body["beyond_library_suggestions"] if item["doi"] == "10.123/collision"]
+    assert len(collision) == 1  # deduped to one card, not two
+    assert collision[0]["relationship_kind"] == "cited_by_local_match"
+    assert collision[0]["relationship_label"] == "Cited by a locally relevant paper"
+
+
+def test_suggest_endpoint_s2_recommendation_failure_on_one_anchor_does_not_drop_others(temp_db_url: str) -> None:
+    ids = _seed_summarization_library(temp_db_url)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        conn.execute(update(papers).where(papers.c.id == ids["facial_paper_id"]).values(doi="10.123/facial"))
+        conn.execute(update(papers).where(papers.c.id == ids["unrelated_paper_id"]).values(doi="10.123/banana"))
+    engine.dispose()
+    app = _suggest_app(temp_db_url, stance_scorer=FakeStanceScorer("support"))
+    app.state.discovery_registry = SourceRegistry()
+
+    class _FlakyS2:
+        def fetch_recommendations(self, conn, doi, *, limit=10):  # noqa: ANN001
+            if doi == "10.123/facial":
+                raise ConnectionError("simulated S2 outage for this anchor")
+            return [
+                RecommendedPaper(
+                    title="Recovered From Second Anchor",
+                    doi="10.123/second-anchor-rec",
+                    pmid=None,
+                    year=2022,
+                    authors=["Recovered Author"],
+                    journal="Recovered Journal",
+                    url=None,
+                    abstract=None,
+                )
+            ]
+
+    app.state.semantic_scholar_client = _FlakyS2()
+    client = TestClient(app)
+
+    resp = client.post(
+        "/citations/suggest",
+        json={"text": FACIAL_QUERY, "top_k": 5, "include_beyond_library": True, "beyond_top_k": 10},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    coverage = next(row for row in body["source_coverage"] if row["provider_id"] == "semantic-scholar-recommendations")
+    # the failing anchor is honestly reflected ("partial", not silently "success")...
+    assert coverage["status"] == "partial"
+    assert coverage["warning"] and "ConnectionError" in coverage["warning"]
+    # ...but the *other* anchor's legitimate results still made it through — proves per-anchor isolation, not an
+    # early-return-on-first-failure that would silently cost every anchor after the failing one
+    recovered = [item for item in body["beyond_library_suggestions"] if item["doi"] == "10.123/second-anchor-rec"]
+    assert recovered
 
 
 def test_suggest_endpoint_rejects_empty_and_oversized_text(temp_db_url: str) -> None:

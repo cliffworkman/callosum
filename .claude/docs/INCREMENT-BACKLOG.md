@@ -254,12 +254,13 @@ the Principles + A-A gates before build.)*
   LibreOffice adapter's "Suggest citations" macro never called this path at all (in-library-only) — it now has
   the same opt-in checkbox + a save-then-cite flow for a picked beyond-library candidate (reusing
   `/discovery/save`, the same write path the web "Add to library" button uses).
-  **Still genuinely open:** Semantic Scholar's *recommendations* endpoint (the client exists for citation-context
-  work, but nothing calls its recommendations API — a new external fetch, trips the audit gate); a persistent,
-  dismissible cache surface in the `gaps.py` style (what's shipped is a live, per-sentence, ephemeral flow — the
-  backlog's original "persistent... cache... dismiss" framing describes a structurally different design that
-  was never built); **Stage-4 section-scoping** (needs GROBID + the plugin). None of these is "the highest-value
-  unbuilt thing" anymore — that framing was the stale part.
+  **Inc 449 ships Semantic Scholar's *recommendations* endpoint** as a third beyond-library candidate source
+  (anchored on the same top in-library matches OpenAlex-neighborhood already uses), labeled "Recommended by
+  Semantic Scholar alongside a locally relevant paper" — never a bare S2-internal score. **Still genuinely open:**
+  a persistent, dismissible cache surface in the `gaps.py` style (what's shipped is a live, per-sentence,
+  ephemeral flow — the backlog's original "persistent... cache... dismiss" framing describes a structurally
+  different design that was never built); **Stage-4 section-scoping** (needs GROBID + the plugin). Neither of
+  these is "the highest-value unbuilt thing" anymore — that framing was the stale part.
 - **#33/#34 Citation & bibliography engine + plugins — the LibreOffice adapter's next phase.**
   Superseded by the much richer competitor-informed roadmap now at
   `.claude/docs/future-tracks/chatgpt5.6_future-tracks_wordprocessorpluginsroadmap.md` (+ its
