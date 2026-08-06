@@ -537,9 +537,16 @@ the Principles + A-A gates before build.)*
   file). Live re-checked at inc 451, not re-assumed: **Redalyc** has a documented, registration-gated API, but
   `api.redalyc.org`'s TLS certificate currently fails hostname validation (`SEC_E_WRONG_PRINCIPAL`, reproduced
   live) — doubly blocked (a broken cert *and* a credential only the maintainer can obtain); **Latindex** remains
-  confirmed closed (403/404 on every plausible endpoint). Remaining, still open: self-archiving/green-route (needs
-  a Jisc-registered API key only the maintainer can obtain); Redalyc/Latindex; COPE/OASPA membership; PubMed/Scopus
-  indexing; user exclusion/filtering; thumb auditability; the real field self-citation baseline (= #25 again).
+  confirmed closed (403/404 on every plausible endpoint). **Inc 452 wires in a fifth source, NLM MEDLINE
+  indexing** — a live per-ISSN lookup against NCBI's free, no-key E-utilities `esearch` endpoint (mirrors
+  SciELO's live shape, not a mirror), self-pacing to stay under NCBI's live-confirmed unauthenticated rate limit
+  rather than adding an API-key env var. Live re-verification caught a real overclaim before ship — the query
+  checks MEDLINE specifically, not "PubMed" broadly (a real journal, World Psychiatry, is PubMed-indexed with no
+  MEDLINE entry at all) — fixed by precise renaming (`indexed_in_medline`, "Indexed in MEDLINE"), not a query
+  change. **Scopus indexing is permanently out of scope** (proprietary, no free API) and is no longer named in
+  the tool's own deferred-sources list. Remaining, still open: self-archiving/
+  green-route (needs a Jisc-registered API key only the maintainer can obtain); Redalyc/Latindex; COPE/OASPA
+  membership; user exclusion/filtering; thumb auditability; the real field self-citation baseline (= #25 again).
 - **#41 User-authored modules (plugins).** [future track — record only] Deferred record of the idea + open
   questions. Do not build a plugin system until a dedicated design pass.
 - **#44 Lakens-catalog integration — registration workflow now in ordered increments.** Increment 1/1b (the transparency-signals

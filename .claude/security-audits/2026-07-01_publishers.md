@@ -201,7 +201,107 @@ was a pure frontend-markup fix.
 
 ---
 
-## Addendum — SP3 (AJOL regional-index snapshot), inc 451
+## Addendum — SP4 (NLM/MEDLINE indexing signal), inc 452
+
+Wires a fifth `LEGITIMACY_DEFERRED` source: **NLM/MEDLINE indexing status**, a live per-ISSN lookup against
+NCBI's free, no-key **E-utilities** `esearch` endpoint (`db=nlmcatalog`) — mirrors SciELO's live shape (inc 448),
+not TOP Factor/AJOL's periodic-mirror shape. Scopus indexing, and raw "any PubMed presence" beyond MEDLINE, are
+never named anywhere in this codebase — proprietary/no free API for the former, never promised for the latter.
+
+### Trigger
+- One new external fetch path: `integrations/nlm/journals.py`, one live call per candidate journal (no
+  pre-filter, same posture as SciELO — a closed/non-OA/non-SciELO journal can still be MEDLINE-indexed).
+- No new endpoint, no new schema/migration, no Settings UI, no `.env.example` addition — an additive field on
+  `PUBLISHERS`'s existing async job response.
+
+### Threat review
+- **SSRF/injection.** ISSN validated `^\d{4}-\d{3}[\dX]$` before any request (identical regex to DOAJ/SciELO);
+  constant HTTPS host (`https://eutils.ncbi.nlm.nih.gov/entrez/eutils`, the same host+constant this codebase's
+  existing `discovery/pubmed_provider.py` already trusts for Search/Feed); the ISSN, `tool`, `email`, and search
+  term are all bound query **params**, never the host/path. No user-supplied URL is ever fetched.
+- **Egress class.** Public NLM Catalog metadata (indexing status), no auth, no secret of any kind — unlike DOAJ's
+  optional API-key header, this client has no credential surface at all. `email` reuses the existing, already-
+  audited `resolved_mailto("CALLOSUM_CROSSREF_MAILTO")` convention `pubmed_provider.py` already sends to the same
+  host family — no new env var introduced.
+- **Fail-closed, never raises.** A malformed ISSN, a well-formed-but-unindexed ISSN (`esearchresult.count == 0`),
+  and a network/parse error all collapse to `False` — cached via the existing, unmodified
+  `integrations/api_cache.py` (`get_cached`/`put_cached`), matching SciELO's exact fail-closed contract. This is
+  a deliberate scope choice (confirmed by the user this session): the richer "never indexed" vs. "deselected
+  since" distinction NLM's catalog data *can* express is intentionally not built — a plain binary signal, matching
+  SciELO's own precedent of no richer status.
+- **A real correctness bug found live before ship: "PubMed" and "MEDLINE" are NOT the same claim, and the query
+  only checks the latter.** NLM's own catalog record treats "MEDLINE" and "PubMed" as independent
+  `IndexingSourceName` values with independent status. Live-verified for *World Psychiatry* (WPA's flagship,
+  unambiguously legitimate, ISSNs `1723-8617`/`2051-5545`): its real NLM Catalog record shows PubMed
+  "Currently-indexed" but carries **no MEDLINE entry at all**, so the `currentlyindexed[all]` query term (which
+  empirically tracks MEDLINE status — confirmed against two real MEDLINE-indexed journals as positive controls)
+  correctly returns `count: 0` for it. The first implementation pass named the resulting field/signal
+  "PubMed/MEDLINE" — an overclaim, since a real, major journal that IS PubMed-searchable would have silently read
+  as "not indexed" under a label that promised to check PubMed too. Caught via live re-verification during manual
+  QA (not by the hermetic tests, which use a synthetic fetcher and can't catch a wrong real-world query mapping),
+  fixed before ship by renaming end-to-end: `JournalProfile.indexed_in_medline` (was `indexed_in_pubmed`), the
+  chip text is `"Indexed in MEDLINE"` (was `"Indexed in MEDLINE/PubMed"`), `fetch_medline_indexed()` (was
+  `fetch_indexed()`). The underlying query and its correctness were never wrong — only the label overclaimed what
+  it checks. Broader raw-PubMed presence (including PubMed-only, non-MEDLINE-curated content) stays unchecked
+  and is not named as a signal; MEDLINE indexing is a complete, well-defined legitimacy signal on its own terms.
+- **Rate-limit correctness, not just performance.** Live-confirmed via `curl` before implementation: NCBI
+  enforces roughly 3 requests/second without an API key (real 429s reproduced after 4 rapid requests). A
+  `PUBLISHERS` run makes one live call per candidate, sequentially, up to `MAX_CANDIDATES` — a naive unthrottled
+  loop could 429 partway through and silently misreport later candidates as "not indexed," which is a
+  correctness/honesty defect (a false negative on a real journal), not merely a slowdown. Rather than add an
+  optional `CALLOSUM_NCBI_API_KEY` (config surface most users would never set up, so it wouldn't protect the
+  default path), `NlmJournalsClient` self-paces: it tracks the monotonic timestamp of its last live call and
+  sleeps the remainder of a ~350ms window before firing the next one (only on a cache miss — cached reads never
+  pace). This protects every user by default with no setup step. Live-verified end-to-end: a real 25-candidate
+  broad run completed with consistent `indexed_in_medline` values across two identical re-runs.
+- **No SQL written unsafely.** No new table; the client only calls the existing, unmodified
+  `integrations/api_cache.py` bound-parameter helpers.
+- **Supply-chain.** No new dependency — reuses `httpx` (already present) and `resolved_mailto` (already present).
+
+### Principles / A-A vetoes (extended, same structural enforcement as SP1a/SP1b/SP2/SP3)
+- **Every claim carries its evidence, precisely (Principles #1/#2, the load-bearing lesson of this addendum).**
+  The World Psychiatry catch above is a direct instance of the "signal not verdict" commitment applied to a
+  *label*, not just a numeric confidence: a correctly-computed fact under an imprecisely-named field is still a
+  form of overclaiming. Renaming to match exactly what the query checks (MEDLINE, not PubMed generally) closes it.
+- **Never an opaque score or an elevation good.** `_elevated_goods()` gained no new parameter — MEDLINE indexing
+  is exposed only via `legitimacy_signals` (`"Indexed in MEDLINE"`, a coverage fact), never `elevated_for`,
+  matching SciELO's identical precedent (indexing is a discoverability fact, not an "open-science good" the
+  weighting should reward). Test-pinned explicitly (`test_build_profiles_wires_medline_indexing_fact` + an
+  explicit assertion added to `test_build_profiles_weighting_elevates_open_goods`).
+- **Gate the boost, never the listing (extended).** A journal with no MEDLINE data still appears unchanged —
+  `indexed_in_medline` is simply `False`, `legitimacy_signals` carries no fabricated entry.
+- **`LEGITIMACY_DEFERRED` narrowed honestly.** `"PubMed / Scopus indexing"` is dropped whole rather than split
+  into a residual entry — mirrors exactly how "AJOL" silently dropped out of the old "AJOL, Redalyc, Latindex"
+  string once AJOL was wired (inc 451); the increment notes + this addendum carry the record of Scopus having
+  been considered and declined (proprietary, no free API), not the deferred-sources list.
+
+### Negative-path checks (new, in `tests/test_publishers.py`)
+- **ISSN validation before any fetch + fail-closed on unindexed** — `test_nlm_medline_indexing_validation_and_parse`:
+  a malformed ISSN → `False`, no request; a well-formed-but-unindexed ISSN → `False`, no exception. ✓
+- **Cache roundtrip** — `test_nlm_medline_indexing_cache_roundtrip`: a second lookup for the same ISSN is served
+  from cache, not the fetcher. ✓
+- **Pacing guard fires on a real (non-cached) call** — `test_nlm_medline_indexing_client_paces_live_requests`: a
+  primed `_last_request_at` forces the next live call to wait out the ~350ms floor. ✓
+- **Abstract still never transmitted** — `test_abstract_never_transmitted` extended to also record + assert on
+  NLM requests (the secret token never appears; NLM was actually queried — sanity, not vacuous). ✓
+- **Gate the boost, not the listing + never elevates** — `test_build_profiles_wires_medline_indexing_fact`: a
+  matched journal gets `indexed_in_medline=True` + the signal string, even at `weighting=1.0` it never appears in
+  `elevated_for`; an unmatched candidate gets `False` with no fabricated signal. ✓
+- **Deferred-list narrowing + no overclaim** — `test_build_profiles_no_composite_score_no_predatory` extended:
+  "MEDLINE" no longer appears in `legitimacy_absent`; neither "Scopus" nor "PubMed" appears anywhere in the
+  response shape at all — the wired signal claims exactly what it checks. ✓
+
+### Result
+**Security Audit: PASS (SP4 addendum).** SSRF is closed by the same id-validation + constant-host + bound-param
+posture as DOAJ/SciELO; the endpoint has no request-time credential of any kind; fail-closed is proven for
+malformed/unindexed/network-error cases alike; the live-confirmed rate-limit risk is closed by a self-contained
+client-side pacing guard rather than an optional, easy-to-skip API key. A real overclaim (labeling a
+MEDLINE-only check "PubMed/MEDLINE") was caught by live re-verification against a real, prominent journal before
+ship and fixed by precise renaming, not a query change — the underlying query was always correct. No new secret,
+dependency, schema, or migration. The Principles/A-A vetoes — never-elevates, gate-the-boost, honest narrowing,
+precise labeling — are enforced structurally and pinned by 6 new tests in `tests/test_publishers.py`.
+Live-verified against the real NCBI E-utilities endpoint before this audit was written (including a live 429
+reproduction and the World Psychiatry MEDLINE/PubMed distinction), not assumed.
 
 Wires a third `LEGITIMACY_DEFERRED` source: **AJOL** (African Journals Online), via a locally-mirrored,
 **third-party CC-BY-4.0** compiled dataset (Alonso-Álvarez 2025, Zenodo) — not a live per-request AJOL API (none

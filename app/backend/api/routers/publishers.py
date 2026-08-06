@@ -33,6 +33,7 @@ from app.backend.persistence.top_factor_repo import lookup_top_factor_record, to
 from app.backend.persistence.wip_checks_repo import record_journal_run
 from app.backend.persistence.wip_repo import get_manuscript
 from integrations.doaj.journals import DoajJournal, DoajJournalsClient
+from integrations.nlm.journals import NlmJournalsClient
 from integrations.openalex.adapter import OpenAlexClient
 from integrations.openalex.sources import OpenAlexSourcesClient
 from integrations.scielo.journals import ScieloJournal, ScieloJournalsClient
@@ -96,6 +97,7 @@ class JournalProfileModel(BaseModel):
     scielo_collections: list[str] = []
     top_factor: TopFactorModel | None = None
     ajol_status: AjolStatusModel | None = None
+    indexed_in_medline: bool = False
 
 
 class TopFactorCoverageModel(BaseModel):
@@ -203,6 +205,7 @@ def _run_publishers_job(app: FastAPI, job_id: str, body: PublishersRequest) -> N
     sources_client = app.state.openalex_sources_client or OpenAlexSourcesClient()
     doaj_client = app.state.doaj_journals_client or DoajJournalsClient()
     scielo_client = app.state.scielo_journals_client or ScieloJournalsClient()
+    medline_client = app.state.nlm_medline_client or NlmJournalsClient()
     oa_client = app.state.openalex_client or OpenAlexClient()
     try:
         with app.state.engine.begin() as conn:
@@ -238,6 +241,14 @@ def _run_publishers_job(app: FastAPI, job_id: str, body: PublishersRequest) -> N
                     if journal is not None:
                         scielo_by_issn[issn] = journal
 
+            # No cheap pre-filter exists for MEDLINE either (a closed/non-OA/non-SciELO journal can still be
+            # MEDLINE-indexed) — one live call per candidate, same bound as SciELO.
+            medline_by_issn: dict[str, bool] = {}
+            for meta in candidates:
+                issn = meta.issn_l or (meta.issns[0] if meta.issns else None)
+                if issn and issn not in medline_by_issn:
+                    medline_by_issn[issn] = medline_client.fetch_medline_indexed(conn, issn)
+
             # TOP Factor is a fast local read (no HTTP at request time) — cheap enough to try every alt ISSN.
             top_factor_by_issn: dict[str, dict] = {}
             for meta in candidates:
@@ -265,6 +276,7 @@ def _run_publishers_job(app: FastAPI, job_id: str, body: PublishersRequest) -> N
                 scielo_by_issn,
                 top_factor_by_issn,
                 ajol_by_issn,
+                medline_by_issn,
                 abstract=abstract,
                 embedding_model=_publishers_model(app),
                 weighting=body.weighting,

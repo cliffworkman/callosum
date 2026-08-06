@@ -116,6 +116,7 @@ from integrations.crossref import CrossrefClient
 from integrations.doaj.journals import DoajJournalsClient
 from integrations.gemini import AxisClusterLabeler, AxisTermSuggester, ResearchSummaryGenerator
 from integrations.gemini.extraction_assistant import ExtractionAssistant
+from integrations.nlm.journals import NlmJournalsClient
 from integrations.openalex import OpenAlexAuthorClient, OpenAlexClient
 from integrations.openalex.sources import OpenAlexSourcesClient
 from integrations.retraction_watch import RetractionWatchClient
@@ -149,6 +150,7 @@ def create_app(
     openalex_sources_client: OpenAlexSourcesClient | None = None,
     doaj_journals_client: DoajJournalsClient | None = None,
     scielo_journals_client: ScieloJournalsClient | None = None,
+    nlm_medline_client: NlmJournalsClient | None = None,
     semantic_scholar_client: SemanticScholarClient | None = None,
     research_summary_generator: ResearchSummaryGenerator | None = None,
     overview_generator: OverviewGenerator | None = None,
@@ -264,6 +266,7 @@ def create_app(
     api.state.openalex_sources_client = openalex_sources_client  # #40: OpenAlex journals for the where-to-submit tool
     api.state.doaj_journals_client = doaj_journals_client  # #40: DOAJ journal facts (APC/waiver/Seal/license)
     api.state.scielo_journals_client = scielo_journals_client  # #40: SciELO regional-index legitimacy signal
+    api.state.nlm_medline_client = nlm_medline_client  # #40 (inc 452): NLM MEDLINE live per-ISSN indexing signal
     api.state.semantic_scholar_client = semantic_scholar_client  # inc 232 (B4): citation-context data source
     api.state.openalex_author_client = openalex_author_client
     api.state.research_summary_generator = research_summary_generator

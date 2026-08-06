@@ -30,12 +30,13 @@ MAX_CANDIDATES = 60  # defensive cap on the pool to embed (rule #4)
 MAX_PROFILES = 25  # cap on profiles returned
 
 # Legitimacy sources this version does NOT check — shown as neutral fact so silence isn't read as a clean bill (#6).
-# The remaining multi-route + regional set (COPE/OASPA, PubMed/Scopus indexing, Redalyc/Latindex,
-# self-archiving) has no data source yet — deferred, named honestly, never inferred. SciELO, TOP Factor, and AJOL
-# were wired in and removed from this list (backlog #40).
+# The remaining multi-route + regional set (COPE/OASPA, Redalyc/Latindex, self-archiving) has no data source
+# yet — deferred, named honestly, never inferred. SciELO, TOP Factor, AJOL, and MEDLINE indexing were wired in
+# and removed from this list (backlog #40). Neither Scopus nor a broader "any PubMed presence" check (PubMed
+# includes non-MEDLINE-curated content MEDLINE indexing alone doesn't capture) is named here at all — the former
+# is proprietary with no free API, the latter was never promised; MEDLINE indexing is the wired, well-defined signal.
 LEGITIMACY_DEFERRED = [
     "COPE / OASPA membership",
-    "PubMed / Scopus indexing",
     "regional indexes (Redalyc, Latindex)",
     "self-archiving policy",
 ]
@@ -68,6 +69,8 @@ class JournalProfile:
     top_factor: dict[str, Any] | None  # {"total", "categories": [{"name","score","max","justification"}, ...]}
     ajol_status: dict[str, Any] | None  # {"country","jpps_status","is_diamond","source_url"}; shown as-is, plain
     # (jpps_status ranges from positive to cautionary — e.g. "Ceased" — never filtered or softened, per #6)
+    indexed_in_medline: bool  # currently MEDLINE-indexed per the NLM Catalog — a coverage fact only, never
+    # elevated (an indexing/discoverability fact, not an open-science good; matches SciELO's precedent)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -92,6 +95,7 @@ class JournalProfile:
             "scielo_collections": self.scielo_collections,
             "top_factor": self.top_factor,
             "ajol_status": self.ajol_status,
+            "indexed_in_medline": self.indexed_in_medline,
         }
 
 
@@ -183,6 +187,7 @@ def build_profiles(
     scielo_by_issn: dict[str, ScieloJournal] | None = None,
     top_factor_by_issn: dict[str, dict[str, Any]] | None = None,
     ajol_by_issn: dict[str, dict[str, Any]] | None = None,
+    medline_by_issn: dict[str, bool] | None = None,
     *,
     abstract: str,
     embedding_model: Any,
@@ -196,6 +201,7 @@ def build_profiles(
     scielo_by_issn = scielo_by_issn or {}
     top_factor_by_issn = top_factor_by_issn or {}
     ajol_by_issn = ajol_by_issn or {}
+    medline_by_issn = medline_by_issn or {}
     coverage = dict(top_factor_db_status) if top_factor_db_status else {"count": 0, "retrieved_at": None}
     ajol_coverage = dict(ajol_db_status) if ajol_db_status else {"count": 0, "retrieved_at": None}
     pool = list(candidates)[:MAX_CANDIDATES]
@@ -214,6 +220,7 @@ def build_profiles(
     scielo_for = [_by_issn(m, scielo_by_issn) for m in pool]
     top_factor_for = [_by_issn(m, top_factor_by_issn) for m in pool]
     ajol_for = [_by_issn(m, ajol_by_issn) for m in pool]
+    medline_for = [_by_issn(m, medline_by_issn) for m in pool]
     colors = [derive_oa_color(m, d) for m, d in zip(pool, doaj_for, strict=False)]
     scope_texts = [_scope_text(m, d) for m, d in zip(pool, doaj_for, strict=False)]
 
@@ -243,6 +250,7 @@ def build_profiles(
     for i, _ in rows[:top_k]:
         meta, doaj, color = pool[i], doaj_for[i], colors[i]
         scielo, top_factor, ajol = scielo_for[i], top_factor_for[i], ajol_for[i]
+        medline_indexed = bool(medline_for[i])
         signals: list[str] = []
         if meta.is_in_doaj:
             signals.append("Indexed in DOAJ")
@@ -255,6 +263,8 @@ def build_profiles(
         if ajol is not None:
             signals.append("Indexed in AJOL")  # a coverage fact only -- the jpps_status VALUE stays out of this
             # same-valence list (it ranges positive-to-cautionary); shown instead via ajol_status, always.
+        if medline_indexed:
+            signals.append("Indexed in MEDLINE")
         profiles.append(
             JournalProfile(
                 source_id=meta.source_id,
@@ -280,6 +290,7 @@ def build_profiles(
                 scielo_collections=list(scielo.collections) if scielo is not None else [],
                 top_factor=top_factor,
                 ajol_status=ajol,
+                indexed_in_medline=medline_indexed,
             )
         )
     return PublishersReport(

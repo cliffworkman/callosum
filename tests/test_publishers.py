@@ -18,6 +18,7 @@ from app.backend.methods.publishers import build_profiles, derive_oa_color
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_paper
 from integrations.doaj.journals import DoajJournal, DoajJournalsClient, _journal_from_body
+from integrations.nlm.journals import NlmJournalsClient
 from integrations.openalex.adapter import OpenAlexClient
 from integrations.openalex.sources import OpenAlexSourcesClient, SourceMeta
 from integrations.scielo.journals import ScieloJournal, ScieloJournalsClient
@@ -129,6 +130,17 @@ def _scielo_fetcher(by_issn, *, record=None):
         if record is not None:
             record.append(issn)
         return 200, list(by_issn.get(issn, []))
+
+    return fake
+
+
+def _nlm_fetcher(indexed_issns, *, record=None):
+    """Fake for NlmJournalsClient -- mirrors the real esearch JSON shape (count > 0 => currently indexed)."""
+
+    def fake(issn, *, params, timeout):
+        if record is not None:
+            record.append(issn)
+        return 200, {"esearchresult": {"count": "1" if issn in indexed_issns else "0"}}
 
     return fake
 
@@ -263,6 +275,40 @@ def test_scielo_journal_cache_roundtrip(temp_db_url):
     engine.dispose()
 
 
+def test_nlm_medline_indexing_validation_and_parse(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        client = NlmJournalsClient(fetcher=_nlm_fetcher({"1471-244X"}))
+        assert client.fetch_medline_indexed(conn, "1471-244X") is True
+        assert client.fetch_medline_indexed(conn, "9999-9999") is False  # well-formed but unindexed -> False
+        assert client.fetch_medline_indexed(conn, "not-an-issn") is False  # validated -> no request
+    engine.dispose()
+
+
+def test_nlm_medline_indexing_cache_roundtrip(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        calls: list[str] = []
+        client = NlmJournalsClient(fetcher=_nlm_fetcher({"1471-244X"}, record=calls))
+        assert client.fetch_medline_indexed(conn, "1471-244X") is True
+        assert client.fetch_medline_indexed(conn, "1471-244X") is True
+        assert calls == ["1471-244X"]  # second call served from cache
+
+
+def test_nlm_medline_indexing_client_paces_live_requests(temp_db_url):
+    """Confirmed live: NCBI rate-limits unauthenticated bursts. The client must pace real (non-cached) calls."""
+    import time
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        client = NlmJournalsClient(fetcher=_nlm_fetcher({"1111-1111", "2222-2222"}))
+        client._pace()  # prime _last_request_at as if a request just fired
+        start = time.monotonic()
+        client.fetch_medline_indexed(conn, "2222-2222")
+        assert time.monotonic() - start >= 0.3  # paced to roughly the ~350ms floor, not fired immediately
+    engine.dispose()
+
+
 # --- pure engine -------------------------------------------------------------
 
 
@@ -326,6 +372,8 @@ def test_build_profiles_weighting_elevates_open_goods():
     assert "diamond OA (free to publish + free to read)" in rep.profiles[0].elevated_for
     assert "DOAJ Seal" in rep.profiles[0].elevated_for
     assert next(p for p in rep.profiles if p.source_id == "S2").elevated_for == []  # closed → no goods
+    # MEDLINE indexing is an indexing/discoverability fact, never a weighting-boost good (matches SciELO)
+    assert not any("MEDLINE" in g for p in rep.profiles for g in p.elevated_for)
 
 
 def test_build_profiles_no_composite_score_no_predatory():
@@ -339,10 +387,14 @@ def test_build_profiles_no_composite_score_no_predatory():
         assert not any(k.endswith("score") for k in p.to_dict())
     # legitimacy absence is shown as neutral fact (a deferred-sources list), never a flag
     assert any("COPE" in s for s in rep.profiles[0].legitimacy_absent)
-    # SciELO + TOP Factor + AJOL were wired in (backlog #40) -- no longer named as deferred
+    # SciELO + TOP Factor + AJOL + MEDLINE indexing were wired in (backlog #40) -- no longer named as deferred
     assert not any("SciELO" in s for s in rep.profiles[0].legitimacy_absent)
     assert not any("TOP Factor" in s for s in rep.profiles[0].legitimacy_absent)
     assert not any("AJOL" in s for s in rep.profiles[0].legitimacy_absent)
+    assert not any("MEDLINE" in s for s in rep.profiles[0].legitimacy_absent)
+    # Scopus is never named anywhere -- proprietary, no free API, permanently out of scope (not a flagged gap)
+    assert "Scopus" not in json.dumps(rep.to_dict())
+    assert "PubMed" not in json.dumps(rep.to_dict())  # the wired signal is MEDLINE-specific, never claimed broader
     assert any("regional indexes (Redalyc, Latindex)" == s for s in rep.profiles[0].legitimacy_absent)
     assert any("self-archiving policy" == s for s in rep.profiles[0].legitimacy_absent)
 
@@ -385,6 +437,29 @@ def test_build_profiles_wires_scielo_and_top_factor_facts():
     assert s2.scielo_collections == [] and s2.top_factor is None
     assert not any("SciELO" in sig or "TOP Factor" in sig for sig in s2.legitimacy_signals)
     assert rep.top_factor_coverage == {"count": 812, "retrieved_at": "2026-03-12T00:00:00+00:00"}
+
+
+def test_build_profiles_wires_medline_indexing_fact():
+    cands, doaj = _profiles_setup()
+    medline_by_issn = {"1111-1111": True}
+    rep = build_profiles(
+        cands,
+        doaj,
+        None,
+        None,
+        None,
+        medline_by_issn,
+        abstract="memory attention",
+        embedding_model=FakeEmbed(),
+        weighting=1.0,  # even at full weighting...
+    )
+    s1 = next(p for p in rep.profiles if p.source_id == "S1")
+    assert s1.indexed_in_medline is True
+    assert "Indexed in MEDLINE" in s1.legitimacy_signals
+    assert not any("MEDLINE" in g for g in s1.elevated_for)  # ...never an elevation good
+    s2 = next(p for p in rep.profiles if p.source_id == "S2")  # no MEDLINE data for the closed journal
+    assert s2.indexed_in_medline is False
+    assert not any("MEDLINE" in sig for sig in s2.legitimacy_signals)
 
 
 def test_build_profiles_wires_ajol_facts_and_elevates_only_star_tiers():
@@ -463,7 +538,9 @@ def test_build_profiles_top_factor_never_downloaded_is_honest():
 # --- endpoint ----------------------------------------------------------------
 
 
-def _endpoint_app(temp_db_url, *, record_sources=None, record_doaj=None, record_scielo=None, focal_by_doi=None):
+def _endpoint_app(
+    temp_db_url, *, record_sources=None, record_doaj=None, record_scielo=None, record_medline=None, focal_by_doi=None
+):
     works = [
         _work("S1", "Memory J", "1111-1111"),
         _work("S1", "Memory J", "1111-1111"),
@@ -483,6 +560,7 @@ def _endpoint_app(temp_db_url, *, record_sources=None, record_doaj=None, record_
     client.app.state.doaj_journals_client = DoajJournalsClient(fetcher=_doaj_fetcher(by_issn, record=record_doaj))
     # Always wired to a fake (never left to fall back to a real live-HTTP client mid-test), mirroring DOAJ above.
     client.app.state.scielo_journals_client = ScieloJournalsClient(fetcher=_scielo_fetcher({}, record=record_scielo))
+    client.app.state.nlm_medline_client = NlmJournalsClient(fetcher=_nlm_fetcher(set(), record=record_medline))
     if focal_by_doi is not None:
         client.app.state.openalex_client = OpenAlexClient(fetcher=_adapter_fetcher(focal_by_doi))
     client.app.state.embedding_model = FakeEmbed()
@@ -551,14 +629,22 @@ def test_abstract_never_transmitted(temp_db_url):
     rec_sources: list[str] = []
     rec_doaj: list[str] = []
     rec_scielo: list[str] = []
-    client = _endpoint_app(temp_db_url, record_sources=rec_sources, record_doaj=rec_doaj, record_scielo=rec_scielo)
+    rec_medline: list[str] = []
+    client = _endpoint_app(
+        temp_db_url,
+        record_sources=rec_sources,
+        record_doaj=rec_doaj,
+        record_scielo=rec_scielo,
+        record_medline=rec_medline,
+    )
     token = "SECRETABSTRACTTOKEN"
     _, done = _drive(client, {"abstract": f"{token} memory attention", "subject": "neuroscience"})
     assert done["status"] == "done"
-    outbound = " ".join(rec_sources + rec_doaj + rec_scielo)
-    assert token not in outbound  # the abstract text is never in a topic/works/sources/DOAJ/SciELO request
+    outbound = " ".join(rec_sources + rec_doaj + rec_scielo + rec_medline)
+    assert token not in outbound  # the abstract text is never in a topic/works/sources/DOAJ/SciELO/NLM request
     assert rec_sources  # sanity: requests were actually made (topic + works + sources)
     assert rec_scielo  # sanity: SciELO was actually queried (every candidate gets one live call)
+    assert rec_medline  # sanity: NLM/MEDLINE was actually queried (every candidate gets one live call)
 
 
 # --- WIP manuscript wiring (inc 404) ------------------------------------------

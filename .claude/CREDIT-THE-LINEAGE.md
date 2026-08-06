@@ -33,7 +33,8 @@ consistently (an "about / built on" affordance) and wired to offer each paper to
   (Rouder, Morey et al.).
 - **Citation-equity audit** → Lockhart, King & Munsch (2023); Dworkin et al. (2020); King et al. (2017).
 - **PUBLISHERS** → DOAJ; SciELO; the TOP Factor (Center for Open Science); AJOL journal metadata
-  (Alonso-Álvarez, 2025, Zenodo); Open Policy Finder.
+  (Alonso-Álvarez, 2025, Zenodo); NLM Catalog MEDLINE indexing (U.S. National Library of Medicine); Open Policy
+  Finder.
 
 ## Acceptance criteria
 - Every method-implementing tool surfaces its lineage **in-tool** and offers each source paper **to the library**.

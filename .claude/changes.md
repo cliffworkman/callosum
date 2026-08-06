@@ -11,6 +11,21 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
 
+## 2026-08-06 — Increment 452: NLM MEDLINE indexing as a fifth PUBLISHERS legitimacy source (backlog #40)
+- **Files:** `integrations/nlm/journals.py` (new), `app/backend/methods/publishers.py`,
+  `app/backend/api/routers/publishers.py`, `app/backend/api/app.py`, `tests/test_publishers.py`.
+- **What:** wires a fifth legitimacy source, NLM MEDLINE indexing status, into PUBLISHERS — a live per-ISSN
+  lookup against NCBI's free, no-key E-utilities `esearch` endpoint, mirroring SciELO's live-lookup shape (no new
+  schema/migration/Settings UI). Self-paces to stay under NCBI's live-confirmed unauthenticated rate limit
+  instead of adding an API-key env var. `LEGITIMACY_DEFERRED`'s old "PubMed / Scopus indexing" entry is dropped
+  whole; Scopus stays permanently out of scope. A live re-verification pass caught a real overclaim before ship
+  (a MEDLINE-only query mislabeled "PubMed/MEDLINE" — a real journal, World Psychiatry, is PubMed-indexed with
+  no MEDLINE entry) — fixed by renaming end-to-end (`indexed_in_medline`, "Indexed in MEDLINE"), not a query
+  change.
+- **Why:** closes another slice of backlog #40's still-open regional/indexing-signal list.
+- **Revert:** see `INCREMENT-452-NOTES.md`'s Rollback section (no schema to revert; all new files cleanly
+  removable; existing DOAJ/SciELO/TOP Factor/AJOL sources untouched).
+
 ## 2026-08-05 — Increment 451: AJOL as a fourth PUBLISHERS legitimacy source (backlog #40)
 - **Files:** `integrations/ajol/adapter.py` (new), `app/backend/persistence/ajol_repo.py` (new),
   `alembic/versions/0068_ajol_records.py` (new), `app/backend/api/routers/methods_ajol.py` (new),

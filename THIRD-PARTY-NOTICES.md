@@ -226,6 +226,11 @@ The journal-matching tool draws on public bibliographic metadata + a scientific-
   Online's public per-journal metadata, including AJOL's own official Journal Publishing Practices and Standards
   (JPPS) rating. Mirrored locally from a one-time Zenodo-hosted snapshot (dated February 2024); not an
   AJOL-official feed. Callosum does not redistribute the dataset beyond the local mirror it downloads on request.
+- **NLM Catalog / MEDLINE indexing status** (inc 452) — a live per-ISSN lookup against NCBI's free, public
+  **E-utilities** `esearch` endpoint (`db=nlmcatalog`), confirming whether a journal is currently MEDLINE-indexed
+  (MEDLINE and PubMed are distinct NLM indexing statuses; this checks MEDLINE specifically, never claimed
+  broader). **Courtesy of the U.S. National Library of Medicine.** NLM does not endorse Callosum. No data is
+  bundled or redistributed — every lookup is a live, on-demand read of NLM's own public catalog.
 - **SPECTER** — the scientific-document embedding model (`sentence-transformers/allenai-specter`, Allen Institute for
   AI; Cohan, Feldman, Beltagy, Downey & Weld, *SPECTER: Document-level Representation Learning using Citation-informed
   Transformers*, ACL 2020) — runs **locally** to match the abstract to candidate journals; the abstract is never

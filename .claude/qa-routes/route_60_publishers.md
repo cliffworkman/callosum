@@ -18,15 +18,21 @@ transparency rubric — the database-refresh flow itself is route 85; this route
 render in a run's results). **Inc 451** wires in a fourth source, **AJOL** (African Journals Online) — a
 locally-mirrored, third-party CC-BY-4.0 snapshot (route 86 covers the database-download flow; this route covers how
 its per-journal `ajol_status` fact — including AJOL's own official, positive-to-cautionary `jpps_status` rating —
-renders in a run's results).
+renders in a run's results). **Inc 452** wires in a fifth source, **NLM/MEDLINE indexing** — a live per-ISSN
+lookup against NCBI's free E-utilities `esearch` endpoint (same live-lookup shape as SciELO, no Settings
+UI/mirror of its own, so it stays covered entirely by this route, no new route file). The query checks MEDLINE
+specifically, not PubMed broadly (a real distinction — a journal can be PubMed-"Currently-indexed" with no
+MEDLINE entry at all, confirmed live for *World Psychiatry*) — the field/chip name says exactly that.
 
 ## Environment
 
-Clean seeded instance (`_TEMPLATE.md` -> Environment). The three external fetches (OpenAlex `/topics`+`/works`+
-`/sources`; DOAJ journals; SciELO ArticleMeta journal lookup) hit **public bibliographic metadata**, NOT the Gemini
-gate. TOP Factor and AJOL are both local-only reads (`lookup_top_factor_record`/`lookup_ajol_record`) — never a live
-fetch during a run; their mirrors are populated via route 85's / route 86's Settings download. In a seeded QA run the
-live network is available; the hermetic pytest suite (`tests/test_publishers.py`) covers the deterministic contract.
+Clean seeded instance (`_TEMPLATE.md` -> Environment). The four external fetches (OpenAlex `/topics`+`/works`+
+`/sources`; DOAJ journals; SciELO ArticleMeta journal lookup; NLM Catalog `esearch`) hit **public bibliographic
+metadata**, NOT the Gemini gate. TOP Factor and AJOL are both local-only reads (`lookup_top_factor_record`/
+`lookup_ajol_record`) — never a live fetch during a run; their mirrors are populated via route 85's / route 86's
+Settings download. In a seeded QA run the live network is available; the hermetic pytest suite
+(`tests/test_publishers.py`) covers the deterministic contract, including a real live-429 reproduction that
+justified NLM's client-side pacing guard (no API key, no Settings surface — see the security audit SP4 addendum).
 
 ## Standing assertions
 
@@ -45,13 +51,21 @@ live network is available; the hermetic pytest suite (`tests/test_publishers.py`
 - **Elevate, don't denigrate.** When the weighting > 0, a journal's rise is shown via `elevated_for` (goods it
   offers: diamond/gold OA, DOAJ Seal); absence of a legitimacy signal is a neutral `legitimacy_absent` fact, never a
   flag/deficit. A deficit-framed or accusatory rationale is **High**.
-- **Honest coverage (#6).** `legitimacy_absent` names the sources this version does NOT check (COPE/OASPA, PubMed/
-  Scopus indexing, regional indexes (Redalyc, Latindex), self-archiving policy) so silence isn't read as a clean
-  bill. SciELO, TOP Factor, and AJOL must NOT still appear in `legitimacy_absent` after inc 451 — they've moved from
-  deferred to wired.
-- **The abstract never leaves the machine extends to SciELO (veto-level).** The SciELO ArticleMeta call is
-  ISSN-only (`?issn={issn}`, no abstract/title/free-text params); the abstract text appearing in the SciELO request
-  is **Critical**, identical in severity to the existing OpenAlex/DOAJ assertion above.
+- **Honest coverage (#6).** `legitimacy_absent` names the sources this version does NOT check (COPE/OASPA,
+  regional indexes (Redalyc, Latindex), self-archiving policy) so silence isn't read as a clean bill. SciELO, TOP
+  Factor, AJOL, and MEDLINE indexing must NOT still appear in `legitimacy_absent` after inc 452 — they've moved
+  from deferred to wired. "Scopus" must never appear anywhere in the response at all (never named, not flagged).
+- **The abstract never leaves the machine extends to SciELO and NLM (veto-level).** The SciELO ArticleMeta call is
+  ISSN-only (`?issn={issn}`, no abstract/title/free-text params); the NLM `esearch` call's `term` param is
+  ISSN-only too. The abstract text appearing in the SciELO or NLM request is **Critical**, identical in severity
+  to the existing OpenAlex/DOAJ assertion above.
+- **MEDLINE indexing never elevates (veto-level).** `elevated_for` containing any "MEDLINE" string, at any
+  weighting, is **Critical** — it's a `legitimacy_signals` coverage fact only, matching SciELO's identical
+  precedent (an indexing/discoverability fact, not an open-science good).
+- **The signal must never overclaim "PubMed."** Neither the field name nor the chip text may say "PubMed" —
+  the query checks MEDLINE specifically (confirmed live: a journal can be PubMed-indexed with no MEDLINE entry
+  at all, e.g. World Psychiatry). "PubMed" appearing anywhere in the response or the rendered chip is **High**
+  (a real overclaim caught and fixed before this increment shipped — a regression, not a style nit).
 - **TOP Factor's `Total` is never a bare/floating number (Principles #7, no opaque composite score — veto-level).**
   A `top_factor.total` value rendered on a profile card WITHOUT its adjacent category sub-scores + justifications
   (i.e. outside the "show the basis" `<details>`) is **Critical** — it would read as an opaque per-journal score.
@@ -86,6 +100,9 @@ live network is available; the hermetic pytest suite (`tests/test_publishers.py`
   even at `weighting: 1.0`
 - with the AJOL mirror never downloaded -> every profile's `ajol_status: null`, but `ajol_coverage` reports
   `{"count": 0, "retrieved_at": null}` (not silently absent from the report shape)
+- a journal not MEDLINE-indexed (the common case for most candidates) -> `indexed_in_medline: false`, no
+  fabricated "Indexed in MEDLINE" signal, journal still appears unchanged
+- a MEDLINE-indexed journal at `weighting: 1.0` -> its `elevated_for` never contains a "MEDLINE" string
 
 ## Steps
 
@@ -94,7 +111,7 @@ live network is available; the hermetic pytest suite (`tests/test_publishers.py`
 3. Confirm the report: `topic_id`, `considered`, `shown`, `weighting`, `top_factor_coverage`, `ajol_coverage`, and a
    `profiles` list where each profile has `fit`, `oa_color`, `is_in_doaj`, `apc_amount`/`apc_currency`, `apc_waiver`,
    `license`, `doaj_seal`, `two_year_mean_citedness`/`h_index`/`works_count`, `scielo_collections`, `top_factor`,
-   `ajol_status`, `legitimacy_signals`, `legitimacy_absent`, `elevated_for`.
+   `ajol_status`, `indexed_in_medline`, `legitimacy_signals`, `legitimacy_absent`, `elevated_for`.
 4. Confirm **no** `*score*` composite key anywhere; **no** "predatory" string; a closed journal appears.
 5. Re-run with `weighting: 1.0` -> the order shifts to elevate open goods; elevated journals carry a non-empty
    `elevated_for`; a closed journal's `elevated_for` is empty. (SP1b will expose this via the visible weighting slider.)
@@ -107,6 +124,12 @@ live network is available; the hermetic pytest suite (`tests/test_publishers.py`
    carries `{country, jpps_status, is_diamond, source_url}`; confirm a `1/2/3 Stars` hit's `elevated_for` contains
    `"AJOL <N> Star(s) rating"`; confirm a `Ceased`/`Inactive Title` hit (if seeded) renders its status plainly and
    is absent from `elevated_for`.
+8. Run a topic likely to surface a well-known MEDLINE-indexed journal (e.g. a mainstream biomedical/psychiatric
+   abstract). Confirm a hit's `indexed_in_medline: true` + `"Indexed in MEDLINE"` in `legitimacy_signals`;
+   confirm it never appears in `elevated_for` even at `weighting: 1.0`. Run a **broad** (~25-candidate) search and
+   confirm the whole run completes without any candidate silently reading `false` due to a 429 — i.e. re-run the
+   same search and get the same `indexed_in_medline` values both times (proves the pacing guard, not just the
+   hermetic fake-fetcher tests).
 
 ## Frontend — the "Where to submit" panel (SP1b, `08e_methods_publishers.jsx`)
 
@@ -141,20 +164,29 @@ Open Discover → **Journals**. Assert:
   credit block near the card/panel cites both Zenodo DOIs and states this is a third-party CC-BY-4.0 compilation,
   not AJOL-official. If the local AJOL mirror was never downloaded (route 86), the results view shows one
   report-level footer note rather than every card silently having no AJOL section with no explanation.
+- **NLM/MEDLINE (inc 452).** A MEDLINE-indexed card shows an "Indexed in MEDLINE" signal chip (never "PubMed" —
+  a real overclaim caught live pre-ship, see the security audit SP4 addendum) via the same generic
+  `legitimacy_signals` chip list every other source already uses — **no new frontend code exists for this
+  source** (verified: the chip list is a plain `.map()`); a missing chip for this specific source with every
+  other chip present is a regression, not an intentional gap. It must never appear alongside an "elevated for"
+  reason.
 - **0 genai-host requests** during the flow; the abstract text is in no outbound request (SP1a's guarantee, unchanged;
-  now also covers the SciELO fetch).
+  now also covers the SciELO and NLM fetches).
 
 ## Pass criteria
 
 - The endpoint resolves a topic, returns uniform per-journal profiles ranked by local fit, and applies the weighting
   as a re-order (no displayed composite).
-- 0 genai-host requests; the abstract text is in no outbound request (OpenAlex, DOAJ, and SciELO alike).
+- 0 genai-host requests; the abstract text is in no outbound request (OpenAlex, DOAJ, SciELO, and NLM alike).
 - No composite score, no "predatory" label; closed journals + no-signal journals still appear.
 - SciELO/TOP Factor facts render as inspectable evidence (collections list; category-by-category basis), never a
   bare score; TOP Factor's never-downloaded state is an honest report-level note, not silent omission.
 - AJOL's `jpps_status` renders plainly for every value including cautionary ones; only `1/2/3 Stars`/confirmed
   diamond ever elevates; AJOL's never-downloaded state is an honest report-level note, not silent omission; the
   credit block names both Zenodo DOIs and the third-party (not AJOL-official) framing.
+- MEDLINE indexing renders as a plain `legitimacy_signals` chip via existing generic frontend code, never
+  elevates, and a broad multi-candidate run completes without a 429-driven false negative. The signal claims
+  exactly what it checks — "PubMed" never appears in the field name, chip text, or response shape.
 - Neither/both-input -> 422; nonexistent/no-DOI paper -> 404/422; unknown job -> 404; empty topic -> honest `shown:0`.
 - Recent journal-search recall re-runs stored inputs for fresh results; clearing history only clears the local recall
   list and does not affect settings or saved papers.

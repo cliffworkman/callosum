@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 451** (see Increment workflow) with **1853 root-suite pytest tests
+It is currently at **Increment 452** (see Increment workflow) with **1853 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -188,9 +188,20 @@ the full per-increment narrative for all other increments now lives in the reloc
   CSV encodes a missing ISSN as the literal string `"NA"`, not an empty cell — caught before ship, not after.
   Unlike TOP Factor's periodically-republished file, this is a one-time, immutable, Feb-2024-dated dataset with
   no update guarantee, so its Settings action reads "Download database," never "Refresh," with the fixed snapshot
-  date kept visibly separate from the local download timestamp. Backlog #40 stays open (self-archiving/green-route
-  + Redalyc — a documented API doubly blocked by a live TLS hostname mismatch and a maintainer-only registration
-  requirement — + Latindex, reconfirmed closed, remain unwired).
+  date kept visibly separate from the local download timestamp. **Inc 452** wires in a fifth source, **NLM
+  MEDLINE indexing**: a live per-ISSN lookup (`integrations/nlm/journals.py`, mirroring SciELO's live-lookup
+  shape, not a mirror) against NCBI's free, no-key E-utilities `esearch` endpoint — one combined
+  `ISSN AND currentlyindexed[all]` query sidesteps a real multi-catalog-record ambiguity found live (an ISSN can
+  resolve to more than one NLM record; picking the first blind can misread a live journal as "ceased"). Confirmed
+  live that NCBI rate-limits unauthenticated bursts (~3 req/s); rather than an API-key env var, the client
+  self-paces its own live calls, protecting every user with zero setup. A second live check caught a real
+  overclaim before ship: MEDLINE and PubMed are independent NLM indexing statuses — a real, major journal (World
+  Psychiatry) is PubMed-"Currently-indexed" with no MEDLINE entry at all — so the field/chip is named
+  `indexed_in_medline`/"Indexed in MEDLINE," never "PubMed," matching exactly what the query checks.
+  `LEGITIMACY_DEFERRED`'s old "PubMed / Scopus indexing" entry is dropped whole — Scopus stays permanently out of
+  scope (proprietary, no free API) and is never named; broader PubMed-only coverage was never promised. Backlog
+  #40 stays open (self-archiving/green-route + Redalyc — a documented API doubly blocked by a live TLS hostname
+  mismatch and a maintainer-only registration requirement — + Latindex, reconfirmed closed, remain unwired).
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):
@@ -741,7 +752,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 451). Each increment of real work
+callosum is built in **numbered increments** (currently at 452). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
