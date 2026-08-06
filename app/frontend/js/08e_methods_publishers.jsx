@@ -184,6 +184,10 @@ function PubProfileCard({ p, weightingOn }) {
         <span className="pub-oa" title="Open-access category, from OpenAlex/DOAJ (a labeled fact, not a verdict)">{OA_LABEL[p.oa_color] || p.oa_color}</span>
         <span className="pub-fit" title="callosum's own local embedding cosine between your abstract and this journal's scope — a topical match, not a recommendation">topical fit {Number(p.fit).toFixed(2)}</span>
       </div>
+      {weightingOn && p.fit_rank !== p.weighted_rank &&
+        <div className="pub-caveat" title="A neutral, fit-only ordering — how this journal would rank with the weighting off">
+          Ranked #{p.weighted_rank} here with weighting on · #{p.fit_rank} by topical fit alone
+        </div>}
       <div className="pub-card-row"><b>Cost:</b> {apcText}{p.apc_waiver ? " · waiver policy available" : ""}</div>
       {p.license && p.license.length > 0 && <div className="pub-card-row"><b>License:</b> {p.license.join(", ")}</div>}
       {(p.two_year_mean_citedness != null || p.h_index != null) &&

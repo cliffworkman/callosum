@@ -98,6 +98,8 @@ class JournalProfileModel(BaseModel):
     top_factor: TopFactorModel | None = None
     ajol_status: AjolStatusModel | None = None
     indexed_in_medline: bool = False
+    fit_rank: int
+    weighted_rank: int
 
 
 class TopFactorCoverageModel(BaseModel):

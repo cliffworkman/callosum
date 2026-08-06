@@ -362,6 +362,9 @@ def test_build_profiles_fit_orders_and_every_candidate_appears():
     assert rep.profiles[0].elevated_for == []  # weighting 0 → nothing "elevated"
     closed = next(p for p in rep.profiles if p.source_id == "S2")
     assert closed.oa_color == "closed" and closed.is_in_doaj is False
+    # At weighting 0 the blended order IS the fit order -- both ranks coincide for every profile.
+    assert rep.profiles[0].fit_rank == 1 and rep.profiles[0].weighted_rank == 1
+    assert closed.fit_rank == 2 and closed.weighted_rank == 2
 
 
 def test_build_profiles_weighting_elevates_open_goods():
@@ -371,9 +374,67 @@ def test_build_profiles_weighting_elevates_open_goods():
     assert rep.profiles[0].source_id == "S1"  # ...but full openness weighting elevates the diamond+Seal journal
     assert "diamond OA (free to publish + free to read)" in rep.profiles[0].elevated_for
     assert "DOAJ Seal" in rep.profiles[0].elevated_for
-    assert next(p for p in rep.profiles if p.source_id == "S2").elevated_for == []  # closed → no goods
+    s2 = next(p for p in rep.profiles if p.source_id == "S2")
+    assert s2.elevated_for == []  # closed → no goods
     # MEDLINE indexing is an indexing/discoverability fact, never a weighting-boost good (matches SciELO)
     assert not any("MEDLINE" in g for p in rep.profiles for g in p.elevated_for)
+    # Thumb auditability: S2 has the best raw fit (the abstract matches its "plant" scope) but full openness
+    # weighting outranks it with S1 -- the neutral fit-only order and the blended order now diverge.
+    s1 = rep.profiles[0]
+    assert s1.weighted_rank == 1 and s1.fit_rank == 2  # weighting moved S1 up despite weaker fit
+    assert s2.weighted_rank == 2 and s2.fit_rank == 1  # S2 had the best raw fit but was outranked by weighting
+
+
+def test_build_profiles_fit_rank_spans_the_full_considered_pool_not_just_top_k():
+    """Thumb auditability: fit_rank must reflect the TRUE fit-only position among every considered candidate, not
+    just the returned top_k slice -- a journal only shown because the weighting elevated it should still expose
+    its real (possibly much worse) fit-only rank, not one truncated to the shown set."""
+    cands = [
+        SourceMeta(
+            "C1",
+            "C1 Journal",
+            issns=["3333-3333"],
+            issn_l="3333-3333",
+            is_oa=False,
+            is_in_doaj=False,
+            concepts=["risk", "plant"],
+        ),
+        SourceMeta(
+            "C2",
+            "C2 Journal",
+            issns=["4444-4444"],
+            issn_l="4444-4444",
+            is_oa=False,
+            is_in_doaj=False,
+            concepts=["attention"],
+        ),
+        SourceMeta(
+            "C3",
+            "C3 Open Diamond Journal",
+            issns=["5555-5555"],
+            issn_l="5555-5555",
+            is_oa=True,
+            is_in_doaj=True,
+            concepts=[],
+        ),
+    ]
+    doaj = {"5555-5555": DoajJournal(apc_amount=0.0, seal=True, subjects=["OpenScience"], keywords=[])}
+    rep = build_profiles(
+        cands,
+        doaj,
+        abstract="memory attention risk plant",
+        embedding_model=FakeEmbed(),
+        weighting=1.0,  # openness alone decides the blended order
+        top_k=2,
+    )
+    assert rep.considered == 3 and rep.shown == 2  # C2 (worst fit AND closed) is truncated out by top_k
+    c3 = next(p for p in rep.profiles if p.source_id == "C3")
+    assert c3.fit == 0.0  # zero keyword overlap -- the worst raw fit of all three
+    assert c3.weighted_rank == 1  # ...yet the diamond+Seal weighting boost puts it first
+    assert c3.fit_rank == 3  # its TRUE fit-only rank is last, not silently capped at top_k=2
+    c1 = next(p for p in rep.profiles if p.source_id == "C1")
+    assert c1.fit_rank == 1  # best raw fit (2 overlapping keywords)...
+    assert c1.weighted_rank == 2  # ...but demoted by the weighting since it's closed
 
 
 def test_build_profiles_no_composite_score_no_predatory():

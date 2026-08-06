@@ -22,7 +22,11 @@ renders in a run's results). **Inc 452** wires in a fifth source, **NLM/MEDLINE 
 lookup against NCBI's free E-utilities `esearch` endpoint (same live-lookup shape as SciELO, no Settings
 UI/mirror of its own, so it stays covered entirely by this route, no new route file). The query checks MEDLINE
 specifically, not PubMed broadly (a real distinction — a journal can be PubMed-"Currently-indexed" with no
-MEDLINE entry at all, confirmed live for *World Psychiatry*) — the field/chip name says exactly that.
+MEDLINE entry at all, confirmed live for *World Psychiatry*) — the field/chip name says exactly that. **Inc 453**
+adds **thumb auditability** — the design doc's own "far reach" item, now built (its sibling item, user
+exclusion/filtering, stays explicitly deferred on ethical-valence grounds — see the doc): each profile gains
+`fit_rank`/`weighted_rank` (1-based positions among the full considered pool, sorted by fit alone vs. the actual
+blended order), surfaced per-card as a neutral "how much did the weighting move this journal" caveat.
 
 ## Environment
 
@@ -43,6 +47,13 @@ justified NLM's client-side pacing guard (no API key, no Settings surface — se
   locally. The abstract text appearing in ANY outbound request (topic/works/sources/DOAJ) is **Critical**.
 - **No composite score (veto-level).** The response carries per-journal facts + one labeled `fit` similarity; there is
   no `openness_score` / `legitimacy_score` / any `*score*` composite. Emitting one is **Critical**.
+- **Thumb auditability is an ordinal position, never a score (inc 453, tied to the veto above).**
+  `fit_rank`/`weighted_rank` are transparent 1-based ranks derived from the already-shown `fit` and the existing
+  blended order — computed over the **full considered pool** (`considered`), not just the returned `shown` slice,
+  so a journal only shown because the weighting elevated it still exposes its true (possibly much worse)
+  fit-only rank. Rendering either as a percentage, a normalized 0-1 value, or any `*score*`-suffixed key is
+  **Critical** (it would read as the vetoed composite). The per-card caveat line must render **only** when
+  weighting is on AND `fit_rank !== weighted_rank` — showing it unconditionally (noise on every card) is Medium.
 - **No "predatory" label (veto-level).** The string "predatory" (or any per-journal quality verdict) anywhere in the
   response is **Critical**.
 - **Gate the boost, not the listing.** Every candidate journal appears — including **closed** journals (with their
@@ -103,6 +114,9 @@ justified NLM's client-side pacing guard (no API key, no Settings surface — se
 - a journal not MEDLINE-indexed (the common case for most candidates) -> `indexed_in_medline: false`, no
   fabricated "Indexed in MEDLINE" signal, journal still appears unchanged
 - a MEDLINE-indexed journal at `weighting: 1.0` -> its `elevated_for` never contains a "MEDLINE" string
+- at `weighting: 0` -> every profile's `fit_rank == weighted_rank` (the blended order IS the fit order)
+- a journal only shown because the weighting elevated it (its `weighted_rank` inside `top_k` but `fit_rank` well
+  beyond it) -> `fit_rank` reflects its TRUE position among `considered`, never capped/re-based to the shown set
 
 ## Steps
 
@@ -111,7 +125,8 @@ justified NLM's client-side pacing guard (no API key, no Settings surface — se
 3. Confirm the report: `topic_id`, `considered`, `shown`, `weighting`, `top_factor_coverage`, `ajol_coverage`, and a
    `profiles` list where each profile has `fit`, `oa_color`, `is_in_doaj`, `apc_amount`/`apc_currency`, `apc_waiver`,
    `license`, `doaj_seal`, `two_year_mean_citedness`/`h_index`/`works_count`, `scielo_collections`, `top_factor`,
-   `ajol_status`, `indexed_in_medline`, `legitimacy_signals`, `legitimacy_absent`, `elevated_for`.
+   `ajol_status`, `indexed_in_medline`, `fit_rank`, `weighted_rank`, `legitimacy_signals`, `legitimacy_absent`,
+   `elevated_for`.
 4. Confirm **no** `*score*` composite key anywhere; **no** "predatory" string; a closed journal appears.
 5. Re-run with `weighting: 1.0` -> the order shifts to elevate open goods; elevated journals carry a non-empty
    `elevated_for`; a closed journal's `elevated_for` is empty. (SP1b will expose this via the visible weighting slider.)
@@ -130,6 +145,9 @@ justified NLM's client-side pacing guard (no API key, no Settings surface — se
    confirm the whole run completes without any candidate silently reading `false` due to a 429 — i.e. re-run the
    same search and get the same `indexed_in_medline` values both times (proves the pacing guard, not just the
    hermetic fake-fetcher tests).
+9. Confirm `fit_rank`/`weighted_rank` on every profile: at `weighting: 0` they're equal for every journal; at
+   `weighting: 1.0` on a topic where fit and openness disagree, at least one journal's values diverge, and any
+   journal whose `weighted_rank <= top_k` but `fit_rank > top_k` proves the full-pool (not shown-slice) scope.
 
 ## Frontend — the "Where to submit" panel (SP1b, `08e_methods_publishers.jsx`)
 
@@ -151,6 +169,11 @@ Open Discover → **Journals**. Assert:
   legitimacy signals / `elevated_for`; each links to its source (journal homepage, OpenAlex, DOAJ). A closed journal
   renders with its facts (not filtered). A "predatory" label or a composite/openness **score** shown per journal is
   **Critical**. Framing must be positive (goods offered), never a deficit of the others.
+- **Thumb auditability (inc 453).** With weighting on, a journal whose blended position differs from its
+  fit-only position shows a caveat line ("Ranked #N here with weighting on · #M by topical fit alone"). It must
+  be absent at weighting off and for any journal whose rank didn't change. This is the design doc's own "neutral
+  pre-weighting ordering viewable beside the weighted one" — its sibling item, per-journal exclusion/filtering,
+  remains intentionally unbuilt (an ethical-valence deferral, not an oversight — do not flag its absence).
 - **SciELO + TOP Factor (inc 448).** A SciELO-indexed card shows an "Indexed in SciELO (<collections>)" signal chip.
   A TOP-Factor-rated card shows a **"show the basis"** `<details>` block (reusing `08b_methods_citation_equity.jsx`'s
   idiom) — expanding it must reveal every category name + its sub-score + `/max` + justification text; the `Total`
@@ -187,6 +210,8 @@ Open Discover → **Journals**. Assert:
 - MEDLINE indexing renders as a plain `legitimacy_signals` chip via existing generic frontend code, never
   elevates, and a broad multi-candidate run completes without a 429-driven false negative. The signal claims
   exactly what it checks — "PubMed" never appears in the field name, chip text, or response shape.
+- `fit_rank`/`weighted_rank` render as ordinal positions only (never a score/percentage), computed over the full
+  considered pool, and the per-card caveat appears only when weighting is on and the ranks actually diverge.
 - Neither/both-input -> 422; nonexistent/no-DOI paper -> 404/422; unknown job -> 404; empty topic -> honest `shown:0`.
 - Recent journal-search recall re-runs stored inputs for fresh results; clearing history only clears the local recall
   list and does not affect settings or saved papers.

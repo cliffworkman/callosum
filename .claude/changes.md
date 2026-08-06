@@ -11,6 +11,17 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
 
+## 2026-08-06 — Increment 453: Thumb auditability for PUBLISHERS (backlog #40)
+- **Files:** `app/backend/methods/publishers.py`, `app/backend/api/routers/publishers.py`,
+  `app/frontend/js/08e_methods_publishers.jsx`, `tests/test_publishers.py`.
+- **What:** adds `fit_rank`/`weighted_rank` to each PUBLISHERS profile (1-based ranks over the full considered
+  pool, sorted by fit alone vs. the actual blended order) and a per-card caveat line shown only when weighting is
+  on and the ranks diverge — the design doc's own "neutral pre-weighting ordering viewable beside the weighted
+  one." The doc's sibling item, user exclusion/filtering, was surfaced as ethically fraught and left deliberately
+  unbuilt (user-confirmed). COPE/OASPA membership was live re-checked and reconfirmed not buildable.
+- **Why:** closes the remaining safe half of backlog #40's "thumb auditability" item.
+- **Revert:** see `INCREMENT-453-NOTES.md`'s Rollback section (no schema; all additions cleanly separable).
+
 ## 2026-08-06 — Increment 452: NLM MEDLINE indexing as a fifth PUBLISHERS legitimacy source (backlog #40)
 - **Files:** `integrations/nlm/journals.py` (new), `app/backend/methods/publishers.py`,
   `app/backend/api/routers/publishers.py`, `app/backend/api/app.py`, `tests/test_publishers.py`.

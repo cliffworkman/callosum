@@ -71,6 +71,9 @@ class JournalProfile:
     # (jpps_status ranges from positive to cautionary — e.g. "Ceased" — never filtered or softened, per #6)
     indexed_in_medline: bool  # currently MEDLINE-indexed per the NLM Catalog — a coverage fact only, never
     # elevated (an indexing/discoverability fact, not an open-science good; matches SciELO's precedent)
+    fit_rank: int  # 1-based rank among the full considered pool, sorted by fit alone — the neutral, pre-weighting
+    # order (thumb auditability). A transparent ordinal derivation of the already-shown `fit`, never a new score.
+    weighted_rank: int  # 1-based rank in the full blended-sort order — this profile's actual position
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -96,6 +99,8 @@ class JournalProfile:
             "top_factor": self.top_factor,
             "ajol_status": self.ajol_status,
             "indexed_in_medline": self.indexed_in_medline,
+            "fit_rank": self.fit_rank,
+            "weighted_rank": self.weighted_rank,
         }
 
 
@@ -246,8 +251,14 @@ def build_profiles(
         rows.append((i, blended))
     rows.sort(key=lambda r: (r[1], fits[r[0]]), reverse=True)
 
+    # The neutral, fit-only order (thumb auditability) — independent of `rows`' blended sort, over the full
+    # considered pool so a journal only shown because the weighting elevated it still exposes its true, worse
+    # fit-only rank rather than one truncated to the returned top_k slice.
+    fit_order = sorted(range(len(pool)), key=lambda i: fits[i], reverse=True)
+    fit_rank_by_index = {i: r for r, i in enumerate(fit_order, start=1)}
+
     profiles: list[JournalProfile] = []
-    for i, _ in rows[:top_k]:
+    for weighted_rank, (i, _) in enumerate(rows[:top_k], start=1):
         meta, doaj, color = pool[i], doaj_for[i], colors[i]
         scielo, top_factor, ajol = scielo_for[i], top_factor_for[i], ajol_for[i]
         medline_indexed = bool(medline_for[i])
@@ -291,6 +302,8 @@ def build_profiles(
                 top_factor=top_factor,
                 ajol_status=ajol,
                 indexed_in_medline=medline_indexed,
+                fit_rank=fit_rank_by_index[i],
+                weighted_rank=weighted_rank,
             )
         )
     return PublishersReport(

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 452** (see Increment workflow) with **1853 root-suite pytest tests
+It is currently at **Increment 453** (see Increment workflow) with **1853 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -199,9 +199,18 @@ the full per-increment narrative for all other increments now lives in the reloc
   Psychiatry) is PubMed-"Currently-indexed" with no MEDLINE entry at all — so the field/chip is named
   `indexed_in_medline`/"Indexed in MEDLINE," never "PubMed," matching exactly what the query checks.
   `LEGITIMACY_DEFERRED`'s old "PubMed / Scopus indexing" entry is dropped whole — Scopus stays permanently out of
-  scope (proprietary, no free API) and is never named; broader PubMed-only coverage was never promised. Backlog
-  #40 stays open (self-archiving/green-route + Redalyc — a documented API doubly blocked by a live TLS hostname
-  mismatch and a maintainer-only registration requirement — + Latindex, reconfirmed closed, remain unwired).
+  scope (proprietary, no free API) and is never named; broader PubMed-only coverage was never promised. **Inc 453**
+  adds **thumb auditability**, the design doc's own "far reach" item: `fit_rank`/`weighted_rank` (1-based ranks
+  over the full considered pool, sorted by fit alone vs. the actual blended order) surface per-card only when
+  weighting is on and the ranks diverge — "Ranked #N here with weighting on · #M by topical fit alone," an
+  ordinal derivation of already-shown values, never a new score. Its sibling design-doc item, user
+  exclusion/filtering, stays **deliberately** unbuilt — the same doc flags it as ethically fraught ("the
+  disfavored extreme — it reintroduces the 'these are bad' valence"), surfaced to and confirmed by the user before
+  any code was written. COPE/OASPA membership was live re-checked too and reconfirmed not buildable (COPE:
+  Cloudflare-bot-blocked; OASPA: a real WordPress REST API with no structured members endpoint). Backlog #40 stays
+  open (self-archiving/green-route + Redalyc — a documented API doubly blocked by a live TLS hostname mismatch and
+  a maintainer-only registration requirement — + Latindex, reconfirmed closed, + COPE/OASPA + user
+  exclusion/filtering, remain unwired).
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):
@@ -752,7 +761,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 452). Each increment of real work
+callosum is built in **numbered increments** (currently at 453). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

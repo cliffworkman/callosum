@@ -544,9 +544,17 @@ the Principles + A-A gates before build.)*
   checks MEDLINE specifically, not "PubMed" broadly (a real journal, World Psychiatry, is PubMed-indexed with no
   MEDLINE entry at all) — fixed by precise renaming (`indexed_in_medline`, "Indexed in MEDLINE"), not a query
   change. **Scopus indexing is permanently out of scope** (proprietary, no free API) and is no longer named in
-  the tool's own deferred-sources list. Remaining, still open: self-archiving/
-  green-route (needs a Jisc-registered API key only the maintainer can obtain); Redalyc/Latindex; COPE/OASPA
-  membership; user exclusion/filtering; thumb auditability; the real field self-citation baseline (= #25 again).
+  the tool's own deferred-sources list. **Inc 453 ships thumb auditability** — `fit_rank`/`weighted_rank` (1-based
+  positions over the full considered pool, sorted by fit alone vs. the actual blended order) surfaced per-card
+  only when weighting is on and they diverge, exactly the "neutral pre-weighting ordering viewable beside the
+  weighted one" the original design doc calls for. **User exclusion/filtering stays deliberately deferred** — the
+  same design doc flags it as ethically fraught ("the disfavored extreme — it reintroduces the 'these are bad'
+  valence"), a real recorded decision, not an oversight; live re-checked before building COPE/OASPA membership
+  this session too — neither exposes a usable public API (COPE is Cloudflare-bot-blocked; OASPA's WordPress REST
+  API has no structured members endpoint, only its Jet-Engine-rendered members page, not worth scraping). Still
+  open: self-archiving/green-route (needs a Jisc-registered API key only the maintainer can obtain);
+  Redalyc/Latindex; COPE/OASPA membership; user exclusion/filtering (deferred on purpose); the real field
+  self-citation baseline (= #25 again).
 - **#41 User-authored modules (plugins).** [future track — record only] Deferred record of the idea + open
   questions. Do not build a plugin system until a dedicated design pass.
 - **#44 Lakens-catalog integration — registration workflow now in ordered increments.** Increment 1/1b (the transparency-signals
