@@ -87,6 +87,7 @@ JOB_LABELS: dict[str, str] = {
     "my_publication_gap_jobs": "Co-citation gap scan",
     "my_publication_citing_author_jobs": "Citing-authors scan",
     "my_publication_topic_jobs": "Emerging-topics scan",
+    "followed_author_jobs": "Followed-authors refresh",
 }
 
 # Every backend job family has a stable UI home. A job may add a narrower entity hint (paper_id, summary_id, ...)
@@ -141,6 +142,7 @@ JOB_NAV_DEFAULTS: dict[str, dict[str, Any]] = {
     "my_publication_gap_jobs": {"workspace": "profile"},
     "my_publication_citing_author_jobs": {"workspace": "profile"},
     "my_publication_topic_jobs": {"workspace": "profile"},
+    "followed_author_jobs": {"workspace": "discover", "tab": "followed-authors"},
 }
 
 JOB_COMPUTE_KINDS: dict[str, str] = {
@@ -188,6 +190,7 @@ JOB_COMPUTE_KINDS: dict[str, str] = {
     "my_publication_gap_jobs": "Public metadata + local analysis",
     "my_publication_citing_author_jobs": "Public metadata + local analysis",
     "my_publication_topic_jobs": "Public metadata + local analysis",
+    "followed_author_jobs": "Public metadata + local analysis",
 }
 
 _NAV_ENTITY_IDS = {"paper_id", "summary_id", "manuscript_id"}

@@ -51,6 +51,16 @@ and the DOI together). One dismissal domain across both sources means a work dis
 gap-finding also can't resurface via a followed author, and vice versa — proven directly by
 `test_dismiss_is_shared_with_gaps_dismissal_list`.
 
+**CI caught a real gap missed in local dev: the new `followed_author_jobs` `JobStore` was never registered in
+`status.py`'s `JOB_NAV_DEFAULTS`/`JOB_COMPUTE_KINDS`** (invariant #5 — every backend `JobStore` needs a bounded
+Status-popover navigation home). `tests/test_status.py::test_every_application_job_store_has_a_bounded_
+navigation_home` is the regression test for exactly this, but it wasn't in the targeted test files run during
+development (`test_followed_authors.py`, `test_gapfinder.py`, `test_migrations.py`) — only CI's full-suite run
+surfaced it. Fixed by adding `followed_author_jobs` to `JOB_LABELS` ("Followed-authors refresh"),
+`JOB_NAV_DEFAULTS` (`{"workspace": "discover", "tab": "followed-authors"}`), and `JOB_COMPUTE_KINDS` ("Public
+metadata + local analysis" — the same classification `gap_jobs` already uses, since both do a bounded OpenAlex
+fetch plus local dedup analysis).
+
 ## Housekeeping / gates
 
 - **Security audit**: `.claude/security-audits/2026-08-07_followed-authors.md` — PASS. New endpoints + schema +
@@ -81,15 +91,39 @@ gap-finding also can't resurface via a followed author, and vice versa — prove
 
 ## Verification
 
-- `pytest tests/test_followed_authors.py tests/test_gapfinder.py -q` → **26 passed** (13 new + 13 pre-existing,
-  confirming the shared dismissal reuse introduced no gap-finder regression).
-- `pytest tests/test_migrations.py -q` → **8 passed**.
+- `pytest tests/test_status.py tests/test_followed_authors.py tests/test_gapfinder.py -q` → **43 passed** (17 +
+  13 new + 13 pre-existing, confirming the shared dismissal reuse and the Status wiring fix introduced no
+  regression).
+- `pytest tests/test_migrations.py -q` → **9 passed** (8 pre-existing + 1 new regression test for the migration
+  fix below).
 - `pytest tests/test_frontend_assembly.py -q` → **64 passed**.
 - `python tools/check_line_budget.py`: clean (495 files, all under cap; new files well under: router 285 lines,
   compute module 80, repo 101, frontend pane 120).
 - `python tools/qa/build_surface_map.py check`: 382/382 API, 1625/1625 FE surfaces covered.
 - `ruff format` + `ruff check`: clean. `python tools/build_frontend.py`: clean.
-- `alembic upgrade head` + migration tests: clean, zero drift on the two new tables.
+- **A real migration bug was caught live, not by the test suite**: applying `alembic upgrade head` against the
+  real testing DB (`.local/validation-summarize/validation.sqlite`, ~200 real papers) failed with
+  `NotImplementedError: No support for ALTER of constraints in SQLite dialect` — the migration originally added
+  `followed_authors`' UNIQUE constraint via a separate `op.create_unique_constraint()` call after `create_table`,
+  which SQLite's Alembic dialect cannot ALTER onto an existing table. A fresh-DB test alone never exercises this
+  path: migration 0001 creates every current-metadata table via `metadata.create_all()` (which handles the
+  constraint natively), so the guarded 0069 branch never actually ran during `test_alembic_upgrade_head_succeeds_
+  on_a_fresh_db`. Fixed by moving the constraint inline into `create_table()` (the same pattern every other
+  migration with a `UniqueConstraint` already uses); a new regression test,
+  `test_followed_authors_migration_upgrades_an_existing_0068_database`, upgrades to 0068, drops the two tables
+  (simulating a real pre-0069 deployed DB), upgrades to head, and proves the constraint survives by attempting a
+  real duplicate insert.
+- **Live end-to-end verification against the real testing DB** (Playwright + direct API calls, real OpenAlex
+  traffic, `CALLOSUM_ALLOW_DATA_EGRESS` unset throughout): followed "Daniël Lakens" by name (resolved live,
+  `matched_by: "name"`, correctly labeled lower-confidence in the tooltip); Refresh All checked 420 real works
+  and returned 50 candidates (the cap); Add on one candidate imported it as paper id 242, metadata-only (0
+  attachments, 0 chunks); Dismiss on another persisted across a full page reload; unfollow cascaded and cleared
+  the candidate list immediately (confirmed via `GET /followed-authors/candidates` returning 0); the quick-follow
+  button on a real My-Publications citing-author card ("Yong Xu") flipped to "✓ Following" using the direct-id
+  path (`matched_by: "direct"`, zero extra resolve calls). Zero console/page errors throughout. Verification
+  artifacts (the followed author and the imported test paper) were cleaned up afterward.
+- **CI caught the Status wiring gap** described above — full local dev only ran the targeted test files, not
+  `test_status.py`; fixed and re-verified before this increment was called done.
 
 ## Rollback
 

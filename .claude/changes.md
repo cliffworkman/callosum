@@ -27,6 +27,19 @@ are the design diary; this is the chronological "what & why" record.
   app; the original gap-finder design doc specs this exact second candidate-generator.
 - **Revert:** see `INCREMENT-454-NOTES.md`'s Rollback section.
 
+## 2026-08-07 — Increment 454 follow-up: Status wiring + a real migration bug
+- **Files:** `app/backend/api/routers/status.py`, `alembic/versions/0069_followed_authors.py`,
+  `tests/test_migrations.py`.
+- **What:** CI caught that the new `followed_author_jobs` `JobStore` was never registered in `status.py`'s
+  `JOB_NAV_DEFAULTS`/`JOB_COMPUTE_KINDS` (invariant #5) — fixed. Live verification against the real testing DB
+  separately caught that `0069_followed_authors.py`'s UNIQUE constraint was added via a call SQLite's Alembic
+  dialect can't ALTER onto an existing table — fixed by moving it inline into `create_table()`, with a new
+  regression test that exercises the real pre-existing-DB upgrade path.
+- **Why:** neither gap was visible from the targeted dev-loop tests or a fresh-DB migration test; only CI's full
+  suite and a real live-DB upgrade surfaced them.
+- **Revert:** revert the three `followed_author_jobs` dict entries in `status.py`; revert the migration + test
+  file to their prior (broken) state — not recommended, since both fixes are load-bearing correctness fixes.
+
 ## 2026-08-06 — Increment 453: Thumb auditability for PUBLISHERS (backlog #40)
 - **Files:** `app/backend/methods/publishers.py`, `app/backend/api/routers/publishers.py`,
   `app/frontend/js/08e_methods_publishers.jsx`, `tests/test_publishers.py`.
