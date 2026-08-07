@@ -199,6 +199,10 @@ registerWorkspaceTab({ id: "discover" }, {
   render: (ctx, active) => <DiscoverPane onSaved={ctx.onDiscoverSaved} active={active}
     onOpenWanted={ctx.onOpenWanted} onOpenGaps={ctx.onOpenGaps} onOpenOverlooked={ctx.onOpenOverlooked} />,
 });
+registerWorkspaceTab({ id: "discover" }, {
+  id: "followed-authors", label: "Followed Authors", order: 50, hideInReadOnly: true,
+  render: (ctx, active) => <FollowedAuthorsPane active={active} onSaved={ctx.onDiscoverSaved} />,
+});
 registerWorkspaceTab({ id: "work" }, {
   id: "meta-analyze", label: "Meta-Analyze", order: 40, hideInReadOnly: true,
   render: (ctx, active) => <WorkbenchPane active={active} onOpenPdf={ctx.onOpenPdf}

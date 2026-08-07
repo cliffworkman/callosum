@@ -4839,6 +4839,13 @@
       }
     )
   });
+  registerWorkspaceTab({ id: "discover" }, {
+    id: "followed-authors",
+    label: "Followed Authors",
+    order: 50,
+    hideInReadOnly: true,
+    render: (ctx, active) => /* @__PURE__ */ React.createElement(FollowedAuthorsPane, { active, onSaved: ctx.onDiscoverSaved })
+  });
   registerWorkspaceTab({ id: "work" }, {
     id: "meta-analyze",
     label: "Meta-Analyze",
@@ -16100,6 +16107,98 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       return /* @__PURE__ */ React.createElement("div", { key: j.journal, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, j.journal), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, j.count, " paper", j.count === 1 ? "" : "s", " in your library"))), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, isFollowed ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 Following") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onFollow(j.journal) }, "Follow")));
     })));
   }
+  function FollowedAuthorsPane({ active, onSaved }) {
+    const [authors, setAuthors] = useState([]);
+    const [nameInput, setNameInput] = useState("");
+    const [orcidInput, setOrcidInput] = useState("");
+    const [followErr, setFollowErr] = useState("");
+    const [rows, setRows] = useState([]);
+    const [refresh, setRefresh] = useState({ status: "idle" });
+    const [lastScan, setLastScan] = useState(null);
+    const loadAuthors = useCallback(() => {
+      api("/followed-authors").then((r) => {
+        if (r.ok) setAuthors(r.data || []);
+      });
+    }, []);
+    const loadCandidates = useCallback(() => {
+      api("/followed-authors/candidates").then((r) => {
+        if (r.ok) setRows(r.data.candidates || []);
+      });
+    }, []);
+    useEffect(() => {
+      loadAuthors();
+      loadCandidates();
+    }, [loadAuthors, loadCandidates]);
+    const follow = async () => {
+      const name = nameInput.trim(), orcid = orcidInput.trim();
+      if (!name && !orcid) return;
+      setFollowErr("");
+      const r = await apiPost("/followed-authors", { name: name || null, orcid: orcid || null });
+      if (!r.ok) {
+        setFollowErr(r.error);
+        return;
+      }
+      if (r.data.status === "no-match") {
+        setFollowErr("No OpenAlex author matched that name/ORCID.");
+        return;
+      }
+      setNameInput("");
+      setOrcidInput("");
+      loadAuthors();
+    };
+    const unfollow = async (authorId) => {
+      await apiDelete(`/followed-authors/${authorId}`);
+      loadAuthors();
+      loadCandidates();
+    };
+    const runRefresh = async (authorId) => {
+      setRefresh({ status: "running" });
+      setLastScan(null);
+      const poll = (jobId) => api(`/followed-authors/refresh/${jobId}`).then((r2) => {
+        if (!r2.ok) {
+          setRefresh({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") {
+          setRefresh({ status: "idle" });
+          setLastScan({ authorsRefreshed: d.result.authors_refreshed, worksChecked: d.result.works_checked, note: d.result.note });
+          loadAuthors();
+          loadCandidates();
+        } else if (d.status === "error") setRefresh({ status: "error", error: d.detail || "Followed-authors refresh failed." });
+        else setTimeout(() => poll(jobId), 2e3);
+      });
+      const r = await apiPost("/followed-authors/refresh", { author_id: authorId || null });
+      if (!r.ok) {
+        setRefresh({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    const add = async (row) => {
+      const r = await apiPost("/followed-authors/add", { doi: row.doi, openalex_work_id: row.openalex_work_id, title: row.title });
+      if (r.ok) {
+        loadCandidates();
+        if (onSaved) onSaved();
+      }
+    };
+    const dismiss = async (row) => {
+      const r = await apiPost("/followed-authors/dismiss", { openalex_work_id: row.openalex_work_id, doi: row.doi });
+      if (r.ok) loadCandidates();
+    };
+    const running = refresh.status === "running";
+    return /* @__PURE__ */ React.createElement("div", { className: "discover followed-authors" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "feed-subs" }, authors.map((a) => /* @__PURE__ */ React.createElement(
+      "span",
+      {
+        key: a.author_id,
+        className: "feed-sub",
+        title: `OpenAlex ${a.author_id}${a.matched_by === "name" ? " \xB7 matched by name, not ORCID \u2014 lower confidence" : ""}${a.last_refreshed_at ? ` \xB7 last refreshed ${new Date(a.last_refreshed_at).toLocaleString()}` : " \xB7 never refreshed"}`
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "feed-sub-kind" }, "Author"),
+      a.display_name,
+      /* @__PURE__ */ React.createElement("button", { className: "feed-sub-x", title: "Unfollow", onClick: () => unfollow(a.author_id) }, "\xD7")
+    )), !authors.length ? /* @__PURE__ */ React.createElement("span", { className: "discover-hint" }, "Follow an author to start surfacing their absent works.") : null), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement("input", { value: nameInput, onChange: (e) => setNameInput(e.target.value), placeholder: "Author name\u2026" }), /* @__PURE__ */ React.createElement("input", { value: orcidInput, onChange: (e) => setOrcidInput(e.target.value), placeholder: "or ORCID (0000-0002-1825-0097)" }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: follow, disabled: !nameInput.trim() && !orcidInput.trim() }, "Follow"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: running || !authors.length, onClick: () => runRefresh(null) }, running ? "Scanning\u2026" : "Refresh all")), followErr && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, followErr)), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Works by a followed author that aren't in your library yet. ", /* @__PURE__ */ React.createElement("b", null, "Add"), " imports the metadata; ", /* @__PURE__ */ React.createElement("b", null, "Dismiss"), " hides it for good. Not filtered or ranked by relevance to your research axes \u2014 only deduplicated against your library."), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Checking followed authors' works through OpenAlex\u2026", managedBy: "backend-job" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, refresh.error), lastScan && /* @__PURE__ */ React.createElement("div", { className: "gaps-coverage" }, "Refreshed ", lastScan.authorsRefreshed, " author", lastScan.authorsRefreshed === 1 ? "" : "s", ", checked ", lastScan.worksChecked, " works. ", lastScan.note), !running && authors.length > 0 && rows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No absent works for your followed authors \u2014 everything found is already in your library, or nothing has been refreshed yet."), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, rows.map((row) => /* @__PURE__ */ React.createElement("div", { key: `${row.author_id}-${row.openalex_work_id || row.doi}`, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, row.title || row.doi), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, "by ", row.author_display_name, " (followed)"), row.year ? ` \xB7 ${row.year}` : "")), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => add(row) }, "Add"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => dismiss(row) }, "Dismiss"))))));
+  }
   function usePinchZoom({ scrollRef, pagesRef, scaleRef, active, onCommit }) {
     useEffect(() => {
       const el = scrollRef.current;
@@ -16754,6 +16853,16 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [state, setState] = useState({ status: "loading", authors: [], coverage: null, computedAt: null });
     const [refresh, setRefresh] = useState({ status: "idle" });
     const [selectedDomainKeys, setSelectedDomainKeys] = useState(() => /* @__PURE__ */ new Set());
+    const [followedIds, setFollowedIds] = useState(() => /* @__PURE__ */ new Set());
+    useEffect(() => {
+      api("/followed-authors").then((r) => {
+        if (r.ok) setFollowedIds(new Set((r.data || []).map((a) => a.author_id)));
+      });
+    }, []);
+    const followAuthor = useCallback(async (authorId, displayName) => {
+      const r = await apiPost("/followed-authors", { author_id: authorId, display_name: displayName });
+      if (r.ok) setFollowedIds((prev) => new Set(prev).add(authorId));
+    }, []);
     const availableDomains = (domains || []).filter((domain) => domain.key);
     const availableKeyToken = availableDomains.map((domain) => domain.key).sort().join("|");
     const selectedKeys = Array.from(selectedDomainKeys).sort();
@@ -16857,7 +16966,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       },
       author.name,
       " \u2197"
-    ), /* @__PURE__ */ React.createElement("div", { className: "mypubs-topic-hierarchy" }, "OpenAlex author \xB7 latest retrieved citing work ", author.latest_year)), /* @__PURE__ */ React.createElement("div", { className: "mypubs-topic-change" }, /* @__PURE__ */ React.createElement("b", null, author.cited_publication_count), /* @__PURE__ */ React.createElement("span", null, "of your publications \xB7 ", author.citing_work_count, " citing work", author.citing_work_count === 1 ? "" : "s"))), /* @__PURE__ */ React.createElement("details", { className: "mypubs-gap-evidence" }, /* @__PURE__ */ React.createElement("summary", null, "Inspect every citing work and publication connection"), /* @__PURE__ */ React.createElement("div", { className: "mypubs-topic-period" }, (author.citing_works || []).map((work) => /* @__PURE__ */ React.createElement("div", { className: "mypubs-topic-work", key: work.openalex_work_id }, /* @__PURE__ */ React.createElement(
+    ), followedIds.has(author.author_id) ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib", title: "Already following" }, "\u2713 Following") : /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: () => followAuthor(author.author_id, author.name) }, "Follow"), /* @__PURE__ */ React.createElement("div", { className: "mypubs-topic-hierarchy" }, "OpenAlex author \xB7 latest retrieved citing work ", author.latest_year)), /* @__PURE__ */ React.createElement("div", { className: "mypubs-topic-change" }, /* @__PURE__ */ React.createElement("b", null, author.cited_publication_count), /* @__PURE__ */ React.createElement("span", null, "of your publications \xB7 ", author.citing_work_count, " citing work", author.citing_work_count === 1 ? "" : "s"))), /* @__PURE__ */ React.createElement("details", { className: "mypubs-gap-evidence" }, /* @__PURE__ */ React.createElement("summary", null, "Inspect every citing work and publication connection"), /* @__PURE__ */ React.createElement("div", { className: "mypubs-topic-period" }, (author.citing_works || []).map((work) => /* @__PURE__ */ React.createElement("div", { className: "mypubs-topic-work", key: work.openalex_work_id }, /* @__PURE__ */ React.createElement(
       "a",
       {
         href: `https://openalex.org/${work.openalex_work_id}`,

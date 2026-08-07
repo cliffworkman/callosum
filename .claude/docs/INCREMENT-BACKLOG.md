@@ -239,8 +239,14 @@ the Principles + A-A gates before build.)*
   trusted anchor (R BayesFactor / a validated Rouder-2012 quadrature) turns up.
 - **#25 Citation concentration — a real *field* self-citation baseline.** Needs per-field-paper reference
   fetches — a cost/design call. *(Overlaps #37's citation-credit-concentration remediation.)*
-- **#29 Gap-finder — followed-authors as a source.** Blocked on a "followed authors" concept that doesn't exist
-  yet; also external-search discovery beyond the library (overlaps #30/Track C).
+- ✅ **#29 Gap-finder — followed-authors as a source — CLOSED inc 454.** Follow an OpenAlex author (by name/ORCID,
+  or directly from an already-resolved id via a My-Publications citing-authors quick-action); Refresh fetches
+  their works (cached, capped at 50/author) and surfaces those absent from the library, "by \<author\> (followed)."
+  A sibling module to gap-finder's backward/forward directions (its own two tables, not a third `direction`
+  value — `GapCandidate` has no room for author provenance). Deliberately **not** ranked by axis relevance in v1
+  (disclosed in the persistent UI note, not silently omitted — that machinery was never built even for
+  backward/forward gap-finding). Dismiss reuses gap-finder's own shared dismissal list. External-search discovery
+  beyond the library (the other half of this item, overlapping #30/Track C) remains its own separate concern.
 - ✅ **#30 Highlight-to-suggest/evaluate (Track C), SP1 + SP2/Stage-3 — CLOSED, corrected 2026-07-22.** This
   entry was **stale** (this doc drifted per rule #6): SP2/Stage-3 "beyond-library suggest" was NOT unbuilt — it
   shipped inc 271/272 (2026-07-14/15, landed as one large uncredited Codex commit that never got its own
@@ -694,7 +700,7 @@ plus later reconciliation findings.)*
   (131) + Retraction Watch DB (132); statcheck candidates + unified facet (133); on-import auto-check + RW
   staleness nudge (134); on-import extended to remaining DOI-bearing routes (224) *(remainder — see #31)*
 - **Literature gap-finder** — backward gap (135) + watched-folder focus-rescan (136) + v2 forward/axis-scoped/
-  cached (137) *(only followed-authors remains — see #29)*
+  cached (137) + followed-authors as a third source (454, #29 closed)
 - **Auto-select top library paper on load** (138); accordion tabs-within-a-section (139)
 - **End-user experience pass (rule #11 + EXPERIENCE-PASS.md)** + persona-agent mechanism (140); the
   build-and-test slate — statcheck path (141), determinate progress (142), durable keyword deletion (143),

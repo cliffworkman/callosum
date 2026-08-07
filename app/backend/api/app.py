@@ -40,6 +40,7 @@ from app.backend.api.routers import (
     feed,
     feedback,
     findings,
+    followed_authors,
     fulltext,
     funding,
     gaps,
@@ -224,6 +225,7 @@ def create_app(
     api.state.ajol_db_jobs = JobStore()  # backlog #40: AJOL CSV mirror download
     api.state.ajol_client = AjolClient()  # backlog #40: AJOL download client (overridable in tests)
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
+    api.state.followed_author_jobs = JobStore()  # backlog #29 (inc 454): followed-authors gap-finder source
     api.state.overlooked_lens_jobs = JobStore()  # backlog #37: overlooked-work lens (per-axis discovery)
     api.state.citation_count_jobs = JobStore()  # inc 210 (A2): library-wide OpenAlex cited-by refresh
     api.state.critical_review_jobs = JobStore()  # backlog #12: single-paper critical-read (scrutiny surface)
@@ -377,6 +379,9 @@ def create_app(
     api.include_router(registration_comparisons.router)  # persisted evidence crosswalk + review/staleness
     api.include_router(findings.router)  # /papers/{id}/findings — the FACT-vs-CANDIDATE store (inc 130)
     api.include_router(gaps.router)  # /gaps/* — literature gap-finder (inc 135)
+    api.include_router(
+        followed_authors.router
+    )  # /followed-authors/* — followed-authors gap source (backlog #29, inc 454)
     api.include_router(overlooked.router)  # /overlooked/* — overlooked-work lens: per-axis discovery (#37)
     api.include_router(discovery.router)  # /discovery/* — literature Search providers (inc 183)
     api.include_router(feed.router)  # /feed/* — literature Feed: followed sources, polled (inc 187)

@@ -162,3 +162,38 @@ def test_domain_scoped_gap_migration_preserves_the_all_publications_snapshot(tmp
         column["name"] for column in inspect(engine).get_columns("my_publication_citation_gap_cache")
     }
     engine.dispose()
+
+
+def test_followed_authors_migration_upgrades_an_existing_0068_database(tmp_path):
+    """Regression: 0069's guarded create originally added the UNIQUE constraint via a separate
+    op.create_unique_constraint() call, which SQLite's dialect cannot ALTER onto an existing table
+    (NotImplementedError). A fresh-DB test alone can't catch this -- migration 0001 creates every
+    current-metadata table via metadata.create_all() (which handles the constraint natively), so the
+    guarded 0069 branch never actually ran on a fresh DB. Only a real pre-existing deployed database
+    (upgrade to 0068, drop the tables migration 0001 pre-created, then upgrade to head) exercises the
+    branch that Alembic's ALTER-based path actually executes."""
+    db_url = f"sqlite:///{tmp_path / 'migration-followed-authors.sqlite'}"
+    cfg = _config_for(db_url)
+    command.upgrade(cfg, "0068_ajol_records")
+    engine = create_engine(db_url)
+    with engine.begin() as conn:
+        conn.exec_driver_sql("DROP TABLE followed_author_candidates")
+        conn.exec_driver_sql("DROP TABLE followed_authors")
+    engine.dispose()
+
+    command.upgrade(cfg, "head")
+
+    engine = create_engine(db_url)
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            "INSERT INTO followed_authors (author_id, display_name, matched_by) VALUES ('A1', 'A', 'name')"
+        )
+        try:
+            conn.exec_driver_sql(
+                "INSERT INTO followed_authors (author_id, display_name, matched_by) VALUES ('A1', 'B', 'name')"
+            )
+            duplicate_rejected = False
+        except Exception:
+            duplicate_rejected = True
+    engine.dispose()
+    assert duplicate_rejected  # the UNIQUE constraint on author_id survived the real ALTER-based upgrade path

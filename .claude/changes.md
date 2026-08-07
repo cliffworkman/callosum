@@ -11,6 +11,22 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
 
+## 2026-08-07 — Increment 454: Followed authors as a gap-finder source (backlog #29)
+- **Files:** `alembic/versions/0069_followed_authors.py`, `app/backend/persistence/schema_findings.py`,
+  `app/backend/persistence/schema.py`, `app/backend/clustering/followed_authors.py`,
+  `app/backend/persistence/followed_author_repo.py`, `app/backend/api/routers/followed_authors.py`,
+  `app/backend/api/app.py`, `app/frontend/js/30f_followed_authors.jsx`, `app/frontend/js/04b_workspaces.jsx`,
+  `app/frontend/js/31d_mypubs_citing_authors.jsx`, `tests/test_followed_authors.py`.
+- **What:** a new Discover → **Followed Authors** tab. Follow an OpenAlex author (by name/ORCID, or directly
+  from an already-resolved id via a one-click quick-action on My-Publications' citing-authors cards); Refresh
+  fetches their works (cached, capped at 50/author) and surfaces those absent from the library, "by \<author\>
+  (followed)." Built as a sibling module to gap-finder's backward/forward directions (its own two tables, not a
+  third `direction` value), reusing gap-finder's own shared dismissal list. Deliberately not ranked by axis
+  relevance in v1 — disclosed in the UI, not silently omitted.
+- **Why:** closes backlog #29, blocked for a long time on a "followed authors" concept that didn't exist in the
+  app; the original gap-finder design doc specs this exact second candidate-generator.
+- **Revert:** see `INCREMENT-454-NOTES.md`'s Rollback section.
+
 ## 2026-08-06 — Increment 453: Thumb auditability for PUBLISHERS (backlog #40)
 - **Files:** `app/backend/methods/publishers.py`, `app/backend/api/routers/publishers.py`,
   `app/frontend/js/08e_methods_publishers.jsx`, `tests/test_publishers.py`.

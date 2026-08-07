@@ -6,6 +6,16 @@ function MyPubsCitingAuthors({ domains, onSelectPaper }) {
   const [state, setState] = useState({ status: "loading", authors: [], coverage: null, computedAt: null });
   const [refresh, setRefresh] = useState({ status: "idle" });
   const [selectedDomainKeys, setSelectedDomainKeys] = useState(() => new Set());
+  // backlog #29 (inc 454): a quick "Follow" action reusing this card's already-resolved author_id — zero
+  // extra OpenAlex resolution, feeds the Discover → Followed Authors gap source.
+  const [followedIds, setFollowedIds] = useState(() => new Set());
+  useEffect(() => {
+    api("/followed-authors").then(r => { if (r.ok) setFollowedIds(new Set((r.data || []).map(a => a.author_id))); });
+  }, []);
+  const followAuthor = useCallback(async (authorId, displayName) => {
+    const r = await apiPost("/followed-authors", { author_id: authorId, display_name: displayName });
+    if (r.ok) setFollowedIds(prev => new Set(prev).add(authorId));
+  }, []);
   const availableDomains = (domains || []).filter(domain => domain.key);
   const availableKeyToken = availableDomains.map(domain => domain.key).sort().join("|");
   const selectedKeys = Array.from(selectedDomainKeys).sort();
@@ -160,6 +170,11 @@ function MyPubsCitingAuthors({ domains, onSelectPaper }) {
               <div>
                 <a className="mypubs-gap-title" href={`https://openalex.org/${author.author_id}`}
                   target="_blank" rel="noopener noreferrer">{author.name} ↗</a>
+                {followedIds.has(author.author_id)
+                  ? <span className="discover-inlib" title="Already following">✓ Following</span>
+                  : <button className="btn btn-link" onClick={() => followAuthor(author.author_id, author.name)}>
+                      Follow
+                    </button>}
                 <div className="mypubs-topic-hierarchy">
                   OpenAlex author · latest retrieved citing work {author.latest_year}
                 </div>

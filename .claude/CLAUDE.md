@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 453** (see Increment workflow) with **1853 root-suite pytest tests
+It is currently at **Increment 454** (see Increment workflow) with **1853 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -284,6 +284,19 @@ the full per-increment narrative for all other increments now lives in the reloc
   search when the ORCID lookup alone 404s, and the frontend finally renders the pre-existing `matched_by` field
   so a name-fallback match is visibly labeled lower-confidence rather than presented with an ORCID match's
   authority. A Help-doc note explains linking OpenAlex to ORCID at the source.
+- **Literature gap-finder (backlog #29, incs 135/137/454):** backward gap (works your library cites but doesn't
+  hold) and forward gap (works that cite your library but aren't in it) — axis-scoped, cached, cited-by-N-of-
+  your-papers evidence, never a quality rank. **Inc 454** adds a third source, **followed authors**: follow an
+  OpenAlex author (by name/ORCID, or directly from an already-resolved id via a My-Publications citing-authors
+  quick-action — zero extra egress) and Refresh fetches their works (cached, capped at 50/author,
+  `app/backend/clustering/followed_authors.py`), surfacing those absent from the library as "by \<author\>
+  (followed)." A **sibling module**, not a third `gap_candidates.direction` — `GapCandidate` has no room for
+  author provenance, so it gets its own two tables (`followed_authors`/`followed_author_candidates`) and its own
+  Discover sub-tab (`30f_followed_authors.jsx`), while reusing gap-finder's own shared dismissal list
+  (`dismiss_gap`/`dismissed_gaps` — a dismissal is about the work, not which generator re-derived it). **Not**
+  ranked by axis relevance in v1 — disclosed plainly in the persistent UI note, not silently omitted, since that
+  machinery was never actually built even for backward/forward gap (there, `axis_id` is only an input scope
+  filter, never an output rank).
 - **Local usage instrumentation (backlog #38A, inc 450):** a zero-egress local event log + a personal
   Settings → **Your usage** dashboard — the buildable-now half of the "Research-impact analytics" future track
   (`.claude/docs/future-tracks/opus4.8_future-tracks_researchimpactanalytics.md`; the cross-user Project B stays
@@ -761,7 +774,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 453). Each increment of real work
+callosum is built in **numbered increments** (currently at 454). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

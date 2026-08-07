@@ -143,6 +143,42 @@ gap_candidates = Table(
     Index("ix_gap_candidates_scope", "direction", "axis_id"),
 )
 
+# Followed-authors gap-finder source (backlog #29, inc 454): a lightweight OpenAlex-author subscription list.
+# Sibling to gap_candidates, not a new column on it -- gap_candidates/GapCandidate have no room for author
+# provenance and no per-author refresh scope. last_refreshed_at is set by the refresh job regardless of candidate
+# count, so "this author has nothing absent" (common, expected) is distinguishable from "never refreshed" --
+# mirrors feed_subscriptions.last_polled_at, the closest existing subscription precedent.
+followed_authors = Table(
+    "followed_authors",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("author_id", String(20), nullable=False),  # bare OpenAlex id, e.g. "A5023888391"
+    Column("display_name", Text, nullable=False),
+    Column("orcid", String(64)),
+    Column("matched_by", String(10), nullable=False),  # "orcid" | "name" | "direct"
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    Column("last_refreshed_at", String(40)),  # NULL = never refreshed
+    UniqueConstraint("author_id", name="uq_followed_authors_author_id"),
+)
+
+# The derived candidate cache for followed_authors: one row per (author, absent work), replaced per-author on
+# refresh. cited_by_count is the WORK's own OpenAlex citation count -- semantically different from
+# gap_candidates.cited_by_in_library (which counts the user's own library citing it) -- never conflate in the UI.
+followed_author_candidates = Table(
+    "followed_author_candidates",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("author_id", String(20), nullable=False),
+    Column("author_display_name", Text),  # snapshot at compute time so provenance needs no join
+    Column("openalex_work_id", String(40)),
+    Column("doi", String(255)),
+    Column("title", Text),
+    Column("year", Integer),
+    Column("cited_by_count", Integer, nullable=False, server_default="0"),
+    Column("computed_at", String(40), nullable=False),
+    Index("ix_followed_author_candidates_author", "author_id"),
+)
+
 # My Publications Layer-4 grounded prospection (incs 386/389): bounded, explicit-refresh snapshots keyed by an
 # all-publications or server-validated domain scope. Candidates retain the exact shared references + confirmed
 # own-publication rows that caused them to surface. One row per scope keeps a genuine empty result distinguishable
