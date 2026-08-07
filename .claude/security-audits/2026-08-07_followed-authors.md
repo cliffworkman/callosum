@@ -120,3 +120,84 @@ OpenAlex citation count, shown as-is, never blended into a rank.
   clean `200 {status:"no-match"}`, never a crash; unfollow-then-unfollow-again → idempotent 204, not 404.
 
 Result: **PASS.**
+
+---
+
+## Addendum 2026-08-07: followed authors flow into the Feed (inc 455)
+
+### Scope
+
+A followed author's works now also flow into the chronological literature Feed (Discover → Feed), via a new
+`FollowedAuthorFeedSource` registered on the existing `FeedRegistry` (`app/backend/discovery/feed.py`), plus a
+bidirectional sync between `followed_authors` and `feed_subscriptions` so following/unfollowing an author from
+either UI surface keeps both in sync. Triggers the audit gate via CLAUDE.md's #5 (net-new feature spanning 7+
+files) — #1/#2 do **not** apply: no new endpoint or request-schema change (existing endpoints gain new internal
+side effects only), no new external host (reuses the already-audited `OpenAlexAuthorClient`, the exact client
+this file already covers).
+
+### Data egress
+
+**Zero new egress surface.** `FollowedAuthorFeedSource.fetch()` calls `OpenAlexAuthorClient.fetch_author_works`
+— the identical, already-audited call the Followed-Authors tab's own Refresh already makes. Feed's own Refresh
+(`POST /feed/refresh`) now additionally polls this source alongside bioRxiv/PubMed/journal, all pre-existing,
+already-audited egress paths. No new host, no new request shape.
+
+### Resource / cost analysis
+
+Both the Followed-Authors tab's Refresh and Feed's Refresh independently call `fetch_author_works(..., refresh=True)`
+for the same author if both are used — a redundant but harmless doubling of one bounded, already-capped call
+(the client's own existing ~1000-work/5-page fetch cap, unchanged). Not a new class of resource cost; documented
+in code (`followed_author_feed_source.py`'s docstring) rather than silently accepted.
+
+### The bidirectional sync's bound
+
+- **Forward** (`followed_authors.py::follow_author`, both success paths): one extra `feed_repo.add_subscription`
+  call, already idempotent get-or-create by `(kind, value)` — repeated follows never grow `feed_subscriptions`
+  beyond one row per author. Pinned by `test_refollowing_does_not_duplicate_the_feed_subscription`.
+- **Reverse-on-unfollow** (`followed_authors.py::unfollow_author`): one bounded lookup + one delete of the
+  matching subscription (which cascades its own `feed_items` via the existing FK `ondelete="CASCADE"`) — no
+  new cascade path, reuses the schema's existing one.
+- **Reverse-on-Feed-unfollow** (`feed.py::remove_subscription`, new): before deleting, reads the subscription
+  row to check `kind == "followed_author"`; if so, calls `followed_author_repo.remove_followed_author`, which
+  itself already cascades `followed_author_candidates` (pre-existing, already-audited behavior — inc 454's own
+  cascade, not new logic). No circular import (verified: `followed_author_repo.py` imports only
+  `clustering.followed_authors` + `schema.py`; nothing in that chain imports `routers.feed`).
+- Neither direction can loop (follow → subscription-add is not itself observed by the unfollow-sync path, and
+  vice versa — each direction fires once, on its own single write transaction via `run_write`).
+
+### The startup backfill
+
+`followed_author_repo.backfill_feed_subscriptions()` (called once from `app.py`'s `lifespan()`, right after the
+existing `_upgrade_database_to_head` self-heal) loops the — for any real single-user instance — small
+`followed_authors` table and get-or-creates a matching subscription for any pre-455 follow. Bounded by however
+many authors the user actually follows (typically single digits); no unbounded query, no external call. Pinned
+by `test_backfill_creates_feed_subscriptions_for_pre_existing_followed_authors` (exercised via a real ASGI
+lifespan, `with TestClient(app) as client:`, not just called as a bare function).
+
+### The `user_addable` picker-exclusion (input-validation angle)
+
+`FollowedAuthorFeedSource.user_addable = False` hides it from the frontend's "Add source" picker, but the
+backend's `POST /feed/subscriptions` validation (`payload.kind not in request.app.state.feed_registry.kinds`)
+still accepts `kind="followed_author"` directly — a stray `POST {kind:"followed_author", value:"<anything>"}`
+would create an orphan subscription with no matching `followed_authors` row. Traced the failure mode: on refresh,
+`fetch_author_works(conn, "<anything>", refresh=True)` hits OpenAlex's real API (params URL-encoded via httpx,
+fixed `OPENALEX_ROOT` host — no SSRF/injection surface, identical to every other already-audited OpenAlex call in
+this codebase) and simply returns `[]` on a non-200/no-match. No crash, no privilege boundary crossed — this is a
+local, single-user app, and the worst case is one harmless empty-polling subscription the user created for
+themselves. Not worth additional server-side validation.
+
+### Checks
+
+- `pytest tests/test_feed.py tests/test_followed_authors.py -q` — 32 passed (11 new: registry-with-engine,
+  `FollowedAuthorFeedSource.fetch()` mapping/no-DOI-skip/limit, registry-dispatch via `refresh_subscriptions`,
+  the reverse-Feed-unfollow sync, forward-sync-on-follow, idempotent re-follow, and the real-lifespan backfill).
+- `pytest tests/test_gapfinder.py tests/test_status.py -q` — 30 passed, confirming no regression in gap-finder
+  or the Status/JobStore invariant (no new `JobStore` this increment — `FollowedAuthorFeedSource` runs inside
+  Feed's own existing `feed_jobs` refresh job, not a new one).
+- `python tools/check_line_budget.py` — clean (496 files, all under cap).
+- `python tools/build_frontend.py` + `pytest tests/test_frontend_assembly.py -q` — clean, 64 passed.
+- `python tools/qa/build_surface_map.py check` — 382/382 API, 1625/1625 FE surfaces covered, unchanged from
+  pre-455 (no new `@router.` decorator or JSX interactive handler was added — confirmed by re-running the check,
+  not assumed).
+
+Result: **PASS.**

@@ -19,6 +19,14 @@ the Feed tab UI (`30e_feed.jsx`) = inc 188 (SP2b).
   an **All / Unread (N) / Starred** filter, and **Mark all read**.
 - Each item row: an unread dot + serif title (read items dim), authors/posted-date/journal meta, a **★** star toggle,
   **Save** / **✓ in library**, and an **Abstract** toggle. Clicking a row marks it read.
+- **inc 455 — followed authors flow into the Feed too.** Following an author (Discover → Followed Authors tab, or
+  the My-Publications citing-authors quick-action) also creates a `kind="followed_author"` subscription here —
+  its chip appears in the same `feed-subs` row (tag "Followed") but is **not selectable in the "Add source"
+  picker** (`user_addable:false` — the picker only ever offers Journal/bioRxiv/medRxiv/PubMed). A followed
+  author's items carry a small indigo **"Followed"** badge next to the title, distinguishing them from ordinary
+  journal/bioRxiv/PubMed items in the same chronological list. Unfollowing **either** here (the chip's ×) **or**
+  from the Followed Authors tab removes both the subscription and the `followed_authors` row — a bidirectional
+  sync, not two independent lists.
 
 ## Environment
 
@@ -52,6 +60,14 @@ that kind). The refresh job runs `refresh_subscriptions` over the registry in a 
   user's own library, ordered by count — NOT a quality ranking or recommendation** (signal-not-verdict). The
   journal-title poll resolves title→ISSN then works via the **already-audited Crossref host** (egress only on
   Refresh); a blank/oversized title fetches nothing.
+- **The followed-author source shows everything, never dedupes at write time (inc 455).** Unlike the Followed
+  Authors tab's own "what am I missing" candidate list, a followed author's Feed items are **not** filtered
+  against the library — `in_library` is computed at read time exactly like every other Feed source, so an
+  already-owned paper by a followed author still appears here (with `✓ in library` instead of Save). This is a
+  deliberate difference in purpose (a full stream vs. a gap-triage list), not an inconsistency.
+- **The "Add source" picker never offers "Followed author."** `source_meta` carries a `user_addable` flag;
+  `kind="followed_author"` is `false` — following an author only happens through its own dedicated resolve flow
+  (name/ORCID/direct), never a raw-author-id text field here.
 
 ## Adversarial checklist
 
@@ -60,6 +76,9 @@ that kind). The refresh job runs `refresh_subscriptions` over the registry in a 
 - Mark an item read → it drops from `?unread=true`; star it → it shows in `?starred=true`
 - `mark-read` clears the unread count; deleting a subscription cascades (its items vanish)
 - A subscription whose source raises → refresh still completes (new_items=0), no crash
+- Follow an author (elsewhere), confirm its chip appears here tagged "Followed" and is absent from the "Add
+  source" picker's own dropdown; unfollow via THIS chip's × → confirm the author also disappears from the
+  Followed Authors tab (the reverse sync)
 
 ## Steps
 
@@ -76,11 +95,20 @@ that kind). The refresh job runs `refresh_subscriptions` over the registry in a 
    most-frequent first (a paper with no venue is excluded); **no external request**. (UI) The Follow kind defaults to
    **Journal**; typing predicts from those library journals; **Suggest** opens a modal listing them by count with a
    **Follow** (already-followed → ✓ Following) that `POST /feed/subscriptions {kind:"journal"}`.
+8. (inc 455) Follow an author from the Followed Authors tab (or inject a `followed_author` subscription +
+   a fake author-client the way `tests/test_feed.py`'s `_FakeAuthorClient` does). `GET /feed/subscriptions` →
+   `source_meta` includes `{kind:"followed_author", user_addable:false}`; `POST /feed/refresh` → the author's
+   works appear in `GET /feed` intermixed with other items, each with `subscription_id` matching the
+   `followed_author` subscription (UI: the "Followed" badge). `DELETE /feed/subscriptions/{id}` for that
+   subscription → `GET /followed-authors` no longer lists the author (reverse sync).
 
 ## Pass criteria
 
 - Subscriptions are explicit/opt-in (422 on unknown kind); refresh polls + stores; re-poll is idempotent + preserves
   read state; read/starred/mark-read/`in_library` all behave; delete cascades.
+- A followed author's items appear intermixed, badged, never pre-filtered against the library; the picker never
+  offers "Followed author" directly; unfollowing from either surface (this tab's chip, or the Followed Authors
+  tab) clears both records.
 - 0 console/page errors; **0 genai-host requests**.
 
 ## Deposit

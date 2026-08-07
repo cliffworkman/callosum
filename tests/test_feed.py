@@ -105,6 +105,106 @@ def test_default_feed_registry_registers_sources():
     assert meta["biorxiv_category"]["label"] == "bioRxiv category" and meta["biorxiv_category"]["suggestions"]
     assert meta["medrxiv_category"]["label"] == "medRxiv category" and meta["medrxiv_category"]["suggestions"]
     assert meta["pubmed_query"]["label"] == "PubMed search"
+    assert all(m["user_addable"] for m in reg.source_meta)  # the 4 built-ins are all directly Follow-able
+
+
+# ---- followed-author Feed source (inc 455) ----------------------------------
+
+
+def test_default_feed_registry_with_engine_registers_followed_author_source():
+    from app.backend.persistence.database import make_engine as _make_engine
+
+    engine = _make_engine("sqlite:///:memory:")
+    reg = build_default_feed_registry(engine=engine)
+    assert reg.kinds == ["journal", "biorxiv_category", "medrxiv_category", "pubmed_query", "followed_author"]
+    meta = {m["kind"]: m for m in reg.source_meta}
+    assert meta["followed_author"]["label"] == "Followed author"
+    assert meta["followed_author"]["user_addable"] is False  # never offered in the generic "Add source" picker
+    engine.dispose()
+
+
+class _FakeAuthorClient:
+    def __init__(self, works_by_author):
+        self.works_by_author = works_by_author
+
+    def with_cache_engine(self, _engine):
+        return self
+
+    def fetch_author_works(self, conn, author_id, *, refresh=False):
+        return self.works_by_author.get(author_id, [])
+
+
+def test_followed_author_source_maps_skips_no_doi_and_caps_limit(temp_db_url):
+    from app.backend.discovery.followed_author_feed_source import FollowedAuthorFeedSource
+    from integrations.openalex import AuthorWork
+
+    engine = make_engine(temp_db_url)
+    works = [
+        AuthorWork(doi="10.9/newer", title="Newer", year=2025, cited_by_count=0, openalex_work_id="W1"),
+        AuthorWork(doi=None, title="No DOI", year=2026, cited_by_count=0, openalex_work_id="W2"),
+        AuthorWork(doi="10.9/older", title="Older", year=2020, cited_by_count=0, openalex_work_id="W3"),
+    ]
+    src = FollowedAuthorFeedSource(engine=engine, author_client=_FakeAuthorClient({"A1": works}))
+    entries = src.fetch("A1", limit=1)
+    assert [e.doi for e in entries] == ["10.9/newer"]  # no-DOI skipped, newest-first, capped to limit
+    assert entries[0].posted_date == "2025"  # a bare year, not left NULL -- feed_repo sorts by posted_date DESC
+    assert src.fetch("", limit=10) == []
+    engine.dispose()
+
+
+def test_followed_author_source_items_sort_correctly_alongside_dated_sources(temp_db_url):
+    """Regression: a NULL posted_date sorts LAST under feed_repo.list_items's `posted_date DESC` ordering
+    (SQLite treats NULL as smallest) -- so a followed author's newest work would silently sink to the bottom of
+    the feed regardless of recency unless posted_date is set to at least a bare year."""
+    from app.backend.discovery.followed_author_feed_source import FollowedAuthorFeedSource
+    from integrations.openalex import AuthorWork
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        feed_repo.add_subscription(conn, kind="test_source", value="dated")
+        feed_repo.add_subscription(conn, kind="followed_author", value="A1", label="A")
+        dated_source = _FakeSource(
+            [FeedEntry(dedup_key="doi:old", title="Old dated item", doi="10.1/old", posted_date="2024-01-01")]
+        )
+        src = FollowedAuthorFeedSource(
+            engine=engine,
+            author_client=_FakeAuthorClient(
+                {"A1": [AuthorWork(doi="10.9/new", title="New followed-author work", year=2026, cited_by_count=0)]}
+            ),
+        )
+        reg = FeedRegistry().register(dated_source).register(src)
+        refresh_subscriptions(conn, reg)
+        titles = [v["title"] for v in feed_view(conn)]
+        assert titles[0] == "New followed-author work"  # 2026 sorts before the 2024-01-01 dated item, not after
+    engine.dispose()
+
+
+def test_refresh_subscriptions_dispatches_to_followed_author_source(temp_db_url):
+    from integrations.openalex import AuthorWork
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        feed_repo.add_subscription(conn, kind="followed_author", value="A1", label="A. Researcher")
+        reg = FeedRegistry().register(
+            _wrap_source(
+                "followed_author",
+                _FakeAuthorClient({"A1": [AuthorWork(doi="10.9/x", title="X", year=2024, cited_by_count=0)]}),
+                engine,
+            )
+        )
+        counts = refresh_subscriptions(conn, reg)
+        assert counts == {"subscriptions": 1, "new_items": 1}
+        items = [v["doi"] for v in feed_view(conn)]
+        assert items == ["10.9/x"]
+    engine.dispose()
+
+
+def _wrap_source(kind, author_client, engine):
+    from app.backend.discovery.followed_author_feed_source import FollowedAuthorFeedSource
+
+    src = FollowedAuthorFeedSource(engine=engine, author_client=author_client)
+    assert src.kind == kind
+    return src
 
 
 def test_medrxiv_source_uses_the_medrxiv_server():
@@ -289,7 +389,7 @@ def test_feed_endpoints(temp_db_url):
     listing = client.get("/feed/subscriptions").json()
     assert listing["kinds"] == ["test_source"]
     assert listing["source_meta"] == [
-        {"kind": "test_source", "label": "test_source", "placeholder": "", "suggestions": []}
+        {"kind": "test_source", "label": "test_source", "placeholder": "", "suggestions": [], "user_addable": True}
     ]
 
     jid = client.post("/feed/refresh").json()["job_id"]
@@ -310,6 +410,33 @@ def test_feed_endpoints(temp_db_url):
 
     assert client.delete(f"/feed/subscriptions/{sid}").status_code == 204
     assert client.get("/feed").json()["items"] == []  # cascade removed the items
+
+
+def test_unfollowing_a_followed_author_subscription_from_feed_also_unfollows_it(temp_db_url):
+    """inc 455: unfollowing via Feed's own subscription chip must mean the same thing as unfollowing via the
+    Followed Authors tab -- both directions of the sync."""
+    from integrations.openalex import ResolvedAuthor
+
+    class _Client:
+        def with_cache_engine(self, _engine):
+            return self
+
+        def resolve_author(self, conn, *, orcid=None, name=None):
+            return ResolvedAuthor(
+                author_id="A1", display_name="A. Researcher", orcid=None, works_count=1, matched_by="name"
+            )
+
+        def fetch_author_works(self, conn, author_id, *, refresh=False):
+            return []
+
+    app = create_app(db_url=temp_db_url, openalex_author_client=_Client())
+    client = TestClient(app)
+    client.post("/followed-authors", json={"name": "A. Researcher"})
+    subs = client.get("/feed/subscriptions").json()["subscriptions"]
+    sub = next(s for s in subs if s["kind"] == "followed_author")
+
+    assert client.delete(f"/feed/subscriptions/{sub['id']}").status_code == 204
+    assert client.get("/followed-authors").json() == []  # the reverse sync removed the followed_authors row too
 
 
 def test_library_journals_endpoint(temp_db_url):

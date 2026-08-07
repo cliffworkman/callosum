@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy import Connection, delete, insert, select, update
 
 from app.backend.clustering.followed_authors import FollowedAuthorCandidate
+from app.backend.persistence import feed_repo
 from app.backend.persistence.schema import followed_author_candidates, followed_authors
 
 
@@ -98,3 +99,18 @@ def read_followed_author_candidates(conn: Connection) -> list[dict[str, Any]]:
         .order_by(followed_author_candidates.c.year.desc(), followed_author_candidates.c.id)
     )
     return [dict(r._mapping) for r in conn.execute(stmt).all()]
+
+
+def backfill_feed_subscriptions(conn: Connection) -> int:
+    """inc 455 self-heal: ensure every already-followed author (including one followed before this increment
+    shipped) has a matching `feed_subscriptions` row, so their works flow into the Feed without the user having
+    to re-follow. Idempotent (`add_subscription` is get-or-create) -- safe to call on every app boot, mirroring
+    the existing `_upgrade_database_to_head` self-heal in `app.py`'s `lifespan()`. Returns the count added."""
+    added = 0
+    for author in list_followed_authors(conn):
+        if feed_repo.find_subscription(conn, kind="followed_author", value=author["author_id"]) is None:
+            feed_repo.add_subscription(
+                conn, kind="followed_author", value=author["author_id"], label=author["display_name"]
+            )
+            added += 1
+    return added

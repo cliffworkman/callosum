@@ -1,6 +1,10 @@
 """Literature Feed endpoints (backlog #28 SP2, inc 187): subscription CRUD + an async refresh (poll the followed
 sources) + the item list with read/starred state. Pull-only, opt-in — nothing auto-subscribes, nothing pushes.
-Public-metadata polling (bioRxiv now) — NOT the Gemini gate. Save reuses /discovery/save (metadata-only, no PDF)."""
+Public-metadata polling (bioRxiv now) — NOT the Gemini gate. Save reuses /discovery/save (metadata-only, no PDF).
+
+inc 455: unfollowing a `kind="followed_author"` subscription here also removes the matching `followed_authors`
+row, so unfollowing means the same thing regardless of which UI surface (this chip's ×, or the Followed Authors
+tab's own ×) the user clicked. The forward sync (follow) lives in `routers/followed_authors.py`."""
 
 from __future__ import annotations
 
@@ -14,7 +18,7 @@ from sqlalchemy import Connection, Engine
 from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
 from app.backend.discovery.feed import feed_view, refresh_subscriptions
-from app.backend.persistence import feed_repo
+from app.backend.persistence import feed_repo, followed_author_repo
 from app.backend.persistence.sqlite_retry import run_write
 
 router = APIRouter()
@@ -66,7 +70,10 @@ def add_subscription(
 @router.delete("/feed/subscriptions/{sub_id}", status_code=http_status.HTTP_204_NO_CONTENT)
 def remove_subscription(sub_id: int, engine: Engine = Depends(get_engine)) -> Response:
     def _do(conn: Connection) -> Response:
+        sub = feed_repo.get_subscription(conn, sub_id)
         feed_repo.remove_subscription(conn, sub_id)  # idempotent — deleting a gone subscription is a no-op
+        if sub is not None and sub["kind"] == "followed_author":
+            followed_author_repo.remove_followed_author(conn, sub["value"])
         return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
     return run_write(engine, _do)

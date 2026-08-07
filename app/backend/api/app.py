@@ -107,6 +107,7 @@ from app.backend.feedback.relay_client import FeedbackRelayClient, HttpFeedbackR
 from app.backend.help.assistant import HelpAssistant
 from app.backend.methods.retraction import DEFAULT_CHECKERS as DEFAULT_RETRACTION_CHECKERS
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.followed_author_repo import backfill_feed_subscriptions
 from app.backend.registration_acquisition.domain import RegistrationAcquisitionRegistry
 from app.backend.registration_discovery.domain import RegistrationDiscoveryRegistry
 from app.backend.summarization.generators import SummaryGenerator
@@ -174,6 +175,10 @@ def create_app(
         # Self-heal: bring the opened DB to the latest schema before serving, so a
         # pre-existing database that predates a migration can't 500 on writes.
         _upgrade_database_to_head(resolved_db_url)
+        # inc 455 self-heal: an author followed before this increment shipped has no matching feed_subscriptions
+        # row yet -- back-fill it so their works flow into the Feed without the user re-following.
+        with engine.begin() as conn:
+            backfill_feed_subscriptions(conn)
         try:
             yield
         finally:
@@ -252,7 +257,11 @@ def create_app(
     api.state.enrich_search_provider = None  # inc 217 test seam: a fake DOI-recovery search provider
     api.state.discovery_registry = discovery_registry or build_default_registry()  # inc 183: discovery Search providers
     api.state.citation_openalex_provider = None  # SP2 Cite: optional beyond-library OpenAlex provider test seam
-    api.state.feed_registry = feed_registry or build_default_feed_registry()  # inc 187: Feed sources (bioRxiv)
+    # inc 187: Feed sources (bioRxiv/journal/PubMed); inc 455 also registers the followed-author source when a
+    # real engine is available (a bare/test call keeps returning exactly the pre-455 4 sources -- see build_default_feed_registry's own docstring).
+    api.state.feed_registry = feed_registry or build_default_feed_registry(
+        engine=engine, author_client=openalex_author_client
+    )
     api.state.feed_jobs = JobStore()  # inc 187: async Feed refresh (poll subscriptions)
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator

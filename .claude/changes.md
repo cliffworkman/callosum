@@ -11,6 +11,22 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
 
+## 2026-08-07 — Increment 455: Followed authors flow into the Feed (backlog #29)
+- **Files:** `app/backend/discovery/followed_author_feed_source.py` (new), `app/backend/discovery/feed.py`,
+  `app/backend/persistence/feed_repo.py`, `app/backend/persistence/followed_author_repo.py`,
+  `app/backend/api/app.py`, `app/backend/api/routers/followed_authors.py`, `app/backend/api/routers/feed.py`,
+  `app/frontend/js/30e_feed.jsx`, `app/frontend/styles.css`, `tests/test_feed.py`, `tests/test_followed_authors.py`.
+- **What:** a followed author's new works now also flow into the chronological literature Feed (Discover →
+  Feed), intermixed with bioRxiv/PubMed/journal items and badged "Followed" — a second, complementary view
+  alongside inc 454's dedicated "what am I missing" gap list. A new `FollowedAuthorFeedSource` registers on
+  Feed's existing plugin registry; follow/unfollow now syncs `followed_authors` and `feed_subscriptions`
+  bidirectionally (either UI surface's unfollow clears both), plus a startup self-heal backfills a subscription
+  for any author followed before this shipped. The generic "Add source" picker never offers "Followed author"
+  directly (a raw OpenAlex author id is bad UX) — following an author stays exclusive to its own resolve flow.
+- **Why:** the user asked for followed authors to appear in the main Feed stream, not just the dedicated gap
+  list, with a visually differentiated card treatment.
+- **Revert:** see `INCREMENT-455-NOTES.md`'s Rollback section.
+
 ## 2026-08-07 — Increment 454: Followed authors as a gap-finder source (backlog #29)
 - **Files:** `alembic/versions/0069_followed_authors.py`, `app/backend/persistence/schema_findings.py`,
   `app/backend/persistence/schema.py`, `app/backend/clustering/followed_authors.py`,

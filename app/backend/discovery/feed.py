@@ -13,10 +13,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 
 from app.backend.persistence import feed_repo
 from app.backend.persistence.repository import find_existing_paper_by_identity
+from integrations.openalex import OpenAlexAuthorClient
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,11 @@ class FeedSource(Protocol):
     label: str  # e.g. "bioRxiv category"
     placeholder: str  # e.g. "neuroscience"
     suggestions: list[str]  # optional datalist values (e.g. the bioRxiv categories)
+    # inc 455: defaults True via getattr (existing sources need not set it). A source whose `value` isn't
+    # something a user should type directly (e.g. a bare OpenAlex author id) sets this False so the frontend's
+    # "Add source" picker omits it, while it still polls/dispatches normally and still appears in source_meta
+    # (an already-followed subscription's chip label lookup must keep resolving).
+    user_addable: bool
 
     def fetch(self, value: str, *, limit: int) -> list[FeedEntry]: ...
 
@@ -82,26 +88,40 @@ class FeedRegistry:
                 "label": getattr(s, "label", s.kind),
                 "placeholder": getattr(s, "placeholder", ""),
                 "suggestions": list(getattr(s, "suggestions", []) or []),
+                "user_addable": bool(getattr(s, "user_addable", True)),
             }
             for s in self._sources.values()
         ]
 
 
-def build_default_feed_registry() -> FeedRegistry:
+def build_default_feed_registry(
+    *, engine: Engine | None = None, author_client: OpenAlexAuthorClient | None = None
+) -> FeedRegistry:
     """The shipped feed sources: journal-by-title (inc 295, the default) + bioRxiv/medRxiv-by-category + PubMed-keyword.
     Registration order sets the Follow picker's default (first = default) → Journal is default. Adding a source is one
-    `register()`, no endpoint/UI edit (the Follow picker is data-driven from `source_meta`)."""
+    `register()`, no endpoint/UI edit (the Follow picker is data-driven from `source_meta`).
+
+    `engine` is optional (default None) so a bare call -- as every existing test makes -- keeps returning exactly
+    the 4 pre-455 sources; only the real app boot path (`app.py`, which always has an engine) also registers the
+    inc-455 followed-author source. This avoids ever mutating a caller-supplied/test-injected registry after the
+    fact -- registration only ever happens here, at construction."""
     from app.backend.discovery.biorxiv_source import BioRxivFeedSource
+    from app.backend.discovery.followed_author_feed_source import FollowedAuthorFeedSource
     from app.backend.discovery.journal_title_source import JournalTitleFeedSource
     from app.backend.discovery.pubmed_provider import PubMedKeywordFeedSource
 
-    return (
+    registry = (
         FeedRegistry()
         .register(JournalTitleFeedSource())  # first → the default kind in the Follow picker
         .register(BioRxivFeedSource(server="biorxiv"))
         .register(BioRxivFeedSource(server="medrxiv"))
         .register(PubMedKeywordFeedSource())
     )
+    if engine is not None:
+        registry.register(
+            FollowedAuthorFeedSource(engine=engine, author_client=author_client or OpenAlexAuthorClient())
+        )
+    return registry
 
 
 def refresh_subscriptions(conn: Connection, registry: FeedRegistry, *, limit_per: int = 40) -> dict[str, Any]:

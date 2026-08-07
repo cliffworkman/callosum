@@ -34,6 +34,24 @@ def list_subscriptions(conn: Connection) -> list[RowMapping]:
     return list(conn.execute(select(feed_subscriptions).order_by(feed_subscriptions.c.id)).mappings().all())
 
 
+def find_subscription(conn: Connection, *, kind: str, value: str) -> RowMapping | None:
+    """Look up a subscription by (kind, value) -- inc 455's followed-author sync uses this to find the
+    feed_subscriptions row matching a followed_authors.author_id without a second table's own id."""
+    return (
+        conn.execute(
+            select(feed_subscriptions).where(
+                and_(feed_subscriptions.c.kind == kind, feed_subscriptions.c.value == value)
+            )
+        )
+        .mappings()
+        .first()
+    )
+
+
+def get_subscription(conn: Connection, sub_id: int) -> RowMapping | None:
+    return conn.execute(select(feed_subscriptions).where(feed_subscriptions.c.id == sub_id)).mappings().first()
+
+
 def remove_subscription(conn: Connection, sub_id: int) -> bool:
     """Delete a subscription (FK CASCADE drops its items). Returns True if a row was removed."""
     result = conn.execute(delete(feed_subscriptions).where(feed_subscriptions.c.id == sub_id))

@@ -311,3 +311,44 @@ def test_unfollow_is_idempotent_and_add_imports_a_candidate(temp_db_url):
 
     add = client.post("/followed-authors/add", json={"doi": "10.9/added", "title": "Added Work"})
     assert add.status_code == 200 and add.json()["status"] == "imported"
+
+
+# ---- Feed sync (inc 455) -----------------------------------------------------------------------------------
+
+
+def test_follow_creates_a_matching_feed_subscription_and_unfollow_removes_it(temp_db_url):
+    app = create_app(db_url=temp_db_url, openalex_author_client=_FakeAuthorClient())
+    client = TestClient(app)
+    client.post("/followed-authors", json={"author_id": "A1", "display_name": "A. Researcher"})
+
+    subs = client.get("/feed/subscriptions").json()["subscriptions"]
+    sub = next(s for s in subs if s["kind"] == "followed_author")
+    assert sub["value"] == "A1" and sub["label"] == "A. Researcher"
+
+    client.delete("/followed-authors/A1")
+    subs_after = client.get("/feed/subscriptions").json()["subscriptions"]
+    assert not any(s["kind"] == "followed_author" for s in subs_after)
+
+
+def test_refollowing_does_not_duplicate_the_feed_subscription(temp_db_url):
+    app = create_app(db_url=temp_db_url, openalex_author_client=_FakeAuthorClient())
+    client = TestClient(app)
+    client.post("/followed-authors", json={"author_id": "A1", "display_name": "A"})
+    client.post("/followed-authors", json={"author_id": "A1", "display_name": "A"})  # already-following
+    subs = client.get("/feed/subscriptions").json()["subscriptions"]
+    assert len([s for s in subs if s["kind"] == "followed_author"]) == 1
+
+
+def test_backfill_creates_feed_subscriptions_for_pre_existing_followed_authors(temp_db_url):
+    """A follow written directly to the repo (simulating one that predates inc 455, before the sync existed)
+    gets a matching feed_subscriptions row from the app's own startup self-heal -- proven via the real ASGI
+    lifespan, which only fires inside a `with TestClient(app) as client:` block."""
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        add_followed_author(conn, author_id="A1", display_name="Pre-existing", orcid=None, matched_by="name")
+    engine.dispose()
+
+    app = create_app(db_url=temp_db_url, openalex_author_client=_FakeAuthorClient())
+    with TestClient(app) as client:
+        subs = client.get("/feed/subscriptions").json()["subscriptions"]
+    assert any(s["kind"] == "followed_author" and s["value"] == "A1" for s in subs)

@@ -5,6 +5,11 @@ panel); Refresh fetches their works (cached, bounded) and surfaces those absent 
 (followed)". GET reads are cache-only (zero egress); only the explicit Refresh job calls OpenAlex. Add/Dismiss
 reuse gap-finder's own metadata-import path and its shared `profile.dismissed_gap_works` list — one dismissal
 domain across both sources, since a dismissal is about the work, not which generator re-derived it.
+
+inc 455: follow/unfollow here also keeps a matching `feed_subscriptions` row (kind="followed_author") in sync,
+so the SAME author's works also flow into the chronological Feed (Discover → Feed), not just this dedicated
+"what am I missing" list — two purpose-built reads of one underlying "I follow this author" fact. The reverse
+sync (unfollowing via Feed's own subscription chip) lives in `routers/feed.py::remove_subscription`.
 """
 
 from __future__ import annotations
@@ -26,6 +31,7 @@ from app.backend.clustering.followed_authors import (
     compute_followed_author_candidates,
 )
 from app.backend.clustering.my_publications import import_citing_work
+from app.backend.persistence import feed_repo
 from app.backend.persistence.followed_author_repo import (
     add_followed_author,
     get_followed_author,
@@ -86,6 +92,7 @@ def follow_author(payload: FollowRequest, request: Request, engine: Engine = Dep
             row = add_followed_author(
                 conn, author_id=payload.author_id, display_name=payload.display_name, orcid=None, matched_by="direct"
             )
+            feed_repo.add_subscription(conn, kind="followed_author", value=row["author_id"], label=row["display_name"])
             return FollowResponse(
                 status="already-following" if existing else "followed", author=FollowedAuthorOut(**row)
             )
@@ -107,6 +114,7 @@ def follow_author(payload: FollowRequest, request: Request, engine: Engine = Dep
             orcid=author.orcid,
             matched_by=author.matched_by,
         )
+        feed_repo.add_subscription(conn, kind="followed_author", value=row["author_id"], label=row["display_name"])
         return FollowResponse(status="already-following" if existing else "followed", author=FollowedAuthorOut(**row))
 
     return run_write(engine, _do_resolve)
@@ -119,6 +127,9 @@ def unfollow_author(author_id: str, engine: Engine = Depends(get_engine)) -> Res
 
     def _do(conn: Connection) -> Response:
         remove_followed_author(conn, author_id)  # no-op if not followed -- idempotent, mirrors Feed's unfollow
+        sub = feed_repo.find_subscription(conn, kind="followed_author", value=author_id)
+        if sub is not None:
+            feed_repo.remove_subscription(conn, int(sub["id"]))
         return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
     return run_write(engine, _do)

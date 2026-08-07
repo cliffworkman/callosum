@@ -26,7 +26,9 @@ function FeedPane({ onSaved, active, embedded }) {
       setSubs(r.data.subscriptions || []);
       const meta = r.data.source_meta || [];
       setSourceMeta(meta);
-      setSelKind(k => k || (meta[0] ? meta[0].kind : ""));
+      // inc 455: user_addable===false kinds (e.g. followed-author) are dispatch-only — never the default pick
+      const addable = meta.filter(m => m.user_addable !== false);
+      setSelKind(k => k || (addable[0] ? addable[0].kind : ""));
     }
   }, []);
 
@@ -131,6 +133,12 @@ function FeedPane({ onSaved, active, embedded }) {
     setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }, []);
 
+  // inc 455: kinds like followed-author are dispatch-only (their `value` is a bare OpenAlex author id, not
+  // something a user should type) — omitted from the picker, but sourceMeta itself stays full so an
+  // already-followed subscription's chip label lookup above still resolves.
+  const addableSourceMeta = sourceMeta.filter(m => m.user_addable !== false);
+  const followedAuthorSubIds = new Set(subs.filter(s => s.kind === "followed_author").map(s => s.id));
+
   return (
     <div className={embedded ? "feed discover-feed-embedded" : "discover feed"}>
       <div className="pane-head">
@@ -148,20 +156,20 @@ function FeedPane({ onSaved, active, embedded }) {
           {!subs.length ? <span className="discover-hint">Follow a source to start your feed.</span> : null}
         </div>
         <div className="searchbar">
-          {sourceMeta.length > 1 ? (
+          {addableSourceMeta.length > 1 ? (
             <select className="lib-sort" value={selKind} onChange={e => setSelKind(e.target.value)}>
-              {sourceMeta.map(m => <option key={m.kind} value={m.kind}>{m.label}</option>)}
+              {addableSourceMeta.map(m => <option key={m.kind} value={m.kind}>{m.label}</option>)}
             </select>
           ) : null}
           <input
             value={cat} onChange={e => setCat(e.target.value)} list="feed-source-suggestions"
-            placeholder={(sourceMeta.find(m => m.kind === selKind) || {}).placeholder || "Follow a source…"}
+            placeholder={(addableSourceMeta.find(m => m.kind === selKind) || {}).placeholder || "Follow a source…"}
             onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); follow(); } }}
           />
           <datalist id="feed-source-suggestions">
             {(selKind === "journal"
               ? libJournals.map(j => j.journal)  // inc 295: predict from YOUR library's journals as you type
-              : ((sourceMeta.find(m => m.kind === selKind) || {}).suggestions || [])
+              : ((addableSourceMeta.find(m => m.kind === selKind) || {}).suggestions || [])
             ).map(c => <option key={c} value={c} />)}
           </datalist>
           <button className="btn btn-ghost" onClick={follow} disabled={!cat.trim()}>Follow</button>
@@ -199,6 +207,9 @@ function FeedPane({ onSaved, active, embedded }) {
             <div className="feed-row-top">
               {!it.is_read ? <span className="feed-unread-dot" title="Unread" /> : null}
               <div className="discover-title">{it.title}</div>
+              {followedAuthorSubIds.has(it.subscription_id)
+                ? <span className="feed-followed-badge" title="From a followed author">Followed</span>
+                : null}
             </div>
             <div className="paper-meta">
               {it.authors && it.authors.length

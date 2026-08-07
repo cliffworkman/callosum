@@ -44,6 +44,11 @@ that `/followed-authors` doesn't 404).
 - **Shared dismissal.** A candidate dismissed here must also be excluded from `/gaps`' own candidate list (same
   underlying dismissed-work set) — confirms this isn't a second, disconnected dismissal domain.
 - **Provenance.** Each candidate row shows `by <author> (followed)`.
+- **Feed sync (inc 455).** Following/unfollowing an author here also creates/removes a matching
+  `feed_subscriptions` row (`kind="followed_author"`), so their works also flow into Discover → Feed's
+  chronological stream (badged "Followed" there, distinct from this tab's own library-gap candidate list — see
+  `route_44_feed.md`). Unfollowing from Feed's own subscription chip must also remove the author here (the
+  reverse direction of the same sync).
 
 ## Adversarial checklist
 
@@ -75,7 +80,11 @@ that `/followed-authors` doesn't 404).
    **Follow** on a card → it flips to "✓ Following" and the author now also appears in the Followed Authors tab
    without a second resolve call (this is the zero-egress direct-id path).
 7. **Unfollow** an author (× on the chip) → their candidates vanish from the list immediately.
-8. Adversarial: a Refresh with an author who has zero absent works → an honest empty state, no crash; mobile
+8. (inc 455) Open **Discover → Feed** and confirm the same author now has a subscription chip there tagged
+   "Followed" and, after a Feed Refresh, their works appear intermixed with a "Followed" badge — **not** filtered
+   against the library (unlike this tab's own candidate list). Unfollow via Feed's chip instead of this tab's ×
+   → confirm the author also disappears from THIS tab (the reverse sync).
+9. Adversarial: a Refresh with an author who has zero absent works → an honest empty state, no crash; mobile
    viewport has no overflow; **0** genai-host requests throughout.
 
 ## Pass criteria
@@ -84,6 +93,7 @@ that `/followed-authors` doesn't 404).
   work end-to-end against the cache.
 - The no-axis-ranking limitation is visibly disclosed, not silently omitted.
 - Dismissal is shared with `/gaps`; Add is metadata-only; ordinary reads never egress.
+- Following/unfollowing stays in sync with the Feed's own subscription list in both directions.
 - 0 console/page errors; **0 genai-host requests**.
 - Bad inputs fail closed (422 on oversized name / malformed author id); mobile viewport has no horizontal
   overflow.
