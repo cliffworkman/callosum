@@ -242,8 +242,19 @@ the Principles + A-A gates before build.)*
 - **#24 Bayesian auditor — ANOVA/regression BF.** Not a build queue item: **declined as a documented finding**
   (a candidate failed the J=2 → two-sample-t reduction check; no in-env anchor exists). Revisit only if a
   trusted anchor (R BayesFactor / a validated Rouder-2012 quadrature) turns up.
-- **#25 Citation concentration — a real *field* self-citation baseline.** Needs per-field-paper reference
-  fetches — a cost/design call. *(Overlaps #37's citation-credit-concentration remediation.)*
+- **#25 Citation concentration — a real *field* self-citation baseline — calibrated inc 456, not yet wired.**
+  The "needs per-field-paper reference fetches" framing was partly stale: a field-sample paper's own references
+  + real author ids are already free in the existing cached field-sample response; the actual cost is a
+  count-only OpenAlex query per field paper checked (`OpenAlexClient.fetch_self_citation_hit_count`, new in inc
+  456). Rather than guess a sample size, inc 456 ran a real empirical calibration (bootstrap-resampling a
+  200-paper pilot per field across 6 real fields, mirroring stimulus-norming methodology) — population
+  self-citation rates varied ~3x by field (5.0%–16.0%), "computable" coverage varied 18%–74% by field (N must be
+  a target *computable* count, not a raw fetch count), and the N needed to stabilize ranged ~25–75 across fields
+  (did not generalize to one number). **N=40 chosen** (crosses Social Psychology's own stabilization point — a
+  disclosed judgment call). See `INCREMENT-456-NOTES.md` + `tools/citation_concentration_study.py`. **Still
+  open:** wiring N=40 into the shipped `_self_citation()` signal (`field_pct` still hardcoded `None`) — the
+  frontend already renders `field_pct` generically for any signal, so this is a pure backend follow-up.
+  *(Overlaps #37's citation-credit-concentration remediation.)*
 - ✅ **#29 Gap-finder — followed-authors as a source — CLOSED inc 454.** Follow an OpenAlex author (by name/ORCID,
   or directly from an already-resolved id via a My-Publications citing-authors quick-action); Refresh fetches
   their works (cached, capped at 50/author) and surfaces those absent from the library, "by \<author\> (followed)."

@@ -11,6 +11,23 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
 
+## 2026-08-07 — Increment 456: Empirically calibrate the self-citation field-baseline N (backlog #25/#37)
+- **Files:** `integrations/openalex/work_meta.py` (new, split from adapter.py), `integrations/openalex/
+  field_sample.py` (new, split from adapter.py), `integrations/openalex/adapter.py`,
+  `tools/citation_concentration_study.py` (new), `tests/test_citation_equity.py`.
+- **What:** a new `OpenAlexClient.fetch_self_citation_hit_count` primitive (count-only, chunked, cached) plus a
+  calibration tool that ran a real 6-field, 200-paper-pilot bootstrap study to determine how many field-sample
+  papers are needed for a stable self-citation field baseline. `adapter.py` was at the 600-line cap, so it was
+  proactively split into `work_meta.py` (pure mapping) + `field_sample.py` (a `FieldSampleMixin`) first, with
+  full re-export so no external caller changed. Findings: population self-citation rates vary ~3x by field;
+  "computable" coverage varies 18%–74% by field; the N needed to stabilize ranged ~25–75 and does not generalize
+  to one number. **N=40 chosen**, favoring Social Psychology's own stabilization point.
+- **Why:** the backlog's "needs per-field-paper reference fetches — a cost/design call" framing was answered
+  empirically instead of guessed, mirroring stimulus-norming methodology (gather a pilot, bootstrap-resample to
+  find the minimum stable N).
+- **Revert:** see `INCREMENT-456-NOTES.md`'s Rollback section. No production behavior changed — the shipped
+  self-citation signal's `field_pct` is still `None`; wiring N=40 in is a deliberate, separate follow-up.
+
 ## 2026-08-07 — Increment 455: Followed authors flow into the Feed (backlog #29)
 - **Files:** `app/backend/discovery/followed_author_feed_source.py` (new), `app/backend/discovery/feed.py`,
   `app/backend/persistence/feed_repo.py`, `app/backend/persistence/followed_author_repo.py`,

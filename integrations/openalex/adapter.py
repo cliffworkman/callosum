@@ -18,15 +18,20 @@ from sqlalchemy import Connection, Engine
 
 from app.backend.acquisition.registry import OaColor, OaLocation, OaVersion, PaperRef
 from app.backend.app_settings import resolved_mailto
-from integrations.api_cache import get_cached, put_cached, put_cached_committing
+from integrations.api_cache import put_cached, put_cached_committing
+from integrations.openalex.field_sample import FieldSampleMixin
 from integrations.openalex.work_keywords import keywords_from_work
+from integrations.openalex.work_meta import (
+    MAX_REFERENCED,
+    OPENALEX_PROVIDER,
+    _cached_response,
+    _csl_from_work,
+    _meta_from_work,
+    _meta_with_abstract,  # noqa: F401 -- re-exported: beyond_library.py + tests still import it from here
+)
 
-OPENALEX_PROVIDER = "openalex"
 OPENALEX_BASE_URL = "https://api.openalex.org/works"
-MAX_REFERENCED = 500  # cap on referenced-work ids read per paper (inc 135; bound the gap-finder fetches)
 MAX_CITING = 200  # cap on citing works read per paper (inc 137 forward gap; bound + a documented coverage limit)
-MAX_RELATED = 50  # cap on related-work ids read per paper (inc 228 overlooked-work; OpenAlex returns ~10–25)
-MAX_BYIDS = 50  # cap on ids fetched in one batch `?filter=openalex_id:` call (inc 228; OpenAlex's OR-filter limit)
 
 # OpenAlex `oa_status` → our OA color. "closed" (and anything unknown) → None = no authorized OA copy.
 _OA_STATUS_TO_COLOR: dict[str, OaColor] = {
@@ -53,7 +58,7 @@ class OpenAlexFetcher(Protocol):
         """Return HTTP status + parsed JSON for a GET to OPENALEX_BASE_URL + path."""
 
 
-class OpenAlexClient:
+class OpenAlexClient(FieldSampleMixin):
     def __init__(
         self,
         *,
@@ -198,106 +203,6 @@ class OpenAlexClient:
                 out.append(meta)
         return out
 
-    def _field_sample_body(self, conn: Connection, topic_id: str, size: int) -> dict[str, Any] | None:
-        """Raw OpenAlex listing body for a topic sample (cached `field:<id>`) — shared by `fetch_field_sample`
-        (inc 227) + `fetch_topic_candidates` (inc 228), so the audit's sample + the overlooked candidates reuse one
-        cached call. `topic_id` validated `^T\\d+$` **before** any request (no SSRF). Fail-closed → None."""
-        if not re.fullmatch(r"T\d+", topic_id or ""):
-            return None
-        size = max(1, min(int(size), 200))
-        cache_key = f"field:{topic_id}"
-        cached = _cached_response(conn, cache_key)
-        if cached is not None:
-            return cached["response_json"] if cached["status_code"] == 200 else None
-        try:
-            status, body = self.fetcher(
-                "",
-                params={
-                    "filter": f"primary_topic.id:{topic_id}",
-                    "sample": str(size),
-                    "seed": "42",  # fixed → a reproducible sample (re-runs hit the cache anyway)
-                    "per-page": str(size),
-                    **self._polite_params(),
-                },
-                headers=self._headers(),
-                timeout=self.timeout,
-            )
-        except Exception:
-            self._store(
-                conn,
-                cache_key,
-                request_json={"topic_id": topic_id},
-                response_json={"error": "fetch failed"},
-                status_code=None,
-            )
-            return None
-        self._store(conn, cache_key, request_json={"topic_id": topic_id}, response_json=body, status_code=status)
-        return body if status == 200 else None
-
-    def fetch_field_sample(self, conn: Connection, topic_id: str, *, size: int = 200) -> list[dict[str, Any]]:
-        """A random sample of recent works in an OpenAlex topic (inc 227 citation-equity) — the descriptive
-        "field" a paper's reference list is shown against. Returns `_meta_from_work` dicts."""
-        body = self._field_sample_body(conn, topic_id, size)
-        if not isinstance(body, dict):
-            return []
-        return [m for work in (body.get("results") or [])[:size] if (m := _meta_from_work(work))]
-
-    def fetch_topic_candidates(self, conn: Connection, topic_id: str, *, size: int = 200) -> list[dict[str, Any]]:
-        """Topic-sample works WITH the reconstructed abstract (inc 228 overlooked-work) — candidates from the field,
-        ranked by local embedding similarity to the focal paper. Shares the `field:<id>` cache with
-        `fetch_field_sample` (no extra HTTP if the audit already ran). Returns `_meta_with_abstract` dicts."""
-        body = self._field_sample_body(conn, topic_id, size)
-        if not isinstance(body, dict):
-            return []
-        return [m for work in (body.get("results") or [])[:size] if (m := _meta_with_abstract(work))]
-
-    def fetch_works_by_ids(
-        self, conn: Connection, ids: list[str], *, with_abstract: bool = True
-    ) -> list[dict[str, Any]]:
-        """Batch-fetch OpenAlex works by their `W…` ids (inc 228 overlooked-work) — one
-        `?filter=openalex_id:W1|W2|…` call (≤MAX_BYIDS ids, each validated `^W\\d+$` **before** the request → no
-        SSRF), cached per id-set. Returns `_meta_with_abstract` dicts (title+abstract+concepts for ranking).
-        Fail-closed → []."""
-        valid = [w for w in (ids or []) if re.fullmatch(r"W\d+", w or "")][:MAX_BYIDS]
-        if not valid:
-            return []
-        cache_key = "byids:" + hashlib.sha256("|".join(sorted(valid)).encode("utf-8")).hexdigest()[:24]
-        cached = _cached_response(conn, cache_key)
-        if cached is not None:
-            body = cached["response_json"] if cached["status_code"] == 200 else None
-        else:
-            try:
-                status, body = self.fetcher(
-                    "",
-                    params={
-                        "filter": "openalex_id:" + "|".join(valid),
-                        "per-page": str(len(valid)),
-                        **self._polite_params(),
-                    },
-                    headers=self._headers(),
-                    timeout=self.timeout,
-                )
-            except Exception:
-                self._store(
-                    conn,
-                    cache_key,
-                    request_json={"ids": valid},
-                    response_json={"error": "fetch failed"},
-                    status_code=None,
-                )
-                return []
-            self._store(conn, cache_key, request_json={"ids": valid}, response_json=body, status_code=status)
-            if status != 200:
-                body = None
-        if not isinstance(body, dict):
-            return []
-        out: list[dict[str, Any]] = []
-        for work in body.get("results") or []:
-            meta = _meta_with_abstract(work) if with_abstract else _meta_from_work(work)
-            if meta and meta.get("openalex_work_id"):
-                out.append(meta)
-        return out
-
     def fetch_cited_by_count(self, conn: Connection, ref: PaperRef) -> int | None:
         """OpenAlex's `cited_by_count` for a paper (inc 210, A2) — read from the cached DOI→work fetch.
         Returns the verbatim count (0 is a real value, kept), or None if the work/field is absent. Fail-closed."""
@@ -379,172 +284,6 @@ def _httpx_fetcher(
     return response.status_code, body
 
 
-def _meta_from_work(work: Any) -> dict[str, Any] | None:
-    """Map an OpenAlex work object → a meta dict (inc 135 gap-finder; extended inc 227 citation-concentration). DOI
-    normalized lower, prefix stripped. The inc-227 keys (venue/issn/institutions/primary_topic) are purely additive
-    — gap-finder/citation-count callers read only their own keys. (Author *nationality* is deliberately NOT
-    extracted: the citation tool never categorizes the people cited — see methods/citation_equity.py, inc 229.)"""
-    if not isinstance(work, dict):
-        return None
-    raw_id = str(work.get("id") or "")
-    raw_doi = work.get("doi") or (work.get("ids") or {}).get("doi")
-    doi = raw_doi.strip().lower().replace("https://doi.org/", "") if isinstance(raw_doi, str) and raw_doi else None
-    title = work.get("title") or work.get("display_name")
-    year = work.get("publication_year")
-    authorships = [a for a in (work.get("authorships") or []) if isinstance(a, dict)]
-    authors = [str((a.get("author") or {}).get("display_name") or "").strip() for a in authorships]
-    # inc 227 (citation-equity): venue + ISSN for the venue-concentration signal.
-    venue_src = (work.get("primary_location") or {}).get("source") or work.get("host_venue") or {}
-    venue = venue_src.get("display_name") if isinstance(venue_src, dict) else None
-    issn = venue_src.get("issn_l") if isinstance(venue_src, dict) else None
-    # inc 227: institution names for the institutional-concentration signal; no country/nationality extraction.
-    institutions: list[str] = []
-    for a in authorships:
-        for inst in a.get("institutions") or []:
-            if not isinstance(inst, dict):
-                continue
-            name = inst.get("display_name")
-            if name and str(name) not in institutions and len(institutions) < 20:
-                institutions.append(str(name))
-    # inc 227: the focal paper's primary_topic = the "field" the reference list is shown against (id validated).
-    raw_topic = work.get("primary_topic")
-    primary_topic = None
-    if isinstance(raw_topic, dict):
-        tid = str(raw_topic.get("id") or "").rsplit("/", 1)[-1]
-        if re.fullmatch(r"T\d+", tid):
-            primary_topic = {"id": tid, "display_name": str(raw_topic.get("display_name") or "")}
-    # inc 228 (overlooked-work SP2): related_works (OpenAlex's relatedness to this paper, bare ids) + concepts
-    # (top concept names — the shared-topic "why" for a candidate). Small lists; existing callers ignore them.
-    related: list[str] = []
-    for url in (work.get("related_works") or [])[:MAX_RELATED]:
-        if isinstance(url, str):
-            wid = url.rsplit("/", 1)[-1]
-            if re.fullmatch(r"W\d+", wid):
-                related.append(wid)
-    concepts = [
-        str(c.get("display_name"))
-        for c in (work.get("concepts") or [])[:8]
-        if isinstance(c, dict) and c.get("display_name")
-    ]
-    grants: list[dict[str, str]] = []
-    for grant in (work.get("grants") or [])[:20]:
-        if not isinstance(grant, dict):
-            continue
-        funder = grant.get("funder_display_name") or grant.get("funder") or grant.get("funder_name")
-        award = grant.get("award_id") or grant.get("award")
-        if funder or award:
-            grants.append(
-                {
-                    key: str(value)
-                    for key, value in {
-                        "funder_display_name": funder,
-                        "award_id": award,
-                        "funder": grant.get("funder"),
-                    }.items()
-                    if value
-                }
-            )
-    return {
-        "openalex_work_id": raw_id.rsplit("/", 1)[-1] if raw_id else None,
-        "doi": doi,
-        "title": str(title) if title else None,
-        "year": int(year) if isinstance(year, int) else None,
-        "authors": [a for a in authors if a][:8],
-        "cited_by_count": int(work.get("cited_by_count") or 0),
-        "venue": str(venue) if venue else None,
-        "issn": str(issn) if issn else None,
-        "institutions": institutions,
-        "primary_topic": primary_topic,
-        "related_works": related,
-        "concepts": concepts,
-        "grants": grants,
-    }
-
-
-def _meta_with_abstract(work: Any) -> dict[str, Any] | None:
-    """`_meta_from_work` + the reconstructed `abstract` (inc 228) — for an overlooked-work *candidate* whose
-    title+abstract we embed to rank topical relevance. Abstract is kept out of `_meta_from_work` (too large to add
-    to every reference/field meta); only candidates carry it."""
-    meta = _meta_from_work(work)
-    if meta is None:
-        return None
-    meta["abstract"] = _reconstruct_abstract(work.get("abstract_inverted_index"))
-    return meta
-
-
-# OpenAlex `type` → CSL type (only the common ones; unknown → omitted, never a guessed type — inc 217).
-_OA_TYPE_TO_CSL = {
-    "article": "article-journal",
-    "journal-article": "article-journal",
-    "book-chapter": "chapter",
-    "book": "book",
-    "dataset": "dataset",
-    "proceedings-article": "paper-conference",
-    "preprint": "article-journal",
-    "posted-content": "article-journal",
-}
-
-
-def _reconstruct_abstract(inverted_index: Any) -> str | None:
-    """Rebuild plain-text from OpenAlex's `abstract_inverted_index` ({word: [positions]}). Capped; None if absent."""
-    if not isinstance(inverted_index, dict) or not inverted_index:
-        return None
-    positions: list[tuple[int, str]] = []
-    for word, idxs in inverted_index.items():
-        if not isinstance(idxs, list):
-            continue
-        for i in idxs:
-            if isinstance(i, int):
-                positions.append((i, str(word)))
-    if not positions:
-        return None
-    positions.sort()
-    text = " ".join(word for _, word in positions).strip()
-    return text[:20000] or None
-
-
-def _csl_from_work(work: Any) -> dict[str, Any] | None:
-    """Map an OpenAlex work object → a CSL-fragment for gap-fill enrichment (inc 217). Only includes keys it can
-    supply; authors are stored as CSL `{literal}` (OpenAlex doesn't split family/given reliably)."""
-    if not isinstance(work, dict):
-        return None
-    fragment: dict[str, Any] = {}
-    title = work.get("title") or work.get("display_name")
-    if title:
-        fragment["title"] = str(title)
-    year = work.get("publication_year")
-    if isinstance(year, int):
-        fragment["issued"] = {"date-parts": [[year]]}
-    authors = [
-        {"literal": str(name)}
-        for a in (work.get("authorships") or [])
-        if isinstance(a, dict)
-        for name in [(a.get("author") or {}).get("display_name") or a.get("raw_author_name")]
-        if name
-    ]
-    if authors:
-        fragment["author"] = authors
-    venue = (work.get("primary_location") or {}).get("source") or work.get("host_venue") or {}
-    venue_name = venue.get("display_name") if isinstance(venue, dict) else None
-    if venue_name:
-        fragment["container-title"] = str(venue_name)
-    csl_type = _OA_TYPE_TO_CSL.get(str(work.get("type") or "").lower())
-    if csl_type:
-        fragment["type"] = csl_type
-    abstract = _reconstruct_abstract(work.get("abstract_inverted_index"))
-    if abstract:
-        fragment["abstract"] = abstract
-    raw_doi = work.get("doi") or (work.get("ids") or {}).get("doi")
-    if isinstance(raw_doi, str) and raw_doi:
-        fragment["DOI"] = raw_doi.strip().lower().replace("https://doi.org/", "")
-    raw_pmid = (work.get("ids") or {}).get("pmid")
-    if isinstance(raw_pmid, str) and raw_pmid:
-        digits = "".join(ch for ch in raw_pmid if ch.isdigit())
-        if digits:
-            fragment["PMID"] = digits
-    return fragment or None
-
-
 def _work_from_body(body: Any) -> dict[str, Any] | None:
     """A by-id lookup returns the work object; a title search returns {"results": [...]}."""
     if isinstance(body, dict) and isinstance(body.get("results"), list):
@@ -593,7 +332,3 @@ def _pick_pdf_location(work: dict[str, Any]) -> dict[str, Any] | None:
         if isinstance(pdf_url, str) and pdf_url.startswith("https://"):
             return loc
     return None
-
-
-def _cached_response(conn: Connection, cache_key: str):
-    return get_cached(conn, OPENALEX_PROVIDER, cache_key)

@@ -87,6 +87,82 @@ def test_fetch_field_sample_validates_id_and_fail_closed(temp_db_url):
     engine.dispose()
 
 
+# --- adapter: fetch_self_citation_hit_count (inc 456 self-citation field baseline) ------------------------------
+
+
+def _count_fetcher(hits_by_chunk_key, *, calls=None):
+    """A fake OpenAlex fetcher for the count-only `openalex_id:...,authorships.author.id:...` filter -- returns
+    `{"meta": {"count": N}}` for a (sorted ref-ids, sorted author-ids) key registered in `hits_by_chunk_key`."""
+
+    def fake(path, *, params, headers, timeout):
+        filt = params.get("filter") or ""
+        if calls is not None:
+            calls.append(filt)
+        if "openalex_id:" not in filt or "authorships.author.id:" not in filt:
+            return (404, {"error": "unexpected filter"})
+        ids_part, authors_part = filt.split(",authorships.author.id:")
+        ids_key = tuple(sorted(ids_part[len("openalex_id:") :].split("|")))
+        authors_key = tuple(sorted(authors_part.split("|")))
+        key = (ids_key, authors_key)
+        if key not in hits_by_chunk_key:
+            return (404, {"error": "unregistered chunk"})
+        return (200, {"meta": {"count": hits_by_chunk_key[key]}})
+
+    return fake
+
+
+def test_self_citation_hit_count_counts_and_validates_ids(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        client = OpenAlexClient(fetcher=_count_fetcher({(("W1", "W2"), ("A1",)): 1}))
+        # "bad"/"A9x" dropped by validation before the request is ever built
+        n = client.fetch_self_citation_hit_count(conn, ref_ids=["W1", "W2", "bad"], author_ids=["A1", "A9x"])
+        assert n == 1
+        assert client.fetch_self_citation_hit_count(conn, ref_ids=[], author_ids=["A1"]) is None  # no refs
+        assert client.fetch_self_citation_hit_count(conn, ref_ids=["W1"], author_ids=[]) is None  # no authors
+    engine.dispose()
+
+
+def test_self_citation_hit_count_chunks_over_50_refs_and_sums(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        # fetch_self_citation_hit_count sorts+dedupes the FULL ref-id set before chunking (string-lexicographic,
+        # not numeric) -- derive the expected chunk boundaries the same way, rather than pre-guessing them.
+        all_refs = sorted({f"W{i}" for i in range(60)})
+        chunk_a = tuple(all_refs[:50])
+        chunk_b = tuple(all_refs[50:])
+        calls: list[str] = []
+        client = OpenAlexClient(fetcher=_count_fetcher({(chunk_a, ("A1",)): 3, (chunk_b, ("A1",)): 2}, calls=calls))
+        n = client.fetch_self_citation_hit_count(conn, ref_ids=[f"W{i}" for i in range(60)], author_ids=["A1"])
+        assert n == 5 and len(calls) == 2  # two chunks (≤MAX_BYIDS each), summed
+    engine.dispose()
+
+
+def test_self_citation_hit_count_fail_closed_never_a_silent_partial_zero(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        bad = OpenAlexClient(fetcher=lambda p, **k: (500, None))
+        assert bad.fetch_self_citation_hit_count(conn, ref_ids=["W1"], author_ids=["A1"]) is None
+        # one good chunk + one failing chunk → the whole result is None, never a silently-undercounted partial sum
+        all_refs = sorted({f"W{i}" for i in range(51)})
+        chunk_a = tuple(all_refs[:50])  # the second chunk (all_refs[50:]) is deliberately left unregistered
+        mixed = OpenAlexClient(fetcher=_count_fetcher({(chunk_a, ("A1",)): 3}))
+        n = mixed.fetch_self_citation_hit_count(conn, ref_ids=[f"W{i}" for i in range(51)], author_ids=["A1"])
+        assert n is None  # the unregistered second chunk → fails closed, not a silent "3"
+    engine.dispose()
+
+
+def test_self_citation_hit_count_caches(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        calls: list[str] = []
+        client = OpenAlexClient(fetcher=_count_fetcher({(("W1",), ("A1",)): 1}, calls=calls))
+        client.fetch_self_citation_hit_count(conn, ref_ids=["W1"], author_ids=["A1"])
+        client.fetch_self_citation_hit_count(conn, ref_ids=["W1"], author_ids=["A1"])
+        assert len(calls) == 1  # the second call hit the cache, no second request
+    engine.dispose()
+
+
 # --- analyzer: the 4 descriptive signals ------------------------------------
 
 
