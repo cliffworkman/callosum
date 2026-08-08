@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 459** (see Increment workflow) with **1869 root-suite pytest tests
+It is currently at **Increment 460** (see Increment workflow) with **1881 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -279,7 +279,20 @@ the full per-increment narrative for all other increments now lives in the reloc
   (malformed/duplicate/orphaned marks, bibliography health) into one combined dialog. Document-scoped and
   reuse-first by design — no new detector, no job/poll infra (the adapter has none today), and the rest of the
   roadmap's #19 checklist (DOI resolution, metadata completeness, preprint-vs-VoR, etc.) is a deliberate v1
-  scope boundary, not built.
+  scope boundary, not built. **Inc 460** continues the P2 track with the **evidence-aware Suggest-Citation
+  composer** (roadmap #17): "Suggest citations" is now multi-select (several sources for one sentence become
+  one grouped citation via the existing `insert_citation_items`), and a new **Details…** dialog surfaces the
+  full quote, the complete 3-way support/contrast/mention stance breakdown, a "why retrieved" narration, a
+  weak-evidence warning (reusing invariant #1's own 0.7/0.55 `VerificationConfig` thresholds, not new numbers),
+  an editable page locator (auto-pre-filled from the matched passage, never silently inserted), and an
+  **Open in PDF** button (extends the `?open_paper=` deep link with `page`/`precision`, `40_app.jsx` — the only
+  backend-adjacent file touched; zero actual backend Python changed, since `/citations/suggest`'s response
+  already carried everything needed). Each inserted citation also gets a compact **evidence-audit locator**
+  (`evidence_chunk_id`/page/a hard-truncated ~150-char snippet, new optional keys on `_ITEM_DEFAULTS`, no
+  `SCHEMA_VERSION` bump needed) surfaced later in the "Citations in this document" panel's new **View
+  evidence…** button — recording provenance with nowhere to see it again would be inert. Filters
+  (study-type/year/tag/collection — study-type isn't a modeled concept anywhere in callosum) stay a deliberate
+  v1 scope boundary, filed as its own follow-up.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -805,7 +818,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 459). Each increment of real work
+callosum is built in **numbered increments** (currently at 460). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

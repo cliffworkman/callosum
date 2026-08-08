@@ -1200,13 +1200,19 @@ def test_paper_card_scrolls_and_flashes_when_selected():
 def test_open_paper_deep_link():
     """P0 phase 6 (backlog #33/#34): a `?open_paper=<id>` URL param opens that paper's PDF tab on load -- the
     LibreOffice adapter's "Open in Callosum" action launches exactly this URL. One-shot: the param is stripped
-    from the address bar right after use so a page refresh doesn't reopen it."""
+    from the address bar right after use so a page refresh doesn't reopen it.
+
+    inc 460 (roadmap #17): also reads "page"/"precision" so the Suggest-citation Details dialog's "Open in PDF"
+    button can jump straight to the matched passage's page, mirroring armCapture's own minimal-target shape."""
     raw = assemble_jsx()
     assert 'const raw = params.get("open_paper");' in raw
     assert "const paperId = parseInt(raw, 10);" in raw
     assert "if (!Number.isFinite(paperId)) return;" in raw
-    assert "openPdf({ id: paperId });" in raw
+    assert 'const rawPage = params.get("page");' in raw
+    assert "openPdf({ id: paperId }, target);" in raw
     assert 'params.delete("open_paper");' in raw
+    assert 'params.delete("page");' in raw
+    assert 'params.delete("precision");' in raw
     assert "window.history.replaceState(null," in raw
 
 

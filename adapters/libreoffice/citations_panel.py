@@ -58,6 +58,8 @@ def _format_row(entry: dict) -> str:
         tags.append(f"category: {entry['category']}")
     if entry.get("retraction_label"):
         tags.append(entry["retraction_label"])
+    if entry.get("evidence"):
+        tags.append("📎 evidence")  # inc 460 (roadmap #17): this citation carries a recorded Suggest-evidence locator
     return f"{entry['row']}  ({', '.join(tags)})"
 
 
@@ -248,7 +250,7 @@ def run_citations_panel(doc, base: str):
             pass
 
     dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
-    dm.Width, dm.Height, dm.Title = 420, 312, "Citations in this document"
+    dm.Width, dm.Height, dm.Title = 420, 332, "Citations in this document"
 
     def _label(name, x, y, w, h, text):
         lbl = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
@@ -308,6 +310,16 @@ def run_citations_panel(doc, base: str):
     )
     category_order_btn.Label = "Category order…"
     dm.insertByName("category_order", category_order_btn)
+
+    view_evidence_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    view_evidence_btn.PositionX, view_evidence_btn.PositionY, view_evidence_btn.Width, view_evidence_btn.Height = (
+        6,
+        288,
+        130,
+        18,
+    )
+    view_evidence_btn.Label = "View evidence…"
+    dm.insertByName("view_evidence", view_evidence_btn)
 
     close_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     close_btn.PositionX, close_btn.PositionY, close_btn.Width, close_btn.Height = 340, 266, 74, 18
@@ -430,6 +442,22 @@ def run_citations_panel(doc, base: str):
         if run_category_order_dialog(doc, base):
             _reload()
 
+    def do_view_evidence():
+        """inc 460 (roadmap #17's "record ... for later auditing"): show the passage that justified a
+        Suggest-inserted citation. The recorded evidence itself never changes here -- purely read-only."""
+        selected = _selected_entries(results_ctrl, state["visible"])
+        if len(selected) != 1:
+            cc._msgbox("Select exactly one cited work to view its recorded evidence.")
+            return
+        evidence = selected[0].get("evidence")
+        if not evidence:
+            cc._msgbox(
+                "No evidence was recorded for this citation (only citations inserted via Suggest citations record one)."
+            )
+            return
+        page = f"Page {evidence['page']}" if evidence.get("page") else "Page unknown"
+        cc._msgbox(f"{page}\n\n{evidence['snippet']}", "callosum — recorded evidence")
+
     _apply_filter()
     filter_ctrl.addTextListener(_TextChangeListener(_apply_filter))
     dialog.getControl("goto").addActionListener(_ActionListener(do_goto))
@@ -437,6 +465,7 @@ def run_citations_panel(doc, base: str):
     dialog.getControl("category").addActionListener(_ActionListener(do_set_category))
     dialog.getControl("category_order").addActionListener(_ActionListener(do_category_order))
     dialog.getControl("add_uncited").addActionListener(_ActionListener(do_add_uncited))
+    dialog.getControl("view_evidence").addActionListener(_ActionListener(do_view_evidence))
 
     dialog.execute()
     chosen = state["chosen"]

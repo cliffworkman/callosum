@@ -486,9 +486,11 @@ the Principles + A-A gates before build.)*
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
   not left to drift like the composer's verification did). Remaining P1 future tracks (traveling-library
   portability and comprehensive keyboard/accessibility) **and P2
-  leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,
-  Citavi-style evidence-card insertion, open-science statement
-  insertion, cross-manager conversion) — see the roadmap doc for the full prioritized list + a test plan.
+  leapfrog remaining items** (manuscript-level citation-coverage audit [#18],
+  Citavi-style evidence-card insertion [#20], open-science statement
+  insertion [#21], cross-manager conversion [#22]) — see the roadmap doc for the full prioritized list + a test
+  plan. A confirmed linear order for the P2 track: #19 → #17 → #20 → #21 → #18 → #22 (see memory
+  `callosum-p2-leapfrog-roadmap`).
   ✅ **P2 item #19 (citation integrity preflight) CLOSED inc 459.** A reuse-first, document-scoped slice: a new
   "Citation integrity preflight…" LibreOffice command folds `diagnose_document`'s existing mechanics report
   (malformed/duplicate/orphaned marks, bibliography health) together with a fresh, on-demand retraction
@@ -498,6 +500,16 @@ the Principles + A-A gates before build.)*
   `detect_retraction`/`apply_retraction` unchanged (persists too, so the existing "Citations in this document"
   panel's retraction label benefits for free). The rest of the roadmap's #19 checklist (DOI resolution, metadata
   completeness, preprint-vs-VoR, broken URLs, etc.) was scoped out as a deliberate v1 boundary, not built.
+  ✅ **P2 item #17 (evidence-aware Suggest-Citation composer) CLOSED inc 460.** Multi-select (several sources for
+  one sentence become one grouped citation via the already-existing `insert_citation_items`); a new Details…
+  dialog surfaces the full quote, the complete 3-way support/contrast/mention stance breakdown, a "why
+  retrieved" narration, and a weak-evidence warning (reusing invariant #1's own 0.7/0.55 thresholds, not new
+  numbers); an editable, auto-pre-filled page locator; an "Open in PDF" deep-link extension
+  (`?open_paper=&page=&precision=`, the only frontend file touched); and a compact evidence-audit locator
+  persisted per citation, surfaced later via the "Citations in this document" panel's new "View evidence…"
+  button. **Zero backend Python changed** — `/citations/suggest`'s response already carried everything needed.
+  Filters (study-type/year/tag/collection) stay a deliberate v1 boundary — "study type" isn't a concept that
+  exists anywhere in callosum's schema — filed as its own follow-up.
   **UX follow-ups (incs 374/375/376/382/383) — CLOSED inc 446.** All three state-blind toggles (automatic
   bibliography rebuilding, citation-to-bibliography links, bibliography title/DOI links) now expose current
   ON/OFF state via "Document diagnostics…" (always-present, read-only) and each toggle's own message now states

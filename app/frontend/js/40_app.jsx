@@ -22,7 +22,6 @@ function App() {
   const [selected, setSelected] = useState(null);
   // tabbed library frame: a persistent Library tab plus open PDF tabs.
   const [tabs, setTabs] = useState([]);            // [{ key, paperId, title, target }]
-  const [wipTabs, setWipTabs] = useState([]);      // [{ key, manuscriptId, title, manuscript }]
   const [selectedPaperTab, setSelectedPaperTab] = useState(null);  // selected in Library, not yet opened as a PDF tab
   const [activeTab, setActiveTab] = useState("library");
   // inc 280: the top-level "what am I doing" workspace (menu bar, 04b_workspaces.jsx). `activeTab` above is now the
@@ -87,6 +86,11 @@ function App() {
   // state. Only flips false when a real /health response says the wizard hasn't run/been skipped yet.
   const [onboardingDone, setOnboardingDone] = useState(true);
   const wip = useWipWorkspace({ enabled: healthLoaded && readOnly === false });
+  // inc 460: WIP tab state/management lives in its own hook (10h_wip_filters.jsx, alongside useWipWorkspace) --
+  // kept app/frontend/js/40_app.jsx under the rule #1 600-line cap.
+  const { wipTabs, openWip, closeWipTab, activateWipTab, reorderWipTabs } = useWipTabs({
+    mobile, selectWorkspace, setMobilePane, setActiveTab, setSelectedId: wip.setSelectedId,
+  });
 
   // The library-list subsystem (inc 221). Cross-cutting setters go in via opts; cancelFocus + setAxisRefresh are
   // resolved through refs (set after useFocusMode) because useFocusMode is declared after useLibrary but its
@@ -135,19 +139,6 @@ function App() {
     if (mobile) { setMobilePane("library"); setCitationReturn(false); }  // pull the reader region into view
   }, [mobile, setMobilePane, selectWorkspace]);
 
-  const openWip = useCallback((manuscript) => {
-    if (!manuscript || manuscript.id == null) return;
-    const key = "wip:" + manuscript.id;
-    const title = manuscript.display_title || manuscript.derived_title || `WIP ${manuscript.id}`;
-    wip.setSelectedId(manuscript.id);
-    setWipTabs(prev => prev.some(tab => tab.key === key)
-      ? prev.map(tab => tab.key === key ? { ...tab, title, manuscript } : tab)
-      : [...prev, { key, manuscriptId: manuscript.id, title, manuscript }]);
-    selectWorkspace("library");
-    setActiveTab(key);
-    if (mobile) setMobilePane("library");
-  }, [mobile, selectWorkspace, setMobilePane, wip.setSelectedId]);
-
   // Keep the library-visible "selected" paper (Details pane, row highlight) in one-to-one correspondence with
   // whichever PDF tab is actually focused — a single derivation from `activeTab` covers every path that can
   // bring a PDF tab into focus (opening a new one via openPdf, clicking an already-open tab via onActivate,
@@ -161,15 +152,27 @@ function App() {
 
   // A URL deep link ("?open_paper=<id>") opens that paper's PDF tab on load -- the LibreOffice adapter's
   // "Open in Callosum" action (P0 phase 6, backlog #33/#34) launches exactly this URL against the local server.
-  // One-shot: the param is stripped from the address bar right after use so a page refresh doesn't reopen it.
+  // inc 460 (roadmap #17): the Suggest-citation Details dialog's "Open in PDF" button also passes "page"/
+  // "precision", jumping straight to the matched passage's page -- mirrors armCapture's own minimal-target
+  // shape below (id/paperId/page/precision; no bboxJson needed since these matches are always "region"
+  // precision, never a fabricated exact rect per invariant #2, and applyPdfCitationTarget only needs bboxJson
+  // for "exact"). One-shot: the params are stripped from the address bar right after use so a page refresh
+  // doesn't reopen it.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const raw = params.get("open_paper");
     if (!raw) return;
     const paperId = parseInt(raw, 10);
     if (!Number.isFinite(paperId)) return;
-    openPdf({ id: paperId });
+    const rawPage = params.get("page");
+    const page = rawPage ? parseInt(rawPage, 10) : null;
+    const target = Number.isFinite(page)
+      ? { id: `open_paper:${paperId}:${page}`, paperId, page, precision: params.get("precision") || null }
+      : undefined;
+    openPdf({ id: paperId }, target);
     params.delete("open_paper");
+    params.delete("page");
+    params.delete("precision");
     const qs = params.toString();
     window.history.replaceState(null, "", window.location.pathname + (qs ? "?" + qs : ""));
   }, [openPdf]);
@@ -273,19 +276,7 @@ function App() {
     setActiveTab(prev => (prev === key ? "library" : prev));
   }, []);
 
-  const closeWipTab = useCallback((key) => {
-    setWipTabs(prev => prev.filter(tab => tab.key !== key));
-    setActiveTab(prev => (prev === key ? "wip" : prev));
-  }, []);
-
   const activatePaperTab = useCallback((key) => {
-    if (!key) return;
-    selectWorkspace("library");
-    setActiveTab(key);
-    if (mobile) setMobilePane("library");
-  }, [mobile, selectWorkspace, setMobilePane]);
-
-  const activateWipTab = useCallback((key) => {
     if (!key) return;
     selectWorkspace("library");
     setActiveTab(key);
@@ -297,18 +288,6 @@ function App() {
     setTabs(prev => {
       const from = prev.findIndex(t => t.key === draggedKey);
       const to = prev.findIndex(t => t.key === targetKey);
-      if (from < 0 || to < 0) return prev;
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
-  }, []);
-  const reorderWipTabs = useCallback((draggedKey, targetKey) => {
-    if (!draggedKey || !targetKey || draggedKey === targetKey) return;
-    setWipTabs(prev => {
-      const from = prev.findIndex(tab => tab.key === draggedKey);
-      const to = prev.findIndex(tab => tab.key === targetKey);
       if (from < 0 || to < 0) return prev;
       const next = [...prev];
       const [moved] = next.splice(from, 1);

@@ -36,6 +36,10 @@ def test_mark_name_roundtrip() -> None:
             "suppress-author": False,
             "author-only": False,
             "custom_override": None,
+            "evidence_chunk_id": None,
+            "evidence_page_start": None,
+            "evidence_page_end": None,
+            "evidence_snippet": None,
         }
     ]
 
@@ -1556,6 +1560,125 @@ def test_save_beyond_library_item_defaults_missing_fields() -> None:
         cc.save_beyond_library_item("http://x", {})
     _, body = mock_post.call_args.args
     assert body["title"] == "Untitled" and body["authors"] == []
+
+
+# ── inc 460 (evidence-aware Suggest-Citation, backlog #33/#34 P2 #17): pure helpers -------------------------
+
+
+def test_is_weak_evidence_true_when_neither_threshold_clears() -> None:
+    assert cc._is_weak_evidence(0.5, {"probs": {"support": 0.3}}) is True
+    assert cc._is_weak_evidence(0.5, None) is True  # no stance at all -- support defaults to 0
+
+
+def test_is_weak_evidence_false_when_either_threshold_clears() -> None:
+    assert cc._is_weak_evidence(0.8, {"probs": {"support": 0.1}}) is False  # retrieval alone clears 0.7
+    assert cc._is_weak_evidence(0.1, {"probs": {"support": 0.9}}) is False  # support alone clears 0.55
+
+
+def test_is_weak_evidence_defensive_on_bad_input() -> None:
+    assert cc._is_weak_evidence("n/a", {"probs": "not-a-dict"}) is True
+    assert cc._is_weak_evidence(None, {}) is True
+
+
+def test_stance_breakdown_text_formats_all_three() -> None:
+    text = cc._stance_breakdown_text({"probs": {"support": 0.62, "mention": 0.25, "contrast": 0.13}})
+    assert text == "Stance: 62% support · 25% mention · 13% contrast"
+    assert cc._stance_breakdown_text(None) == "No stance signal for this passage."
+
+
+def test_why_retrieved_text_formats_percentage() -> None:
+    assert "78%" in cc._why_retrieved_text(0.7834)
+    assert "0%" in cc._why_retrieved_text("not-a-number")
+
+
+def test_auto_locator_single_page_and_range() -> None:
+    assert cc._auto_locator({"page_start": 12, "page_end": 12}) == "12"
+    assert cc._auto_locator({"page_start": 12, "page_end": 14}) == "12-14"
+    assert cc._auto_locator({"page_start": None}) is None
+
+
+def test_evidence_fields_truncates_snippet_and_carries_locator_data() -> None:
+    long_quote = "word " * 60  # well over EVIDENCE_SNIPPET_MAX
+    fields = cc._evidence_fields({"chunk_id": 99, "page_start": 12, "page_end": 13, "quote": long_quote})
+    assert fields["evidence_chunk_id"] == 99
+    assert fields["evidence_page_start"] == 12 and fields["evidence_page_end"] == 13
+    assert len(fields["evidence_snippet"]) <= cc.EVIDENCE_SNIPPET_MAX + 1  # +1 for the truncation ellipsis
+    assert fields["evidence_snippet"].endswith("…")
+
+
+def test_evidence_fields_none_snippet_when_no_quote() -> None:
+    assert cc._evidence_fields({"chunk_id": 1})["evidence_snippet"] is None
+
+
+def test_evidence_from_item_shapes_page_range_and_absence() -> None:
+    assert cc._evidence_from_item({"evidence_snippet": None}) is None
+    single = cc._evidence_from_item({"evidence_snippet": "x", "evidence_page_start": 5, "evidence_page_end": 5})
+    assert single == {"page": 5, "snippet": "x"}
+    ranged = cc._evidence_from_item({"evidence_snippet": "y", "evidence_page_start": 5, "evidence_page_end": 7})
+    assert ranged == {"page": "5–7", "snippet": "y"}
+
+
+def test_suggest_and_insert_builds_grouped_items_for_multi_select(monkeypatch) -> None:
+    """The core of roadmap #17's multi-select: 2+ picks become ONE insert_citation_items call carrying a
+    per-item locator + evidence-audit locator, not two separate insert_citation calls."""
+    captured = {}
+
+    def fake_insert_items(doc, items, base, cursor=None):
+        captured["items"] = items
+        return "rnd1"
+
+    monkeypatch.setattr(cc, "current_query_text", lambda doc: "a draft sentence")
+    monkeypatch.setattr(cc, "_insertion_cursor_at_end", lambda doc: object())
+    monkeypatch.setattr(cc, "insert_citation_items", fake_insert_items)
+    monkeypatch.setattr(
+        cc,
+        "_suggest_dialog",
+        lambda doc, base, text: [
+            (
+                "library",
+                {"paper_id": 1, "page_start": 12, "page_end": 12, "chunk_id": 7, "quote": "Evidence A"},
+                None,  # no Details override -- use the auto pre-fill
+            ),
+            (
+                "library",
+                {"paper_id": 2, "page_start": 30, "page_end": 32, "chunk_id": 8, "quote": "Evidence B"},
+                "custom loc",  # Details override wins over the auto pre-fill
+            ),
+        ],
+    )
+
+    rnd = cc.suggest_and_insert(object(), "http://x")
+    assert rnd == "rnd1"
+    items = captured["items"]
+    assert [it["paper_id"] for it in items] == [1, 2]
+    assert items[0]["locator"] == "12" and items[0]["label"] == "page"
+    assert items[0]["evidence_chunk_id"] == 7 and items[0]["evidence_snippet"] == "Evidence A"
+    assert items[1]["locator"] == "custom loc"  # the Details override, not the auto pre-fill ("30-32")
+    assert items[1]["evidence_chunk_id"] == 8
+
+
+def test_suggest_and_insert_saves_beyond_library_picks_first(monkeypatch) -> None:
+    saved = []
+    monkeypatch.setattr(cc, "current_query_text", lambda doc: "a draft sentence")
+    monkeypatch.setattr(cc, "_insertion_cursor_at_end", lambda doc: object())
+    monkeypatch.setattr(cc, "save_beyond_library_item", lambda base, item: saved.append(item) or 55)
+    monkeypatch.setattr(cc, "_suggest_dialog", lambda doc, base, text: [("beyond", {"title": "Candidate"}, None)])
+    captured = {}
+    monkeypatch.setattr(
+        cc,
+        "insert_citation_items",
+        lambda doc, items, base, cursor=None: captured.update(items=items) or "rnd2",
+    )
+    rnd = cc.suggest_and_insert(object(), "http://x")
+    assert rnd == "rnd2"
+    assert saved == [{"title": "Candidate"}]
+    assert captured["items"] == [{"paper_id": 55}]  # no evidence/locator for a beyond-library pick
+
+
+def test_suggest_and_insert_returns_none_when_nothing_picked(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "current_query_text", lambda doc: "a draft sentence")
+    monkeypatch.setattr(cc, "_suggest_dialog", lambda doc, base, text: None)
+    assert cc.suggest_and_insert(object(), "http://x") is None
 
 
 # ── inc TBD (P0 phase 9, backlog #33/#34): document diagnostics ─────────────────────────────────────────────

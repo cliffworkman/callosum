@@ -10801,6 +10801,42 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       reload: () => setRefresh((n) => n + 1)
     };
   }
+  function useWipTabs({ mobile, selectWorkspace, setMobilePane, setActiveTab, setSelectedId }) {
+    const [wipTabs, setWipTabs] = useState([]);
+    const openWip = useCallback((manuscript) => {
+      if (!manuscript || manuscript.id == null) return;
+      const key = "wip:" + manuscript.id;
+      const title = manuscript.display_title || manuscript.derived_title || `WIP ${manuscript.id}`;
+      setSelectedId(manuscript.id);
+      setWipTabs((prev) => prev.some((tab) => tab.key === key) ? prev.map((tab) => tab.key === key ? { ...tab, title, manuscript } : tab) : [...prev, { key, manuscriptId: manuscript.id, title, manuscript }]);
+      selectWorkspace("library");
+      setActiveTab(key);
+      if (mobile) setMobilePane("library");
+    }, [mobile, selectWorkspace, setMobilePane, setActiveTab, setSelectedId]);
+    const closeWipTab = useCallback((key) => {
+      setWipTabs((prev) => prev.filter((tab) => tab.key !== key));
+      setActiveTab((prev) => prev === key ? "wip" : prev);
+    }, [setActiveTab]);
+    const activateWipTab = useCallback((key) => {
+      if (!key) return;
+      selectWorkspace("library");
+      setActiveTab(key);
+      if (mobile) setMobilePane("library");
+    }, [mobile, selectWorkspace, setMobilePane, setActiveTab]);
+    const reorderWipTabs = useCallback((draggedKey, targetKey) => {
+      if (!draggedKey || !targetKey || draggedKey === targetKey) return;
+      setWipTabs((prev) => {
+        const from = prev.findIndex((tab) => tab.key === draggedKey);
+        const to = prev.findIndex((tab) => tab.key === targetKey);
+        if (from < 0 || to < 0) return prev;
+        const next = [...prev];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        return next;
+      });
+    }, []);
+    return { wipTabs, openWip, closeWipTab, activateWipTab, reorderWipTabs };
+  }
   function WipFilterToggle({ active, label, onClick }) {
     return /* @__PURE__ */ React.createElement(
       "button",
@@ -19737,7 +19773,6 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     } = useUiPrefs();
     const [selected, setSelected] = useState(null);
     const [tabs, setTabs] = useState([]);
-    const [wipTabs, setWipTabs] = useState([]);
     const [selectedPaperTab, setSelectedPaperTab] = useState(null);
     const [activeTab, setActiveTab] = useState("library");
     const [activeWorkspace, setActiveWorkspace] = useState(() => window.location.hash === "#citation-styles" ? "settings" : _loadLayout("callosum.workspace", "library"));
@@ -19788,6 +19823,13 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [healthLoaded, setHealthLoaded] = useState(false);
     const [onboardingDone, setOnboardingDone] = useState(true);
     const wip = useWipWorkspace({ enabled: healthLoaded && readOnly === false });
+    const { wipTabs, openWip, closeWipTab, activateWipTab, reorderWipTabs } = useWipTabs({
+      mobile,
+      selectWorkspace,
+      setMobilePane,
+      setActiveTab,
+      setSelectedId: wip.setSelectedId
+    });
     const lib = useLibrary({
       selected,
       setSelected,
@@ -19868,16 +19910,6 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setCitationReturn(false);
       }
     }, [mobile, setMobilePane, selectWorkspace]);
-    const openWip = useCallback((manuscript) => {
-      if (!manuscript || manuscript.id == null) return;
-      const key = "wip:" + manuscript.id;
-      const title = manuscript.display_title || manuscript.derived_title || `WIP ${manuscript.id}`;
-      wip.setSelectedId(manuscript.id);
-      setWipTabs((prev) => prev.some((tab) => tab.key === key) ? prev.map((tab) => tab.key === key ? { ...tab, title, manuscript } : tab) : [...prev, { key, manuscriptId: manuscript.id, title, manuscript }]);
-      selectWorkspace("library");
-      setActiveTab(key);
-      if (mobile) setMobilePane("library");
-    }, [mobile, selectWorkspace, setMobilePane, wip.setSelectedId]);
     useEffect(() => {
       if (activeTab === "library") return;
       const tab = tabs.find((t) => t.key === activeTab);
@@ -19889,8 +19921,13 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       if (!raw) return;
       const paperId = parseInt(raw, 10);
       if (!Number.isFinite(paperId)) return;
-      openPdf({ id: paperId });
+      const rawPage = params.get("page");
+      const page = rawPage ? parseInt(rawPage, 10) : null;
+      const target = Number.isFinite(page) ? { id: `open_paper:${paperId}:${page}`, paperId, page, precision: params.get("precision") || null } : void 0;
+      openPdf({ id: paperId }, target);
       params.delete("open_paper");
+      params.delete("page");
+      params.delete("precision");
       const qs = params.toString();
       window.history.replaceState(null, "", window.location.pathname + (qs ? "?" + qs : ""));
     }, [openPdf]);
@@ -20009,17 +20046,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       setTabs((prev) => prev.filter((t) => t.key !== key));
       setActiveTab((prev) => prev === key ? "library" : prev);
     }, []);
-    const closeWipTab = useCallback((key) => {
-      setWipTabs((prev) => prev.filter((tab) => tab.key !== key));
-      setActiveTab((prev) => prev === key ? "wip" : prev);
-    }, []);
     const activatePaperTab = useCallback((key) => {
-      if (!key) return;
-      selectWorkspace("library");
-      setActiveTab(key);
-      if (mobile) setMobilePane("library");
-    }, [mobile, selectWorkspace, setMobilePane]);
-    const activateWipTab = useCallback((key) => {
       if (!key) return;
       selectWorkspace("library");
       setActiveTab(key);
@@ -20030,18 +20057,6 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       setTabs((prev) => {
         const from = prev.findIndex((t) => t.key === draggedKey);
         const to = prev.findIndex((t) => t.key === targetKey);
-        if (from < 0 || to < 0) return prev;
-        const next = [...prev];
-        const [moved] = next.splice(from, 1);
-        next.splice(to, 0, moved);
-        return next;
-      });
-    }, []);
-    const reorderWipTabs = useCallback((draggedKey, targetKey) => {
-      if (!draggedKey || !targetKey || draggedKey === targetKey) return;
-      setWipTabs((prev) => {
-        const from = prev.findIndex((tab) => tab.key === draggedKey);
-        const to = prev.findIndex((tab) => tab.key === targetKey);
         if (from < 0 || to < 0) return prev;
         const next = [...prev];
         const [moved] = next.splice(from, 1);

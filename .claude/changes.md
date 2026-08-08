@@ -11,6 +11,20 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
 
+## 2026-08-08 — Increment 460: Evidence-aware Suggest-Citation composer (backlog #33/#34, P2 #17)
+- **Files:** `adapters/libreoffice/callosum_cite.py`, `adapters/libreoffice/citations_panel.py`,
+  `adapters/libreoffice/selftest_uno.py`, `app/frontend/js/40_app.jsx`, `tests/test_libreoffice_adapter.py`,
+  `tests/test_frontend_assembly.py`.
+- **What:** "Suggest citations" is now multi-select (grouped-citation insert), gained a Details… dialog (full
+  quote, 3-way stance breakdown, weak-evidence warning, editable auto-pre-filled locator, Open-in-PDF), and now
+  persists a compact evidence-audit locator per citation, surfaced via a new "View evidence…" button in the
+  "Citations in this document" panel. The `?open_paper=` deep link gained `page`/`precision`. Zero backend
+  Python changed. 12 new tests.
+- **Why:** closes P2 item #17 from the word-processor-plugins roadmap, second in the confirmed P2 sequence
+  (#19 → #17 → #20 → #21 → #18 → #22).
+- **Revert:** all changes additive/backward-compatible; independent pieces can be partially reverted. No
+  schema/migration; re-run `tools/build_frontend.py` after reverting the frontend file.
+
 ## 2026-08-08 — Increment 459: Citation integrity preflight for the LibreOffice adapter (backlog #33/#34, P2 #19)
 - **Files:** `app/backend/api/routers/methods_retraction.py`, `adapters/libreoffice/callosum_cite.py`,
   `adapters/libreoffice/oxt/Addons.xcu`, `adapters/libreoffice/selftest_uno.py`, `tests/test_retraction.py`,

@@ -112,6 +112,53 @@ function useWipWorkspace({ enabled }) {
   };
 }
 
+// WIP tab management (open/close/activate/reorder) -- the WIP-side counterpart to App's own PDF-tab state,
+// extracted alongside useWipWorkspace (inc 460, keeping app/frontend/js/40_app.jsx under the 600-line cap;
+// rule #1) since it's the same WIP domain, not a new concern.
+function useWipTabs({ mobile, selectWorkspace, setMobilePane, setActiveTab, setSelectedId }) {
+  const [wipTabs, setWipTabs] = useState([]);      // [{ key, manuscriptId, title, manuscript }]
+
+  const openWip = useCallback((manuscript) => {
+    if (!manuscript || manuscript.id == null) return;
+    const key = "wip:" + manuscript.id;
+    const title = manuscript.display_title || manuscript.derived_title || `WIP ${manuscript.id}`;
+    setSelectedId(manuscript.id);
+    setWipTabs(prev => prev.some(tab => tab.key === key)
+      ? prev.map(tab => tab.key === key ? { ...tab, title, manuscript } : tab)
+      : [...prev, { key, manuscriptId: manuscript.id, title, manuscript }]);
+    selectWorkspace("library");
+    setActiveTab(key);
+    if (mobile) setMobilePane("library");
+  }, [mobile, selectWorkspace, setMobilePane, setActiveTab, setSelectedId]);
+
+  const closeWipTab = useCallback((key) => {
+    setWipTabs(prev => prev.filter(tab => tab.key !== key));
+    setActiveTab(prev => (prev === key ? "wip" : prev));
+  }, [setActiveTab]);
+
+  const activateWipTab = useCallback((key) => {
+    if (!key) return;
+    selectWorkspace("library");
+    setActiveTab(key);
+    if (mobile) setMobilePane("library");
+  }, [mobile, selectWorkspace, setMobilePane, setActiveTab]);
+
+  const reorderWipTabs = useCallback((draggedKey, targetKey) => {
+    if (!draggedKey || !targetKey || draggedKey === targetKey) return;
+    setWipTabs(prev => {
+      const from = prev.findIndex(tab => tab.key === draggedKey);
+      const to = prev.findIndex(tab => tab.key === targetKey);
+      if (from < 0 || to < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }, []);
+
+  return { wipTabs, openWip, closeWipTab, activateWipTab, reorderWipTabs };
+}
+
 function WipFilterToggle({ active, label, onClick }) {
   return <button className={"lib-facet-toggle" + (active ? " on" : "")}
     aria-pressed={active} onClick={onClick}>{label}</button>;

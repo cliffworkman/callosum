@@ -82,7 +82,19 @@ _ITEM_DEFAULTS = {
     "suppress-author": False,
     "author-only": False,
     "custom_override": None,  # adapter-side only; never sent to the backend (see build_render_request)
+    # inc 460 (evidence-aware Suggest-Citation, backlog #33/#34 P2 #17): the local passage that justified
+    # inserting this citation, for later audit via the "Citations in this document" panel. `evidence_snippet`
+    # is capped well under the server's own 400-char QUOTE_MAX (see EVIDENCE_SNIPPET_MAX) since the mark-name
+    # payload has no enforced size ceiling and a grouped multi-source citation would otherwise multiply quote
+    # text across every item. These ride along harmlessly in a render-document request if the citation is later
+    # refreshed (CitationItem's `extra="allow"` + citeproc-js already ignores CSL fields it doesn't recognize,
+    # same as every other extra field already embedded in the stored CSL record) -- not worth stripping.
+    "evidence_chunk_id": None,
+    "evidence_page_start": None,
+    "evidence_page_end": None,
+    "evidence_snippet": None,
 }
+EVIDENCE_SNIPPET_MAX = 150
 # The exact CSL locator-label vocabulary the backend validates against (P0 phase 5b, backlog #33/#34) — MUST
 # match `CSL_LOCATOR_LABELS` in `app/backend/api/routers/citations.py` exactly. Duplicated rather than imported:
 # this adapter runs under LibreOffice's own bundled Python, a separate process/environment with no access to
@@ -4560,8 +4572,177 @@ def _section_bibliographies_dialog(
 
 _SUGGEST_CAVEAT = "Pick a paper to cite for the selected text — ranked by relevance; verify the source. You decide."
 
+# inc 460: the SAME thresholds invariant #1 already uses (app/backend/summarization/verification.py's
+# VerificationConfig defaults: retrieval_threshold=0.7, support_threshold=0.55) -- reused here, not
+# reinvented, so "weak evidence" means the same thing everywhere in callosum.
+_SUGGEST_RETRIEVAL_THRESHOLD = 0.7
+_SUGGEST_SUPPORT_THRESHOLD = 0.55
 
-def _suggest_dialog(doc, base: str, text: str) -> tuple[str, dict] | None:
+
+def _is_weak_evidence(match_score, stance: dict | None) -> bool:
+    """True when neither the retrieval match nor the stance's support probability clears its threshold --
+    mirrors VerificationConfig's own "unverified" tier (neither signal strong), never a new bar."""
+    try:
+        score = float(match_score)
+    except (TypeError, ValueError):
+        score = 0.0
+    support = 0.0
+    if isinstance(stance, dict):
+        probs = stance.get("probs")
+        if isinstance(probs, dict):
+            try:
+                support = float(probs.get("support") or 0.0)
+            except (TypeError, ValueError):
+                support = 0.0
+    return not (score >= _SUGGEST_RETRIEVAL_THRESHOLD or support >= _SUGGEST_SUPPORT_THRESHOLD)
+
+
+def _stance_breakdown_text(stance: dict | None) -> str:
+    """The full 3-way support/contrast/mention breakdown (roadmap #17: "compare supporting, contrasting, and
+    merely mentioning evidence") -- not just the single winning label the compact row already shows."""
+    if not isinstance(stance, dict):
+        return "No stance signal for this passage."
+    probs = stance.get("probs") if isinstance(stance.get("probs"), dict) else {}
+
+    def pct(key: str) -> int:
+        try:
+            return round(float(probs.get(key) or 0.0) * 100)
+        except (TypeError, ValueError):
+            return 0
+
+    return f"Stance: {pct('support')}% support · {pct('mention')}% mention · {pct('contrast')}% contrast"
+
+
+def _why_retrieved_text(match_score) -> str:
+    """Roadmap #17: "explain why a source was retrieved" -- names the mechanism, not just a bare number."""
+    try:
+        pct = round(float(match_score) * 100)
+    except (TypeError, ValueError):
+        pct = 0
+    return f"Retrieved by local semantic similarity — approximately {pct}% match to your selected text."
+
+
+def _auto_locator(item: dict) -> str | None:
+    """A page/page-range locator string pre-filled from the suggestion's own page_start/page_end -- the
+    "insert automatically" half of roadmap #17's locator bullet; the "confirmation" half is that this is only
+    ever a pre-fill, editable/removable in the Details dialog before the one Insert click that commits it."""
+    start, end = item.get("page_start"), item.get("page_end")
+    if not start:
+        return None
+    if end and end != start:
+        return f"{start}-{end}"
+    return str(start)
+
+
+def _evidence_fields(item: dict) -> dict:
+    """The compact evidence-audit locator persisted per inserted item (see `_ITEM_DEFAULTS`) -- chunk_id/page
+    plus a hard-truncated snippet, never the full quote."""
+    snippet = " ".join(str(item.get("quote") or "").split())
+    if len(snippet) > EVIDENCE_SNIPPET_MAX:
+        snippet = snippet[:EVIDENCE_SNIPPET_MAX].rstrip() + "…"
+    return {
+        "evidence_chunk_id": item.get("chunk_id"),
+        "evidence_page_start": item.get("page_start"),
+        "evidence_page_end": item.get("page_end"),
+        "evidence_snippet": snippet or None,
+    }
+
+
+def _suggestion_detail_dialog(base: str, item: dict, current_locator: str | None) -> tuple[bool, str | None]:
+    """A modal showing everything roadmap #17 wants surfaced for ONE selected library suggestion: the full
+    quote, page/section, the 3-way stance breakdown, a weak-evidence warning, an editable pre-filled locator,
+    and an Open-in-PDF button. Mirrors `composer.py::_edit_item_options`'s exact "returns on OK, discard on
+    Cancel" contract. Returns ``(changed, locator)`` -- `changed` is True only on OK, so the caller can leave
+    any existing override untouched on Cancel/close."""
+    import unohelper
+    from com.sun.star.awt import XActionListener
+
+    ctx = _component_ctx()
+    smgr = ctx.ServiceManager
+    dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
+    dm.Width, dm.Height, dm.Title = 360, 258, "Suggestion details"
+
+    def _label(name, x, y, w, h, text):
+        lbl = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
+        lbl.PositionX, lbl.PositionY, lbl.Width, lbl.Height, lbl.Label = x, y, w, h, text
+        lbl.MultiLine = h > 14
+        dm.insertByName(name, lbl)
+
+    author = str(item.get("author") or "").strip()
+    year = item.get("year")
+    who = " ".join(p for p in (author, str(year) if year else "") if p) or str(item.get("title") or "")
+    _label("subtitle", 6, 6, 348, 12, who[:80])
+
+    quote_box = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
+    quote_box.PositionX, quote_box.PositionY, quote_box.Width, quote_box.Height = 6, 22, 348, 58
+    quote_box.MultiLine, quote_box.ReadOnly, quote_box.Text = True, True, str(item.get("quote") or "")
+    dm.insertByName("quote", quote_box)
+
+    page_start, page_end = item.get("page_start"), item.get("page_end")
+    page_text = f"Page {page_start}" if page_start else "Page unknown"
+    if page_end and page_end != page_start:
+        page_text = f"Pages {page_start}–{page_end}"
+    _label("page", 6, 84, 348, 12, page_text)
+
+    _label("stance", 6, 100, 348, 12, _stance_breakdown_text(item.get("stance")))
+    _label("why", 6, 116, 348, 22, _why_retrieved_text(item.get("match_score")))
+
+    warning = (
+        "⚠ Weak evidence — neither the match nor the stance strongly supports this passage. Verify before citing."
+        if _is_weak_evidence(item.get("match_score"), item.get("stance"))
+        else ""
+    )
+    _label("warning", 6, 140, 348, 22, warning)
+
+    _label("locator_lbl", 6, 166, 90, 12, "Page locator:")
+    locator_edit = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
+    locator_edit.PositionX, locator_edit.PositionY, locator_edit.Width, locator_edit.Height = 100, 164, 254, 14
+    locator_edit.Text = current_locator if current_locator is not None else (_auto_locator(item) or "")
+    dm.insertByName("locator", locator_edit)
+
+    open_pdf_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    open_pdf_btn.PositionX, open_pdf_btn.PositionY, open_pdf_btn.Width, open_pdf_btn.Height = 6, 186, 100, 18
+    open_pdf_btn.Label = "Open in PDF"
+    dm.insertByName("open_pdf", open_pdf_btn)
+
+    ok_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    ok_btn.PositionX, ok_btn.PositionY, ok_btn.Width, ok_btn.Height = 202, 232, 74, 18
+    ok_btn.Label, ok_btn.PushButtonType = "OK", 1
+    dm.insertByName("ok", ok_btn)
+
+    cancel_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    cancel_btn.PositionX, cancel_btn.PositionY, cancel_btn.Width, cancel_btn.Height = 280, 232, 74, 18
+    cancel_btn.Label, cancel_btn.PushButtonType = "Cancel", 2
+    dm.insertByName("cancel", cancel_btn)
+
+    dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
+    dialog.setModel(dm)
+    toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
+    dialog.createPeer(toolkit, None)
+
+    locator_ctrl = dialog.getControl("locator")
+
+    class _OpenPdfListener(unohelper.Base, XActionListener):
+        def actionPerformed(self, event):
+            url = f"{base}/?open_paper={item.get('paper_id')}"
+            if page_start:
+                precision = item.get("coordinate_precision") or "region"
+                url += f"&page={page_start}&precision={precision}"
+            webbrowser.open(url)
+
+        def disposing(self, event):
+            pass
+
+    dialog.getControl("open_pdf").addActionListener(_OpenPdfListener())
+
+    result = dialog.execute()  # 1 == OK
+    dialog.dispose()
+    if result != 1:
+        return False, None
+    return True, (locator_ctrl.getModel().Text.strip() or None)
+
+
+def _suggest_dialog(doc, base: str, text: str) -> list[tuple[str, dict, str | None]] | None:
     """The Suggest-citation pick list, with an opt-in "Also search beyond my library" checkbox (backlog #30,
     wiring the already-shipped `beyond_library.py` engine into this adapter for the first time). Unchecked by
     default — matching the SAME explicit, opt-in-each-time consent model as the web Cite pane's own checkbox
@@ -4573,16 +4754,23 @@ def _suggest_dialog(doc, base: str, text: str) -> tuple[str, dict] | None:
     beyond-library search is a multi-provider external fan-out, so expect a noticeably longer pause than the
     local-only path — a real UX characteristic to confirm in the still-owed manual verification pass, not a bug.
 
-    Returns ``(kind, item)`` for the picked row — `kind` is ``"library"`` (item is the in-library suggestion
-    dict) or ``"beyond"`` (item is the beyond-library suggestion dict, not yet in the library) — or None if
-    nothing was picked."""
+    inc 460 (roadmap #17): the list is now multi-select (select several sources for the same sentence, inserted
+    together as one grouped citation), and a "Details…" button — enabled only for a single selected in-library
+    row — opens `_suggestion_detail_dialog` for the full quote/stance/why/weak-evidence-warning/locator/
+    open-in-PDF. **v1 boundary**: a multi-select insert must be all-library or all-beyond, never mixed (a
+    beyond-library pick needs its own `save_beyond_library_item` round-trip first) — checked after the dialog
+    closes, not by disabling Insert live.
+
+    Returns a list of ``(kind, item, locator_override)`` for every picked row — `kind` is ``"library"`` or
+    ``"beyond"``, `locator_override` is whatever was set via Details (or None, meaning "use the auto pre-fill")
+    — or None if nothing was picked / the selection was invalid (mixed kinds)."""
     import unohelper
-    from com.sun.star.awt import XItemListener
+    from com.sun.star.awt import XActionListener, XItemListener
 
     ctx = _component_ctx()
     smgr = ctx.ServiceManager
     dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
-    dm.Width, dm.Height, dm.Title = 360, 210, "Suggest citations"
+    dm.Width, dm.Height, dm.Title = 360, 228, "Suggest citations"
 
     label = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
     label.PositionX, label.PositionY, label.Width, label.Height = 6, 6, 348, 22
@@ -4593,7 +4781,7 @@ def _suggest_dialog(doc, base: str, text: str) -> tuple[str, dict] | None:
     lst = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
     lst.PositionX, lst.PositionY, lst.Width, lst.Height = 6, 32, 348, 108
     lst.Dropdown = False
-    lst.MultiSelection = False
+    lst.MultiSelection = True
     dm.insertByName("list", lst)
 
     beyond_box = dm.createInstance("com.sun.star.awt.UnoControlCheckBoxModel")
@@ -4601,13 +4789,18 @@ def _suggest_dialog(doc, base: str, text: str) -> tuple[str, dict] | None:
     beyond_box.Label, beyond_box.State = "Also search beyond my library", 0
     dm.insertByName("beyond", beyond_box)
 
+    details_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    details_btn.PositionX, details_btn.PositionY, details_btn.Width, details_btn.Height = 6, 162, 100, 16
+    details_btn.Label = "Details…"
+    dm.insertByName("details", details_btn)
+
     ok = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
-    ok.PositionX, ok.PositionY, ok.Width, ok.Height, ok.Label, ok.PushButtonType = 262, 182, 44, 16, "Insert", 1
+    ok.PositionX, ok.PositionY, ok.Width, ok.Height, ok.Label, ok.PushButtonType = 262, 200, 44, 16, "Insert", 1
     dm.insertByName("ok", ok)
     cancel = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     cancel.PositionX, cancel.PositionY, cancel.Width, cancel.Height, cancel.Label, cancel.PushButtonType = (
         310,
-        182,
+        200,
         44,
         16,
         "Cancel",
@@ -4622,7 +4815,9 @@ def _suggest_dialog(doc, base: str, text: str) -> tuple[str, dict] | None:
 
     list_ctrl = dialog.getControl("list")
     beyond_ctrl = dialog.getControl("beyond")
-    state = {"rows": []}  # list of (kind, item), parallel to the listbox's current rows
+    # state["rows"]: list of (kind, item), parallel to the listbox's current rows.
+    # state["locators"]: row position -> locator override set via Details (absent means "use the auto pre-fill").
+    state = {"rows": [], "locators": {}}
 
     def refresh(include_beyond: bool) -> None:
         result = fetch_suggestions(base, text, include_beyond_library=include_beyond)
@@ -4632,6 +4827,7 @@ def _suggest_dialog(doc, base: str, text: str) -> tuple[str, dict] | None:
             result["beyond_library_suggestions"]
         )
         state["rows"] = parallel
+        state["locators"] = {}
         list_ctrl.getModel().StringItemList = tuple(rows)
 
     refresh(False)  # in-library results load immediately; beyond-library is opt-in only
@@ -4643,14 +4839,37 @@ def _suggest_dialog(doc, base: str, text: str) -> tuple[str, dict] | None:
         def disposing(self, event):
             pass
 
+    class _DetailsListener(unohelper.Base, XActionListener):
+        def actionPerformed(self, event):
+            positions = list(list_ctrl.getSelectedItemsPos())
+            if len(positions) != 1 or not (0 <= positions[0] < len(state["rows"])):
+                _msgbox("Select exactly one in-library suggestion to see its details.")
+                return
+            pos = positions[0]
+            kind, item = state["rows"][pos]
+            if kind != "library":
+                _msgbox("Details are only available for in-library suggestions (they carry a quote + stance).")
+                return
+            changed, locator = _suggestion_detail_dialog(base, item, state["locators"].get(pos))
+            if changed:
+                state["locators"][pos] = locator
+
+        def disposing(self, event):
+            pass
+
     beyond_ctrl.addItemListener(_BeyondListener())
+    dialog.getControl("details").addActionListener(_DetailsListener())
 
     result_code = dialog.execute()  # 1 == Insert
-    pos = list_ctrl.getSelectedItemPos() if result_code == 1 else -1
+    positions = list(list_ctrl.getSelectedItemsPos()) if result_code == 1 else []
     dialog.dispose()
-    if result_code != 1 or pos is None or pos < 0 or pos >= len(state["rows"]):
+    picks = [(*state["rows"][pos], state["locators"].get(pos)) for pos in positions if 0 <= pos < len(state["rows"])]
+    if not picks:
         return None
-    return state["rows"][pos]
+    if len({kind for kind, _item, _locator in picks}) > 1:
+        _msgbox("Select sources of only one kind (library, or beyond-library) to insert together.")
+        return None
+    return picks
 
 
 def _component_ctx():
@@ -4676,25 +4895,39 @@ def _msgbox(message: str, title: str = "callosum") -> None:
 
 def suggest_and_insert(doc, base: str = DEFAULT_BASE) -> str | None:
     """Suggest papers to cite for the current sentence — from the library by default, or also beyond it via an
-    opt-in checkbox (backlog #30) — let the user pick one, and insert it.
+    opt-in checkbox (backlog #30) — let the user pick one OR SEVERAL (inc 460, roadmap #17), and insert them.
 
     Returns the new mark's `rnd` tag, or None if nothing was inserted (no text / cancelled / nothing picked).
     The suggestion + stance signal, and the beyond-library search + reasons, are all the backend's (inc 156,
-    271/272); this only presents the evidence and inserts the chosen cite. A beyond-library pick is added to
+    271/272); this only presents the evidence and inserts the chosen cite(s). A beyond-library pick is added to
     the library first (`save_beyond_library_item`, the same write path the web app's own "Add to library"
     button uses), then cited — a real user might not have anything relevant in-library yet, so this no longer
     short-circuits on an empty in-library list before the user gets a chance to opt into searching further.
+
+    Multiple picks become one grouped citation (the same `insert_citation_items` mechanism the composer already
+    uses for multi-source citations). Each in-library item carries a compact evidence-audit locator
+    (`_evidence_fields`) plus a page locator — either edited via Details, or auto-pre-filled from the matched
+    passage's own page (`_auto_locator`) — never silently inserted without being visible somewhere first.
     """
     text = current_query_text(doc)
     if not text:
         _msgbox("Select a sentence (or place the cursor in one) to suggest citations for.")
         return None
-    picked = _suggest_dialog(doc, base, text)
-    if picked is None:
+    picks = _suggest_dialog(doc, base, text)
+    if not picks:
         return None
-    kind, item = picked
-    paper_id = save_beyond_library_item(base, item) if kind == "beyond" else item.get("paper_id")
-    return insert_citation(doc, paper_id, base, cursor=_insertion_cursor_at_end(doc))
+    items = []
+    for kind, item, locator_override in picks:
+        paper_id = save_beyond_library_item(base, item) if kind == "beyond" else item.get("paper_id")
+        entry = {"paper_id": paper_id}
+        locator = locator_override if locator_override is not None else _auto_locator(item)
+        if locator:
+            entry["locator"] = locator
+            entry["label"] = "page"
+        if kind == "library":
+            entry.update(_evidence_fields(item))
+        items.append(entry)
+    return insert_citation_items(doc, items, base, cursor=_insertion_cursor_at_end(doc))
 
 
 def add_citation_by_search(doc, base: str) -> str | None:
@@ -5595,7 +5828,10 @@ def list_document_citations(doc, base: str) -> list[dict]:
     document to navigate to).
 
     Returns ``[{"paper_id", "row", "count", "orphaned", "retraction_label", "excluded", "category", "uncited",
-    "mark"}, ...]``.
+    "mark", "evidence"}, ...]``. ``evidence`` (inc 460, roadmap #17's "record ... for later auditing") is
+    ``{"page", "snippet"}`` from the FIRST occurrence's own evidence-audit locator (see `_evidence_fields`),
+    or ``None`` when that occurrence carries no evidence (inserted via a path other than Suggest, or a mark
+    from before inc 460).
     """
     seen: dict[str, dict] = {}
     order: list[str] = []
@@ -5605,7 +5841,12 @@ def list_document_citations(doc, base: str) -> list[dict]:
             if paper_id is None:
                 continue
             if paper_id not in seen:
-                seen[paper_id] = {"paper_id": paper_id, "count": 0, "mark": field["_mark"]}
+                seen[paper_id] = {
+                    "paper_id": paper_id,
+                    "count": 0,
+                    "mark": field["_mark"],
+                    "evidence": _evidence_from_item(item),
+                }
                 order.append(paper_id)
             seen[paper_id]["count"] += 1
 
@@ -5613,7 +5854,7 @@ def list_document_citations(doc, base: str) -> list[dict]:
     categories = bibliography_categories(doc)
     for paper_id in _get_id_list(doc, PREF_BIB_UNCITED):
         if paper_id not in seen:  # already cited normally -- don't duplicate as a separate uncited row
-            seen[paper_id] = {"paper_id": paper_id, "count": 0, "mark": None}
+            seen[paper_id] = {"paper_id": paper_id, "count": 0, "mark": None, "evidence": None}
             order.append(paper_id)
 
     results = []
@@ -5644,9 +5885,24 @@ def list_document_citations(doc, base: str) -> list[dict]:
                 "category": categories.get(paper_id),
                 "uncited": entry["mark"] is None,
                 "mark": entry["mark"],
+                "evidence": entry["evidence"],
             }
         )
     return results
+
+
+def _evidence_from_item(item: dict) -> dict | None:
+    """The compact evidence-audit locator stored on a decoded item (see `_evidence_fields`/`_ITEM_DEFAULTS`),
+    reshaped for display — ``None`` when the item carries no snippet (not inserted via Suggest, or pre-460)."""
+    snippet = item.get("evidence_snippet")
+    if not snippet:
+        return None
+    start, end = item.get("evidence_page_start"), item.get("evidence_page_end")
+    if start and end and end != start:
+        page = f"{start}–{end}"
+    else:
+        page = start or end
+    return {"page": page, "snippet": snippet}
 
 
 def citations_panel_interactive(doc, base: str) -> None:

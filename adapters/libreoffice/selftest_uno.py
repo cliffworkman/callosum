@@ -108,7 +108,7 @@ def wait_until(predicate, timeout=5):
     return bool(predicate())
 
 
-def spike_mark_size_and_reopen(ctx, base, p1, p2, n=25):
+def spike_mark_size_and_reopen(ctx, base, p1, p2, n=25, evidence_n=3):
     """P0 phase-0 spike #1: insert N citations (redundant full-CSL-record embedding is the roadmap's own
     architectural concern) in one document, save to a real .odt, load it back as a FRESH doc object, and confirm
     every mark still decodes losslessly. Reports actual name-length numbers rather than assuming a scale is fine.
@@ -122,10 +122,16 @@ def spike_mark_size_and_reopen(ctx, base, p1, p2, n=25):
     of 25 marks survived. This is exactly the hazard `_write_bibliography` was already known to have, now
     reproduced through a completely ordinary "cite, cite again" sequence, not a contrived edge case — a real
     finding for Phase 7, not a test bug. The anchor-based approach below avoids it (matching how the existing
-    AAA/BBB round-trip test above already sidesteps it) so this spike measures what it set out to measure."""
+    AAA/BBB round-trip test above already sidesteps it) so this spike measures what it set out to measure.
+
+    inc 460 (roadmap #17): also inserts `evidence_n` GROUPED, evidence-bearing citations (2 items each, every
+    item carrying a full-length `EVIDENCE_SNIPPET_MAX` snippet — the worst case for mark-name size, and exactly
+    the shape `suggest_and_insert`'s multi-select path produces via `insert_citation_items`), proving both that
+    the evidence-audit locator doesn't blow up mark-name size unreasonably and that a grouped multi-item citation
+    with evidence round-trips losslessly through save/reopen, same as the plain single-item citations above."""
     import tempfile
 
-    log(f"spike 1/4: mark-size/scale — inserting {n} citations")
+    log(f"spike 1/4: mark-size/scale — inserting {n} citations + {evidence_n} grouped evidence-bearing citations")
     doc = new_writer(ctx)
     text = doc.getText()
 
@@ -135,16 +141,45 @@ def spike_mark_size_and_reopen(ctx, base, p1, p2, n=25):
         return doc.findFirst(sd)
 
     anchors = "\n".join(f"Anchor{i} XXX{i}" for i in range(n))
-    text.createTextCursorByRange(text.getStart()).setString(f"Stress test paragraph.\n{anchors}\n")
+    evidence_anchors = "\n".join(f"EvAnchor{i} YYY{i}" for i in range(evidence_n))
+    text.createTextCursorByRange(text.getStart()).setString(f"Stress test paragraph.\n{anchors}\n{evidence_anchors}\n")
     for i in range(n):
         pid = p1 if i % 2 == 0 else p2
         rng = find_range(f"XXX{i}")
         check(rng is not None, f"anchor XXX{i} not found before citation insert")
         cc.insert_citation(doc, pid, base, cursor=text.createTextCursorByRange(rng))
+
+    long_snippet = "x" * cc.EVIDENCE_SNIPPET_MAX
+    for i in range(evidence_n):
+        rng = find_range(f"YYY{i}")
+        check(rng is not None, f"anchor YYY{i} not found before evidence citation insert")
+        items = [
+            {
+                "paper_id": p1,
+                "locator": "12",
+                "label": "page",
+                "evidence_chunk_id": 100 + i,
+                "evidence_page_start": 12,
+                "evidence_page_end": 12,
+                "evidence_snippet": long_snippet,
+            },
+            {
+                "paper_id": p2,
+                "locator": "30-32",
+                "label": "page",
+                "evidence_chunk_id": 200 + i,
+                "evidence_page_start": 30,
+                "evidence_page_end": 32,
+                "evidence_snippet": long_snippet,
+            },
+        ]
+        cc.insert_citation_items(doc, items, base, cursor=text.createTextCursorByRange(rng))
+
+    total = n + evidence_n
     before = sorted(nm for nm in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(nm))
     lengths = [len(nm) for nm in before]
     log(f"spike 1/4: inserted {len(before)} marks; name length min={min(lengths)} max={max(lengths)} chars")
-    check(len(before) == n, f"expected {n} marks, found {len(before)}")
+    check(len(before) == total, f"expected {total} marks, found {len(before)}")
 
     fd, save_path = tempfile.mkstemp(suffix=".odt")
     os.close(fd)
@@ -157,12 +192,26 @@ def spike_mark_size_and_reopen(ctx, base, p1, p2, n=25):
         doc.storeToURL(save_url, (filt,))
         reopened = load_doc(ctx, save_url)
         after = sorted(nm for nm in reopened.getReferenceMarks().getElementNames() if cc.decode_mark_name(nm))
-        check(len(after) == n, f"after save/reopen: expected {n} marks, found {len(after)}")
+        check(len(after) == total, f"after save/reopen: expected {total} marks, found {len(after)}")
         items_before = {nm: cc.decode_mark_name(nm)["items"] for nm in before}
         items_after = {nm: cc.decode_mark_name(nm)["items"] for nm in after}
         check(items_before == items_after, "mark payload changed after a save/reopen round-trip")
+        # inc 460: confirm the evidence-bearing items specifically survived the round-trip with their
+        # evidence_* fields intact (not just "some payload equal to some other payload").
+        evidence_items_after = [
+            it for nm in after for it in cc.decode_mark_name(nm)["items"] if it.get("evidence_snippet")
+        ]
+        check(
+            len(evidence_items_after) == evidence_n * 2,
+            f"expected {evidence_n * 2} evidence-bearing items after reopen, found {len(evidence_items_after)}",
+        )
+        check(
+            all(it["evidence_snippet"] == long_snippet for it in evidence_items_after),
+            "an evidence snippet changed after save/reopen",
+        )
         log(
-            f"spike 1/4: OK — {n} marks (max name length {max(lengths)} chars) round-trip losslessly through save/reopen"
+            f"spike 1/4: OK — {total} marks (max name length {max(lengths)} chars, including {evidence_n} "
+            "grouped evidence-bearing citations) round-trip losslessly through save/reopen"
         )
     finally:
         try:

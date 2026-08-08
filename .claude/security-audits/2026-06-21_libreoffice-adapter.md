@@ -157,3 +157,47 @@ covers the whole P0-so-far surface in one place rather than fragmenting across m
 no new external reach; phase 6's two new touchpoints (`webbrowser.open`, the frontend deep-link) both build a
 URL/id from validated, non-injectable inputs and mirror already-audited patterns in this codebase. No new
 egress, no new endpoint, no new dependency, no secrets, no file-path-from-input.
+
+## Addendum — evidence-aware Suggest-Citation (inc 460, roadmap #17, backlog #33/#34)
+
+Triggered by the security-audit gate's criterion #5 (net-new feature spanning 3+ files with meaningful LOC), not
+by any new external-facing surface — this increment touches **zero backend Python** and adds no new endpoint.
+The two pieces actually worth reviewing:
+
+- **The `open_paper` deep link gains `page`/`precision` params** (from the new "Open in PDF" button in the
+  Suggest-citation Details dialog, using the exact same `webbrowser.open` call already audited above — same
+  fixed local `base`, same `paper_id` source). `page` is `parseInt`'d + `Number.isFinite`-checked before use
+  (mirrors the existing `paperId` handling exactly); an invalid/absent value degrades to `target: undefined`
+  (today's exact pre-460 behavior), never a crash. `precision` is passed through as an opaque string read only
+  by `applyPdfCitationTarget`'s existing `"exact"`/`"region"` branch — an arbitrary/unrecognized value simply
+  fails both branches and draws nothing (no exact-highlight fabrication, per invariant #2), never an injection
+  surface (it's never used to build a selector, URL, or DOM string directly). Both new params are stripped from
+  the address bar via `history.replaceState` immediately after use, same as `open_paper` already was.
+- **The evidence-audit record** (`evidence_chunk_id`/`evidence_page_start`/`evidence_page_end`/`evidence_snippet`,
+  new optional keys on a citation mark's stored item, `adapters/libreoffice/callosum_cite.py`) is local-only
+  data already present in the `/citations/suggest` response the adapter already fetches — no new egress, no new
+  fetch. It's persisted inside the SAME mark-name payload mechanism every other per-item override (locator/
+  prefix/suffix) already uses, with no new storage/serialization primitive. `evidence_snippet` is hard-truncated
+  to `EVIDENCE_SNIPPET_MAX` (150 chars, well under the server's own 400-char cap) specifically to bound
+  mark-payload size for a grouped multi-source citation — verified empirically via the extended
+  `spike_mark_size_and_reopen` (adds `evidence_n` grouped, evidence-bearing citations with full-length snippets
+  and confirms lossless save/reopen round-trip). These fields ride along harmlessly in a later render-document
+  request if the citation is refreshed (`CitationItem`'s `extra="allow"` + citeproc-js already ignores CSL
+  fields it doesn't recognize — the same posture every other extra field in the stored CSL record already has;
+  no privacy/egress implication either way since render-document is a same-origin localhost call, not external
+  egress).
+- **Multi-select insertion** (`_suggest_dialog`'s `MultiSelection = True`) changes no trust boundary — it's the
+  same local UI control property, and insertion still only ever happens on an explicit Insert click (nothing
+  auto-inserts); a mixed library/beyond-library selection is refused with a message box rather than silently
+  mixing two different consent postures (library picks need no extra egress; a beyond-library pick still goes
+  through the existing, already-audited `save_beyond_library_item`/`/discovery/save` write path unchanged).
+
+**Negative-path checks:** `?open_paper=<id>&page=abc` (non-numeric page) → the deep link still opens the paper,
+just with no page-jump target (matches the existing non-numeric-`open_paper` no-op posture); a multi-select pick
+spanning both library and beyond-library kinds → refused with a message box, nothing inserted
+(`test_suggest_and_insert_*`, `tests/test_libreoffice_adapter.py`); an evidence-bearing grouped citation
+round-trips losslessly through a real save/reopen (`spike_mark_size_and_reopen`, extended).
+
+**Security Audit (inc 460 addendum): PASS.** No new endpoint/egress/dependency; the deep-link extension mirrors
+an already-audited pattern with the same input validation; the evidence record reuses an existing storage
+mechanism with a disclosed, empirically-verified size bound.

@@ -14,7 +14,14 @@ citation-integrity audits that used to sit alongside it moved to **Work → Meta
 **Inc 449** adds Semantic Scholar recommendations as a third beyond-library candidate source, anchored on the
 same local Cite matches the existing OpenAlex-neighborhood expansion already uses. **Inc 450** fires the local
 `quote_located` usage event (backlog #38A, route 35's own surface) from "Open source region" here — the real
-trigger for that event type lives on this route, not Settings.
+trigger for that event type lives on this route, not Settings. **Inc 460** wires the LibreOffice adapter's own
+"Suggest citations" command onto this exact same `POST /citations/suggest` endpoint (evidence-aware composer,
+backlog #33/#34 P2 #17: multi-select, full quote/stance/why-retrieved detail, a weak-evidence warning, an
+editable page locator, an evidence-audit record persisted per citation, and an "Open in PDF" deep link) — no
+change to the endpoint itself, so this route's API coverage is unaffected. The LibreOffice-side UI is **out of
+scope for this browser-driven route** (no LibreOffice in this harness); it's verified via the adapter's own
+real-UNO harness (`python adapters/libreoffice/run_roundtrip.py`) and duck-typed pytest coverage
+(`tests/test_libreoffice_adapter.py`), per CLAUDE.md's Verification protocol §4.
 
 ## Environment
 
