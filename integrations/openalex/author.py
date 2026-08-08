@@ -54,6 +54,8 @@ class AuthorWork:
         0  # inc 83 — per-work OpenAlex citations, for impact-by-domain (default keeps old caches valid)
     )
     openalex_work_id: str | None = None  # inc 119 (SP3): the bare OpenAlex work id (e.g. "W9"), for the cited-by fetch
+    publication_date: str | None = None  # inc 458 (backlog #28): OpenAlex's real "YYYY-MM-DD" when available --
+    # day-level precision for Feed sorting, beyond the bare `year`. Default keeps old caches (pre-458) valid.
 
 
 @dataclass(frozen=True)
@@ -161,6 +163,7 @@ class OpenAlexAuthorClient:
                             year=w.get("year"),
                             cited_by_count=int(w.get("cited_by_count") or 0),
                             openalex_work_id=w.get("openalex_work_id"),  # inc 119: carry the id from a refreshed cache
+                            publication_date=w.get("publication_date"),  # inc 458: absent on pre-458 caches -> None
                         )
                         for w in works
                     ]
@@ -202,7 +205,7 @@ class OpenAlexAuthorClient:
                 "filter": f"author.id:{author_id}",
                 "per-page": str(_WORKS_PER_PAGE),
                 "cursor": cursor or "*",
-                "select": "id,doi,title,publication_year,cited_by_count",
+                "select": "id,doi,title,publication_year,publication_date,cited_by_count",
             }
             try:
                 status, body = self.fetcher(
@@ -371,6 +374,7 @@ def _work_from_obj(work: dict[str, Any]) -> AuthorWork | None:
         year=int(year) if isinstance(year, int) else None,
         cited_by_count=int(work.get("cited_by_count") or 0),
         openalex_work_id=(raw_id.rsplit("/", 1)[-1] if raw_id else None),
+        publication_date=_normalize_publication_date(work.get("publication_date")),
     )
 
 
@@ -411,6 +415,15 @@ def _normalize_doi(value: Any) -> str | None:
         if doi.startswith(prefix):
             doi = doi[len(prefix) :]
     return doi or None
+
+
+def _normalize_publication_date(value: Any) -> str | None:
+    """inc 458: OpenAlex's `publication_date` is normally a real "YYYY-MM-DD" -- validated at this untrusted-input
+    boundary (rule #4) rather than trusted verbatim, so a malformed value never reaches Feed's `posted_date`
+    ordering as an unvalidated string."""
+    if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value.strip()):
+        return None
+    return value.strip()
 
 
 def _normalize_orcid(value: Any) -> str | None:

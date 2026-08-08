@@ -103,12 +103,12 @@
   signal chip into the unified findings facet (coexist on purpose — revisit only if it starts reading as
   redundant).
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
-  polling daemon is **deliberately not built** (pull-first design choice, not a gap). **Inc 455's followed-author
-  source has a known date-precision limit:** OpenAlex's authored-works listing only exposes a coarse year, so
-  `posted_date` falls back to a bare "YYYY" — it sorts correctly relative to other years but lands at the *end*
-  of its own year among same-year dated items (a "2026" item sorts after every "2026-MM-DD" item). Getting
-  day-level precision would mean extending `AuthorWork`/`OpenAlexAuthorClient` (inc 454, already shipped/audited)
-  to fetch and carry a real publication date from OpenAlex's Work objects — deferred, not built this pass.
+  polling daemon is **deliberately not built** (pull-first design choice, not a gap). ✅ **Inc 455's followed-
+  author date-precision limit CLOSED inc 458.** `AuthorWork` gained a validated `publication_date` field (the
+  OpenAlex Work object's real "YYYY-MM-DD", added to the existing `select=` param); `followed_author_feed_source
+  .py`'s `_to_entry` now prefers it over the bare-year fallback, which remains for pre-458 caches or a work
+  OpenAlex itself never dated precisely. Additive/backward-compatible (old cached works parse `publication_date`
+  as `None` and keep the old bare-year behavior unchanged).
 - ✅ **#45 My Publications example name — CLOSED 2026-07-22.** Swapped "e.g. Ada Lovelace"/"e.g. A. Lovelace" for
   "e.g. Karen Spärck Jones"/"e.g. K. Spärck Jones" in the name/alt-names placeholders (`35a_mypubs.jsx`).
 - ✅ **#51 funding partial-provider test flake — CLOSED inc 440 (2026-08-02).** The aggregation had no race:

@@ -317,6 +317,43 @@ def test_author_client_works_mapping_and_cache(temp_db_url):
     assert len(works2) == 1 and len(fetcher.calls) == calls_before  # served from cache
 
 
+def test_author_client_works_publication_date_parsed_validated_and_cached(temp_db_url):
+    """inc 458 (backlog #28): OpenAlex's real `publication_date` (day precision) is extracted, validated at the
+    untrusted-input boundary (rule #4 -- a malformed value never reaches Feed's posted_date ordering), and
+    survives a cache round-trip (fetch_author_works's cache-read branch reconstructs it, not just year/doi/title)."""
+    body = {
+        "results": [
+            {
+                "id": "https://openalex.org/W1",
+                "doi": "https://doi.org/10.1/A",
+                "title": "A",
+                "publication_year": 2020,
+                "publication_date": "2020-06-15",
+            },
+            {
+                "id": "https://openalex.org/W2",
+                "doi": "https://doi.org/10.1/B",
+                "title": "B",
+                "publication_year": 2021,
+                "publication_date": "not-a-date",  # malformed -- dropped, not trusted verbatim
+            },
+        ],
+        "meta": {"next_cursor": None},
+    }
+    fetcher = _AuthorFetcher({"/works": (200, body)})
+    client = OpenAlexAuthorClient(fetcher=fetcher)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        works = client.fetch_author_works(conn, "A1")
+    by_doi = {w.doi: w for w in works}
+    assert by_doi["10.1/a"].publication_date == "2020-06-15"
+    assert by_doi["10.1/b"].publication_date is None  # malformed value validated away, not passed through
+
+    with engine.begin() as conn:  # a fresh connection -- proves the cache-read branch, not just the live fetch
+        cached_works = client.fetch_author_works(conn, "A1")
+    assert {w.doi: w.publication_date for w in cached_works} == {"10.1/a": "2020-06-15", "10.1/b": None}
+
+
 def test_author_client_fails_closed(temp_db_url):
     class _Boom:
         def __call__(self, url, *, params, headers, timeout):

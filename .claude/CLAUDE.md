@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 457** (see Increment workflow) with **1856 root-suite pytest tests
+It is currently at **Increment 458** (see Increment workflow) with **1858 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -316,7 +316,10 @@ the full per-increment narrative for all other increments now lives in the reloc
   startup self-heal backfills a matching subscription for any author followed before inc 455 shipped. The
   registry-source `kind` is deliberately excluded from the generic "Add source" picker (`user_addable=false`) —
   a raw OpenAlex author id is not something a user should type; the Followed-Authors tab's resolve flow stays
-  the only sanctioned way to follow an author.
+  the only sanctioned way to follow an author. **Inc 458 closes backlog #28's known date-precision gap**: `AuthorWork`
+  now carries OpenAlex's real `publication_date` (validated `YYYY-MM-DD`, added to the existing works `select=`
+  param), and Feed's `posted_date` prefers it over the bare-year fallback — additive/backward-compatible, so a
+  pre-458 cached work (or one OpenAlex itself never dated precisely) keeps the old bare-year behavior.
 - **Local usage instrumentation (backlog #38A, inc 450):** a zero-egress local event log + a personal
   Settings → **Your usage** dashboard — the buildable-now half of the "Research-impact analytics" future track
   (`.claude/docs/future-tracks/opus4.8_future-tracks_researchimpactanalytics.md`; the cross-user Project B stays
@@ -794,7 +797,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 457). Each increment of real work
+callosum is built in **numbered increments** (currently at 458). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

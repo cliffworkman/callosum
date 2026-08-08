@@ -152,6 +152,25 @@ def test_followed_author_source_maps_skips_no_doi_and_caps_limit(temp_db_url):
     engine.dispose()
 
 
+def test_followed_author_source_prefers_real_publication_date_over_bare_year(temp_db_url):
+    """inc 458 (backlog #28): when OpenAlex supplies a real `publication_date`, Feed uses it (day-level precision)
+    instead of falling back to a bare "YYYY" -- a work dated later in the same year now sorts ahead of an earlier
+    same-year work, which a bare-year-only posted_date couldn't distinguish."""
+    from app.backend.discovery.followed_author_feed_source import FollowedAuthorFeedSource
+    from integrations.openalex import AuthorWork
+
+    engine = make_engine(temp_db_url)
+    works = [
+        AuthorWork(doi="10.9/dated", title="Dated", year=2026, cited_by_count=0, publication_date="2026-03-14"),
+        AuthorWork(doi="10.9/undated", title="Undated", year=2026, cited_by_count=0),  # pre-458 cache: no date
+    ]
+    src = FollowedAuthorFeedSource(engine=engine, author_client=_FakeAuthorClient({"A1": works}))
+    entries = {e.doi: e for e in src.fetch("A1", limit=10)}
+    assert entries["10.9/dated"].posted_date == "2026-03-14"  # real date used verbatim
+    assert entries["10.9/undated"].posted_date == "2026"  # falls back to the bare year, unchanged
+    engine.dispose()
+
+
 def test_followed_author_source_items_sort_correctly_alongside_dated_sources(temp_db_url):
     """Regression: a NULL posted_date sorts LAST under feed_repo.list_items's `posted_date DESC` ordering
     (SQLite treats NULL as smallest) -- so a followed author's newest work would silently sink to the bottom of

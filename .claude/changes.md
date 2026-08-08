@@ -11,6 +11,16 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
 
+## 2026-08-08 — Increment 458: Day-level publication dates for followed-author Feed items (backlog #28, CLOSED)
+- **Files:** `integrations/openalex/author.py`, `app/backend/discovery/followed_author_feed_source.py`,
+  `tests/test_feed.py`, `tests/test_my_publications.py`.
+- **What:** `AuthorWork` gained a validated `publication_date` field (OpenAlex's real "YYYY-MM-DD", added to the
+  existing works `select=` param); the followed-author Feed source now prefers it over the old bare-"YYYY"
+  fallback, which remains for pre-458 caches or undated OpenAlex works. 2 new tests.
+- **Why:** closes backlog #28's known date-precision limit (inc 455) — a bare-year `posted_date` sorted a
+  followed author's item to the end of its own year among same-year dated items from other Feed sources.
+- **Revert:** the field addition is purely additive; reverting either file alone is safe. No schema/migration.
+
 ## 2026-08-08 — Increment 457: Wire the self-citation field baseline into Citation Concentration (backlog #25/#37, CLOSED)
 - **Files:** `app/backend/methods/citation_equity.py`, `app/backend/api/routers/citation_equity.py`,
   `tests/test_citation_equity.py`, `.claude/security-audits/2026-06-30_citation-equity.md`,

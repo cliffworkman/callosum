@@ -61,10 +61,12 @@ def _to_entry(work: AuthorWork) -> FeedEntry | None:
         title=work.title or work.doi,
         doi=work.doi,
         year=work.year,
-        # OpenAlex's authored-works listing only gives a coarse year, never a full date -- but feed_repo.list_items
-        # sorts by `posted_date DESC` and SQLite treats NULL as smallest, so leaving this unset would sink every
-        # followed-author item to the bottom regardless of recency. A bare "YYYY" still sorts correctly against
-        # full "YYYY-MM-DD" strings from other sources (a shorter string that's a prefix of a longer one compares
-        # as "less than" it), just without day-level precision within the same year.
-        posted_date=str(work.year) if work.year else None,
+        # inc 458 (backlog #28): OpenAlex's Work object DOES carry a real "YYYY-MM-DD" (`publication_date`), now
+        # fetched + validated in `_work_from_obj`/`_normalize_publication_date` -- prefer it for day-level Feed
+        # sort precision. Pre-458 cached works (or a work OpenAlex itself never dated precisely) fall back to the
+        # bare year: feed_repo.list_items sorts by `posted_date DESC` and SQLite treats NULL as smallest, so
+        # leaving this unset would sink the item to the bottom regardless of recency, and a bare "YYYY" still
+        # sorts correctly against full "YYYY-MM-DD" strings from other sources (a shorter string that's a prefix
+        # of a longer one compares as "less than" it) -- just without day-level precision within the same year.
+        posted_date=work.publication_date or (str(work.year) if work.year else None),
     )
