@@ -24,6 +24,7 @@ EXPECTED_ENTRIES = {
     "callosum_addon.py",
     "composer.py",
     "citations_panel.py",
+    "evidence_insert.py",
 }
 
 

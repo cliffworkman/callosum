@@ -249,6 +249,14 @@
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>
+          <!-- P2 item #20 (backlog #33/#34, inc 461): Citavi-style insertion of a saved PDF highlight (quote
+               and/or your own note) alongside a live citation, with an optional local stance check first. -->
+          <node oor:name="m12" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?insertEvidence</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Insert evidence…</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
         </node>
       </node>
     </node>

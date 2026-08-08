@@ -201,3 +201,54 @@ round-trips losslessly through a real save/reopen (`spike_mark_size_and_reopen`,
 **Security Audit (inc 460 addendum): PASS.** No new endpoint/egress/dependency; the deep-link extension mirrors
 an already-audited pattern with the same input validation; the evidence record reuses an existing storage
 mechanism with a disclosed, empirically-verified size bound.
+
+## Addendum — Citavi-style "Insert evidence" (inc 461, roadmap #20, backlog #33/#34)
+
+Triggered by gate criterion #5 (net-new feature spanning 3+ files). New sibling module
+`adapters/libreoffice/evidence_insert.py` (the `composer.py`/`citations_panel.py` dialog-construction pattern)
+adds a three-dialog flow: search a paper, pick one of its saved highlights, optionally check a typed claim's
+stance against it, and insert it in one of four formats alongside a live citation. Two pieces worth reviewing:
+
+- **A new adapter call site, not a new endpoint.** `cc.list_paper_annotations` calls the already-existing,
+  already-audited `GET /papers/{paper_id}/annotations` — the adapter had simply never called it before. The
+  response (verbatim quote, page, note, color) is read-only, local (127.0.0.1), and only ever displayed inside
+  the modal dialogs the user themselves is driving; nothing is sent anywhere. The new stance check
+  (`evidence_insert.check_stance`) calls the sibling `POST /citations/classify-stance` endpoint audited above,
+  with the same bounded-text posture (an early `if not sentence or not passage: return None` before any call —
+  no oversize/empty text ever reaches the network layer, and a genuinely oversized claim still degrades to the
+  endpoint's own 422, shown to the user in the dialog rather than crashing it).
+- **The first two-step insertion (free body text + a citation mark, one user action).** `insert_evidence`
+  chains two already-audited primitives unchanged: `text.insertString(cursor, body + "\n", False)` (the
+  `insert_statement` precedent — plain prose, no markup/formatting injection surface, since Writer's
+  `insertString` treats the argument as literal text, never as rich content or a formula) followed by the
+  existing `insert_citation_items` reusing the SAME cursor. No new UNO primitive, no new trust boundary. The new
+  `evidence_annotation_id` key on `_ITEM_DEFAULTS` (the annotation analog of the inc-460 `evidence_chunk_id`)
+  rides the same mark-name payload mechanism every other per-item field already uses — additive, no
+  `SCHEMA_VERSION` bump needed (`_normalize_item`'s generic `setdefault` loop already covers a new default key,
+  same as inc 460's four `evidence_*` fields). Verified to round-trip losslessly through a real save/reopen via
+  the new `spike_insert_evidence` (mirrors `spike_mark_size_and_reopen`'s own proof for the chunk-sourced
+  fields).
+- **"Quote only" format inserts free text with no citation at all** — a deliberate, disclosed capability (an
+  author drafting a working note from a saved highlight before deciding whether/how to cite it), not a new
+  attribution-risk pattern: the SAME author who saved the highlight is the one choosing this format, at the
+  same one-user-action, explicit-Insert-click boundary every other insertion in this file already uses. Nothing
+  auto-inserts; every dialog step requires an explicit action (Next/Select/Insert), matching every other
+  multi-step flow in this adapter (the composer's Add/Insert, Suggest-citation's pick-then-Insert).
+- **The `.oxt` packaging regression guard already caught the real omission this session** —
+  `test_every_local_sibling_import_is_packaged` failed the moment `evidence_insert.py` was added but not yet
+  listed in `tools/build_libreoffice_oxt.py`'s `ENTRIES`, exactly the class of bug that guard was built to catch
+  (a packaged install 404ing on `import evidence_insert` the first time "Insert evidence…" is clicked). Fixed
+  before this addendum was written, not discovered later.
+
+**Negative-path checks (recorded, `tests/test_libreoffice_adapter.py`):** a paper with no saved highlights →
+an honest message box, nothing opened further (`test_run_insert_evidence_messages_when_no_annotations`); a
+cancelled paper search / highlight pick / configure step at any of the three stages → `None`, no mutation
+(`test_run_insert_evidence_stops_early_when_paper_not_picked`); "quote only" → zero citation marks inserted,
+confirmed both by a monkeypatched unit test and the real-UNO spike; a stance-check network failure inside the
+configure dialog is caught and shown inline (`except Exception` around `check_stance`, never crashes the
+dialog).
+
+**Security Audit (inc 461 addendum): PASS.** No new endpoint beyond the already-audited
+`/citations/classify-stance`; no new egress class; the two-step insertion chains only already-audited
+primitives; the new evidence field follows the existing additive, migration-free storage convention; the
+packaging regression guard is green.

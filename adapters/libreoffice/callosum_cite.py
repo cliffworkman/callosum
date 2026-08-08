@@ -93,6 +93,9 @@ _ITEM_DEFAULTS = {
     "evidence_page_start": None,
     "evidence_page_end": None,
     "evidence_snippet": None,
+    # inc 461 ("Insert evidence", backlog #33/#34 P2 #20): the annotation-sourced analog of `evidence_chunk_id`
+    # -- a saved PDF highlight has no chunk_id, so its own persisted-annotation id is the audit anchor instead.
+    "evidence_annotation_id": None,
 }
 EVIDENCE_SNIPPET_MAX = 150
 # The exact CSL locator-label vocabulary the backend validates against (P0 phase 5b, backlog #33/#34) — MUST
@@ -585,6 +588,16 @@ def search_library(base: str, query: str, limit: int = 20) -> list[dict]:
         return []
     url = f"{base}/papers?q={urllib.parse.quote(q)}&limit={int(limit)}"
     data = _get_json(url)
+    return data if isinstance(data, list) else []
+
+
+def list_paper_annotations(base: str, paper_id) -> list[dict]:
+    """A paper's saved highlights/annotations (inc 461, "Insert evidence", backlog #33/#34 P2 #20) --
+    GET /papers/{id}/annotations, an existing endpoint this adapter has never called before. Already returns
+    everything needed (verbatim quote, page, note, color) in one call; [] on a malformed non-list response,
+    matching `search_library`'s own convention (a real network/HTTP failure still propagates, caught the same
+    way every other action's does -- by `_macro`'s broad except)."""
+    data = _get_json(f"{base}/papers/{paper_id}/annotations")
     return data if isinstance(data, list) else []
 
 
@@ -5925,6 +5938,21 @@ def citations_panel_interactive(doc, base: str) -> None:
         doc.getCurrentController().select(mark.getAnchor())
 
 
+def insert_evidence_interactive(doc, base: str) -> str | None:
+    """Citavi-style evidence insertion (P2 item #20, backlog #33/#34, inc 461): find a paper, pick one of its
+    saved PDF highlights, optionally check a typed claim's stance against it, and insert it in one of several
+    formats alongside a live citation. The dialogs + insertion logic live in `evidence_insert.py` (the
+    `composer.py`/`citations_panel.py` sibling-module pattern — new UNO dialog construction, not more action
+    logic in this already-large file)."""
+    import os
+    import sys
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import evidence_insert
+
+    return evidence_insert.run_insert_evidence(doc, base)
+
+
 # Action registry — the single source of truth for what each Callosum command does. Keyed by the action name the
 # .oxt Addons.xcu menu/toolbar dispatches (`service:com.callosum.cite.Dispatcher?<action>`). Each value takes
 # (doc, base); flatten/setServerUrl ignore base. `add_citation_by_search` (search-to-cite) is added in SP2.
@@ -5967,6 +5995,7 @@ _ACTIONS = {
     "editCitation": edit_citation_interactive,
     "citationsPanel": citations_panel_interactive,
     "citationIntegrityPreflight": citation_integrity_preflight_interactive,
+    "insertEvidence": insert_evidence_interactive,
 }
 
 
@@ -6136,6 +6165,10 @@ def CallosumCitationsPanel(*_args):
     _macro("citationsPanel")
 
 
+def CallosumInsertEvidence(*_args):
+    _macro("insertEvidence")
+
+
 g_exportedScripts = (
     CallosumAddCitation,
     CallosumInsertCitation,
@@ -6171,4 +6204,5 @@ g_exportedScripts = (
     CallosumDiagnostics,
     CallosumEditCitation,
     CallosumCitationsPanel,
+    CallosumInsertEvidence,
 )

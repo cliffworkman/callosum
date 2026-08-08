@@ -23,6 +23,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import callosum_cite as cc  # noqa: E402  (after sys.path injection)
+import evidence_insert  # noqa: E402
 import uno  # noqa: E402
 
 
@@ -1976,6 +1977,125 @@ def spike_citation_integrity_preflight(ctx, base, p1, p2):
     log("spike (P2 #19): OK — citation_integrity_preflight_interactive rendered a combined dialog")
 
 
+def spike_insert_evidence(ctx, base, p1, p2):
+    """P2 item #20 (backlog #33/#34, inc 461): `evidence_insert.insert_evidence` is the first place this
+    adapter inserts free-form body text AND a citation mark together as one action. This spike proves the real
+    two-step UNO sequence (`text.insertString` then `insert_citation_items` reusing the SAME cursor) actually
+    lands body-then-mark in a real document, that each format produces the right body text (or none, for
+    "quote only"), and that the new `evidence_annotation_id` field round-trips losslessly through a real
+    save/reopen — the `evidence_insert.py` analog of `spike_mark_size_and_reopen`'s `evidence_chunk_id` proof.
+
+    The three real dialogs (`_paper_search_dialog`/`_annotation_list_dialog`/`_annotation_configure_dialog`)
+    are only ever exercised interactively — like `composer.py`'s own dialogs, `dialog.execute()` blocks for
+    real human input, so there's no way to spike them headlessly. This calls `insert_evidence` directly with
+    hand-built annotation dicts instead — the same "skip the dialog, prove the mutation" split
+    `spike_citation_integrity_preflight` already established for `citation_integrity_preflight_interactive`.
+    """
+    import tempfile
+
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString(
+        "Intro paragraph.\nMARK-QUOTE-CITE\nMARK-QUOTE-ONLY\nMARK-CARD\n"
+    )
+
+    def find(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    def place_view(needle):
+        found = find(needle)
+        check(found is not None, f"anchor {needle} not found")
+        cursor = text.createTextCursorByRange(found)
+        cursor.collapseToStart()
+        doc.getCurrentController().getViewCursor().gotoRange(cursor, False)
+
+    quote_annotation = {
+        "id": 501,
+        "page": 7,
+        "anchor_text": "The effect was null across all conditions.",
+        "note": None,
+    }
+    card_annotation = {
+        "id": 502,
+        "page": 9,
+        "anchor_text": "Participants reported high engagement.",
+        "note": "Worth contrasting with our own null result.",
+    }
+
+    place_view("MARK-QUOTE-CITE")
+    rnd1 = evidence_insert.insert_evidence(doc, base, p1, quote_annotation, evidence_insert.FORMAT_QUOTE_CITE, "7")
+    check(rnd1 is not None, "quote_cite format should insert a citation mark")
+
+    marks_before = doc.getReferenceMarks().getCount()
+    place_view("MARK-QUOTE-ONLY")
+    rnd2 = evidence_insert.insert_evidence(doc, base, p1, quote_annotation, evidence_insert.FORMAT_QUOTE_ONLY, None)
+    check(rnd2 is None, "quote_only format must not return a mark rnd")
+    check(doc.getReferenceMarks().getCount() == marks_before, "quote_only format must not insert a citation mark")
+
+    place_view("MARK-CARD")
+    rnd3 = evidence_insert.insert_evidence(doc, base, p2, card_annotation, evidence_insert.FORMAT_CARD, None)
+    check(rnd3 is not None, "card format should insert a citation mark")
+
+    full_text = text.getString()
+    check("The effect was null across all conditions." in full_text, "quote body text not found in document")
+    check("Worth contrasting with our own null result" in full_text, "card format's note text not found in document")
+
+    names = [nm for nm in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(nm)]
+    check(len(names) == 2, f"expected exactly 2 citation marks (quote_only inserts none), found {len(names)}")
+    decoded_by_rnd = {cc.decode_mark_name(nm)["rnd"]: cc.decode_mark_name(nm) for nm in names}
+
+    item1 = decoded_by_rnd[rnd1]["items"][0]
+    check(item1["evidence_annotation_id"] == 501, f"quote_cite mark missing evidence_annotation_id=501: {item1}")
+    check(
+        item1["evidence_page_start"] == 7 and item1["evidence_page_end"] == 7,
+        f"quote_cite mark page fields wrong: {item1}",
+    )
+    check(item1["locator"] == "7", f"quote_cite mark locator wrong: {item1}")
+
+    item3 = decoded_by_rnd[rnd3]["items"][0]
+    check(item3["evidence_annotation_id"] == 502, f"card mark missing evidence_annotation_id=502: {item3}")
+    check(item3["evidence_page_start"] == 9, f"card mark page field wrong: {item3}")
+
+    log(
+        f"spike (P2 #20): OK — two-step body+citation insertion produced {len(names)} marks with correct "
+        "evidence_annotation_id; quote_only inserted zero marks"
+    )
+
+    fd, save_path = tempfile.mkstemp(suffix=".odt")
+    os.close(fd)
+    try:
+        save_url = uno.systemPathToFileUrl(save_path)
+        from com.sun.star.beans import PropertyValue
+
+        filt = PropertyValue()
+        filt.Name, filt.Value = "FilterName", "writer8"
+        doc.storeToURL(save_url, (filt,))
+        reopened = load_doc(ctx, save_url)
+        after_names = [nm for nm in reopened.getReferenceMarks().getElementNames() if cc.decode_mark_name(nm)]
+        check(len(after_names) == 2, f"after save/reopen: expected 2 marks, found {len(after_names)}")
+        after_by_rnd = {cc.decode_mark_name(nm)["rnd"]: cc.decode_mark_name(nm)["items"][0] for nm in after_names}
+        check(
+            after_by_rnd[rnd1]["evidence_annotation_id"] == 501,
+            "evidence_annotation_id changed after save/reopen (quote_cite mark)",
+        )
+        check(
+            after_by_rnd[rnd3]["evidence_annotation_id"] == 502,
+            "evidence_annotation_id changed after save/reopen (card mark)",
+        )
+        reopened_text = reopened.getText().getString()
+        check("Worth contrasting with our own null result" in reopened_text, "card body text lost after save/reopen")
+        log(
+            "spike (P2 #20): OK — evidence_annotation_id + inserted body text round-trip losslessly through save/reopen"
+        )
+    finally:
+        try:
+            os.remove(save_path)
+        except OSError:
+            pass
+
+
 def spike_bibliography_editing(ctx, base, p1, p2):
     """P1 item #11 (backlog #33/#34): exclude a cited work from the bibliography while its in-text citation
     still renders, and include an uncited "further reading" work — both against a real document, real
@@ -3703,6 +3823,10 @@ def main():
         # 24) P2 item #19 (backlog #33/#34, inc 459): citation integrity preflight -- the new scoped retraction
         # re-check, proven against the REAL new endpoint through the REAL adapter.
         spike_citation_integrity_preflight(ctx, base, p1, p2)
+
+        # 25) P2 item #20 (backlog #33/#34, inc 461): Citavi-style "Insert evidence" -- the real two-step
+        # body-text-then-citation insertion sequence, proven to round-trip through save/reopen.
+        spike_insert_evidence(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)
         return 0

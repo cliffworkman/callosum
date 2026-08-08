@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /citations/suggest, /usage/events
+api: /citations/suggest, /usage/events, /citations/classify-stance
 fe: 37_cite.jsx
 -->
 
@@ -22,6 +22,14 @@ change to the endpoint itself, so this route's API coverage is unaffected. The L
 scope for this browser-driven route** (no LibreOffice in this harness); it's verified via the adapter's own
 real-UNO harness (`python adapters/libreoffice/run_roundtrip.py`) and duck-typed pytest coverage
 (`tests/test_libreoffice_adapter.py`), per CLAUDE.md's Verification protocol §4.
+**Inc 461** adds a new sibling endpoint, `POST /citations/classify-stance` — a pairwise `(sentence, passage)`
+stance check built for the LibreOffice adapter's own new "Insert evidence…" command (roadmap #20: browse a
+paper's saved highlights, optionally check a typed claim's stance against one, insert it alongside a citation).
+**This endpoint has no web frontend surface** — its real end-to-end exercise (a real typed claim → a real NLI
+call → the same breakdown text `/citations/suggest`'s own stance already uses) is the LibreOffice adapter's own
+real-UNO harness (`python adapters/libreoffice/run_roundtrip.py`, `spike_insert_evidence`), per CLAUDE.md's
+Verification protocol §4, not this browser-driven route. Exercise it directly via the API within this route's
+own environment instead (see Steps below) so it's still covered by a live call in this suite.
 
 ## Environment
 
@@ -98,6 +106,10 @@ The seeded `social-perception`/facial papers give a real semantic match for the 
    request either way.
 8. Confirm nothing auto-inserts a citation and no card (in-library or beyond-library) presents a paper as
    good/bad or ranked by a hidden composite score.
+9. Directly via the API (no frontend surface — see the inc-461 note above): `POST /citations/classify-stance`
+   with a real `{sentence, passage}` pair -> 200 with a `label`/`confidence`/`probs` shape matching a suggestion
+   card's own stance field exactly; empty `sentence` or `passage`, or either exceeding the shared 4000-char cap
+   -> 422. Confirm **0 genai-host requests** for this call too (local NLI only).
 
 ## Pass criteria
 
@@ -110,6 +122,8 @@ The seeded `social-perception`/facial papers give a real semantic match for the 
 - 0 console/page errors and **0 genai-host requests** (the whole flow — in-library AND beyond-library — never
   touches Gemini/LLM hosts; beyond-library's own metadata-provider requests are expected only once checked).
 - Mobile viewport has no horizontal overflow.
+- `POST /citations/classify-stance` validates its input (empty/oversized -> 422) and never touches a
+  genai-host, matching the local-NLI posture of every other stance signal on this route.
 
 ## Deposit
 

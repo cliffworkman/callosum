@@ -14,6 +14,7 @@ import pytest
 
 from adapters.libreoffice import callosum_cite as cc
 from adapters.libreoffice import citations_panel as panel
+from adapters.libreoffice import evidence_insert as ei
 
 
 def test_mark_name_roundtrip() -> None:
@@ -40,6 +41,7 @@ def test_mark_name_roundtrip() -> None:
             "evidence_page_start": None,
             "evidence_page_end": None,
             "evidence_snippet": None,
+            "evidence_annotation_id": None,
         }
     ]
 
@@ -2329,3 +2331,188 @@ def test_csl_record_row_truncates_long_titles() -> None:
     long_title = "X" * 200
     row = cc.csl_record_row({"title": long_title, "issued": {"date-parts": [[2020]]}})
     assert row.endswith("…") and len(row) < len(long_title)
+
+
+# ── inc 461 ("Insert evidence", backlog #33/#34 P2 #20): evidence_insert.py -- the pure helpers, plus the
+# two-step insertion sequence with insertString/insert_citation_items monkeypatched (real dialog construction
+# is UNO-only, exercised via selftest_uno.py's spike, same discipline as composer.py's own docstring) ─────────
+
+
+def test_list_paper_annotations_returns_list_and_defensive_on_malformed(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "_get_json", lambda url: [{"id": 1, "page": 3}])
+    assert cc.list_paper_annotations("http://x", 7) == [{"id": 1, "page": 3}]
+    monkeypatch.setattr(cc, "_get_json", lambda url: {"not": "a list"})
+    assert cc.list_paper_annotations("http://x", 7) == []
+
+
+def test_format_body_text_quote_variants() -> None:
+    a = {"anchor_text": "The effect was null.", "note": "Worth flagging in discussion."}
+    assert ei.format_body_text(a, ei.FORMAT_QUOTE_ONLY) == "“The effect was null.”"
+    assert ei.format_body_text(a, ei.FORMAT_QUOTE_CITE) == "“The effect was null.”"
+    assert ei.format_body_text(a, ei.FORMAT_PARAPHRASE_CITE) == "Worth flagging in discussion."
+    assert ei.format_body_text(a, ei.FORMAT_CARD) == "“The effect was null.” — Worth flagging in discussion."
+
+
+def test_format_body_text_paraphrase_falls_back_to_quote_when_no_note() -> None:
+    a = {"anchor_text": "The effect was null.", "note": None}
+    assert ei.format_body_text(a, ei.FORMAT_PARAPHRASE_CITE) == "“The effect was null.”"
+    assert ei.format_body_text(a, ei.FORMAT_CARD) == "“The effect was null.”"  # no " — " suffix with no note
+
+
+def test_format_body_text_rejects_unknown_format() -> None:
+    with pytest.raises(ValueError):
+        ei.format_body_text({"anchor_text": "x"}, "not-a-real-format")
+
+
+def test_annotation_locator_reads_single_page_field() -> None:
+    assert ei._annotation_locator({"page": 12}) == "12"
+    assert ei._annotation_locator({"page": None}) is None
+
+
+def test_evidence_annotation_fields_truncates_snippet_and_carries_id() -> None:
+    long_quote = "word " * 60  # well over cc.EVIDENCE_SNIPPET_MAX
+    fields = ei._evidence_annotation_fields({"id": 42, "page": 9, "anchor_text": long_quote})
+    assert fields["evidence_annotation_id"] == 42
+    assert fields["evidence_page_start"] == 9 and fields["evidence_page_end"] == 9
+    assert len(fields["evidence_snippet"]) <= cc.EVIDENCE_SNIPPET_MAX + 1
+    assert fields["evidence_snippet"].endswith("…")
+
+
+def test_annotation_rows_truncates_quote_and_note_and_omits_blank_note() -> None:
+    rows = ei.annotation_rows(
+        [
+            {"page": 4, "anchor_text": "short quote", "note": "short note"},
+            {"page": None, "anchor_text": "x" * 100, "note": ""},
+        ]
+    )
+    assert rows[0] == 'p.4 — "short quote"  [note: short note]'
+    assert rows[1].startswith('p.? — "') and "[note:" not in rows[1]
+
+
+def test_check_stance_skips_call_when_claim_or_passage_blank(monkeypatch) -> None:
+    monkeypatch.setattr(ei.cc, "_post_json", lambda url, body: pytest.fail("should not call the backend"))
+    assert ei.check_stance("http://x", "", {"anchor_text": "a passage"}) is None
+    assert ei.check_stance("http://x", "a claim", {"anchor_text": ""}) is None
+
+
+def test_check_stance_posts_claim_and_passage(monkeypatch) -> None:
+    captured = {}
+
+    def fake_post(url, body):
+        captured["url"] = url
+        captured["body"] = body
+        return {"label": "support", "confidence": 0.8, "probs": {"support": 0.8, "contrast": 0.1, "mention": 0.1}}
+
+    monkeypatch.setattr(ei.cc, "_post_json", fake_post)
+    stance = ei.check_stance("http://x", "  a claim  ", {"anchor_text": "a passage"})
+    assert captured["url"] == "http://x/citations/classify-stance"
+    assert captured["body"] == {"sentence": "a claim", "passage": "a passage"}
+    assert stance["label"] == "support"
+
+
+def test_insert_evidence_inserts_body_then_citation_at_same_cursor(monkeypatch) -> None:
+    inserted = []
+
+    class _FakeText:
+        def insertString(self, cursor, text, absorb):
+            inserted.append((cursor, text, absorb))
+
+    class _FakeDoc:
+        def getText(self):
+            return _FakeText()
+
+    captured = {}
+    monkeypatch.setattr(ei.cc, "_insertion_cursor", lambda doc: "CURSOR")
+    monkeypatch.setattr(
+        ei.cc,
+        "insert_citation_items",
+        lambda doc, items, base, cursor=None: captured.update(items=items, cursor=cursor) or "rnd-123",
+    )
+    annotation = {"id": 7, "page": 5, "anchor_text": "A finding.", "note": "My take."}
+    rnd = ei.insert_evidence(_FakeDoc(), "http://x", 99, annotation, ei.FORMAT_QUOTE_CITE, "5")
+    assert rnd == "rnd-123"
+    assert inserted == [("CURSOR", "“A finding.”\n", False)]  # body inserted first, at the shared cursor
+    assert captured["cursor"] == "CURSOR"  # the citation mark reuses the SAME cursor -- lands right after
+    item = captured["items"][0]
+    assert item["paper_id"] == 99
+    assert item["locator"] == "5" and item["label"] == "page"
+    assert item["evidence_annotation_id"] == 7 and item["evidence_snippet"] == "A finding."
+
+
+def test_insert_evidence_quote_only_skips_citation_step(monkeypatch) -> None:
+    class _FakeText:
+        def insertString(self, cursor, text, absorb):
+            pass
+
+    class _FakeDoc:
+        def getText(self):
+            return _FakeText()
+
+    monkeypatch.setattr(ei.cc, "_insertion_cursor", lambda doc: "CURSOR")
+    monkeypatch.setattr(
+        ei.cc, "insert_citation_items", lambda *a, **k: pytest.fail("quote-only must not insert a citation")
+    )
+    annotation = {"id": 7, "page": 5, "anchor_text": "A finding.", "note": None}
+    rnd = ei.insert_evidence(_FakeDoc(), "http://x", 99, annotation, ei.FORMAT_QUOTE_ONLY, None)
+    assert rnd is None
+
+
+def test_insert_evidence_no_locator_omits_locator_and_label(monkeypatch) -> None:
+    class _FakeText:
+        def insertString(self, cursor, text, absorb):
+            pass
+
+    class _FakeDoc:
+        def getText(self):
+            return _FakeText()
+
+    captured = {}
+    monkeypatch.setattr(ei.cc, "_insertion_cursor", lambda doc: "CURSOR")
+    monkeypatch.setattr(
+        ei.cc,
+        "insert_citation_items",
+        lambda doc, items, base, cursor=None: captured.update(items=items) or "rnd-9",
+    )
+    annotation = {"id": 3, "page": None, "anchor_text": "No page recorded.", "note": None}
+    ei.insert_evidence(_FakeDoc(), "http://x", 1, annotation, ei.FORMAT_QUOTE_CITE, None)
+    item = captured["items"][0]
+    assert "locator" not in item and "label" not in item
+
+
+def test_run_insert_evidence_stops_early_when_paper_not_picked(monkeypatch) -> None:
+    monkeypatch.setattr(ei.cc, "_component_ctx", lambda: object())
+    monkeypatch.setattr(ei, "_paper_search_dialog", lambda ctx, base: None)
+    monkeypatch.setattr(ei.cc, "list_paper_annotations", lambda base, pid: pytest.fail("must not fetch annotations"))
+    assert ei.run_insert_evidence(object(), "http://x") is None
+
+
+def test_run_insert_evidence_messages_when_no_annotations(monkeypatch) -> None:
+    messages = []
+    monkeypatch.setattr(ei.cc, "_component_ctx", lambda: object())
+    monkeypatch.setattr(ei, "_paper_search_dialog", lambda ctx, base: {"id": 5, "title": "A paper"})
+    monkeypatch.setattr(ei.cc, "list_paper_annotations", lambda base, pid: [])
+    monkeypatch.setattr(ei.cc, "_msgbox", lambda msg, **kw: messages.append(msg))
+    monkeypatch.setattr(
+        ei, "_annotation_list_dialog", lambda ctx, paper, annotations: pytest.fail("no highlights to pick from")
+    )
+    assert ei.run_insert_evidence(object(), "http://x") is None
+    assert messages and "no saved highlights" in messages[0]
+
+
+def test_run_insert_evidence_full_flow_inserts(monkeypatch) -> None:
+    annotation = {"id": 7, "page": 5, "anchor_text": "A finding.", "note": None}
+    monkeypatch.setattr(ei.cc, "_component_ctx", lambda: object())
+    monkeypatch.setattr(ei, "_paper_search_dialog", lambda ctx, base: {"id": 5, "title": "A paper"})
+    monkeypatch.setattr(ei.cc, "list_paper_annotations", lambda base, pid: [annotation])
+    monkeypatch.setattr(ei, "_annotation_list_dialog", lambda ctx, paper, annotations: annotations[0])
+    monkeypatch.setattr(ei, "_annotation_configure_dialog", lambda ctx, base, a: (ei.FORMAT_QUOTE_CITE, "5"))
+    captured = {}
+    monkeypatch.setattr(
+        ei,
+        "insert_evidence",
+        lambda doc, base, paper_id, a, fmt, locator: captured.update(paper_id=paper_id, a=a, fmt=fmt, locator=locator)
+        or "rnd-final",
+    )
+    rnd = ei.run_insert_evidence(object(), "http://x")
+    assert rnd == "rnd-final"
+    assert captured == {"paper_id": 5, "a": annotation, "fmt": ei.FORMAT_QUOTE_CITE, "locator": "5"}

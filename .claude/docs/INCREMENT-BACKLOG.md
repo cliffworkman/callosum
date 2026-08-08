@@ -486,11 +486,10 @@ the Principles + A-A gates before build.)*
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
   not left to drift like the composer's verification did). Remaining P1 future tracks (traveling-library
   portability and comprehensive keyboard/accessibility) **and P2
-  leapfrog remaining items** (manuscript-level citation-coverage audit [#18],
-  Citavi-style evidence-card insertion [#20], open-science statement
+  leapfrog remaining items** (manuscript-level citation-coverage audit [#18], open-science statement
   insertion [#21], cross-manager conversion [#22]) — see the roadmap doc for the full prioritized list + a test
   plan. A confirmed linear order for the P2 track: #19 → #17 → #20 → #21 → #18 → #22 (see memory
-  `callosum-p2-leapfrog-roadmap`).
+  `callosum-p2-leapfrog-roadmap`) — #19, #17, and #20 are now closed; #21 is next.
   ✅ **P2 item #19 (citation integrity preflight) CLOSED inc 459.** A reuse-first, document-scoped slice: a new
   "Citation integrity preflight…" LibreOffice command folds `diagnose_document`'s existing mechanics report
   (malformed/duplicate/orphaned marks, bibliography health) together with a fresh, on-demand retraction
@@ -510,6 +509,21 @@ the Principles + A-A gates before build.)*
   button. **Zero backend Python changed** — `/citations/suggest`'s response already carried everything needed.
   Filters (study-type/year/tag/collection) stay a deliberate v1 boundary — "study type" isn't a concept that
   exists anywhere in callosum's schema — filed as its own follow-up.
+  ✅ **P2 item #20 (Citavi-style "Insert evidence") CLOSED inc 461.** A new sibling module
+  `adapters/libreoffice/evidence_insert.py` (the `composer.py`/`citations_panel.py` dialog-construction
+  pattern) adds a three-dialog flow: search any paper in the library (confirmed with Cliff — not scoped to
+  already-cited papers), pick one of its saved PDF highlights (`GET /papers/{id}/annotations`, an existing
+  endpoint the adapter had never called before), then configure and insert. The configure step includes a
+  basic claim-vs-evidence stance check (confirmed in-scope with Cliff, not deferred) via a new sibling backend
+  endpoint `POST /citations/classify-stance` (`app/backend/api/routers/citation_stance.py` — `citations.py` was
+  already at the 600-line cap) — the first pairwise `(sentence, passage)` stance endpoint in the codebase; every
+  other call site bundles classification with retrieval. Four insertion formats: quote only (plain text, **no**
+  citation, by design), quote + citation, paraphrase (the saved note) + citation, and a structured card (quote +
+  note + citation). `insert_evidence` is the adapter's first two-step insertion — free body text via the
+  `insert_statement` precedent, then a citation mark via the unchanged `insert_citation_items`, reusing the same
+  cursor so the mark lands right after its body — proven to round-trip losslessly through a real save/reopen via
+  the new `spike_insert_evidence`. A new `evidence_annotation_id` key on `_ITEM_DEFAULTS` (the annotation analog
+  of inc 460's `evidence_chunk_id`) rides the same additive mark-payload mechanism; no `SCHEMA_VERSION` bump.
   **UX follow-ups (incs 374/375/376/382/383) — CLOSED inc 446.** All three state-blind toggles (automatic
   bibliography rebuilding, citation-to-bibliography links, bibliography title/DOI links) now expose current
   ON/OFF state via "Document diagnostics…" (always-present, read-only) and each toggle's own message now states

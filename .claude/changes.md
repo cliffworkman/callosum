@@ -11,6 +11,21 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
 
+## 2026-08-08 — Increment 461: Citavi-style "Insert evidence" for the LibreOffice adapter (backlog #33/#34, P2 #20)
+- **Files:** `app/backend/api/routers/citation_stance.py` (new), `app/backend/api/app.py`,
+  `adapters/libreoffice/evidence_insert.py` (new), `adapters/libreoffice/callosum_cite.py`,
+  `adapters/libreoffice/oxt/Addons.xcu`, `adapters/libreoffice/selftest_uno.py`,
+  `tools/build_libreoffice_oxt.py`, `tests/test_citation_stance.py` (new), `tests/test_libreoffice_adapter.py`,
+  `tests/test_libreoffice_oxt.py`.
+- **What:** a new "Insert evidence…" LibreOffice command — search any library paper, pick a saved PDF
+  highlight, optionally check a typed claim's stance against it (new `POST /citations/classify-stance`), and
+  insert it in one of 4 formats (quote only / quote+citation / paraphrase+citation / structured card) alongside
+  a live citation. First two-step body-text-then-citation insertion in the adapter. 26 new tests.
+- **Why:** closes P2 item #20 from the word-processor-plugins roadmap, third in the confirmed P2 sequence
+  (#19 → #17 → #20 → #21 → #18 → #22).
+- **Revert:** all changes additive/backward-compatible (new endpoint, new sibling module, one new default
+  mark-payload key). No schema/migration.
+
 ## 2026-08-08 — Increment 460: Evidence-aware Suggest-Citation composer (backlog #33/#34, P2 #17)
 - **Files:** `adapters/libreoffice/callosum_cite.py`, `adapters/libreoffice/citations_panel.py`,
   `adapters/libreoffice/selftest_uno.py`, `app/frontend/js/40_app.jsx`, `tests/test_libreoffice_adapter.py`,
