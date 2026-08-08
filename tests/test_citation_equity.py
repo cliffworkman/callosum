@@ -15,16 +15,24 @@ from integrations.openalex.adapter import OpenAlexClient, _meta_from_work
 # --- canned OpenAlex work objects -------------------------------------------
 
 
-def _ref_work(wid, *, cited=10, venue="Nature", country="US", inst="MIT", authors=("X Y",)):
-    return {
+def _ref_work(
+    wid, *, cited=10, venue="Nature", country="US", inst="MIT", authors=("X Y",), author_id=None, referenced_works=None
+):
+    work = {
         "id": f"https://openalex.org/{wid}",
         "cited_by_count": cited,
         "primary_location": {"source": {"display_name": venue, "issn_l": "1000-0001"}},
         "authorships": [
-            {"author": {"display_name": a}, "institutions": [{"display_name": inst, "country_code": country}]}
+            {
+                "author": {"display_name": a, **({"id": f"https://openalex.org/{author_id}"} if author_id else {})},
+                "institutions": [{"display_name": inst, "country_code": country}],
+            }
             for a in authors
         ],
     }
+    if referenced_works is not None:  # inc 457: only set when a test needs this field paper self-citation-computable
+        work["referenced_works"] = [f"https://openalex.org/{w}" for w in referenced_works]
+    return work
 
 
 def _focal_work(doi, ref_ids, *, topic=("T100", "Genetics")):
@@ -188,6 +196,31 @@ def test_self_citation_by_author_overlap():
     assert _by_key(rep2)["self_citation"].list_pct is None
 
 
+def test_self_citation_field_baseline_present_and_absent():
+    """inc 457: field_pct now carries a real self-citation field baseline when the caller (the router) computed
+    one; still an honest None (not a guessed 0) when it couldn't."""
+    refs = [{"title": "Mine", "year": 2020, "authors": ["Pat Doe"]}]
+    with_baseline = audit_reference_list(
+        refs=refs,
+        focal_author_families={"doe"},
+        field=None,
+        field_topic=None,
+        references_total=1,
+        self_citation_field_baseline=0.16,
+        self_citation_field_baseline_n=147,
+    )
+    sc = _by_key(with_baseline)["self_citation"]
+    assert sc.field_pct == 0.16
+    assert "147 papers checked" in sc.summary and "16%" in sc.summary
+
+    without_baseline = audit_reference_list(
+        refs=refs, focal_author_families={"doe"}, field=None, field_topic=None, references_total=1
+    )
+    sc2 = _by_key(without_baseline)["self_citation"]
+    assert sc2.field_pct is None
+    assert "No field baseline could be computed" in sc2.summary
+
+
 def test_matthew_top_decile_vs_field():
     refs = [{"cited_by_count": c, "authors": []} for c in (2, 5, 900)]
     field = [{"cited_by_count": c} for c in range(0, 100)]  # p90 threshold = 90 → only the 900-ref is above
@@ -326,6 +359,9 @@ def test_run_produces_report(temp_db_url):
     assert keys == {"self_citation", "matthew", "venue", "institution"}  # no geography — people are never categorized
     by_key = {s["key"]: s for s in rep["signals"]}
     assert by_key["self_citation"]["list_pct"] == 0.5  # W1 (Pat Doe) is a self-cite, W2 is not
+    # the default _ref_work field papers carry no author_id/referenced_works -- none are baseline-computable,
+    # so field_pct stays an honest None rather than crashing or fabricating a rate
+    assert by_key["self_citation"]["field_pct"] is None
 
 
 def test_run_404_and_422(temp_db_url):
@@ -370,3 +406,87 @@ def test_run_field_absent_is_own_shape(temp_db_url):
 def test_status_404_for_unknown_job(temp_db_url):
     client = TestClient(create_app(db_url=temp_db_url))
     assert client.get("/methods/citation-equity/run/nope").status_code == 404
+
+
+# --- inc 457: the self-citation field baseline's dual cap (target N=40, max checks=100) -----------------------
+
+
+def _fetcher_with_self_citation(works_by_doi, works_by_id, field_results, hits_by_ref_and_author, *, calls):
+    """Extends `_fetcher`'s dispatch with the count-only `openalex_id:...,authorships.author.id:...` filter
+    (inc 456's primitive) -- `hits_by_ref_and_author` maps a single ref id -> hit count; an unregistered ref id
+    yields a 404 (fetch_self_citation_hit_count -> None), simulating a field paper whose count can't be resolved."""
+
+    def fake(path, *, params, headers, timeout):
+        filt = params.get("filter") or ""
+        if "authorships.author.id:" in filt:
+            calls.append(filt)
+            ref_id = filt.split("openalex_id:")[1].split(",authorships.author.id:")[0]
+            if ref_id not in hits_by_ref_and_author:
+                return (404, {"error": "unregistered"})
+            return (200, {"meta": {"count": hits_by_ref_and_author[ref_id]}})
+        if path.startswith("/doi:"):
+            doi = path[len("/doi:") :]
+            return (200, works_by_doi[doi]) if doi in works_by_doi else (404, {"error": "nf"})
+        if path.startswith("/W"):
+            wid = path[1:]
+            return (200, works_by_id[wid]) if wid in works_by_id else (404, {"error": "nf"})
+        if path == "" and "primary_topic.id:" in filt:
+            return (200, {"results": field_results})
+        return (404, {"error": "nf"})
+
+    return fake
+
+
+def test_self_citation_baseline_stops_at_target_n_even_with_more_computable_papers(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _seed(conn, "Focal", "10.1/f2", authors=[{"family": "Doe", "given": "Pat"}])
+    engine.dispose()
+    works_by_doi = {"10.1/f2": _focal_work("10.1/f2", ["W1"])}
+    works_by_id = {"W1": _ref_work("W1", authors=("Pat Doe",))}
+    # 50 field papers, ALL computable (author_id + a single referenced_work each) -- more than the target N=40
+    field = [
+        _ref_work(f"WF{i}", author_id=f"A{i}", referenced_works=[f"W900{i}"], authors=(f"Person {i}",))
+        for i in range(50)
+    ]
+    hits = {f"W900{i}": 1 for i in range(50)}  # every field paper "self-cites" its own single reference
+    calls: list[str] = []
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.openalex_client = OpenAlexClient(
+        fetcher=_fetcher_with_self_citation(works_by_doi, works_by_id, field, hits, calls=calls)
+    )
+
+    done = _drive(client, pid)
+    assert done["status"] == "done"
+    sc = {s["key"]: s for s in done["report"]["signals"]}["self_citation"]
+    assert sc["field_pct"] == 1.0
+    assert "40 papers checked" in sc["summary"]  # stopped at the target N, not all 50 available
+    assert len(calls) == 40  # only 40 self-citation-count requests were made, not 50
+
+
+def test_self_citation_baseline_stops_at_max_checks_when_coverage_is_low(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _seed(conn, "Focal", "10.1/f3", authors=[{"family": "Doe", "given": "Pat"}])
+    engine.dispose()
+    works_by_doi = {"10.1/f3": _focal_work("10.1/f3", ["W1"])}
+    works_by_id = {"W1": _ref_work("W1", authors=("Pat Doe",))}
+    # 110 "eligible" field papers (each has author_id + one referenced_work), but only 3 of the first 100 ever
+    # resolve a real count -- simulating a low-coverage field where most count queries fail/miss.
+    field = [
+        _ref_work(f"WF{i}", author_id=f"A{i}", referenced_works=[f"W9{i}"], authors=(f"Person {i}",))
+        for i in range(110)
+    ]
+    hits = {"W92": 1, "W910": 0, "W950": 1}  # only these 3 (all within the first 100) resolve
+    calls: list[str] = []
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.openalex_client = OpenAlexClient(
+        fetcher=_fetcher_with_self_citation(works_by_doi, works_by_id, field, hits, calls=calls)
+    )
+
+    done = _drive(client, pid)
+    assert done["status"] == "done"
+    sc = {s["key"]: s for s in done["report"]["signals"]}["self_citation"]
+    assert sc["field_pct"] is not None  # 2 of 3 resolved counts were nonzero -- a real, if thin, baseline
+    assert "3 papers checked" in sc["summary"]  # only the 3 that actually resolved count toward the total
+    assert len(calls) == 100  # the max-checks cap fired -- the 10 papers after WF99 were never queried

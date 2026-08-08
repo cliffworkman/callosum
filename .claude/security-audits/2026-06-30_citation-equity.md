@@ -118,3 +118,45 @@ renamed "Citation concentration"; the API path keeps the historical `/methods/ci
 
 **Security Audit (inc 229 addendum): PASS.** Removal + egress-narrowing; no new surface; no-people-categorization
 enforced structurally (data layer no longer extracts nationality) + guard-tested.
+
+---
+
+## inc 457 addendum — self-citation field baseline wired in (bounded new egress, no new endpoint)
+
+Self-citation was the one signal whose `field_pct` was hardcoded `None` since inc 227/229. Inc 456 built and
+empirically calibrated a reusable count-only primitive (`OpenAlexClient.fetch_self_citation_hit_count`,
+audited implicitly as part of the existing `fetch_field_sample`/`fetch_works_by_ids` egress shape — same host,
+same validated-id posture). Inc 457 wires that primitive into the live `POST /methods/citation-equity/run` job
+via a new router-local helper, `_compute_self_citation_baseline`. **No new endpoint, no new dependency, no
+migration** — this is additional egress volume on an already-audited call shape, not a new surface.
+
+- **SSRF / external calls.** `fetch_self_citation_hit_count` reuses the same constant `OPENALEX_BASE_URL` host
+  and the same **validated-before-request** id discipline as `fetch_works_by_ids`: reference ids are checked
+  `^W\d+$` and author ids `^A\d+$` before being interpolated into a bound `filter=openalex_id:{...},
+  authorships.author.id:{...}` param (never the host/path); invalid ids are dropped, and a chunk with no valid
+  ids issues no request. Chunked at `MAX_BYIDS=50`; httpx timeouts inherited from the shared client; fail-closed
+  (`None` on any non-200/parse error — a paper is skipped, never silently counted as a zero self-citation rate).
+- **Resource caps (the dual cap, a deliberate, disclosed design choice).** `_compute_self_citation_baseline`
+  stops at whichever comes first: `SELF_CITATION_BASELINE_TARGET_N = 40` field papers with a resolved rate, or
+  `SELF_CITATION_BASELINE_MAX_CHECKS = 100` raw count-queries attempted. Inc 456's real study found "computable"
+  field-paper coverage (a field paper having both a reference list and author ids) varies 18%–74% by field —
+  without the second cap, a low-coverage field could otherwise drive up to 200 count-queries (one per field
+  sample paper) per interactive audit run. The max-checks cap bounds worst-case added egress to a predictable
+  ceiling regardless of field coverage; a thin baseline (fewer than 40 resolved) is disclosed via the visible
+  "N papers checked" count, never hidden or padded.
+- **Data egress.** Same posture as the rest of this file: public bibliographic metadata (reference/author
+  OpenAlex ids + a count), not the Gemini library-text gate. User-initiated only (the existing "Run audit"
+  click); no auto-run on section open.
+- **No identity inference.** The baseline is a count over reference/author id sets — no name, no
+  gender/race/nationality field is read or extracted by this path (the inc-229 removal stands; the new query
+  reads only `openalex_id` and `authorships.author.id`, both bare identifiers).
+- **Negative paths** (`tests/test_citation_equity.py`): a field paper missing either `referenced_works` or
+  `author_ids` is skipped (never fabricated as 0% or counted toward N); an id that fails `^W\d+$`/`^A\d+$` drops
+  from its chunk pre-request; the target-N cap stops early even with more computable papers available (proven:
+  exactly 40 requests issued, not 50); the max-checks cap stops at exactly 100 raw attempts even with 110
+  eligible papers available, correctly reporting a thin (3-paper) baseline rather than blocking or padding it.
+
+**Security Audit (inc 457 addendum): PASS.** Bounded new egress volume on an already-audited call shape (same
+host, same validated/bound-id posture, same fail-closed parsing); no new endpoint/dependency/migration; the
+dual cap is a disclosed, tested design choice, not an unbounded cost; no identity inference; user-initiated
+only.

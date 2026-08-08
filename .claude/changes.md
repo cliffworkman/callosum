@@ -11,6 +11,22 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
 
+## 2026-08-08 — Increment 457: Wire the self-citation field baseline into Citation Concentration (backlog #25/#37, CLOSED)
+- **Files:** `app/backend/methods/citation_equity.py`, `app/backend/api/routers/citation_equity.py`,
+  `tests/test_citation_equity.py`, `.claude/security-audits/2026-06-30_citation-equity.md`,
+  `.claude/qa-routes/route_51_methods_citation_equity.md`.
+- **What:** wired inc 456's calibrated N=40 into the shipped `_self_citation()` signal — a new router-local
+  `_compute_self_citation_baseline` helper computes the field average via the inc-456 primitive, with a
+  deliberate dual cap (`SELF_CITATION_BASELINE_TARGET_N=40`, `SELF_CITATION_BASELINE_MAX_CHECKS=100`) so a
+  low-coverage field's worst-case added cost stays bounded and disclosed (never silently padded).
+  `audit_reference_list`/`_self_citation` gained backward-compatible keyword params (default `None`/`0`), so
+  the WIP call site needed zero changes; the frontend needed zero changes (`field_pct` already rendered
+  generically). 3 new tests (baseline present/absent; both dual-cap early-exit boundaries).
+- **Why:** closes the long-open backlog #25/#37 item — self-citation was the one Citation Concentration signal
+  with no field comparison since inc 227/229.
+- **Revert:** both signature changes are additive/backward-compatible; reverting the router wiring alone
+  (leaving the new kwargs unused) is safe. No schema/migration; no frontend change to revert.
+
 ## 2026-08-07 — Increment 456: Empirically calibrate the self-citation field-baseline N (backlog #25/#37)
 - **Files:** `integrations/openalex/work_meta.py` (new, split from adapter.py), `integrations/openalex/
   field_sample.py` (new, split from adapter.py), `integrations/openalex/adapter.py`,

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 456** (see Increment workflow) with **1853 root-suite pytest tests
+It is currently at **Increment 457** (see Increment workflow) with **1856 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -210,7 +210,15 @@ the full per-increment narrative for all other increments now lives in the reloc
   Cloudflare-bot-blocked; OASPA: a real WordPress REST API with no structured members endpoint). Backlog #40 stays
   open (self-archiving/green-route + Redalyc — a documented API doubly blocked by a live TLS hostname mismatch and
   a maintainer-only registration requirement — + Latindex, reconfirmed closed, + COPE/OASPA + user
-  exclusion/filtering, remain unwired).
+  exclusion/filtering, remain unwired). **Inc 456/457 close backlog #25/#37's long-open self-citation field
+  baseline** in Citation Concentration: inc 456 built the reusable `OpenAlexClient.fetch_self_citation_hit_count`
+  primitive and empirically calibrated its sample size (a bootstrap-resampling pilot study across 6 real fields,
+  mirroring stimulus-norming methodology — population self-citation rates varied ~3x by field and "computable"
+  coverage varied 18%–74%, so N=40 was chosen as a disclosed judgment call rather than a guess); inc 457 wires it
+  into the live signal via a router-local `_compute_self_citation_baseline` helper with a deliberate dual cap
+  (target N=40, hard-capped at 100 raw checks so a low-coverage field's added cost stays bounded and disclosed,
+  never silently padded). `audit_reference_list`/`_self_citation` gained backward-compatible keyword params, so
+  the WIP call site's own honest no-field-comparison degraded path needed no changes.
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):
@@ -786,7 +794,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 456). Each increment of real work
+callosum is built in **numbered increments** (currently at 457). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

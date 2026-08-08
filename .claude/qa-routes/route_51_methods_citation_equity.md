@@ -51,6 +51,9 @@ listeners before navigation.
   hint points the user to the fix (add a DOI in the Detail pane) rather than dead-ending on the limitation (inc 260).
 - run on a paper whose OpenAlex record has **no referenced_works** -> honest "nothing to audit" (no crash)
 - run on a paper with **no primary_topic** -> the report shows the list's own shape, no field comparison, no crash
+- run on a paper whose topic sample has **zero computable self-citation field papers** (no field-sample paper has
+  both a reference list and author ids) -> the self-citation card shows only the list's own percentage with an
+  honest "no baseline" note, never a crash and never a fabricated 0% field value (inc 457)
 - deep-link / direct GET a non-existent citation-equity job id -> 404
 - navigate away / switch the selected paper mid-job; rapid re-run; resize to `375x812`, no horizontal overflow
 
@@ -65,7 +68,13 @@ listeners before navigation.
 3. Confirm the **4 signals** render: self-citation, reliance on highly-cited work (Matthew), venue concentration,
    institutional concentration. **There is NO geography / Global-South signal.** Each shows a **This list vs Field**
    mini-bar (where applicable), a **descriptive summary** (never a verdict), an expandable **basis** (the refs /
-   venues / institutions behind the number), and a **coverage** line.
+   venues / institutions behind the number), and a **coverage** line. **Self-citation's field bar (inc 457):** for a
+   paper whose topic yields at least one computable field-sample paper (a paper with both a reference list and
+   OpenAlex author ids), the self-citation card now shows a real **Field** bar too, and its summary names how many
+   field papers the baseline was computed over ("N papers checked" — bounded at 40, or fewer if the field's
+   OpenAlex reference/author-id coverage is thin; never silently padded to 40). For a paper whose field sample
+   yields **zero** computable papers, the self-citation card still shows only the list's own percentage with an
+   honest no-baseline note — never a crash, never a fabricated 0%.
 4. Expand a signal's **basis** -> the specific references/venues/institutions are listed (inspectability).
 5. Confirm the **credit** block (King et al. 2017; Merton 1968; Perc 2014) with a working **＋ add to library**
    (idempotent). There is **no** "we don't categorize people" disclaimer in the UI — the absence is clean, not a note.
@@ -93,6 +102,8 @@ listeners before navigation.
 
 - The audit completes; the panel shows the field attribution + **4** descriptive signals (list-vs-field bars +
   inspectable bases + coverage) + credit. **No geography signal, and no per-author identity/origin anywhere.**
+  Self-citation's field bar (inc 457) shows a real percentage + an honest "N papers checked" count when at least
+  one field-sample paper was computable, and an honest no-baseline note (never a fabricated 0%) when none were.
 - **Overlooked work**: candidates render with a topical-match chip + (optional) shared-topics why + ✓-in-library /
   ＋ Add; Add is metadata-only (`/discovery/save`, no PDF) and flips to ✓ added; **no drop/remove control, no
   per-author identity, no quota copy**; ranked by topical match, not citation count.

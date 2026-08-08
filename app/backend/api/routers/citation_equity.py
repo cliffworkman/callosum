@@ -37,6 +37,15 @@ from integrations.openalex.adapter import OpenAlexClient
 # `adapters` library) / SciNCL are documented quality upgrades — swap the name here.
 OVERLOOKED_EMBED_MODEL = "sentence-transformers/allenai-specter"
 
+# inc 457: the self-citation field baseline's sample-size target, chosen from a real empirical calibration study
+# (bootstrap-resampling a 200-paper pilot across 6 fields — see tools/citation_concentration_study.py + inc-456
+# notes). "Computable" coverage (a field paper having both a reference list and author ids) varies 18%-74% by
+# field, so a second cap bounds worst-case cost in a low-coverage field: a low-coverage field's baseline may
+# honestly rest on fewer than the target N (disclosed via the sample-size count), rather than the audit chasing
+# the target across nearly the whole 200-paper field sample.
+SELF_CITATION_BASELINE_TARGET_N = 40
+SELF_CITATION_BASELINE_MAX_CHECKS = 100
+
 router = APIRouter(tags=["citation-equity"])
 
 
@@ -125,6 +134,35 @@ def citation_equity_status(job_id: str, request: Request) -> CitationEquityRespo
     return CitationEquityResponse(job_id=job_id, status=job.status, detail=job.detail, progress=progress)
 
 
+def _compute_self_citation_baseline(
+    conn, client: OpenAlexClient, field: list[dict], *, jobs: JobStore, job_id: str
+) -> tuple[float | None, int]:
+    """inc 457: the field average of each field-sample paper's OWN self-citation rate (its own references
+    authored by any of its own authors, matched by real OpenAlex author id — cheaper + more precise than the
+    focal paper's name-overlap heuristic, and free of an extra metadata fetch since `field` already carries each
+    paper's `referenced_works`/`author_ids`). Stops once `SELF_CITATION_BASELINE_TARGET_N` rates are collected,
+    or once `SELF_CITATION_BASELINE_MAX_CHECKS` raw field papers have been checked, whichever comes first (see
+    the module-level constants' docstring for why the second cap exists). Returns `(None, 0)` if nothing was
+    computable — never a fabricated 0."""
+    rates: list[float] = []
+    checked = 0
+    for paper in field:
+        if len(rates) >= SELF_CITATION_BASELINE_TARGET_N or checked >= SELF_CITATION_BASELINE_MAX_CHECKS:
+            break
+        ref_ids = paper.get("referenced_works") or []
+        author_ids = paper.get("author_ids") or []
+        if not ref_ids or not author_ids:
+            continue  # not computable for this field paper -- skipped, not fabricated as 0
+        checked += 1
+        hits = client.fetch_self_citation_hit_count(conn, ref_ids=ref_ids, author_ids=author_ids)
+        if hits is not None:
+            rates.append(hits / len(ref_ids))
+        jobs.mark_progress(job_id, checked, SELF_CITATION_BASELINE_MAX_CHECKS, "Computing field self-citation baseline")
+    if not rates:
+        return None, 0
+    return sum(rates) / len(rates), len(rates)
+
+
 def _run_citation_equity_job(app: FastAPI, job_id: str, paper_id: int) -> None:
     jobs: JobStore[CitationEquityResponse] = app.state.citation_equity_jobs
     jobs.mark_running(job_id)
@@ -162,12 +200,15 @@ def _run_citation_equity_job(app: FastAPI, job_id: str, paper_id: int) -> None:
                     refs.append(meta)
                 jobs.mark_progress(job_id, i + 1, total, "Fetching reference metadata")
             field = client.fetch_field_sample(conn, field_topic["id"]) if field_topic else []
+            baseline_pct, baseline_n = _compute_self_citation_baseline(conn, client, field, jobs=jobs, job_id=job_id)
             report = audit_reference_list(
                 refs=refs,
                 focal_author_families=families,
                 field=field,
                 field_topic=field_topic,
                 references_total=total,
+                self_citation_field_baseline=baseline_pct,
+                self_citation_field_baseline_n=baseline_n,
             )
         jobs.mark_done(
             job_id,

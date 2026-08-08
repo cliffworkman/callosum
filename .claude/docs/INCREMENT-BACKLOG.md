@@ -242,19 +242,24 @@ the Principles + A-A gates before build.)*
 - **#24 Bayesian auditor — ANOVA/regression BF.** Not a build queue item: **declined as a documented finding**
   (a candidate failed the J=2 → two-sample-t reduction check; no in-env anchor exists). Revisit only if a
   trusted anchor (R BayesFactor / a validated Rouder-2012 quadrature) turns up.
-- **#25 Citation concentration — a real *field* self-citation baseline — calibrated inc 456, not yet wired.**
-  The "needs per-field-paper reference fetches" framing was partly stale: a field-sample paper's own references
-  + real author ids are already free in the existing cached field-sample response; the actual cost is a
-  count-only OpenAlex query per field paper checked (`OpenAlexClient.fetch_self_citation_hit_count`, new in inc
-  456). Rather than guess a sample size, inc 456 ran a real empirical calibration (bootstrap-resampling a
-  200-paper pilot per field across 6 real fields, mirroring stimulus-norming methodology) — population
-  self-citation rates varied ~3x by field (5.0%–16.0%), "computable" coverage varied 18%–74% by field (N must be
-  a target *computable* count, not a raw fetch count), and the N needed to stabilize ranged ~25–75 across fields
-  (did not generalize to one number). **N=40 chosen** (crosses Social Psychology's own stabilization point — a
-  disclosed judgment call). See `INCREMENT-456-NOTES.md` + `tools/citation_concentration_study.py`. **Still
-  open:** wiring N=40 into the shipped `_self_citation()` signal (`field_pct` still hardcoded `None`) — the
-  frontend already renders `field_pct` generically for any signal, so this is a pure backend follow-up.
-  *(Overlaps #37's citation-credit-concentration remediation.)*
+- ✅ **#25 Citation concentration — a real *field* self-citation baseline — CLOSED inc 457.** The "needs
+  per-field-paper reference fetches" framing was partly stale: a field-sample paper's own references + real
+  author ids are already free in the existing cached field-sample response; the actual cost is a count-only
+  OpenAlex query per field paper checked (`OpenAlexClient.fetch_self_citation_hit_count`, new in inc 456).
+  Rather than guess a sample size, inc 456 ran a real empirical calibration (bootstrap-resampling a 200-paper
+  pilot per field across 6 real fields, mirroring stimulus-norming methodology) — population self-citation
+  rates varied ~3x by field (5.0%–16.0%), "computable" coverage varied 18%–74% by field (N must be a target
+  *computable* count, not a raw fetch count), and the N needed to stabilize ranged ~25–75 across fields (did not
+  generalize to one number). **N=40 chosen** (crosses Social Psychology's own stabilization point — a disclosed
+  judgment call). **Inc 457 wired N=40 into the shipped `_self_citation()` signal** via a new router-local
+  `_compute_self_citation_baseline` helper (`app/backend/api/routers/citation_equity.py`), with a deliberate
+  dual cap — `SELF_CITATION_BASELINE_TARGET_N=40` and `SELF_CITATION_BASELINE_MAX_CHECKS=100` — so a
+  low-coverage field's worst-case added cost stays bounded (disclosed via the visible "N papers checked" count,
+  never padded). `audit_reference_list`/`_self_citation` gained backward-compatible keyword params (default
+  `None`/`0`), so the WIP call site (`wip_citation_equity.py`, its own honest no-field-comparison degraded path)
+  needed zero changes. The frontend needed zero changes too — `field_pct` already rendered generically for any
+  signal. See `INCREMENT-456-NOTES.md` / `INCREMENT-457-NOTES.md` + `tools/citation_concentration_study.py`.
+  *(Overlapped #37's citation-credit-concentration remediation — see that entry.)*
 - ✅ **#29 Gap-finder — followed-authors as a source — CLOSED inc 454.** Follow an OpenAlex author (by name/ORCID,
   or directly from an already-resolved id via a My-Publications citing-authors quick-action); Refresh fetches
   their works (cached, capped at 50/author) and surfaces those absent from the library, "by \<author\> (followed)."
@@ -535,8 +540,9 @@ the Principles + A-A gates before build.)*
   and an evidence-linked Details row through the renamed Integrity batch. No badge explicitly means only “not
   surfaced by these registries.” **Replication remains deferred:** Crossref's controlled relation vocabulary and
   PubMed's controlled publication types currently provide no replication fact; title/abstract inference would be
-  a candidate, not the promised deterministic badge. Still open: a real field self-citation baseline (= #25);
-  an evidence-grade replication source (if one emerges); null-engagement (likely candidate-class); and the
+  a candidate, not the promised deterministic badge. **The real field self-citation baseline (= #25) shipped
+  inc 457.** Still open: an evidence-grade replication source (if one emerges); null-engagement (likely
+  candidate-class); and the
   **2 principle-fraught forensic candidates** (recorded with the no-index/no-accusation reframing, most need the
   values layer — A-A no-accusation veto applies directly).
 - **#38 Research-impact analytics.** [future track — gated] Opt-in, local-first, commons-structured measurement
@@ -575,8 +581,8 @@ the Principles + A-A gates before build.)*
   this session too — neither exposes a usable public API (COPE is Cloudflare-bot-blocked; OASPA's WordPress REST
   API has no structured members endpoint, only its Jet-Engine-rendered members page, not worth scraping). Still
   open: self-archiving/green-route (needs a Jisc-registered API key only the maintainer can obtain);
-  Redalyc/Latindex; COPE/OASPA membership; user exclusion/filtering (deferred on purpose); the real field
-  self-citation baseline (= #25 again).
+  Redalyc/Latindex; COPE/OASPA membership; user exclusion/filtering (deferred on purpose). (The real field
+  self-citation baseline, = #25, shipped inc 457.)
 - **#41 User-authored modules (plugins).** [future track — record only] Deferred record of the idea + open
   questions. Do not build a plugin system until a dedicated design pass.
 - **#44 Lakens-catalog integration — registration workflow now in ordered increments.** Increment 1/1b (the transparency-signals

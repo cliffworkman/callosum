@@ -127,7 +127,14 @@ def _coverage(resolved: int, total: int, *, with_data: int | None = None, datum:
     return Coverage(base + ".", fraction)
 
 
-def _self_citation(refs: list[dict], families: set[str], total: int) -> SignalView:
+def _self_citation(
+    refs: list[dict],
+    families: set[str],
+    total: int,
+    *,
+    field_baseline: float | None = None,
+    field_baseline_n: int = 0,
+) -> SignalView:
     n = len(refs)
     if not families:
         return SignalView(
@@ -144,14 +151,24 @@ def _self_citation(refs: list[dict], families: set[str], total: int) -> SignalVi
     basis = [f"{r.get('title') or 'untitled'}" + (f" ({r['year']})" if r.get("year") else "") for r in matched][
         :MAX_BASIS
     ]
+    base_summary = (
+        f"{len(matched)} of {n} resolved references ({_pct(pct)}) include an author of this paper "
+        "(King et al. 2017; based on author-name overlap). A descriptive count — this is not a judgment."
+    )
+    if field_baseline is not None:
+        summary = (
+            base_summary
+            + f" In a comparable field sample ({field_baseline_n} papers checked, matched by author id), an "
+            f"average of {_pct(field_baseline)} of references are self-citations."
+        )
+    else:
+        summary = base_summary + " No field baseline could be computed for this comparison this time."
     return SignalView(
         "self_citation",
         "Self-citation",
-        f"{len(matched)} of {n} resolved references ({_pct(pct)}) include an author of this paper "
-        "(King et al. 2017; based on author-name overlap). A descriptive count — there is no field baseline for "
-        "self-citation, and this is not a judgment.",
+        summary,
         pct,
-        None,
+        field_baseline,
         basis,
         _coverage(n, total),
     )
@@ -264,17 +281,30 @@ def audit_reference_list(
     field: list[dict[str, Any]] | None,
     field_topic: dict[str, Any] | None,
     references_total: int,
+    self_citation_field_baseline: float | None = None,
+    self_citation_field_baseline_n: int = 0,
 ) -> CitationEquityReport:
     """Compute the 4 descriptive structural signals over a paper's resolved reference list (`refs` = OpenAlex
     `_meta_from_work` dicts) against an optional `field` sample. Each signal carries its list value, the field
     value, the inspectable basis, and an honest coverage count. **No score, no verdict — and crucially, no
     categorization of the people cited (no gender/race/nationality/region): the tool measures what is cited, never
-    who wrote it.**"""
+    who wrote it.**
+
+    `self_citation_field_baseline`/`_n` (inc 457) are pre-computed by the caller (a live, count-only per-field-
+    paper OpenAlex check — too I/O-heavy to belong in this pure function) and default to `None`/`0`, so an
+    existing caller that never computes a field sample at all (e.g. `wip_citation_equity.py`'s own honest
+    no-field-comparison path) needs zero changes."""
     refs = refs[:MAX_REFS]
     field = (field or [])[:MAX_FIELD]
     topic_name = (field_topic or {}).get("display_name") or None
     signals = [
-        _self_citation(refs, focal_author_families, references_total),
+        _self_citation(
+            refs,
+            focal_author_families,
+            references_total,
+            field_baseline=self_citation_field_baseline,
+            field_baseline_n=self_citation_field_baseline_n,
+        ),
         _matthew(refs, field, references_total, topic_name),
         _venue(refs, field, references_total),
         _institution(refs, field, references_total),
