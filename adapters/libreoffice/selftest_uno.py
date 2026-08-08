@@ -1867,6 +1867,66 @@ def spike_list_document_citations(ctx, base, p1, p2):
     log(f"spike (P1 #12): OK — list_document_citations = {[(e['paper_id'], e['count']) for e in entries]}")
 
 
+def spike_citation_integrity_preflight(ctx, base, p1, p2):
+    """P2 item #19 (backlog #33/#34, inc 459): `citation_integrity_preflight` is read-only (never mutates), so
+    this spike proves the REAL round trip -- real ReferenceMarks, a real HTTP call to the new
+    `POST /methods/retraction/check-selected` endpoint, and the real server-side persistence side-effect --
+    against the seeded p1/p2 papers (both carry deliberately synthetic `10.5555/callosum.*` DOIs, so this
+    spike does NOT assert on what Crossref/OpenAlex actually say about them; that determinism-dependent logic
+    already has full pytest coverage via injected fake checkers in tests/test_retraction.py. This spike proves
+    the WIRING: the adapter reaches the real endpoint, the real endpoint runs + persists a real check, and the
+    merged report + rendered dialog carry both the mechanics section and the retraction section."""
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("Claim one AAA. Claim two BBB.\n")
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_range("AAA")))
+    cc.insert_citation(doc, p2, base, cursor=text.createTextCursorByRange(find_range("BBB")))
+
+    report = cc.citation_integrity_preflight(doc, base)
+    check(report["bibliography"] == "ok", f"expected a healthy bibliography in the merged report: {report}")
+    check(
+        report["retraction_check_error"] is None,
+        f"the real retraction re-check call should not have errored: {report['retraction_check_error']}",
+    )
+    checked_ids = {str(item["paper_id"]) for item in report["retraction_checked"]}
+    check(checked_ids == {p1, p2}, f"expected both cited papers checked, got {checked_ids}")
+    log(
+        f"spike (P2 #19): OK — citation_integrity_preflight checked {sorted(checked_ids)}: {report['retraction_checked']}"
+    )
+
+    # the real endpoint persists -- GET /papers/{id}/retraction now shows "checked" rather than "unchecked",
+    # proving the on-demand preflight benefits the already-audited read-only cached endpoint too, for free.
+    import json as _json
+    import urllib.request as _urlreq
+
+    with _urlreq.urlopen(f"{base}/papers/{p1}/retraction", timeout=10) as r:
+        status_after = _json.loads(r.read().decode("utf-8"))
+    check(status_after["checked"] is True, f"expected the fresh check to persist as checked=True: {status_after}")
+    log(f"spike (P2 #19): OK — the on-demand check persisted server-side: {status_after}")
+
+    log("spike (P2 #19): citation_integrity_preflight_interactive renders a combined mechanics + retraction dialog")
+    captured = []
+    original_msgbox = cc._msgbox
+    cc._msgbox = lambda message, title="callosum": captured.append((message, title))
+    try:
+        cc.citation_integrity_preflight_interactive(doc, base)
+    finally:
+        cc._msgbox = original_msgbox
+    message, title = captured[0]
+    check(title == "callosum — citation integrity preflight", f"unexpected preflight dialog title: {title!r}")
+    check(
+        "Retraction re-check" in message or "clean" in message,
+        f"preflight message missing a retraction re-check summary line: {message!r}",
+    )
+    log("spike (P2 #19): OK — citation_integrity_preflight_interactive rendered a combined dialog")
+
+
 def spike_bibliography_editing(ctx, base, p1, p2):
     """P1 item #11 (backlog #33/#34): exclude a cited work from the bibliography while its in-text citation
     still renders, and include an uncited "further reading" work — both against a real document, real
@@ -3590,6 +3650,10 @@ def main():
 
         # 23) P1 item #13: independent automatic citation-formatting / bibliography modes.
         spike_manual_refresh_mode(ctx, base, p1, p2)
+
+        # 24) P2 item #19 (backlog #33/#34, inc 459): citation integrity preflight -- the new scoped retraction
+        # re-check, proven against the REAL new endpoint through the REAL adapter.
+        spike_citation_integrity_preflight(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)
         return 0

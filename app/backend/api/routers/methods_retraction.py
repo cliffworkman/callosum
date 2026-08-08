@@ -14,18 +14,26 @@ from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi import status as http_status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import Connection
 from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
-from app.backend.methods.retraction import apply_retraction, detect_retraction, is_evidence_linked_correction
+from app.backend.methods.retraction import (
+    RetractionOutcome,
+    apply_retraction,
+    detect_retraction,
+    is_evidence_linked_correction,
+)
 from app.backend.persistence.repository import get_paper, list_live_paper_ids
 from app.backend.persistence.retraction_repo import retraction_db_status
 from app.backend.persistence.signals_repo import count_retraction_flagged, get_retraction_status
 from app.backend.persistence.sqlite_retry import run_write
 from integrations.retraction_watch.adapter import RetractionWatchUnavailable, download_retraction_database
+
+MAX_CHECK_SELECTED = 100  # bounds a synchronous request -- mirrors reference_integrity.py's 200-cap precedent,
+# smaller here since this checks papers cited in ONE manuscript, not a user-chosen library batch
 
 router = APIRouter()
 _log = logging.getLogger("callosum.methods_retraction")
@@ -63,6 +71,79 @@ def paper_retraction_status(paper_id: int, conn: Connection = Depends(get_connec
         sources=snippet.get("sources", []),
         checked_at=snippet.get("checked_at"),
     )
+
+
+class RetractionCheckSelectedRequest(BaseModel):
+    paper_ids: list[int] = Field(min_length=1, max_length=MAX_CHECK_SELECTED)
+
+
+class RetractionCheckSelectedItem(BaseModel):
+    paper_id: int
+    status: str  # retracted/correction/concern (flagged) | none (checked-clean) | unchecked (no DOI)
+    nature: str | None = None
+    date: str | None = None
+    notice_url: str | None = None
+    sources: list[str] = []
+
+
+class RetractionCheckSelectedResponse(BaseModel):
+    requested_count: int
+    checked: list[RetractionCheckSelectedItem] = []
+    not_found: list[int] = []
+
+
+@router.post("/methods/retraction/check-selected", response_model=RetractionCheckSelectedResponse)
+def retraction_check_selected(
+    body: RetractionCheckSelectedRequest, request: Request
+) -> RetractionCheckSelectedResponse:
+    # A scoped, synchronous, on-demand re-check for exactly the papers a caller names -- e.g. the LibreOffice
+    # adapter's citation-integrity preflight, checking just the papers cited in the open manuscript, right now,
+    # rather than waiting on (or forcing) a whole-library POST /methods/retraction/run pass. Reuses the exact
+    # same two calls the whole-library batch job makes (detect_retraction + apply_retraction via run_write), so
+    # a fresh check here also persists -- GET /papers/{paper_id}/retraction benefits from it too, for free.
+    ids = _unique_positive_ids(body.paper_ids)[:MAX_CHECK_SELECTED]
+    checkers = request.app.state.retraction_checkers
+    engine = request.app.state.engine
+    checked: list[RetractionCheckSelectedItem] = []
+    not_found: list[int] = []
+    for paper_id in ids:
+        try:
+            outcome = run_write(engine, lambda conn, pid=paper_id: _check_and_persist(conn, pid, checkers))
+        except NoResultFound:
+            not_found.append(paper_id)
+            continue
+        merged = outcome.merged
+        checked.append(
+            RetractionCheckSelectedItem(
+                paper_id=paper_id,
+                status=outcome.status_kind,
+                nature=merged.nature if merged else None,
+                date=merged.date if merged else None,
+                notice_url=merged.notice_url if merged else None,
+                sources=(merged.sources if merged else outcome.sources_checked),
+            )
+        )
+    return RetractionCheckSelectedResponse(requested_count=len(body.paper_ids), checked=checked, not_found=not_found)
+
+
+def _check_and_persist(conn: Connection, paper_id: int, checkers: list) -> RetractionOutcome:
+    outcome = detect_retraction(conn, get_paper(conn, paper_id), checkers=checkers)
+    apply_retraction(conn, paper_id, outcome)
+    return outcome
+
+
+def _unique_positive_ids(values: list[int]) -> list[int]:
+    out: list[int] = []
+    seen: set[int] = set()
+    for value in values or []:
+        try:
+            pid = int(value)
+        except (TypeError, ValueError):
+            continue
+        if pid > 0 and pid not in seen:
+            seen.add(pid)
+            out.append(pid)
+    return out
 
 
 class RetractionRunSummary(BaseModel):

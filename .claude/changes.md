@@ -11,6 +11,19 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
 
+## 2026-08-08 — Increment 459: Citation integrity preflight for the LibreOffice adapter (backlog #33/#34, P2 #19)
+- **Files:** `app/backend/api/routers/methods_retraction.py`, `adapters/libreoffice/callosum_cite.py`,
+  `adapters/libreoffice/oxt/Addons.xcu`, `adapters/libreoffice/selftest_uno.py`, `tests/test_retraction.py`,
+  `tests/test_libreoffice_adapter.py`.
+- **What:** a new "Citation integrity preflight…" LibreOffice command folding `diagnose_document`'s existing
+  mechanics report together with a fresh, on-demand retraction re-check for exactly the papers cited in the open
+  manuscript. New endpoint `POST /methods/retraction/check-selected` reuses `detect_retraction`/`apply_retraction`
+  unchanged (persists too). 11 new tests (4 backend, 7 duck-typed adapter fakes) + a new real-UNO spike.
+- **Why:** closes P2 item #19 from the word-processor-plugins roadmap — the one genuine gap (no scoped,
+  on-demand re-check existed; the read-only GET never re-checks and the whole-library batch can't be scoped).
+- **Revert:** all changes are additive; the `_diagnostics_issue_lines` extraction is a pure no-behavior-change
+  refactor, safe to keep even if the rest is reverted. No schema/migration.
+
 ## 2026-08-08 — Increment 458: Day-level publication dates for followed-author Feed items (backlog #28, CLOSED)
 - **Files:** `integrations/openalex/author.py`, `app/backend/discovery/followed_author_feed_source.py`,
   `tests/test_feed.py`, `tests/test_my_publications.py`.

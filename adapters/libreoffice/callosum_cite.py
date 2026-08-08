@@ -5424,8 +5424,9 @@ def diagnose_document(doc, base: str = DEFAULT_BASE) -> dict:
     }
 
 
-def document_diagnostics_interactive(doc, base: str) -> None:
-    report = diagnose_document(doc, base)
+def _diagnostics_issue_lines(report: dict) -> list[str]:
+    """The mechanics-issue prose lines `diagnose_document`'s report renders to (P0 phase 9), factored out so the
+    citation-integrity preflight (inc 459) can reuse the exact same wording rather than duplicating it."""
     lines = []
     pending = report["refresh_pending"]
     if pending["citations"] or pending["bibliography"]:
@@ -5470,6 +5471,12 @@ def document_diagnostics_interactive(doc, base: str) -> None:
             f"{len(section_report['damaged'])} section bibliography block(s) have missing scope/start/end markers. "
             "Remove their remaining Callosum bookmarks before inserting replacements."
         )
+    return lines
+
+
+def document_diagnostics_interactive(doc, base: str) -> None:
+    report = diagnose_document(doc, base)
+    lines = _diagnostics_issue_lines(report)
     issues_text = "\n\n".join(lines) if lines else "No issues found."
 
     prefs = report["preferences"]
@@ -5492,6 +5499,85 @@ def _paper_id_from_item(item: dict) -> str | None:
     sites should use this rather than copy-pasting the strip-the-prefix idiom a 4th time."""
     item_id = str(item.get("id") or "")
     return item_id[len("callosum-") :] if item_id.startswith("callosum-") else None
+
+
+MAX_INTEGRITY_PREFLIGHT_IDS = 100  # mirrors the backend's own POST /methods/retraction/check-selected cap --
+# truncated client-side so a manuscript citing more than this still gets a partial re-check rather than one
+# oversize request the backend would 422 in full (inc 459)
+
+
+def citation_integrity_preflight(doc, base: str = DEFAULT_BASE) -> dict:
+    """Pre-submission retraction re-check for exactly the papers cited in this document (backlog #33/#34, P2
+    item #19 — a reuse-first slice: no new detector, just a fresh, scoped call to the same multi-source
+    `detect_retraction()` the whole-library batch and every Meta-Reference audit already share).
+
+    Folds `diagnose_document`'s existing read-only mechanics report (malformed/duplicate/orphaned marks,
+    bibliography health) in unchanged, then re-checks retraction status for every distinct, non-orphaned cited
+    paper id via ``POST /methods/retraction/check-selected``. This is a genuinely FRESH check right now, not the
+    read-only cached ``GET /papers/{id}/retraction`` the "Citations in this document" panel already shows —
+    that stored status could be stale if nothing has re-triggered a check since the paper was imported.
+
+    Never mutates the document. Returns `diagnose_document`'s dict plus:
+    ``{"retraction_checked": [{"paper_id", "status", "nature", "date", "notice_url", "sources"}, ...],
+    "retraction_flagged": [same shape, status not in ("none", "unchecked")], "retraction_check_error": str |
+    None}``. A backend/network failure on the retraction re-check is caught and surfaced as
+    ``retraction_check_error`` rather than blocking the (already-computed, purely local) mechanics report.
+    """
+    report = diagnose_document(doc, base)
+    orphaned = set(report["orphaned"])
+    ids: list[str] = []
+    seen: set[str] = set()
+    for name in doc.getReferenceMarks().getElementNames():
+        if not (isinstance(name, str) and name.startswith(MARK_PREFIX + " ")):
+            continue
+        decoded = decode_mark_name(name)
+        if decoded is None or decoded.get("unsupported"):
+            continue
+        for item in decoded["items"]:
+            paper_id = _paper_id_from_item(item)
+            if paper_id is None or paper_id in orphaned or paper_id in seen:
+                continue
+            seen.add(paper_id)
+            ids.append(paper_id)
+    ids = ids[:MAX_INTEGRITY_PREFLIGHT_IDS]
+
+    checked: list[dict] = []
+    flagged: list[dict] = []
+    error: str | None = None
+    if ids:
+        try:
+            result = _post_json(f"{base}/methods/retraction/check-selected", {"paper_ids": [int(i) for i in ids]})
+            checked = result.get("checked") or []
+            flagged = [item for item in checked if item.get("status") not in (None, "none", "unchecked")]
+        except Exception as exc:  # noqa: BLE001 — a down/slow backend never hides the already-computed mechanics
+            error = str(exc)
+
+    return {**report, "retraction_checked": checked, "retraction_flagged": flagged, "retraction_check_error": error}
+
+
+def citation_integrity_preflight_interactive(doc, base: str) -> None:
+    report = citation_integrity_preflight(doc, base)
+    lines = _diagnostics_issue_lines(report)
+    flagged = report["retraction_flagged"]
+    if flagged:
+        lines.append(f"{len(flagged)} cited paper(s) carry a retraction/correction signal (see below).")
+    for item in flagged:
+        label = _RETRACTION_LABEL.get(item.get("status"), str(item.get("status")).upper())
+        detail = f"  - Paper {item['paper_id']}: {label}"
+        if item.get("date"):
+            detail += f" ({item['date']})"
+        if item.get("notice_url"):
+            detail += f" — {item['notice_url']}"
+        lines.append(detail)
+    if report["retraction_check_error"]:
+        lines.append(f"Retraction re-check unavailable this time: {report['retraction_check_error']}")
+    elif not report["retraction_checked"]:
+        lines.append("No cited papers to re-check for retraction.")
+    else:
+        clean = len(report["retraction_checked"]) - len(flagged)
+        lines.append(f"Retraction re-check: {clean} of {len(report['retraction_checked'])} cited paper(s) clean.")
+    issues_text = "\n\n".join(lines) if lines else "No issues found."
+    _msgbox(issues_text, title="callosum — citation integrity preflight")
 
 
 def list_document_citations(doc, base: str) -> list[dict]:
@@ -5624,6 +5710,7 @@ _ACTIONS = {
     "diagnostics": document_diagnostics_interactive,
     "editCitation": edit_citation_interactive,
     "citationsPanel": citations_panel_interactive,
+    "citationIntegrityPreflight": citation_integrity_preflight_interactive,
 }
 
 

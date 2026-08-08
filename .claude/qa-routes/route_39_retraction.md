@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /papers/{paper_id}/retraction, /methods/retraction/run, /methods/retraction/run/{job_id}, /methods/retraction/summary
+api: /papers/{paper_id}/retraction, /methods/retraction/run, /methods/retraction/run/{job_id}, /methods/retraction/summary, /methods/retraction/check-selected
 fe: 10_pdf_layer.jsx, 10b_libmenus.jsx, 08x_methods_critical.jsx
 -->
 
@@ -68,6 +68,14 @@ To exercise the **live batch** path, inject deterministic checkers on the runnin
   import (134), and on the DOI-bearing enrich/acquire paths (224: OA-acquire, `re-resolve`, `fill-metadata`).
   These auto-checks are best-effort (a source error never breaks the import/enrich), reuse the same
   public-metadata checkers (no Gemini gate), and add no new endpoint/surface.
+- **Scoped on-demand re-check (inc 459).** `POST /methods/retraction/check-selected` — the LibreOffice adapter's
+  "Citation integrity preflight…" command's backend, re-checking retraction for exactly a caller-named list of
+  paper ids (max 100), reusing the same checkers, and persisting like the batch job. **This endpoint has no web
+  frontend surface** — its real end-to-end exercise (real ReferenceMarks → real HTTP call → real persistence) is
+  the LibreOffice adapter's own real-UNO harness (`python adapters/libreoffice/run_roundtrip.py`,
+  `spike_citation_integrity_preflight`), per CLAUDE.md's Verification protocol §4, not this browser-driven route.
+  Exercise it directly via the API within this route's own environment instead (see Steps below) so it's still
+  covered by a live, deterministic-checker call in this suite.
 
 ## Adversarial checklist
 
@@ -75,6 +83,9 @@ To exercise the **live batch** path, inject deterministic checkers on the runnin
 - `GET /papers/{nonexistent}/retraction` → 404-class, graceful
 - a paper with no DOI → "unchecked — no DOI", never "clean"
 - resize to `375x812`, hard refresh → no horizontal overflow
+- `POST /methods/retraction/check-selected` with an empty `paper_ids` list → 422; with 101 ids → 422; with a
+  mix of a real id and a nonexistent one → 200, the real id checked, the fake one itemized in `not_found` (never
+  silently dropped, never fails the whole request)
 
 ## Steps
 
@@ -98,6 +109,11 @@ To exercise the **live batch** path, inject deterministic checkers on the runnin
 6. Adversarial: a 404 on an unknown paper's retraction (`GET /papers/{id}/retraction` — still exposed and tested,
    though no longer called by the frontend post-merge; kept as a minimal, low-risk leftover rather than an
    unplanned backend deletion); double-click the batch button; mobile viewport has no overflow.
+7. Directly via the API (no frontend surface — see the standing-assertions note above): with the same injected
+   deterministic checkers, `POST /methods/retraction/check-selected {"paper_ids": [<seeded ids>]}` → 200, a
+   `checked` item per id with the same status/nature/date/notice_url shape the FACT already carries, and a
+   follow-up `GET /papers/{id}/retraction` reflects the fresh check. Confirm **0 genai-host requests** for this
+   call too.
 
 ## Pass criteria
 
@@ -107,6 +123,9 @@ To exercise the **live batch** path, inject deterministic checkers on the runnin
   a filter, not a verdict; the notice link + sources are shown.
 - 0 console/page errors; **0 genai-host requests**.
 - Bad inputs fail closed (404); mobile viewport has no horizontal overflow.
+- `POST /methods/retraction/check-selected` validates its input (empty/over-cap → 422), never fails the whole
+  request over one bad id (itemized `not_found`), and its check persists (a follow-up `GET .../retraction`
+  reflects it).
 
 ## Deposit
 

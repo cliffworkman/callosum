@@ -1698,6 +1698,138 @@ def test_diagnose_document_bibliography_states(monkeypatch) -> None:
     assert no_citations["bibliography"] == "n/a"
 
 
+# ── P2 item #19 (backlog #33/#34, inc 459): citation_integrity_preflight -- diagnose_document's mechanics
+# report + a fresh, scoped POST /methods/retraction/check-selected re-check. Same _FakeDiagDoc as above
+# (identical getReferenceMarks()/getBookmarks() shape); only the retraction network call is new to fake.
+
+
+def test_citation_integrity_preflight_merges_mechanics_and_retraction(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "fetch_csl", lambda base, pid: {"id": f"callosum-{pid}"})
+    posted = {}
+
+    def fake_post(url, body, timeout=10):
+        posted["url"], posted["body"] = url, body
+        return {
+            "checked": [
+                {
+                    "paper_id": 1,
+                    "status": "retracted",
+                    "nature": "Retraction",
+                    "date": "2026-01-01",
+                    "notice_url": "https://doi.org/10.1/n",
+                    "sources": ["crossref"],
+                },
+                {"paper_id": 2, "status": "none", "sources": ["crossref"]},
+            ],
+            "not_found": [],
+        }
+
+    monkeypatch.setattr(cc, "_post_json", fake_post)
+    doc = _FakeDiagDoc(
+        [_ok_mark("1", "c1"), _ok_mark("2", "c2")], bookmark_names={cc.BIB_BOOKMARK, cc.BIB_BOOKMARK_END}
+    )
+    report = cc.citation_integrity_preflight(doc, "http://127.0.0.1:8080")
+
+    assert posted["url"] == "http://127.0.0.1:8080/methods/retraction/check-selected"
+    assert sorted(posted["body"]["paper_ids"]) == [1, 2]
+    assert report["bibliography"] == "ok"  # the diagnose_document mechanics report is folded in unchanged
+    assert report["retraction_check_error"] is None
+    assert [item["paper_id"] for item in report["retraction_flagged"]] == [1]
+    assert report["retraction_flagged"][0]["notice_url"] == "https://doi.org/10.1/n"
+    assert len(report["retraction_checked"]) == 2
+
+
+def test_citation_integrity_preflight_excludes_orphaned_papers(monkeypatch) -> None:
+    def fake_fetch(base, pid):
+        if pid == "404":
+            raise ValueError(f"No paper with id {pid} in the library.")
+        return {"id": f"callosum-{pid}"}
+
+    monkeypatch.setattr(cc, "fetch_csl", fake_fetch)
+    posted = {}
+    monkeypatch.setattr(
+        cc,
+        "_post_json",
+        lambda url, body, timeout=10: (posted.update(body=body), {"checked": [], "not_found": []})[1],
+    )
+    doc = _FakeDiagDoc([_ok_mark("404", "c1"), _ok_mark("1", "c2")])
+    cc.citation_integrity_preflight(doc, "http://x")
+    assert posted["body"]["paper_ids"] == [1]  # the orphaned paper never gets sent for a retraction re-check
+
+
+def test_citation_integrity_preflight_dedupes_repeated_citations(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "fetch_csl", lambda base, pid: {"id": f"callosum-{pid}"})
+    posted = {}
+    monkeypatch.setattr(
+        cc,
+        "_post_json",
+        lambda url, body, timeout=10: (posted.update(body=body), {"checked": [], "not_found": []})[1],
+    )
+    # the same paper cited twice (two distinct marks, e.g. two sentences citing it) must be sent only once
+    doc = _FakeDiagDoc([_ok_mark("1", "c1"), _ok_mark("1", "c2")])
+    cc.citation_integrity_preflight(doc, "http://x")
+    assert posted["body"]["paper_ids"] == [1]
+
+
+def test_citation_integrity_preflight_no_cited_papers_skips_network_call(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(cc, "_post_json", lambda *a, **k: calls.append(1) or {})
+    report = cc.citation_integrity_preflight(_FakeDiagDoc([]), "http://x")
+    assert calls == []  # no cited papers -> no reason to hit the backend at all
+    assert report["retraction_checked"] == [] and report["retraction_check_error"] is None
+
+
+def test_citation_integrity_preflight_backend_error_never_hides_mechanics(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "fetch_csl", lambda base, pid: {"id": f"callosum-{pid}"})
+
+    def fake_post(url, body, timeout=10):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(cc, "_post_json", fake_post)
+    doc = _FakeDiagDoc([_ok_mark("1", "c1"), _ok_mark("2", "c1")])  # also a duplicate-id mechanics issue
+    report = cc.citation_integrity_preflight(doc, "http://x")
+    assert report["duplicate_ids"] == ["c1"]  # the already-computed local mechanics report survives
+    assert report["retraction_checked"] == [] and "connection refused" in report["retraction_check_error"]
+
+
+def test_citation_integrity_preflight_truncates_at_the_backend_cap(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "fetch_csl", lambda base, pid: {"id": f"callosum-{pid}"})
+    posted = {}
+    monkeypatch.setattr(
+        cc,
+        "_post_json",
+        lambda url, body, timeout=10: (posted.update(body=body), {"checked": [], "not_found": []})[1],
+    )
+    marks = [_ok_mark(str(i), f"c{i}") for i in range(cc.MAX_INTEGRITY_PREFLIGHT_IDS + 20)]
+    cc.citation_integrity_preflight(_FakeDiagDoc(marks), "http://x")
+    assert len(posted["body"]["paper_ids"]) == cc.MAX_INTEGRITY_PREFLIGHT_IDS
+
+
+def test_citation_integrity_preflight_interactive_shows_flagged_and_clean_counts(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "fetch_csl", lambda base, pid: {"id": f"callosum-{pid}"})
+    monkeypatch.setattr(
+        cc,
+        "_post_json",
+        lambda url, body, timeout=10: {
+            "checked": [
+                {"paper_id": 1, "status": "retracted", "date": "2026-01-01", "notice_url": "https://doi.org/x"},
+                {"paper_id": 2, "status": "none"},
+            ],
+            "not_found": [],
+        },
+    )
+    messages = []
+    monkeypatch.setattr(cc, "_msgbox", lambda message, title="callosum": messages.append((message, title)))
+    doc = _FakeDiagDoc(
+        [_ok_mark("1", "c1"), _ok_mark("2", "c2")], bookmark_names={cc.BIB_BOOKMARK, cc.BIB_BOOKMARK_END}
+    )
+    cc.citation_integrity_preflight_interactive(doc, "http://x")
+    assert len(messages) == 1
+    message, title = messages[0]
+    assert title == "callosum — citation integrity preflight"
+    assert "RETRACTED" in message and "1 of 2 cited paper(s) clean" in message
+
+
 # ── P1 item #12 (backlog #33/#34): list_document_citations -- the "Citations in this document" panel's data
 # source. Unlike diagnose_document (which iterates getReferenceMarks() directly), this goes through
 # scan_citations_in_order, so the fake needs a fuller doc: getText().compareRegionStarts for document order.

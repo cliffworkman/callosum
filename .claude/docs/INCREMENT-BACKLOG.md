@@ -487,8 +487,17 @@ the Principles + A-A gates before build.)*
   not left to drift like the composer's verification did). Remaining P1 future tracks (traveling-library
   portability and comprehensive keyboard/accessibility) **and P2
   leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,
-  pre-submission citation-integrity preflight, Citavi-style evidence-card insertion, open-science statement
+  Citavi-style evidence-card insertion, open-science statement
   insertion, cross-manager conversion) — see the roadmap doc for the full prioritized list + a test plan.
+  ✅ **P2 item #19 (citation integrity preflight) CLOSED inc 459.** A reuse-first, document-scoped slice: a new
+  "Citation integrity preflight…" LibreOffice command folds `diagnose_document`'s existing mechanics report
+  (malformed/duplicate/orphaned marks, bibliography health) together with a fresh, on-demand retraction
+  re-check for exactly the papers cited in the open manuscript — the one thing that genuinely didn't exist yet
+  (the read-only `GET /papers/{id}/retraction` never re-checks; the whole-library `POST /methods/retraction/run`
+  can't be scoped to one manuscript). New endpoint `POST /methods/retraction/check-selected` reuses
+  `detect_retraction`/`apply_retraction` unchanged (persists too, so the existing "Citations in this document"
+  panel's retraction label benefits for free). The rest of the roadmap's #19 checklist (DOI resolution, metadata
+  completeness, preprint-vs-VoR, broken URLs, etc.) was scoped out as a deliberate v1 boundary, not built.
   **UX follow-ups (incs 374/375/376/382/383) — CLOSED inc 446.** All three state-blind toggles (automatic
   bibliography rebuilding, citation-to-bibliography links, bibliography title/DOI links) now expose current
   ON/OFF state via "Document diagnostics…" (always-present, read-only) and each toggle's own message now states

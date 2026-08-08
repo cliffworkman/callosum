@@ -101,3 +101,39 @@ swallows per-paper errors → can't break the acquire/enrich). The **Zotero impo
 app-state-bearing caller to hook — a hook there would be dead code (rule #5). Tests are hermetic (injected fake
 checkers + a graceful Crossref fetcher + an empty enrich registry + a fake OA resolver/download — no network).
 **Still PASS.**
+
+## Addendum 3 — scoped on-demand re-check, `POST /methods/retraction/check-selected` (inc 459)
+
+A fourth call site of `detect_retraction`/`apply_retraction`, and the **first genuinely new endpoint** since the
+inc-131 batch: a synchronous, caller-scoped re-check for an explicit list of paper ids, built for the LibreOffice
+adapter's new "Citation integrity preflight…" command (backlog #33/#34, P2 item #19) — re-check retraction status
+right now for exactly the papers cited in the open manuscript, rather than waiting on (or forcing) a whole-library
+`POST /methods/retraction/run` pass.
+
+- **Input validation.** `paper_ids: list[int] = Field(min_length=1, max_length=100)` — Pydantic rejects an empty
+  or over-100 list with 422 before the handler runs. Ids are further deduped/filtered to positive integers
+  (`_unique_positive_ids`, mirroring `reference_integrity.py::_unique_ids`) before use. PASS.
+- **SSRF / external calls / fetch type.** **No new fetch type or host** — reuses the exact same
+  `app.state.retraction_checkers` (Crossref/OpenAlex/RW-mirror) via `detect_retraction`, called per id inside
+  `_check_and_persist`. PASS.
+- **Resource caps.** Bounded to 100 papers per request (client-side, the LibreOffice adapter additionally
+  truncates to the same cap before sending — `MAX_INTEGRITY_PREFLIGHT_IDS`), each running through the same
+  fail-closed-per-source `detect_retraction` the batch job already uses (one bad/slow source is skipped, never
+  aborts the request). PASS.
+- **Authorization / scope.** A paper id not in the library (or trashed) raises `NoResultFound` from `get_paper`,
+  caught per-id and reported in `not_found` — never a 500, never treated as a de-facto existence oracle for
+  anything beyond "this id isn't in your own local library" (the same information `GET /papers/{id}` already
+  exposes locally). Same local-only, unauthenticated-by-default posture as every other endpoint (the standing
+  pre-hosted-deploy auth/rate-limit note already covers this).
+- **Persistence.** Reuses `apply_retraction` unchanged — a fresh check here persists exactly like the batch job's
+  per-paper write, so `GET /papers/{id}/retraction` (already-audited, read-only) reflects it afterward. No new
+  table, no migration.
+- **New client, same server-local trust boundary.** The LibreOffice adapter calls this endpoint over
+  `http://127.0.0.1` exactly like every other adapter→backend call in `callosum_cite.py` (`fetch_csl`,
+  `render_document`, etc.) — no new network exposure, no new auth surface.
+- **SQL / output encoding / secrets / supply chain.** Unchanged from the base audit — bound-param SQL throughout,
+  no new dependency, no secret.
+
+**Security Audit (inc 459 addendum): PASS.** New endpoint, but zero new fetch type/host/dependency/migration;
+bounded input; per-id resilience (one missing/failed id never blocks the rest); reuses the already-audited
+detect/apply/persist pipeline verbatim.

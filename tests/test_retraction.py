@@ -413,6 +413,82 @@ def test_retraction_endpoints_and_filter(temp_db_url):
     assert client.get("/papers/999999/retraction").status_code == 404
 
 
+# ---- POST /methods/retraction/check-selected (inc 459: LibreOffice citation-integrity preflight) ----------
+
+
+def test_check_selected_flags_retracted_and_persists(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = _paper(conn, doi="10.1/retracted", title="A")
+        b = _paper(conn, doi="10.1/clean", title="B")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    def fake(conn, paper):
+        if paper["doi"] == "10.1/retracted":
+            return RetractionSignal(source="crossref", status="retracted", notice_doi="10.1/n", date="2026-01-01")
+        return None
+
+    client.app.state.retraction_checkers = [RetractionChecker("crossref", fake)]
+
+    resp = client.post("/methods/retraction/check-selected", json={"paper_ids": [a, b]})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["requested_count"] == 2 and body["not_found"] == []
+    by_id = {item["paper_id"]: item for item in body["checked"]}
+    assert by_id[a]["status"] == "retracted"
+    assert by_id[a]["notice_url"] == "https://doi.org/10.1/n" and by_id[a]["date"] == "2026-01-01"
+    assert by_id[b]["status"] == "none" and by_id[b]["sources"] == ["crossref"]
+
+    # the check persists (rule: GET /papers/{id}/retraction, and thus the LibreOffice "Citations in this
+    # document" panel's cached retraction_label, benefits from this on-demand check for free)
+    assert client.get(f"/papers/{a}/retraction").json()["status"] == "retracted"
+    assert client.get(f"/papers/{b}/retraction").json()["status"] == "none"
+
+
+def test_check_selected_reports_not_found_without_failing_others(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = _paper(conn, doi="10.1/clean", title="A")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.retraction_checkers = [RetractionChecker("crossref", lambda conn, paper: None)]
+
+    resp = client.post("/methods/retraction/check-selected", json={"paper_ids": [a, 999999]})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["not_found"] == [999999]
+    assert [item["paper_id"] for item in body["checked"]] == [a]  # the real id still got checked
+
+
+def test_check_selected_validates_empty_and_over_cap(temp_db_url):
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.post("/methods/retraction/check-selected", json={"paper_ids": []}).status_code == 422
+    over_cap = list(range(1, 102))  # 101 > MAX_CHECK_SELECTED (100)
+    assert client.post("/methods/retraction/check-selected", json={"paper_ids": over_cap}).status_code == 422
+
+
+def test_check_selected_dedupes_and_drops_non_positive_ids(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = _paper(conn, doi="10.1/clean", title="A")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    calls = []
+
+    def fake(conn, paper):
+        calls.append(paper["id"])
+        return None
+
+    client.app.state.retraction_checkers = [RetractionChecker("crossref", fake)]
+
+    resp = client.post("/methods/retraction/check-selected", json={"paper_ids": [a, a, 0, -5, a]})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert [item["paper_id"] for item in body["checked"]] == [a]  # deduped -- checked exactly once
+    assert calls == [a]  # the checker itself was invoked exactly once, not 3x
+
+
 def test_retraction_run_refreshes_rw_database_before_check(temp_db_url):
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
