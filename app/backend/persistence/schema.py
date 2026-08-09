@@ -494,6 +494,9 @@ missing_literature_suggestions = Table(
 # importing this module registers them on the shared metadata.
 # Critical-review candidate store (backlog #12) — same split rationale.
 from app.backend.persistence.schema_critical_review import critical_review_candidates  # noqa: E402,F401
+
+# Per-paper saved DEBIT checks (inc 467) — an append-only user-curated log, mirroring paper_grim_checks.
+from app.backend.persistence.schema_debit_checks import paper_debit_checks  # noqa: E402,F401
 from app.backend.persistence.schema_feed import feed_items, feed_subscriptions  # noqa: E402,F401
 from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     agent_writes,

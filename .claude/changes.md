@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-09 inc 466 — credit-the-lineage backfill -->
+<!-- HELP-DOCS-SYNCED: 2026-08-09 inc 467 — DEBIT consistency check -->
+
+## 2026-08-09 — Increment 467: DEBIT consistency check (item #4 of the post-P2 backlog sequence)
+- **Files:** `app/backend/methods/grim.py`, `app/backend/api/routers/methods.py`,
+  `app/backend/persistence/schema_debit_checks.py` (new), `app/backend/persistence/schema.py`,
+  `alembic/versions/0071_paper_debit_checks.py` (new), `app/backend/persistence/debit_checks_repo.py` (new),
+  `app/backend/api/routers/methods_debit_saved.py` (new), `app/backend/api/app.py`,
+  `app/frontend/js/07_methods_grim.jsx`, `tests/test_debit.py` (new), `tests/test_debit_saved.py` (new),
+  `tests/test_health.py`, `THIRD-PARTY-NOTICES.md`, `app/backend/help/help_content.md`,
+  `.claude/qa-routes/route_37_methods_grim.md`, `.claude/security-audits/2026-08-09_debit-saved-checks.md` (new).
+- **What:** added DEBIT (Heathers & Brown 2019), the binary-data analog of GRIM/GRIMMER — checks whether a
+  reported mean+SD+N for a 0/1 variable are mathematically consistent, since binary data's SD is fully
+  determined by its mean and N. Extends the existing GRIM/GRIMMER calculator + inc-401 paper-aware-save pattern
+  almost exactly. Backlog #44's remaining Increment 5 slice ("DEBIT/duplication analysis and perhaps a
+  z-curve") turned out to conflate three separate things; duplicate-publication detection and z-curve were spun
+  off as their own new gated backlog items (#54, #55) rather than built here.
+- **Why:** item #4 of the confirmed post-P2 backlog sequence (memory `callosum-next5-backlog-roadmap`).
+- **Revert:** all changes additive/backward-compatible; no existing endpoint or table modified. See
+  `INCREMENT-467-NOTES.md` for the full narrative.
 
 ## 2026-08-09 — Backlog closure discipline: reconcile `INCREMENT-BACKLOG.md` / `INCREMENT-BACKLOG-DONE.md`
 - **Files:** `.claude/docs/INCREMENT-BACKLOG.md` (924→181 lines), `.claude/docs/INCREMENT-BACKLOG-DONE.md`

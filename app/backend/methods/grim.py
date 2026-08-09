@@ -1,9 +1,14 @@
-"""GRIM + GRIMMER — granularity-consistency checks for reported integer-data summary statistics (inc 127).
+"""GRIM + GRIMMER + DEBIT — granularity/consistency checks for reported summary statistics (inc 127, inc 467).
 
 GRIM (Brown & Heathers, 2017): a mean of N integer observations (each the average of `items` integer items) must
 equal K/(N*items) for an integer K; rounded to the reported decimals, only some means are achievable. GRIMMER
 (Anaya 2016; Allard 2018 analytic): additionally the reported SD must correspond to an integer sum of squares
 consistent with that mean and N, with the parity refinement Sum(x^2) == Sum(x) (mod 2) for integer x.
+
+DEBIT (Heathers & Brown, 2019): the binary-data analog — for a variable that can only take values 0/1, the
+sample SD is fully determined by the mean and N (Bessel-corrected): SD = sqrt(K(n-K) / (n(n-1))) for the
+integer count K implied by the mean. Reuses grim_test for the mean's own GRIM-consistency (binary data is the
+items=1 case) before checking whether the reported SD matches what that mean and N imply.
 
 Assisted, per-value, deterministic, local, no-LLM: the user enters one reported value to check (we do NOT scan the
 paper or guess N) — inherently non-accusatory; a signal to look, never a verdict. GRIMMER here covers the
@@ -39,6 +44,16 @@ class GrimmerResult:
     reported_sd: str
     decimals: int
     supported: bool  # False when items != 1 (multi-item GRIMMER deferred)
+    note: str
+
+
+@dataclass(frozen=True)
+class DebitResult:
+    consistent: bool
+    reported_mean: str
+    reported_sd: str
+    n: int
+    mean_consistent: bool  # GRIM-consistency of the mean alone, for binary (items=1) data
     note: str
 
 
@@ -125,3 +140,39 @@ def grimmer_test(mean: str, sd: str, n: int, items: int = 1) -> GrimmerResult:
         )
     )
     return GrimmerResult(consistent, sd, d_sd, supported=True, note=note)
+
+
+def debit_test(mean: str, sd: str, n: int) -> DebitResult:
+    # For binary (0/1) data with n observations and mean M = K/n (K the count of 1s), the sample SD is fully
+    # determined: Sum((x_i - M)^2) = K*(1-M)^2 + (n-K)*M^2 = K*(n-K)/n, so the Bessel-corrected sample SD is
+    # sqrt(K*(n-K) / (n*(n-1))). Candidate K values come from grim_test's own rounding-tolerant reconstruction
+    # (the reported mean may round from more than one exact K/n), matching GRIMMER's own tolerance treatment for
+    # the reported SD (±half a unit in its last decimal place).
+    if n < 2:
+        raise ValueError("n must be at least 2 for a sample SD to be defined")
+    _check(n, 1)
+    grim = grim_test(mean, n, items=1)
+    if not grim.consistent:
+        return DebitResult(
+            False,
+            mean,
+            sd,
+            n,
+            mean_consistent=False,
+            note="The mean is GRIM-inconsistent for binary (0/1) data, so the SD cannot be consistent either.",
+        )
+    d_sd = _decimals(sd)
+    totals = _consistent_totals(float(mean), n, _decimals(mean))
+    half = 0.5 * 10 ** (-d_sd)
+    s = float(sd)
+    s_lo, s_hi = max(0.0, s - half), s + half
+    consistent = any(s_lo <= math.sqrt((k * (n - k)) / (n * (n - 1))) <= s_hi for k in totals)
+    note = (
+        "Consistent — the reported SD matches the SD implied by this mean and N for binary (0/1) data."
+        if consistent
+        else (
+            "DEBIT-inconsistent — for binary (0/1) data the SD is fully determined by the mean and N; the "
+            "reported SD doesn't match. A prompt to look, not a verdict; assumes truly binary (0/1) data."
+        )
+    )
+    return DebitResult(consistent, mean, sd, n, mean_consistent=True, note=note)

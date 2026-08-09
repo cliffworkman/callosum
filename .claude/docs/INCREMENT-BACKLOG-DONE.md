@@ -358,20 +358,25 @@ new work goes in the open backlog.
   were all live re-checked, not assumed, and confirmed not buildable. *(Still open — see open backlog #40:
   self-archiving/green-route [needs a Jisc-registered key]; Redalyc/Latindex if they ever reopen; COPE/OASPA if
   an API appears; user exclusion/filtering, deferred on purpose as ethically fraught.)*
-- [x] **#44 Lakens-catalog integration — RegCheck, Increments 1/1b/2/4/5-partial** (inc 250/251, 352, 387,
-  425-433). The transparency-signals auditor + persistence (1/1b); `DocumentTextProvider` (2, PDF/JATS/XML/
-  HTML/DOCX/ODT/plain/TeX); the conservative table-aware statcheck slice (5-partial, inc 387); document-scoped
-  chunk/search/embedding consumers as the hard prerequisite so a registration attachment can't contaminate
-  article synthesis or Methods reads (425); local registration-reference extraction + four honest transparency
-  states (426); explicit OSF/DataCite candidate discovery (427); confirmed OSF/AsPredicted/local acquisition
-  with immutable content-hash versions (428); canonical evidence-bearing commitment extraction (429); section/
-  study-aware article retrieval (430); persisted evidence-bound comparison rows + human review + stale-basis
-  detection (431); the side-by-side inspection UI + security audit (432); bounded pagination/transactional
-  revalidation/fail-closed extraction/exact search receipts (433, the acceptance-audit close-out). This is the
-  fraught, gated **RegCheck** track — see the individual increment notes for the full narrative. **Increment 4
-  overlapped CRediT #26** (closed). *(Still open — see open backlog #44: the rest of Increment 5, a broader
-  consistency registry — DEBIT-style duplicate-publication detection, perhaps a collection-level z-curve. This
-  is item #4 of the confirmed post-P2 backlog sequence, memory `callosum-next5-backlog-roadmap` — next up.)*
+- [x] **#44 Lakens-catalog integration — RegCheck (Increments 1/1b/2/4/5) + DEBIT — fully closed** (inc
+  250/251, 352, 387, 425-433, 467). The transparency-signals auditor + persistence (1/1b); `DocumentTextProvider`
+  (2, PDF/JATS/XML/HTML/DOCX/ODT/plain/TeX); the conservative table-aware statcheck slice (5-partial, inc 387);
+  document-scoped chunk/search/embedding consumers as the hard prerequisite so a registration attachment can't
+  contaminate article synthesis or Methods reads (425); local registration-reference extraction + four honest
+  transparency states (426); explicit OSF/DataCite candidate discovery (427); confirmed OSF/AsPredicted/local
+  acquisition with immutable content-hash versions (428); canonical evidence-bearing commitment extraction
+  (429); section/study-aware article retrieval (430); persisted evidence-bound comparison rows + human review +
+  stale-basis detection (431); the side-by-side inspection UI + security audit (432); bounded pagination/
+  transactional revalidation/fail-closed extraction/exact search receipts (433, the acceptance-audit
+  close-out). This is the fraught, gated **RegCheck** track — see the individual increment notes for the full
+  narrative. **Increment 4 overlapped CRediT #26** (closed). **Increment 5's DEBIT slice shipped inc 467**
+  (item #4 of the confirmed post-P2 backlog sequence, memory `callosum-next5-backlog-roadmap`): the binary-data
+  analog of GRIM/GRIMMER (Heathers & Brown 2019, an unpublished OSF working paper, no DOI), extending
+  `app/backend/methods/grim.py` + the inc-401 paper-aware-save pattern exactly. Research before design found
+  Increment 5's original phrasing ("DEBIT/duplication analysis and perhaps a z-curve") actually named three
+  separate things — **duplicate-publication detection and z-curve were spun off as their own new backlog items,
+  #54 and #55**, each needing its own Principles + APPROACH-AVOIDANCE pass (duplicate-detection risks the
+  no-accusation boundary; z-curve needs LLM-assisted extraction). **#44 is now fully closed.**
 - [x] **#48 WIP integration — Checklists / Critique / Meta-Reference — fully closed** (inc 441-447) —
   Checklists (Transparency/mixed-model/Bayesian/meta-analysis reporting audits, each via the same exact-
   snapshot receipt seam, `not-found` rows becoming reviewable `info` candidates only when their gate is on, never

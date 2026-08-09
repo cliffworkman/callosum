@@ -31,7 +31,7 @@ from app.backend.api.job_store import JobStore
 from app.backend.document_tables import TableRowEvidence, extract_document_tables, supports_table_extraction
 from app.backend.methods.effectsize import convert as convert_effect_size
 from app.backend.methods.evidence_anchors import pdf_attachment_ids
-from app.backend.methods.grim import grim_test, grimmer_test
+from app.backend.methods.grim import debit_test, grim_test, grimmer_test
 from app.backend.methods.pcurve import PcurveResult, run_pcurve
 from app.backend.methods.statcheck import run_statcheck
 from app.backend.pdf_processing.location import locate_quote_for_attachment
@@ -289,6 +289,41 @@ def grim_compute(payload: GrimRequest) -> GrimComputeResponse:
         grim=GrimResultModel(**vars(grim)),
         grimmer=GrimmerResultModel(**vars(grimmer)) if grimmer else None,
     )
+
+
+# ── DEBIT (inc 467): the binary-data analog of GRIM/GRIMMER — Heathers & Brown (2019). Same sync/stateless/
+# no-egress shape; the user enters one reported mean/SD/N for a binary (0/1) variable to check. ──
+
+
+class DebitRequest(BaseModel):
+    mean: str
+    sd: str
+    n: int
+
+
+class DebitResultModel(BaseModel):
+    consistent: bool
+    reported_mean: str
+    reported_sd: str
+    n: int
+    mean_consistent: bool
+    note: str
+
+
+class DebitComputeResponse(BaseModel):
+    debit: DebitResultModel
+
+
+@router.post("/methods/debit", response_model=DebitComputeResponse)
+def debit_compute(payload: DebitRequest) -> DebitComputeResponse:
+    try:
+        debit = debit_test(payload.mean, payload.sd, payload.n)
+    except (ValueError, ArithmeticError):
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid DEBIT inputs: mean/SD must be numbers; n must be at least 2.",
+        ) from None
+    return DebitComputeResponse(debit=DebitResultModel(**vars(debit)))
 
 
 # ── effect-size converter (inc 252, meta-analysis workbench SP1): convert ONE study's stats → a common metric ──

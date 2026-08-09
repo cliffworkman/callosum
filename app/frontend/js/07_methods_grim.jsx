@@ -115,10 +115,105 @@ function GrimSection({ ctx }) {
         <b>Method:</b> GRIM — Brown &amp; Heathers (2017); GRIMMER — Anaya (2016) / Allard (2018).{" "}
         <MethodCreditButton items={[GRIM_CSL]} />
         <div className="method-credit-sub">Re-implemented in Python; cf. the <i>scrutiny</i> package (Lukas Jung).</div>
+      </div>
+    </div>
+  );
+}
+
+// inc 467: DEBIT — the binary-data analog of GRIM/GRIMMER (Heathers & Brown 2019, an unpublished OSF working
+// paper — no DOI exists to fabricate). Same "check a value you're reading" shape as GrimSection, including the
+// inc-401 paperId-reset fix applied from the start here rather than rediscovering the same bug.
+const DEBIT_CSL = {
+  type: "report",
+  title: "DEBIT: A Simple Consistency Test For Binary Data",
+  author: [
+    { family: "Heathers", given: "James A. J." },
+    { family: "Brown", given: "Nicholas J. L." },
+  ],
+  URL: "https://osf.io/pm825/",
+  issued: { "date-parts": [[2019]] },
+};
+
+function DebitSection({ ctx }) {
+  const paperId = ctx.selectedPaper;
+  const [f, setF] = useState({ mean: "", sd: "", n: "" });
+  const [state, setState] = useState({ status: "idle" }); // idle | running | done | error
+  const [saved, setSaved] = useState({ status: "idle", checks: [] });
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
+  useEffect(() => {
+    setF({ mean: "", sd: "", n: "" });
+    setState({ status: "idle" });
+  }, [paperId]);
+
+  useEffect(() => {
+    setSaved({ status: "idle", checks: [] });
+    if (paperId == null) return undefined;
+    let live = true;
+    api(`/papers/${paperId}/debit-checks`).then(r => {
+      if (live && r.ok) setSaved({ status: "done", checks: r.data.checks });
+    });
+    return () => { live = false; };
+  }, [paperId]);
+
+  const run = async () => {
+    const n = parseInt(f.n, 10);
+    if (!f.mean.trim() || !f.sd.trim() || !Number.isFinite(n)) return;
+    setState({ status: "running" });
+    const r = await apiPost("/methods/debit", { mean: f.mean.trim(), sd: f.sd.trim(), n });
+    setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
+  };
+  const save = async () => {
+    if (paperId == null) return;
+    const n = parseInt(f.n, 10);
+    const r = await apiPost(`/papers/${paperId}/debit-checks`, { mean: f.mean.trim(), sd: f.sd.trim(), n });
+    if (r.ok) setSaved(s => ({ status: "done", checks: [r.data, ...s.checks] }));
+  };
+  const removeSaved = async (checkId) => {
+    const r = await apiDelete(`/papers/${paperId}/debit-checks/${checkId}`);
+    if (r.ok) setSaved(s => ({ ...s, checks: s.checks.filter(c => c.id !== checkId) }));
+  };
+  const d = state.data;
+  return (
+    <div className="grim-section">
+      <div className="settings-sub">Check whether a reported mean and SD of <b>binary (0/1)</b> data — a proportion or response rate — is mathematically possible for the sample size. For binary data the SD is fully determined by the mean and N. Enter a value you're reading; local, no AI.</div>
+      <div className="grim-form">
+        <label>Mean <input className="grim-in" value={f.mean} onChange={set("mean")} placeholder="0.500" spellCheck={false} /></label>
+        <label>SD <input className="grim-in" value={f.sd} onChange={set("sd")} placeholder="0.527" spellCheck={false} /></label>
+        <label>N <input className="grim-in" value={f.n} onChange={set("n")} placeholder="50" spellCheck={false} /></label>
+        <button className="btn btn-primary" disabled={state.status === "running" || !f.mean.trim() || !f.sd.trim() || !f.n.trim()} onClick={run}>Check</button>
+      </div>
+      {state.status === "running" && <ProgressBar />}
+      {state.status === "error" && <div className="axis-err">Couldn't check: {state.error}</div>}
+      {state.status === "done" && d &&
+        <div className="grim-result">
+          <div className="grim-line">
+            <span className="grim-k">DEBIT</span>
+            <span className={"cite-status " + (d.debit.consistent ? "verified" : "flagged")}>{d.debit.consistent ? "consistent" : "impossible"}</span>
+          </div>
+          <div className="grim-caveat">{d.debit.note}</div>
+          {paperId != null && <button className="btn-link" onClick={save}>Save this check</button>}
+        </div>}
+      {paperId != null && saved.checks.length > 0 &&
+        <div className="grim-saved-list">
+          <p className="eyebrow">Saved checks — this paper</p>
+          {saved.checks.map(c =>
+            <div className="grim-saved-item" key={c.id}>
+              <span className="grim-saved-desc">{c.label || `mean ${c.mean} / SD ${c.sd} / N ${c.n}`}</span>
+              <span className={"cite-status " + (c.debit.consistent ? "verified" : "flagged")}>{c.debit.consistent ? "consistent" : "impossible"}</span>
+              <small className="grim-saved-date">{c.created_at ? c.created_at.slice(0, 10) : ""}</small>
+              <button className="btn-icon" title="Remove this saved check" aria-label="Remove this saved check"
+                onClick={() => removeSaved(c.id)}>×</button>
+            </div>)}
+        </div>}
+      <div className="method-credit">
+        <b>Method:</b> DEBIT — Heathers &amp; Brown (2019).{" "}
+        <MethodCreditButton items={[DEBIT_CSL]} />
+        <div className="method-credit-sub">Re-implemented in Python; cf. the <i>scrutiny</i> package (Lukas Jung). An unpublished OSF working paper — no DOI exists.</div>
         <LakensCredit />
       </div>
     </div>
   );
 }
 
-registerPaneSection({ id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true, render: (ctx) => <GrimSection ctx={ctx} /> });
+registerPaneSection({ id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true, render: (ctx) => <><GrimSection ctx={ctx} /><DebitSection ctx={ctx} /></> });

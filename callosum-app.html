@@ -5650,9 +5650,69 @@
         onClick: () => removeSaved(c.id)
       },
       "\xD7"
-    )))), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " GRIM \u2014 Brown & Heathers (2017); GRIMMER \u2014 Anaya (2016) / Allard (2018).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [GRIM_CSL] }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; cf. the ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " package (Lukas Jung)."), /* @__PURE__ */ React.createElement(LakensCredit, null)));
+    )))), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " GRIM \u2014 Brown & Heathers (2017); GRIMMER \u2014 Anaya (2016) / Allard (2018).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [GRIM_CSL] }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; cf. the ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " package (Lukas Jung).")));
   }
-  registerPaneSection({ id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true, render: (ctx) => /* @__PURE__ */ React.createElement(GrimSection, { ctx }) });
+  const DEBIT_CSL = {
+    type: "report",
+    title: "DEBIT: A Simple Consistency Test For Binary Data",
+    author: [
+      { family: "Heathers", given: "James A. J." },
+      { family: "Brown", given: "Nicholas J. L." }
+    ],
+    URL: "https://osf.io/pm825/",
+    issued: { "date-parts": [[2019]] }
+  };
+  function DebitSection({ ctx }) {
+    const paperId = ctx.selectedPaper;
+    const [f, setF] = useState({ mean: "", sd: "", n: "" });
+    const [state, setState] = useState({ status: "idle" });
+    const [saved, setSaved] = useState({ status: "idle", checks: [] });
+    const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+    useEffect(() => {
+      setF({ mean: "", sd: "", n: "" });
+      setState({ status: "idle" });
+    }, [paperId]);
+    useEffect(() => {
+      setSaved({ status: "idle", checks: [] });
+      if (paperId == null) return void 0;
+      let live = true;
+      api(`/papers/${paperId}/debit-checks`).then((r) => {
+        if (live && r.ok) setSaved({ status: "done", checks: r.data.checks });
+      });
+      return () => {
+        live = false;
+      };
+    }, [paperId]);
+    const run = async () => {
+      const n = parseInt(f.n, 10);
+      if (!f.mean.trim() || !f.sd.trim() || !Number.isFinite(n)) return;
+      setState({ status: "running" });
+      const r = await apiPost("/methods/debit", { mean: f.mean.trim(), sd: f.sd.trim(), n });
+      setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
+    };
+    const save = async () => {
+      if (paperId == null) return;
+      const n = parseInt(f.n, 10);
+      const r = await apiPost(`/papers/${paperId}/debit-checks`, { mean: f.mean.trim(), sd: f.sd.trim(), n });
+      if (r.ok) setSaved((s) => ({ status: "done", checks: [r.data, ...s.checks] }));
+    };
+    const removeSaved = async (checkId) => {
+      const r = await apiDelete(`/papers/${paperId}/debit-checks/${checkId}`);
+      if (r.ok) setSaved((s) => ({ ...s, checks: s.checks.filter((c) => c.id !== checkId) }));
+    };
+    const d = state.data;
+    return /* @__PURE__ */ React.createElement("div", { className: "grim-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Check whether a reported mean and SD of ", /* @__PURE__ */ React.createElement("b", null, "binary (0/1)"), " data \u2014 a proportion or response rate \u2014 is mathematically possible for the sample size. For binary data the SD is fully determined by the mean and N. Enter a value you're reading; local, no AI."), /* @__PURE__ */ React.createElement("div", { className: "grim-form" }, /* @__PURE__ */ React.createElement("label", null, "Mean ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.mean, onChange: set("mean"), placeholder: "0.500", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "SD ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.sd, onChange: set("sd"), placeholder: "0.527", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "N ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.n, onChange: set("n"), placeholder: "50", spellCheck: false })), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: state.status === "running" || !f.mean.trim() || !f.sd.trim() || !f.n.trim(), onClick: run }, "Check")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, null), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && /* @__PURE__ */ React.createElement("div", { className: "grim-result" }, /* @__PURE__ */ React.createElement("div", { className: "grim-line" }, /* @__PURE__ */ React.createElement("span", { className: "grim-k" }, "DEBIT"), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (d.debit.consistent ? "verified" : "flagged") }, d.debit.consistent ? "consistent" : "impossible")), /* @__PURE__ */ React.createElement("div", { className: "grim-caveat" }, d.debit.note), paperId != null && /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: save }, "Save this check")), paperId != null && saved.checks.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "grim-saved-list" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Saved checks \u2014 this paper"), saved.checks.map((c) => /* @__PURE__ */ React.createElement("div", { className: "grim-saved-item", key: c.id }, /* @__PURE__ */ React.createElement("span", { className: "grim-saved-desc" }, c.label || `mean ${c.mean} / SD ${c.sd} / N ${c.n}`), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (c.debit.consistent ? "verified" : "flagged") }, c.debit.consistent ? "consistent" : "impossible"), /* @__PURE__ */ React.createElement("small", { className: "grim-saved-date" }, c.created_at ? c.created_at.slice(0, 10) : ""), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-icon",
+        title: "Remove this saved check",
+        "aria-label": "Remove this saved check",
+        onClick: () => removeSaved(c.id)
+      },
+      "\xD7"
+    )))), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " DEBIT \u2014 Heathers & Brown (2019).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [DEBIT_CSL] }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; cf. the ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " package (Lukas Jung). An unpublished OSF working paper \u2014 no DOI exists."), /* @__PURE__ */ React.createElement(LakensCredit, null)));
+  }
+  registerPaneSection({ id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true, render: (ctx) => /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(GrimSection, { ctx }), /* @__PURE__ */ React.createElement(DebitSection, { ctx })) });
   const CITATION_EQUITY_CSL = [
     {
       type: "article-journal",

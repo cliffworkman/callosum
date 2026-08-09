@@ -105,6 +105,14 @@ The data-consistency calculator implements the **GRIM** and **GRIMMER** methods:
 - Re-implemented from the papers (the reference R implementation is **`scrutiny`**, Lukas Jung,
   <https://lhdjung.github.io/scrutiny/>) — credited, not reused by name or code.
 
+### DEBIT (inc 467)
+The same data-consistency calculator adds **DEBIT**, the binary-data analog of GRIM/GRIMMER:
+- Heathers, J. A. J., & Brown, N. J. L. (2019). *DEBIT: A Simple Consistency Test For Binary Data.* Unpublished
+  working paper. <https://osf.io/pm825/>. No DOI exists — an OSF preprint, never formally published; not
+  fabricated here.
+- Re-implemented from the paper (the reference R implementation is **`scrutiny`**, Lukas Jung,
+  <https://lhdjung.github.io/scrutiny/>) — credited, not reused by name or code.
+
 ### Retraction detection — Retraction Watch database (inc 132)
 Callosum's retraction/correction check (the Library "Integrity" refresh, Meta-Reference, and the LibreOffice
 adapter's "Citation integrity preflight") draws on the **Retraction Watch database**:

@@ -820,20 +820,19 @@ Read it as a prompt to think, not a judgment:
 - The modal credits the method (Simonsohn, Nelson & Simmons, 2014) and offers a one-click **add missing to library**.
 
 <!-- section: data-consistency-grim -->
-## Data consistency (GRIM / GRIMMER)
-GRIM (Brown & Heathers, 2017) and GRIMMER (Anaya 2016 / Allard 2018) check whether a reported **mean** (and **SD**) of **integer-scale** data — counts, or Likert-type items — is mathematically *possible* for the stated sample size. A mean of N integers must equal a whole number divided by N, so at a given decimal precision only certain means can occur; GRIMMER extends the same logic to the standard deviation.
+## Data consistency (GRIM / GRIMMER / DEBIT)
+GRIM (Brown & Heathers, 2017) and GRIMMER (Anaya 2016 / Allard 2018) check whether a reported **mean** (and **SD**) of **integer-scale** data — counts, or Likert-type items — is mathematically *possible* for the stated sample size. A mean of N integers must equal a whole number divided by N, so at a given decimal precision only certain means can occur; GRIMMER extends the same logic to the standard deviation. **DEBIT** (Heathers & Brown, 2019) is the binary-data analog: for a variable that can only take values 0/1 — a proportion or response rate — the SD is *fully determined* by the mean and N, so a reported mean+SD+N can be checked for consistency the same way.
 
-It's an **assisted calculator**, not a scanner: in the **METHODS** pane, open **Data**, then type a value you're reading — the **mean** (and optionally **SD**), **N**, and **items** (the number of scale items averaged per score; leave 1 for a single integer measure) — and click **Check**. You get:
+It's an **assisted calculator**, not a scanner: in the **METHODS** pane, open **Data**, then type a value you're reading and click **Check**. Two separate mini-forms live in this section:
 
-- **GRIM:** consistent, or **impossible** with the **nearest possible** means shown (so you can see how far off it is).
-- **GRIMMER** (when you enter an SD): consistent or impossible, for single- or multi-item scales (set **items**).
-- A **no-power** note when N is large for the precision (then almost any mean is achievable, so GRIM can't say much).
+- **GRIM / GRIMMER:** the **mean** (and optionally **SD**), **N**, and **items** (the number of scale items averaged per score; leave 1 for a single integer measure). GRIM reports consistent, or **impossible** with the **nearest possible** means shown; GRIMMER (when you enter an SD) reports consistent or impossible for single- or multi-item scales. A **no-power** note appears when N is large for the precision.
+- **DEBIT:** the **mean**, **SD**, and **N** for a *binary* (0/1) variable — no `items` field, since binary data is inherently single-item. Reports consistent, or **impossible**, with a note on why.
 
-Read it as a prompt, not a judgment:
+Read all three as a prompt, not a judgment:
 
-- It only applies to **integer-scale** data — not continuous measures (reaction times, proportions). An inconsistency is usually a typo or a misreported N; it is **a prompt to look, never a verdict or an accusation**.
-- Because *you* enter a specific value, it never scans, ranks, or labels papers or people.
-- The section credits the methods (Brown & Heathers; Anaya / Allard) and offers a one-click **add missing to library**.
+- GRIM/GRIMMER only apply to **integer-scale** data; DEBIT only applies to **binary (0/1)** data — none of them apply to continuous measures (reaction times, non-binary proportions). An inconsistency is usually a typo or a misreported N; it is **a prompt to look, never a verdict or an accusation**.
+- Because *you* enter a specific value, none of them scan, rank, or label papers or people.
+- Each method is credited (Brown & Heathers; Anaya / Allard; Heathers & Brown) with a one-click **add missing to library** — DEBIT's source is an unpublished OSF working paper with no DOI, so its library entry links to the OSF page directly rather than a fabricated identifier.
 
 <!-- section: bayesian-statistics -->
 ## Checking Bayes factors (the Bayesian auditor)

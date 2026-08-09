@@ -56,6 +56,7 @@ from app.backend.api.routers import (
     methods,
     methods_ajol,
     methods_bayes,
+    methods_debit_saved,
     methods_grim_saved,
     methods_retraction,
     methods_statcheck_cache,
@@ -364,6 +365,9 @@ def create_app(
     api.include_router(
         methods_grim_saved.router
     )  # /papers/{id}/grim-checks — saved GRIM/GRIMMER checks, split from methods.py (inc 401)
+    api.include_router(
+        methods_debit_saved.router
+    )  # /papers/{id}/debit-checks — saved DEBIT checks, split from methods.py (inc 467)
     api.include_router(
         methods_retraction.router
     )  # /methods/retraction/* — retraction findings, split from methods.py (inc 261)

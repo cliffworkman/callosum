@@ -1,17 +1,18 @@
 <!-- qa-coverage
-api: /methods/grim, GET /papers/{paper_id}/grim-checks, POST /papers/{paper_id}/grim-checks, DELETE /papers/{paper_id}/grim-checks/{check_id}
+api: /methods/grim, GET /papers/{paper_id}/grim-checks, POST /papers/{paper_id}/grim-checks, DELETE /papers/{paper_id}/grim-checks/{check_id}, /methods/debit, GET /papers/{paper_id}/debit-checks, POST /papers/{paper_id}/debit-checks, DELETE /papers/{paper_id}/debit-checks/{check_id}
 fe: 07_methods_grim.jsx
 -->
 
-# ROUTE 37 - Methods: GRIM + GRIMMER (data-consistency calculator)
+# ROUTE 37 - Methods: GRIM + GRIMMER + DEBIT (data-consistency calculators)
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust the assisted GRIM/GRIMMER calculator while preserving signal-not-verdict + no-accusation framing.
-It is **user-driven, per-value** (the user types a reported value) — it never scans, ranks, or labels papers.
+**Goal:** Exhaust the assisted GRIM/GRIMMER/DEBIT calculators while preserving signal-not-verdict + no-accusation
+framing. All three are **user-driven, per-value** (the user types a reported value) — none scan, rank, or label
+papers.
 
 ## Environment
 
-Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET** (GRIM is local/no-LLM — assert no
+Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET** (all three are local/no-LLM — assert no
 genai-host request regardless). Register listeners before navigation.
 
 ## Standing assertions
@@ -52,15 +53,24 @@ genai-host request regardless). Register listeners before navigation.
    (`DELETE /papers/{paper_id}/grim-checks/{check_id}`). Running "Check" WITHOUT clicking Save must never add
    anything to the saved list (scratch values stay scratch). Confirm the whole Data section — saved list
    included — is absent under `CALLOSUM_READ_ONLY=1` (unchanged `hideInReadOnly`).
+8. **Inc 467 DEBIT (a second, separate mini-form below GRIM/GRIMMER in the same Data section).** Enter a
+   DEBIT-consistent binary case (mean **0.500**, SD **0.527**, N **10**) -> **Check** (`POST /methods/debit`) ->
+   confirm **consistent**. Enter an inconsistent SD (e.g. SD **0.999** for the same mean/N) -> confirm
+   **impossible** with the binary-data caveat, never a verdict on the paper/author. Confirm the credit block
+   (Heathers & Brown 2019) links to the OSF page (no fabricated DOI) and offers **＋ add to library**. Repeat the
+   save/list/delete/paper-switch checks from step 7 against `/papers/{paper_id}/debit-checks` — confirm the same
+   paperId-reset behavior (no stale form/result bleeding across a paper switch) since this is new code, not a
+   copy that inherited the inc-401 fix for free.
 
 ## Pass criteria
 
-- The calculator computes GRIM (+ GRIMMER when SD given) with nearest-possible + caveats + credit.
+- Both calculators compute GRIM (+ GRIMMER when SD given) and DEBIT with nearest-possible/caveats + credit.
 - 0 console/page errors; **0 genai-host requests** (local).
 - No per-paper/per-author judgment, no score/rank; "impossible" is a prompt, not a verdict.
 - Bad inputs fail closed (422-class); mobile viewport has no horizontal overflow.
-- Saved checks are correctly paper-scoped, survive a refresh, and are removable; a saved verdict always matches
-  a fresh server-side recomputation of the same inputs (never a trusted client-side value).
+- Saved checks (both GRIM/GRIMMER and DEBIT) are correctly paper-scoped, survive a refresh, and are removable;
+  a saved verdict always matches a fresh server-side recomputation of the same inputs (never a trusted
+  client-side value).
 
 ## Deposit
 

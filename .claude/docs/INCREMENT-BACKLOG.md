@@ -137,15 +137,18 @@ the Principles + A-A gates before build.)*
   ethically fraught, "the disfavored extreme — it reintroduces the 'these are bad' valence").
 - **#41 User-authored modules (plugins).** [future track — record only] Deferred record of the idea + open
   questions. Do not build a plugin system until a dedicated design pass.
-- **#44 RegCheck's remaining Increment 5 slice — a DEBIT-style duplicate-publication/consistency registry.**
-  [future track — fraught, gated] Increments 1/1b/2/4/5-partial are fully shipped (`INCREMENT-BACKLOG-DONE.md`:
-  the transparency auditor, `DocumentTextProvider`, table-aware statcheck, and the full registration-discovery/
-  acquisition/comparison arc, incs 425-433). **What's left:** a broader consistency registry — DEBIT-style
-  duplicate-publication detection, and perhaps a collection-level z-curve.
-  `chatgpt5.5_future-tracks_integratinglakens.md` is the design source. **This is item #4 of the confirmed
-  post-P2 backlog sequence** (memory `callosum-next5-backlog-roadmap`) — next up; needs its own Principles (#9)
-  + APPROACH-AVOIDANCE values-layer pass before design, since the backlog flags this whole track "fraught,
-  gated."
+- **#54 Duplicate-publication detection.** [future track — fraught, gated] Spun off from #44 (inc 467), since it
+  was conflated with DEBIT in the original phrasing but is a materially different, harder feature: it compares
+  a paper's reported stats *against other papers/authors*, which risks the APPROACH-AVOIDANCE standalone
+  no-accusation boundary in a way a single-paper consistency check never does. Needs its own Principles (#9) +
+  APPROACH-AVOIDANCE values-layer pass before design — including what corpus it searches (the user's own
+  library only, vs. a genuine cross-author search, which raises new scope/egress questions) and how to reframe
+  as signal-not-accusation. `chatgpt5.5_future-tracks_integratinglakens.md` (item 5, "scrutiny") is the design
+  source.
+- **#55 Z-curve.** [future track — gated] Spun off from #44 (inc 467), same reason as #54. Collection-level
+  (not per-paper) and needs LLM-assisted "focal statistic" extraction — the design source itself calls this
+  "more dangerous" and judgment-laden, closer in shape to the assisted-extraction funnel (inc 259) than to a
+  deterministic Methods check. Needs its own design pass before build.
 
 ---
 
