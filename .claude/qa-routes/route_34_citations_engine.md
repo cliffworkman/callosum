@@ -34,6 +34,12 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - **Source edits preserve installed identity (inc 370).** Editing is limited to independent personal styles.
   Unsaved preview uses request-supplied validated XML without writing it. Save preserves both the local style id
   and canonical CSL id, uses an exact revision precondition, and atomically retains the prior file on failure.
+- **Zotero citation resolution is local-only and bounded (inc 464).** `POST /citations/zotero/resolve` never
+  fires an external request — it matches or creates a library paper purely from the citation's own embedded
+  CSL-JSON. Empty or over-300-item input → 422. The real end-to-end caller is the LibreOffice adapter's
+  "Convert Zotero citations…" command, verified via `python adapters/libreoffice/run_roundtrip.py`
+  (`spike_zotero_citation_conversion`), not this browser-driven route — this wildcard (`/citations*`) already
+  covers the endpoint for the QA surface-map gate; the assertions here are what a browser-only run can still check.
 
 ## Adversarial checklist
 
@@ -170,6 +176,15 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     bibliographies, survives save/reopen, and leaves the encoded citation metadata unchanged. Repeat with APA and
     confirm the dialog explains that its full-title request leaves visible text unchanged. Cancel must mutate
     nothing; an injected refresh failure must restore both the prior preference and rendered document.
+22. **Manual Writer Zotero citation conversion:** hand-build (or use a real Zotero-cited document) a Writer file
+    with a Zotero-shaped inline `ReferenceMark` matching an existing library paper by DOI, a second with no
+    match, a malformed Zotero-named mark, a `ZOTERO_BREF_…` Bookmark-mode anchor, and a `ZOTERO_BIBL …`
+    TextSection. Choose **Convert Zotero citations…** and confirm the pre-mutation dialog names exact counts
+    (citations to convert, note-style/Bookmark-mode left unconverted, bibliography to be replaced). Confirm the
+    matched citation keeps the existing paper's identity, the unmatched one creates a new metadata-only library
+    paper from its embedded metadata, the malformed mark and Bookmark-mode anchor are left untouched and named
+    in the summary, and Zotero's bibliography is replaced with a Callosum-managed one. Cancel the confirm dialog
+    and verify nothing in the document changed.
 
 ## Pass criteria
 

@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-09 inc 463 — citation coverage audit -->
+<!-- HELP-DOCS-SYNCED: 2026-08-09 inc 464 — Zotero citation conversion -->
+
+## 2026-08-09 — Increment 464: Zotero citation conversion for the LibreOffice adapter (backlog #33/#34, P2 #22 — track complete)
+- **Files:** `app/backend/api/routers/zotero_citations.py` (new), `app/backend/importers/zotero.py`,
+  `app/backend/api/app.py`, `adapters/libreoffice/callosum_cite.py`, `adapters/libreoffice/oxt/Addons.xcu`,
+  `adapters/libreoffice/selftest_uno.py`, `tests/test_zotero_citations.py` (new), `tests/test_libreoffice_adapter.py`,
+  `app/backend/help/help_content.md`.
+- **What:** a new "Convert Zotero citations…" LibreOffice command detects Zotero-authored ReferenceMarks
+  (format verified against Zotero's own open-source `zotero-libreoffice-integration`, not guessed at) and
+  converts them to live Callosum citations — matching an existing library paper first, else auto-adding a
+  metadata-only paper from the citation's own embedded CSL-JSON — via a new local-only
+  `POST /citations/zotero/resolve`. Zotero's own bibliography is swapped for a Callosum-managed one. Zotero's
+  Bookmark-mode fallback storage and note-style citations are detected and reported, not converted (disclosed
+  v1 boundaries). 17 new tests.
+- **Why:** closes P2 item #22 (Cross-manager conversion), scoped to Zotero-only (confirmed: Mendeley is
+  Word-only, EndNote's LibreOffice support is undocumented) — the last item in the confirmed P2-leapfrog
+  sequence (#19 → #17 → #20 → #21 → #18 → #22). **This closes the whole P2-leapfrog track.**
+- **Revert:** all changes additive/backward-compatible; no schema/migration; the existing Zotero *library*
+  importer and every other citation command are untouched.
 
 ## 2026-08-09 — Increment 463: Citation coverage audit for the LibreOffice adapter (backlog #33/#34, P2 #18)
 - **Files:** `app/backend/api/routers/citation_equity.py`, `adapters/libreoffice/callosum_cite.py`,

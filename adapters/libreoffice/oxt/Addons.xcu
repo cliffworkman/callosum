@@ -257,6 +257,16 @@
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>
+          <!-- P2 item #22 (backlog #33/#34, inc 464 — the final item in this track): detect Zotero-authored
+               ReferenceMarks (inline, format verified against Zotero's own zotero-libreoffice-integration
+               source) and convert them into live Callosum citations, matching or auto-adding library papers
+               from their embedded CSL-JSON. Note-style/Bookmark-mode citations are reported, not converted. -->
+          <node oor:name="m15" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?convertZoteroCitations</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Convert Zotero citations…</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
           <!-- P2 item #20 (backlog #33/#34, inc 461): Citavi-style insertion of a saved PDF highlight (quote
                and/or your own note) alongside a live citation, with an optional local stance check first. -->
           <node oor:name="m12" oor:op="replace">

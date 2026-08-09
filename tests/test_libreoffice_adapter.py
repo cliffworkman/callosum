@@ -2819,3 +2819,268 @@ def test_insert_staged_statement_cancel_does_not_insert(monkeypatch) -> None:
     monkeypatch.setattr(cc, "statements_pending", lambda base: {"funding": "Funded."})
     monkeypatch.setattr(cc, "_choice_box", lambda *a, **k: None)
     cc.insert_staged_statement(_FakeDoc(), "http://x")  # no exception, no insertion attempted
+
+
+# --- P2 item #22 (backlog #33/#34, inc 464 -- the final item in this track): Zotero citation conversion -------
+# Format verified against Zotero's own open-source zotero-libreoffice-integration (Document.java /
+# ReferenceMark.java), not guessed at. The real mark-name shape is `ZOTERO_` + `ITEM CSL_CITATION ` + json +
+# ` RND` + a random alphanumeric suffix.
+
+_ZOTERO_REAL_NAME = (
+    'ZOTERO_ITEM CSL_CITATION {"citationItems":[{"itemData":{"title":"Existing"},"uris":'
+    '["http://zotero.org/users/123/items/ABCD1234"]}]} RNDabc123'
+)
+
+
+def test_decode_zotero_mark_name_parses_real_shape_rejects_foreign_and_malformed() -> None:
+    decoded = cc._decode_zotero_mark_name(_ZOTERO_REAL_NAME)
+    assert decoded is not None
+    assert decoded["citationItems"][0]["itemData"]["title"] == "Existing"
+
+    # our own test literal for "another tool's mark" (test_decode_rejects_foreign_and_malformed) must also be a
+    # no-op for the Zotero decoder -- empty citationItems, not a real citation
+    assert cc._decode_zotero_mark_name("ZOTERO_ITEM CSL_CITATION {}") is None
+    assert cc._decode_zotero_mark_name("CALLOSUM_CITATION abc def") is None  # not Zotero's prefix at all
+    assert cc._decode_zotero_mark_name("ZOTERO_ITEM CSL_CITATION not-json RNDxyz") is None  # malformed JSON
+    assert cc._decode_zotero_mark_name(123) is None  # non-string input never raises
+
+
+class _ZoteroFakeMark:
+    def __init__(self, name: str) -> None:
+        self.Name = name
+
+    def getAnchor(self):
+        return SimpleNamespace()
+
+
+class _ZoteroFakeMarksCollection:
+    def __init__(self, names: list[str]) -> None:
+        self._names = names
+
+    def getElementNames(self) -> list[str]:
+        return list(self._names)
+
+    def getByName(self, name: str) -> _ZoteroFakeMark:
+        return _ZoteroFakeMark(name)
+
+
+class _ZoteroFakeBookmarks:
+    def __init__(self, names: list[str]) -> None:
+        self._names = names
+
+    def getElementNames(self) -> list[str]:
+        return list(self._names)
+
+
+class _ZoteroFakeSection:
+    def __init__(self, name: str) -> None:
+        self.Name = name
+
+
+class _ZoteroFakeSections:
+    def __init__(self, sections: dict[str, _ZoteroFakeSection]) -> None:
+        self._sections = sections
+
+    def getElementNames(self) -> list[str]:
+        return list(self._sections.keys())
+
+    def getByName(self, name: str) -> _ZoteroFakeSection:
+        return self._sections[name]
+
+
+class _ZoteroFakeDoc:
+    def __init__(
+        self,
+        mark_names: list[str] | None = None,
+        bookmark_names: list[str] | None = None,
+        sections: dict[str, _ZoteroFakeSection] | None = None,
+    ) -> None:
+        self._marks = _ZoteroFakeMarksCollection(mark_names or [])
+        self._bookmarks = _ZoteroFakeBookmarks(bookmark_names or [])
+        self._sections = _ZoteroFakeSections(sections or {})
+
+    def getReferenceMarks(self) -> _ZoteroFakeMarksCollection:
+        return self._marks
+
+    def getBookmarks(self) -> _ZoteroFakeBookmarks:
+        return self._bookmarks
+
+    def getTextSections(self) -> _ZoteroFakeSections:
+        return self._sections
+
+
+def test_zotero_citations_in_order_decodes_and_attaches_placement(monkeypatch) -> None:
+    doc = _ZoteroFakeDoc(mark_names=[_ZOTERO_REAL_NAME, "CALLOSUM_CITATION notours", "ZOTERO_ITEM CSL_CITATION {}"])
+    monkeypatch.setattr(cc, "_note_containers", lambda d: ["notes"])
+    monkeypatch.setattr(cc, "_citation_context", lambda d, mark, notes: {"placement": "inline", "notes": notes})
+
+    fields = cc._zotero_citations_in_order(doc)
+    assert len(fields) == 1  # the foreign mark and the empty-citationItems mark are both skipped
+    assert fields[0]["placement"] == "inline"
+    assert fields[0]["citationItems"][0]["itemData"]["title"] == "Existing"
+    assert fields[0]["notes"] == ["notes"]
+
+
+def test_zotero_bookmark_count_counts_bref_prefixed_bookmarks_only() -> None:
+    doc = _ZoteroFakeDoc(bookmark_names=["ZOTERO_BREF_abc123_1", "ZOTERO_BREF_def456_2", "CALLOSUM_BIBLIOGRAPHY"])
+    assert cc._zotero_bookmark_count(doc) == 2
+
+
+def test_zotero_bibliography_section_finds_bibl_prefixed_section() -> None:
+    section = _ZoteroFakeSection("ZOTERO_BIBL {} RNDxyz")
+    doc = _ZoteroFakeDoc(sections={"ZOTERO_BIBL {} RNDxyz": section, "SomeOtherSection": _ZoteroFakeSection("x")})
+    assert cc._zotero_bibliography_section(doc) is section
+    assert cc._zotero_bibliography_section(_ZoteroFakeDoc()) is None
+
+
+def test_zotero_conversion_scan_combines_inline_notestyle_bookmark_and_malformed(monkeypatch) -> None:
+    doc = _ZoteroFakeDoc(mark_names=[_ZOTERO_REAL_NAME, "ZOTERO_ITEM CSL_CITATION not-json RNDdef"])
+    monkeypatch.setattr(
+        cc,
+        "_zotero_citations_in_order",
+        lambda d: [
+            {"placement": "inline", "citationItems": [{"itemData": {"title": "A"}}]},
+            {"placement": "footnote", "citationItems": [{"itemData": {"title": "B"}}]},
+        ],
+    )
+    monkeypatch.setattr(cc, "_zotero_bookmark_count", lambda d: 2)
+    monkeypatch.setattr(cc, "_zotero_bibliography_section", lambda d: object())
+
+    scan = cc.zotero_conversion_scan(doc)
+    assert len(scan["inline"]) == 1
+    assert scan["note_style_count"] == 1
+    assert scan["bookmark_count"] == 2
+    assert scan["bibliography_found"] is True
+    assert scan["malformed_count"] == 1  # only the not-json mark fails to decode
+
+
+class _ZoteroRemovalCursor:
+    def __init__(self) -> None:
+        self.strings: list[str] = []
+
+    def setString(self, value: str) -> None:
+        self.strings.append(value)
+
+
+class _ZoteroRemovalText:
+    def __init__(self) -> None:
+        self.removed: list[object] = []
+
+    def createTextCursorByRange(self, anchor) -> _ZoteroRemovalCursor:
+        return _ZoteroRemovalCursor()
+
+    def removeTextContent(self, content) -> None:
+        self.removed.append(content)
+
+
+class _ZoteroRemovalMark:
+    def __init__(self, text: _ZoteroRemovalText) -> None:
+        self._anchor = SimpleNamespace(getText=lambda: text)
+
+    def getAnchor(self):
+        return self._anchor
+
+
+def _zotero_field(mark, item_data: dict, **overrides) -> dict:
+    return {"_mark": mark, "placement": "inline", "citationItems": [{"itemData": item_data, "uris": [], **overrides}]}
+
+
+def test_convert_zotero_citations_interactive_replaces_marks_and_reports(monkeypatch) -> None:
+    text = _ZoteroRemovalText()
+    mark = _ZoteroRemovalMark(text)
+    field = _zotero_field(mark, {"title": "Existing"}, locator="12")
+    scan = {
+        "inline": [field],
+        "note_style_count": 1,
+        "bookmark_count": 1,
+        "bibliography_found": False,
+        "malformed_count": 0,
+    }
+    monkeypatch.setattr(cc, "zotero_conversion_scan", lambda doc: scan)
+    monkeypatch.setattr(cc, "_confirm_box", lambda *a, **k: True)
+    monkeypatch.setattr(cc, "_zotero_bibliography_section", lambda doc: None)
+
+    posted = {}
+
+    def fake_post(url, body, timeout=10):
+        posted["url"], posted["body"] = url, body
+        return [{"paper_id": 42, "created": False}]
+
+    monkeypatch.setattr(cc, "_post_json", fake_post)
+
+    inserted = []
+
+    def fake_insert(doc, items, base, cursor=None):
+        inserted.append(items)
+        return "c1"
+
+    monkeypatch.setattr(cc, "insert_citation_items", fake_insert)
+    messages: list[str] = []
+    monkeypatch.setattr(cc, "_msgbox", lambda msg, title="callosum": messages.append(msg))
+
+    cc.convert_zotero_citations_interactive(object(), "http://x")
+
+    assert posted["url"] == "http://x/citations/zotero/resolve"
+    assert posted["body"]["items"][0]["item_data"] == {"title": "Existing"}
+    assert inserted == [[{"paper_id": 42, "locator": "12"}]]
+    assert text.removed == [mark]
+    assert "Converted 1 of 1" in messages[0]
+    assert "note-style" in messages[0]
+    assert "Bookmark-mode" in messages[0]
+
+
+def test_convert_zotero_citations_interactive_skips_unresolved_item_without_inserting(monkeypatch) -> None:
+    text = _ZoteroRemovalText()
+    mark = _ZoteroRemovalMark(text)
+    field = _zotero_field(mark, {"title": "Unmatched"})
+    scan = {
+        "inline": [field],
+        "note_style_count": 0,
+        "bookmark_count": 0,
+        "bibliography_found": False,
+        "malformed_count": 0,
+    }
+    monkeypatch.setattr(cc, "zotero_conversion_scan", lambda doc: scan)
+    monkeypatch.setattr(cc, "_confirm_box", lambda *a, **k: True)
+    monkeypatch.setattr(cc, "_zotero_bibliography_section", lambda doc: None)
+    # resolve returns a DIFFERENT paper than what the field's fingerprint maps to -- simulate by returning nothing
+    # usable: an empty resolved list means paper_id_by_fingerprint has no entry for this field's fingerprint.
+    monkeypatch.setattr(cc, "_post_json", lambda url, body, timeout=10: [])
+    inserted = []
+    monkeypatch.setattr(cc, "insert_citation_items", lambda doc, items, base, cursor=None: inserted.append(items))
+    messages: list[str] = []
+    monkeypatch.setattr(cc, "_msgbox", lambda msg, title="callosum": messages.append(msg))
+
+    cc.convert_zotero_citations_interactive(object(), "http://x")
+
+    assert inserted == []
+    assert text.removed == []  # never touched -- nothing was resolved to replace it with
+    assert "Converted 0 of 1" in messages[0]
+
+
+def test_convert_zotero_citations_interactive_cancel_on_declined_confirm(monkeypatch) -> None:
+    field = _zotero_field(_ZoteroRemovalMark(_ZoteroRemovalText()), {"title": "X"})
+    scan = {
+        "inline": [field],
+        "note_style_count": 0,
+        "bookmark_count": 0,
+        "bibliography_found": False,
+        "malformed_count": 0,
+    }
+    monkeypatch.setattr(cc, "zotero_conversion_scan", lambda doc: scan)
+    monkeypatch.setattr(cc, "_confirm_box", lambda *a, **k: False)
+
+    def fail_post(*a, **k):
+        return pytest.fail("must not call the backend when the user declines the confirm dialog")
+
+    monkeypatch.setattr(cc, "_post_json", fail_post)
+    cc.convert_zotero_citations_interactive(object(), "http://x")  # no exception, no backend call
+
+
+def test_convert_zotero_citations_interactive_nothing_found_shows_message(monkeypatch) -> None:
+    scan = {"inline": [], "note_style_count": 0, "bookmark_count": 0, "bibliography_found": False, "malformed_count": 0}
+    monkeypatch.setattr(cc, "zotero_conversion_scan", lambda doc: scan)
+    messages: list[str] = []
+    monkeypatch.setattr(cc, "_msgbox", lambda msg, title="callosum": messages.append(msg))
+    cc.convert_zotero_citations_interactive(object(), "http://x")
+    assert messages == ["No Zotero citations found in this document."]

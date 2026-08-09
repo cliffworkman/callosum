@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -177,6 +179,74 @@ def normalize_zotero_item(item: ZoteroItemRecord) -> dict[str, Any]:
         "csl_json": csl_json,
         "processing_tier": "metadata-only",
     }
+
+
+# A Zotero word-processor citation URI, e.g. "http://zotero.org/users/123/items/ABCD1234" or
+# ".../groups/456/items/ABCD1234" -- the same (library_id, item_key) identity pair `papers.zotero_library_id` /
+# `papers.zotero_item_key` already store for the *library* importer above (inc 464, backlog #33/#34 P2 #22).
+ZOTERO_ITEM_URI_RE = re.compile(r"zotero\.org/(?:users|groups)/([^/]+)/items/([A-Za-z0-9]+)")
+
+
+def normalize_zotero_csl_item(item_data: dict[str, Any], uris: Iterable[str] = ()) -> dict[str, Any]:
+    """Canonicalize a citation's embedded Zotero ``itemData`` (already CSL-JSON — no ``ZOTERO_TYPE_TO_CSL``
+    translation needed, unlike :func:`normalize_zotero_item`'s raw Zotero-field input) into the same
+    ``create_paper``-shaped dict. Used only when a document's Zotero-authored citation doesn't match an existing
+    library paper (`find_existing_paper_by_identity`) and gets auto-added from its own embedded metadata — same
+    ``imported_source``/``processing_tier`` trust posture as the library importer above, not a new judgment.
+
+    Defensive: any missing/malformed field is just absent from the result (never raises) — the embedded JSON
+    came from a Writer document's ReferenceMark name, untrusted content per rule #4.
+    """
+    title = str(item_data.get("title") or "Untitled Zotero Citation")
+    year = _year_from_csl_issued(item_data.get("issued"))
+    authors = item_data.get("author")
+    first_author_family_name = None
+    if isinstance(authors, list) and authors and isinstance(authors[0], dict):
+        family = authors[0].get("family")
+        first_author_family_name = str(family) if family else None
+
+    zotero_library_id: str | None = None
+    zotero_item_key: str | None = None
+    for uri in uris:
+        match = ZOTERO_ITEM_URI_RE.search(str(uri))
+        if match:
+            zotero_library_id, zotero_item_key = match.group(1), match.group(2)
+            break
+
+    doi = item_data.get("DOI")
+    item_type = item_data.get("type")
+    return {
+        "title": title,
+        "abstract": item_data.get("abstract") if isinstance(item_data.get("abstract"), str) else None,
+        "year": year,
+        "doi": str(doi) if doi else None,
+        "venue": item_data.get("container-title") if isinstance(item_data.get("container-title"), str) else None,
+        "item_type": str(item_type) if item_type else None,
+        "language": item_data.get("language") if isinstance(item_data.get("language"), str) else None,
+        "publication_date": None,  # CSL `issued` carries no verbatim date string worth preserving separately
+        "first_author_family_name": first_author_family_name,
+        "imported_source": ZOTERO_IMPORT_SOURCE,
+        "zotero_library_id": zotero_library_id,
+        "zotero_item_key": zotero_item_key,
+        "citation_key": None,
+        "csl_json": dict(item_data),
+        "processing_tier": "metadata-only",
+    }
+
+
+def _year_from_csl_issued(issued: Any) -> int | None:
+    """``issued`` is CSL's ``{"date-parts": [[2020, 5, 1]]}`` shape (or absent). Defensive: any other shape
+    (string EDTF dates, missing keys) yields ``None`` rather than guessing."""
+    if not isinstance(issued, dict):
+        return None
+    date_parts = issued.get("date-parts")
+    if not isinstance(date_parts, list) or not date_parts or not isinstance(date_parts[0], list) or not date_parts[0]:
+        return None
+    year = date_parts[0][0]
+    try:
+        return int(year)
+    except (TypeError, ValueError):
+        return None
 
 
 def _upsert_attachment(

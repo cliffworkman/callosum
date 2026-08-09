@@ -98,6 +98,7 @@ from app.backend.api.routers import (
     wip_workflow,
     word,
     workbench,
+    zotero_citations,
 )
 from app.backend.api.sqlite_retry_middleware import SqliteWriteRetryMiddleware
 from app.backend.api.startup import PROJECT_ROOT, _upgrade_database_to_head, load_local_env
@@ -399,6 +400,9 @@ def create_app(
     api.include_router(feed.router)  # /feed/* — literature Feed: followed sources, polled (inc 187)
     api.include_router(citation_style_lifecycle.router)  # explicit CSL provenance/update/copy lifecycle (inc 369)
     api.include_router(citations.router)  # /citations/* — formatted-citation engine (inc 106)
+    api.include_router(
+        zotero_citations.router
+    )  # /citations/zotero/resolve — Zotero citation conversion (P2 #22, inc 464)
     api.include_router(
         citation_stance.router
     )  # /citations/classify-stance — pairwise stance, split from citations.py (inc 461)

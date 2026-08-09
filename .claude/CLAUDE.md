@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 463** (see Increment workflow) with **2019 root-suite pytest tests
+It is currently at **Increment 464** (see Increment workflow) with **2036 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -332,7 +332,22 @@ the full per-increment narrative for all other increments now lives in the reloc
   (`>0` iff the first range precedes the second), not assumed — a duck-typed unit test alone had "passed" with
   the same wrong polarity baked into both the fake and the code under test; only the real-UNO spike (which
   needed a genuine two-document redesign after its first draft hit `citation_placement_error`'s real, deliberate
-  refusal to mix inline and note-style citations in one document) proved it fixed.
+  refusal to mix inline and note-style citations in one document) proved it fixed. **Inc 464 closes the P2
+  leapfrog track's #22 ("cross-manager conversion") and the whole track with it**, scoped to **Zotero only**
+  (the competitive-review doc shows only Zotero has documented first-party LibreOffice integration; Mendeley
+  Cite is Word-only, EndNote's is undocumented). The citation format was **verified against Zotero's own
+  open-source `zotero-libreoffice-integration`** (`Document.java`/`ReferenceMark.java`), per an explicit
+  research-first direction rather than reverse-engineering a sample file: a Writer ReferenceMark whose *name*
+  is `ZOTERO_ITEM CSL_CITATION {json} RND<random>`, self-contained CSL-JSON, matching the literal
+  `"ZOTERO_ITEM CSL_CITATION {}"` this codebase's own foreign-mark test already assumed. A new "Convert Zotero
+  citations…" command scans read-only first, confirms with the user, then resolves every distinct cited work
+  via a new local-only `POST /citations/zotero/resolve` (`find_existing_paper_by_identity` reused unchanged;
+  an unmatched work auto-adds a metadata-only paper straight from its embedded CSL-JSON — the exact
+  `imported_source="zotero"`/`processing_tier="metadata-only"` trust posture the existing Zotero *library*
+  importer already uses), replaces each mark via the unchanged `insert_citation_items`, and swaps Zotero's own
+  bibliography TextSection for a callosum-managed one via the unchanged `refresh()`. Zotero's Bookmark-mode
+  fallback storage (an unverified internal format) and note-style Zotero citations are detected and counted but
+  not converted — disclosed in both the confirm dialog and the summary, never silently dropped.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,

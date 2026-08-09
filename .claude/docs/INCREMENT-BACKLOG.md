@@ -485,11 +485,10 @@ the Principles + A-A gates before build.)*
   **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
   not left to drift like the composer's verification did). Remaining P1 future tracks (traveling-library
-  portability and comprehensive keyboard/accessibility) **and P2
-  leapfrog remaining items** (cross-manager conversion [#22], the track's last item) — see the roadmap doc for
-  the full prioritized list + a test plan. A confirmed linear order for the P2 track:
-  #19 → #17 → #20 → #21 → #18 → #22 (see memory `callosum-p2-leapfrog-roadmap`) — #19, #17, #20, #21, and #18
-  are now closed; #22 is last.
+  portability and comprehensive keyboard/accessibility) — see the roadmap doc for the full prioritized list + a
+  test plan. **The confirmed P2-leapfrog track is now fully closed:**
+  #19 → #17 → #20 → #21 → #18 → #22 (see memory `callosum-p2-leapfrog-roadmap`) — all six items shipped,
+  inc 459 through inc 464.
   ✅ **P2 item #19 (citation integrity preflight) CLOSED inc 459.** A reuse-first, document-scoped slice: a new
   "Citation integrity preflight…" LibreOffice command folds `diagnose_document`'s existing mechanics report
   (malformed/duplicate/orphaned marks, bibliography health) together with a fresh, on-demand retraction
@@ -547,6 +546,22 @@ the Principles + A-A gates before build.)*
   it shipped, then confirmed fixed via a dedicated real-UNO spike. The rest of the roadmap's #18 checklist
   (evidence-relatedness NLI, review-vs-primary preference, secondhand citation) needs real claim-level semantic
   parsing nothing in callosum does today — a deliberate v1 boundary, matching every prior item in this track.
+  ✅ **P2 item #22 (cross-manager conversion) CLOSED inc 464 — the P2-leapfrog track's final item.** Scoped to
+  **Zotero only** (confirmed with Cliff): the competitive-review doc shows Zotero has documented first-party
+  LibreOffice integration while Mendeley Cite is Word-only and EndNote's LibreOffice support is undocumented.
+  The exact citation format was **verified against Zotero's own open-source `zotero-libreoffice-integration`**
+  (`Document.java`/`ReferenceMark.java`), per Cliff's explicit "research first" direction rather than
+  reverse-engineering a sample file: a Writer ReferenceMark whose *name* (not content) is `ZOTERO_ITEM
+  CSL_CITATION {json} RND<random>`, self-contained full CSL-JSON, no live Zotero connection needed to read it.
+  A new "Convert Zotero citations…" command scans read-only first, confirms with the user, then resolves every
+  distinct cited work via a new local-only `POST /citations/zotero/resolve` (matching an existing library paper
+  by DOI/zotero-key/title-year-author — reusing `find_existing_paper_by_identity` unchanged — or auto-adding a
+  metadata-only paper straight from the embedded CSL-JSON, the exact trust posture the existing Zotero *library*
+  importer already uses), then replaces each mark with a live callosum citation at the same position via the
+  unchanged `insert_citation_items`, and swaps Zotero's own bibliography TextSection for a callosum-managed one
+  via the unchanged `refresh()`. **Confirmed v1 boundaries, disclosed in both the confirm dialog and the final
+  summary, not silently dropped:** Zotero's Bookmark-mode fallback storage (unverified internal format) and
+  note-style (footnote/endnote) Zotero citations are detected and counted but not converted.
   **UX follow-ups (incs 374/375/376/382/383) — CLOSED inc 446.** All three state-blind toggles (automatic
   bibliography rebuilding, citation-to-bibliography links, bibliography title/DOI links) now expose current
   ON/OFF state via "Document diagnostics…" (always-present, read-only) and each toggle's own message now states

@@ -6047,6 +6047,233 @@ def citation_coverage_audit_interactive(doc, base: str) -> None:
     _msgbox("\n\n".join(lines), title="callosum — citation coverage audit")
 
 
+# inc 464 (P2 item #22, backlog #33\#34 — the final item in this track): convert Zotero LibreOffice citations
+# into live Callosum citations. Format verified from Zotero's own open-source zotero-libreoffice-integration
+# (Document.java / ReferenceMark.java) rather than guessed at or reverse-engineered from a sample file (Cliff's
+# explicit direction) — see INCREMENT-464-NOTES.md for the citations. v1 is Zotero-only (Mendeley is Word-only;
+# EndNote's LibreOffice support is undocumented, per the competitive-review doc) and inline-only: Zotero's
+# Bookmark-mode fallback isn't self-contained the way ReferenceMarks are (an unverified internal format,
+# declared out of scope), and note-style Zotero citations are detected + reported but not converted (the same
+# foreign-mark-inside-a-note risk `citation_placement_error` already guards against for Callosum's own marks).
+# This is a faithful format migration, not a claim about the literature — auto-added papers use the exact same
+# imported_source="zotero"/processing_tier="metadata-only" trust posture the Zotero *library* importer already
+# uses for the same self-asserted metadata.
+
+ZOTERO_MARK_PREFIX = "ZOTERO_"
+ZOTERO_ITEM_TAG = "ITEM CSL_CITATION "
+ZOTERO_BIBL_TAG = "BIBL "
+ZOTERO_BOOKMARK_PREFIX = "ZOTERO_BREF_"
+MAX_ZOTERO_DISTINCT_WORKS = 300  # mirrors the backend's own cap (zotero_citations.py)
+MAX_ZOTERO_CONVERT_MARKS = 500  # bounds the per-occurrence replace loop (each is its own document refresh)
+_ZOTERO_ITEM_OVERRIDE_KEYS = ("locator", "label", "prefix", "suffix", "suppress-author", "author-only")
+
+
+def _decode_zotero_mark_name(name: str) -> dict | None:
+    """Inverse of Zotero's own LibreOffice naming scheme (``PREFIXES[0] + IMPORT_ITEM_PREFIX + json + " RND" +
+    random``, verified against zotero-libreoffice-integration's Document.java/ReferenceMark.java). Strips the
+    trailing " RND<random>" suffix the same way Zotero's own getCode() does (find the LAST " RND" marker;
+    everything after it is the random tag), then requires what remains to start with the item tag and parse as
+    the citation.json-shaped payload. Returns the decoded ``{"citationItems": [...], ...}`` dict, or None for
+    anything foreign/malformed — defensive like `decode_mark_name`: this is untrusted content pulled from an
+    opened document (rule #4) and must never raise.
+    """
+    if not isinstance(name, str) or not name.startswith(ZOTERO_MARK_PREFIX):
+        return None
+    without_prefix = name[len(ZOTERO_MARK_PREFIX) :]
+    marker = without_prefix.rfind(" RND")
+    code = without_prefix[:marker] if marker != -1 and without_prefix[marker + 4 :].isalnum() else without_prefix
+    if not code.startswith(ZOTERO_ITEM_TAG):
+        return None
+    try:
+        payload = json.loads(code[len(ZOTERO_ITEM_TAG) :])
+    except (ValueError, TypeError):
+        return None
+    items = payload.get("citationItems") if isinstance(payload, dict) else None
+    if not isinstance(items, list) or not items:
+        return None
+    return payload
+
+
+def _zotero_citations_in_order(doc) -> list[dict]:
+    """Every Zotero ReferenceMark in the document, decoded, with placement context attached (mirrors
+    `scan_citations_in_order`). Each entry: ``{"_mark", "placement", "citationItems": [...]}``. Placement reuses
+    `_citation_context`, which is already mark-agnostic — it classifies any ReferenceMark's anchor, not just
+    Callosum's own."""
+    notes = _note_containers(doc)
+    marks = doc.getReferenceMarks()
+    out = []
+    for name in marks.getElementNames():
+        decoded = _decode_zotero_mark_name(name)
+        if decoded is None:
+            continue
+        mark = marks.getByName(name)
+        context = _citation_context(doc, mark, notes)
+        out.append({"_mark": mark, "citationItems": decoded["citationItems"], **context})
+    return out
+
+
+def _zotero_bookmark_count(doc) -> int:
+    """How many Zotero Bookmark-mode citation anchors are present (``ZOTERO_BREF_...``) — detected and
+    reported, never parsed: that fallback mode's actual data-storage mechanism isn't self-contained in the
+    bookmark name the way ReferenceMarks are, and isn't corroborated from Zotero's public docs/source."""
+    return sum(
+        1
+        for name in doc.getBookmarks().getElementNames()
+        if isinstance(name, str) and name.startswith(ZOTERO_BOOKMARK_PREFIX)
+    )
+
+
+def _zotero_bibliography_section(doc):
+    """The Zotero-generated bibliography TextSection (``ZOTERO_BIBL ...``), or None. A distinct object type and
+    naming scheme from Callosum's own bibliography (a bookmark PAIR, `BIB_BOOKMARK`/`BIB_BOOKMARK_END`) — no
+    collision risk."""
+    try:
+        sections = doc.getTextSections()
+    except Exception:
+        return None
+    for name in sections.getElementNames():
+        if isinstance(name, str) and name.startswith(ZOTERO_MARK_PREFIX + ZOTERO_BIBL_TAG):
+            return sections.getByName(name)
+    return None
+
+
+def zotero_conversion_scan(doc) -> dict:
+    """Read-only. Returns ``{"inline": [...], "note_style_count", "bookmark_count", "bibliography_found",
+    "malformed_count"}``. ``inline`` is the list of convertible Zotero citation occurrences
+    (`_zotero_citations_in_order`, placement == "inline"); note-style occurrences and Bookmark-mode anchors are
+    counted but not returned — a disclosed v1 boundary, never silently dropped. Never mutates the document."""
+    fields = _zotero_citations_in_order(doc)
+    inline = [f for f in fields if f["placement"] == "inline"]
+    note_style_count = sum(1 for f in fields if f["placement"] in NOTE_PLACEMENTS)
+    malformed_count = sum(
+        1
+        for name in doc.getReferenceMarks().getElementNames()
+        if isinstance(name, str) and name.startswith(ZOTERO_MARK_PREFIX) and _decode_zotero_mark_name(name) is None
+    )
+    return {
+        "inline": inline,
+        "note_style_count": note_style_count,
+        "bookmark_count": _zotero_bookmark_count(doc),
+        "bibliography_found": _zotero_bibliography_section(doc) is not None,
+        "malformed_count": malformed_count,
+    }
+
+
+def convert_zotero_citations_interactive(doc, base: str) -> None:
+    """Detect + convert this document's Zotero-authored inline citations into live Callosum citations. Read-only
+    scan first, an explicit confirm dialog naming exactly what will happen (including everything left
+    unconverted and why) before any mutation, then: resolve every distinct cited work via one
+    ``POST /citations/zotero/resolve`` call (matching an existing library paper first, else auto-adding one from
+    the citation's own embedded CSL-JSON), replace each inline Zotero mark with a live Callosum one at the same
+    position — carrying over locator/label/prefix/suffix/suppress-author/author-only verbatim, since Zotero's
+    citation.json schema uses the exact same key names Callosum's own `_ITEM_DEFAULTS` does — and swap Zotero's
+    own bibliography TextSection (if found) for a Callosum-managed one at the same position."""
+    scan = zotero_conversion_scan(doc)
+    inline = scan["inline"][:MAX_ZOTERO_CONVERT_MARKS]
+    truncated = len(scan["inline"]) - len(inline)
+    if not inline and scan["note_style_count"] == 0 and scan["bookmark_count"] == 0:
+        _msgbox("No Zotero citations found in this document.", title="callosum — convert Zotero citations")
+        return
+
+    lines: list[str] = []
+    if inline:
+        lines.append(f"Convert {len(inline)} Zotero citation(s) to live Callosum citations.")
+        if truncated:
+            lines.append(
+                f"({truncated} more were found beyond this run's {MAX_ZOTERO_CONVERT_MARKS}-citation limit — "
+                "re-run afterward to continue.)"
+            )
+    if scan["note_style_count"]:
+        lines.append(
+            f"{scan['note_style_count']} note-style (footnote/endnote) Zotero citation(s) found — will be left "
+            "unconverted (not yet supported)."
+        )
+    if scan["bookmark_count"]:
+        lines.append(
+            f"{scan['bookmark_count']} Zotero citation(s) appear to use Bookmark-mode storage — will be left "
+            "unconverted (not yet supported)."
+        )
+    if scan["bibliography_found"]:
+        lines.append("Zotero's generated bibliography will be replaced with a Callosum-managed one.")
+    if scan["malformed_count"]:
+        lines.append(f"{scan['malformed_count']} Zotero-named field(s) could not be read and will be left untouched.")
+    if not inline:
+        _msgbox("\n".join(lines), title="callosum — convert Zotero citations")
+        return
+    if not _confirm_box("\n".join(lines) + "\n\nProceed?", title="callosum — convert Zotero citations"):
+        return
+
+    fingerprints: dict[str, dict] = {}
+    order: list[str] = []
+    for field in inline:
+        for item in field["citationItems"]:
+            item_data = item.get("itemData") or {}
+            fingerprint = json.dumps(item_data, sort_keys=True)
+            if fingerprint not in fingerprints:
+                fingerprints[fingerprint] = {"item_data": item_data, "uris": item.get("uris") or []}
+                order.append(fingerprint)
+    resolve_items = [fingerprints[fp] for fp in order][:MAX_ZOTERO_DISTINCT_WORKS]
+    try:
+        resolved = _post_json(f"{base}/citations/zotero/resolve", {"items": resolve_items})
+    except Exception as exc:  # noqa: BLE001 — never leaves the document half-edited on a down/slow backend
+        _msgbox(
+            f"Couldn't resolve Zotero citations against your library: {exc}",
+            title="callosum — convert Zotero citations",
+        )
+        return
+    paper_id_by_fingerprint = {order[i]: r["paper_id"] for i, r in enumerate(resolved)}
+    created_count = sum(1 for r in resolved if r.get("created"))
+
+    converted = 0
+    for field in inline:
+        mark = field["_mark"]
+        items_payload: list[dict] = []
+        for item in field["citationItems"]:
+            item_data = item.get("itemData") or {}
+            fingerprint = json.dumps(item_data, sort_keys=True)
+            paper_id = paper_id_by_fingerprint.get(fingerprint)
+            if paper_id is None:
+                items_payload = []
+                break
+            overrides = {k: item[k] for k in _ZOTERO_ITEM_OVERRIDE_KEYS if k in item}
+            items_payload.append({"paper_id": paper_id, **overrides})
+        if not items_payload:
+            continue
+        source_text = mark.getAnchor().getText()
+        source_cursor = source_text.createTextCursorByRange(mark.getAnchor())
+        source_text.removeTextContent(mark)
+        source_cursor.setString("")
+        insert_citation_items(doc, items_payload, base, cursor=source_cursor)
+        converted += 1
+
+    bibliography_swapped = False
+    section = _zotero_bibliography_section(doc)
+    if section is not None:
+        try:
+            text = doc.getText()
+            cursor = text.createTextCursorByRange(section.getAnchor())
+            cursor.setString("")
+            text.removeTextContent(section)
+            refresh(doc, base, bib_cursor=cursor, update_citations=False, update_bibliography=True)
+            bibliography_swapped = True
+        except Exception:
+            pass
+
+    summary = [
+        f"Converted {converted} of {len(inline)} Zotero citation(s) ({len(resolved)} distinct work(s), "
+        f"{created_count} newly added to your library)."
+    ]
+    if scan["note_style_count"]:
+        summary.append(f"Left unconverted: {scan['note_style_count']} note-style citation(s) (not yet supported).")
+    if scan["bookmark_count"]:
+        summary.append(f"Left unconverted: {scan['bookmark_count']} Bookmark-mode citation(s) (not yet supported).")
+    if bibliography_swapped:
+        summary.append("Zotero's bibliography was replaced with a Callosum-managed one.")
+    elif scan["bibliography_found"]:
+        summary.append("Zotero's bibliography could not be automatically replaced.")
+    _msgbox("\n".join(summary), title="callosum — convert Zotero citations")
+
+
 def list_document_citations(doc, base: str) -> list[dict]:
     """Read-only rollup of every unique cited work in the document, in first-occurrence order (P1 item #12,
     backlog #33/#34 — the "Citations in this document" panel's data source), PLUS any manually-included
@@ -6219,6 +6446,7 @@ _ACTIONS = {
     "citationIntegrityPreflight": citation_integrity_preflight_interactive,
     "citationCoverageAudit": citation_coverage_audit_interactive,
     "insertEvidence": insert_evidence_interactive,
+    "convertZoteroCitations": convert_zotero_citations_interactive,
 }
 
 
@@ -6400,6 +6628,10 @@ def CallosumInsertEvidence(*_args):
     _macro("insertEvidence")
 
 
+def CallosumConvertZoteroCitations(*_args):
+    _macro("convertZoteroCitations")
+
+
 g_exportedScripts = (
     CallosumAddCitation,
     CallosumInsertCitation,
@@ -6438,4 +6670,5 @@ g_exportedScripts = (
     CallosumCitationCoverageAudit,
     CallosumInsertEvidence,
     CallosumInsertStagedStatement,
+    CallosumConvertZoteroCitations,
 )

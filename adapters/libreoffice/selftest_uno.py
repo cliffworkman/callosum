@@ -17,9 +17,11 @@ soffice, run this, tear down. Also runs in CI, path-scoped and non-blocking — 
 Prints "SELFTEST OK" and exits 0 on success; prints the failed assertion and exits 1 otherwise.
 """
 
+import json
 import os
 import sys
 import time
+import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import callosum_cite as cc  # noqa: E402  (after sys.path injection)
@@ -2272,6 +2274,166 @@ def spike_citation_coverage_audit(ctx, base, p1, p2):
     )
 
 
+def _zotero_mark_name(suffix: str, item_data: dict, uris: list | None = None) -> str:
+    payload = {"citationItems": [{"itemData": item_data, "uris": uris or []}]}
+    return f"ZOTERO_ITEM CSL_CITATION {json.dumps(payload)} RND{suffix}"
+
+
+def _insert_zotero_mark(doc, text, service: str, name: str, rendered_text: str, *, content_updatable=True) -> None:
+    cursor = text.createTextCursorByRange(text.getEnd())
+    cursor.setString(rendered_text)
+    content = doc.createInstance(service)
+    content.Name = name
+    text.insertTextContent(cursor, content, content_updatable)
+    text.insertControlCharacter(text.createTextCursorByRange(text.getEnd()), cc._PARAGRAH_BREAK(), False)
+
+
+def _run_zotero_conversion(doc, base):
+    """Runs `convert_zotero_citations_interactive` with the confirm dialog auto-accepted, returns the captured
+    summary text. Shared by both halves of `spike_zotero_citation_conversion`."""
+    captured = []
+    original_msgbox, original_confirm = cc._msgbox, cc._confirm_box
+    cc._msgbox = lambda message, title="callosum": captured.append((message, title))
+    cc._confirm_box = lambda *a, **k: True
+    try:
+        cc.convert_zotero_citations_interactive(doc, base)
+    finally:
+        cc._msgbox, cc._confirm_box = original_msgbox, original_confirm
+    check(len(captured) == 1, f"expected exactly one summary report, got {captured}")
+    summary, title = captured[0]
+    check(title == "callosum — convert Zotero citations", f"unexpected report title: {title!r}")
+    return summary
+
+
+def spike_zotero_citation_conversion(ctx, base, p1, p2):
+    """P2 item #22 (backlog #33/#34, inc 464 — the final item in this track): proves
+    `convert_zotero_citations_interactive` against REAL Writer documents carrying hand-built Zotero-shaped
+    ReferenceMarks and a Zotero-shaped bibliography TextSection. No live Zotero install is available, so the
+    marks are constructed directly from the VERIFIED naming/payload scheme
+    (zotero-libreoffice-integration's Document.java/ReferenceMark.java — `ZOTERO_` + `ITEM CSL_CITATION ` +
+    citation.json + ` RND` + random), never simulated through this adapter's own `encode_mark_name`.
+
+    TWO separate documents, not one -- deliberately, after this spike's first draft caught a real gap: the
+    shared `p1`/`p2` fixture papers (`run_roundtrip.py::seed_db`) are created with `csl_json=` only, never an
+    explicit `doi=`/`year=`/`first_author_family_name=`, so their DB COLUMNS (what `find_existing_paper_by_
+    identity` actually matches against) are NULL even though their `csl_json` blob happens to carry a DOI. This
+    spike proves the real "match an existing paper" path with a fixture-independent, self-contained pair of
+    documents instead: doc A cites a brand-new work (must auto-add it), doc B independently cites the SAME work
+    (must resolve to the paper doc A just created, never a duplicate) -- exercising the exact same
+    `find_existing_paper_by_identity` DOI path, just proven end-to-end rather than assumed against a column the
+    shared seed fixture never actually populates.
+    """
+    shared_doi = f"10.9999/zotero-spike-{uuid.uuid4().hex[:8]}"
+    shared_item_data = {
+        "type": "article-journal",
+        "title": "A Brand New Zotero-Cited Work",
+        "DOI": shared_doi,
+        "author": [{"family": "New", "given": "Author"}],
+        "issued": {"date-parts": [[2024]]},
+    }
+
+    # -- doc A: the brand-new work, PLUS the malformed-mark/Bookmark-mode/bibliography boundary checks --------
+    doc_a = new_writer(ctx)
+    text_a = doc_a.getText()
+    _insert_zotero_mark(
+        doc_a,
+        text_a,
+        "com.sun.star.text.ReferenceMark",
+        _zotero_mark_name("aaaaaaaaaa", shared_item_data),
+        "(New Author, 2024)",
+    )
+    _insert_zotero_mark(
+        doc_a,
+        text_a,
+        "com.sun.star.text.ReferenceMark",
+        "ZOTERO_ITEM CSL_CITATION not-json RNDcccccccccc",
+        "(broken)",
+    )
+    _insert_zotero_mark(
+        doc_a,
+        text_a,
+        "com.sun.star.text.Bookmark",
+        "ZOTERO_BREF_spike00000_1",
+        "(bookmark mode)",
+        content_updatable=False,
+    )
+    cursor = text_a.createTextCursorByRange(text_a.getEnd())
+    cursor.setString("References\nNew, A. (2024). A Brand New Zotero-Cited Work.\n")
+    section = doc_a.createInstance("com.sun.star.text.TextSection")
+    section.Name = "ZOTERO_BIBL {} RNDdddddddddd"
+    text_a.insertTextContent(cursor, section, False)
+
+    log("spike (P2 #22): doc A hand-built (1 new citation, 1 malformed mark, 1 Bookmark-mode anchor, 1 bibliography)")
+    scan_a = cc.zotero_conversion_scan(doc_a)
+    check(
+        len(scan_a["inline"]) == 1,
+        f"expected 1 convertible inline Zotero citation, got {len(scan_a['inline'])}: {scan_a}",
+    )
+    check(scan_a["bookmark_count"] == 1, f"expected 1 Bookmark-mode anchor detected, got {scan_a['bookmark_count']}")
+    check(scan_a["bibliography_found"] is True, "Zotero bibliography TextSection was not detected")
+    check(scan_a["malformed_count"] == 1, f"expected 1 malformed Zotero mark reported, got {scan_a['malformed_count']}")
+    log(
+        f"spike (P2 #22): OK — doc A scan matches exactly what was built: "
+        f"{scan_a['bookmark_count']=} {scan_a['malformed_count']=}"
+    )
+
+    summary_a = _run_zotero_conversion(doc_a, base)
+    check("Converted 1 of 1" in summary_a, f"doc A summary did not report converting its one citation: {summary_a!r}")
+    check(
+        "Bookmark-mode" in summary_a,
+        f"doc A summary did not disclose the skipped Bookmark-mode citation: {summary_a!r}",
+    )
+    log(f"spike (P2 #22): OK — doc A conversion summary: {summary_a!r}")
+
+    remaining_zotero_a = [n for n in doc_a.getReferenceMarks().getElementNames() if cc._decode_zotero_mark_name(n)]
+    check(
+        remaining_zotero_a == [], f"Zotero marks should be fully replaced in doc A, still present: {remaining_zotero_a}"
+    )
+    check(cc._zotero_bibliography_section(doc_a) is None, "Zotero bibliography TextSection was not removed from doc A")
+    check(cc.BIB_HEADING in text_a.getString(), "Callosum-managed bibliography heading missing after the swap in doc A")
+
+    fields_a = cc.scan_citations_in_order(doc_a)
+    check(
+        len(fields_a) == 1, f"expected exactly 1 real Callosum citation in doc A after conversion, got {len(fields_a)}"
+    )
+    created_paper_id = cc._paper_id_from_item(fields_a[0]["items"][0])
+    check(created_paper_id is not None, f"converted doc A citation carries no resolvable paper id: {fields_a}")
+    created_csl = cc.fetch_csl(base, created_paper_id)
+    check(
+        created_csl.get("DOI") == shared_doi,
+        f"auto-added paper {created_paper_id} has DOI {created_csl.get('DOI')!r}, expected {shared_doi!r}",
+    )
+    log(f"spike (P2 #22): OK — doc A's unmatched citation auto-added new library paper {created_paper_id}")
+
+    # -- doc B: the SAME work cited again, independently -- must resolve to paper {created_paper_id}, no dup ---
+    doc_b = new_writer(ctx)
+    text_b = doc_b.getText()
+    _insert_zotero_mark(
+        doc_b,
+        text_b,
+        "com.sun.star.text.ReferenceMark",
+        _zotero_mark_name("eeeeeeeeee", shared_item_data),
+        "(New Author, 2024)",
+    )
+    summary_b = _run_zotero_conversion(doc_b, base)
+    check("Converted 1 of 1" in summary_b, f"doc B summary did not report converting its one citation: {summary_b!r}")
+    check("0 newly added" in summary_b, f"doc B should have matched, not created, a paper: {summary_b!r}")
+
+    fields_b = cc.scan_citations_in_order(doc_b)
+    check(
+        len(fields_b) == 1, f"expected exactly 1 real Callosum citation in doc B after conversion, got {len(fields_b)}"
+    )
+    matched_paper_id = cc._paper_id_from_item(fields_b[0]["items"][0])
+    check(
+        matched_paper_id == created_paper_id,
+        f"doc B's citation of the same DOI should match doc A's paper {created_paper_id}, not create a new one: "
+        f"got {matched_paper_id}",
+    )
+    log(
+        f"spike (P2 #22): OK — doc B's independent citation of the same work matched the EXISTING paper {created_paper_id}, no duplicate"
+    )
+
+
 def spike_bibliography_editing(ctx, base, p1, p2):
     """P1 item #11 (backlog #33/#34): exclude a cited work from the bibliography while its in-text citation
     still renders, and include an uncited "further reading" work — both against a real document, real
@@ -4011,6 +4173,11 @@ def main():
         # 27) P2 item #18 (backlog #33/#34, inc 463): citation coverage audit -- the real citation-equity
         # check-selected round trip + the local uncited-paragraph structural scan (inline and note-style).
         spike_citation_coverage_audit(ctx, base, p1, p2)
+
+        # 28) P2 item #22 (backlog #33/#34, inc 464 -- the final item in this track): Zotero citation conversion
+        # -- hand-built real Zotero-shaped marks, the match/auto-add resolve paths, and the disclosed
+        # note-style/Bookmark-mode/malformed boundaries, all against a real Writer document.
+        spike_zotero_citation_conversion(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)
         return 0
