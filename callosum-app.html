@@ -4854,7 +4854,8 @@
         active,
         onOpenWanted: ctx.onOpenWanted,
         onOpenGaps: ctx.onOpenGaps,
-        onOpenOverlooked: ctx.onOpenOverlooked
+        onOpenOverlooked: ctx.onOpenOverlooked,
+        onOpenBeyondSaved: ctx.onOpenBeyondSaved
       }
     )
   });
@@ -15771,7 +15772,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     } catch (e) {
     }
   }
-  function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverlooked }) {
+  function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverlooked, onOpenBeyondSaved }) {
     const [q, setQ] = useState("");
     const [status, setStatus] = useState("idle");
     const [items, setItems] = useState([]);
@@ -15944,7 +15945,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         title: "Clear recent Search query history stored in this browser"
       },
       "Clear history"
-    ), onOpenWanted && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), onOpenGaps && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), onOpenOverlooked && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenOverlooked, title: "Per axis: works relevant to it but under-cited for their year \u2014 work the field may have overlooked" }, "Overlooked")), /* @__PURE__ */ React.createElement("div", { className: "discover-hint" }, "Public metadata search \xB7 source choice controls where to query; the complete returned list is shown (nothing AI-filtered) \xB7 ", /* @__PURE__ */ React.createElement("b", null, "j/k"), " move \xB7 ", /* @__PURE__ */ React.createElement("b", null, "s"), " save \xB7 ", /* @__PURE__ */ React.createElement("b", null, "Enter"), " abstract")), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body", ref: listRef, tabIndex: 0 }, status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Search journals + preprints, then save any result to your library \u2014 metadata only, no PDF."), status === "error" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, error), status === "ready" && !items.length && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No results. Try different terms."), items.map((it, i) => /* @__PURE__ */ React.createElement(
+    ), onOpenWanted && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), onOpenGaps && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), onOpenOverlooked && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenOverlooked, title: "Per axis: works relevant to it but under-cited for their year \u2014 work the field may have overlooked" }, "Overlooked"), onOpenBeyondSaved && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenBeyondSaved, title: "Beyond-library citation suggestions you flagged with Save for later while writing" }, "Saved for later")), /* @__PURE__ */ React.createElement("div", { className: "discover-hint" }, "Public metadata search \xB7 source choice controls where to query; the complete returned list is shown (nothing AI-filtered) \xB7 ", /* @__PURE__ */ React.createElement("b", null, "j/k"), " move \xB7 ", /* @__PURE__ */ React.createElement("b", null, "s"), " save \xB7 ", /* @__PURE__ */ React.createElement("b", null, "Enter"), " abstract")), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body", ref: listRef, tabIndex: 0 }, status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Search journals + preprints, then save any result to your library \u2014 metadata only, no PDF."), status === "error" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, error), status === "ready" && !items.length && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No results. Try different terms."), items.map((it, i) => /* @__PURE__ */ React.createElement(
       "div",
       {
         key: it.dedup_key,
@@ -19192,6 +19193,39 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const running = refresh.status === "running";
     return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Possibly overlooked work"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "External works ", /* @__PURE__ */ React.createElement("b", null, "relevant to ", axisId ? /* @__PURE__ */ React.createElement("i", null, axisLabel) : "an axis"), " that are ", /* @__PURE__ */ React.createElement("b", null, "under-cited for their year"), " \u2014 work the field may have overlooked. Each row shows two ", /* @__PURE__ */ React.createElement("b", null, "separate"), " signals: how relevant it is to the axis, and how its citations compare to same-year work on the topic. Low citations can mean the field overlooked it \u2014 or that it's simply low-impact; ", /* @__PURE__ */ React.createElement("b", null, "your call"), ". ", /* @__PURE__ */ React.createElement("b", null, "Add"), " imports the metadata;", " ", /* @__PURE__ */ React.createElement("b", null, "Dismiss"), " hides it for good. Inspired by the ", /* @__PURE__ */ React.createElement("i", null, "Matthew effect in science"), "."), /* @__PURE__ */ React.createElement("div", { className: "gaps-controls" }, /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: axisId, onChange: (e) => setAxisId(e.target.value), title: "Choose an axis" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Choose an axis\u2026"), axes.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.id, value: a.id }, a.label))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: running || !axisId, onClick: runRefresh }, running ? "Scanning\u2026" : "Refresh")), /* @__PURE__ */ React.createElement("div", { className: "gaps-coverage" }, !axisId ? "Choose an axis to look for overlooked work relevant to it." : computedAt ? `Last refreshed ${new Date(computedAt).toLocaleString()}.` : "Not computed yet for this axis \u2014 Refresh to scan OpenAlex for this topic's works."), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Scanning this topic's works against OpenAlex\u2026", managedBy: "backend-job" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, refresh.error), !running && axisId && computedAt && rows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Nothing surfaced for this axis \u2014 that isn't evidence none exists; low citations can just mean low-impact, and only works with enough same-year peers to rank are shown."), rows.map((row) => /* @__PURE__ */ React.createElement("div", { key: row.openalex_work_id, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, row.doi ? /* @__PURE__ */ React.createElement("a", { className: "ref-source-link", href: `https://doi.org/${row.doi}`, target: "_blank", rel: "noopener noreferrer" }, row.title || row.doi) : row.title || row.openalex_work_id), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count", title: `Local cosine similarity of this work's abstract to ${axisLabel} \u2014 a checkable relevance signal, not a verdict` }, "relevance ", Number(row.relevance).toFixed(2)), " ", /* @__PURE__ */ React.createElement("span", { className: "gap-count", title: "Citations vs. same-year works on this topic \u2014 low = under-cited for its vintage" }, "cited ", row.cited_by_count, pct(row.year_percentile) !== null && row.year ? ` \xB7 ${pct(row.year_percentile)}th percentile for ${row.year}` : ""), row.year ? ` \xB7 ${row.year}` : "")), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => add(row) }, "Add"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => dismiss(row) }, "Dismiss")))), /* @__PURE__ */ React.createElement(OverlookedCredit, null)));
   }
+  function BeyondLibrarySavedModal({ onClose, onChanged }) {
+    const [rows, setRows] = useState([]);
+    const [status, setStatus] = useState("idle");
+    const [busyKey, setBusyKey] = useState(null);
+    const load = React.useCallback(() => {
+      setStatus("loading");
+      api("/citations/beyond-library/saved").then((r) => {
+        if (r.ok) {
+          setRows(r.data.items || []);
+          setStatus("ready");
+        } else setStatus("error");
+      });
+    }, []);
+    useEffect(() => {
+      load();
+    }, [load]);
+    const add = async (row) => {
+      setBusyKey(row.dedup_key);
+      const r = await apiPost("/citations/beyond-library/add", { dedup_key: row.dedup_key });
+      setBusyKey(null);
+      if (r.ok) {
+        load();
+        if (onChanged) onChanged();
+      }
+    };
+    const dismiss = async (row) => {
+      setBusyKey(row.dedup_key);
+      const r = await apiPost("/citations/beyond-library/dismiss", { dedup_key: row.dedup_key });
+      setBusyKey(null);
+      if (r.ok) load();
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Saved for later"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Beyond-library suggestions you flagged with ", /* @__PURE__ */ React.createElement("b", null, "Save for later"), " while writing, kept here until you decide. ", /* @__PURE__ */ React.createElement("b", null, "Add"), " imports the metadata; ", /* @__PURE__ */ React.createElement("b", null, "Dismiss"), " removes it from this list."), status === "loading" && rows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"), status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load your saved suggestions."), status === "ready" && rows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, 'Nothing saved yet \u2014 use "Save for later" on a beyond-library suggestion in Work \u2192 Cite.'), rows.map((row) => /* @__PURE__ */ React.createElement("div", { key: row.dedup_key, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, row.title || row.doi), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, row.authors && row.authors.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, row.authors.slice(0, 3).join(", "), row.authors.length > 3 ? " et al." : ""), row.year ? ` \xB7 ${row.year}` : "", row.journal ? ` \xB7 ${row.journal}` : ""), (row.relationship_label || row.reason) && /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, row.relationship_label || row.reason), row.source_query && /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta", title: "The draft sentence that surfaced this suggestion" }, "from: \u201C", row.source_query.length > 140 ? row.source_query.slice(0, 140) + "\u2026" : row.source_query, "\u201D")), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: busyKey === row.dedup_key, onClick: () => add(row) }, "Add"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: busyKey === row.dedup_key, onClick: () => dismiss(row) }, "Dismiss"))))));
+  }
   function CiteCopyButton({ paperId }) {
     const [copied, setCopied] = useState(false);
     const copy = async (e) => {
@@ -19292,10 +19326,47 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     };
     return /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost", onClick: save, disabled: state === "saving" || state === "saved" }, state === "saved" ? "In library" : state === "saving" ? "Adding..." : state === "error" ? "Add failed" : "Add to library");
   }
-  function BeyondSuggestionCard({ item }) {
+  function BeyondSaveForLaterButton({ item, sourceQuery }) {
+    const [state, setState] = useState("idle");
+    const save = async () => {
+      setState("saving");
+      const r = await apiPost("/citations/beyond-library/save", {
+        dedup_key: item.dedup_key,
+        title: item.title,
+        sources: item.sources || [],
+        doi: item.doi,
+        abstract: item.abstract,
+        authors: item.authors || [],
+        journal: item.journal,
+        year: item.year,
+        url: item.url,
+        reason: item.reason,
+        evidence_text: item.evidence_text,
+        evidence_kind: item.evidence_kind,
+        relationship_kind: item.relationship_kind,
+        relationship_label: item.relationship_label,
+        anchor_paper_id: item.anchor_paper_id,
+        anchor_title: item.anchor_title,
+        source_query: sourceQuery || null
+      });
+      setState(r.ok ? "saved" : "error");
+    };
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-ghost",
+        onClick: save,
+        disabled: state === "saving" || state === "saved",
+        title: "Flag this for a second look later \u2014 reviewable from Discover \u2192 Search \u2192 Saved for later"
+      },
+      state === "saved" ? "Saved for later" : state === "saving" ? "Saving\u2026" : state === "error" ? "Save failed" : "Save for later"
+    );
+  }
+  function BeyondSuggestionCard({ item, sourceQuery }) {
     const stance = item.stance;
     const meta = [(item.authors || [])[0], item.year, item.journal].filter(Boolean).join(" \xB7 ");
-    return /* @__PURE__ */ React.createElement("div", { className: "cite-card cite-card-external" }, /* @__PURE__ */ React.createElement("div", { className: "cite-card-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cite-title" }, item.title || "Untitled public-metadata result"), meta && /* @__PURE__ */ React.createElement("div", { className: "cite-meta" }, meta)), /* @__PURE__ */ React.createElement("div", { className: "cite-pills" }, /* @__PURE__ */ React.createElement("span", { className: "cite-stance unknown", title: "Public metadata source" }, (item.sources || []).join(", ") || "public metadata"), /* @__PURE__ */ React.createElement("span", { className: "cite-match", title: "Visible term overlap with your sentence; not a correctness score" }, "metadata overlap ", Number(item.metadata_overlap || 0).toFixed(2)))), item.relationship_label && /* @__PURE__ */ React.createElement("div", { className: "cite-relation" }, item.relationship_label, item.anchor_title ? `: ${item.anchor_title}` : ""), /* @__PURE__ */ React.createElement("div", { className: "cite-reason" }, item.reason), item.evidence_text && /* @__PURE__ */ React.createElement("div", { className: "quote" }, '"', item.evidence_text, '"'), /* @__PURE__ */ React.createElement("div", { className: "cite-card-foot" }, /* @__PURE__ */ React.createElement(BeyondSaveButton, { item }), item.url && /* @__PURE__ */ React.createElement("a", { className: "btn btn-ghost", href: item.url, target: "_blank", rel: "noopener noreferrer" }, "Source"), item.doi && /* @__PURE__ */ React.createElement("span", { className: "cite-conf" }, "DOI ", item.doi), stance ? /* @__PURE__ */ React.createElement("span", { className: "cite-conf" }, "abstract-level stance ", stance.label, " - ", stance.confidence.toFixed(2)) : /* @__PURE__ */ React.createElement("span", { className: "cite-conf" }, "full text not checked")));
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-card cite-card-external" }, /* @__PURE__ */ React.createElement("div", { className: "cite-card-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cite-title" }, item.title || "Untitled public-metadata result"), meta && /* @__PURE__ */ React.createElement("div", { className: "cite-meta" }, meta)), /* @__PURE__ */ React.createElement("div", { className: "cite-pills" }, /* @__PURE__ */ React.createElement("span", { className: "cite-stance unknown", title: "Public metadata source" }, (item.sources || []).join(", ") || "public metadata"), /* @__PURE__ */ React.createElement("span", { className: "cite-match", title: "Visible term overlap with your sentence; not a correctness score" }, "metadata overlap ", Number(item.metadata_overlap || 0).toFixed(2)))), item.relationship_label && /* @__PURE__ */ React.createElement("div", { className: "cite-relation" }, item.relationship_label, item.anchor_title ? `: ${item.anchor_title}` : ""), /* @__PURE__ */ React.createElement("div", { className: "cite-reason" }, item.reason), item.evidence_text && /* @__PURE__ */ React.createElement("div", { className: "quote" }, '"', item.evidence_text, '"'), /* @__PURE__ */ React.createElement("div", { className: "cite-card-foot" }, /* @__PURE__ */ React.createElement(BeyondSaveButton, { item }), /* @__PURE__ */ React.createElement(BeyondSaveForLaterButton, { item, sourceQuery }), item.url && /* @__PURE__ */ React.createElement("a", { className: "btn btn-ghost", href: item.url, target: "_blank", rel: "noopener noreferrer" }, "Source"), item.doi && /* @__PURE__ */ React.createElement("span", { className: "cite-conf" }, "DOI ", item.doi), stance ? /* @__PURE__ */ React.createElement("span", { className: "cite-conf" }, "abstract-level stance ", stance.label, " - ", stance.confidence.toFixed(2)) : /* @__PURE__ */ React.createElement("span", { className: "cite-conf" }, "full text not checked")));
   }
   function CitationSourceCoverage({ rows }) {
     if (!rows || !rows.length) return null;
@@ -19350,7 +19421,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onChange: (e) => setText(e.target.value),
         disabled: busy
       }
-    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !text.trim(), onClick: run }, "Suggest"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? "Finding suggestions\u2026" : includeBeyond ? "library + public metadata sources" : "from your library \xB7 local, no egress")), /* @__PURE__ */ React.createElement("label", { className: "cite-beyond-toggle" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: includeBeyond, onChange: (e) => setIncludeBeyond(e.target.checked) }), /* @__PURE__ */ React.createElement("span", null, "Also search beyond my library"), /* @__PURE__ */ React.createElement("small", null, "Uses public metadata providers. Abstract-level stance is weaker than full-text library evidence.")), busy && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Finding citation evidence locally\u2026", managedBy: "tracked-request" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "12px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "Couldn't get suggestions."), /* @__PURE__ */ React.createElement("br", null), state.error), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "26px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Suggest citations"), "Paste a draft sentence. Callosum ranks your library by relevance and checks whether each paper supports, contrasts, or just mentions the claim \u2014 you decide the right citation."), state.status === "done" && suggestions.length === 0 && beyond.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "22px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No citation candidates surfaced."), "Nothing in the sources searched matched this sentence closely enough to suggest. This is not evidence that no relevant papers exist."), (suggestions.length > 0 || beyond.length > 0) && /* @__PURE__ */ React.createElement("div", { className: "cite-results" }, /* @__PURE__ */ React.createElement("div", { className: "cite-results-head" }, /* @__PURE__ */ React.createElement("div", { className: "cite-note" }, "Ranked by relevance to your sentence \u2014 a ranking aid, not a correctness claim; the author decides the right citation. Evidence is the matched passage block (region-level), not an exact quote highlight."), styles.length > 0 && /* @__PURE__ */ React.createElement("label", { className: "cite-style", title: "Style for the \u201CCite\u201D (formatted) copy" }, "Cite as", /* @__PURE__ */ React.createElement("select", { value: style, onChange: (e) => setStyle(e.target.value) }, styles.map((o) => /* @__PURE__ */ React.createElement("option", { key: o.id, value: o.id }, o.title))))), /* @__PURE__ */ React.createElement(CitationSourceCoverage, { rows: state.coverage }), suggestions.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cite-subhead" }, "In your library"), suggestions.map((s) => /* @__PURE__ */ React.createElement(SuggestionCard, { key: s.chunk_id, s, onOpenCitation: ctx.onOpenCitation, style })), beyond.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cite-subhead" }, "Outside your library"), beyond.map((s) => /* @__PURE__ */ React.createElement(BeyondSuggestionCard, { key: s.dedup_key, item: s }))));
+    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !text.trim(), onClick: run }, "Suggest"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? "Finding suggestions\u2026" : includeBeyond ? "library + public metadata sources" : "from your library \xB7 local, no egress")), /* @__PURE__ */ React.createElement("label", { className: "cite-beyond-toggle" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: includeBeyond, onChange: (e) => setIncludeBeyond(e.target.checked) }), /* @__PURE__ */ React.createElement("span", null, "Also search beyond my library"), /* @__PURE__ */ React.createElement("small", null, "Uses public metadata providers. Abstract-level stance is weaker than full-text library evidence.")), busy && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Finding citation evidence locally\u2026", managedBy: "tracked-request" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "12px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "Couldn't get suggestions."), /* @__PURE__ */ React.createElement("br", null), state.error), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "26px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Suggest citations"), "Paste a draft sentence. Callosum ranks your library by relevance and checks whether each paper supports, contrasts, or just mentions the claim \u2014 you decide the right citation."), state.status === "done" && suggestions.length === 0 && beyond.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "22px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No citation candidates surfaced."), "Nothing in the sources searched matched this sentence closely enough to suggest. This is not evidence that no relevant papers exist."), (suggestions.length > 0 || beyond.length > 0) && /* @__PURE__ */ React.createElement("div", { className: "cite-results" }, /* @__PURE__ */ React.createElement("div", { className: "cite-results-head" }, /* @__PURE__ */ React.createElement("div", { className: "cite-note" }, "Ranked by relevance to your sentence \u2014 a ranking aid, not a correctness claim; the author decides the right citation. Evidence is the matched passage block (region-level), not an exact quote highlight."), styles.length > 0 && /* @__PURE__ */ React.createElement("label", { className: "cite-style", title: "Style for the \u201CCite\u201D (formatted) copy" }, "Cite as", /* @__PURE__ */ React.createElement("select", { value: style, onChange: (e) => setStyle(e.target.value) }, styles.map((o) => /* @__PURE__ */ React.createElement("option", { key: o.id, value: o.id }, o.title))))), /* @__PURE__ */ React.createElement(CitationSourceCoverage, { rows: state.coverage }), suggestions.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cite-subhead" }, "In your library"), suggestions.map((s) => /* @__PURE__ */ React.createElement(SuggestionCard, { key: s.chunk_id, s, onOpenCitation: ctx.onOpenCitation, style })), beyond.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cite-subhead" }, "Outside your library"), beyond.map((s) => /* @__PURE__ */ React.createElement(BeyondSuggestionCard, { key: s.dedup_key, item: s, sourceQuery: text }))));
   }
   registerWorkspaceTab(
     { id: "work", label: "Work", order: 50 },
@@ -19964,6 +20035,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [textHealthContext, setTextHealthContext] = useState(null);
     const [gapsOpen, setGapsOpen] = useState(false);
     const [overlookedOpen, setOverlookedOpen] = useState(false);
+    const [beyondSavedOpen, setBeyondSavedOpen] = useState(false);
     const [scanOpen, setScanOpen] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
     const [bundleImportOpen, setBundleImportOpen] = useState(false);
@@ -20244,7 +20316,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setHealthLoaded(true);
       });
     }, []);
-    const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
+    const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
     useEffect(() => {
       if (!readingMode) return;
       const onKey = (e) => {
@@ -20344,6 +20416,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       onOpenWanted: () => setWantedOpen(true),
       onOpenGaps: () => setGapsOpen(true),
       onOpenOverlooked: () => setOverlookedOpen(true),
+      onOpenBeyondSaved: () => setBeyondSavedOpen(true),
       onOpenPdf: openPdf,
       onOpenPaper: openPdf,
       selectedPaper: contextPaperId,
@@ -20463,7 +20536,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onChanged: () => setLibRefresh((n) => n + 1),
         context: textHealthContext
       }
-    ), gapsOpen && /* @__PURE__ */ React.createElement(GapsModal, { onClose: () => setGapsOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), overlookedOpen && /* @__PURE__ */ React.createElement(OverlookedLensModal, { onClose: () => setOverlookedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), scanOpen && /* @__PURE__ */ React.createElement(
+    ), gapsOpen && /* @__PURE__ */ React.createElement(GapsModal, { onClose: () => setGapsOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), overlookedOpen && /* @__PURE__ */ React.createElement(OverlookedLensModal, { onClose: () => setOverlookedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), beyondSavedOpen && /* @__PURE__ */ React.createElement(BeyondLibrarySavedModal, { onClose: () => setBeyondSavedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), scanOpen && /* @__PURE__ */ React.createElement(
       ScanModal,
       {
         onClose: () => setScanOpen(false),

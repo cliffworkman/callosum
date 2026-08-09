@@ -197,7 +197,8 @@ registerWorkspaceTab({ id: "discover" }, {
 registerWorkspaceTab({ id: "discover" }, {
   id: "search", label: "Search", order: 20, hideInReadOnly: true,
   render: (ctx, active) => <DiscoverPane onSaved={ctx.onDiscoverSaved} active={active}
-    onOpenWanted={ctx.onOpenWanted} onOpenGaps={ctx.onOpenGaps} onOpenOverlooked={ctx.onOpenOverlooked} />,
+    onOpenWanted={ctx.onOpenWanted} onOpenGaps={ctx.onOpenGaps} onOpenOverlooked={ctx.onOpenOverlooked}
+    onOpenBeyondSaved={ctx.onOpenBeyondSaved} />,
 });
 registerWorkspaceTab({ id: "discover" }, {
   id: "followed-authors", label: "Followed Authors", order: 50, hideInReadOnly: true,

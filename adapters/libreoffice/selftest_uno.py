@@ -1776,6 +1776,133 @@ def spike_save_beyond_library_item_and_cite(ctx, base):
     log(f"spike (backlog #30): OK — beyond-library item saved as paper {paper_id}, cited, rendered as {rendered!r}")
 
 
+def spike_beyond_library_save_for_later(ctx, base):
+    """Backlog #30's last open piece (inc 465): the Suggest dialog's "Save for later" button. Mirrors
+    `spike_beyond_library_checkbox_listener`'s established two lessons: (1) a minimal STANDALONE dialog +
+    listbox, never calling `.execute()` (which would block on real user interaction) rather than driving the
+    real interactive `_suggest_dialog` (which can't run headless), and (2) the button's own click-to-callback
+    WIRING is a manual-verification-only question like every other dialog interaction in this file — this spike
+    invokes the listener's callback LOGIC directly, exactly as the toolkit would on a real click.
+
+    Unlike the checkbox spike, `_post_json` is NOT faked here: `save_beyond_library_item_for_later` posts to
+    `/citations/beyond-library/save`, a purely LOCAL endpoint (no external provider network at all, mirroring
+    `spike_save_beyond_library_item_and_cite`'s own "no faking needed" reasoning) -- so this proves the real
+    end-to-end round trip against the real local server: select rows, save, and confirm via a real
+    `GET /citations/beyond-library/saved` that exactly the "beyond" rows (never the "library" one) landed."""
+    import unohelper
+    from com.sun.star.awt import XActionListener
+
+    log("spike (backlog #30): Suggest dialog's Save-for-later button")
+
+    beyond_item_1 = {
+        "dedup_key": f"doi:10.9999/spike-save-later-{uuid.uuid4().hex[:8]}",
+        "title": "A Beyond-Library Candidate",
+        "sources": ["openalex"],
+        "doi": None,
+        "abstract": "An abstract for the first candidate.",
+        "authors": ["Someone, A"],
+        "journal": "Journal of Spikes",
+        "year": 2022,
+        "url": None,
+        "reason": "Surfaced by openalex from title/abstract metadata; metadata term overlap 0.50.",
+        "evidence_text": "An abstract for the first candidate.",
+        "evidence_kind": "abstract",
+        "relationship_kind": None,
+        "relationship_label": None,
+        "anchor_paper_id": None,
+        "anchor_title": None,
+    }
+    beyond_item_2 = {
+        **beyond_item_1,
+        "dedup_key": f"doi:10.9999/spike-save-later-{uuid.uuid4().hex[:8]}",
+        "title": "A Second Candidate",
+    }
+    library_item = {"paper_id": 1, "title": "Already In Your Library", "match_score": 0.9}
+
+    smgr = ctx.ServiceManager
+    dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
+    dm.Width, dm.Height, dm.Title = 300, 150, "spike"
+    lst = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
+    lst.PositionX, lst.PositionY, lst.Width, lst.Height = 6, 6, 280, 100
+    lst.MultiSelection = True
+    dm.insertByName("list", lst)
+    dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
+    dialog.setModel(dm)
+    toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
+    dialog.createPeer(toolkit, None)
+    list_ctrl = dialog.getControl("list")
+
+    state = {"rows": [("beyond", beyond_item_1), ("beyond", beyond_item_2), ("library", library_item)]}
+    list_ctrl.getModel().StringItemList = ("beyond 1", "beyond 2", "library")
+
+    captured_msgs = []
+    original_msgbox = cc._msgbox
+    cc._msgbox = lambda message, title="callosum": captured_msgs.append(message)
+    text = "We rely on attention mechanisms."
+
+    class _SaveForLaterListener(unohelper.Base, XActionListener):
+        def actionPerformed(self, event):
+            positions = list(list_ctrl.getSelectedItemsPos())
+            picks = [state["rows"][pos] for pos in positions if 0 <= pos < len(state["rows"])]
+            beyond_picks = [item for kind, item in picks if kind == "beyond"]
+            if not picks:
+                cc._msgbox("Select one or more beyond-library suggestions to save for later.")
+                return
+            if not beyond_picks:
+                cc._msgbox(
+                    "Only beyond-library suggestions can be saved for later — in-library results are already in your library."
+                )
+                return
+            for item in beyond_picks:
+                cc.save_beyond_library_item_for_later(base, item, text)
+            cc._msgbox(f"Saved {len(beyond_picks)} for later.")
+
+        def disposing(self, event):
+            pass
+
+    listener = _SaveForLaterListener()
+    try:
+        # case 1: only the library row selected -- explanatory message, nothing saved.
+        list_ctrl.selectItemPos(2, True)
+        listener.actionPerformed(None)
+        check(
+            len(captured_msgs) == 1 and "already in your library" in captured_msgs[0],
+            f"expected the library-only message, got {captured_msgs}",
+        )
+        check(cc._get_json(f"{base}/citations/beyond-library/saved")["items"] == [], "nothing should be saved yet")
+
+        # case 2: both beyond rows selected (library row still selected too) -- both saved, library row ignored.
+        captured_msgs.clear()
+        list_ctrl.selectItemPos(0, True)
+        list_ctrl.selectItemPos(1, True)
+        listener.actionPerformed(None)
+        check(
+            len(captured_msgs) == 1 and "Saved 2 for later" in captured_msgs[0],
+            f"expected a 2-saved confirmation, got {captured_msgs}",
+        )
+
+        saved = cc._get_json(f"{base}/citations/beyond-library/saved")["items"]
+        check(len(saved) == 2, f"expected exactly 2 saved rows, got {len(saved)}")
+        by_key = {row["dedup_key"]: row for row in saved}
+        check(
+            beyond_item_1["dedup_key"] in by_key and beyond_item_2["dedup_key"] in by_key,
+            f"missing expected dedup_keys in {list(by_key)}",
+        )
+        check(
+            by_key[beyond_item_1["dedup_key"]]["source_query"] == text, "source_query should carry the draft sentence"
+        )
+        check(
+            by_key[beyond_item_1["dedup_key"]]["title"] == "A Beyond-Library Candidate",
+            "saved title should match the original suggestion",
+        )
+        log(
+            f"spike (backlog #30): OK — 2 beyond-library rows saved for later, the library row correctly ignored: {sorted(by_key)}"
+        )
+    finally:
+        cc._msgbox = original_msgbox
+        dialog.dispose()
+
+
 def spike_document_diagnostics(ctx, base, p1, p2):
     """P0 phase 9 (the last of the smaller phases, backlog #33/#34): `diagnose_document` is read-only, so this
     spike constructs each unhealthy state directly rather than waiting for it to occur naturally — a truly
@@ -4178,6 +4305,10 @@ def main():
         # -- hand-built real Zotero-shaped marks, the match/auto-add resolve paths, and the disclosed
         # note-style/Bookmark-mode/malformed boundaries, all against a real Writer document.
         spike_zotero_citation_conversion(ctx, base, p1, p2)
+
+        # 29) Backlog #30's last open piece (inc 465): the Suggest dialog's Save-for-later button -- the real
+        # end-to-end round trip against the real local persistent beyond-library saved queue.
+        spike_beyond_library_save_for_later(ctx, base)
 
         print("SELFTEST OK", flush=True)
         return 0

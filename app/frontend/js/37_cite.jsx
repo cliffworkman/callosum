@@ -123,7 +123,30 @@ function BeyondSaveButton({ item }) {
   );
 }
 
-function BeyondSuggestionCard({ item }) {
+function BeyondSaveForLaterButton({ item, sourceQuery }) {
+  const [state, setState] = useState("idle"); // idle | saving | saved | error
+  const save = async () => {
+    setState("saving");
+    const r = await apiPost("/citations/beyond-library/save", {
+      dedup_key: item.dedup_key, title: item.title, sources: item.sources || [],
+      doi: item.doi, abstract: item.abstract, authors: item.authors || [],
+      journal: item.journal, year: item.year, url: item.url,
+      reason: item.reason, evidence_text: item.evidence_text, evidence_kind: item.evidence_kind,
+      relationship_kind: item.relationship_kind, relationship_label: item.relationship_label,
+      anchor_paper_id: item.anchor_paper_id, anchor_title: item.anchor_title,
+      source_query: sourceQuery || null,
+    });
+    setState(r.ok ? "saved" : "error");
+  };
+  return (
+    <button type="button" className="btn btn-ghost" onClick={save} disabled={state === "saving" || state === "saved"}
+      title="Flag this for a second look later — reviewable from Discover → Search → Saved for later">
+      {state === "saved" ? "Saved for later" : state === "saving" ? "Saving…" : state === "error" ? "Save failed" : "Save for later"}
+    </button>
+  );
+}
+
+function BeyondSuggestionCard({ item, sourceQuery }) {
   const stance = item.stance;
   const meta = [(item.authors || [])[0], item.year, item.journal].filter(Boolean).join(" · ");
   return (
@@ -148,6 +171,7 @@ function BeyondSuggestionCard({ item }) {
       {item.evidence_text && <div className="quote">"{item.evidence_text}"</div>}
       <div className="cite-card-foot">
         <BeyondSaveButton item={item} />
+        <BeyondSaveForLaterButton item={item} sourceQuery={sourceQuery} />
         {item.url && <a className="btn btn-ghost" href={item.url} target="_blank" rel="noopener noreferrer">Source</a>}
         {item.doi && <span className="cite-conf">DOI {item.doi}</span>}
         {stance
@@ -251,7 +275,7 @@ function CitePane({ ctx }) {
           {suggestions.length > 0 && <div className="cite-subhead">In your library</div>}
           {suggestions.map(s => <SuggestionCard key={s.chunk_id} s={s} onOpenCitation={ctx.onOpenCitation} style={style} />)}
           {beyond.length > 0 && <div className="cite-subhead">Outside your library</div>}
-          {beyond.map(s => <BeyondSuggestionCard key={s.dedup_key} item={s} />)}
+          {beyond.map(s => <BeyondSuggestionCard key={s.dedup_key} item={s} sourceQuery={text} />)}
         </div>}
     </div>
   );

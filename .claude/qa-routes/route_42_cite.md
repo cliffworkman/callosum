@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /citations/suggest, /usage/events, /citations/classify-stance
+api: /citations/suggest, /usage/events, /citations/classify-stance, /citations/beyond-library/save
 fe: 37_cite.jsx
 -->
 
@@ -22,6 +22,11 @@ change to the endpoint itself, so this route's API coverage is unaffected. The L
 scope for this browser-driven route** (no LibreOffice in this harness); it's verified via the adapter's own
 real-UNO harness (`python adapters/libreoffice/run_roundtrip.py`) and duck-typed pytest coverage
 (`tests/test_libreoffice_adapter.py`), per CLAUDE.md's Verification protocol §4.
+**Inc 465** adds a **"Save for later"** button to every beyond-library card (backlog #30's last open piece) —
+`POST /citations/beyond-library/save` persists the suggestion verbatim into a review queue (never auto-added,
+never auto-accumulated — explicit per-card action only), reviewed/added/dismissed from a new modal opened via
+Discover → Search's own "Saved for later" button — see route_43 for that modal's own walkthrough; this route
+covers only the save action itself.
 **Inc 461** adds a new sibling endpoint, `POST /citations/classify-stance` — a pairwise `(sentence, passage)`
 stance check built for the LibreOffice adapter's own new "Insert evidence…" command (roadmap #20: browse a
 paper's saved highlights, optionally check a typed claim's stance against one, insert it alongside a citation).
@@ -59,6 +64,9 @@ The seeded `social-perception`/facial papers give a real semantic match for the 
   library "Add to library" only ever creates a metadata-only record (`POST /discovery/save`) — it must never
   auto-cite, auto-insert, or silently attach a PDF. (Insert is the LibreOffice macro's job, SP1b — not in this
   surface; the LibreOffice macro also gained this same opt-in beyond-library checkbox 2026-07-22, own surface.)
+- **Save for later is explicit, never automatic (inc 465).** A suggestion is persisted into the review queue
+  only on a deliberate per-card click — never because it was merely shown/scrolled past. It must never add the
+  paper to the library or insert anything; that stays "Add to library"'s/the composer's own job.
 
 ## Adversarial checklist
 
@@ -102,14 +110,19 @@ The seeded `social-perception`/facial papers give a real semantic match for the 
 6. Click **Add to library** on a beyond-library card -> confirm `POST /discovery/save` fires, the card updates
    to reflect it's now in-library (or a clear success state), and nothing else in the document/library changed
    (no auto-citation, no PDF fetch).
-7. Submit empty / whitespace / oversized text (both checkbox states) -> clean validation, no crash, no genai
+7. Click **Save for later** on a DIFFERENT beyond-library card -> confirm `POST /citations/beyond-library/save`
+   fires with the card's own dedup_key/title/reason/evidence/relationship fields plus the current draft sentence
+   as `source_query`, and the button becomes disabled reading "Saved for later" (idempotent — clicking again does
+   not create a duplicate row; re-verify via route_43's queue walkthrough). Confirm this never adds the paper to
+   the library (unlike step 6) and never inserts anything — it only queues the suggestion for later review.
+8. Submit empty / whitespace / oversized text (both checkbox states) -> clean validation, no crash, no genai
    request either way.
-8. Confirm nothing auto-inserts a citation and no card (in-library or beyond-library) presents a paper as
+9. Confirm nothing auto-inserts a citation and no card (in-library or beyond-library) presents a paper as
    good/bad or ranked by a hidden composite score.
-9. Directly via the API (no frontend surface — see the inc-461 note above): `POST /citations/classify-stance`
-   with a real `{sentence, passage}` pair -> 200 with a `label`/`confidence`/`probs` shape matching a suggestion
-   card's own stance field exactly; empty `sentence` or `passage`, or either exceeding the shared 4000-char cap
-   -> 422. Confirm **0 genai-host requests** for this call too (local NLI only).
+10. Directly via the API (no frontend surface — see the inc-461 note above): `POST /citations/classify-stance`
+    with a real `{sentence, passage}` pair -> 200 with a `label`/`confidence`/`probs` shape matching a suggestion
+    card's own stance field exactly; empty `sentence` or `passage`, or either exceeding the shared 4000-char cap
+    -> 422. Confirm **0 genai-host requests** for this call too (local NLI only).
 
 ## Pass criteria
 

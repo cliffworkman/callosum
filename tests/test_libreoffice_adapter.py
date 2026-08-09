@@ -1564,6 +1564,54 @@ def test_save_beyond_library_item_defaults_missing_fields() -> None:
     assert body["title"] == "Untitled" and body["authors"] == []
 
 
+# ── inc 465 (backlog #30's last open piece): persistent, dismissible beyond-library saved queue --------------
+
+
+def test_save_beyond_library_item_for_later_posts_full_payload(monkeypatch) -> None:
+    captured = {}
+
+    def fake_post(url, body, timeout=20):
+        captured["url"], captured["body"] = url, body
+
+    monkeypatch.setattr(cc, "_post_json", fake_post)
+    cc.save_beyond_library_item_for_later(
+        "http://127.0.0.1:8080",
+        {
+            "dedup_key": "doi:10.1/x",
+            "title": "Graph Attention Networks",
+            "sources": ["openalex"],
+            "doi": "10.1/x",
+            "abstract": "We present...",
+            "authors": ["Velickovic"],
+            "journal": "ICLR",
+            "year": 2018,
+            "url": "https://example.org/gat",
+            "reason": "Surfaced by openalex...",
+            "evidence_text": "We present...",
+            "evidence_kind": "abstract",
+            "relationship_kind": "cited_by_local_match",
+            "relationship_label": "Cited by a locally relevant paper",
+            "anchor_paper_id": 1,
+            "anchor_title": "Anchor",
+        },
+        "We rely on attention mechanisms.",
+    )
+    assert captured["url"].endswith("/citations/beyond-library/save")
+    assert captured["body"]["dedup_key"] == "doi:10.1/x"
+    assert captured["body"]["relationship_label"] == "Cited by a locally relevant paper"
+    assert captured["body"]["source_query"] == "We rely on attention mechanisms."
+
+
+def test_save_beyond_library_item_for_later_defaults_missing_fields() -> None:
+    import unittest.mock
+
+    with unittest.mock.patch.object(cc, "_post_json", return_value=None) as mock_post:
+        cc.save_beyond_library_item_for_later("http://x", {}, None)
+    _, body = mock_post.call_args.args
+    assert body["title"] == "Untitled" and body["sources"] == [] and body["authors"] == []
+    assert body["source_query"] is None
+
+
 # ── inc 460 (evidence-aware Suggest-Citation, backlog #33/#34 P2 #17): pure helpers -------------------------
 
 

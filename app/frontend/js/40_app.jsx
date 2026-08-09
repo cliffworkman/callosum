@@ -68,6 +68,7 @@ function App() {
   const [textHealthContext, setTextHealthContext] = useState(null);  // optional source scope, e.g. Synthesis retry
   const [gapsOpen, setGapsOpen] = useState(false);              // inc-135 literature gap-finder modal
   const [overlookedOpen, setOverlookedOpen] = useState(false);  // #37 overlooked-work lens (per-axis discovery)
+  const [beyondSavedOpen, setBeyondSavedOpen] = useState(false); // #30 persistent beyond-library saved queue (inc 465)
   const [scanOpen, setScanOpen] = useState(false);              // inc-87 scan-a-folder modal
   const [importOpen, setImportOpen] = useState(false);          // inc-93 import-citations modal
   const [bundleImportOpen, setBundleImportOpen] = useState(false); // B2 SP1 import-library-bundle modal
@@ -327,7 +328,7 @@ function App() {
   }, []);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
-  const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
+  const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
   useEffect(() => {
     if (!readingMode) return;
     const onKey = (e) => { if (e.key === "Escape" && !anyModalOpen) toggleReading(); };
@@ -400,6 +401,7 @@ function App() {
     onOpenWanted: () => setWantedOpen(true),
     onOpenGaps: () => setGapsOpen(true),
     onOpenOverlooked: () => setOverlookedOpen(true),
+    onOpenBeyondSaved: () => setBeyondSavedOpen(true),
     onOpenPdf: openPdf, onOpenPaper: openPdf,
     selectedPaper: contextPaperId,  // paper-only tools receive no stale Library paper while WIP is active
     selectedPaperTab: wipModeActive ? null : selectedPaperTab,
@@ -502,6 +504,8 @@ function App() {
         <GapsModal onClose={() => setGapsOpen(false)} onChanged={() => setLibRefresh(n => n + 1)} />}
       {overlookedOpen &&
         <OverlookedLensModal onClose={() => setOverlookedOpen(false)} onChanged={() => setLibRefresh(n => n + 1)} />}
+      {beyondSavedOpen &&
+        <BeyondLibrarySavedModal onClose={() => setBeyondSavedOpen(false)} onChanged={() => setLibRefresh(n => n + 1)} />}
       {pcurvePapers &&
         <PcurveModal paperIds={pcurvePapers} onClose={() => setPcurvePapers(null)} onOpenPaper={openPdf} onChanged={() => setLibRefresh(n => n + 1)} />}
       {scanOpen &&

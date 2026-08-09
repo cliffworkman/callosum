@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-09 inc 464 — Zotero citation conversion -->
+<!-- HELP-DOCS-SYNCED: 2026-08-09 inc 465 — beyond-library saved queue -->
+
+## 2026-08-09 — Increment 465: Persistent, dismissible beyond-library saved queue (backlog #30's last open piece)
+- **Files:** `app/backend/api/routers/beyond_library_saved.py` (new), `app/backend/persistence/schema_findings.py`,
+  `app/backend/persistence/schema.py`, `app/backend/api/app.py`, `alembic/versions/0070_saved_beyond_library_suggestions.py`
+  (new), `app/frontend/js/36c_beyond_library_saved.jsx` (new), `app/frontend/js/37_cite.jsx`,
+  `app/frontend/js/30d_discover.jsx`, `app/frontend/js/04b_workspaces.jsx`, `app/frontend/js/40_app.jsx`,
+  `adapters/libreoffice/callosum_cite.py`, `tests/test_beyond_library_saved.py` (new), `tests/test_libreoffice_adapter.py`,
+  `app/backend/help/help_content.md`.
+- **What:** a new "Save for later" action on beyond-library citation suggestion cards (web Cite pane + the
+  LibreOffice adapter's Suggest dialog, both in this pass) persists the suggestion verbatim into a new
+  reviewable, add-or-dismiss queue — a new modal (`BeyondLibrarySavedModal`) opened from Discover → Search,
+  mirroring how "Gaps" is itself actually built. 14 new tests.
+- **Why:** closes backlog #30's last explicitly-flagged-open piece ("a persistent, dismissible cache surface in
+  the `gaps.py` style") — second item in the confirmed post-P2-leapfrog backlog sequence
+  (memory `callosum-next5-backlog-roadmap`); item #1 (scratch axis) was researched and declined as redundant.
+- **Revert:** all changes additive/backward-compatible; no existing endpoint, table, or command was modified.
 
 ## 2026-08-09 — Increment 464: Zotero citation conversion for the LibreOffice adapter (backlog #33/#34, P2 #22 — track complete)
 - **Files:** `app/backend/api/routers/zotero_citations.py` (new), `app/backend/importers/zotero.py`,

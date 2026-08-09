@@ -576,6 +576,36 @@ def save_beyond_library_item(base: str, item: dict) -> int:
     return int(result["paper_id"])
 
 
+def save_beyond_library_item_for_later(base: str, item: dict, source_query: str | None = None) -> None:
+    """Flag a beyond-library suggestion for a second look later (backlog #30's last open piece, inc 465) via
+    `POST /citations/beyond-library/save` -- a sibling to `save_beyond_library_item` above, which instead posts
+    to `/discovery/save` and adds the paper outright. This never adds anything to the library; it only persists
+    the suggestion (verbatim, same evidence fields already shown) into the reviewable "Saved for later" queue,
+    reviewed/added/dismissed from the web app (Discover -> Search -> Saved for later)."""
+    _post_json(
+        f"{base}/citations/beyond-library/save",
+        {
+            "dedup_key": item.get("dedup_key"),
+            "title": item.get("title") or "Untitled",
+            "sources": item.get("sources") or [],
+            "doi": item.get("doi"),
+            "abstract": item.get("abstract"),
+            "authors": item.get("authors") or [],
+            "journal": item.get("journal"),
+            "year": item.get("year"),
+            "url": item.get("url"),
+            "reason": item.get("reason"),
+            "evidence_text": item.get("evidence_text"),
+            "evidence_kind": item.get("evidence_kind"),
+            "relationship_kind": item.get("relationship_kind"),
+            "relationship_label": item.get("relationship_label"),
+            "anchor_paper_id": item.get("anchor_paper_id"),
+            "anchor_title": item.get("anchor_title"),
+            "source_query": source_query,
+        },
+    )
+
+
 SEARCH_TITLE_MAX = 90  # truncate the title in a pick-list row
 
 
@@ -4774,6 +4804,11 @@ def _suggest_dialog(doc, base: str, text: str) -> list[tuple[str, dict, str | No
     beyond-library pick needs its own `save_beyond_library_item` round-trip first) — checked after the dialog
     closes, not by disabling Insert live.
 
+    inc 465 (backlog #30's last open piece): a "Save for later" button flags every currently-selected
+    beyond-library row into the persistent, dismissible review queue (`save_beyond_library_item_for_later`) —
+    a non-closing action, the same pattern as `Details…`, so it can be used before deciding whether to Insert
+    or Cancel.
+
     Returns a list of ``(kind, item, locator_override)`` for every picked row — `kind` is ``"library"`` or
     ``"beyond"``, `locator_override` is whatever was set via Details (or None, meaning "use the auto pre-fill")
     — or None if nothing was picked / the selection was invalid (mixed kinds)."""
@@ -4806,6 +4841,11 @@ def _suggest_dialog(doc, base: str, text: str) -> list[tuple[str, dict, str | No
     details_btn.PositionX, details_btn.PositionY, details_btn.Width, details_btn.Height = 6, 162, 100, 16
     details_btn.Label = "Details…"
     dm.insertByName("details", details_btn)
+
+    save_later_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    save_later_btn.PositionX, save_later_btn.PositionY, save_later_btn.Width, save_later_btn.Height = 112, 162, 110, 16
+    save_later_btn.Label = "Save for later"
+    dm.insertByName("saveLater", save_later_btn)
 
     ok = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     ok.PositionX, ok.PositionY, ok.Width, ok.Height, ok.Label, ok.PushButtonType = 262, 200, 44, 16, "Insert", 1
@@ -4870,8 +4910,37 @@ def _suggest_dialog(doc, base: str, text: str) -> list[tuple[str, dict, str | No
         def disposing(self, event):
             pass
 
+    class _SaveForLaterListener(unohelper.Base, XActionListener):
+        """Backlog #30's last open piece (inc 465): flag selected beyond-library rows for later without closing
+        the dialog or inserting anything — the exact non-closing-button pattern `Details…` already established.
+        Library rows are skipped (nothing to save — they're already in the library); a purely-library selection
+        gets an explanatory message rather than silently doing nothing."""
+
+        def actionPerformed(self, event):
+            positions = list(list_ctrl.getSelectedItemsPos())
+            picks = [state["rows"][pos] for pos in positions if 0 <= pos < len(state["rows"])]
+            beyond_picks = [item for kind, item in picks if kind == "beyond"]
+            if not picks:
+                _msgbox("Select one or more beyond-library suggestions to save for later.")
+                return
+            if not beyond_picks:
+                _msgbox(
+                    "Only beyond-library suggestions can be saved for later — in-library results are already in your library."
+                )
+                return
+            for item in beyond_picks:
+                save_beyond_library_item_for_later(base, item, text)
+            _msgbox(
+                f"Saved {len(beyond_picks)} for later — review them anytime from Discover → Search → "
+                "Saved for later in the callosum app."
+            )
+
+        def disposing(self, event):
+            pass
+
     beyond_ctrl.addItemListener(_BeyondListener())
     dialog.getControl("details").addActionListener(_DetailsListener())
+    dialog.getControl("saveLater").addActionListener(_SaveForLaterListener())
 
     result_code = dialog.execute()  # 1 == Insert
     positions = list(list_ctrl.getSelectedItemsPos()) if result_code == 1 else []

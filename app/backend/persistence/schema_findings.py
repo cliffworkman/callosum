@@ -143,6 +143,38 @@ gap_candidates = Table(
     Index("ix_gap_candidates_scope", "direction", "axis_id"),
 )
 
+# Persistent, dismissible beyond-library suggestion queue (backlog #30's last open piece, inc 465). Unlike
+# gap_candidates (a whole-library citation-graph scan, cached per scope and wholesale-replaced on Refresh), a
+# beyond-library suggestion is inherently per-sentence -- there is no "recompute" here, only "remember this one
+# candidate I explicitly flagged." One row per explicitly-saved suggestion, keyed by its own stable cross-
+# provider dedup_key (Item.dedup_key in discovery/providers.py: "doi:..."/"pmid:..."/"title:..."). status is a
+# soft state (never a hard delete), matching this codebase's consistent soft-delete-over-hard-delete posture.
+saved_beyond_library_suggestions = Table(
+    "saved_beyond_library_suggestions",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("dedup_key", String(512), nullable=False, unique=True),
+    Column("title", Text, nullable=False),
+    Column("sources", JSON),
+    Column("doi", String(255)),
+    Column("pmid", String(32)),
+    Column("abstract", Text),
+    Column("authors", JSON),
+    Column("journal", Text),
+    Column("year", Integer),
+    Column("url", Text),
+    Column("reason", Text),
+    Column("evidence_text", Text),
+    Column("evidence_kind", String(20)),
+    Column("relationship_kind", String(40)),
+    Column("relationship_label", Text),
+    Column("anchor_paper_id", Integer),
+    Column("anchor_title", Text),
+    Column("source_query", Text),  # the draft sentence that surfaced it -- provenance, not re-searchable
+    Column("status", String(20), nullable=False, server_default="pending"),  # pending | dismissed | added
+    Column("saved_at", String(40), nullable=False),
+)
+
 # Followed-authors gap-finder source (backlog #29, inc 454): a lightweight OpenAlex-author subscription list.
 # Sibling to gap_candidates, not a new column on it -- gap_candidates/GapCandidate have no room for author
 # provenance and no per-author refresh scope. last_refreshed_at is set by the refresh job regardless of candidate

@@ -19,7 +19,7 @@ function _discoverSaveSearchHistory(rows) {
   try { localStorage.setItem(DISCOVER_SEARCH_HISTORY_KEY, JSON.stringify(rows)); } catch (e) { /* ignore */ }
 }
 
-function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverlooked }) {
+function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverlooked, onOpenBeyondSaved }) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | ready | error
   const [items, setItems] = useState([]);
@@ -175,6 +175,7 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
           {onOpenWanted && <button className="btn btn-primary" onClick={onOpenWanted} title="Papers you want an OA copy of — re-check open-access sources">Wanted</button>}
           {onOpenGaps && <button className="btn btn-primary" onClick={onOpenGaps} title="Works related to several of your papers that you don't have yet — references you cite, or newer work citing you">Gaps</button>}
           {onOpenOverlooked && <button className="btn btn-primary" onClick={onOpenOverlooked} title="Per axis: works relevant to it but under-cited for their year — work the field may have overlooked">Overlooked</button>}
+          {onOpenBeyondSaved && <button className="btn btn-primary" onClick={onOpenBeyondSaved} title="Beyond-library citation suggestions you flagged with Save for later while writing">Saved for later</button>}
         </div>
         <div className="discover-hint">
           Public metadata search · source choice controls where to query; the complete returned list is shown (nothing AI-filtered) · <b>j/k</b> move · <b>s</b> save · <b>Enter</b> abstract

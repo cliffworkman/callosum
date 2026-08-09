@@ -28,6 +28,7 @@ from app.backend.api.routers import (
     agent,
     annotations,
     axes,
+    beyond_library_saved,
     citation_context,
     citation_counts,
     citation_equity,
@@ -406,6 +407,9 @@ def create_app(
     api.include_router(
         citation_stance.router
     )  # /citations/classify-stance — pairwise stance, split from citations.py (inc 461)
+    api.include_router(
+        beyond_library_saved.router
+    )  # /citations/beyond-library/* — persistent save/dismiss queue (backlog #30, inc 465)
     api.include_router(annotations.router)
     api.include_router(tags.router)
     api.include_router(saved_searches.router)

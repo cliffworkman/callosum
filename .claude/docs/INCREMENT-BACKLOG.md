@@ -283,11 +283,18 @@ the Principles + A-A gates before build.)*
   `/discovery/save`, the same write path the web "Add to library" button uses).
   **Inc 449 ships Semantic Scholar's *recommendations* endpoint** as a third beyond-library candidate source
   (anchored on the same top in-library matches OpenAlex-neighborhood already uses), labeled "Recommended by
-  Semantic Scholar alongside a locally relevant paper" — never a bare S2-internal score. **Still genuinely open:**
-  a persistent, dismissible cache surface in the `gaps.py` style (what's shipped is a live, per-sentence,
-  ephemeral flow — the backlog's original "persistent... cache... dismiss" framing describes a structurally
-  different design that was never built); **Stage-4 section-scoping** (needs GROBID + the plugin). Neither of
-  these is "the highest-value unbuilt thing" anymore — that framing was the stale part.
+  Semantic Scholar alongside a locally relevant paper" — never a bare S2-internal score.
+  ✅ **The persistent, dismissible cache surface — CLOSED inc 465.** A new explicit **"Save for later"** button
+  on every beyond-library suggestion card (web Cite pane + the LibreOffice adapter's own Suggest dialog, both in
+  this same pass) persists the suggestion verbatim into a reviewable queue — a new modal opened from
+  Discover → Search, mirroring how "Gaps" is itself actually built (a modal, not a workspace tab). Unlike
+  gap-finder (a whole-library scan cached per scope), there's no recompute here — a new
+  `saved_beyond_library_suggestions` table keyed by the suggestion's own stable `dedup_key`, with **Add**
+  (reuses `save_item`, the same write path `/discovery/save`/`/gaps/add` already use) and **Dismiss** (a soft
+  status flip, never a hard delete — matching this codebase's consistent soft-delete posture). Explicit-save-
+  only, confirmed with Cliff — never automatic accumulation of every suggestion merely shown.
+  **Still genuinely open: Stage-4 section-scoping** (needs GROBID + the plugin) — not "the highest-value unbuilt
+  thing" anymore, just the one piece needing infrastructure this project doesn't have yet.
 - **#33/#34 Citation & bibliography engine + plugins — the LibreOffice adapter's next phase.**
   Superseded by the much richer competitor-informed roadmap now at
   `.claude/docs/future-tracks/chatgpt5.6_future-tracks_wordprocessorpluginsroadmap.md` (+ its
@@ -728,8 +735,7 @@ the Principles + A-A gates before build.)*
 
 ## 5. Open proposals (undecided, not gated on anything — just not prioritized)
 
-- **A scratch / ephemeral axis** (non-persisting / auto-expiring), to absorb cheap throwaway intersection-axes.
-  May already be covered by "just delete the throwaway axis" + the full-text search box (the A3 FTS feature).
+*(none currently — the scratch/ephemeral axis proposal was resolved 2026-08-09; see §6.)*
 
 ---
 
@@ -748,6 +754,14 @@ the Principles + A-A gates before build.)*
   multi-dimensionality tags capture. Color tags only (#A5/#207), never a rating field.
 - **A tag's source as an always-on label/icon** — declined 2026-07-06: kept aesthetic-only (muted styling +
   tooltip + the All/Yours/Keywords filter already convey provenance).
+- **A scratch / ephemeral axis** — declined 2026-08-09 (confirmed with Cliff, first item of the post-P2 backlog
+  sequence): the doc that proposed it already flagged doubt ("may already be covered"), and checking against the
+  current codebase confirmed it — axis deletion is already 1 click + 1 confirm (`15_axes.jsx`'s `remove()`,
+  `window.confirm`), and full-text search (A3, FTS5, `fulltext_repo.py`) already covers "quick lookup without
+  committing to an axis." The one thing genuinely uncovered — auto-expiry, so a throwaway axis vanishes without
+  the user remembering to delete it — was declined on its own terms: silently discarding user data has no
+  precedent anywhere else in this codebase (papers go to Trash, never straight deletion, for exactly this
+  reason), so auto-expiry would cut against an established value rather than fill a real gap.
 
 ---
 

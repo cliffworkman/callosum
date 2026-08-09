@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 464** (see Increment workflow) with **2036 root-suite pytest tests
+It is currently at **Increment 465** (see Increment workflow) with **2046 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -396,6 +396,16 @@ the full per-increment narrative for all other increments now lives in the reloc
   now carries OpenAlex's real `publication_date` (validated `YYYY-MM-DD`, added to the existing works `select=`
   param), and Feed's `posted_date` prefers it over the bare-year fallback — additive/backward-compatible, so a
   pre-458 cached work (or one OpenAlex itself never dated precisely) keeps the old bare-year behavior.
+- **Beyond-library saved queue (backlog #30's last open piece, inc 465):** a "Save for later" button on every
+  beyond-library suggestion card (`app/backend/citations/beyond_library.py`'s live, per-sentence search — both
+  the web Cite pane and the LibreOffice adapter's Suggest dialog) persists the suggestion verbatim into a new
+  `saved_beyond_library_suggestions` table, keyed by the suggestion's own stable `dedup_key`. Faithfully mirrors
+  how "Gaps" is itself actually built — a modal (`36c_beyond_library_saved.jsx`'s `BeyondLibrarySavedModal`)
+  opened from a Discover → Search button, not a workspace tab — but simpler than gap-finder: a beyond-library
+  suggestion is inherently per-sentence, so there's no recompute/Refresh concept, only "remember this one
+  candidate I explicitly flagged." Add reuses `save_item` (the same write path `/discovery/save`/`/gaps/add`
+  already use); Dismiss is a soft status flip, never a hard delete. Explicit-save-only by design — never
+  automatic accumulation of every suggestion merely shown.
 - **Local usage instrumentation (backlog #38A, inc 450):** a zero-egress local event log + a personal
   Settings → **Your usage** dashboard — the buildable-now half of the "Research-impact analytics" future track
   (`.claude/docs/future-tracks/opus4.8_future-tracks_researchimpactanalytics.md`; the cross-user Project B stays
