@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 461** (see Increment workflow) with **1996 root-suite pytest tests
+It is currently at **Increment 462** (see Increment workflow) with **2007 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -305,7 +305,18 @@ the full per-increment narrative for all other increments now lives in the reloc
   precedent, then a citation mark via the unchanged `insert_citation_items`, reusing the same cursor so the
   mark lands right after its body). A new `evidence_annotation_id` key on `_ITEM_DEFAULTS` (the annotation
   analog of inc 460's `evidence_chunk_id`) rides the same additive mark-payload mechanism; no `SCHEMA_VERSION`
-  bump needed.
+  bump needed. **Inc 462** completes the P2 track's authoring-aid pair with **open-science statement
+  insertion** (roadmap #21): a new Work → Statements tab extends CRediT's own build→stage→LibreOffice-insert
+  pattern (`/credit/pending`, inc 261) to 7 more author-asserted disclosures — data availability, code
+  availability, preregistration, funding, conflict of interest, ethics, and AI use — each with click-to-fill
+  canned starting phrases (the CRediT role-bundle pattern: a one-click starting point, never silently applied).
+  A new generalized backend store (`app/backend/api/routers/statements.py`, `POST`/`GET /statements/pending`,
+  a dict keyed by kind rather than CRediT's single slot, since several statements may be staged at once) backs
+  one new LibreOffice "Insert statement…" command that reuses the existing `_choice_box` dropdown picker
+  unchanged — no new dialog construction, unlike inc 461's multi-step flow. None of the 7 has any structured
+  source of truth in callosum (confirmed against `wip_manuscripts` and the funding-search tables); every one is,
+  like CRediT itself, something only the author can assert — callosum never infers or verifies funding/ethics/
+  AI-use/availability facts about the user's own study. CRediT's own tab/endpoint/command are untouched.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -831,7 +842,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 461). Each increment of real work
+callosum is built in **numbered increments** (currently at 462). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

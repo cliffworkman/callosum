@@ -11,6 +11,20 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
 
+## 2026-08-08 — Increment 462: Open-science statement insertion (backlog #33/#34, P2 #21)
+- **Files:** `app/backend/api/routers/statements.py` (new), `app/backend/api/app.py`,
+  `app/frontend/js/38b_statements.jsx` (new), `app/frontend/styles.css`,
+  `adapters/libreoffice/callosum_cite.py`, `adapters/libreoffice/oxt/Addons.xcu`,
+  `adapters/libreoffice/selftest_uno.py`, `tests/test_statements.py` (new), `tests/test_libreoffice_adapter.py`.
+- **What:** a new Work → Statements tab extends CRediT's own build→stage→LibreOffice-insert pattern to 7 more
+  author-asserted disclosures (data/code availability, prereg, funding, COI, ethics, AI use), each with
+  click-to-fill canned starting phrases. One generalized backend pending store + one new "Insert statement…"
+  LibreOffice command (reuses the existing `_choice_box` picker). 11 new tests.
+- **Why:** closes P2 item #21 from the word-processor-plugins roadmap, fourth in the confirmed P2 sequence
+  (#19 → #17 → #20 → #21 → #18 → #22).
+- **Revert:** all changes additive/backward-compatible (new endpoint pair, new frontend tab, new adapter
+  command); CRediT's own tab/endpoint/command untouched. No schema/migration.
+
 ## 2026-08-08 — Increment 461: Citavi-style "Insert evidence" for the LibreOffice adapter (backlog #33/#34, P2 #20)
 - **Files:** `app/backend/api/routers/citation_stance.py` (new), `app/backend/api/app.py`,
   `adapters/libreoffice/evidence_insert.py` (new), `adapters/libreoffice/callosum_cite.py`,

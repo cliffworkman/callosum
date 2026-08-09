@@ -1013,6 +1013,22 @@
     font-size: 11px; color: var(--ink-2); background: var(--accent-soft); border: 1px solid var(--accent-line);
     border-radius: var(--radius-sm); padding: 6px 8px; margin: 4px 0; line-height: 1.45;
   }
+  /* inc 462 (Work -> Statements): the credit-* recipe above, reused token-for-token under its own prefix (a
+     legitimately distinct control per DESIGN.md §3 #8 — not a re-type, just a different feature that may
+     evolve independently). */
+  .statements-block {
+    display: flex; flex-direction: column; gap: 6px; margin: 10px 0;
+    border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel-2); padding: 10px 12px;
+  }
+  .statements-label { font-family: var(--sans); font-size: 13px; font-weight: 600; }
+  .statements-phrases { display: flex; flex-wrap: wrap; gap: 8px; }
+  .statements-phrase { font-size: 10.5px; }
+  .statements-textarea { min-height: 58px; resize: vertical; line-height: 1.45; }
+  .statements-actions { display: flex; gap: 8px; }
+  .statements-staged {
+    font-size: 11px; color: var(--ink-2); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    border-radius: var(--radius-sm); padding: 6px 8px; line-height: 1.45;
+  }
   /* inc 180: canonical credit-the-lineage block, shared by every METHODS module (statcheck / GRIM / p-curve). */
   .method-credit { font-size: 11.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
   .method-credit-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
@@ -19681,6 +19697,142 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       }
     ), a.filename, /* @__PURE__ */ React.createElement("span", { className: "merge-opt-from" }, " \xB7 from \u201C", a.paperTitle, "\u201D"))), /* @__PURE__ */ React.createElement("div", { className: "merge-keep-note" }, "All ", pdfs.length, " PDFs are kept; this one leads.")), err && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, err), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose, disabled: busy }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: submit, disabled: busy }, busy ? "Merging\u2026" : "Merge")))));
   }
+  const STATEMENT_TYPES = [
+    {
+      kind: "data_availability",
+      label: "Data availability",
+      phrases: [
+        { label: "Available on request", text: "The data that support the findings of this study are available from the corresponding author upon reasonable request." },
+        { label: "Openly available", text: "The data that support the findings of this study are openly available in [repository name] at [URL/DOI]." },
+        { label: "Restricted (third-party)", text: "The data used in this study are third-party data, and restrictions apply to their availability." },
+        { label: "No new data", text: "No new data were generated in this study." }
+      ]
+    },
+    {
+      kind: "code_availability",
+      label: "Code availability",
+      phrases: [
+        { label: "Openly available", text: "The code that supports the findings of this study is available at [repository URL]." },
+        { label: "Available on request", text: "The code used in this study is available from the corresponding author upon reasonable request." },
+        { label: "No custom code", text: "No custom code was used in this study." }
+      ]
+    },
+    {
+      kind: "preregistration",
+      label: "Preregistration",
+      phrases: [
+        { label: "Preregistered", text: "The study design and analysis plan were preregistered at [registry/URL] prior to data collection." },
+        { label: "Not preregistered", text: "This study was not preregistered." },
+        { label: "Some exploratory analyses", text: "Some analyses reported here were not specified in the preregistration and should be considered exploratory." }
+      ]
+    },
+    {
+      kind: "funding",
+      label: "Funding",
+      phrases: [
+        { label: "Funded", text: "This work was supported by [Funder name] under Grant No. [XXX]." },
+        { label: "No specific funding", text: "This research received no specific grant from any funding agency in the public, commercial, or not-for-profit sectors." }
+      ]
+    },
+    {
+      kind: "conflict_of_interest",
+      label: "Conflict of interest",
+      phrases: [
+        { label: "None declared", text: "The authors declare no competing interests." },
+        { label: "Declared", text: "The authors declare the following competing interests: [describe]." }
+      ]
+    },
+    {
+      kind: "ethics",
+      label: "Ethics",
+      phrases: [
+        { label: "IRB approved", text: "This study was approved by [IRB/Ethics Committee name], protocol #[XXX]." },
+        { label: "Not required", text: "This study did not require ethical approval because [reason]." },
+        { label: "Informed consent", text: "All participants provided informed consent prior to participation." }
+      ]
+    },
+    {
+      kind: "ai_use",
+      label: "AI use",
+      phrases: [
+        { label: "AI used", text: "Generative AI tools were used for [specific purpose]; all AI-assisted content was reviewed and edited by the authors, who take full responsibility for the final manuscript." },
+        { label: "No AI used", text: "No generative AI tools were used in the preparation of this manuscript." }
+      ]
+    }
+  ];
+  function StatementsSection({ ctx }) {
+    const paperKey = "callosum.statements." + (ctx && ctx.selectedPaper != null ? ctx.selectedPaper : "_");
+    const [texts, setTexts] = useState({});
+    const [staged, setStaged] = useState({});
+    const [copiedKind, setCopiedKind] = useState(null);
+    const loadedKeyRef = useRef(null);
+    useEffect(() => {
+      const saved = _loadLayout(paperKey, null);
+      let next = {};
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === "object") next = parsed;
+        } catch (e) {
+        }
+      }
+      loadedKeyRef.current = paperKey;
+      setTexts(next);
+      setStaged({});
+    }, [paperKey]);
+    useEffect(() => {
+      if (loadedKeyRef.current !== paperKey) return;
+      _saveLayout(paperKey, JSON.stringify(texts));
+    }, [texts, paperKey]);
+    const setText = (kind, value) => {
+      setTexts((t) => ({ ...t, [kind]: value }));
+      setStaged((s) => s[kind] ? { ...s, [kind]: false } : s);
+    };
+    const applyPhrase = (kind, phraseText) => {
+      const current = (texts[kind] || "").trim();
+      if (current && current !== phraseText && !window.confirm("Replace the current text with the selected phrase?")) return;
+      setText(kind, phraseText);
+    };
+    const copy = (kind) => {
+      const text = texts[kind] || "";
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        setCopiedKind(kind);
+        setTimeout(() => setCopiedKind(null), 1500);
+      });
+    };
+    const sendToLibreOffice = async (kind) => {
+      const text = (texts[kind] || "").trim();
+      const r = await apiPost("/statements/pending", { kind, text });
+      if (r.ok) setStaged((s) => ({ ...s, [kind]: !!text }));
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "grim-section ws-pad" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Build the manuscript-level disclosures many journals require. Callosum offers common starting phrasing for each \u2014 you decide what applies and edit freely; it never asserts a fact about your study on your behalf."), STATEMENT_TYPES.map((type) => {
+      const text = texts[type.kind] || "";
+      return /* @__PURE__ */ React.createElement("div", { className: "statements-block", key: type.kind }, /* @__PURE__ */ React.createElement("div", { className: "statements-label" }, type.label), /* @__PURE__ */ React.createElement("div", { className: "statements-phrases" }, type.phrases.map((p, i) => /* @__PURE__ */ React.createElement("button", { key: i, type: "button", className: "btn-link statements-phrase", onClick: () => applyPhrase(type.kind, p.text) }, p.label))), /* @__PURE__ */ React.createElement(
+        "textarea",
+        {
+          className: "settings-input statements-textarea",
+          rows: 3,
+          value: text,
+          onChange: (e) => setText(type.kind, e.target.value),
+          placeholder: `Type or pick a starting phrase for your ${type.label.toLowerCase()} statement\u2026`,
+          spellCheck: true
+        }
+      ), /* @__PURE__ */ React.createElement("div", { className: "statements-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !text, onClick: () => copy(type.kind) }, copiedKind === type.kind ? "\u2713 copied" : "Copy"), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "btn btn-ghost",
+          onClick: () => sendToLibreOffice(type.kind),
+          title: "Stage this statement for the LibreOffice Callosum add-on to insert at the cursor (requires the add-on)"
+        },
+        "Send to LibreOffice"
+      )), staged[type.kind] && /* @__PURE__ */ React.createElement("div", { className: "statements-staged" }, "Staged \u2014 switch to LibreOffice and run ", /* @__PURE__ */ React.createElement("b", null, "Callosum \u2192 Insert statement\u2026"), " to place it at the cursor. (Editing this box clears this \u2014 re-send after changes.)"));
+    }));
+  }
+  registerWorkspaceTab(
+    { id: "work" },
+    { id: "statements", label: "Statements", order: 31, hideInReadOnly: true, render: (ctx) => /* @__PURE__ */ React.createElement(StatementsSection, { ctx }) }
+  );
   function useFocusMode({ setActiveTab, onEnterClearFilters }) {
     const [focusAxis, setFocusAxis] = useState(null);
     const [focusMembers, setFocusMembers] = useState(() => /* @__PURE__ */ new Set());

@@ -486,10 +486,10 @@ the Principles + A-A gates before build.)*
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
   not left to drift like the composer's verification did). Remaining P1 future tracks (traveling-library
   portability and comprehensive keyboard/accessibility) **and P2
-  leapfrog remaining items** (manuscript-level citation-coverage audit [#18], open-science statement
-  insertion [#21], cross-manager conversion [#22]) — see the roadmap doc for the full prioritized list + a test
+  leapfrog remaining items** (manuscript-level citation-coverage audit [#18],
+  cross-manager conversion [#22]) — see the roadmap doc for the full prioritized list + a test
   plan. A confirmed linear order for the P2 track: #19 → #17 → #20 → #21 → #18 → #22 (see memory
-  `callosum-p2-leapfrog-roadmap`) — #19, #17, and #20 are now closed; #21 is next.
+  `callosum-p2-leapfrog-roadmap`) — #19, #17, #20, and #21 are now closed; #18 is next.
   ✅ **P2 item #19 (citation integrity preflight) CLOSED inc 459.** A reuse-first, document-scoped slice: a new
   "Citation integrity preflight…" LibreOffice command folds `diagnose_document`'s existing mechanics report
   (malformed/duplicate/orphaned marks, bibliography health) together with a fresh, on-demand retraction
@@ -524,6 +524,17 @@ the Principles + A-A gates before build.)*
   cursor so the mark lands right after its body — proven to round-trip losslessly through a real save/reopen via
   the new `spike_insert_evidence`. A new `evidence_annotation_id` key on `_ITEM_DEFAULTS` (the annotation analog
   of inc 460's `evidence_chunk_id`) rides the same additive mark-payload mechanism; no `SCHEMA_VERSION` bump.
+  ✅ **P2 item #21 (open-science statement insertion) CLOSED inc 462.** Extends CRediT's own "build → stage →
+  LibreOffice inserts" pattern to 7 more author-asserted disclosures (data availability, code availability,
+  preregistration, funding, conflict of interest, ethics, AI use) via a new Work → Statements tab. Two scope
+  decisions confirmed with Cliff: click-to-fill canned starting phrases per statement (mirroring CRediT's own
+  role-bundle pattern), and one combined mechanism rather than 7 parallel ones — a single generalized backend
+  pending store keyed by kind (`app/backend/api/routers/statements.py`) and one LibreOffice "Insert statement…"
+  command that reuses the existing `_choice_box` picker (no new dialog construction needed). None of the 7 has
+  any structured source of truth in callosum today, confirmed by checking `wip_manuscripts` and the
+  funding-search tables — every one, like CRediT itself, is something only the author can assert; callosum never
+  infers or verifies funding/ethics/COI/AI-use facts about the user's own study. CRediT's own tab/endpoint/
+  command are completely untouched.
   **UX follow-ups (incs 374/375/376/382/383) — CLOSED inc 446.** All three state-blind toggles (automatic
   bibliography rebuilding, citation-to-bibliography links, bibliography title/DOI links) now expose current
   ON/OFF state via "Document diagnostics…" (always-present, read-only) and each toggle's own message now states

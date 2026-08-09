@@ -257,6 +257,14 @@
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>
+          <!-- P2 item #21 (backlog #33/#34, inc 462): insert whichever open-science disclosure statement
+               (data/code/prereg/funding/COI/ethics/AI use) is currently staged from Work -> Statements. -->
+          <node oor:name="m13" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?insertStagedStatement</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Insert statement…</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
         </node>
       </node>
     </node>

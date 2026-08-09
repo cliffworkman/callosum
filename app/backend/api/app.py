@@ -80,6 +80,7 @@ from app.backend.api.routers import (
     saved_searches,
     settings,
     settings_providers,
+    statements,
     status,
     summaries,
     sync,
@@ -374,6 +375,7 @@ def create_app(
     api.include_router(reference_integrity.router)  # /papers/{id}/reference-integrity — Meta Reference List
     api.include_router(funding.router)  # /funding-discovery/* — Theory-pane funding prospects
     api.include_router(credit.router)  # /credit/* — CRediT contribution-statement builder (#26, inc 261)
+    api.include_router(statements.router)  # /statements/* — open-science statement staging (P2 #21, inc 462)
     api.include_router(
         critical_review.router
     )  # /papers/{id}/critical-read — the critical-review scrutiny surface (#12)

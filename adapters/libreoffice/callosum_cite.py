@@ -5579,6 +5579,54 @@ def insert_statement(doc, base: str) -> None:
     doc.getText().insertString(_insertion_cursor(doc), text + "\n", False)
 
 
+# inc 462 (P2 item #21, backlog #33/#34): open-science statement insertion -- extends the CRediT statement's own
+# "build in the web UI -> stage -> LibreOffice pulls & inserts" pattern above to 7 more author-asserted
+# manuscript disclosures, generalized to a dict keyed by kind (POST/GET /statements/pending) instead of one bare
+# slot, since several statements may be staged at once. Fixed vocabulary duplicated from the backend's own
+# STATEMENT_KINDS -- the CSL_LOCATOR_LABELS precedent (this adapter runs under LibreOffice's own bundled Python,
+# a separate process with no access to the backend's Python package).
+STATEMENT_KIND_LABELS = {
+    "data_availability": "Data availability",
+    "code_availability": "Code availability",
+    "preregistration": "Preregistration",
+    "funding": "Funding",
+    "conflict_of_interest": "Conflict of interest",
+    "ethics": "Ethics",
+    "ai_use": "AI use",
+}
+STATEMENT_PREVIEW_MAX = 60  # truncate a staged statement's text in the picker row
+
+
+def statements_pending(base: str) -> dict[str, str]:
+    """GET /statements/pending -- kind -> currently staged text (only kinds with non-empty staged text).
+    {} on a malformed non-dict response, matching `search_library`'s own defensive convention."""
+    data = _get_json(f"{base}/statements/pending")
+    return data if isinstance(data, dict) else {}
+
+
+def insert_staged_statement(doc, base: str = DEFAULT_BASE) -> None:
+    """Insert whichever staged open-science statement the user picks (roadmap #21). Reuses the existing
+    `_choice_box` dropdown picker unchanged -- no new dialog construction needed, unlike inc 461's multi-step
+    "Insert evidence" flow, since this is a single pick from a short, already-labeled list. Plain static text —
+    a disclosure statement is prose the author asserts, not a live citation field, so no ReferenceMark wrapper,
+    matching `insert_statement`'s own CRediT precedent exactly."""
+    staged = statements_pending(base)
+    if not staged:
+        _msgbox(
+            "No open-science statements staged yet — in callosum open Work → Statements, build one, and click "
+            '"Send to LibreOffice" first.'
+        )
+        return
+    options = tuple(
+        (f"{STATEMENT_KIND_LABELS.get(kind, kind)} — {text[:STATEMENT_PREVIEW_MAX]}", kind)
+        for kind, text in staged.items()
+    )
+    chosen = _choice_box(doc, "Insert statement", "Choose which staged statement to insert:", options, options[0][1])
+    if chosen is None:
+        return
+    doc.getText().insertString(_insertion_cursor(doc), staged[chosen] + "\n", False)
+
+
 def set_server_url_interactive(doc) -> None:
     url = _input_box(doc, "callosum server URL", "Server URL (e.g. http://127.0.0.1:8080):", get_server_url())
     if url is None:
@@ -5974,6 +6022,7 @@ _ACTIONS = {
     "flatten": lambda doc, base: flatten_interactive(doc),
     "prepareSubmissionCopy": lambda doc, base: prepare_submission_copy_interactive(doc),
     "insertStatement": insert_statement,
+    "insertStagedStatement": insert_staged_statement,
     "setServerUrl": lambda doc, base: set_server_url_interactive(doc),
     "deleteCitation": delete_citation_interactive,
     "mergeWithNext": merge_with_next_interactive,
@@ -6079,6 +6128,10 @@ def CallosumFlatten(*_args):
 
 def CallosumInsertStatement(*_args):
     _macro("insertStatement")
+
+
+def CallosumInsertStagedStatement(*_args):
+    _macro("insertStagedStatement")
 
 
 def CallosumSetServerUrl(*_args):
@@ -6205,4 +6258,5 @@ g_exportedScripts = (
     CallosumEditCitation,
     CallosumCitationsPanel,
     CallosumInsertEvidence,
+    CallosumInsertStagedStatement,
 )

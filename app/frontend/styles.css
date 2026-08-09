@@ -989,6 +989,22 @@
     font-size: 11px; color: var(--ink-2); background: var(--accent-soft); border: 1px solid var(--accent-line);
     border-radius: var(--radius-sm); padding: 6px 8px; margin: 4px 0; line-height: 1.45;
   }
+  /* inc 462 (Work -> Statements): the credit-* recipe above, reused token-for-token under its own prefix (a
+     legitimately distinct control per DESIGN.md §3 #8 — not a re-type, just a different feature that may
+     evolve independently). */
+  .statements-block {
+    display: flex; flex-direction: column; gap: 6px; margin: 10px 0;
+    border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel-2); padding: 10px 12px;
+  }
+  .statements-label { font-family: var(--sans); font-size: 13px; font-weight: 600; }
+  .statements-phrases { display: flex; flex-wrap: wrap; gap: 8px; }
+  .statements-phrase { font-size: 10.5px; }
+  .statements-textarea { min-height: 58px; resize: vertical; line-height: 1.45; }
+  .statements-actions { display: flex; gap: 8px; }
+  .statements-staged {
+    font-size: 11px; color: var(--ink-2); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    border-radius: var(--radius-sm); padding: 6px 8px; line-height: 1.45;
+  }
   /* inc 180: canonical credit-the-lineage block, shared by every METHODS module (statcheck / GRIM / p-curve). */
   .method-credit { font-size: 11.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
   .method-credit-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }

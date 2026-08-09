@@ -2516,3 +2516,64 @@ def test_run_insert_evidence_full_flow_inserts(monkeypatch) -> None:
     rnd = ei.run_insert_evidence(object(), "http://x")
     assert rnd == "rnd-final"
     assert captured == {"paper_id": 5, "a": annotation, "fmt": ei.FORMAT_QUOTE_CITE, "locator": "5"}
+
+
+# ── inc 462 (P2 item #21, backlog #33/#34): open-science statement insertion -- statements_pending/
+# insert_staged_statement reuse the existing _choice_box dropdown picker, so no new dialog construction to spike;
+# these are all duck-typed / monkeypatched like every other non-UNO-mutation helper in this file. ─────────────
+
+
+def test_statements_pending_returns_dict_and_defensive_on_malformed(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "_get_json", lambda url: {"funding": "x"})
+    assert cc.statements_pending("http://x") == {"funding": "x"}
+    monkeypatch.setattr(cc, "_get_json", lambda url: ["not", "a", "dict"])
+    assert cc.statements_pending("http://x") == {}
+
+
+def test_insert_staged_statement_no_staged_shows_message(monkeypatch) -> None:
+    messages = []
+    monkeypatch.setattr(cc, "statements_pending", lambda base: {})
+    monkeypatch.setattr(cc, "_msgbox", lambda msg, **kw: messages.append(msg))
+    monkeypatch.setattr(cc, "_choice_box", lambda *a, **k: pytest.fail("no staged statements to choose from"))
+    cc.insert_staged_statement(object(), "http://x")
+    assert messages and "Work" in messages[0] and "Statements" in messages[0]
+
+
+def test_insert_staged_statement_inserts_the_chosen_kind(monkeypatch) -> None:
+    inserted = []
+
+    class _FakeText:
+        def insertString(self, cursor, text, absorb):
+            inserted.append((cursor, text, absorb))
+
+    class _FakeDoc:
+        def getText(self):
+            return _FakeText()
+
+    staged = {"funding": "Funded by NSF.", "ethics": "IRB approved."}
+    monkeypatch.setattr(cc, "statements_pending", lambda base: staged)
+    monkeypatch.setattr(cc, "_insertion_cursor", lambda doc: "CURSOR")
+    seen_options = {}
+
+    def fake_choice_box(doc, title, prompt, options, current_value):
+        seen_options["options"] = options
+        seen_options["current_value"] = current_value
+        return "ethics"  # simulate the user picking the second staged kind, not the default first
+
+    monkeypatch.setattr(cc, "_choice_box", fake_choice_box)
+    cc.insert_staged_statement(_FakeDoc(), "http://x")
+    assert inserted == [("CURSOR", "IRB approved.\n", False)]
+    # options carry a (label, kind) pair per staged kind, with a human label + truncated preview
+    kinds_offered = {kind for _label, kind in seen_options["options"]}
+    assert kinds_offered == {"funding", "ethics"}
+    assert seen_options["current_value"] == "funding"  # defaults to the first staged kind
+
+
+def test_insert_staged_statement_cancel_does_not_insert(monkeypatch) -> None:
+    class _FakeDoc:
+        def getText(self):
+            return pytest.fail("must not touch the document text on cancel")
+
+    monkeypatch.setattr(cc, "statements_pending", lambda base: {"funding": "Funded."})
+    monkeypatch.setattr(cc, "_choice_box", lambda *a, **k: None)
+    cc.insert_staged_statement(_FakeDoc(), "http://x")  # no exception, no insertion attempted

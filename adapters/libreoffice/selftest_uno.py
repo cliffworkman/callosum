@@ -2096,6 +2096,70 @@ def spike_insert_evidence(ctx, base, p1, p2):
             pass
 
 
+def spike_insert_staged_statement(ctx, base):
+    """P2 item #21 (backlog #33/#34, inc 462): `insert_staged_statement` is the first place this adapter reads a
+    MULTI-KIND pending store (unlike CRediT's own single-slot `/credit/pending`) and reuses the existing
+    `_choice_box` picker (no new dialog construction) to choose among several staged statements. This spike
+    proves the real HTTP round trip — a real `POST /statements/pending` call for two distinct kinds, then a real
+    insert into a real document, picking one specific kind via a monkeypatched `_choice_box` (the dialog itself
+    is interactive-only, like every other choice/input box in this file — see `composer.py`'s own docstring for
+    why). Also confirms the "nothing staged" path is an honest message, not a crash or a stray insertion."""
+    import json as _json
+    import urllib.request as _urlreq
+
+    def post_json(path, body):
+        data = _json.dumps(body).encode("utf-8")
+        req = _urlreq.Request(f"{base}{path}", data=data, headers={"Content-Type": "application/json"}, method="POST")
+        with _urlreq.urlopen(req, timeout=10) as r:  # noqa: S310 -- fixed local base, mirrors selftest's own helpers
+            return _json.loads(r.read().decode("utf-8"))
+
+    def get_json(path):
+        with _urlreq.urlopen(f"{base}{path}", timeout=10) as r:  # noqa: S310
+            return _json.loads(r.read().decode("utf-8"))
+
+    log("spike (P2 #21): staging two open-science statements via the real endpoint")
+    post_json("/statements/pending", {"kind": "funding", "text": "This work was supported by a real grant."})
+    post_json("/statements/pending", {"kind": "ethics", "text": "This study was approved by a real IRB."})
+    staged = get_json("/statements/pending")
+    check(staged.get("funding") == "This work was supported by a real grant.", f"funding not staged: {staged}")
+    check(staged.get("ethics") == "This study was approved by a real IRB.", f"ethics not staged: {staged}")
+    log(f"spike (P2 #21): OK — staged {sorted(staged.keys())} via the real endpoint")
+
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("Intro paragraph.\n")
+    end_cursor = text.createTextCursorByRange(text.getEnd())
+    doc.getCurrentController().getViewCursor().gotoRange(end_cursor, False)
+
+    original_choice_box = cc._choice_box
+    cc._choice_box = lambda doc_, title, prompt, options, current_value: "ethics"
+    try:
+        cc.insert_staged_statement(doc, base)
+    finally:
+        cc._choice_box = original_choice_box
+
+    body = text.getString()
+    check("This study was approved by a real IRB." in body, "chosen (ethics) statement text not found in document")
+    check(
+        "This work was supported by a real grant." not in body,
+        "the NON-chosen (funding) statement should not have been inserted",
+    )
+    log("spike (P2 #21): OK — insert_staged_statement inserted exactly the chosen kind's text at the cursor")
+
+    post_json("/statements/pending", {"kind": "funding", "text": ""})
+    post_json("/statements/pending", {"kind": "ethics", "text": ""})
+    check(get_json("/statements/pending") == {}, "expected both kinds un-staged after clearing")
+    captured = []
+    original_msgbox = cc._msgbox
+    cc._msgbox = lambda message, title="callosum": captured.append(message)
+    try:
+        cc.insert_staged_statement(doc, base)
+    finally:
+        cc._msgbox = original_msgbox
+    check(len(captured) == 1, f"expected exactly one message when nothing is staged, got {captured}")
+    log("spike (P2 #21): OK — no staged statements shows an honest message, no insertion")
+
+
 def spike_bibliography_editing(ctx, base, p1, p2):
     """P1 item #11 (backlog #33/#34): exclude a cited work from the bibliography while its in-text citation
     still renders, and include an uncited "further reading" work — both against a real document, real
@@ -3827,6 +3891,10 @@ def main():
         # 25) P2 item #20 (backlog #33/#34, inc 461): Citavi-style "Insert evidence" -- the real two-step
         # body-text-then-citation insertion sequence, proven to round-trip through save/reopen.
         spike_insert_evidence(ctx, base, p1, p2)
+
+        # 26) P2 item #21 (backlog #33/#34, inc 462): open-science statement insertion -- the real multi-kind
+        # staging round trip + the choice-box picker landing exactly the chosen kind's text.
+        spike_insert_staged_statement(ctx, base)
 
         print("SELFTEST OK", flush=True)
         return 0
