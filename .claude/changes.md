@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-08 — help-docs catch-up covering incs 451-462 -->
+<!-- HELP-DOCS-SYNCED: 2026-08-09 inc 463 — citation coverage audit -->
+
+## 2026-08-09 — Increment 463: Citation coverage audit for the LibreOffice adapter (backlog #33/#34, P2 #18)
+- **Files:** `app/backend/api/routers/citation_equity.py`, `adapters/libreoffice/callosum_cite.py`,
+  `adapters/libreoffice/oxt/Addons.xcu`, `adapters/libreoffice/selftest_uno.py`, `tests/test_citation_equity.py`,
+  `tests/test_libreoffice_adapter.py`, `app/backend/help/help_content.md`.
+- **What:** a new "Citation coverage audit…" LibreOffice command — citation-concentration signals (reliance on
+  highly-cited work, venue/institutional concentration; self-citation honestly left "not computed") scoped to
+  the document's own cited papers via a new synchronous `POST /methods/citation-equity/check-selected`, plus a
+  new local structural scan flagging long citation-free paragraph stretches (inline and note-style citations
+  both recognized). 12 new tests. A real `compareRegionStarts`/`compareRegionEnds` polarity bug was caught
+  before shipping by cross-checking already-documented code, then confirmed fixed via a real-UNO spike (whose
+  own first draft also caught a real, pre-existing `citation_placement_error` refusal it was violating).
+- **Why:** closes P2 item #18 from the word-processor-plugins roadmap, fifth in the confirmed P2 sequence
+  (#19 → #17 → #20 → #21 → #18 → #22) — the track's last item, #22, remains.
+- **Revert:** all changes additive/backward-compatible; the `_distinct_cited_paper_ids` extraction is a pure
+  no-behavior-change refactor, safe to keep regardless. No schema/migration.
 
 ## 2026-08-08 — Help-docs sync: catch up incs 451-462
 - **Files:** `app/backend/help/help_content.md`.

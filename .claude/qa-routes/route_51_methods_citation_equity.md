@@ -40,6 +40,14 @@ listeners before navigation.
   list, so `field_topic` is always `None` (an honest "no field comparison available" note, never a guessed topic)
   and self-citation always reads "not computed" (never a fabricated 0%). The reference list itself comes from the
   manuscript's own "cited" `wip_references` links, never an OpenAlex `referenced_works` graph traversal.
+- **`POST /methods/citation-equity/check-selected` (inc 463, P2 item #18)** — the LibreOffice adapter's
+  "Citation coverage audit…" command's backend, scoped to exactly a caller-named `paper_ids` list (the papers
+  actually cited in the open manuscript). Synchronous, no job/poll. Same honest-degraded path as WIP above (no
+  author identity, no field comparison) — already covered by this route's own `api: /methods/citation-equity*`
+  wildcard. **This endpoint has no web frontend surface** — its real end-to-end exercise (a real document's
+  cited papers → a real signal report, plus the adapter's own local uncited-paragraph structural scan) is the
+  LibreOffice adapter's own real-UNO harness (`python adapters/libreoffice/run_roundtrip.py`,
+  `spike_citation_coverage_audit`), per CLAUDE.md's Verification protocol §4, not this browser-driven route.
 
 ## Adversarial checklist
 

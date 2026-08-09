@@ -249,6 +249,14 @@
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>
+          <!-- P2 item #18 (backlog #33/#34, inc 463): citation-concentration signals for this document's own
+               cited papers, plus a local scan for long citation-free prose stretches. Never mutates. -->
+          <node oor:name="m14" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?citationCoverageAudit</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Citation coverage audit…</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
           <!-- P2 item #20 (backlog #33/#34, inc 461): Citavi-style insertion of a saved PDF highlight (quote
                and/or your own note) alongside a live citation, with an optional local stance check first. -->
           <node oor:name="m12" oor:op="replace">

@@ -5795,6 +5795,28 @@ def _paper_id_from_item(item: dict) -> str | None:
     return item_id[len("callosum-") :] if item_id.startswith("callosum-") else None
 
 
+def _distinct_cited_paper_ids(doc, orphaned: set[str]) -> list[str]:
+    """Every distinct, non-orphaned cited paper id in this document, in first-occurrence order (P2 items #19/
+    #18, backlog #33/#34) — shared by `citation_integrity_preflight` and `citation_coverage_audit`, both of
+    which need "which papers does this document actually cite right now" as their starting point. Untruncated;
+    each caller applies its own cap."""
+    ids: list[str] = []
+    seen: set[str] = set()
+    for name in doc.getReferenceMarks().getElementNames():
+        if not (isinstance(name, str) and name.startswith(MARK_PREFIX + " ")):
+            continue
+        decoded = decode_mark_name(name)
+        if decoded is None or decoded.get("unsupported"):
+            continue
+        for item in decoded["items"]:
+            paper_id = _paper_id_from_item(item)
+            if paper_id is None or paper_id in orphaned or paper_id in seen:
+                continue
+            seen.add(paper_id)
+            ids.append(paper_id)
+    return ids
+
+
 MAX_INTEGRITY_PREFLIGHT_IDS = 100  # mirrors the backend's own POST /methods/retraction/check-selected cap --
 # truncated client-side so a manuscript citing more than this still gets a partial re-check rather than one
 # oversize request the backend would 422 in full (inc 459)
@@ -5819,21 +5841,7 @@ def citation_integrity_preflight(doc, base: str = DEFAULT_BASE) -> dict:
     """
     report = diagnose_document(doc, base)
     orphaned = set(report["orphaned"])
-    ids: list[str] = []
-    seen: set[str] = set()
-    for name in doc.getReferenceMarks().getElementNames():
-        if not (isinstance(name, str) and name.startswith(MARK_PREFIX + " ")):
-            continue
-        decoded = decode_mark_name(name)
-        if decoded is None or decoded.get("unsupported"):
-            continue
-        for item in decoded["items"]:
-            paper_id = _paper_id_from_item(item)
-            if paper_id is None or paper_id in orphaned or paper_id in seen:
-                continue
-            seen.add(paper_id)
-            ids.append(paper_id)
-    ids = ids[:MAX_INTEGRITY_PREFLIGHT_IDS]
+    ids = _distinct_cited_paper_ids(doc, orphaned)[:MAX_INTEGRITY_PREFLIGHT_IDS]
 
     checked: list[dict] = []
     flagged: list[dict] = []
@@ -5872,6 +5880,171 @@ def citation_integrity_preflight_interactive(doc, base: str) -> None:
         lines.append(f"Retraction re-check: {clean} of {len(report['retraction_checked'])} cited paper(s) clean.")
     issues_text = "\n\n".join(lines) if lines else "No issues found."
     _msgbox(issues_text, title="callosum — citation integrity preflight")
+
+
+# inc 463 (P2 item #18, backlog #33/#34): citation coverage audit — a reuse-first slice of the roadmap's much
+# larger "manuscript-level citation coverage analysis" checklist. Two pieces: (1) the existing citation-
+# concentration engine, scoped to this document's own cited papers; (2) a new, purely structural scan for long
+# citation-free stretches of prose. "Claims supported only by retracted/corrected papers" needs no new work
+# here — citation_integrity_preflight above already surfaces that. Everything requiring real claim-level
+# semantic parsing (evidence relatedness, review-vs-primary preference, secondhand citation) is a deliberate v1
+# boundary, matching every other item in this track.
+
+MAX_EQUITY_CHECK_SELECTED = 100  # mirrors the backend's own cap (methods_retraction.py's check-selected precedent)
+UNCITED_STRETCH_MIN_PARAGRAPHS = 3  # consecutive substantive paragraphs with no citation to flag a stretch
+UNCITED_STRETCH_MIN_WORDS = 15  # a paragraph needs at least this many words to count as "substantive" --
+# skips headings/short transitions; a length threshold, never a claim about what needs a citation
+UNCITED_STRETCH_PREVIEW_MAX = 150
+
+
+def _citation_anchor_ranges(doc) -> list:
+    """Every one of our own citation marks' MAIN-TEXT anchor position. An inline mark contributes its own
+    anchor directly; a note-style mark (footnote/endnote) contributes the NOTE's own main-text anchor instead
+    (`XTextContent.getAnchor()` on the footnote/endnote itself, its position in the main document) — the spot a
+    reader actually sees the citation reference at. Used by `_uncited_paragraph_stretches` to decide which
+    main-text paragraphs count as "cited"."""
+    text = doc.getText()
+    notes = _note_containers(doc)
+    ranges = []
+    matched_notes: set[int] = set()
+    for name in doc.getReferenceMarks().getElementNames():
+        if not (isinstance(name, str) and name.startswith(MARK_PREFIX + " ")):
+            continue
+        if decode_mark_name(name) is None:
+            continue
+        mark = doc.getReferenceMarks().getByName(name)
+        try:
+            anchor = mark.getAnchor()
+        except Exception:
+            continue
+        if _range_belongs_to_text(text, anchor):
+            ranges.append(anchor)
+            continue
+        for index, note in enumerate(notes):
+            note_obj = note["_note"]
+            if note_obj is None or index in matched_notes:
+                continue
+            if _range_belongs_to_text(note_obj, anchor):
+                try:
+                    ranges.append(note_obj.getAnchor())
+                except Exception:
+                    pass
+                matched_notes.add(index)
+                break
+    return ranges
+
+
+def _uncited_paragraph_stretches(doc) -> list[dict]:
+    """Pure structural scan (no network, no NLI, no claim judgment): walk the main document text's paragraphs
+    in order, tracking runs of consecutive substantive paragraphs (>= UNCITED_STRETCH_MIN_WORDS each) that
+    contain no citation anchor. A run is reported once it reaches UNCITED_STRETCH_MIN_PARAGRAPHS. This is a
+    neutral structural observation ("no citation appeared here") — never a claim that a citation is actually
+    needed; the report copy must say so explicitly. Returns ``[{"paragraph_count", "preview"}, ...]``."""
+    text = doc.getText()
+    anchors = _citation_anchor_ranges(doc)
+
+    def _paragraph_has_citation(para) -> bool:
+        # order_by_comparator's own docstring pins the exact convention: compareRegionStarts(a, b) is >0 iff a
+        # precedes b, 0 if same start, <0 if a follows b (compareRegionEnds follows the same polarity for ends).
+        # Containment of `anchor` within `para` is: para starts at-or-before anchor (para does NOT follow
+        # anchor -> compareRegionStarts(para, anchor) >= 0) AND para ends at-or-after anchor (para's end does
+        # NOT precede anchor's end -> compareRegionEnds(para, anchor) <= 0).
+        for anchor in anchors:
+            try:
+                if text.compareRegionStarts(para, anchor) >= 0 and text.compareRegionEnds(para, anchor) <= 0:
+                    return True
+            except Exception:
+                continue
+        return False
+
+    stretches: list[dict] = []
+    run: list[str] = []
+
+    def _flush():
+        if len(run) >= UNCITED_STRETCH_MIN_PARAGRAPHS:
+            preview = run[0]
+            if len(preview) > UNCITED_STRETCH_PREVIEW_MAX:
+                preview = preview[:UNCITED_STRETCH_PREVIEW_MAX].rstrip() + "…"
+            stretches.append({"paragraph_count": len(run), "preview": preview})
+
+    enum = text.createEnumeration()
+    while enum.hasMoreElements():
+        para = enum.nextElement()
+        if not para.supportsService("com.sun.star.text.Paragraph"):
+            continue
+        para_text = " ".join(str(para.getString() or "").split())
+        substantive = len(para_text.split()) >= UNCITED_STRETCH_MIN_WORDS
+        if substantive and not _paragraph_has_citation(para):
+            run.append(para_text)
+        else:
+            _flush()
+            run = []
+    _flush()
+    return stretches
+
+
+def citation_coverage_audit(doc, base: str = DEFAULT_BASE) -> dict:
+    """The two-part coverage audit (P2 item #18): citation-concentration signals for exactly this document's
+    own cited papers (via the backend's `POST /methods/citation-equity/check-selected`, reusing
+    `audit_reference_list` unchanged with the same honest-degraded author/field path
+    `wip_citation_equity.py` already established), plus the local uncited-stretch scan. Never mutates the
+    document. Returns ``{"signals", "references_total", "references_resolved", "equity_check_error",
+    "uncited_stretches"}``. A backend/network failure on the equity check is caught and surfaced rather than
+    blocking the already-computed local scan."""
+    # No orphaned-id pre-filter here (unlike citation_integrity_preflight, which needs a fresh diagnose_document
+    # scan anyway for its mechanics report) -- an orphaned paper id simply resolves to no DB row and is skipped
+    # server-side (check-selected's own per-id skip), so a second document scan just to pre-exclude it would be
+    # pure overhead for this audit alone.
+    ids = _distinct_cited_paper_ids(doc, orphaned=set())[:MAX_EQUITY_CHECK_SELECTED]
+    signals: list[dict] = []
+    references_total = 0
+    references_resolved = 0
+    error: str | None = None
+    if ids:
+        try:
+            result = _post_json(f"{base}/methods/citation-equity/check-selected", {"paper_ids": [int(i) for i in ids]})
+            signals = result.get("signals") or []
+            references_total = result.get("references_total") or 0
+            references_resolved = result.get("references_resolved") or 0
+        except Exception as exc:  # noqa: BLE001 — a down/slow backend never hides the local structural scan
+            error = str(exc)
+    return {
+        "signals": signals,
+        "references_total": references_total,
+        "references_resolved": references_resolved,
+        "equity_check_error": error,
+        "uncited_stretches": _uncited_paragraph_stretches(doc),
+    }
+
+
+def citation_coverage_audit_interactive(doc, base: str) -> None:
+    report = citation_coverage_audit(doc, base)
+    lines: list[str] = []
+    if report["equity_check_error"]:
+        lines.append(f"Citation-concentration check unavailable this time: {report['equity_check_error']}")
+    elif not report["signals"]:
+        lines.append("No cited papers to audit for citation concentration.")
+    else:
+        lines.append(
+            f"Citation concentration ({report['references_resolved']} of {report['references_total']} "
+            "cited paper(s) resolved):"
+        )
+        for signal in report["signals"]:
+            detail = f"  - {signal.get('label')}: {signal.get('summary')}"
+            if signal.get("low_coverage"):
+                detail += " (⚠ low coverage)"
+            lines.append(detail)
+    stretches = report["uncited_stretches"]
+    if stretches:
+        lines.append(
+            f"{len(stretches)} stretch(es) of {UNCITED_STRETCH_MIN_PARAGRAPHS}+ consecutive paragraphs with no "
+            "citation (a structural note, not a claim that a citation is missing):"
+        )
+        for stretch in stretches:
+            lines.append(f"  - {stretch['paragraph_count']} paragraphs, starting: “{stretch['preview']}”")
+    else:
+        lines.append("No long uncited stretches found.")
+    _msgbox("\n\n".join(lines), title="callosum — citation coverage audit")
 
 
 def list_document_citations(doc, base: str) -> list[dict]:
@@ -6044,6 +6217,7 @@ _ACTIONS = {
     "editCitation": edit_citation_interactive,
     "citationsPanel": citations_panel_interactive,
     "citationIntegrityPreflight": citation_integrity_preflight_interactive,
+    "citationCoverageAudit": citation_coverage_audit_interactive,
     "insertEvidence": insert_evidence_interactive,
 }
 
@@ -6218,6 +6392,10 @@ def CallosumCitationsPanel(*_args):
     _macro("citationsPanel")
 
 
+def CallosumCitationCoverageAudit(*_args):
+    _macro("citationCoverageAudit")
+
+
 def CallosumInsertEvidence(*_args):
     _macro("insertEvidence")
 
@@ -6257,6 +6435,7 @@ g_exportedScripts = (
     CallosumDiagnostics,
     CallosumEditCitation,
     CallosumCitationsPanel,
+    CallosumCitationCoverageAudit,
     CallosumInsertEvidence,
     CallosumInsertStagedStatement,
 )

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 462** (see Increment workflow) with **2007 root-suite pytest tests
+It is currently at **Increment 463** (see Increment workflow) with **2019 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -317,6 +317,22 @@ the full per-increment narrative for all other increments now lives in the reloc
   source of truth in callosum (confirmed against `wip_manuscripts` and the funding-search tables); every one is,
   like CRediT itself, something only the author can assert — callosum never infers or verifies funding/ethics/
   AI-use/availability facts about the user's own study. CRediT's own tab/endpoint/command are untouched.
+  **Inc 463** closes the P2 leapfrog track's #18 ("manuscript-level citation coverage analysis") with a
+  reuse-first slice: a new synchronous `POST /methods/citation-equity/check-selected` reuses
+  `audit_reference_list` unchanged, scoped to exactly the papers cited in the open Writer document (self-
+  citation honestly left "not computed" — no fabricated author identity, the `wip_citation_equity.py`
+  precedent), surfaced via a new "Citation coverage audit…" command. Paired with a new, purely local structural
+  scan (`_uncited_paragraph_stretches`, no network/NLI) flagging runs of 3+ consecutive substantive paragraphs
+  with no citation — a footnote/endnote citation counts via the note's own main-text anchor
+  (`XTextContent.getAnchor()`), so a note-style-cited paragraph is never misread as uncited. "Claims supported
+  only by retracted/corrected papers" needed no new work (inc 459's preflight already covers it); the rest of
+  the roadmap's 9-item #18 checklist needs real claim-level semantic parsing nothing in callosum does today — a
+  deliberate v1 boundary. A real `compareRegionStarts`/`compareRegionEnds` polarity bug in the new paragraph
+  scan was caught before shipping by cross-checking `order_by_comparator`'s own already-documented convention
+  (`>0` iff the first range precedes the second), not assumed — a duck-typed unit test alone had "passed" with
+  the same wrong polarity baked into both the fake and the code under test; only the real-UNO spike (which
+  needed a genuine two-document redesign after its first draft hit `citation_placement_error`'s real, deliberate
+  refusal to mix inline and note-style citations in one document) proved it fixed.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -842,7 +858,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 462). Each increment of real work
+callosum is built in **numbered increments** (currently at 463). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

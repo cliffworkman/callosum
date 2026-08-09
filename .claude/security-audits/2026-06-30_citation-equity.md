@@ -160,3 +160,44 @@ migration** — this is additional egress volume on an already-audited call shap
 host, same validated/bound-id posture, same fail-closed parsing); no new endpoint/dependency/migration; the
 dual cap is a disclosed, tested design choice, not an unbounded cost; no identity inference; user-initiated
 only.
+
+## inc 463 addendum — `POST /methods/citation-equity/check-selected` (LibreOffice "Citation coverage audit…")
+
+Triggered by gate criterion #1 (a new API endpoint) and #5 (net-new feature spanning 3+ files: the new
+endpoint, `adapters/libreoffice/callosum_cite.py`'s new audit command, `Addons.xcu`). Backlog #33/#34, P2 item
+#18 (the roadmap's "manuscript-level citation coverage analysis," narrowed to a reuse-first slice — see
+`INCREMENT-463-NOTES.md`). Scoped to a caller-named `paper_ids` list (the papers actually cited in the open
+Writer document right now) rather than a paper's own OpenAlex reference graph or a WIP manuscript's
+`wip_references` links.
+
+- **No new egress class.** Same public-OpenAlex-metadata posture as the base audit and the inc-457 addendum —
+  `OpenAlexClient.fetch_work_meta_for` per resolved paper, the same cached, fail-closed (`None` on any
+  non-200/parse error, never fabricated) call the WIP version (`wip_citation_equity.py`) already uses.
+- **Input validation / resource caps.** `paper_ids: list[int] = Field(min_length=1, max_length=
+  MAX_EQUITY_CHECK_SELECTED)` (100, mirroring `methods_retraction.py`'s own check-selected cap) — empty or
+  over-cap → 422 before any work. A `paper_id` no longer in the library resolves to no DB row and is skipped,
+  never fatal (the same per-reference skip discipline every other citation-equity path already uses).
+- **Injection / SQL.** A single bound `select(papers.c.doi, papers.c.title).where(papers.c.id == paper_id)` per
+  requested id (rule #3) — no interpolation, no dynamic table/column names.
+- **No identity inference / honest degradation.** `focal_author_families=set()`, `field=[]`, `field_topic=None`
+  — a live Writer document has no stored author identity and no OpenAlex record of its own to draw a field
+  comparison from, so this endpoint reuses `wip_citation_equity.py`'s own already-audited honest-empty path
+  verbatim rather than fabricating an author or field-topic proxy. `audit_reference_list` itself is completely
+  unmodified.
+- **Synchronous, not job-based (a deliberate scope note, not a gap).** Unlike the Library-paper and WIP
+  versions (both background `JobStore` jobs, since a full reference-graph traversal or a self-citation
+  field-baseline check can be slow), this endpoint is bounded to the document's own distinct cited papers —
+  typically far fewer — and the LibreOffice adapter has no job/poll infrastructure to consume an async job
+  anyway (the same constraint inc 459's `check-selected` precedent already established).
+- **The local uncited-paragraph structural scan is not a security-relevant surface.** It reads only the
+  already-open document's own text/citation-mark positions via UNO — no file path, no network call, no new
+  data leaves the process. Included here only because it ships in the same increment as the new endpoint.
+- **Negative paths** (`tests/test_citation_equity.py`): empty `paper_ids` → 422; 101 ids → 422; a `paper_id` not
+  in the library and a DOI OpenAlex can't resolve are both skipped gracefully (`references_resolved <
+  references_total`, never an error); `field_topic`/`field_sample_size`/self-citation's `field_pct` all confirm
+  the honest-empty path (never a guessed value).
+
+**Security Audit (inc 463 addendum): PASS.** No new egress class or dependency; bounded input (100-id cap);
+bound-param SQL; the same already-audited honest-degradation path reused verbatim; synchronous by deliberate,
+disclosed design given the document's own bounded cited-paper count and the adapter's lack of job/poll
+infrastructure.

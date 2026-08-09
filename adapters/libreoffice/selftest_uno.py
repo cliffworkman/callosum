@@ -2160,6 +2160,118 @@ def spike_insert_staged_statement(ctx, base):
     log("spike (P2 #21): OK — no staged statements shows an honest message, no insertion")
 
 
+def spike_citation_coverage_audit(ctx, base, p1, p2):
+    """P2 item #18 (backlog #33/#34, inc 463): proves both halves of `citation_coverage_audit` against real
+    documents — the real `POST /methods/citation-equity/check-selected` round trip, AND the genuinely novel,
+    no-existing-precedent piece: the local paragraph/citation-anchor structural scan, including the
+    `compareRegionStarts`/`compareRegionEnds` polarity `order_by_comparator`'s own docstring documents (>0 iff
+    a precedes b — gotten backwards once already during this increment's own implementation, caught only by
+    cross-checking already-shipped code, not assumed here either) and the note-style citation fallback via a
+    footnote's own `getAnchor()` (the exact pattern `_insert_note_mark` itself already relies on).
+
+    TWO separate documents, not one: this spike's first draft mixed an inline citation and a note-style
+    citation in the SAME document and hit a real, pre-existing, deliberate refusal —
+    `citation_placement_error` ("This note style is configured to use Writer footnotes, but the existing live
+    citations are in footnote, inline... Automatic conversion... is not available yet") — a genuine app
+    invariant this spike's setup violated, not a bug in the code under test. Inline and note-style citation
+    anchors are proven separately instead."""
+    # -- inline citations: the primary path, and the real backend endpoint call ---------------------------
+    doc = new_writer(ctx)
+    text = doc.getText()
+
+    def _para(s: str) -> None:
+        cursor = text.createTextCursorByRange(text.getEnd())
+        text.insertString(cursor, s, False)
+        text.insertControlCharacter(cursor, cc._PARAGRAH_BREAK(), False)
+
+    substantive = " ".join(["word"] * 15)
+    short = " ".join(["word"] * 5)
+    _para("Intro paragraph.")
+    _para(substantive)  # uncited #1
+    _para(substantive)  # uncited #2
+    _para(substantive)  # uncited #3 -- a run of 3, should flag
+    _para(substantive + " CITE-HERE")  # gets an inline citation (p1)
+    _para(short)  # too short to count -- breaks the run regardless
+    _para(substantive)  # uncited
+    _para(substantive)  # uncited -- only 2 in a row, must NOT flag
+    _para("CITE-HERE-2 end.")  # gets a second inline citation (p2) -- both anchors placed BEFORE either
+    # insert runs, so the second insert's own auto-refresh (which appends a bibliography at doc-end) can never
+    # land the second citation inside the bibliography's future-deletion zone (the spike_mark_size_and_reopen
+    # hazard this file already documents elsewhere).
+
+    def find(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find("CITE-HERE")))
+    cc.insert_citation(doc, p2, base, cursor=text.createTextCursorByRange(find("CITE-HERE-2")))
+
+    stretches = cc._uncited_paragraph_stretches(doc)
+    check(len(stretches) == 1, f"expected exactly 1 flagged stretch, got {stretches}")
+    check(stretches[0]["paragraph_count"] == 3, f"expected a 3-paragraph stretch, got {stretches[0]}")
+    log(f"spike (P2 #18): OK — inline uncited-stretch scan found exactly the expected 3-paragraph run: {stretches}")
+
+    report = cc.citation_coverage_audit(doc, base)
+    check(report["equity_check_error"] is None, f"equity check errored: {report['equity_check_error']}")
+    check(report["references_total"] == 2, f"expected 2 distinct cited papers, got {report['references_total']}")
+    check(len(report["signals"]) > 0, f"expected concentration signals, got none: {report}")
+    log(
+        f"spike (P2 #18): OK — citation_coverage_audit's real backend call returned {len(report['signals'])} "
+        f"signals for {report['references_resolved']}/{report['references_total']} resolved papers"
+    )
+
+    log("spike (P2 #18): citation_coverage_audit_interactive renders a combined report")
+    captured = []
+    original_msgbox = cc._msgbox
+    cc._msgbox = lambda message, title="callosum": captured.append((message, title))
+    try:
+        cc.citation_coverage_audit_interactive(doc, base)
+    finally:
+        cc._msgbox = original_msgbox
+    check(len(captured) == 1, f"expected exactly one combined report message, got {captured}")
+    message, title = captured[0]
+    check(title == "callosum — citation coverage audit", f"unexpected report title: {title!r}")
+    check("paragraphs" in message, f"report missing the uncited-stretch section: {message!r}")
+    log("spike (P2 #18): OK — citation_coverage_audit_interactive rendered a combined dialog")
+
+    # -- note-style citations: a SEPARATE document (mixed inline+note placement in one doc is refused by
+    # design, confirmed live above) -- proves a footnote-anchored citation correctly marks its main-text
+    # paragraph as "cited" via the footnote's own getAnchor(), not the mark's anchor inside the note itself. --
+    note_doc = new_writer(ctx)
+    note_text = note_doc.getText()
+
+    def _note_para(s: str) -> None:
+        cursor = note_text.createTextCursorByRange(note_text.getEnd())
+        note_text.insertString(cursor, s, False)
+        note_text.insertControlCharacter(cursor, cc._PARAGRAH_BREAK(), False)
+
+    _note_para("Intro.")
+    _note_para(substantive)  # uncited #1
+    _note_para(substantive)  # uncited #2
+    _note_para(substantive)  # uncited #3 -- a run of 3 BEFORE the footnote-cited paragraph
+    _note_para(substantive + " FOOTNOTE-HERE")  # gets a note-style citation
+
+    def note_find(needle):
+        sd = note_doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return note_doc.findFirst(sd)
+
+    cc._set_pref(note_doc, "chicago-notes-bibliography", "en-US")
+    cc.insert_citation(note_doc, p1, base, cursor=note_text.createTextCursorByRange(note_find("FOOTNOTE-HERE")))
+
+    note_stretches = cc._uncited_paragraph_stretches(note_doc)
+    check(len(note_stretches) == 1, f"expected exactly 1 flagged stretch before the footnote, got {note_stretches}")
+    check(
+        all("FOOTNOTE-HERE" not in s.get("preview", "") for s in note_stretches),
+        f"the footnote-cited paragraph was misread as uncited: {note_stretches}",
+    )
+    log(
+        "spike (P2 #18): OK — a note-style citation correctly counts as 'cited' for its main-text paragraph "
+        f"(not flagged into the preceding run): {note_stretches}"
+    )
+
+
 def spike_bibliography_editing(ctx, base, p1, p2):
     """P1 item #11 (backlog #33/#34): exclude a cited work from the bibliography while its in-text citation
     still renders, and include an uncited "further reading" work — both against a real document, real
@@ -3895,6 +4007,10 @@ def main():
         # 26) P2 item #21 (backlog #33/#34, inc 462): open-science statement insertion -- the real multi-kind
         # staging round trip + the choice-box picker landing exactly the chosen kind's text.
         spike_insert_staged_statement(ctx, base)
+
+        # 27) P2 item #18 (backlog #33/#34, inc 463): citation coverage audit -- the real citation-equity
+        # check-selected round trip + the local uncited-paragraph structural scan (inline and note-style).
+        spike_citation_coverage_audit(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)
         return 0

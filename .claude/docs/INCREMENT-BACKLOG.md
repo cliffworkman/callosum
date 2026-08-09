@@ -486,10 +486,10 @@ the Principles + A-A gates before build.)*
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
   not left to drift like the composer's verification did). Remaining P1 future tracks (traveling-library
   portability and comprehensive keyboard/accessibility) **and P2
-  leapfrog remaining items** (manuscript-level citation-coverage audit [#18],
-  cross-manager conversion [#22]) — see the roadmap doc for the full prioritized list + a test
-  plan. A confirmed linear order for the P2 track: #19 → #17 → #20 → #21 → #18 → #22 (see memory
-  `callosum-p2-leapfrog-roadmap`) — #19, #17, #20, and #21 are now closed; #18 is next.
+  leapfrog remaining items** (cross-manager conversion [#22], the track's last item) — see the roadmap doc for
+  the full prioritized list + a test plan. A confirmed linear order for the P2 track:
+  #19 → #17 → #20 → #21 → #18 → #22 (see memory `callosum-p2-leapfrog-roadmap`) — #19, #17, #20, #21, and #18
+  are now closed; #22 is last.
   ✅ **P2 item #19 (citation integrity preflight) CLOSED inc 459.** A reuse-first, document-scoped slice: a new
   "Citation integrity preflight…" LibreOffice command folds `diagnose_document`'s existing mechanics report
   (malformed/duplicate/orphaned marks, bibliography health) together with a fresh, on-demand retraction
@@ -535,6 +535,18 @@ the Principles + A-A gates before build.)*
   funding-search tables — every one, like CRediT itself, is something only the author can assert; callosum never
   infers or verifies funding/ethics/COI/AI-use facts about the user's own study. CRediT's own tab/endpoint/
   command are completely untouched.
+  ✅ **P2 item #18 (citation coverage audit) CLOSED inc 463.** Roadmap #18's 9-item checklist narrowed to a
+  reuse-first slice: citation-concentration structural signals (reliance on highly-cited work, venue/
+  institutional concentration; self-citation honestly left "not computed," no fabricated author identity — the
+  `wip_citation_equity.py` precedent) scoped to the document's own cited papers via a new, synchronous
+  `POST /methods/citation-equity/check-selected`, plus a new purely local structural scan flagging long
+  citation-free paragraph stretches (no network, no NLI, a structural note never a claim a citation is needed).
+  "Claims supported only by retracted/corrected papers" needed no new work — inc 459's "Citation integrity
+  preflight…" already covers it. A real `compareRegionStarts`/`compareRegionEnds` polarity bug in the new
+  paragraph scan was caught by cross-checking `order_by_comparator`'s own already-documented convention before
+  it shipped, then confirmed fixed via a dedicated real-UNO spike. The rest of the roadmap's #18 checklist
+  (evidence-relatedness NLI, review-vs-primary preference, secondhand citation) needs real claim-level semantic
+  parsing nothing in callosum does today — a deliberate v1 boundary, matching every prior item in this track.
   **UX follow-ups (incs 374/375/376/382/383) — CLOSED inc 446.** All three state-blind toggles (automatic
   bibliography rebuilding, citation-to-bibliography links, bibliography title/DOI links) now expose current
   ON/OFF state via "Document diagnostics…" (always-present, read-only) and each toggle's own message now states

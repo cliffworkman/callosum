@@ -1955,6 +1955,248 @@ def test_citation_integrity_preflight_interactive_shows_flagged_and_clean_counts
     assert "RETRACTED" in message and "1 of 2 cited paper(s) clean" in message
 
 
+# ── P2 item #18 (backlog #33/#34, inc 463): citation_coverage_audit -- citation-concentration signals for this
+# document's own cited papers (via the new POST /methods/citation-equity/check-selected) plus a purely local
+# structural scan for long citation-free paragraph stretches. _distinct_cited_paper_ids reuses _FakeDiagDoc/
+# _ok_mark above; the paragraph scan needs its own small fakes matching order_by_comparator's documented
+# compareRegionStarts/Ends polarity (">0 iff a precedes b") -- get this backwards and the scan silently inverts
+# cited/uncited, which is exactly why this got a dedicated real-UNO spike too (see selftest_uno.py).
+
+
+def test_distinct_cited_paper_ids_dedupes_orders_and_excludes_orphaned() -> None:
+    doc = _FakeDiagDoc([_ok_mark("1", "c1"), _ok_mark("2", "c2"), _ok_mark("1", "c3")])
+    assert cc._distinct_cited_paper_ids(doc, orphaned=set()) == ["1", "2"]
+    assert cc._distinct_cited_paper_ids(doc, orphaned={"2"}) == ["1"]
+
+
+class _CoverageRange:
+    def __init__(self, start: float, end: float | None = None) -> None:
+        self.start = start
+        self.end = end if end is not None else start
+
+
+class _CoverageText:
+    """compareRegionStarts/Ends follow the SAME confirmed convention `order_by_comparator` documents: >0 iff
+    the first range precedes the second, 0 if equal, <0 if it follows."""
+
+    def __init__(self, paragraphs: list) -> None:
+        self._paragraphs = paragraphs
+
+    def compareRegionStarts(self, a, b) -> int:
+        if a.start < b.start:
+            return 1
+        if a.start > b.start:
+            return -1
+        return 0
+
+    def compareRegionEnds(self, a, b) -> int:
+        if a.end < b.end:
+            return 1
+        if a.end > b.end:
+            return -1
+        return 0
+
+    def createEnumeration(self):
+        return _CoverageEnum(self._paragraphs)
+
+
+class _CoverageEnum:
+    def __init__(self, items: list) -> None:
+        self._items = list(items)
+        self._i = 0
+
+    def hasMoreElements(self) -> bool:
+        return self._i < len(self._items)
+
+    def nextElement(self):
+        item = self._items[self._i]
+        self._i += 1
+        return item
+
+
+class _CoverageParagraph(_CoverageRange):
+    def __init__(self, start: float, end: float, text: str, *, is_paragraph: bool = True) -> None:
+        super().__init__(start, end)
+        self._text = text
+        self._is_paragraph = is_paragraph
+
+    def supportsService(self, name: str) -> bool:
+        return self._is_paragraph
+
+    def getString(self) -> str:
+        return self._text
+
+
+class _CoverageMark:
+    def __init__(self, name: str, anchor: _CoverageRange) -> None:
+        self.Name = name
+        self._anchor = anchor
+
+    def getAnchor(self) -> _CoverageRange:
+        return self._anchor
+
+
+class _CoverageMarksCollection:
+    def __init__(self, marks: dict[str, _CoverageMark]) -> None:
+        self._marks = marks
+
+    def getElementNames(self) -> list[str]:
+        return list(self._marks.keys())
+
+    def getByName(self, name: str) -> _CoverageMark:
+        return self._marks[name]
+
+
+class _CoverageDoc:
+    def __init__(self, paragraphs: list[_CoverageParagraph], marks: dict[str, _CoverageMark]) -> None:
+        self._text = _CoverageText(paragraphs)
+        self._marks = _CoverageMarksCollection(marks)
+
+    def getText(self) -> _CoverageText:
+        return self._text
+
+    def getReferenceMarks(self) -> _CoverageMarksCollection:
+        return self._marks
+
+
+_SUBSTANTIVE = " ".join(["word"] * 15)  # >= UNCITED_STRETCH_MIN_WORDS
+_SHORT = " ".join(["word"] * 5)  # below the threshold -- never counts as part of a run
+
+
+def _coverage_mark_name(rnd: str) -> str:
+    return cc.encode_mark_name({"items": [{"id": "callosum-1"}]}, rnd)
+
+
+def test_uncited_paragraph_stretches_flags_a_run_and_stops_at_a_citation(monkeypatch) -> None:
+    name = _coverage_mark_name("c1")
+    anchor = _CoverageRange(3.5)
+    paragraphs = [
+        _CoverageParagraph(0, 1, _SUBSTANTIVE),
+        _CoverageParagraph(1, 2, _SUBSTANTIVE),
+        _CoverageParagraph(2, 3, _SUBSTANTIVE),  # 3 consecutive uncited -> flagged
+        _CoverageParagraph(3, 4, _SUBSTANTIVE),  # contains the citation anchor
+        _CoverageParagraph(4, 5, _SHORT),  # too short -- breaks any run regardless of citation
+        _CoverageParagraph(5, 6, _SUBSTANTIVE),
+        _CoverageParagraph(6, 7, _SUBSTANTIVE),  # only 2 in a row -- must NOT be flagged
+    ]
+    doc = _CoverageDoc(paragraphs, {name: _CoverageMark(name, anchor)})
+    monkeypatch.setattr(cc, "_note_containers", lambda doc: [])
+    monkeypatch.setattr(cc, "_range_belongs_to_text", lambda text, r: True)
+
+    stretches = cc._uncited_paragraph_stretches(doc)
+    assert len(stretches) == 1
+    assert stretches[0]["paragraph_count"] == 3
+    assert stretches[0]["preview"].startswith("word word")
+
+
+def test_uncited_paragraph_stretches_none_when_well_cited(monkeypatch) -> None:
+    paragraphs = [_CoverageParagraph(i, i + 1, _SUBSTANTIVE) for i in range(4)]
+    # one citation per paragraph -- never a run long enough to flag
+    marks = {}
+    for i in range(len(paragraphs)):
+        mark_name = _coverage_mark_name(f"c{i}")
+        marks[mark_name] = _CoverageMark(mark_name, _CoverageRange(i + 0.5))
+    doc = _CoverageDoc(paragraphs, marks)
+    monkeypatch.setattr(cc, "_note_containers", lambda doc: [])
+    monkeypatch.setattr(cc, "_range_belongs_to_text", lambda text, r: True)
+    assert cc._uncited_paragraph_stretches(doc) == []
+
+
+def test_uncited_paragraph_stretches_trailing_run_is_flushed(monkeypatch) -> None:
+    """A run reaching the threshold right at document end must still be reported (the final _flush() call)."""
+    paragraphs = [_CoverageParagraph(i, i + 1, _SUBSTANTIVE) for i in range(3)]
+    doc = _CoverageDoc(paragraphs, {})
+    monkeypatch.setattr(cc, "_note_containers", lambda doc: [])
+    stretches = cc._uncited_paragraph_stretches(doc)
+    assert len(stretches) == 1 and stretches[0]["paragraph_count"] == 3
+
+
+def test_citation_anchor_ranges_falls_back_to_note_anchor_for_note_style_marks(monkeypatch) -> None:
+    """A citation mark whose anchor lives INSIDE a footnote must contribute the footnote's own main-text
+    anchor instead -- otherwise every note-style-cited paragraph would be misread as uncited."""
+    name = _coverage_mark_name("c1")
+    inner_anchor = _CoverageRange(99)  # a position "inside" the footnote's own separate text
+    mark = _CoverageMark(name, inner_anchor)
+    doc = _CoverageDoc([], {name: mark})
+
+    main_text_marker = object()
+    note_main_text_anchor = _CoverageRange(2.5)
+
+    class _FakeNote:
+        def getAnchor(self):
+            return note_main_text_anchor
+
+    monkeypatch.setattr(
+        cc, "_range_belongs_to_text", lambda text, r: False if text is main_text_marker else (r is inner_anchor)
+    )
+    monkeypatch.setattr(cc, "_note_containers", lambda doc: [{"_note": _FakeNote()}])
+    doc.getText = lambda: main_text_marker  # only used as an identity token by _range_belongs_to_text here
+
+    ranges = cc._citation_anchor_ranges(doc)
+    assert ranges == [note_main_text_anchor]
+
+
+def test_citation_coverage_audit_calls_check_selected_and_merges_local_scan(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "_distinct_cited_paper_ids", lambda doc, orphaned: ["1", "2"])
+    monkeypatch.setattr(cc, "_uncited_paragraph_stretches", lambda doc: [{"paragraph_count": 4, "preview": "x"}])
+    posted = {}
+
+    def fake_post(url, body, timeout=10):
+        posted["url"], posted["body"] = url, body
+        return {
+            "signals": [{"key": "matthew", "label": "Reliance on highly-cited work", "summary": "..."}],
+            "references_total": 2,
+            "references_resolved": 2,
+        }
+
+    monkeypatch.setattr(cc, "_post_json", fake_post)
+    report = cc.citation_coverage_audit(object(), "http://x")
+    assert posted["url"] == "http://x/methods/citation-equity/check-selected"
+    assert posted["body"] == {"paper_ids": [1, 2]}
+    assert report["references_resolved"] == 2
+    assert report["equity_check_error"] is None
+    assert report["uncited_stretches"] == [{"paragraph_count": 4, "preview": "x"}]
+
+
+def test_citation_coverage_audit_no_cited_papers_skips_network_call(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "_distinct_cited_paper_ids", lambda doc, orphaned: [])
+    monkeypatch.setattr(cc, "_uncited_paragraph_stretches", lambda doc: [])
+    monkeypatch.setattr(cc, "_post_json", lambda *a, **k: pytest.fail("no cited papers -- must not call the backend"))
+    report = cc.citation_coverage_audit(object(), "http://x")
+    assert report["signals"] == [] and report["references_total"] == 0
+
+
+def test_citation_coverage_audit_backend_error_never_hides_local_scan(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "_distinct_cited_paper_ids", lambda doc, orphaned: ["1"])
+    monkeypatch.setattr(cc, "_uncited_paragraph_stretches", lambda doc: [{"paragraph_count": 5, "preview": "y"}])
+    monkeypatch.setattr(cc, "_post_json", lambda *a, **k: (_ for _ in ()).throw(OSError("connection refused")))
+    report = cc.citation_coverage_audit(object(), "http://x")
+    assert report["equity_check_error"] is not None
+    assert report["uncited_stretches"] == [{"paragraph_count": 5, "preview": "y"}]
+
+
+def test_citation_coverage_audit_interactive_renders_signals_and_stretches(monkeypatch) -> None:
+    monkeypatch.setattr(
+        cc,
+        "citation_coverage_audit",
+        lambda doc, base: {
+            "signals": [{"label": "Venue concentration", "summary": "…", "low_coverage": False}],
+            "references_total": 3,
+            "references_resolved": 3,
+            "equity_check_error": None,
+            "uncited_stretches": [{"paragraph_count": 4, "preview": "A long uncited passage"}],
+        },
+    )
+    messages = []
+    monkeypatch.setattr(cc, "_msgbox", lambda message, title="callosum": messages.append((message, title)))
+    cc.citation_coverage_audit_interactive(object(), "http://x")
+    assert len(messages) == 1
+    message, title = messages[0]
+    assert title == "callosum — citation coverage audit"
+    assert "Venue concentration" in message
+    assert "4 paragraphs" in message and "A long uncited passage" in message
+
+
 # ── P1 item #12 (backlog #33/#34): list_document_citations -- the "Citations in this document" panel's data
 # source. Unlike diagnose_document (which iterates getReferenceMarks() directly), this goes through
 # scan_citations_in_order, so the fake needs a fuller doc: getText().compareRegionStarts for document order.

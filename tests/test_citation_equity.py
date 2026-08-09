@@ -408,6 +408,63 @@ def test_status_404_for_unknown_job(temp_db_url):
     assert client.get("/methods/citation-equity/run/nope").status_code == 404
 
 
+# --- P2 item #18 (backlog #33/#34, inc 463): POST /methods/citation-equity/check-selected -- the LibreOffice
+# adapter's "Citation coverage audit..." command's backend. Synchronous (no job/poll), scoped to a caller-named
+# paper_ids list rather than a paper's own OpenAlex reference graph or a WIP manuscript's wip_references. ------
+
+
+def test_check_selected_produces_report(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        p1 = _seed(conn, "Cited One", "10.1/c1")
+        p2 = _seed(conn, "Cited Two", "10.1/c2")
+    engine.dispose()
+    works_by_doi = {
+        "10.1/c1": _ref_work("W1", cited=900, venue="Nature", country="US"),
+        "10.1/c2": _ref_work("W2", cited=4, venue="Cell", country="NG", inst="Univ Lagos"),
+    }
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.openalex_client = OpenAlexClient(fetcher=_fetcher(works_by_doi, {}, []))
+
+    resp = client.post("/methods/citation-equity/check-selected", json={"paper_ids": [p1, p2]})
+    assert resp.status_code == 200
+    rep = resp.json()
+    assert rep["references_total"] == 2 and rep["references_resolved"] == 2
+    # honest degraded path: no stored author identity, no field-topic comparison for a live Writer document
+    assert rep["field_topic"] is None and rep["field_sample_size"] == 0
+    keys = {s["key"] for s in rep["signals"]}
+    assert keys == {"self_citation", "matthew", "venue", "institution"}
+    by_key = {s["key"]: s for s in rep["signals"]}
+    assert by_key["self_citation"]["field_pct"] is None
+    assert by_key["matthew"]["field_pct"] is None
+
+
+def test_check_selected_skips_missing_and_unresolvable_papers(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        p1 = _seed(conn, "Resolvable", "10.1/ok")
+        p2 = _seed(conn, "Unresolvable DOI", "10.1/missing-from-openalex")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.openalex_client = OpenAlexClient(fetcher=_fetcher({"10.1/ok": _ref_work("W1")}, {}, []))
+
+    not_in_library = 999999
+    resp = client.post("/methods/citation-equity/check-selected", json={"paper_ids": [p1, p2, not_in_library]})
+    assert resp.status_code == 200
+    rep = resp.json()
+    # 3 requested; p2's DOI 404s at OpenAlex, not_in_library isn't even in the DB -- both skipped, never fatal
+    assert rep["references_total"] == 3 and rep["references_resolved"] == 1
+
+
+def test_check_selected_rejects_empty_and_over_cap_input(temp_db_url):
+    from app.backend.api.routers.citation_equity import MAX_EQUITY_CHECK_SELECTED
+
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.post("/methods/citation-equity/check-selected", json={"paper_ids": []}).status_code == 422
+    too_many = list(range(1, MAX_EQUITY_CHECK_SELECTED + 2))
+    assert client.post("/methods/citation-equity/check-selected", json={"paper_ids": too_many}).status_code == 422
+
+
 # --- inc 457: the self-citation field baseline's dual cap (target N=40, max checks=100) -----------------------
 
 

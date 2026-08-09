@@ -19,7 +19,7 @@ from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi import status as http_status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.backend.acquisition.registry import PaperRef
@@ -45,6 +45,9 @@ OVERLOOKED_EMBED_MODEL = "sentence-transformers/allenai-specter"
 # the target across nearly the whole 200-paper field sample.
 SELF_CITATION_BASELINE_TARGET_N = 40
 SELF_CITATION_BASELINE_MAX_CHECKS = 100
+
+# P2 item #18 (backlog #33/#34, inc 463): mirrors methods_retraction.py's own check-selected cap (inc 459).
+MAX_EQUITY_CHECK_SELECTED = 100
 
 router = APIRouter(tags=["citation-equity"])
 
@@ -132,6 +135,49 @@ def citation_equity_status(job_id: str, request: Request) -> CitationEquityRespo
         else None
     )
     return CitationEquityResponse(job_id=job_id, status=job.status, detail=job.detail, progress=progress)
+
+
+class EquityCheckSelectedRequest(BaseModel):
+    paper_ids: list[int] = Field(min_length=1, max_length=MAX_EQUITY_CHECK_SELECTED)
+
+
+@router.post("/methods/citation-equity/check-selected", response_model=EquityReportModel)
+def citation_equity_check_selected(payload: EquityCheckSelectedRequest, request: Request) -> EquityReportModel:
+    """Citation-concentration signals for exactly a caller-named list of papers (P2 item #18, backlog #33/#34,
+    inc 463) — the LibreOffice adapter's "Citation coverage audit…" command's backend, scoped to whichever
+    papers are actually cited in the open manuscript right now, not a WIP manuscript's `wip_references` list or
+    a Library paper's own OpenAlex reference graph. Synchronous (no `JobStore`): bounded to the document's own
+    distinct cited papers, typically far fewer than the full reference-graph traversal + self-citation
+    field-baseline check the Library-paper/WIP versions run as background jobs.
+
+    Reuses `audit_reference_list` completely unmodified with the exact honest-degraded path
+    `wip_citation_equity.py` already established: no stored author identity for a live Writer document (no
+    fabricated author-identity proxy), and no field-topic comparison (the document has no OpenAlex record of
+    its own to draw one from).
+    """
+    client = request.app.state.openalex_client or OpenAlexClient()
+    refs: list[dict] = []
+    with request.app.state.engine.begin() as conn:
+        for paper_id in payload.paper_ids:
+            row = (
+                conn.execute(select(papers.c.doi, papers.c.title).where(papers.c.id == paper_id))
+                .mappings()
+                .one_or_none()
+            )
+            if row is None:
+                continue  # a paper id no longer in the library -- skipped, not fatal (every other per-ref skip)
+            ref = PaperRef(doi=row["doi"]) if row["doi"] else PaperRef(title=row["title"])
+            meta = client.fetch_work_meta_for(conn, ref)
+            if meta:
+                refs.append(meta)
+    report = audit_reference_list(
+        refs=refs,
+        focal_author_families=set(),
+        field=[],
+        field_topic=None,
+        references_total=len(payload.paper_ids),
+    )
+    return EquityReportModel(**report.to_dict())
 
 
 def _compute_self_citation_baseline(
