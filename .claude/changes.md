@@ -9,7 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-05 inc 450 — local usage instrumentation + Your usage dashboard -->
+<!-- HELP-DOCS-SYNCED: 2026-08-08 — help-docs catch-up covering incs 451-462 -->
+
+## 2026-08-08 — Help-docs sync: catch up incs 451-462
+- **Files:** `app/backend/help/help_content.md`.
+- **What:** brought the served help corpus current with everything that had accumulated since the last sync
+  (inc 450). New: **Insert evidence…**, **Citation integrity preflight…**, and **Insert statement…** in the
+  LibreOffice command list (incs 459/461/462); a new **Building open-science disclosure statements** section
+  (inc 462); Suggest-citation's multi-select + Details… dialog, and "Citations in this document…"'s View
+  evidence… button (inc 460); a new **Following authors** section + its Feed/My-Publications/Gaps
+  cross-references (incs 454/455); AJOL/NLM MEDLINE/thumb-auditability additions to the Journals section (incs
+  451-453). Also fixed a pre-existing stale "Theory → CRediT statement" reference (CRediT lives under **Work**,
+  not Theory) found while editing the adjacent line. Incs 456-458 and the 454 follow-up needed no doc changes
+  (internal/calibration-only or no new user-facing control).
+- **Why:** the corpus had drifted 12 increments behind, including three real undocumented LibreOffice commands
+  a user could click with no Help coverage.
+- **Revert:** a documentation-only change; safe to revert `help_content.md` alone with no code impact.
 
 ## 2026-08-08 — Increment 462: Open-science statement insertion (backlog #33/#34, P2 #21)
 - **Files:** `app/backend/api/routers/statements.py` (new), `app/backend/api/app.py`,
