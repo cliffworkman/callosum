@@ -197,7 +197,8 @@ function BayesCredit() {
     <div className="method-credit">
       <b>Methods:</b> the default JZS t-test Bayes factor — Rouder, Speckman, Sun, Morey &amp; Iverson (2009), <i>Psychonomic Bulletin &amp; Review</i> 16(2):225–237; and the default correlation Bayes factor — Ly, Verhagen &amp; Wagenmakers (2016), <i>Journal of Mathematical Psychology</i> 72:19–32.{" "}
       <MethodCreditButton items={BAYES_CSL} />
-      <div className="method-credit-sub">Re-implemented in Python (the closed forms JASP / the <i>BayesFactor</i> R package [Morey &amp; Rouder] use) — credited, not reused. Surfaced via D. Lakens' automated-review catalog.</div>
+      <div className="method-credit-sub">Re-implemented in Python (the closed forms JASP / the <i>BayesFactor</i> R package [Morey &amp; Rouder] use) — credited, not reused.</div>
+      <LakensCredit />
     </div>
   );
 }

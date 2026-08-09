@@ -410,7 +410,8 @@ function TransparencyCredit() {
     <div className="method-credit">
       <b>Detectors:</b> data &amp; code availability — ODDPub (Riedel et al. 2020); conflict-of-interest, funding &amp; registration indicators — rtransparent (Serghiou et al. 2021); preregistration — Nosek et al. (2018).{" "}
       <MethodCreditButton items={TRANSPARENCY_CSL} />
-      <div className="method-credit-sub">A reading aid — a rule-based text detector, never a transparency score or a judgment of the authors. Surfaced via D. Lakens' automated-review catalog.</div>
+      <div className="method-credit-sub">A reading aid — a rule-based text detector, never a transparency score or a judgment of the authors.</div>
+      <LakensCredit />
     </div>
   );
 }

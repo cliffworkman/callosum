@@ -2,9 +2,13 @@
 
 Callosum is licensed under the **GNU Affero General Public License v3.0** (see `LICENSE`). This file credits the
 third-party work Callosum stands on, per the project's **credit-the-lineage** principle
-(`.claude/CREDIT-THE-LINEAGE.md`). It currently documents the **citation & bibliography engine** (increment 106);
-a fuller software-dependency NOTICE for the rest of the stack is a tracked follow-up (the "credit-help backfill",
-`.claude/docs/future-tracks/opus4.8_future-tracks_credithelpbackfill.md`).
+(`.claude/CREDIT-THE-LINEAGE.md`): the citation & bibliography engine (increment 106), every METHODS tool that
+re-implements a published scholarly method (statcheck, GRIM/GRIMMER, the Bayesian/LMM/meta-analysis/transparency
+auditors, the effect-size converter, p-curve, citation-context, PUBLISHERS, overlooked-work, and retraction
+detection), and the runtime/build software dependencies the whole stack is built on. The credit-backfill
+maintenance pass (increment 466) audited every method-implementing feature against this file and closed the
+remaining gaps found (Retraction Watch, `pyjwt`, `keyring`) — see `.claude/docs/increment-notes/
+INCREMENT-466-NOTES.md`.
 
 ---
 
@@ -100,6 +104,18 @@ The data-consistency calculator implements the **GRIM** and **GRIMMER** methods:
   Allard, A. (2018), *Analytic-GRIMMER.*
 - Re-implemented from the papers (the reference R implementation is **`scrutiny`**, Lukas Jung,
   <https://lhdjung.github.io/scrutiny/>) — credited, not reused by name or code.
+
+### Retraction detection — Retraction Watch database (inc 132)
+Callosum's retraction/correction check (the Library "Integrity" refresh, Meta-Reference, and the LibreOffice
+adapter's "Citation integrity preflight") draws on the **Retraction Watch database**:
+- **Retraction Watch**, a project of **The Center for Scientific Integrity** (founded by Ivan Oransky & Adam
+  Marcus, <https://retractionwatch.com/>) — the world's largest curated registry of retractions/corrections.
+- Mirrored locally via **Crossref's public CC0 dataset** (<https://api.labs.crossref.org/data/retractionwatch>),
+  which acquired and republished the database in 2023.
+- No single canonical academic paper describes the database itself (verified before writing this entry, the
+  same standard already applied to SciELO below) — credited here by acknowledgment, not fabricated as a
+  citation. The check also cross-references **Crossref** and **OpenAlex** metadata directly (public metadata,
+  no AI).
 
 ### Bayesian auditor — default Bayes factors (inc 241 / 243)
 The Bayesian auditor recomputes reported **default Bayes factors** for inline t-test and correlation results:
@@ -254,7 +270,9 @@ Callosum is built on the open-source projects below, each used under its own lic
 with each project). Grouped by license:
 
 **Python (backend, `requirements.txt`):**
-- **MIT** — FastAPI, SQLAlchemy, Alembic
+- **MIT** — FastAPI, SQLAlchemy, Alembic; **PyJWT** (`pyjwt[crypto]` — ORCID OIDC id-token verification, optional
+  sign-in feature); **keyring** (optional extra, `pyproject.toml`'s `keyring` group — OS-keychain storage for
+  BYOK provider keys, inc 152; the app runs without it, falling back to a local settings file)
 - **BSD-3-Clause** — Starlette, Uvicorn, httpx, lxml, scikit-learn, NumPy, SciPy
 - **Apache-2.0** — sentence-transformers; google-genai (the optional Gemini client)
 - **Apache-2.0 / MIT** (dual) — sqlite-vec

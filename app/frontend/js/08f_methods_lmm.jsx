@@ -241,7 +241,8 @@ function LmmCredit() {
     <div className="method-credit">
       <b>Methods:</b> random-effects structure — Barr et al. (2013), Matuschek et al. (2017); df/inference — Luke (2017); convergence &amp; estimation — Bates et al. (2015, <i>lme4</i>); R² — Nakagawa &amp; Schielzeth (2013); missing-data sensitivity — FDA ICH E9(R1), Troendle et al. (2025), Cro et al. (2020), Moreno-Betancur &amp; Chavance (2016).{" "}
       <MethodCreditButton items={LMM_CSL} />
-      <div className="method-credit-sub">A reading aid — it never runs a model, imputation, or sensitivity analysis. Surfaced via D. Lakens' automated-review catalog.</div>
+      <div className="method-credit-sub">A reading aid — it never runs a model, imputation, or sensitivity analysis.</div>
+      <LakensCredit />
     </div>
   );
 }

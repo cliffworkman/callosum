@@ -107,6 +107,13 @@ function LocalMaintenanceSettings({ onRetractionRan }) {
           The local mirror of the Retraction Watch database (Crossref-hosted, CC0) — the richest source
           (reason/date/notice) the library's retraction check can draw on.
         </span>
+        <span className="method-credit-sub">
+          Courtesy of <a href="https://retractionwatch.com/" target="_blank" rel="noopener noreferrer">Retraction
+          Watch</a>, a project of The Center for Scientific Integrity (Ivan Oransky &amp; Adam Marcus), mirrored via
+          Crossref's <a href="https://api.labs.crossref.org/data/retractionwatch" target="_blank" rel="noopener noreferrer">public
+          CC0 dataset</a>. No single canonical paper describes the database itself — credited by acknowledgment, not
+          fabricated as a citation.
+        </span>
         <div className={"settings-note" + (stale ? " settings-note-err" : "")}>
           {db && db.count > 0
             ? `${db.count.toLocaleString()} records${db.retrieved_at ? " · as of " + db.retrieved_at.slice(0, 10) : ""}`

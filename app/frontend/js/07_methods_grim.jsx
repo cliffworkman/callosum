@@ -114,7 +114,8 @@ function GrimSection({ ctx }) {
       <div className="method-credit">
         <b>Method:</b> GRIM — Brown &amp; Heathers (2017); GRIMMER — Anaya (2016) / Allard (2018).{" "}
         <MethodCreditButton items={[GRIM_CSL]} />
-        <div className="method-credit-sub">Re-implemented in Python; cf. the <i>scrutiny</i> package (Lukas Jung). Surfaced via D. Lakens' automated-review catalog.</div>
+        <div className="method-credit-sub">Re-implemented in Python; cf. the <i>scrutiny</i> package (Lukas Jung).</div>
+        <LakensCredit />
       </div>
     </div>
   );

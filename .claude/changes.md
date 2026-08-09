@@ -9,7 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-09 inc 465 — beyond-library saved queue -->
+<!-- HELP-DOCS-SYNCED: 2026-08-09 inc 466 — credit-the-lineage backfill -->
+
+## 2026-08-09 — Increment 466: Credit-the-lineage backfill (item #3 of the post-P2 backlog sequence)
+- **Files:** `app/frontend/js/05_method_credit.jsx`, `app/frontend/js/35e_maintenance.jsx`,
+  `app/frontend/js/06_methods_statcheck.jsx`, `07_methods_grim.jsx`, `08d_methods_bayes.jsx`,
+  `08f_methods_lmm.jsx`, `08g_methods_metaanalysis.jsx`, `08h_methods_transparency.jsx`, `29_pcurve.jsx`,
+  `THIRD-PARTY-NOTICES.md`, `app/backend/help/help_content.md`.
+- **What:** audited the credit-the-lineage backfill (the proposing doc was stale — most already built) and
+  closed the 3 genuine gaps found: a Retraction Watch credit line (Settings → Local Maintenance, text-only —
+  no canonical paper exists), a real shared `LakensCredit` block (Crone & Green 2025, DOI verified) replacing 7
+  panels' passing sub-text with an actual clickable, library-addable citation, and `THIRD-PARTY-NOTICES.md`
+  Lane B fixes (`pyjwt`/`keyring`, a stale header). **Also found and fixed a real bug while live-verifying**:
+  `MethodCreditButton` (all ~12 credit surfaces app-wide) showed "added to library" without polling
+  `/library/import`'s async job to completion, so it could report false success. Now polls to the real outcome.
+- **Why:** closes item #3 of the confirmed post-P2 backlog sequence (memory `callosum-next5-backlog-roadmap`).
+  The button fix was scope-confirmed with Cliff mid-increment since it's in the direct critical path of the
+  credit blocks being shipped — filed the deeper, separate cause (silent exception-swallowing in
+  `import_citations`) as backlog #53, out of scope for this pass.
+- **Revert:** all changes additive/backward-compatible; no schema, no backend Python, no existing endpoint
+  contract changed.
 
 ## 2026-08-09 — Increment 465: Persistent, dismissible beyond-library saved queue (backlog #30's last open piece)
 - **Files:** `app/backend/api/routers/beyond_library_saved.py` (new), `app/backend/persistence/schema_findings.py`,

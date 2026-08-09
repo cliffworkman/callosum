@@ -267,7 +267,8 @@ function MetaCredit() {
     <div className="method-credit">
       <b>Methods:</b> effect sizes &amp; general — Borenstein et al. (2009), Viechtbauer (2010, <i>metafor</i>); model — DerSimonian &amp; Laird (1986), IntHout et al. (2014); heterogeneity — Higgins et al. (2003); publication bias — Egger et al. (1997), Duval &amp; Tweedie (2000), Sterne et al. (2011); influence — Viechtbauer &amp; Cheung (2010); reporting — PRISMA 2020 (Page et al. 2021).{" "}
       <MethodCreditButton items={META_CSL} />
-      <div className="method-credit-sub">A reading aid — it never pools, models, or re-computes a meta-analysis. Surfaced via D. Lakens' automated-review catalog.</div>
+      <div className="method-credit-sub">A reading aid — it never pools, models, or re-computes a meta-analysis.</div>
+      <LakensCredit />
     </div>
   );
 }

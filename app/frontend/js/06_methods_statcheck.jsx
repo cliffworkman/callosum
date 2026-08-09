@@ -210,7 +210,8 @@ function StatcheckCredit() {
     <div className="method-credit">
       <b>Method:</b> statcheck — Nuijten, Hartgerink, van Assen, Epskamp &amp; Wicherts (2016), <i>Behavior Research Methods</i> 48:1205–1226.{" "}
       <MethodCreditButton items={[STATCHECK_CSL]} />
-      <div className="method-credit-sub">Re-implemented in Python (the <i>statcheck</i> R package is by Nuijten &amp; Epskamp) — credited, not reused. Surfaced via D. Lakens' automated-review catalog.</div>
+      <div className="method-credit-sub">Re-implemented in Python (the <i>statcheck</i> R package is by Nuijten &amp; Epskamp) — credited, not reused.</div>
+      <LakensCredit />
     </div>
   );
 }

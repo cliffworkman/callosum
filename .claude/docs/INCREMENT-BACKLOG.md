@@ -116,6 +116,12 @@
   providers make live requests and implicitly relied on their changing results to produce the asserted prospect.
   It now supplies a matching local award and explicit empty-success fixtures for both scholarly providers. The
   same selected-paper + partial-failure contract is covered without network, timing, or third-party-data dependence.
+- **#53 `import_citations` silently swallows per-record exceptions.** Found live while verifying inc 466 (a real
+  `sqlite3.OperationalError: database is locked` collision with a concurrent watched-folder rescan was caught by
+  `citation_import.py::import_citations`'s bare `except Exception: failed += 1` with zero logging — a genuine
+  failure was indistinguishable from a malformed record until reproduced by hand). Add a log call inside that
+  except block so a real failure is diagnosable from the server's own console. Touches shared import logic used
+  by BibTeX/RIS import too, not just `MethodCreditButton` (already fixed, inc 466) — its own small pass.
 
 ---
 
@@ -834,7 +840,16 @@ plus later reconciliation findings.)*
 - **README front-door draft (#11)** (178, maintainer voice-pass remains — see §2); **credit-the-lineage** —
   statcheck slice + shared `.method-credit` (180) + dependency NOTICE pass (181) + the overlooked-work lens
   credit (282) + the shared "add missing to library" correctness pass across every method-credit surface (293).
-  **#8 is complete.**
+  **Backfill audit closed inc 466** (item #3 of the post-P2 backlog sequence — the proposing future-tracks doc
+  was stale; most of it was already built): added the two genuine gaps found — Retraction Watch credit (Settings
+  → Local Maintenance, no canonical paper exists so text-only, matching the SciELO precedent) and a real
+  `LakensCredit` block (Crone & Green 2025, DOI verified) replacing 7 panels' passing sub-text mentions with an
+  actual clickable, library-addable citation — plus `pyjwt`/`keyring` NOTICES gaps and a stale header fix. **Also
+  found and fixed a real, separate bug while live-verifying**: `MethodCreditButton` (used by ~12 panels) showed
+  "✓ added to library" without ever polling `POST /library/import`'s async job to completion — a real click could
+  show success while the import had actually failed (confirmed via a genuine write-lock collision with a
+  concurrent watched-folder rescan). Now polls to the real outcome, matching `GapsModal`'s own pattern. **#8 is
+  complete.**
 - **Literature discovery (#28) — inc 182–192, 286, 295–297:** Search tab (Crossref + PubMed + axis-relevance
   highlight) + Feed tab (bioRxiv/medRxiv + PubMed-keyword + journal-ISSN); Wanted/Gaps/Overlooked + Feed
   consolidated into Discover → Search (286, resolves #37's header-density UX finding); follow-by-title +

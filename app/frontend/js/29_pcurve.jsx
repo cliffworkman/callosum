@@ -136,9 +136,9 @@ function PcurveModal({ paperIds, onClose, onOpenPaper, onChanged }) {
           <b>Method:</b> p-curve — Simonsohn, Nelson &amp; Simmons (2014), <i>J. Exp. Psychol. Gen.</i> 143(2):534–547.{" "}
           <MethodCreditButton items={[SNS2014_CSL]} onChanged={onChanged} />
           <div className="method-credit-sub">
-            Re-implemented in Python; reference implementation: <i>scrutiny</i> (Lukas Jung). Surfaced via D. Lakens'
-            automated-review catalog.
+            Re-implemented in Python; reference implementation: <i>scrutiny</i> (Lukas Jung).
           </div>
+          <LakensCredit />
         </div>
       </div>
     </div>
