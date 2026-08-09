@@ -90,6 +90,17 @@ up the new backend code, since the dev server predates this session's edits and 
 constraint name and table having nothing to do with DEBIT/GRIM/methods). Worth a small follow-up if it starts
 blocking CI's own alembic-check gate; not introduced or touched here.
 
+**CI caught a real line-budget miss.** The first push (commit `9288ca5`) failed CI's `lint-and-test` job: the
+`schema.py` re-export line for `paper_debit_checks` pushed the file to 602 lines, 2 over the cap — the file was
+already effectively at the ceiling before this increment, and the local `check_line_budget.py` run happened
+*before* a later `ruff --fix` reorganized the import (both individually looked clean; the combination crossed
+the cap and was never re-checked). Fixed by extracting `notes` + `annotations` (58 lines, a thematically
+cohesive "user-attached paper content" pair) into a new `schema_annotations.py`, the same leaf-split pattern
+this file has already used repeatedly (incs 137, 262) — `schema.py` 602→**556**. Re-verified: line-budget gate
+clean, both ruff gates clean, 53 relevant tests (annotations + DEBIT + GRIM + health) passing. Lesson for next
+time: re-run `check_line_budget.py` as the *last* step before committing, after any auto-fix tool has touched
+a file near the cap — not just once mid-session.
+
 ## Security audit
 
 `.claude/security-audits/2026-08-09_debit-saved-checks.md` — PASS. Mirrors the already-audited GRIM
