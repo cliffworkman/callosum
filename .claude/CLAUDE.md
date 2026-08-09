@@ -883,7 +883,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 463). Each increment of real work
+callosum is built in **numbered increments** (currently at 466). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -899,6 +899,18 @@ number. These notes are the running design diary; read the most recent few at se
 (the historical narrative CLAUDE.md once carried in a footer is archived in
 `.claude/session-kickoff-log.md`) — CLAUDE.md itself carries **no per-increment footer**; don't
 recreate one here.
+
+**Backlog closure discipline (2026-08-09).** `.claude/docs/INCREMENT-BACKLOG.md` is the **open queue only** —
+every entry there describes work not yet done. When an item closes: **delete its entry from
+`INCREMENT-BACKLOG.md` entirely** (never leave a growing "✅ CLOSED [paragraph]" bullet in place — that
+paragraph-in-place growth is exactly the drift that made the file balloon past 900 lines by inc 465) and
+**append exactly one compressed `- [x]` line to `INCREMENT-BACKLOG-DONE.md`**, keyed by the item's stable `#N`
+tag where it has one (numbers are never reassigned, so `grep "#N" INCREMENT-BACKLOG-DONE.md` finds it
+precisely) and pointing at the relevant `INCREMENT-NN-NOTES.md` for full narrative — the increment notes are
+already the source of truth for *what happened*; the DONE file is an index, not a second diary, so don't
+re-narrate there either. A partially-closed item (some sub-pieces shipped, one genuinely still open) gets
+trimmed in place to just its open remainder in `INCREMENT-BACKLOG.md`, with the shipped detail moved to the
+DONE file the same way. This keeps the open file cheap to read in full every session, which is the point.
 
 ---
 

@@ -5,6 +5,17 @@ the open queue stays scannable. This is the one-line *"what landed, which increm
 design diary (`increment-notes/INCREMENT-NN-NOTES.md`) and `changes.md` hold the detail. Items here are closed —
 new work goes in the open backlog.
 
+> **Closure discipline (restated 2026-08-09 — see CLAUDE.md's Increment workflow section).** When an item in
+> `INCREMENT-BACKLOG.md` closes: **delete its entry from the open file** (don't leave a growing "✅ CLOSED"
+> paragraph in place — that's exactly the drift this split exists to prevent) and **append one compressed
+> `- [x]` line here**, keyed by the item's own stable `#N` where it has one (numbers are never reassigned, so
+> `grep "#N" INCREMENT-BACKLOG-DONE.md` finds it precisely). Point at the relevant `INCREMENT-NN-NOTES.md` for
+> full narrative rather than re-telling the story here — this file is an index, not a second diary. **2026-08-09
+> reconciliation pass:** this file had gone stale since 2026-07-22 while `INCREMENT-BACKLOG.md` grew its own
+> redundant "Shipped — breadcrumbs only" section plus several individually-growing "✅ CLOSED" entries instead —
+> all of that is merged in below (see the sections from "Near-term closures" onward), and the open file is
+> trimmed back to genuinely-open items only.
+
 ---
 
 ## Cross-cutting
@@ -218,3 +229,304 @@ new work goes in the open backlog.
   discoverability jump-link from Discover → Journals ("Where to submit") to Work → CRediT (the backlog's
   "item ~5 in the accordion" framing was stale — both features had already moved to top-level workspace tabs
   in inc 280; the jump is cross-workspace, mirroring the existing `openReferenceWarnings` pattern).
+
+## Near-term closures (migrated from open backlog §1, 2026-08-09)
+- [x] **QA 2026-07-19 batch** (inc 308/309) — all 7 findings fixed + browser-verified: the metadata-only-paper
+  PDF 404 (a real gap — `PdfViewer` now skips the doomed fetch via the library card's known `attachment_count`);
+  4 mobile CSS spacing fixes (Feed filter buttons, whatsnew notice, Settings provider badges, Work's provenance
+  line); `route_00_smoke_readonly.md` rewritten to the actual current pane structure.
+- [x] **httpx→httpx2 TestClient migration** (inc 309) — needed zero source changes (starlette 1.x auto-prefers
+  `httpx2` when installed); added the dev/test-only dep, synced the dev environment's stale fastapi/starlette.
+- [x] **#5 Per-attachment PDF serving** (inc 316; methods follow-up inc 388; cite/viewer follow-up inc 392) —
+  `GET /papers/{id}/pdf?attachment_id=` opens a specific attachment; Details' Files list, citation evidence, and
+  every Methods panel (statcheck/Bayesian/mixed-model/meta-analysis/transparency) now open the exact PDF
+  attachment their evidence came from, not always the primary. A real coordinate-honesty gap (non-PDF
+  supplementary attachments) was found and fixed in the same pass.
+- [x] **QA runs 20260702/03 remaining re-triage** (inc 317) — every Critical/High/Medium/Low from routes
+  24/27/30/32 re-verified live, not assumed. Route 30's Critical (the SQLite write-lock arc) confirmed fixed;
+  three Mediums confirmed non-bugs (Chromium's own adversarial-4xx/5xx network logging); two real bugs found +
+  fixed (`DuplicatesModal` un-dismiss not refreshing in-place; `ScanModal` losing mid-scan progress on
+  modal close/reopen).
+- [x] **#31 cadence auto-refresh** (inc 318) — an opt-in, staleness-gated automatic Retraction Watch mirror
+  refresh (client-driven, no backend scheduler), gated by a 1-hour attempt throttle found necessary live (a
+  mirror that can never become fresh would otherwise re-run on every window focus).
+- [x] **Inc 455's followed-author date-precision limit** (inc 458) — `AuthorWork` gained a validated
+  `publication_date`; Feed's `_to_entry` prefers it over the bare-year fallback, additive/backward-compatible.
+- [x] **#45 My Publications example name** (2026-07-22) — swapped "Ada Lovelace" for "Karen Spärck Jones" in the
+  name/alt-names placeholders.
+- [x] **#51 funding partial-provider test flake** (inc 440) — the test relied on live scholarly-provider
+  results changing; now supplies deterministic local fixtures for the same selected-paper + partial-failure
+  contract.
+
+## Design-decision closures (migrated from open backlog §2, 2026-08-09)
+- [x] **#11 README front-door** (2026-07-22) — the screenshot landed with `www/`; the voice pass was drafted
+  to a scratch file, reviewed, and applied as-is.
+- [x] **The `.local/` SQLite-inside-Dropbox note** (2026-07-22) — the working library DB (209 papers, 378MB)
+  relocated to `C:\Users\cliff\callosum-data\library.sqlite`; `CALLOSUM_DB_URL` + `run-callosum.ps1` updated;
+  the old copy kept in place as a backup.
+
+## Gated-item closures (migrated from open backlog §3, 2026-08-09)
+- [x] **#14 Permanent delete removes managed on-disk attachments** (inc 340) — Delete forever / Empty Trash
+  now remove only root-contained `managed` files; linked/URL/out-of-root/shared/unsafe paths survive. Reversible
+  staging coordinates filesystem cleanup with DB/vector rollback. Audit PASS.
+- [x] **#15 Sync UI (SP3c) + server hardening** (inc 310/311, 341) — Increment A: `GET /sync/conflicts` +
+  resolve endpoint. Increment B: Settings → Sync UI (setup, enable gate, run + error handling, conflict-review
+  panel), browser-verified. Server hardening: per-user rate-limiting (`sync_server/rate_limit.py`), a 90-day
+  tombstone-pruning script, and an operations runbook. Audit addendum PASS. *(SP4 sharing + the live
+  `sync_server` deploy + a per-user quota/migration tool remain open — see open backlog #15.)*
+- [x] **#20 Harness hardening — fully closed** (2026-07-22, inc 342) — repo furniture (`SECURITY.md`,
+  `CITATION.cff`, `.env.example`); uv adoption (`pyproject.toml` + committed `uv.lock`, CI via `uv sync
+  --locked`); the hand-rolled pre-commit hook migrated to the standard pre-commit framework; 3 CI gates added
+  one at a time (alembic check, pip-audit, Dependabot); `staged-harnesses/REGISTRY.md` for 7 dormant judgment-
+  call checks; branch protection (status-checks-only, admin bypass preserved).
+- [x] **#21 Packaging & distribution (post-V1) — superseded by #49** — the Tauri desktop shell (once a
+  "placeholder"/research spike) is fully built and shipping on all three platforms with real CI-verified
+  installers and public GitHub Releases. Remaining desktop-adjacent work continued under #49.
+- [x] **#49 In-app auto-updater for the desktop shell — live** (2026-07-28, inc 409; two follow-up bugs fixed
+  same arc) — Windows/macOS periodic check + silent background download + non-blocking restart toast; Linux
+  gets an "Open release page" fallback; CI signs builds and publishes `latest.json`. *(Cliff's own remaining
+  rollout steps — setting the GitHub signing secrets, running a throwaway rehearsal release — stay open, see
+  open backlog #49.)*
+
+## Future-track closures (migrated from open backlog §4, 2026-08-09)
+- [x] **#25 Citation concentration — a real field self-citation baseline** (inc 456/457) — an empirical
+  bootstrap-resampling calibration (6 real fields, stimulus-norming methodology) found population self-citation
+  rates varying ~3x by field and computable coverage varying 18%-74%; N=40 chosen as a disclosed judgment call.
+  Wired into the shipped signal via `_compute_self_citation_baseline` with a dual cap (target 40, hard-capped at
+  100 raw checks). `audit_reference_list`/`_self_citation` gained backward-compatible params; the WIP call site
+  and frontend needed zero changes. *(Overlapped #37's citation-credit-concentration remediation.)*
+- [x] **#29 Gap-finder — followed authors as a source** (inc 454) — follow an OpenAlex author (by name/ORCID,
+  or from an already-resolved id); Refresh fetches their works (cached, capped 50/author) and surfaces those
+  absent from the library. A sibling module (its own two tables), not a third gap-finder direction. Deliberately
+  not ranked by axis relevance in v1, disclosed in the UI.
+- [x] **#30 Highlight-to-suggest/evaluate (Track C), SP1/SP2/Stage-3 + the persistent save-for-later queue**
+  (inc 156-159, 271/272, 449, 465) — beyond-library suggestion via OpenAlex graph expansion + Crossref/PubMed/
+  OpenAlex keyword search + Semantic Scholar recommendations, every candidate carrying a `reason`/
+  `relationship_label`, never a bare score; wired into the web Cite pane and the LibreOffice adapter. Inc 465
+  added an explicit "Save for later" button persisting a suggestion into a reviewable modal queue
+  (`saved_beyond_library_suggestions`, keyed by `dedup_key`), mirroring how "Gaps" is itself built (a modal, not
+  a tab). *(Stage-4 section-scoping, needing GROBID + the plugin, remains open — see open backlog #30.)*
+- [x] **#33/#34 Citation & bibliography engine — LibreOffice adapter, full P0/P1/P2 build-out** (inc 106-108,
+  162-171, 193, 320-464). The competitor-informed roadmap
+  (`future-tracks/chatgpt5.6_future-tracks_wordprocessorpluginsroadmap.md` + its `…competitivereview.md`
+  companion) is fully shipped: **P0** correctness/safety (incs 320-331 — bounded bibliography ranges, safe
+  flatten, transactional refresh/diagnostics, the live-search citation composer); **P1** parity (incs 344-385 —
+  the "Citations in this document" panel, bibliography editing/categories/ordering/chapter-section blocks,
+  targeted refresh scopes, document-local dirty-state tracking, note-style/footnote/endnote placement +
+  conversion + tracked-change safety, the citation-style manager + local CSL editing/import/export); and the
+  **P2 leapfrog track** (incs 459-464, confirmed closed via memory `callosum-p2-leapfrog-roadmap`) — citation
+  integrity preflight (#19), the evidence-aware Suggest-Citation composer (#17), Citavi-style "Insert evidence"
+  (#20), open-science statement insertion (#21), citation coverage audit (#18), and Zotero-to-callosum
+  conversion (#22). Full narrative for any specific increment: its own `increment-notes/INCREMENT-NNN-NOTES.md`
+  (106-464 span this arc) — not re-narrated here.
+  *(Still genuinely open — see open backlog #33/#34: traveling-library portability + keyboard/screen-reader
+  accessibility; #43 the Google Workspace Marketplace one-click install; the recorded Word/Google-Docs feature-
+  parity future goal.)*
+- [x] **#35 My Publications — Layer 4, deterministic grounded prospection** (inc 386, 389, 390, 391) — grounded
+  citation gaps (OpenAlex works citing shared reference anchors); domain-union scoping; grounded emerging citing
+  topics (equal three-year windows, visible count differences); grounded citing-author connections (stable
+  author ids appearing across ≥2 citing works and ≥2 own publications). All descriptive, never a forecast or
+  importance score; every count opens to exact evidence. *(Optional LLM narration over the grounded data remains
+  deferred — no need to build it unless it becomes useful.)*
+- [x] **#36 Meta-analysis assisted-extraction funnel — batch draft + retrieval narrowing** (inc 347, 348; the
+  core SP1/SP2a/SP2b funnel shipped inc 249-259) — "Draft all un-filled rows" sequentially proposes across
+  eligible rows with determinate progress, never bulk-accepts (every candidate keeps its per-cell verify gate);
+  for papers over the 12-chunk budget, empty field labels are embedded locally and vector search narrows to that
+  paper's own chunks before the consent-gated provider call. *(Far future, its own workspace: screening/PRISMA,
+  double-coding/IRR [human-only, no-independent-coder veto holds], RoB instruments, figure extraction [point at
+  WebPlotDigitizer, don't build it] — see open backlog #36.)*
+- [x] **#37 Equity & integrity signals — overlooked-work lens + positive self-correction + field self-citation**
+  (inc 279, 286, 393; baseline = #25, inc 457) — the overlooked-work lens (Merton 1968) + its header-density UX
+  follow-up (Discover consolidation); a defensible correction-record slice (Crossref/Retraction Watch correction
+  FACT → a read-only system tag + green badge + evidence-linked Details row; no badge means only "not surfaced by
+  these registries," never "no correction exists"). *(Still open — see open backlog #37: an evidence-grade
+  replication source if one emerges; null-engagement; 2 principle-fraught forensic candidates needing the A-A
+  values layer.)*
+- [x] **#38 Research-impact analytics — Project A, local usage instrumentation** (inc 450) — a zero-egress
+  event log + Settings → "Your usage" dashboard: counts (never payloads) of citation export / duplicate
+  resolution / metadata re-resolve / locating a quote / reviewing a flagged reference; on by default (nothing
+  egresses); always inspectable/exportable/deletable; no opaque "flourishing score." *(Project B, the cross-user
+  impact signal, remains far-future/gated — needs N>1 users + an accounts/hosting decision — see open backlog
+  #38.)*
+- [x] **#40 Publishers tool — SciELO/TOP Factor/AJOL/NLM-MEDLINE/thumb auditability** (inc 448, 451, 452, 453) —
+  a live SciELO regional-index lookup; a locally-mirrored TOP Factor transparency rubric (its `Total` shown only
+  inside an expanded per-category basis block, never bare); a locally-mirrored AJOL CC-BY-4.0 snapshot
+  (including AJOL's own JPPS rating, shown plainly); a live NLM MEDLINE-indexing lookup (self-paced against
+  NCBI's rate limit, precisely named `indexed_in_medline` after a live overclaim check caught "MEDLINE" ≠
+  "PubMed"); `fit_rank`/`weighted_rank` thumb auditability when weighting diverges from topical fit. Redalyc
+  (TLS cert failure), Latindex (confirmed closed), COPE (bot-blocked), and OASPA (no structured members API)
+  were all live re-checked, not assumed, and confirmed not buildable. *(Still open — see open backlog #40:
+  self-archiving/green-route [needs a Jisc-registered key]; Redalyc/Latindex if they ever reopen; COPE/OASPA if
+  an API appears; user exclusion/filtering, deferred on purpose as ethically fraught.)*
+- [x] **#44 Lakens-catalog integration — RegCheck, Increments 1/1b/2/4/5-partial** (inc 250/251, 352, 387,
+  425-433). The transparency-signals auditor + persistence (1/1b); `DocumentTextProvider` (2, PDF/JATS/XML/
+  HTML/DOCX/ODT/plain/TeX); the conservative table-aware statcheck slice (5-partial, inc 387); document-scoped
+  chunk/search/embedding consumers as the hard prerequisite so a registration attachment can't contaminate
+  article synthesis or Methods reads (425); local registration-reference extraction + four honest transparency
+  states (426); explicit OSF/DataCite candidate discovery (427); confirmed OSF/AsPredicted/local acquisition
+  with immutable content-hash versions (428); canonical evidence-bearing commitment extraction (429); section/
+  study-aware article retrieval (430); persisted evidence-bound comparison rows + human review + stale-basis
+  detection (431); the side-by-side inspection UI + security audit (432); bounded pagination/transactional
+  revalidation/fail-closed extraction/exact search receipts (433, the acceptance-audit close-out). This is the
+  fraught, gated **RegCheck** track — see the individual increment notes for the full narrative. **Increment 4
+  overlapped CRediT #26** (closed). *(Still open — see open backlog #44: the rest of Increment 5, a broader
+  consistency registry — DEBIT-style duplicate-publication detection, perhaps a collection-level z-curve. This
+  is item #4 of the confirmed post-P2 backlog sequence, memory `callosum-next5-backlog-roadmap` — next up.)*
+- [x] **#48 WIP integration — Checklists / Critique / Meta-Reference — fully closed** (inc 441-447) —
+  Checklists (Transparency/mixed-model/Bayesian/meta-analysis reporting audits, each via the same exact-
+  snapshot receipt seam, `not-found` rows becoming reviewable `info` candidates only when their gate is on, never
+  a negative finding from silence); Synthesize > Critique (a local-only exact-snapshot job comparing ≤12 bounded
+  draft claims against matching-model Library embeddings, high-confidence contrast only, no defect finding or
+  score); Work > Meta-Reference (`inspect_reference`/`audit_reference_list` reused unmodified against the
+  manuscript's own cited Library papers, two new additive tables, an honest "not computed" self-citation
+  degraded path). Citation-context stays permanently out of scope for WIP (an unpublished draft has no DOI in
+  any citation graph).
+
+## Competitive-benchmark revisions — CLOSED (2026-07-19 audit, migrated 2026-08-09)
+- [x] The full A1-A10 (bug/gap close-outs) and B1-B5 (collaboration, OCR, citation-context, library-bundle
+  sharing, mobile reading — including B1 SP2 gated MCP writes, inc 216) competitive-benchmark lists are
+  completely closed. Full detail: `future-tracks/opus4.8_future-tracks_benchmarkrevisions.md` + the relevant
+  increment notes.
+
+## Shipped — breadcrumbs (inc 84 through inc 408+, migrated from `INCREMENT-BACKLOG.md` 2026-08-09)
+
+*(This is the original condensed breadcrumb trail that used to live inside the open backlog file's own
+"Shipped — breadcrumbs only" section — preserved verbatim below rather than re-summarized, since it was
+already compressed prose. New closures go in the dated sections above, in this file's own `- [x]` style, not
+appended here.)*
+
+- ⭐ Star key publications + scope the AI summary to starred — inc 84
+- Review queue for OpenAlex works missing from My Pubs + import missing own-papers — inc 85
+- Un-dismiss for missing works — inc 92
+- Import coverage beyond Zotero (BibTeX / RIS / CSL-JSON; also covers Mendeley/EndNote) — inc 93
+- Scan / refresh library folders — inc 87; Watched folders — inc 98
+- "UNSORTED" cluster (`needs_review`) — inc 80
+- Filter library by type — inc 91
+- PDF Reading mode (⛶ Read / ⤢ Exit / Esc) — inc 101
+- Re-score line-wrapping fix — inc 86
+- More settings → axis cutoff default in Settings — inc 105 *(ongoing: other prefs as they arise)*
+- Open-science signals — statcheck v1 + library lens + header chip (95/97/100); p-curve (126) + GRIM/GRIMMER
+  (127/129) + unified "N to review" facet (133); comparison-bound forms (inc 333) + conservative table-aware
+  statcheck for PDF/JATS/XML/HTML/DOCX/ODT attachments (inc 387). **#27 closed.**
+- Citation engine Phase 1/2 + LibreOffice adapter — inc 106/107/108 *(Word + Google Docs adapters — see below)*
+- **Frontend/UX pass — inc 109–116:** brand-asset source move; PDF page-view options fit-width/two-up (was #2);
+  editable Translators (part of #5); multi-paper focus query (see #7); button canonicalization; synthesis
+  ✕-close + AXES ambient outlines. *(Journaled in `RECOVERY-LOG.md`.)*
+- **My Publications overhaul SP1–SP3 — inc 117–119:** dashboard restructure + browsable publication cards;
+  group-by-domain; citing articles + per-paper citation counts *(only Layer 4 prospection remains — see #35)*
+- **QA mechanism** — surface-coverage gate + Codex-exec supervisor + watched inbox (rule #10) — inc 120
+- **THEORY/METHODS accordion** on a self-registering module registry — inc 121; statcheck relocated into
+  METHODS — inc 122
+- **Synthesis overview fix** — front-matter-aware no-query selection (123) + evidence-traceable Overview (124) +
+  strengthened classifier (125)
+- **Findings subsystem** — FACT-vs-candidate store + Review pane (130); retraction producer Crossref/OpenAlex
+  (131) + Retraction Watch DB (132); statcheck candidates + unified facet (133); on-import auto-check + RW
+  staleness nudge (134); on-import extended to remaining DOI-bearing routes (224) *(remainder — see #31)*
+- **Literature gap-finder** — backward gap (135) + watched-folder focus-rescan (136) + v2 forward/axis-scoped/
+  cached (137) + followed-authors as a third source (454, #29 closed)
+- **Auto-select top library paper on load** (138); accordion tabs-within-a-section (139)
+- **End-user experience pass (rule #11 + EXPERIENCE-PASS.md)** + persona-agent mechanism (140); the
+  build-and-test slate — statcheck path (141), determinate progress (142), durable keyword deletion (143),
+  export highlights (144), discoverable focus query (145)
+- **BYOK arc — inc 146–152 (#10 + #39):** Gemini key in Settings; Test-key; synthesis "AI is off" nudge;
+  multi-provider engine Gemini/OpenAI/Anthropic/local + Settings provider UI; validation disclaimer +
+  help-assistant toggle; OS-keychain storage
+- **Synthesis coverage readout + top_k + answerability** (153, #7) *(coverage beyond the 24/50-chunk cap
+  remains — a real multi-pass/map-reduce change, its own design)*
+- **Track C SP1 + SP2 (#30) — inc 156–159, 271/272, and 2026-07-22:** highlight-to-suggest/evaluate engine +
+  Cite pane; LibreOffice Suggest macro; formatted "Cite as…"; beyond-library suggest (OpenAlex graph expansion +
+  public metadata search, explainable reasons, security-audited) wired into both the web Cite pane and (as of
+  2026-07-22) the LibreOffice adapter's Suggest macro too *(Stage-4 section-scoping remains — see §4)*
+- **Reading-workflow markers (Bella's ask) — inc 219–223:** reading queue (219); read/unread + priority markers
+  + sort + filter facet (220/221); "By priority" unset-tier recency tiebreak (223). **Thread complete.**
+- **Word-processor adapters (#33/#34) — inc 106–108, 162–171, 193:** LibreOffice macro → one-click .oxt v2; Word
+  add-in Office.js SP1–3; Google Docs Apps Script add-on + cloudflared bridge + setup automation. *(Deferred
+  polish — see §4.)*
+- **Reading-pane run — inc 175–179:** remembered scroll; Notes-panel split + filter/search; next/prev-mark nav
+  + hotkeys. **PDF highlight minimap** (215) and **precise-highlighting word-reconstruction** (270) also shipped.
+  *(Only a "fit-height" 4th page-view mode remains, render-risk + needs a browser eyeball — low priority.)*
+- **README front-door draft (#11)** (178, maintainer voice-pass remains — see §2); **credit-the-lineage** —
+  statcheck slice + shared `.method-credit` (180) + dependency NOTICE pass (181) + the overlooked-work lens
+  credit (282) + the shared "add missing to library" correctness pass across every method-credit surface (293).
+  **Backfill audit closed inc 466** (item #3 of the post-P2 backlog sequence — the proposing future-tracks doc
+  was stale; most of it was already built): added the two genuine gaps found — Retraction Watch credit (Settings
+  → Local Maintenance, no canonical paper exists so text-only, matching the SciELO precedent) and a real
+  `LakensCredit` block (Crone & Green 2025, DOI verified) replacing 7 panels' passing sub-text mentions with an
+  actual clickable, library-addable citation — plus `pyjwt`/`keyring` NOTICES gaps and a stale header fix. **Also
+  found and fixed a real, separate bug while live-verifying**: `MethodCreditButton` (used by ~12 panels) showed
+  "✓ added to library" without ever polling `POST /library/import`'s async job to completion — a real click could
+  show success while the import had actually failed (confirmed via a genuine write-lock collision with a
+  concurrent watched-folder rescan). Now polls to the real outcome, matching `GapsModal`'s own pattern. **#8 is
+  complete.**
+- **Literature discovery (#28) — inc 182–192, 286, 295–297:** Search tab (Crossref + PubMed + axis-relevance
+  highlight) + Feed tab (bioRxiv/medRxiv + PubMed-keyword + journal-ISSN); Wanted/Gaps/Overlooked + Feed
+  consolidated into Discover → Search (286, resolves #37's header-density UX finding); follow-by-title +
+  typeahead (295); selectable sources (296). *(Only "register more sources as they arise" remains.)*
+- **Accounts arc (#15) — inc 194–202:** Sign in with ORCID (194); superuser flag & runbook (195); email/Google
+  (196); opt-in E2E sync — crypto/changeset (197), `sync_uid` engine + FK + link + natural-key (198–201),
+  reference sync-server + transport + opt-in `/sync/*` (202). *(SP3c UI + deploy + hardening + SP4 remain — §3.)*
+- **A1–A10 close-out list — inc 203–212:** dormant `contradicted` status (203); axis count-badge carries
+  hide-uncertain (204); THEORY→Discover placeholder removed (205); drag-to-axis (206); color tags (207); saved
+  searches (208); full-text PDF search FTS5 (209); per-paper citation counts (210); Curated Axis SP1/SP2
+  (211/212). **Closes the entire A1–A10 benchmark list.**
+- **B1 read-first MCP server** (213) **+ B1 SP2 gated agent writes** (216, opt-in, provenance-stamped, audited,
+  reversible — confirmed shipped, was miscategorized as open before this audit).
+- **Metadata enrichment SP1/SP2** (217/218, Europe PMC + PubMed sources).
+- **Bayesian auditor — full arc, inc 241–244** (JZS t-test BF, completeness checklist, correlation BF, Tier-3
+  advisories). *(ANOVA/regression BF declined — see §4.)*
+- **Publishers "where to submit" tool SP1a/SP1b** (245/246).
+- **LMM-reporting auditor** (247, *cross-method deferrals — see §2*); **accordion panels polish + Cite tabs**
+  (248); **meta-analysis reporting auditor** (249, consumer-side).
+- **Transparency-signals auditor + persistence** (250/251, the Lakens-catalog increment 1/1b).
+- **Meta-analysis workbench SP1/SP2a/SP2b + the assisted-extraction funnel** (252, 253, 255, 258, 259).
+  *(Next escalations — see §4.)*
+- **In-app remote-access-lockout recovery** (254); **unified multi-provider BYOK / custom LLM providers** (256);
+  **autonomous close-out sweep** (257).
+- **Citation-equity → Citation concentration** (227–230, 260, values rework — dropped the geography/gender
+  signal on principle). **CRediTer contribution-statement builder v1** (261, *UX follow-ups — see §2*).
+- **600-line-cap cleanup + the line-budget gate itself** (262, 264 — backlog #20 ratchet step 1; #47 closed).
+- **OpenURL institutional link-resolver** (263); **reversible un-merge** (265, #16); **critical-review
+  supplement, single-paper AND multi-paper** (266, 271 — backlog #12, confirmed shipped, was miscategorized as
+  gated/unbuilt before this audit — meets the #13 auditability bar throughout).
+- **The `database is locked` reliability arc — CLOSED end-to-end, inc 272–281.** WAL + busy_timeout (219);
+  transaction-level short-write retry (272); long-job incremental commits across scan/ingest/enrich/methods/
+  read-heavy jobs, Increments A–D (273–278); the overlooked-work lens (279, #37); the last residual
+  snapshot-upgrade edge closed via a uniform `run_write` sweep over every short SELECT-then-write handler (281).
+  *(A prior version of this file carried ~60 lines of this saga's history under "still open" framing; it is not
+  open — `tests/test_short_write_sweep.py` machine-enforces the invariant.)*
+- **Workspaces navigation — inc 280, 284–292, 296–303:** the two-level menu-bar nav (280); DESIGN §5 rewrite
+  (284); the one-time "what moved" hint (285, confirmed shipped — was miscategorized as an open follow-up before
+  this audit); discovery-surface consolidation (286); Synthesis+Work split (287); library header polish + Open
+  Data signal (288); workspace scroll + My-Pubs polish (289); selected-paper tab + PDF reorder (290); Discover
+  selected-paper cue (291); Discover Search/Journals recall (299); mobile workspace switcher (302); the
+  navigation rubric rewrite + a backlog reconciliation pass (303).
+- **PDF text-health "missing section labels" fix** (283); **library retractions refresh + RETRACTED badge**
+  (292, *filterable-facet integration remains — see #19*); **Reading Queue stratified by priority** (294);
+  **Synthesize Ask/Critique split** (298).
+- **Fast pytest** — targeted runs + xdist parallelism + testmon change-based selection (300).
+- **Six misc UX fixes** — Trash search, read-mode menu bar, Discover recall, duplicate card, invert sort,
+  missing-PDF filter (301).
+- **Per-item import/embed progress titles** (304, #4); **web-stack CVE migration** (305, FastAPI/Starlette —
+  *the httpx→httpx2 TestClient follow-up remains, see §1*); **richer keyword tags** — OpenAlex topics + PubMed
+  MeSH (306) **+ everywhere** — Feed/Search-save background-enrich + 🔎 re-resolve (307, #18 complete).
+- **QA-pass fixes** (308) — read-only credit-403 gating, mobile Help layout, Discover Clear × — **all three
+  browser-verified 2026-07-19** (a Playwright follow-up session; the Clear × fix needed a genuine second pass —
+  see `INCREMENT-308-NOTES.md`).
+- **WIP manuscript workspace MVP — incs 351–356.** The unprocessed source prompt was reconciled from the watched
+  inbox on 2026-07-24 after confirming the implementation directly: WIP is a distinct top-level manuscript
+  collection with watched-folder discovery, workflow/files/tasks/references/activity, exact content checkpoints,
+  snapshot-bound deterministic checks/findings, reverse Library navigation, dedicated facets/context actions, and
+  tab reorder parity. The canonical design source now lives in `future-tracks/`.
+- ✅ **#50 "Status" menu — cross-feature async-job popover — CLOSED 2026-07-28 (incs 406-408).** Phase 1
+  (inc 406): a click-toggle popover after Help/Settings aggregating every `JobStore` on `api.state` (~30
+  features) via reflection, with real progress/ETA where a job reports it and an honest indeterminate
+  spinner where it doesn't; per-row dismiss + clear-all-finished + a 1-hour auto-expiry backstop. Phase 2
+  Wave 1 (inc 407): audited every "library refresh"-style job for real-progress coverage — citation-count
+  refresh, metadata enrichment, library scan, library import, and bundle import already had it; the one
+  gap (`retraction_jobs`) got a one-line `mark_progress` fix. Phase 2 Wave 2 (inc 408): Ask's per-candidate
+  verification loop now reports real progress/ETA (retrieval + the LLM generation call stay indeterminate
+  on purpose — a single opaque blocking request has no sub-progress signal, and a cache hit would make a
+  naive ETA misleading), live-verified end-to-end with a real Gemini call against a disposable instance.
+  **`dedup_jobs` remains the one deliberately-indeterminate job in the app** (no per-item loop exposed to
+  the router without restructuring the duplicate-detection algorithm itself) — an honest gap, not an
+  oversight; revisit only if that algorithm changes for other reasons.

@@ -11,6 +11,27 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-09 inc 466 — credit-the-lineage backfill -->
 
+## 2026-08-09 — Backlog closure discipline: reconcile `INCREMENT-BACKLOG.md` / `INCREMENT-BACKLOG-DONE.md`
+- **Files:** `.claude/docs/INCREMENT-BACKLOG.md` (924→181 lines), `.claude/docs/INCREMENT-BACKLOG-DONE.md`
+  (220→~530 lines), `.claude/CLAUDE.md` (Increment workflow section; also fixed a stale 463→466 counter
+  drift found along the way).
+- **What:** not a product increment — a housekeeping pass on institutional-memory docs, prompted by Cliff
+  flagging rising token consumption. `INCREMENT-BACKLOG.md` had drifted: a redundant in-file "Shipped —
+  breadcrumbs only" section duplicated the purpose of the already-existing `INCREMENT-BACKLOG-DONE.md` (split
+  out 2026-06-20), which had itself gone stale since 2026-07-22; meanwhile individual "✅ CLOSED" bullets inside
+  the still-open sections kept growing in place instead of being deleted (found via my own two edits earlier
+  this session, on the #8 credit-lineage and #30 beyond-library entries). Migrated every closed/fully-closed
+  item to `INCREMENT-BACKLOG-DONE.md` (new dated sections + the old breadcrumb trail, largely verbatim; the
+  290-line #33/#34 LibreOffice saga was compressed to ~15 lines pointing at its own increment-notes span,
+  106-464, since duplicating that much narrative across two files was itself part of the bloat), trimmed
+  partially-closed items to just their open remainder, and deleted everything fully closed from the open file.
+  Added an explicit closure-discipline rule to CLAUDE.md's Increment workflow section (delete-from-open +
+  one-line-append-to-DONE, keyed by the item's existing stable `#N`) so this doesn't re-accumulate.
+- **Why:** the open backlog is read in full most sessions (Session-kickoff step 2); an 80% cut (924→181 lines)
+  meaningfully reduces that per-session cost, and the enforced discipline is meant to keep it from drifting back.
+- **Revert:** `.claude/backups/INCREMENT-BACKLOG_pre-20260809-restructure.md` /
+  `INCREMENT-BACKLOG-DONE_pre-20260809-restructure.md` hold the exact pre-restructure content of both files.
+
 ## 2026-08-09 — Increment 466: Credit-the-lineage backfill (item #3 of the post-P2 backlog sequence)
 - **Files:** `app/frontend/js/05_method_credit.jsx`, `app/frontend/js/35e_maintenance.jsx`,
   `app/frontend/js/06_methods_statcheck.jsx`, `07_methods_grim.jsx`, `08d_methods_bayes.jsx`,
