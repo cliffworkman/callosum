@@ -3,9 +3,13 @@ network). The inverse of inc-70 export."""
 
 from __future__ import annotations
 
+import contextlib
+import logging
+
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
+from app.backend.metadata import citation_import as citation_import_mod
 from app.backend.metadata.citation_import import (
     csl_record_to_paper_fields,
     detect_format,
@@ -16,6 +20,36 @@ from app.backend.metadata.citation_import import (
 )
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_paper
+
+
+class _ListHandler(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(level=logging.WARNING)
+        self.messages: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.messages.append(record.getMessage())
+
+
+@contextlib.contextmanager
+def _capture_import_log():
+    # Mirrors test_usage_logging.py's _capture(): pytest's caplog listens on root, but callosum.* loggers
+    # don't reliably propagate there (and Alembic's fileConfig(disable_existing_loggers=True) disables any
+    # callosum.* logger that already exists once a migration runs, e.g. via the temp_db_url fixture) — so
+    # attach directly to the module logger and force it back on.
+    log = citation_import_mod._log
+    handler = _ListHandler()
+    prev_level, prev_disabled = log.level, log.disabled
+    log.addHandler(handler)
+    log.setLevel(logging.WARNING)
+    log.disabled = False
+    try:
+        yield handler
+    finally:
+        log.removeHandler(handler)
+        log.setLevel(prev_level)
+        log.disabled = prev_disabled
+
 
 _BIBTEX = """
 @article{doe2020,
@@ -157,6 +191,24 @@ def test_import_citations_creates_dedups_and_isolates(temp_db_url):
     assert len(client.get("/papers").json()) == 2
     assert len(client.get("/papers", params={"item_type": "article-journal"}).json()) == 1
     assert len(client.get("/papers", params={"item_type": "book"}).json()) == 1
+
+
+def test_import_logs_skipped_record_with_its_title(temp_db_url, monkeypatch):
+    """A per-record failure (was silently swallowed — backlog #53) now logs the record's title + exception,
+    so a real bug (e.g. a transient write-lock collision) is diagnosable rather than indistinguishable from
+    an ordinary malformed record."""
+
+    def flaky_create_paper(*args, **kwargs):
+        raise RuntimeError("boom creating this record")
+
+    monkeypatch.setattr(citation_import_mod, "create_paper", flaky_create_paper)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn, _capture_import_log() as cap:
+        result = import_citations(conn, _BIBTEX, "bibtex")
+    assert result["failed"] == 2  # both records fail at create_paper
+    assert len(cap.messages) == 2
+    assert any("A Grand Study" in m and "boom creating this record" in m for m in cap.messages)
+    assert any("Big Report" in m for m in cap.messages)
 
 
 def test_import_roundtrips_exported_csl_json(temp_db_url):

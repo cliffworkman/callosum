@@ -11,6 +11,15 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-09 inc 467 — DEBIT consistency check -->
 
+## 2026-08-09 — Backlog #53: log `import_citations`' silently-swallowed per-record exceptions
+- **Files:** `app/backend/metadata/citation_import.py`, `tests/test_citation_import.py`.
+- **What:** `import_citations`'s bare `except Exception: failed += 1` now logs the skipped record's title +
+  exception via a module logger (`callosum.citation_import`), matching the identical convention already used by
+  8 other batch-loop call sites in this codebase. No behavior change to the returned summary.
+- **Why:** found live during inc 466's verification — a real write-lock collision was indistinguishable from an
+  ordinary malformed record until reproduced by hand; filed as backlog #53 at the time, picked up next.
+- **Revert:** additive/backward-compatible; remove the logger + the `as exc:`/log-call in the except block.
+
 ## 2026-08-09 — Increment 467: DEBIT consistency check (item #4 of the post-P2 backlog sequence)
 - **Files:** `app/backend/methods/grim.py`, `app/backend/api/routers/methods.py`,
   `app/backend/persistence/schema_debit_checks.py` (new), `app/backend/persistence/schema.py`,

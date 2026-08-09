@@ -30,12 +30,6 @@
 
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
-- **#53 `import_citations` silently swallows per-record exceptions.** Found live while verifying inc 466 (a real
-  `sqlite3.OperationalError: database is locked` collision with a concurrent watched-folder rescan was caught by
-  `citation_import.py::import_citations`'s bare `except Exception: failed += 1` with zero logging — a genuine
-  failure was indistinguishable from a malformed record until reproduced by hand). Add a log call inside that
-  except block so a real failure is diagnosable from the server's own console. Touches shared import logic used
-  by BibTeX/RIS import too, not just `MethodCreditButton` (already fixed, inc 466) — its own small pass.
 
 ---
 

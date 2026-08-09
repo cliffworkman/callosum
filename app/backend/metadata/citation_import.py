@@ -10,6 +10,7 @@ mapping (`csl_record_to_paper_fields`) turns that into `create_paper` kwargs. En
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 
@@ -18,6 +19,8 @@ from sqlalchemy import Connection
 from app.backend.persistence.repository import create_paper, find_existing_paper_by_identity
 
 IMPORT_FORMATS = ("bibtex", "ris", "csl-json")
+
+_log = logging.getLogger("callosum.citation_import")
 MAX_IMPORT_BYTES = 5_000_000  # ~5 MB — bound resource use on an untrusted file (rule #4)
 MAX_IMPORT_RECORDS = 5000  # bound the number of papers one import can create
 
@@ -385,6 +388,7 @@ def import_citations(conn: Connection, content: str, fmt: str | None) -> dict[st
                     duplicate += 1
                     continue
                 created.append(create_paper(conn, imported_source=source, **fields))
-        except Exception:
+        except Exception as exc:
+            _log.warning("citation import: skipped record %r: %s", rec.get("title", "(untitled)"), exc)
             failed += 1
     return {"created": created, "duplicate": duplicate, "failed": failed, "skipped": skipped, "format": resolved}

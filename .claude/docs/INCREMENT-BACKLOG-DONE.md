@@ -257,6 +257,14 @@ new work goes in the open backlog.
 - [x] **#51 funding partial-provider test flake** (inc 440) — the test relied on live scholarly-provider
   results changing; now supplies deterministic local fixtures for the same selected-paper + partial-failure
   contract.
+- [x] **#53 `import_citations` silently swallows per-record exceptions** (2026-08-09) — found live while
+  verifying inc 466 (a real `sqlite3.OperationalError: database is locked` collision with a concurrent
+  watched-folder rescan was indistinguishable from an ordinary malformed record). `citation_import.py` now logs
+  the skipped record's title + exception via `_log = logging.getLogger("callosum.citation_import")`, matching
+  the exact convention already used by 8 sibling batch-loop call sites. Covered by a new test using the
+  `test_usage_logging.py` `_ListHandler`/`_capture()` pattern (not `caplog`, which doesn't reliably see
+  `callosum.*` loggers in this project). No behavior change to the returned summary; no increment number
+  (too small to rise to a full increment).
 
 ## Design-decision closures (migrated from open backlog §2, 2026-08-09)
 - [x] **#11 README front-door** (2026-07-22) — the screenshot landed with `www/`; the voice pass was drafted
