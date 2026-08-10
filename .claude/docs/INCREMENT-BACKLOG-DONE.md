@@ -297,6 +297,19 @@ new work goes in the open backlog.
   `cite-status` pill — a deliberate presentation choice so the tool can't visually borrow the credibility of
   GRIM/GRIMMER/DEBIT sitting next to it. Text-only credit (no citable paper exists). Live-verified end-to-end
   via Playwright; security audit PASS. **#54 is now fully closed.**
+- [x] **#55 Z-curve** (inc 470) — the source design doc's "auto-zcurve" proposed Gemini-assisted "focal
+  statistic" extraction, flagged by the doc itself as "more dangerous... judgment-laden," the exact misaligned
+  path PRINCIPLES.md Example 3 warns about. Research found the aligned path already existed: p-curve (inc 126)
+  had already solved this identical problem by reusing statcheck's exhaustive deterministic extraction instead
+  of an LLM-picked focal test, with an already-proven collection-level/no-accusation framing. Z-curve extends
+  that pattern — no LLM, no egress. Cliff confirmed building the full Bartoš & Schimmack (2022) EDR/ERR
+  mixture-model estimator, verified against the reference R package's own source (not memory). New Principles
+  finding beyond p-curve: EDR/ERR are rate estimates, more verdict-shaped than p-curve's right-skew statistic —
+  mitigated with a hard (non-dismissible) reliability warning below the reference implementation's own N=300
+  threshold, CIs always shown beside the point estimate, and no per-paper/per-author breakdown anywhere. A real
+  performance bug (an absolute log-likelihood convergence criterion that never converges for large N) was caught
+  by a stress test before shipping, not after. Live-verified end-to-end against the real 217-paper library;
+  security audit PASS.
 
 ## Design-decision closures (migrated from open backlog §2, 2026-08-09)
 - [x] **#11 README front-door** (2026-07-22) — the screenshot landed with `www/`; the voice pass was drafted

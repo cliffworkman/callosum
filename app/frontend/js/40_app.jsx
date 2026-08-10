@@ -106,7 +106,7 @@ function App() {
     libraryBits, setLibRefresh, pendingSummarize, summarizePaperIds,
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
     showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged, showMetaFlagged, showBayesFlagged, showTextHealthFilter, refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, refreshBayesChip, findingsRefresh, setFindingsRefresh, setReferenceWarningsRefresh,
-    pcurvePapers, setPcurvePapers, mergeIds, setMergeIds, onMerged,
+    pcurvePapers, setPcurvePapers, zcurvePapers, setZcurvePapers, mergeIds, setMergeIds, onMerged,
     critSetIds, setCritSetIds,
   } = lib;
 
@@ -328,7 +328,7 @@ function App() {
   }, []);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
-  const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
+  const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers || !!zcurvePapers;
   useEffect(() => {
     if (!readingMode) return;
     const onKey = (e) => { if (e.key === "Escape" && !anyModalOpen) toggleReading(); };
@@ -508,6 +508,8 @@ function App() {
         <BeyondLibrarySavedModal onClose={() => setBeyondSavedOpen(false)} onChanged={() => setLibRefresh(n => n + 1)} />}
       {pcurvePapers &&
         <PcurveModal paperIds={pcurvePapers} onClose={() => setPcurvePapers(null)} onOpenPaper={openPdf} onChanged={() => setLibRefresh(n => n + 1)} />}
+      {zcurvePapers &&
+        <ZcurveModal paperIds={zcurvePapers} onClose={() => setZcurvePapers(null)} onOpenPaper={openPdf} onChanged={() => setLibRefresh(n => n + 1)} />}
       {scanOpen &&
         <ScanModal onClose={() => setScanOpen(false)}
           onScanned={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }} onShowUnsorted={showNeedsReview} />}

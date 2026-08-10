@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 469** (see Increment workflow) with **2077 root-suite pytest tests
+It is currently at **Increment 470** (see Increment workflow) with **2084 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -237,7 +237,22 @@ the full per-increment narrative for all other increments now lives in the reloc
   since `methods.py` had no headroom left) with a deliberately weaker presentation than its three neighbors: no
   `consistent`/`flagged` field or pill anywhere, just a plain frequency list — a validated check earns its
   verdict pill; an unvalidated heuristic sitting right next to one must not visually borrow that credibility.
-  Text-only credit line (no citable paper exists to add to the library).
+  Text-only credit line (no citable paper exists to add to the library). **Inc 470 closes #55** with z-curve,
+  p-curve's more quantitative sibling: the source design doc's "auto-zcurve" proposed Gemini-assisted "focal
+  statistic" extraction, its own words "more dangerous... judgment-laden" — the exact misaligned path
+  PRINCIPLES.md Example 3 warns about. Research found the aligned path already built: p-curve (inc 126) already
+  solves this identical problem by reusing statcheck's exhaustive deterministic extraction instead of an
+  LLM-picked focal test. Z-curve extends that pattern — `app/backend/methods/zcurve.py` implements Bartoš &
+  Schimmack (2022) Z-curve 2.0's full EDR/ERR mixture-model estimator, verified against the reference `zcurve` R
+  package's own source (not derived from memory): 7 fixed-mean truncated folded-normal components, EM-fit
+  weights, the published population-weight extrapolation and calibrated bootstrap-CI widening. No LLM, no
+  egress. EDR/ERR are quantitative rate estimates — more verdict-shaped than p-curve's abstract right-skew
+  statistic — so the design adds three safeguards beyond p-curve: a hard, non-dismissible reliability warning
+  below the reference implementation's own N=300 threshold (expected on nearly every realistic personal-library
+  run — the honest outcome, not a defect), CIs always shown beside the point estimate, and no per-paper/
+  per-author breakdown anywhere. A real performance bug (an absolute log-likelihood convergence criterion that
+  never converges for large N) was caught by a stress test before shipping, fixed with a scale-invariant
+  parameter-change criterion.
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):
@@ -902,7 +917,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 469). Each increment of real work
+callosum is built in **numbered increments** (currently at 470). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

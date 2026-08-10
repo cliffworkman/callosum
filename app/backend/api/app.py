@@ -63,6 +63,7 @@ from app.backend.api.routers import (
     methods_retraction,
     methods_statcheck_cache,
     methods_top_factor,
+    methods_zcurve,
     my_publication_citing_authors,
     my_publication_gaps,
     my_publication_topics,
@@ -218,6 +219,7 @@ def create_app(
     api.state.library_bundle_import_jobs = JobStore()  # B2 SP1 (inc 234): portable library bundle import
     api.state.statcheck_jobs = JobStore()  # inc 97: library-wide statcheck batch
     api.state.pcurve_jobs = JobStore()  # inc 126: collection-level p-curve over a selection
+    api.state.zcurve_jobs = JobStore()  # inc 470: collection-level z-curve (EDR/ERR) over a selection
     api.state.retraction_jobs = JobStore()  # inc 131: library-wide retraction batch
     api.state.lmm_jobs = JobStore()  # backlog #23 F1: library-wide LMM reporting-completeness batch
     api.state.meta_jobs = JobStore()  # backlog #23 F1: library-wide meta-analysis reporting-completeness batch
@@ -374,6 +376,9 @@ def create_app(
     api.include_router(
         methods_duplicate_values.router
     )  # /methods/duplicate-values, /papers/{id}/duplicate-value-checks — repeated-values checker (inc 469)
+    api.include_router(
+        methods_zcurve.router
+    )  # /methods/zcurve/run — collection-level EDR/ERR estimator, split from methods.py (inc 470)
     api.include_router(
         methods_retraction.router
     )  # /methods/retraction/* — retraction findings, split from methods.py (inc 261)

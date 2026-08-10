@@ -941,6 +941,10 @@
   .pcurve-test-p { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
   .pcurve-coverage { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin: 8px 0; }
   /* .pcurve-credit / .grim-credit consolidated → .method-credit (inc 180) */
+  /* inc 470 (z-curve): a firmer amber notice than .pcurve-warn — EDR/ERR are rate estimates, more tempting to
+     over-read than p-curve's abstract right-skew statistic, so this stays unmissable rather than a soft aside. */
+  .zcurve-reliability-warn { font-size: 12px; font-weight: 600; color: var(--flag-ink); background: var(--flag-soft); border: 1.5px solid var(--flag); border-radius: var(--radius-sm); padding: 8px 10px; margin: 8px 0; }
+  .zcurve-ci { font-weight: 400; color: var(--ink-3); }
   /* inc 127: GRIM calculator (METHODS). Tokens only. */
   .grim-section { font-size: 12px; }
   .grim-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 8px 0; }
@@ -3821,6 +3825,7 @@
     const [libRefresh, setLibRefresh] = useState(0);
     const pendingSelectTopRef = useRef(false);
     const [pcurvePapers, setPcurvePapers] = useState(null);
+    const [zcurvePapers, setZcurvePapers] = useState(null);
     const [mergeIds, setMergeIds] = useState(null);
     const [critSetIds, setCritSetIds] = useState(null);
     const toggleLibrarySelect = useCallback((id) => {
@@ -3853,6 +3858,13 @@
       const ids = [...selectedLibraryIds];
       if (ids.length) {
         setPcurvePapers(ids);
+        setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      }
+    }, [selectedLibraryIds]);
+    const bulkZcurvePapers = useCallback(() => {
+      const ids = [...selectedLibraryIds];
+      if (ids.length) {
+        setZcurvePapers(ids);
         setSelectedLibraryIds(/* @__PURE__ */ new Set());
       }
     }, [selectedLibraryIds]);
@@ -4480,6 +4492,7 @@
       onBulkDelete: bulkDeletePapers,
       onBulkSummarize: bulkSummarizePapers,
       onBulkPcurve: bulkPcurvePapers,
+      onBulkZcurve: bulkZcurvePapers,
       onBulkMerge: bulkMergePapers,
       onBulkCriticalRead: bulkCriticalReadPapers,
       onBulkExport: bulkExportPapers,
@@ -4559,6 +4572,8 @@
       showTextHealthFilter,
       pcurvePapers,
       setPcurvePapers,
+      zcurvePapers,
+      setZcurvePapers,
       mergeIds,
       setMergeIds,
       onMerged,
@@ -9535,6 +9550,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     onBulkDelete,
     onBulkSummarize,
     onBulkPcurve,
+    onBulkZcurve,
     onBulkMerge,
     onBulkCriticalRead,
     onBulkExport,
@@ -9755,7 +9771,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           if (e.key === "Enter") onBulkSummarize(bulkFocus);
         }
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onBulkSummarize(bulkFocus), title: "Generate a verified synthesis of the selected papers \u2014 focused on your question if you typed one" }, "summarize"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkPcurve, title: "Run a p-curve (evidential value) over the selected papers \u2014 collection-level, never per-paper" }, "p-curve"), /* @__PURE__ */ React.createElement(BulkReferenceCheckButton, { paperIds: [...selectedLibraryIds], onDone: onBulkReferenceCheckDone }), /* @__PURE__ */ React.createElement(ReprocessSelectedTextButton, { paperIds: [...selectedLibraryIds], onDone: onEnriched }), selCount >= 2 && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkMerge, title: "Merge the selected papers into one record \u2014 keeps every PDF, link, tag, and highlight; the others move to Trash" }, "merge"), selCount >= 2 && onBulkCriticalRead && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkCriticalRead, title: "Critically review the selected papers together \u2014 cross-paper contradictions + a fact matrix of each paper's method-check signals; a signal, not a verdict" }, "critical read"), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onBulkSummarize(bulkFocus), title: "Generate a verified synthesis of the selected papers \u2014 focused on your question if you typed one" }, "summarize"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkPcurve, title: "Run a p-curve (evidential value) over the selected papers \u2014 collection-level, never per-paper" }, "p-curve"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkZcurve, title: "Run a z-curve (expected replication/discovery rate) over the selected papers \u2014 collection-level, never per-paper or author" }, "z-curve"), /* @__PURE__ */ React.createElement(BulkReferenceCheckButton, { paperIds: [...selectedLibraryIds], onDone: onBulkReferenceCheckDone }), /* @__PURE__ */ React.createElement(ReprocessSelectedTextButton, { paperIds: [...selectedLibraryIds], onDone: onEnriched }), selCount >= 2 && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkMerge, title: "Merge the selected papers into one record \u2014 keeps every PDF, link, tag, and highlight; the others move to Trash" }, "merge"), selCount >= 2 && onBulkCriticalRead && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkCriticalRead, title: "Critically review the selected papers together \u2014 cross-paper contradictions + a fact matrix of each paper's method-check signals; a signal, not a verdict" }, "critical read"), /* @__PURE__ */ React.createElement(
       "select",
       {
         className: "bulk-export",
@@ -15159,6 +15175,79 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       /* @__PURE__ */ React.createElement("span", { className: "pcurve-test-p" }, "p = ", t.p)
     )))), /* @__PURE__ */ React.createElement("div", { className: "pcurve-coverage" }, "Coverage: p-curve reads only inline APA-style NHST tests with exact statistics (tables, Bayesian, and CI-only reporting are invisible); it includes every extracted significant test rather than each study's chosen focal test, and conservatively drops results so significant their p rounds to \u22480. Run it on a small, curated set for the most meaningful curve.")), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " p-curve \u2014 Simonsohn, Nelson & Simmons (2014), ", /* @__PURE__ */ React.createElement("i", null, "J. Exp. Psychol. Gen."), " 143(2):534\u2013547.", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [SNS2014_CSL], onChanged }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; reference implementation: ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " (Lukas Jung)."), /* @__PURE__ */ React.createElement(LakensCredit, null))));
   }
+  const BS2022_CSL = {
+    type: "article-journal",
+    title: "Z-curve 2.0: Estimating replication rates and discovery rates",
+    author: [
+      { family: "Barto\u0161", given: "Franti\u0161ek" },
+      { family: "Schimmack", given: "Ulrich" }
+    ],
+    "container-title": "Meta-Psychology",
+    volume: "6",
+    issued: { "date-parts": [[2022]] },
+    DOI: "10.15626/MP.2021.2720"
+  };
+  function fmtPct(x) {
+    if (x == null) return "\u2014";
+    return Math.round(x * 100) + "%";
+  }
+  function fmtCI(ci) {
+    if (!ci) return null;
+    return `95% CI [${Math.round(ci[0] * 100)}\u2013${Math.round(ci[1] * 100)}%]`;
+  }
+  function ZcurveStat({ label, value, ci, hint }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "pcurve-stat" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, label), /* @__PURE__ */ React.createElement("span", { className: "v" }, fmtPct(value), ci && /* @__PURE__ */ React.createElement("span", { className: "zcurve-ci" }, " \xB7 ", fmtCI(ci))), hint && /* @__PURE__ */ React.createElement("span", { className: "d" }, hint));
+  }
+  function ZcurveModal({ paperIds, onClose, onOpenPaper, onChanged }) {
+    const [state, setState] = useState({ status: "running" });
+    const pollRef = useRef(null);
+    useEffect(() => {
+      let live = true;
+      const poll = (jobId) => api(`/methods/zcurve/run/${jobId}`).then((r2) => {
+        if (!live) return;
+        if (!r2.ok) {
+          setState({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") setState({ status: "done", result: d.result });
+        else if (d.status === "error") setState({ status: "error", error: d.detail || "z-curve failed." });
+        else pollRef.current = setTimeout(() => poll(jobId), 1200);
+      });
+      apiPost("/methods/zcurve/run", { paper_ids: paperIds }).then((r2) => {
+        if (!live) return;
+        if (!r2.ok) {
+          setState({ status: "error", error: r2.error });
+          return;
+        }
+        poll(r2.data.job_id);
+      });
+      return () => {
+        live = false;
+        if (pollRef.current) clearTimeout(pollRef.current);
+      };
+    }, [paperIds]);
+    const r = state.result;
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal pcurve-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "z-curve \xB7 expected replication & discovery rate"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "pcurve-framing" }, "A ", /* @__PURE__ */ React.createElement("b", null, "collection-level"), " estimate over your selected papers' significant results: EDR estimates what share of ", /* @__PURE__ */ React.createElement("i", null, "all"), " conducted tests would be significant; ERR estimates how often the significant ones would replicate. ", /* @__PURE__ */ React.createElement("b", null, "Never a score for these specific papers or their authors \u2014 an estimate about the assembled set, with real uncertainty.")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Extracting results and fitting the z-curve model\u2026", managedBy: "backend-job" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "12px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "z-curve could not run."), /* @__PURE__ */ React.createElement("br", null), state.error), state.status === "done" && r && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pcurve-note" }, r.note), r.k_significant > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, r.low_reliability && /* @__PURE__ */ React.createElement("div", { className: "zcurve-reliability-warn" }, "\u26A0 Only ", r.k_significant, " significant result", r.k_significant === 1 ? "" : "s", " \u2014 z-curve needs at least 300 for a reliable estimate. Treat EDR/ERR below as exploratory, not stable."), /* @__PURE__ */ React.createElement("div", { className: "pcurve-stats" }, /* @__PURE__ */ React.createElement(
+      ZcurveStat,
+      {
+        label: "EDR (expected discovery rate)",
+        value: r.edr,
+        ci: r.edr_ci,
+        hint: r.odr != null ? `observed discovery rate: ${fmtPct(r.odr)}` : null
+      }
+    ), /* @__PURE__ */ React.createElement(ZcurveStat, { label: "ERR (expected replication rate)", value: r.err, ci: r.err_ci }), r.z0 != null && /* @__PURE__ */ React.createElement("div", { className: "pcurve-stat" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Estimated null-component share"), /* @__PURE__ */ React.createElement("span", { className: "v" }, fmtPct(r.z0)), /* @__PURE__ */ React.createElement("span", { className: "d" }, "share of significant results the model attributes to true-null components"))), /* @__PURE__ */ React.createElement("details", { className: "pcurve-included" }, /* @__PURE__ */ React.createElement("summary", null, r.included_tests.length, " included tests \xB7 ", r.n_papers, " papers"), r.included_tests.map((t, i) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: i,
+        className: "pcurve-test",
+        title: t.page != null ? "Open page " + t.page : "",
+        onClick: () => t.page != null && onOpenPaper && onOpenPaper({ id: t.paper_id, title: "" }, { page: t.page, precision: "region" })
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "pcurve-test-raw" }, t.raw),
+      /* @__PURE__ */ React.createElement("span", { className: "pcurve-test-p" }, "z = ", t.z.toFixed(2))
+    )))), /* @__PURE__ */ React.createElement("div", { className: "pcurve-coverage" }, "Coverage: z-curve reads only inline APA-style NHST tests with exact statistics (tables, Bayesian, and CI-only reporting are invisible); it includes every extracted significant test rather than each study's chosen focal statistic. Run it on a large, curated set for the most meaningful estimate.")), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " z-curve 2.0 \u2014 Barto\u0161 & Schimmack (2022), ", /* @__PURE__ */ React.createElement("i", null, "Meta-Psychology"), " 6, MP.2021.2720.", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [BS2022_CSL], onChanged }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; reference implementation: ", /* @__PURE__ */ React.createElement("i", null, "zcurve"), " (Franti\u0161ek Barto\u0161)."), /* @__PURE__ */ React.createElement(LakensCredit, null))));
+  }
   function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf }) {
     const [state, setState] = useState({ status: "loading" });
     const [scale, setScale] = useState(1.15);
@@ -20283,6 +20372,8 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       setReferenceWarningsRefresh,
       pcurvePapers,
       setPcurvePapers,
+      zcurvePapers,
+      setZcurvePapers,
       mergeIds,
       setMergeIds,
       onMerged,
@@ -20502,7 +20593,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setHealthLoaded(true);
       });
     }, []);
-    const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
+    const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers || !!zcurvePapers;
     useEffect(() => {
       if (!readingMode) return;
       const onKey = (e) => {
@@ -20722,7 +20813,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onChanged: () => setLibRefresh((n) => n + 1),
         context: textHealthContext
       }
-    ), gapsOpen && /* @__PURE__ */ React.createElement(GapsModal, { onClose: () => setGapsOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), overlookedOpen && /* @__PURE__ */ React.createElement(OverlookedLensModal, { onClose: () => setOverlookedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), beyondSavedOpen && /* @__PURE__ */ React.createElement(BeyondLibrarySavedModal, { onClose: () => setBeyondSavedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), scanOpen && /* @__PURE__ */ React.createElement(
+    ), gapsOpen && /* @__PURE__ */ React.createElement(GapsModal, { onClose: () => setGapsOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), overlookedOpen && /* @__PURE__ */ React.createElement(OverlookedLensModal, { onClose: () => setOverlookedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), beyondSavedOpen && /* @__PURE__ */ React.createElement(BeyondLibrarySavedModal, { onClose: () => setBeyondSavedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), zcurvePapers && /* @__PURE__ */ React.createElement(ZcurveModal, { paperIds: zcurvePapers, onClose: () => setZcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), scanOpen && /* @__PURE__ */ React.createElement(
       ScanModal,
       {
         onClose: () => setScanOpen(false),

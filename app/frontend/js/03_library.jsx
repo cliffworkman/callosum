@@ -45,6 +45,7 @@ function useLibrary(opts) {
   const [libRefresh, setLibRefresh] = useState(0);
   const pendingSelectTopRef = useRef(false);  // inc-140: a view-change wants the next loaded list's top paper selected
   const [pcurvePapers, setPcurvePapers] = useState(null);  // inc-126: collection p-curve over the selection (modal)
+  const [zcurvePapers, setZcurvePapers] = useState(null);  // inc-470: collection z-curve over the selection (modal)
   const [mergeIds, setMergeIds] = useState(null);          // inc-161: merge ≥2 papers into a survivor (modal)
   const [critSetIds, setCritSetIds] = useState(null);      // #12: critically review a SET of papers together (modal)
 
@@ -79,6 +80,11 @@ function useLibrary(opts) {
   const bulkPcurvePapers = useCallback(() => {
     const ids = [...selectedLibraryIds];
     if (ids.length) { setPcurvePapers(ids); setSelectedLibraryIds(new Set()); }
+  }, [selectedLibraryIds]);
+
+  const bulkZcurvePapers = useCallback(() => {
+    const ids = [...selectedLibraryIds];
+    if (ids.length) { setZcurvePapers(ids); setSelectedLibraryIds(new Set()); }
   }, [selectedLibraryIds]);
 
   const bulkMergePapers = useCallback(() => {
@@ -521,7 +527,7 @@ function useLibrary(opts) {
     libraryReading, onReadingFilter: changeReadingFilter,
     libraryMissingPdf, onToggleMissingPdf: () => { setLibraryMissingPdf(v => !v); setPage(0); },
     onToggleLibrarySelect: toggleLibrarySelect, onClearLibrarySelect: clearLibrarySelect,
-    onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkPcurve: bulkPcurvePapers, onBulkMerge: bulkMergePapers, onBulkCriticalRead: bulkCriticalReadPapers, onBulkExport: bulkExportPapers, onBulkExportBundle: bulkExportBundle, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
+    onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkPcurve: bulkPcurvePapers, onBulkZcurve: bulkZcurvePapers, onBulkMerge: bulkMergePapers, onBulkCriticalRead: bulkCriticalReadPapers, onBulkExport: bulkExportPapers, onBulkExportBundle: bulkExportBundle, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
     onBulkReferenceCheckDone: bulkReferenceCheckDone,
     libraryAxisFilter, onClearAxisFilter: clearAxisFilter,
     libraryTagFilter, onClearTagFilter: clearTagFilter,
@@ -550,7 +556,7 @@ function useLibrary(opts) {
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
     showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged, showMetaFlagged, showBayesFlagged,
     refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, refreshBayesChip, findingsRefresh, setFindingsRefresh, setReferenceWarningsRefresh, showTextHealthFilter,
-    pcurvePapers, setPcurvePapers, mergeIds, setMergeIds, onMerged,
+    pcurvePapers, setPcurvePapers, zcurvePapers, setZcurvePapers, mergeIds, setMergeIds, onMerged,
     critSetIds, setCritSetIds,
   };
 }

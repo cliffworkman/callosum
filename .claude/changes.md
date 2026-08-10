@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-09 — Increment 469: repeated-values checker -->
+<!-- HELP-DOCS-SYNCED: 2026-08-10 — Increment 470: z-curve -->
+
+## 2026-08-10 — Increment 470: z-curve (round 2, item #4, closes backlog #55)
+- **Files:** `app/backend/methods/zcurve.py`, `app/backend/api/routers/methods_zcurve.py`, `app/backend/api/app.py`,
+  `app/backend/api/routers/status.py`, `app/frontend/js/29b_zcurve.jsx`, `app/frontend/js/03_library.jsx`,
+  `app/frontend/js/40_app.jsx`, `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/styles.css`,
+  `tests/test_zcurve.py`, `tests/test_health.py`, `.claude/qa-routes/route_90_methods_zcurve.md`,
+  `.claude/security-audits/2026-08-10_zcurve.md`, `app/backend/help/help_content.md`, `THIRD-PARTY-NOTICES.md`.
+- **What:** a new collection-level "z-curve" tool beside the existing p-curve, estimating EDR (expected
+  discovery rate) and ERR (expected replication rate) via Bartoš & Schimmack (2022) Z-curve 2.0 — a 7-component
+  fixed-mean truncated folded-normal mixture, EM-fit, bootstrapped CIs, verified against the reference `zcurve`
+  R package's own source. No LLM, no egress; a hard reliability warning below N=300 significant results, CIs
+  always shown, no per-paper/per-author breakdown.
+- **Why:** item #4 of round 2 (memory `callosum-next5-backlog-roadmap-round2`), closing backlog #55. The source
+  design doc proposed Gemini-assisted "focal statistic" extraction, flagged by the doc itself as "more
+  dangerous." Research found p-curve (inc 126) had already solved this identical problem without an LLM; z-curve
+  extends that proven pattern instead of the doc's riskier framing.
+- **Revert:** additive/backward-compatible; no schema, no migration (fully ephemeral, like p-curve), no existing
+  endpoint touched.
 
 ## 2026-08-09 — Increment 469: repeated-values checker (round 2, item #3, closes backlog #54)
 - **Files:** `app/backend/methods/duplicate_values.py`, `app/backend/persistence/schema_duplicate_value_checks.py`,

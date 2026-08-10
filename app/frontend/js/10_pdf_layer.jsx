@@ -187,7 +187,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     trashView, selectedLibraryIds, librarySort, onSortChange, librarySearchField, onSearchFieldChange,
                     libraryItemType, itemTypes, onItemTypeChange, libraryReading, onReadingFilter,
                     onToggleLibrarySelect, onClearLibrarySelect, onBulkDelete,
-                    onBulkSummarize, onBulkPcurve, onBulkMerge, onBulkCriticalRead, onBulkExport, onBulkExportBundle, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
+                    onBulkSummarize, onBulkPcurve, onBulkZcurve, onBulkMerge, onBulkCriticalRead, onBulkExport, onBulkExportBundle, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     onBulkReferenceCheckDone,
                     libraryTagFilter, onClearTagFilter,
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
@@ -451,6 +451,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             onKeyDown={e => { if (e.key === "Enter") onBulkSummarize(bulkFocus); }} />
           <button className="axis-link" onClick={() => onBulkSummarize(bulkFocus)} title="Generate a verified synthesis of the selected papers — focused on your question if you typed one">summarize</button>
           <button className="axis-link" onClick={onBulkPcurve} title="Run a p-curve (evidential value) over the selected papers — collection-level, never per-paper">p-curve</button>
+          <button className="axis-link" onClick={onBulkZcurve} title="Run a z-curve (expected replication/discovery rate) over the selected papers — collection-level, never per-paper or author">z-curve</button>
           <BulkReferenceCheckButton paperIds={[...selectedLibraryIds]} onDone={onBulkReferenceCheckDone} />
           <ReprocessSelectedTextButton paperIds={[...selectedLibraryIds]} onDone={onEnriched} />
           {selCount >= 2 &&

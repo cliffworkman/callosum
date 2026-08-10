@@ -126,10 +126,6 @@ the Principles + A-A gates before build.)*
   ethically fraught, "the disfavored extreme — it reintroduces the 'these are bad' valence").
 - **#41 User-authored modules (plugins).** [future track — record only] Deferred record of the idea + open
   questions. Do not build a plugin system until a dedicated design pass.
-- **#55 Z-curve.** [future track — gated] Spun off from #44 (inc 467), same reason as #54. Collection-level
-  (not per-paper) and needs LLM-assisted "focal statistic" extraction — the design source itself calls this
-  "more dangerous" and judgment-laden, closer in shape to the assisted-extraction funnel (inc 259) than to a
-  deterministic Methods check. Needs its own design pass before build.
 
 ---
 

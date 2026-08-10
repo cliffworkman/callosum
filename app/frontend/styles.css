@@ -917,6 +917,10 @@
   .pcurve-test-p { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
   .pcurve-coverage { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin: 8px 0; }
   /* .pcurve-credit / .grim-credit consolidated → .method-credit (inc 180) */
+  /* inc 470 (z-curve): a firmer amber notice than .pcurve-warn — EDR/ERR are rate estimates, more tempting to
+     over-read than p-curve's abstract right-skew statistic, so this stays unmissable rather than a soft aside. */
+  .zcurve-reliability-warn { font-size: 12px; font-weight: 600; color: var(--flag-ink); background: var(--flag-soft); border: 1.5px solid var(--flag); border-radius: var(--radius-sm); padding: 8px 10px; margin: 8px 0; }
+  .zcurve-ci { font-weight: 400; color: var(--ink-3); }
   /* inc 127: GRIM calculator (METHODS). Tokens only. */
   .grim-section { font-size: 12px; }
   .grim-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 8px 0; }

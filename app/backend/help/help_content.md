@@ -821,6 +821,37 @@ Read it as a prompt to think, not a judgment:
 - Below about 5 significant results the curve is too sparse to interpret; the modal says so.
 - The modal credits the method (Simonsohn, Nelson & Simmons, 2014) and offers a one-click **add missing to library**.
 
+<!-- section: z-curve -->
+## z-curve: expected replication & discovery rate across a set of papers
+
+z-curve is p-curve's more quantitative sibling (Bartoš & Schimmack, 2022): given the same kind of set of
+significant findings, it fits a statistical model to estimate two rates —
+
+- **EDR (expected discovery rate)** — the model's estimate of what share of *all* the tests conducted (not just
+  the significant ones you can see) would come out significant. Compared against the plain **observed discovery
+  rate**, a large gap is a signature consistent with selective reporting — but a gap is not proof of anything
+  about any specific paper.
+- **ERR (expected replication rate)** — the model's estimate of how often the significant results specifically
+  would come out significant again if exactly repeated.
+
+Like p-curve, this is **collection-level only** — the estimate describes the *body of work you selected*, never
+a specific paper or its authors. To run it: in the **Library**, tick the papers you want, then click **z-curve**
+next to **p-curve** in the selection bar.
+
+**Read the numbers with real caution — more than p-curve's.** EDR/ERR are read as a percentage, which makes them
+easy to over-read as "the truth" about your selection. Two safeguards Callosum builds in:
+
+- **Confidence intervals are always shown next to the number** — never a bare percentage. A wide interval means
+  the estimate itself is uncertain, not that something is wrong with your selection.
+- **A hard reliability warning appears whenever you have fewer than 300 significant results** — the threshold the
+  method's own creators set for a trustworthy estimate. At a personal library's scale this will be common; treat
+  EDR/ERR below that line as exploratory, not a stable number to cite.
+
+Coverage is the same as p-curve's: only inline APA-style NHST tests with exact statistics, every significant test
+included rather than each study's chosen focal statistic, most meaningful on a small curated set of related
+findings. The modal credits the method (Bartoš & Schimmack, 2022) and offers a one-click **add missing to
+library**.
+
 <!-- section: data-consistency-grim -->
 ## Data consistency (GRIM / GRIMMER / DEBIT / repeated values)
 GRIM (Brown & Heathers, 2017) and GRIMMER (Anaya 2016 / Allard 2018) check whether a reported **mean** (and **SD**) of **integer-scale** data — counts, or Likert-type items — is mathematically *possible* for the stated sample size. A mean of N integers must equal a whole number divided by N, so at a given decimal precision only certain means can occur; GRIMMER extends the same logic to the standard deviation. **DEBIT** (Heathers & Brown, 2019) is the binary-data analog: for a variable that can only take values 0/1 — a proportion or response rate — the SD is *fully determined* by the mean and N, so a reported mean+SD+N can be checked for consistency the same way.

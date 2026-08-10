@@ -121,6 +121,18 @@ peer-reviewed paper describes this method** — `scrutiny`'s own documentation c
 informative." Credited as a software reference only (no citable paper exists to add to a library), matching
 the SciELO/Retraction-Watch/AJOL "no canonical paper — don't fabricate one" precedent elsewhere in this file.
 
+### z-curve (inc 470)
+The collection-level expected-replication/discovery-rate estimate is the **z-curve 2.0** method:
+- Bartoš, F., & Schimmack, U. (2022). *Z-curve 2.0: Estimating replication rates and discovery rates.*
+  Meta-Psychology, 6, MP.2021.2720. <https://doi.org/10.15626/MP.2021.2720>.
+- Re-implemented from the paper (a 7-component fixed-mean truncated folded-normal mixture, EM-fit, bootstrapped
+  CIs) and verified against the reference R implementation's own source code (not derived from memory); the
+  reference R implementation is **`zcurve`** (František Bartoš, <https://github.com/FBartos/zcurve>) — credited,
+  not reused by name or code.
+- Surfaced via Daniël Lakens' **automated-review catalog** of meta-research tools
+  (<https://lakens.github.io/automated_review_daily_build/>) and the review by Crone & Green (2025), *Tools of the
+  data detective* (Personality & Social Psychology Review).
+
 ### Retraction detection — Retraction Watch database (inc 132)
 Callosum's retraction/correction check (the Library "Integrity" refresh, Meta-Reference, and the LibreOffice
 adapter's "Citation integrity preflight") draws on the **Retraction Watch database**:
