@@ -18354,6 +18354,69 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     };
     return /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Conflicts to review", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Two devices edited the same item since your last sync. Nothing is picked automatically \u2014 choose which version to keep for each.")), conflicts === null && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Loading\u2026"), conflicts && conflicts.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "No conflicts to review."), conflicts && conflicts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "provider-list" }, conflicts.map((c) => /* @__PURE__ */ React.createElement(ConflictCard, { key: c.id, c, busy, onResolve: resolve }))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, msg), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: onClose }, "Close")));
   }
+  function SharingIdentityPanel() {
+    const [identity, setIdentity] = useState(null);
+    const [passphrase, setPassphrase] = useState("");
+    const [settingUp, setSettingUp] = useState(false);
+    const [setupMsg, setSetupMsg] = useState("");
+    const [setupErr, setSetupErr] = useState(false);
+    const [lookupSub, setLookupSub] = useState("");
+    const [lookupResult, setLookupResult] = useState(null);
+    const [lookingUp, setLookingUp] = useState(false);
+    const [lookupMsg, setLookupMsg] = useState("");
+    const load = () => api("/sync/identity/status").then((r) => {
+      if (r.ok) setIdentity(r.data);
+    });
+    useEffect(() => {
+      load();
+    }, []);
+    const setup = async () => {
+      if (!passphrase) return;
+      setSettingUp(true);
+      setSetupMsg("");
+      const r = await apiPost("/sync/identity/setup", { passphrase });
+      setSettingUp(false);
+      setPassphrase("");
+      if (r.ok) {
+        await load();
+        setSetupErr(false);
+        setSetupMsg("Sharing identity set up.");
+      } else {
+        setSetupErr(true);
+        setSetupMsg("Couldn't set up your sharing identity: " + r.error);
+      }
+    };
+    const lookup = async () => {
+      if (!lookupSub.trim()) return;
+      setLookingUp(true);
+      setLookupMsg("");
+      setLookupResult(null);
+      const r = await api(`/sync/identity/lookup?sub=${encodeURIComponent(lookupSub.trim())}`);
+      setLookingUp(false);
+      if (r.ok) setLookupResult(r.data);
+      else setLookupMsg("Couldn't look up that id: " + r.error);
+    };
+    if (!identity) return null;
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Sharing identity", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Lets a collaborator verify it's really you before you ever share anything with them \u2014 no data is shared by this step alone. Uses the same encrypted vault as sync, sealed under your existing passphrase (no new passphrase to remember).")), !identity.has_identity && /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "password",
+        autoComplete: "off",
+        placeholder: "Passphrase",
+        value: passphrase,
+        onChange: (e) => setPassphrase(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: settingUp || !passphrase, onClick: setup }, settingUp ? "Setting up\u2026" : "Set up your sharing identity")), settingUp && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Registering your sharing identity\u2026" }), identity.has_identity && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Your sharing ID (give this to a collaborator):"), /* @__PURE__ */ React.createElement("input", { className: "settings-input", readOnly: true, value: identity.own_sub || "", onFocus: (e) => e.target.select() }), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Your fingerprint \u2014 read this aloud or send it a different way than the sharing ID, so a collaborator can confirm it matches before trusting a lookup:"), /* @__PURE__ */ React.createElement("input", { className: "settings-input", readOnly: true, value: identity.fingerprint || "", onFocus: (e) => e.target.select() })), setupMsg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (setupErr ? " settings-note-err" : "") }, setupMsg)), identity.has_identity && /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Look up a collaborator", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Paste the sharing ID they gave you, then confirm the fingerprint below matches what they told you \u2014 before sharing anything.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        placeholder: "Their sharing ID",
+        value: lookupSub,
+        onChange: (e) => setLookupSub(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: lookingUp || !lookupSub.trim(), onClick: lookup }, lookingUp ? "Looking up\u2026" : "Look up")), lookupResult && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, lookupResult.display_name ? lookupResult.display_name + " \u2014 " : "", "fingerprint: ", lookupResult.fingerprint), lookupMsg && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, lookupMsg)));
+  }
   function SyncSettings() {
     const [status, setStatus] = useState(null);
     const [conflictCount, setConflictCount] = useState(0);
@@ -18491,7 +18554,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         value: runPassphrase,
         onChange: (e) => setRunPassphrase(e.target.value)
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: running || !runPassphrase, onClick: run }, running ? "Syncing\u2026" : "Run sync")), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Syncing\u2026" }), runResult && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Pushed ", runResult.pushed, ", applied ", runResult.applied, ".", runResult.conflicts > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => setReviewing(true) }, runResult.conflicts, " new conflict", runResult.conflicts === 1 ? "" : "s", " \u2192")))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (msgErr ? " settings-note-err" : "") }, msg), reviewing && /* @__PURE__ */ React.createElement(ConflictReviewPanel, { onClose: () => {
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: running || !runPassphrase, onClick: run }, running ? "Syncing\u2026" : "Run sync")), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Syncing\u2026" }), runResult && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Pushed ", runResult.pushed, ", applied ", runResult.applied, ".", runResult.conflicts > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => setReviewing(true) }, runResult.conflicts, " new conflict", runResult.conflicts === 1 ? "" : "s", " \u2192")))), status.enabled && /* @__PURE__ */ React.createElement(SharingIdentityPanel, null), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (msgErr ? " settings-note-err" : "") }, msg), reviewing && /* @__PURE__ */ React.createElement(ConflictReviewPanel, { onClose: () => {
       setReviewing(false);
       loadConflictCount();
     }, onResolved: loadConflictCount }));

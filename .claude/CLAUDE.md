@@ -13,15 +13,16 @@ application.** Temporary scripts, backups, research, audits, and plan files all 
 
 ## Project overview
 
-**callosum** is a **local-first, AI-assisted reference manager for scholarly PDFs**, built
-around one thesis: *LLM summaries are only trustworthy if every citation is independently
+**callosum** is a **local-first scholarly research environment** that keeps literature, evidence,
+methods, manuscripts, and scientific provenance connected throughout the research and writing process.
+It began with one thesis: *LLM summaries are only trustworthy if every citation is independently
 verified against the source PDF.* You import a library (Zotero first), the app extracts and
 chunks each PDF with page + bounding-box coordinates, embeds everything locally, clusters
 papers along user-defined semantic axes, and generates citation-grounded summaries where
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 474** (see Increment workflow) with **2098 root-suite pytest tests
+It is currently at **Increment 475** (see Increment workflow) with **2128 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -950,7 +951,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 474). Each increment of real work
+callosum is built in **numbered increments** (currently at 475). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -1060,6 +1061,14 @@ be made public later — so the discipline below is enforced now, not retrofitte
   bugs (zero-leeway JWT timestamp checks, a JWKS-verifier issuer-string mismatch, and `/sync/run` never refreshing
   a stale access token) — see `INCREMENT-312-NOTES.md`. Follow-ons (yours, not code): per-user rate-limiting/
   retention on the server before any public/multi-tenant deploy (this remains a single-maintainer self-host).
+  **SP4a — sharing identity (inc 475, round 3 item #4 of #15's last open thread) starts the SP4 sharing arc**:
+  a per-account X25519 keypair (`app/backend/sync/identity.py`), private key sealed under the existing sync DEK
+  (reuses `crypto.py`'s `encrypt_payload`/`decrypt_payload` unmodified — no new KEK), a server-side public-key
+  directory (`sync_server/identity_store.py`, reachable only by exact `sub`, structurally never a listing/search
+  surface), and a fingerprint-verification UI (`35c_sync.jsx`'s `SharingIdentityPanel`, Signal's "safety number"
+  pattern — never trust a lookup alone). **No record is shared in this stage** — it only makes "who is this
+  collaborator, cryptographically" answerable; SP4b (wrap a per-share content key under a looked-up public key)
+  is next. Audit `2026-08-10_sync-identity-sp4a.md` PASS.
 - SQLAlchemy bound parameters (rule #3); PDF + external-input validation at the boundary
   (rule #4).
 

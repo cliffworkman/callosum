@@ -327,6 +327,11 @@ new work goes in the open backlog.
   panel), browser-verified. Server hardening: per-user rate-limiting (`sync_server/rate_limit.py`), a 90-day
   tombstone-pruning script, and an operations runbook. Audit addendum PASS. *(SP4 sharing + the live
   `sync_server` deploy + a per-user quota/migration tool remain open — see open backlog #15.)*
+- [x] **#15 SP4a — sharing identity** (inc 475, round 3 item #4). A per-account X25519 keypair (private key
+  sealed under the existing sync DEK, no new KEK), a server-side public-key directory reachable only by exact
+  id (structurally no listing/search function — backlog #15's own divergence fence), and a fingerprint-
+  verification UI (`SharingIdentityPanel`, Signal's "safety number" pattern). No record is shared in this
+  stage — SP4b/c/d remain open, see open backlog #15. Audit `2026-08-10_sync-identity-sp4a.md` PASS.
 - [x] **#20 Harness hardening — fully closed** (2026-07-22, inc 342) — repo furniture (`SECURITY.md`,
   `CITATION.cff`, `.env.example`); uv adoption (`pyproject.toml` + committed `uv.lock`, CI via `uv sync
   --locked`); the hand-rolled pre-commit hook migrated to the standard pre-commit framework; 3 CI gates added

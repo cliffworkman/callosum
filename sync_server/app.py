@@ -16,12 +16,15 @@ from pydantic import BaseModel, Field
 from sqlalchemy import create_engine
 
 from sync_server.auth import Identity, InvalidToken, TokenVerifier, verifier_from_env
+from sync_server.identity_store import lookup_public_key, register_public_key
 from sync_server.rate_limit import RateLimiter
 from sync_server.schema import ensure_updated_at_column, metadata
 from sync_server.store import Record, pull, push
 
 MAX_RECORDS_PER_PUSH = 1000
 MAX_CIPHERTEXT_LEN = 2_000_000  # ~2 MB — these are small metadata records, not files
+MAX_PUBLIC_KEY_LEN = 100  # base64 of a raw 32-byte key is ~44 chars; generous headroom, still tightly bounded
+MAX_DISPLAY_NAME_LEN = 200
 
 # backlog #15: per-user rate limiting. Generous defaults for a personal/small-team self-host (a device polling
 # during active use), tunable via env without a code change. Keyed by ident.sub (see rate_limit.py) — a user's
@@ -51,6 +54,16 @@ class PushResponse(BaseModel):
 class PullResponse(BaseModel):
     records: list[RecordModel]
     seq: int
+
+
+class RegisterIdentityRequest(BaseModel):
+    public_key: str = Field(max_length=MAX_PUBLIC_KEY_LEN)
+    display_name: str | None = Field(default=None, max_length=MAX_DISPLAY_NAME_LEN)
+
+
+class IdentityResponse(BaseModel):
+    public_key: str
+    display_name: str | None
 
 
 def _identity(request: Request) -> Identity:
@@ -106,6 +119,27 @@ def create_server(engine, verifier: TokenVerifier | None, *, rate_limiter: RateL
         with request.app.state.engine.begin() as conn:
             seq = push(conn, ident.sub, records)
         return PushResponse(seq=seq)
+
+    # --- SP4a (backlog #15): the sharing-identity directory. `display_name` is caller-supplied and UX-only —
+    # the server never verifies it against anything. Lookup is exact-`sub`-only by design (see
+    # identity_store.py's own docstring) — there is no listing/search endpoint here, structurally.
+
+    @app.post("/identity/register", status_code=204)
+    def register_identity(
+        request: Request, body: RegisterIdentityRequest, ident: Identity = Depends(_rate_limited)
+    ) -> None:
+        with request.app.state.engine.begin() as conn:
+            register_public_key(conn, ident.sub, body.public_key, body.display_name)
+
+    @app.get("/identity/lookup", response_model=IdentityResponse)
+    def lookup_identity(
+        request: Request, sub: str = Query(..., max_length=255), ident: Identity = Depends(_rate_limited)
+    ) -> IdentityResponse:
+        with request.app.state.engine.begin() as conn:
+            record = lookup_public_key(conn, sub)
+        if record is None:
+            raise HTTPException(status_code=404, detail="no identity registered for this id")
+        return IdentityResponse(public_key=record.public_key, display_name=record.display_name)
 
     return app
 

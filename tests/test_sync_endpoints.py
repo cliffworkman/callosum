@@ -282,3 +282,97 @@ def test_resolve_unknown_or_already_resolved_conflict_fails_closed(tmp_path: Pat
     conflict_id = c.get("/sync/conflicts").json()[0]["id"]
     c.post(f"/sync/conflicts/{conflict_id}/resolve", json={"side": "theirs"})
     assert c.post(f"/sync/conflicts/{conflict_id}/resolve", json={"side": "mine"}).status_code == 409
+
+
+# --- SP4a (backlog #15): sharing identity ------------------------------------------------------------------
+
+
+def _sync_ready(c: TestClient, *, passphrase: str = "pw") -> None:
+    """Setup + sign-in + enable — the shared precondition every identity endpoint (like /sync/run) requires."""
+    c.post("/sync/setup", json={"passphrase": passphrase})
+    _sign_in()
+    c.put("/sync/settings", json={"enabled": True, "server_url": "https://s"})
+
+
+def test_identity_status_defaults_to_no_identity(temp_db_url: str) -> None:
+    c = TestClient(create_app(db_url=temp_db_url))
+    assert c.get("/sync/identity/status").json() == {"has_identity": False, "fingerprint": None, "own_sub": None}
+
+
+def test_identity_setup_happy_path_registers_and_returns_fingerprint(temp_db_url: str) -> None:
+    server = _sync_server()
+    transport = HttpSyncTransport("", "u:alice", client=server)
+    c = TestClient(create_app(db_url=temp_db_url, sync_transport=transport))
+    _sync_ready(c)
+
+    r = c.post("/sync/identity/setup", json={"passphrase": "pw"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["own_sub"] == "alice" and body["fingerprint"]
+    assert set(body) == {"fingerprint", "own_sub"}  # never the private key, never the raw public key either
+
+    status = c.get("/sync/identity/status").json()
+    assert status == {"has_identity": True, "fingerprint": body["fingerprint"], "own_sub": "alice"}
+
+    # it really registered with the server (real egress over the transport)
+    look = server.get("/identity/lookup", params={"sub": "alice"}, headers={"Authorization": "Bearer u:alice"})
+    assert look.status_code == 200 and look.json()["public_key"]
+
+
+def test_identity_setup_refused_when_sync_not_ready(temp_db_url: str) -> None:
+    c = TestClient(create_app(db_url=temp_db_url))
+    assert c.post("/sync/identity/setup", json={"passphrase": "pw"}).status_code == 409  # sync off/unconfigured
+
+
+def test_identity_setup_wrong_passphrase_fails_closed_no_egress(temp_db_url: str) -> None:
+    server = _sync_server()
+    transport = HttpSyncTransport("", "u:alice", client=server)
+    c = TestClient(create_app(db_url=temp_db_url, sync_transport=transport))
+    _sync_ready(c)
+    assert c.post("/sync/identity/setup", json={"passphrase": "WRONG"}).status_code == 422
+    assert c.get("/sync/identity/status").json()["has_identity"] is False
+    # nothing registered server-side
+    look = server.get("/identity/lookup", params={"sub": "alice"}, headers={"Authorization": "Bearer u:alice"})
+    assert look.status_code == 404
+
+
+def test_identity_setup_twice_is_409_no_silent_rekey(temp_db_url: str) -> None:
+    server = _sync_server()
+    transport = HttpSyncTransport("", "u:alice", client=server)
+    c = TestClient(create_app(db_url=temp_db_url, sync_transport=transport))
+    _sync_ready(c)
+    assert c.post("/sync/identity/setup", json={"passphrase": "pw"}).status_code == 200
+    assert c.post("/sync/identity/setup", json={"passphrase": "pw"}).status_code == 409
+
+
+def test_identity_lookup_proxies_and_computes_fingerprint_locally(temp_db_url: str) -> None:
+    server = _sync_server()
+    # a second, independent identity ("bob") registered directly against the server, to be looked up by alice
+    import base64
+
+    server.post(
+        "/identity/register",
+        json={"public_key": base64.b64encode(bytes(32)).decode("ascii"), "display_name": "Bob"},
+        headers={"Authorization": "Bearer u:bob"},
+    )
+    transport = HttpSyncTransport("", "u:alice", client=server)
+    c = TestClient(create_app(db_url=temp_db_url, sync_transport=transport))
+    _sync_ready(c)
+
+    r = c.get("/sync/identity/lookup", params={"sub": "bob"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["display_name"] == "Bob" and body["fingerprint"]  # computed locally, not asserted by the server
+
+
+def test_identity_lookup_unknown_sub_is_404(temp_db_url: str) -> None:
+    server = _sync_server()
+    transport = HttpSyncTransport("", "u:alice", client=server)
+    c = TestClient(create_app(db_url=temp_db_url, sync_transport=transport))
+    _sync_ready(c)
+    assert c.get("/sync/identity/lookup", params={"sub": "nobody"}).status_code == 404
+
+
+def test_identity_lookup_refused_when_sync_not_ready(temp_db_url: str) -> None:
+    c = TestClient(create_app(db_url=temp_db_url))
+    assert c.get("/sync/identity/lookup", params={"sub": "alice"}).status_code == 409

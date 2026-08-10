@@ -9,12 +9,13 @@ in memory). The rich Settings → Sync UI + conflict-review screen is SP3c; this
 
 from __future__ import annotations
 
+import base64
 import logging
 import time
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection
 from sqlalchemy.exc import OperationalError
@@ -27,6 +28,8 @@ from app.backend.persistence.sqlite_retry import is_sqlite_locked, run_write
 from app.backend.sync.changeset import SYNCABLE, collect_local
 from app.backend.sync.crypto import SyncCryptoError, SyncKeyring, create_keyring, unlock_with_passphrase
 from app.backend.sync.engine import run_sync
+from app.backend.sync.identity import ShareIdentity, create_identity
+from app.backend.sync.identity import fingerprint as identity_fingerprint
 from app.backend.sync.transport import HttpSyncTransport, SyncServerError
 
 router = APIRouter()  # full /sync/* paths per the house convention (the QA surface extractor reads literal paths)
@@ -189,6 +192,109 @@ def sync_run(request: Request, body: RunBody, conn: Connection = Depends(get_con
         transport.close()
     settings.set_sync_cursor(result.new_cursor)
     return RunResult(pushed=result.pushed, applied=result.applied, conflicts=result.conflicts, cursor=result.new_cursor)
+
+
+# --- SP4a (backlog #15): sharing identity — a per-account keypair + a server-side public-key directory. No
+# record is shared here (SP4b+ add the actual share); this only makes "who is this collaborator,
+# cryptographically" answerable. Registering/looking up rides the SAME egress gate as a sync run — real network
+# egress to the sync server, never bypassing it — plus its own explicit setup action (the passphrase entry
+# below), since sharing your identity is a materially different consent event than syncing your own devices.
+
+
+def _require_egress_ready(cfg: dict, token: str | None) -> None:
+    if not cfg["enabled"]:
+        raise HTTPException(status_code=409, detail="sync is off")
+    if not settings.sync_configured():
+        raise HTTPException(status_code=409, detail="sync is not set up")
+    if not token:
+        raise HTTPException(status_code=409, detail="sign in to sync")
+    if not cfg["server_url"]:
+        raise HTTPException(status_code=409, detail="no sync server URL is set")
+
+
+class IdentityStatus(BaseModel):
+    has_identity: bool
+    fingerprint: str | None
+    own_sub: str | None
+
+
+@router.get("/sync/identity/status", response_model=IdentityStatus)
+def sync_identity_status() -> IdentityStatus:
+    stored = settings.stored_share_identity()
+    own_sub = (settings.stored_oauth_session() or {}).get("sub")
+    if stored is None:
+        return IdentityStatus(has_identity=False, fingerprint=None, own_sub=own_sub)
+    identity = ShareIdentity.from_dict(stored)
+    return IdentityStatus(has_identity=True, fingerprint=identity_fingerprint(identity.public_key), own_sub=own_sub)
+
+
+class IdentitySetupBody(BaseModel):
+    passphrase: str = Field(min_length=1, max_length=1024)
+
+
+class IdentitySetupResult(BaseModel):
+    fingerprint: str
+    own_sub: str | None
+
+
+@router.post("/sync/identity/setup", response_model=IdentitySetupResult)
+def sync_identity_setup(request: Request, body: IdentitySetupBody) -> IdentitySetupResult:
+    if settings.stored_share_identity() is not None:
+        raise HTTPException(status_code=409, detail="a sharing identity is already set up")  # no silent re-key
+    cfg = settings.stored_sync_settings()
+    token = _fresh_access_token(request)
+    _require_egress_ready(cfg, token)
+    keyring = settings.stored_sync_keyring()
+    if keyring is None:
+        raise HTTPException(status_code=409, detail="sync is not set up")
+    try:
+        dek = unlock_with_passphrase(SyncKeyring.from_dict(keyring), body.passphrase)
+    except SyncCryptoError as exc:
+        raise HTTPException(status_code=422, detail="wrong passphrase") from exc  # 422, not 401 -- see sync_run
+    identity = create_identity(dek)
+    encoded = identity.to_dict()
+    own = settings.stored_oauth_session() or {}
+    transport = getattr(request.app.state, "sync_transport", None) or HttpSyncTransport(cfg["server_url"], token)
+    try:
+        transport.register_identity(encoded["public_key"], own.get("display_name"))
+    except SyncServerError as exc:
+        raise HTTPException(status_code=502, detail=f"sync server error: {exc}") from exc
+    finally:
+        transport.close()
+    settings.set_share_identity(encoded)  # only stored locally once the server registration actually succeeded
+    return IdentitySetupResult(fingerprint=identity_fingerprint(identity.public_key), own_sub=own.get("sub"))
+
+
+class IdentityLookupResult(BaseModel):
+    public_key: str
+    display_name: str | None
+    fingerprint: str
+
+
+@router.get("/sync/identity/lookup", response_model=IdentityLookupResult)
+def sync_identity_lookup(request: Request, sub: str = Query(..., max_length=255)) -> IdentityLookupResult:
+    """A thin authenticated proxy to the sync-server's own exact-id-only `/identity/lookup` -- the frontend
+    never talks to `sync_server` directly (matching every other sync surface). The fingerprint is computed
+    LOCALLY from the raw key bytes, never trusted as a value the server itself asserts."""
+    cfg = settings.stored_sync_settings()
+    token = _fresh_access_token(request)
+    _require_egress_ready(cfg, token)
+    transport = getattr(request.app.state, "sync_transport", None) or HttpSyncTransport(cfg["server_url"], token)
+    try:
+        result = transport.lookup_identity(sub)
+    except SyncServerError as exc:
+        raise HTTPException(status_code=502, detail=f"sync server error: {exc}") from exc
+    finally:
+        transport.close()
+    if result is None:
+        raise HTTPException(status_code=404, detail="no sharing identity registered for that id")
+    try:
+        fp = identity_fingerprint(base64.b64decode(result["public_key"]))
+    except (SyncCryptoError, ValueError, TypeError) as exc:
+        raise HTTPException(status_code=502, detail=f"sync server returned a malformed identity: {exc}") from exc
+    return IdentityLookupResult(
+        public_key=result["public_key"], display_name=result.get("display_name"), fingerprint=fp
+    )
 
 
 # --- SP3c: conflict review (read `sync_conflicts`, pick a side) ------------------------------------------------

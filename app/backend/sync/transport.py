@@ -52,6 +52,35 @@ class HttpSyncTransport:
         except (KeyError, TypeError, ValueError) as exc:
             raise SyncServerError(f"malformed pull response: {exc}") from exc
 
+    def register_identity(self, public_key: str, display_name: str | None) -> None:
+        """SP4a: register/rotate the caller's own current sharing public key. Fails closed on any non-2xx."""
+        try:
+            resp = self._client.post(
+                f"{self._base}/identity/register",
+                json={"public_key": public_key, "display_name": display_name},
+                headers=self._headers(),
+            )
+        except httpx.HTTPError as exc:
+            raise SyncServerError(f"identity registration failed: {exc}") from exc
+        if resp.status_code != 204:
+            raise SyncServerError(f"identity registration failed: HTTP {resp.status_code}: {resp.text[:500]}")
+
+    def lookup_identity(self, sub: str) -> dict | None:
+        """SP4a: `{public_key, display_name}` for exactly this `sub`, or None if nothing is registered."""
+        try:
+            resp = self._client.get(f"{self._base}/identity/lookup", params={"sub": sub}, headers=self._headers())
+        except httpx.HTTPError as exc:
+            raise SyncServerError(f"identity lookup failed: {exc}") from exc
+        if resp.status_code == 404:
+            return None
+        if resp.status_code != 200:
+            raise SyncServerError(f"identity lookup failed: HTTP {resp.status_code}: {resp.text[:500]}")
+        try:
+            data = resp.json()
+            return {"public_key": data["public_key"], "display_name": data.get("display_name")}
+        except (KeyError, TypeError, ValueError) as exc:
+            raise SyncServerError(f"malformed identity lookup response: {exc}") from exc
+
     def push(self, records: list[SyncBlob]) -> int:
         body = {
             "records": [

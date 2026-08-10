@@ -1,16 +1,19 @@
 <!-- qa-coverage
-api: /sync/status, /sync/setup, /sync/settings, /sync/run, /sync/conflicts, /sync/conflicts/{conflict_id}/resolve
+api: /sync/status, /sync/setup, /sync/settings, /sync/run, /sync/conflicts, /sync/conflicts/{conflict_id}/resolve, /sync/identity/status, /sync/identity/setup, /sync/identity/lookup
 fe: 35c_sync.jsx
 -->
 
-# ROUTE 46 - Opt-in E2E sync (accounts SP3b) + the Settings → Sync UI + conflict review (SP3c)
+# ROUTE 46 - Opt-in E2E sync (accounts SP3b) + the Settings → Sync UI + conflict review (SP3c) + sharing identity (SP4a)
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust the opt-in `/sync/*` surface (set up a vault, toggle on, status, run, list/resolve conflicts) and
-its safety boundaries WITHOUT a live sync-server or Authentik. The live deploy + live-token round-trip is the
-maintainer's MANUAL check (see the design spec). Steps 1-8 are direct-API (no UI); **steps 9-13 exercise the
-Settings → Sync UI** (`35c_sync.jsx`, inc 311) — browser-verified with Playwright this increment (setup, the
-one-time recovery-code reveal, the sequential enable gate, run + its error paths, and the conflict-review panel).
+**Goal:** Exhaust the opt-in `/sync/*` surface (set up a vault, toggle on, status, run, list/resolve conflicts,
+set up/look up a sharing identity) and its safety boundaries WITHOUT a live sync-server or Authentik. The live
+deploy + live-token round-trip is the maintainer's MANUAL check (see the design spec). Steps 1-8 are direct-API
+(no UI); **steps 9-13 exercise the Settings → Sync UI** (`35c_sync.jsx`, inc 311) — browser-verified with
+Playwright (setup, the one-time recovery-code reveal, the sequential enable gate, run + its error paths, and the
+conflict-review panel). **Steps 14-17 (SP4a, inc "sync-identity-sp4a") cover the sharing-identity surface** —
+direct-API (setup/status/lookup, gating, no-private-key-exposure) plus a Playwright pass over the new "Sharing
+identity" subsection, browser-verified this increment against an isolated scratch instance.
 
 ## Environment
 
@@ -57,6 +60,26 @@ session) and sync is **unconfigured** by default. Register console/pageerror/req
 - **Enable reads as a sequential checklist** (choose a passphrase → sign in → set a server URL → enable), matching
   the backend's own gate order — never a bare toggle that just shows a 422 after the fact. The enable switch is
   disabled until a server URL is present.
+- **SP4a — sharing identity rides the same egress gate as a sync run.** `POST /sync/identity/setup` and
+  `GET /sync/identity/lookup` both refuse (**409**) unless sync is enabled AND configured AND signed-in AND a
+  server URL is set — identical preconditions to `/sync/run`. A wrong passphrase on setup → **422** (not 401,
+  same reasoning as `/sync/run`'s own wrong-passphrase handling) and registers nothing server-side (no egress on
+  a failed unlock). Setup on an already-set-up instance → **409** (no silent re-key, mirroring `/sync/setup`).
+  Any of these gates missing or bypassed is **Critical**.
+- **No endpoint ever returns the private key.** `GET /sync/identity/status` and the `POST /sync/identity/setup`
+  response body both carry only `{fingerprint, own_sub}` (plus `has_identity` on status) — never a raw or wrapped
+  private key, never the raw public key bytes. A private key (wrapped or not) appearing in any response is
+  **Critical**.
+- **Lookup is exact-id only.** `GET /sync/identity/lookup?sub=<id>` matches only an exact registered id — a
+  near-miss (case/whitespace/substring) or an unregistered id → **404**, never a partial/fuzzy match and never a
+  list of other registered ids. There is no listing/search endpoint on the local surface or the sync-server
+  (`sync_server`'s own `/identity/*` — covered by `tests/test_sync_server.py`, outside this route's surface map,
+  same convention as `/sync/records`). A listing/search capability appearing anywhere is **Critical** (backlog
+  #15's own divergence fence — see `.claude/APPROACH-AVOIDANCE.md`).
+- **The fingerprint is computed locally, never trusted as a value the server asserts.** `sync_identity_lookup`
+  decodes the server's returned public key and computes the fingerprint client-side (`identity_fingerprint`) —
+  it never forwards a server-supplied fingerprint value (the server doesn't send one). A malformed/wrong-length
+  public key from the server → a clean **502**, never a raw 500.
 
 ## Steps
 
@@ -106,14 +129,45 @@ scratch instance, so the check never touches a real stored keyring/passphrase).
 13. **Responsive/console:** confirm zero console errors across steps 9-12 (the browser's own "non-2xx fetch" log
     line for step 11's expected error responses is the one standing exception, per the same convention every
     other Settings section's error handling already accepts — not a JS exception).
+14. **Identity status defaults to none.** On a clean instance, `GET /sync/identity/status` →
+    `{has_identity:false, fingerprint:null, own_sub:null}`.
+15. **Identity setup gating + fail-closed (direct-API, needs an injected `sync_transport` bound to an in-process
+    fake sync-server — see `tests/test_sync_endpoints.py::test_identity_setup_happy_path_registers_and_returns_fingerprint`
+    for the exact harness shape).** `POST /sync/identity/setup` before sync is ready → **409**. Once
+    ready (setup + signed-in + server URL + enabled): a **wrong** passphrase → **422**, and the fake server's own
+    `/identity/lookup` confirms **nothing** was registered (no egress on a failed unlock). The **correct**
+    passphrase → **200** `{fingerprint, own_sub}` only (assert no other keys, no private key of any kind);
+    `GET /sync/identity/status` now reports `has_identity:true` with the **same** fingerprint; the fake server's
+    `/identity/lookup` for that `sub` now returns a real public key. A second setup call → **409**.
+16. **Lookup proxy.** Against an identity registered directly on the fake server for a second id, `GET
+    /sync/identity/lookup?sub=<that id>` → **200** with `{public_key, display_name, fingerprint}`, the fingerprint
+    computed from the raw key (not asserted by the server). An unknown `sub` → **404**. Before sync is ready →
+    **409**.
+17. **Sharing identity UI (`35c_sync.jsx`'s `SharingIdentityPanel`) — Playwright-driven against an isolated
+    scratch instance** (`CALLOSUM_SETTINGS_PATH` + `PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring`, a
+    seeded keyring/oauth-session/enabled-sync state — see the note below): with sync enabled, "Sharing identity"
+    appears right after "Run sync now" with a passphrase field and a **disabled** "Set up your sharing identity"
+    button until a passphrase is entered. Submitting against a server URL with no real listener behind it shows a
+    clean inline error (`settings-note-err`, "Couldn't set up your sharing identity: sync server error: …") —
+    **no console error beyond the expected non-2xx fetch log line, no crash.** "Look up a collaborator" stays
+    **hidden** until `has_identity` is true (confirmed: it does not appear after a failed setup attempt).
 
 ## Notes for the runner
 
 The reference sync-server lives in `sync_server/` (a separate deployable, outside the app surface map — like the
-adapters). Its endpoints (`/sync/records`, `/health`) are covered by `tests/test_sync_server.py`, not this route.
+adapters). Its endpoints (`/sync/records`, `/health`, `/identity/register`, `/identity/lookup`) are covered by
+`tests/test_sync_server.py`, not this route.
 
 Seeding a conflict for step 12 without two real devices: insert a row directly —
 `insert(schema.sync_conflicts).values(collection="papers", record_id="<any string>", losing_version=1,
 losing_payload={"title": "...", ...}, resolved=0)` against the scratch instance's DB. `current` reads back `None`
 for a `record_id` with no real `sync_identity` mapping — confirm the diff table still renders cleanly (every field
 shows "—" on the Current side) instead of erroring.
+
+Seeding an isolated scratch instance for step 17 without a live sync-server or Authentik: seed
+`app_settings.set_sync_keyring(...)` (from `create_keyring`), `set_oauth_session({"access_token": "fake",
+"sub": "<id>", "display_name": "<name>"})`, and `set_sync_settings(enabled=True, server_url="https://…")`
+directly (Python, same process env as the server) before starting uvicorn — matching the isolation this route's
+steps 9-13 already use. **`PYTHON_KEYRING_BACKEND` must be set identically for both the seeding process and the
+server process**, or the seeded keyring silently won't unlock (a real OS-keychain-vs-file-fallback mismatch
+between two separate process invocations — caught live while writing this step, not assumed).

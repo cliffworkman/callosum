@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-10 — Increment 475: Sync SP4a — sharing identity (round 3, item #4, stage A of 4)
+- **Files:** `app/backend/sync/identity.py` (new), `sync_server/identity_store.py` (new), `sync_server/schema.py`,
+  `sync_server/app.py`, `app/backend/sync/transport.py`, `app/backend/app_settings.py`,
+  `app/backend/api/routers/sync.py`, `app/frontend/js/35c_sync.jsx`, `.claude/qa-routes/route_46_sync.md`.
+- **What:** a per-account X25519 keypair (private key sealed under the existing sync DEK, no new KEK), a
+  server-side public-key directory reachable only by exact id (structurally no listing/search function), local
+  `/sync/identity/*` endpoints gated identically to `/sync/run`, and a fingerprint-verification UI
+  (Signal's "safety number" pattern — never trust a lookup alone). No record is shared in this stage.
+- **Why:** backlog #15's last genuinely undesigned sync thread, SP4 sharing — scoped with Cliff (per-user
+  public-key ACLs + an ad-hoc picked share unit, both the bigger/more complete option over the simpler
+  alternative), then staged like the original sync feature; this is stage A (identity).
+- **Revert:** `git revert` the increment-475 commit; `identity.py`/`identity_store.py` are new and additive, the
+  rest are mechanical extensions of existing endpoints/files.
+
 ## 2026-08-10 — Increment 474: LibreOffice adapter keyboard/screen-reader accessibility pass (round 3, item #3)
 - **Files:** `adapters/libreoffice/a11y.py` (new), `composer.py`, `callosum_cite.py`, `citations_panel.py`,
   `evidence_insert.py`, `selftest_uno.py`, `README.md`.

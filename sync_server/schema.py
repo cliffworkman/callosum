@@ -1,9 +1,11 @@
 """The sync-server's storage schema (SQLAlchemy Core, dialect-portable: Postgres in prod, SQLite in tests).
 
-Two tables, both scoped per user (the OIDC ``sub``): ``sync_records`` holds the latest opaque blob per
+Three tables, all scoped per user (the OIDC ``sub``): ``sync_records`` holds the latest opaque blob per
 ``(user, collection, record_id)`` with its version + a per-user monotonic ``seq`` (the client cursor); ``sync_cursor``
 holds each user's high-water ``seq`` so a push can assign the next one race-safely (a single counter row to lock,
-rather than ``MAX(seq)+1`` across the table).
+rather than ``MAX(seq)+1`` across the table); ``share_identities`` (SP4a, backlog #15) is a public-key directory —
+one row per user's *current* X25519 public key, reachable only by exact ``sub`` (never listed/searched — see
+``identity_store.py``). The server never sees a private key.
 """
 
 from __future__ import annotations
@@ -38,6 +40,18 @@ sync_cursor = sa.Table(
     metadata,
     sa.Column("user_id", sa.String(length=255), primary_key=True),
     sa.Column("seq", sa.BigInteger(), nullable=False, server_default="0"),
+)
+
+# SP4a (backlog #15): one row per user's current public key. `public_key` is base64 of a raw 32-byte X25519 key
+# (public — safe in the clear). `display_name` is a UX-only label the caller supplies at registration time
+# (e.g. from their own ORCID sign-in) — the server never verifies it; it is never a security claim.
+share_identities = sa.Table(
+    "share_identities",
+    metadata,
+    sa.Column("user_id", sa.String(length=255), primary_key=True),
+    sa.Column("public_key", sa.String(length=200), nullable=False),
+    sa.Column("display_name", sa.String(length=200)),
+    sa.Column("updated_at", sa.DateTime(timezone=True)),
 )
 
 

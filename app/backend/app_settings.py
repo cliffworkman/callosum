@@ -199,6 +199,27 @@ def sync_configured() -> bool:
     return stored_sync_keyring() is not None
 
 
+# --- Sync SP4a: sharing identity (a per-account X25519 keypair, private half sealed under the sync DEK) ---
+
+
+def set_share_identity(identity: dict | None) -> None:
+    """Store `{public_key, wrapped_private_key}` (`ShareIdentity.to_dict()`) — the public half isn't secret,
+    but keeping both halves in one secret blob avoids reconciling two separately-stored pieces. Treated as a
+    secret (keychain where available, else the local file), same guarantee as the sync keyring."""
+    _set_secret("share_identity", json.dumps(identity) if identity is not None else None)
+
+
+def stored_share_identity() -> dict | None:
+    raw = _get_secret("share_identity")
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
 # --- Multi-provider (inc 149): provider selection + per-provider keys + the local endpoint ---
 
 # The gemini key stays under "api_key" (the inc-146 field) for back-compat; other providers get their own field.

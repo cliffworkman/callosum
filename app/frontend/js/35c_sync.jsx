@@ -93,6 +93,106 @@ function ConflictReviewPanel({ onClose, onResolved }) {
   );
 }
 
+// SP4a (backlog #15) — sharing identity: proves who a collaborator is BEFORE anything is ever shared with them
+// (no share action exists yet; that's a later stage). Rides the same enabled+configured+signed-in+server-URL
+// gate as a sync run, plus its own explicit passphrase entry — a distinct consent event from syncing your own
+// devices. The fingerprint comparison is the point: never trust a lookup result alone (Signal's "safety
+// number" pattern) — confirm it out-of-band with the collaborator before sharing anything.
+function SharingIdentityPanel() {
+  const [identity, setIdentity] = useState(null);
+  const [passphrase, setPassphrase] = useState("");
+  const [settingUp, setSettingUp] = useState(false);
+  const [setupMsg, setSetupMsg] = useState("");
+  const [setupErr, setSetupErr] = useState(false);
+  const [lookupSub, setLookupSub] = useState("");
+  const [lookupResult, setLookupResult] = useState(null);
+  const [lookingUp, setLookingUp] = useState(false);
+  const [lookupMsg, setLookupMsg] = useState("");
+
+  const load = () => api("/sync/identity/status").then(r => { if (r.ok) setIdentity(r.data); });
+  useEffect(() => { load(); }, []);
+
+  const setup = async () => {
+    if (!passphrase) return;
+    setSettingUp(true); setSetupMsg("");
+    const r = await apiPost("/sync/identity/setup", { passphrase });
+    setSettingUp(false); setPassphrase("");
+    if (r.ok) { await load(); setSetupErr(false); setSetupMsg("Sharing identity set up."); }
+    else { setSetupErr(true); setSetupMsg("Couldn't set up your sharing identity: " + r.error); }
+  };
+
+  const lookup = async () => {
+    if (!lookupSub.trim()) return;
+    setLookingUp(true); setLookupMsg(""); setLookupResult(null);
+    const r = await api(`/sync/identity/lookup?sub=${encodeURIComponent(lookupSub.trim())}`);
+    setLookingUp(false);
+    if (r.ok) setLookupResult(r.data);
+    else setLookupMsg("Couldn't look up that id: " + r.error);
+  };
+
+  if (!identity) return null;
+
+  return (
+    <>
+      <div className="settings-field">
+        <label className="settings-field-label">Sharing identity
+          <span className="settings-sub">
+            Lets a collaborator verify it's really you before you ever share anything with them — no data is
+            shared by this step alone. Uses the same encrypted vault as sync, sealed under your existing
+            passphrase (no new passphrase to remember).
+          </span>
+        </label>
+
+        {!identity.has_identity &&
+          <div className="settings-keyrow">
+            <input className="settings-input" type="password" autoComplete="off" placeholder="Passphrase"
+              value={passphrase} onChange={e => setPassphrase(e.target.value)} />
+            <button className="btn btn-primary" disabled={settingUp || !passphrase} onClick={setup}>
+              {settingUp ? "Setting up…" : "Set up your sharing identity"}
+            </button>
+          </div>}
+        {settingUp && <ProgressBar label="Registering your sharing identity…" />}
+
+        {identity.has_identity &&
+          <>
+            <div className="settings-sub">Your sharing ID (give this to a collaborator):</div>
+            <input className="settings-input" readOnly value={identity.own_sub || ""} onFocus={e => e.target.select()} />
+            <div className="settings-sub">
+              Your fingerprint — read this aloud or send it a different way than the sharing ID, so a
+              collaborator can confirm it matches before trusting a lookup:
+            </div>
+            <input className="settings-input" readOnly value={identity.fingerprint || ""} onFocus={e => e.target.select()} />
+          </>}
+
+        {setupMsg && <div className={"settings-note" + (setupErr ? " settings-note-err" : "")}>{setupMsg}</div>}
+      </div>
+
+      {identity.has_identity &&
+        <div className="settings-field">
+          <label className="settings-field-label">Look up a collaborator
+            <span className="settings-sub">
+              Paste the sharing ID they gave you, then confirm the fingerprint below matches what they told
+              you — before sharing anything.
+            </span>
+          </label>
+          <div className="settings-keyrow">
+            <input className="settings-input" placeholder="Their sharing ID"
+              value={lookupSub} onChange={e => setLookupSub(e.target.value)} />
+            <button className="btn btn-ghost" disabled={lookingUp || !lookupSub.trim()} onClick={lookup}>
+              {lookingUp ? "Looking up…" : "Look up"}
+            </button>
+          </div>
+          {lookupResult &&
+            <div className="settings-note">
+              {lookupResult.display_name ? lookupResult.display_name + " — " : ""}
+              fingerprint: {lookupResult.fingerprint}
+            </div>}
+          {lookupMsg && <div className="settings-note settings-note-err">{lookupMsg}</div>}
+        </div>}
+    </>
+  );
+}
+
 function SyncSettings() {
   const [status, setStatus] = useState(null);
   const [conflictCount, setConflictCount] = useState(0);
@@ -257,6 +357,8 @@ function SyncSettings() {
                 </button></>}
             </div>}
         </div>}
+
+      {status.enabled && <SharingIdentityPanel />}
 
       {msg && <div className={"settings-note" + (msgErr ? " settings-note-err" : "")}>{msg}</div>}
 

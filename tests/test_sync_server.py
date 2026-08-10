@@ -331,3 +331,63 @@ def test_prune_cli_dry_run_and_real_run(tmp_path: Path, monkeypatch, capsys) -> 
     # a second real run finds nothing left to remove
     assert cli.main([]) == 0
     assert "removed 0 tombstone" in capsys.readouterr().out
+
+
+# --- SP4a (backlog #15): the sharing-identity directory ---------------------------------------------------
+
+
+def test_register_then_lookup_by_exact_sub() -> None:
+    client = _server()
+    r = client.post(
+        "/identity/register",
+        json={"public_key": "AAAA==", "display_name": "Alice"},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    assert r.status_code == 204
+    r = client.get("/identity/lookup", params={"sub": "alice"}, headers={"Authorization": "Bearer u:bob"})
+    assert r.status_code == 200
+    assert r.json() == {"public_key": "AAAA==", "display_name": "Alice"}
+
+
+def test_lookup_unknown_sub_is_404() -> None:
+    client = _server()
+    r = client.get("/identity/lookup", params={"sub": "nobody"}, headers={"Authorization": "Bearer u:bob"})
+    assert r.status_code == 404
+
+
+def test_lookup_never_lists_or_fuzzy_matches() -> None:
+    """The divergence fence: exact-id only. A near-miss (case/whitespace/substring) must NOT match — this is
+    what keeps the directory a lookup, never a search."""
+    client = _server()
+    client.post("/identity/register", json={"public_key": "AAAA=="}, headers={"Authorization": "Bearer u:alice"})
+    for near_miss in ("Alice", " alice", "alice ", "ali", "alicee"):
+        r = client.get("/identity/lookup", params={"sub": near_miss}, headers={"Authorization": "Bearer u:bob"})
+        assert r.status_code == 404, f"{near_miss!r} should not match 'alice'"
+    # and there is structurally no listing endpoint to enumerate registered users
+    assert client.get("/identity", headers={"Authorization": "Bearer u:bob"}).status_code == 404
+    assert client.get("/identity/list", headers={"Authorization": "Bearer u:bob"}).status_code == 404
+
+
+def test_re_register_rotates_the_current_key() -> None:
+    client = _server()
+    headers = {"Authorization": "Bearer u:alice"}
+    client.post("/identity/register", json={"public_key": "OLD=="}, headers=headers)
+    client.post("/identity/register", json={"public_key": "NEW==", "display_name": "Alice A."}, headers=headers)
+    r = client.get("/identity/lookup", params={"sub": "alice"}, headers={"Authorization": "Bearer u:bob"})
+    assert r.json() == {"public_key": "NEW==", "display_name": "Alice A."}
+
+
+def test_identity_endpoints_require_auth() -> None:
+    client = _server()
+    assert client.get("/identity/lookup", params={"sub": "alice"}).status_code == 401
+    assert client.post("/identity/register", json={"public_key": "AAAA=="}).status_code == 401
+
+
+def test_register_rejects_oversized_public_key() -> None:
+    client = _server()
+    r = client.post(
+        "/identity/register",
+        json={"public_key": "A" * 200},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    assert r.status_code == 422

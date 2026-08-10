@@ -60,8 +60,11 @@
 - **#15 Sync — remaining threads.** [gated] Setup/enable/run UI, conflict review, and server hardening
   (rate-limiting, tombstone retention, an operations runbook) all shipped — see `INCREMENT-BACKLOG-DONE.md`.
   **Still open, not code:** the live deploy of `sync_server/` on Postgres + wiring the Authentik audience [your
-  infra]; a per-user storage quota + a real migration tool; and **SP4 sharing** (= B2 collaboration, a
-  live-shared-library layer) [gated, its own design] — the only genuinely open threads left in #15.
+  infra]; a per-user storage quota + a real migration tool. **SP4 sharing** (= B2 collaboration, a
+  live-shared-library layer), staged like the original sync feature — **SP4a (identity) shipped, inc 475**; still
+  open: **SP4b** (share — wrap a per-share content key under a looked-up public key for an ad-hoc picked set),
+  **SP4c** (receive — a "Shared with me" panel, decrypt-on-fetch, cross-user provenance, independent
+  re-verification), **SP4d** (revoke/roles, with the limits of revocation disclosed honestly).
 - **#49 Auto-updater — Cliff's own remaining rollout steps.** [non-code] The updater itself is live (inc 409) —
   see `INCREMENT-BACKLOG-DONE.md`. **Still open, not code:** (1) set the two `TAURI_SIGNING_PRIVATE_KEY`/
   `_PASSWORD` GitHub secrets yourself (`gh secret set`, from your own machine — the public key is already
