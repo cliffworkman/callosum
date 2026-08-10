@@ -1,0 +1,40 @@
+# Module-boundary contracts (staged-harnesses/tach.md). Activated inc 472 — its own drafted activation trigger
+# ("an outside contributor begins pushing code") fired: Jeffrey Vadala's tui/ PR #1. `depends_on` lists are
+# auto-populated by `tach sync` from real usage, not hand-guessed — re-run `tach sync` after adding a new
+# legitimate cross-module import, then re-review the diff before committing it.
+
+# Everything under app.backend not covered by a more specific sub-module entry below (methods, clustering,
+# pdf_processing, etc.) — must never import sync_server.
+[[modules]]
+path = "app.backend"
+depends_on = ["app.backend.api", "app.backend.persistence"]
+
+[[modules]]
+path = "app.backend.api"
+depends_on = ["app.backend.persistence", "app.backend"]
+
+# The repository layer must never reach into app.backend.api (routers/), matching the read-first architecture —
+# it's expected to depend on sibling domain-type modules (methods/clustering/registration_*, folded into the
+# broader "app.backend" entry above), just never api/.
+[[modules]]
+path = "app.backend.persistence"
+depends_on = ["app.backend"]
+
+# Fenced: sync_server must never import from app.backend (an existing, audited architectural invariant, inc 202
+# — see .claude/security-audits/2026-06-29_sync-server.md).
+[[modules]]
+path = "sync_server"
+depends_on = []
+
+# A pure HTTP client over the running app (B1, incs 213/216) — never a direct Python import of app.backend.
+[[modules]]
+path = "mcp_server"
+depends_on = []
+
+# A pure HTTP client over the running app (inc 472) — never a direct Python import of app.backend.
+[[modules]]
+path = "tui"
+depends_on = []
+
+[cache]
+file_dependencies = ["**/*.py"]

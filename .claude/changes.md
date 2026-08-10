@@ -9,6 +9,34 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-10 — Increment 473: activate the tach module-boundary harness (round 3, item #1b)
+- **Files:** `tach.toml` (new), `.pre-commit-config.yaml`, `.github/workflows/ci.yml`, `pyproject.toml`,
+  `requirements-dev.txt`, `uv.lock`, `.claude/staged-harnesses/REGISTRY.md`, `.claude/staged-harnesses/tach.md`.
+- **What:** activated the drafted `tach` module-boundary harness — its own trigger ("an outside contributor
+  begins pushing code") fired by inc 472's TUI merge. Fences: `app.backend.persistence` can't import
+  `app.backend.api`; `sync_server`/`mcp_server`/`tui` can't import `app.backend` at all. Every fence verified
+  with a real, temporary negative-test violation, not just a clean pass.
+- **Why:** item #1b of round 3 (memory `callosum-next5-backlog-roadmap-round3`), completing item #1 alongside
+  inc 472.
+- **Revert:** additive — a new dev dependency + a new top-level config file + two new gate steps; no runtime/
+  application code touched.
+
+## 2026-08-10 — Increment 472: TUI terminal client reviewed and merged (round 3, item #1a)
+- **Files:** `tui/registry.py`, `tui/client.py`, `tui/__main__.py`, `tui/menus.py`, `tui/render.py`,
+  `tui/README.md`, `tui/__init__.py`, `tests/test_tui.py`, `.claude/CLAUDE.md`,
+  `.claude/security-audits/2026-08-10_tui-external-contribution-review.md`.
+- **What:** reviewed and merged **GitHub PR #1** — callosum's first external code contribution (a numbered-menu
+  REPL + one-shot CLI terminal client covering the app's API surface, by Jeffrey Vadala), sitting unreviewed as
+  a draft since 2026-07-06. Also folded the previously-undocumented MCP server (backlog "B1", incs 213/216)
+  into CLAUDE.md's feature narrative alongside it — both were shipped/real but absent from the running
+  narrative until now.
+- **Why:** surfaced while surveying the backlog for round 3 (memory `callosum-next5-backlog-roadmap-round3`).
+  Cliff asked for a careful review against `PRINCIPLES.md` specifically, given this is the first review of
+  outside code; confirmed clean (no violations, agent-write surface structurally bounded to `/agent/*`, zero
+  endpoint drift against current `main` despite the branch being ~212 increments stale), then confirmed merging.
+- **Revert:** additive only (8 new files, zero existing files touched by the original contribution); the
+  follow-up lint/format commit is also additive-in-effect (style-only, no behavior change).
+
 ## 2026-08-10 — Increment 471: public website and showcase catch up to the current product
 - **Files:** `www/index.html`, `www/showcase.html`, `www/shots/*.png`.
 - **What:** reconstructed the public site's July 21 content cutoff from git history and refreshed it through

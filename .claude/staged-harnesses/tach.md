@@ -1,5 +1,10 @@
 # Staged harness: tach (module-boundary contracts)
 
+**SUPERSEDED (activated inc 472) — this draft's own trigger fired.** The live config is `tach.toml` at the
+repo root, wired into `.pre-commit-config.yaml` + `.github/workflows/ci.yml` + `pyproject.toml`/
+`requirements-dev.txt`/`uv.lock`. Kept here for the original design rationale (the "why deferred" reasoning
+below is still accurate history); see `REGISTRY.md`'s entry for the exact fences shipped.
+
 **Checks:** import-direction / module-boundary rules — e.g. `sync_server/` must never import from
 `app/backend/` (an existing, audited architectural fence — see `.claude/security-audits/2026-06-29_sync-server.md`),
 or `app/backend/persistence/` should never import from `app/backend/api/routers/`. This is closer to the

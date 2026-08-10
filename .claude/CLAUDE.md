@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 470** (see Increment workflow) with **2084 root-suite pytest tests
+It is currently at **Increment 473** (see Increment workflow) with **2098 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -492,6 +492,28 @@ the full per-increment narrative for all other increments now lives in the reloc
   **Run `npm install` once, then re-run `python tools/build_frontend.py` after editing anything under
   `app/frontend/`.**
 - **HTTP client:** httpx (external metadata/discovery APIs).
+- **External-client surfaces (backlog "B1"; incs 213/216, inc 472):** two ways to drive callosum besides the
+  web UI, both pure HTTP clients over the existing API — no new backend endpoints, no new trust boundary beyond
+  what already exists. **MCP server** (`mcp_server/`, incs 213/216): a stdio Model Context Protocol server for
+  agent hosts (Claude Desktop, Cursor). SP1 (inc 213) exposes five **read-only** tools
+  (`search_library`/`get_paper`/`full_text_search`/`find_passages`/`format_citation`); SP2 (inc 216) adds four
+  **gated, audited, reversible** write tools (`add_tag`/`add_to_axis`/`save_reference`/`annotate`) behind the
+  default-off `agent_writes_enabled` Settings toggle, each write provenance-stamped `imported_source="ai-agent"`
+  and logged to `agent_writes` (`app/backend/api/routers/agent.py`, `persistence/agent_repo.py`) with a
+  per-write Revert. No destructive `/agent/*` route exists — structurally inexpressible, not just
+  documentation. Security audits: `2026-06-30_mcp-server.md` / `2026-06-30_mcp-agent-writes.md`. **TUI terminal
+  client** (`tui/`, inc 472): a numbered-menu REPL (`python -m tui`) plus a one-shot CLI
+  (`python -m tui <group> <action> --format json`) covering the *entire* API surface as of its own snapshot
+  (~140 actions across 13 groups), both generated from one declarative registry
+  (`tui/registry.py`) so the two surfaces can't drift. `--agent` mode restricts it to reads plus the same four
+  gated `/agent/*` writes above (never wider — enforced by `registry.validate()` + tests, mirroring the MCP
+  server's own structural guarantee); destructive actions are human-only and always confirmed. **Callosum's
+  first external code contribution** — written by Jeffrey Vadala, submitted as GitHub PR #1, reviewed against
+  `PRINCIPLES.md` + the security-audit gate before merge (`2026-08-10_tui-external-contribution-review.md`:
+  PASS — a pure client with no judgment/scoring logic of its own, zero direct external calls, the agent surface
+  provably bounded to `/agent/*`) and merged as inc 472. The registry is a point-in-time snapshot of the app's
+  feature set (~inc 258) and will drift as new endpoints ship — extending it is additive, low-risk, and not yet
+  scheduled.
 - **Concurrency (inc 418):** the backend runs single-process/single-worker uvicorn with no concurrency anywhere
   by default — CPU-bound and I/O-bound batch jobs alike looped strictly sequentially until inc 418 introduced
   two deliberate, narrow exceptions: the citation-verification loop batches its NLI/embedding model calls (one
@@ -705,7 +727,8 @@ Run from the project root. The shell is **PowerShell** (Windows).
 | Command | Description |
 |---|---|
 | `uv sync` | Install the pinned dev/CI toolchain from `uv.lock` into `.venv` (backlog #20; `pyproject.toml` + `[dependency-groups] dev` is the source of truth — `requirements.txt`/`requirements-dev.txt` are a kept-in-sync pip fallback) |
-| `pre-commit install` | Wire the fast pre-commit gate (`.pre-commit-config.yaml`: ruff format/check, whitespace/EOF/large-file hygiene, the line-budget script) — install once per clone |
+| `pre-commit install` | Wire the fast pre-commit gate (`.pre-commit-config.yaml`: ruff format/check, whitespace/EOF/large-file hygiene, the line-budget script, `tach check`) — install once per clone |
+| `python -m tach check` | Module-boundary check (`tach.toml`, activated inc 473 — see staged-harnesses/tach.md): `app.backend.persistence` can't import `app.backend.api`; `sync_server`/`mcp_server`/`tui` can't import `app.backend` at all. Run `tach sync` (then review the diff) after a legitimate new cross-module import |
 | `$env:CALLOSUM_DB_URL = "sqlite:///C:/Users/cliff/Dropbox/Dropbox/01_Work/callosum/.local/validation-summarize/validation.sqlite"` | Point the app at a SQLite DB (default if unset: `sqlite:///.local/validation/validation.sqlite`) |
 | `uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080` | Start the FastAPI app; then open `http://127.0.0.1:8080/` |
 | `npm install` | Install the build-time frontend toolchain (pinned `esbuild`) — required once before `tools/build_frontend.py` / live assembly (inc 102) |
@@ -917,7 +940,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 470). Each increment of real work
+callosum is built in **numbered increments** (currently at 473). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

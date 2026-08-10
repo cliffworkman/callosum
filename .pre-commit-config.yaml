@@ -45,3 +45,9 @@ repos:
         language: system
         pass_filenames: false
         types: [python]
+      - id: tach
+        name: tach module-boundary check (staged-harnesses/tach.md, activated inc 472)
+        entry: python -m tach check
+        language: system
+        pass_filenames: false
+        types: [python]

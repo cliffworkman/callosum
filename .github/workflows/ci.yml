@@ -31,6 +31,8 @@ jobs:
         run: uv run python tools/run_bandit.py
       - name: Line budget (rule #1 — 600-line cap on app/ + integrations/)
         run: uv run python tools/check_line_budget.py
+      - name: Tach module-boundary check (staged-harnesses/tach.md, activated inc 472)
+        run: uv run python -m tach check
       - name: "Alembic migration check (fresh temp DB: upgrade head + zero model/migration drift)"
         run: uv run pytest tests/test_migrations.py -q
       - name: pip-audit (runtime dependencies — requirements.txt)

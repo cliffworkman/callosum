@@ -52,6 +52,8 @@ dev = [
     "playwright>=1.40",
     "pytest-playwright>=0.5",
     "mcp>=1.2", # mcp_server SP1 — to run tests/test_mcp_server.py (B1); a server-only runtime dep, dev-side here
+    "tach>=0.35", # module-boundary contracts (staged-harnesses/tach.md) — activated inc 472, the first outside
+    # contributor's own trigger firing (Jeffrey Vadala, tui/ PR #1)
 ]
 
 [tool.uv]
