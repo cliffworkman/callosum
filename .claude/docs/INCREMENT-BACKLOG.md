@@ -104,13 +104,16 @@ the Principles + A-A gates before build.)*
   (`INCREMENT-BACKLOG-DONE.md`). **Far future, its own workspace:** screening/PRISMA, double-coding/IRR
   (human-only — the track's no-independent-coder veto holds), RoB instruments, figure extraction (point at
   WebPlotDigitizer, don't build it).
-- **#37 Equity & integrity signals — remaining.** The overlooked-work lens, positive self-correction, and the
-  real field self-citation baseline (= #25) are shipped (`INCREMENT-BACKLOG-DONE.md`). **Replication remains
-  deferred:** Crossref's controlled relation vocabulary and PubMed's controlled publication types currently
-  provide no replication fact; title/abstract inference would be a candidate, not the promised deterministic
-  badge. Still open: an evidence-grade replication source (if one emerges); null-engagement (likely
-  candidate-class); and the **2 principle-fraught forensic candidates** (recorded with the no-index/no-accusation
-  reframing, most need the values layer — A-A's no-accusation veto applies directly).
+- **#37 Equity & integrity signals — remaining, narrowed 2026-08-10.** The overlooked-work lens, positive
+  self-correction, and the real field self-citation baseline (= #25) are shipped (`INCREMENT-BACKLOG-DONE.md`).
+  Of the two forensic candidates it also named, stylometric inconsistency is declined (§6); analytic-flexibility
+  surfacing has an aligned design (decomposed, passage-linked decision points, never an index) but is blocked on
+  the same GROBID/methods-section-parsing infra backlog #30's own section-scoping is waiting on — not a separate
+  gap, revisit together. **Still open, blocked on external data, not a design question:** an evidence-grade
+  replication badge and a null-engagement badge — neither Crossref's relation vocabulary nor PubMed's publication
+  types encode either fact today; an LLM-inferred version would only ever be candidate-class, which can't back
+  the deterministic badge the design promised. Revisit only if a real metadata source appears (same disposition
+  as #24).
 - **#38 Research-impact analytics.** [future track — gated] Opt-in, local-first, commons-structured measurement
   of whether Callosum changes how people research. **Project A (local usage analytics) shipped** —
   `INCREMENT-BACKLOG-DONE.md`. **Project B (cross-user impact signal) remains far-future, gated** — needs N>1
@@ -167,4 +170,12 @@ the Principles + A-A gates before build.)*
   buildable half of #54 — `scrutiny`'s actual within-paper repeated-value counting functions, which the
   design doc's "duplication analysis" mention actually pointed at — shipped as inc 469's honestly-framed
   repeated-values checker instead; see `INCREMENT-BACKLOG-DONE.md`.
+- **Stylometric inconsistency** (backlog #37's forensic candidate #5,
+  `future-tracks/opus4.8_future-tracks_equityintegritysignals.md`) — declined 2026-08-10, confirmed with Cliff.
+  The source doc itself flagged this as an open question for the user ("the noisiest and most
+  accusation-adjacent item in the entire residual — it points at *people*, not statistics... there is a real
+  case that recording it at all risks a later blunt implementation"); even the doc's own hard-gated "neutral
+  span-pointing signal, never an authorship claim" version keeps the accusation-adjacent shape front and
+  center. Same disposition as the declined salami-slicing branch of #54 — the A-A no-accusation veto, not a
+  data-consistency question.
 

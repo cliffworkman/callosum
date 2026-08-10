@@ -11,6 +11,17 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-10 — Increment 470: z-curve -->
 
+## 2026-08-10 — Round 2, item #5: #37 equity/integrity wrap-up, closing the round
+- **Files:** `.claude/docs/INCREMENT-BACKLOG.md`.
+- **What:** read the source future-track doc directly to name backlog #37's "2 principle-fraught forensic
+  candidates" (analytic-flexibility surfacing — blocked on unbuilt GROBID/methods-section infra, same gap as
+  #30; stylometric inconsistency — the doc's own open question for Cliff). Declined stylometric inconsistency
+  outright per Cliff's call; trimmed #37 to its two remaining threads that are blocked on external metadata
+  availability (no design decision needed there, just no data source yet).
+- **Why:** item #5 of round 2 (memory `callosum-next5-backlog-roadmap-round2`) — the last item; round 2 is now
+  fully closed.
+- **Revert:** doc-only; no code, no schema, nothing to revert beyond the backlog text itself.
+
 ## 2026-08-10 — Increment 470: z-curve (round 2, item #4, closes backlog #55)
 - **Files:** `app/backend/methods/zcurve.py`, `app/backend/api/routers/methods_zcurve.py`, `app/backend/api/app.py`,
   `app/backend/api/routers/status.py`, `app/frontend/js/29b_zcurve.jsx`, `app/frontend/js/03_library.jsx`,
