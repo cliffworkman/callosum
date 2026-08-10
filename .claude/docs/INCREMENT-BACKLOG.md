@@ -78,8 +78,16 @@ genuinely-open remainder is listed here. Each still needs its own design + your 
 the Principles + A-A gates before build.)*
 
 - **#24 Bayesian auditor — ANOVA/regression BF.** Not a build queue item: **declined as a documented finding**
-  (a candidate failed the J=2 → two-sample-t reduction check; no in-env anchor exists). Revisit only if a
-  trusted anchor (R BayesFactor / a validated Rouder-2012 quadrature) turns up.
+  (a candidate failed the J=2 → two-sample-t reduction check; no in-env anchor exists). **Rechecked 2026-08-10,
+  confirmed still blocked, finding sharpened, not just re-asserted:** pingouin (this project's own dev-only
+  verification anchor for the t-test/correlation BFs) still has no ANOVA/regression function — confirmed by
+  reading its current `bayesian.py` source directly, not assumed stale. No validated Python port of Rouder et
+  al. (2012) exists anywhere findable; the one real implementation of that method (a MATLAB toolbox built
+  explicitly from the 2012 paper) requires the *full raw dataset + a model formula*, not summary statistics —
+  meaning this isn't just "unverified," it's **structurally unreconstructable** from what a paper reports
+  inline (F, df, N), unlike the t-test/correlation cases that already shipped. Revisit only if a trusted
+  anchor (R BayesFactor / a validated Rouder-2012 quadrature) turns up **and** a way exists to extract
+  sufficient design/cell-size info from papers — a second, separate gap this recheck surfaced.
 - **#30 Highlight-to-suggest/evaluate (Track C) — Stage-4 section-scoping.** SP1/SP2/Stage-3 + the persistent
   save-for-later queue are shipped (`INCREMENT-BACKLOG-DONE.md`). **Still genuinely open:** section-scoping
   (needs GROBID + the plugin) — not "the highest-value unbuilt thing" anymore, just the one piece needing

@@ -9,6 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-10 — Round 3, item #2: #24 Bayesian ANOVA/regression BF recheck, confirmed still blocked
+- **Files:** `.claude/docs/INCREMENT-BACKLOG.md`.
+- **What:** re-verified (not assumed) whether a trusted anchor for ANOVA/regression Bayes factors had emerged
+  since the original decline. Read pingouin's current `bayesian.py` source directly — still no ANOVA/
+  regression function. No validated Python port of Rouder et al. (2012) exists; the one real implementation
+  found (a MATLAB toolbox) requires the full raw dataset + a model formula, not summary statistics — sharpening
+  the finding from "unverified" to "structurally unreconstructable" from what a paper reports inline.
+- **Why:** item #2 of round 3 (memory `callosum-next5-backlog-roadmap-round3`) — a quick recheck, not a design
+  decision.
+- **Revert:** doc-only; no code, no schema.
+
 ## 2026-08-10 — Increment 473: activate the tach module-boundary harness (round 3, item #1b)
 - **Files:** `tach.toml` (new), `.pre-commit-config.yaml`, `.github/workflows/ci.yml`, `pyproject.toml`,
   `requirements-dev.txt`, `uv.lock`, `.claude/staged-harnesses/REGISTRY.md`, `.claude/staged-harnesses/tach.md`.
