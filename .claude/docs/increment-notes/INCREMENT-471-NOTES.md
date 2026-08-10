@@ -28,12 +28,15 @@ read-only MCP server, and the published test count follows the resulting 2,098-t
 
 The old showcase embedded all 50 screenshots as base64 despite also keeping them in `www/shots`, producing a
 6.4 MB HTML file and making routine updates difficult. The replacement is about 23 KB and references curated
-external PNGs. Twelve current captures were taken read-only from the live app and combined with still-accurate
-detail crops from the existing set. No screenshot containing private account information was published.
+external PNGs. A follow-up provenance pass on August 10 replaced every remaining pre-existing image, so all 22
+figures now use captures made that day from the current UI. Capture navigation stayed read-only: it did not run
+checks, refresh feeds, import or dismiss works, suggest citations, or insert into a document. No screenshot
+containing private account information was published.
 
-The new tour contains six chapters and 22 figures. Captions state limits where they matter: AI proposes
-meta-analysis cells, registration acquisition is explicit, repeated-values is a neutral heuristic, z-curve has a
-hard small-N warning, and contribution statements format only what the user asserts.
+The new tour contains six chapters and 22 figures. Captions state limits where they matter: the meta-analysis
+reporting checklist distinguishes detections from “not found” prompts, registration acquisition is explicit,
+repeated-values is a neutral heuristic, z-curve has a hard small-N warning, and contribution statements format
+only what the user asserts.
 
 ## Verification
 
@@ -42,6 +45,8 @@ hard small-N warning, and contribution statements format only what the user asse
   no console errors or page errors.
 - Full-page screenshots reviewed at both widths. The landing page keeps a legible evidence-first hierarchy; the
   showcase remains navigable and preserves figure order on a narrow screen.
+- Screenshot follow-up: all ten assets older than August 10 were replaced; their declared dimensions match the
+  PNGs, every image decodes, and tall current panes are cropped responsively on mobile without page overflow.
 - Persona pass: a skeptical first-time visitor can identify the core claim, current scope, privacy boundary, and
   pre-1.0 status; a researcher moving from evidence to manuscript can follow source → synthesis/registration →
   methods → WIP checkpoint → citation without a taxonomy jump.
