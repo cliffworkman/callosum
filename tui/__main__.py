@@ -79,10 +79,18 @@ def build_parser() -> argparse.ArgumentParser:
         description="Terminal client for callosum — every feature, numbered menus, agent-drivable.",
     )
     _global_flags(parser)
-    parser.set_defaults(base_url=None, token=None,
-                        agent=os.environ.get("CALLOSUM_TUI_AGENT") == "1",
-                        format="table", yes=False, no_wait=False, timeout=600.0,
-                        quiet=False, out=None, self_test=False)
+    parser.set_defaults(
+        base_url=None,
+        token=None,
+        agent=os.environ.get("CALLOSUM_TUI_AGENT") == "1",
+        format="table",
+        yes=False,
+        no_wait=False,
+        timeout=600.0,
+        quiet=False,
+        out=None,
+        self_test=False,
+    )
 
     subs = parser.add_subparsers(dest="group")
     for g in registry.groups():
@@ -93,8 +101,9 @@ def build_parser() -> argparse.ArgumentParser:
             for name in a.path_params:
                 ap.add_argument(name, type=(str if name in registry._STR_PATH_PARAMS else int))
             for p in a.params:
-                ap.add_argument(f"--{p.name.replace('_', '-')}", dest=f"p_{p.name}",
-                                required=False, help=p.help or p.kind)
+                ap.add_argument(
+                    f"--{p.name.replace('_', '-')}", dest=f"p_{p.name}", required=False, help=p.help or p.kind
+                )
             ap.add_argument("--extra-query", action="append", default=[], metavar="K=V")
             ap.add_argument("--body", default=None, metavar="JSON")
             _global_flags(ap)
@@ -115,8 +124,9 @@ def _collect(action: registry.Action, ns: argparse.Namespace) -> tuple[dict, dic
         target = query if p.kind == "query" else body
         target[p.name] = _coerce(raw, p.type)
     if missing:
-        raise SystemExit(f"missing required: {', '.join('--' + m.replace('_', '-') for m in missing)}"
-                         f" (or pass --body JSON)")
+        raise SystemExit(
+            f"missing required: {', '.join('--' + m.replace('_', '-') for m in missing)} (or pass --body JSON)"
+        )
     for kv in ns.extra_query:
         if "=" not in kv:
             raise SystemExit(f"--extra-query expects k=v, got {kv!r}")
@@ -126,16 +136,26 @@ def _collect(action: registry.Action, ns: argparse.Namespace) -> tuple[dict, dic
         try:
             extra = json.loads(ns.body)
         except json.JSONDecodeError as exc:
-            raise SystemExit(f"--body is not valid JSON: {exc}")
+            raise SystemExit(f"--body is not valid JSON: {exc}") from exc
         if not isinstance(extra, dict):
             return path_args, query, extra  # raw non-object body, sent as-is
         body = {**body, **extra}
     return path_args, query, (body or None)
 
 
-def run_action(client: TuiClient, action: registry.Action, *, agent: bool,
-               path_args: dict, query: dict, body: Any, yes: bool = False,
-               wait: bool = True, timeout: float = 600.0, quiet: bool = True) -> Any:
+def run_action(
+    client: TuiClient,
+    action: registry.Action,
+    *,
+    agent: bool,
+    path_args: dict,
+    query: dict,
+    body: Any,
+    yes: bool = False,
+    wait: bool = True,
+    timeout: float = 600.0,
+    quiet: bool = True,
+) -> Any:
     if agent and not action.agent_allowed():
         raise SystemExit(
             f"'{action.group} {action.name}' is not available in agent mode "
@@ -153,9 +173,15 @@ def run_action(client: TuiClient, action: registry.Action, *, agent: bool,
     if action.job and wait:
         jid = client.job_id_of(data)
         if jid:
-            tick = None if quiet else (lambda st: print(
-                f"  … {st.get('status', '?')} {st.get('progress_label', '')}".rstrip(),
-                file=sys.stderr))
+            tick = (
+                None
+                if quiet
+                else (
+                    lambda st: print(
+                        f"  … {st.get('status', '?')} {st.get('progress_label', '')}".rstrip(), file=sys.stderr
+                    )
+                )
+            )
             data = client.poll_job(action.job, jid, timeout=timeout, on_tick=tick)
     return data
 
@@ -173,8 +199,7 @@ def self_test() -> int:
             return httpx.Response(200, json=[{"id": 1, "title": "T", "authors": ["A"]}])
         return httpx.Response(404, json={"detail": "nope"})
 
-    client = TuiClient("http://test", http=httpx.Client(
-        transport=httpx.MockTransport(handler), base_url="http://test"))
+    client = TuiClient("http://test", http=httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test"))
     try:
         assert client.payload(client.request("GET", "/health"))["status"] == "ok"
         assert client.agent_writes_enabled() is False
@@ -194,8 +219,15 @@ def self_test() -> int:
                 pass
         # destructive confirmation
         try:
-            run_action(client, registry.find("papers", "empty-trash"), agent=False,
-                       path_args={}, query={}, body=None, yes=False)
+            run_action(
+                client,
+                registry.find("papers", "empty-trash"),
+                agent=False,
+                path_args={},
+                query={},
+                body=None,
+                yes=False,
+            )
             problems.append("empty-trash: ran without --yes")
         except SystemExit:
             pass
@@ -215,6 +247,7 @@ def main(argv: list[str] | None = None) -> int:
         return self_test()
     if not ns.group:
         from .menus import repl
+
         return repl(TuiClient(ns.base_url, token=ns.token), agent=ns.agent)
     if not getattr(ns, "action", None):
         parser.parse_args([ns.group, "--help"])
@@ -223,9 +256,18 @@ def main(argv: list[str] | None = None) -> int:
     client = TuiClient(ns.base_url, token=ns.token)
     try:
         path_args, query, body = _collect(action, ns)
-        data = run_action(client, action, agent=ns.agent, path_args=path_args, query=query,
-                          body=body, yes=ns.yes, wait=not ns.no_wait, timeout=ns.timeout,
-                          quiet=ns.quiet)
+        data = run_action(
+            client,
+            action,
+            agent=ns.agent,
+            path_args=path_args,
+            query=query,
+            body=body,
+            yes=ns.yes,
+            wait=not ns.no_wait,
+            timeout=ns.timeout,
+            quiet=ns.quiet,
+        )
     except AgentWritesDisabled as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 3

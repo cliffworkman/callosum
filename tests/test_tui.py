@@ -52,15 +52,15 @@ def test_every_group_has_actions_and_parser_coverage():
         assert acts, g.key
         for a in acts:
             # every registry action parses as a subcommand (path params filled with dummies)
-            argv = [g.key, a.name] + ["1" if p not in registry._STR_PATH_PARAMS else "x"
-                                      for p in a.path_params]
+            argv = [g.key, a.name] + ["1" if p not in registry._STR_PATH_PARAMS else "x" for p in a.path_params]
             ns = parser.parse_args(argv)
             assert ns.group == g.key and ns.action == a.name
 
 
 def test_the_four_audited_agent_writes_are_reachable_in_agent_mode():
-    reachable = {a.effective_path(agent=True) for a in registry.ACTIONS
-                 if a.tier == registry.WRITE and a.agent_allowed()}
+    reachable = {
+        a.effective_path(agent=True) for a in registry.ACTIONS if a.tier == registry.WRITE and a.agent_allowed()
+    }
     assert "/agent/papers/{paper_id}/tags" in reachable
     assert "/agent/axes/{axis_id}/papers" in reachable
     assert "/agent/references" in reachable
@@ -106,8 +106,9 @@ def test_agent_body_is_stripped_to_the_gated_fields():
 
     client = _client(handler)
     action = registry.find("gaps", "add")  # human: /gaps/add {doi,...}; agent: /agent/references
-    run_action(client, action, agent=True, path_args={}, query={},
-               body={"doi": "10.1/x", "identifier": "10.1/x", "title": "T"})
+    run_action(
+        client, action, agent=True, path_args={}, query={}, body={"doi": "10.1/x", "identifier": "10.1/x", "title": "T"}
+    )
     assert seen["path"] == "/agent/references"
     assert seen["body"] == {"identifier": "10.1/x"}
 
@@ -117,12 +118,13 @@ def test_agent_body_is_stripped_to_the_gated_fields():
 
 def test_agent_mode_refuses_human_writes():
     client = _client(lambda r: httpx.Response(200, json={}))
-    for grp, name, path_args in (("papers", "edit", {"paper_id": 1}),
-                                 ("wanted", "add", {}),
-                                 ("papers", "delete", {"paper_id": 1})):
+    for grp, name, path_args in (
+        ("papers", "edit", {"paper_id": 1}),
+        ("wanted", "add", {}),
+        ("papers", "delete", {"paper_id": 1}),
+    ):
         with pytest.raises(SystemExit, match="agent mode"):
-            run_action(client, registry.find(grp, name), agent=True,
-                       path_args=path_args, query={}, body=None)
+            run_action(client, registry.find(grp, name), agent=True, path_args=path_args, query={}, body=None)
 
 
 def test_destructive_requires_yes_then_runs():

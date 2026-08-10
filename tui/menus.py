@@ -58,8 +58,7 @@ def _prompt_params(action: registry.Action) -> tuple[dict, dict, dict] | None:
             return None
         path_args[name] = raw if name in registry._STR_PATH_PARAMS else int(raw)
     for p in action.params:
-        raw = _ask(f"{p.name}{' (required)' if p.required else ''}"
-                   f"{f' — {p.help}' if p.help else ''}: ")
+        raw = _ask(f"{p.name}{' (required)' if p.required else ''}{f' — {p.help}' if p.help else ''}: ")
         if raw is None:
             return None
         if raw == "":
@@ -113,8 +112,7 @@ def repl(client: TuiClient, agent: bool = False) -> int:
         group = groups[gi]
         while True:
             acts = registry.actions_for(group.key, agent=agent)
-            items = [(a.title, ("destructive — confirms" if a.tier == registry.DESTRUCTIVE
-                                else a.help)) for a in acts]
+            items = [(a.title, ("destructive — confirms" if a.tier == registry.DESTRUCTIVE else a.help)) for a in acts]
             ai = _pick(group.title, items, f"callosum / {group.title}")
             if ai is None:
                 return 0
@@ -131,9 +129,17 @@ def repl(client: TuiClient, agent: bool = False) -> int:
                     _say("(skipped)")
                     continue
             try:
-                data = run_action(client, action, agent=agent, path_args=path_args,
-                                  query=query, body=body or None, yes=True,
-                                  wait=True, quiet=False)
+                data = run_action(
+                    client,
+                    action,
+                    agent=agent,
+                    path_args=path_args,
+                    query=query,
+                    body=body or None,
+                    yes=True,
+                    wait=True,
+                    quiet=False,
+                )
                 _say(render(data))
             except (CallosumUnavailable, AgentWritesDisabled) as exc:
                 _say(f"error: {exc}")
