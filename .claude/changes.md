@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-10 — Increment 471: public website and showcase catch up to the current product
+- **Files:** `www/index.html`, `www/showcase.html`, `www/shots/*.png`.
+- **What:** reconstructed the public site's July 21 content cutoff from git history and refreshed it through
+  the current increment 472 baseline. The landing page now presents the seven-stage research workflow, current
+  workspace navigation,
+  WIP manuscripts, Meta-Preregistration, expanded Methods, My Publications discovery, and the richer writing
+  integrations. Reframed privacy around explicit, separately controlled doors for metadata, configured AI,
+  opt-in encrypted sync, and exact-preview feedback; restored all three hard vetoes and current source commands.
+  Rebuilt the showcase as a responsive six-chapter workflow tour using current, external screenshot assets
+  instead of embedding every image as base64, shrinking the HTML from about 6.4 MB to about 23 KB.
+- **Why:** both public pages substantially predated the desktop app, global Status, manuscript workspace,
+  preregistration crosswalk, Writer expansion, and later methods/discovery work. Several old statements were no
+  longer merely incomplete but inaccurate—especially “the one door” privacy copy and the two-veto count.
+- **Verification:** static reference and alt-text audit; headless Chromium at 1440×1000 and 390×844 for both
+  pages; no missing images, horizontal overflow, console errors, or page errors; manual desktop/mobile visual
+  pass as a first-time evaluator and as a manuscript-focused researcher; `git diff --check` clean.
+- **Revert:** static public-site and additive screenshot assets only; no application, schema, or runtime change.
+
 <!-- HELP-DOCS-SYNCED: 2026-08-10 — Increment 470: z-curve -->
 
 ## 2026-08-10 — Round 2, item #5: #37 equity/integrity wrap-up, closing the round

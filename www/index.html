@@ -199,6 +199,21 @@
   .companion .chiprow{margin-top:14px;display:flex;flex-wrap:wrap;gap:7px;}
   .companion .chip{border-color:var(--accent-line);background:var(--card);}
 
+  /* current workspace snapshot */
+  .product-window{overflow:hidden;border:1px solid var(--line-2);border-radius:14px;background:var(--card);
+    box-shadow:0 26px 54px -38px rgba(28,27,25,.48);}
+  .product-window img{display:block;width:100%;height:auto;}
+  .product-caption{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--line);}
+  .product-caption div{padding:19px 20px;border-right:1px solid var(--line);}
+  .product-caption div:last-child{border-right:0;}
+  .product-caption b{display:block;font-size:14px;margin-bottom:4px;}
+  .product-caption span{display:block;color:var(--ink-2);font-size:13.5px;line-height:1.45;}
+  @media(max-width:760px){
+    .product-caption{grid-template-columns:1fr;}
+    .product-caption div{border-right:0;border-bottom:1px solid var(--line);}
+    .product-caption div:last-child{border-bottom:0;}
+  }
+
   /* features */
   .feat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;}
   @media(max-width:780px){.feat-grid{grid-template-columns:1fr;}}
@@ -326,6 +341,7 @@
     <nav class="nav-links" aria-label="Primary">
       <a href="#how">How it works</a>
       <a href="#features">Features</a>
+      <a href="showcase.html">Showcase</a>
       <a href="#privacy">Privacy</a>
       <a href="#start">Build from source</a>
       <a href="https://github.com/cliffworkman/callosum" target="_blank" rel="noopener">
@@ -342,7 +358,7 @@
   <section class="hero">
     <div class="wrap">
       <div class="hero-eyebrow reveal in">
-        <span class="eyebrow">Local-first reference manager</span>
+        <span class="eyebrow">Local-first research workspace</span>
         <span class="pill lic">AGPL-3.0</span>
         <span class="pill">pre-1.0 · MVP</span>
       </div>
@@ -410,27 +426,48 @@
       <div class="sec-head reveal">
         <span class="eyebrow">One enclosed ecosystem</span>
         <h2>Find it, read it, check its statistics, synthesize it, cite it — without leaving the app.</h2>
-        <p class="loop-intro">Most of us stitch this together from a search engine, a PDF reader, a stats checker, a reference manager, and a word-processor plugin. Callosum is the whole arc in one local-first place — and after import, none of it needs the internet.</p>
+        <p class="loop-intro">Most of us stitch this together from a search engine, a PDF reader, a stats checker, a reference manager, a manuscript folder, and a word-processor plugin. Callosum keeps that arc in one local-first place, with every network action explicit and inspectable.</p>
       </div>
       <div class="flow reveal" data-d="1">
         <div class="stage"><div class="node">01</div><h3>Find</h3><p>Search Crossref &amp; PubMed; follow journals and preprint servers</p></div>
         <div class="stage"><div class="node">02</div><h3>Acquire</h3><p>Auto-fetch open-access copies, OA only</p></div>
         <div class="stage"><div class="node">03</div><h3>Read</h3><p>Annotate and take notes in-browser</p></div>
-        <div class="stage eval"><div class="node">04</div><h3>Evaluate</h3><p>statcheck, p-curve, GRIM, retraction</p></div>
+        <div class="stage eval"><div class="node">04</div><h3>Evaluate</h3><p>statcheck, z-curve, GRIM, DEBIT, reporting checks</p></div>
         <div class="stage"><div class="node">05</div><h3>Synthesize</h3><p>Verified, citation-grounded summaries</p></div>
-        <div class="stage"><div class="node">06</div><h3>Cite</h3><p>Live citations in your word processor</p></div>
+        <div class="stage"><div class="node">06</div><h3>Draft</h3><p>Manuscript workspaces, checkpoints, and findings</p></div>
+        <div class="stage"><div class="node">07</div><h3>Cite</h3><p>Live citations and evidence in your word processor</p></div>
       </div>
       <div class="companion reveal" data-d="2">
         <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="12" y="7" width="3" height="10"/><rect x="17" y="13" width="3" height="4"/></svg></span>
         <div>
           <h3>And your own work — My Publications</h3>
-          <p>Resolve your papers by ORCID, pull citation counts from OpenAlex, and visualize your impact grouped by research domain and over time. Identity-only — no library text, PDFs, or notes leave your machine.</p>
+          <p>Resolve your papers by ORCID, review indexed-versus-library gaps, see emerging topics and citing authors, and visualize impact by research domain and over time. Public metadata lookups use identifiers only — never your PDFs, notes, or highlights.</p>
           <div class="chiprow">
             <span class="chip">ORCID-resolved</span>
             <span class="chip">citation impact</span>
             <span class="chip">by research domain</span>
             <span class="chip">missing-works review</span>
+            <span class="chip">emerging topics</span>
+            <span class="chip">citing authors</span>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="workspace-title">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow">The workspace today</span>
+        <h2 id="workspace-title">One library, several lenses, no hidden handoff.</h2>
+        <p>Move between papers, research axes, manuscripts, methods, and discovery without losing the evidence trail. The interface stays quiet until a detail needs inspection.</p>
+      </div>
+      <div class="product-window reveal" data-d="1">
+        <img src="shots/app_current.png" alt="Callosum desktop library showing the paper list, research axes, and workspace navigation" loading="lazy" width="1600" height="1000" />
+        <div class="product-caption">
+          <div><b>Axes keep the question visible</b><span>Define the dimensions you care about, then use them consistently across search, synthesis, and review.</span></div>
+          <div><b>Workspaces follow the work</b><span>Library, My Publications, WIP manuscripts, Meta-Reference, Statements, Status, and Usage share one shell.</span></div>
+          <div><b>Every result stays inspectable</b><span>Open a paper to read the source, inspect methods, compare registration evidence, or carry it into a draft.</span></div>
         </div>
       </div>
     </div>
@@ -441,14 +478,14 @@
       <div class="sec-head reveal">
         <span class="eyebrow">What it does today</span>
         <h2>Twelve tools that usually live in twelve apps — in one.</h2>
-        <p>A working MVP, used daily by its author and backed by a large test suite. Here it is, following the workflow end to end.</p>
+        <p>A working pre-1.0 app, used daily by its author and backed by 2,098 tests. Here it is, following the workflow end to end.</p>
       </div>
       <div class="feat-grid">
         <div class="feat reveal" data-d="1">
           <span class="k">Find &amp; follow</span>
           <h3>Search, or let it come to you</h3>
-          <p>Search across Crossref and PubMed, or subscribe to a source and let new work arrive — journals by ISSN, bioRxiv and medRxiv categories, PubMed keyword feeds. AI marks likely-relevant hits against your own axes; it never hides the rest.</p>
-          <div class="chiprow"><span class="chip">Search</span><span class="chip">Feed</span><span class="chip">bioRxiv · medRxiv</span><span class="chip">PubMed</span><span class="chip">journal by ISSN</span></div>
+          <p>Search Crossref and PubMed, explore beyond your library with Semantic Scholar, follow authors, or subscribe to journals, preprint categories, and keyword feeds. AI may rank likely relevance against your axes; it never hides the rest.</p>
+          <div class="chiprow"><span class="chip">Search</span><span class="chip">Feed</span><span class="chip">followed authors</span><span class="chip">Semantic Scholar</span><span class="chip">saved discovery queue</span></div>
         </div>
         <div class="feat reveal" data-d="2">
           <span class="k">Build your library</span>
@@ -464,8 +501,8 @@
         <div class="feat reveal" data-d="2">
           <span class="k">Evaluate the statistics · methods pane</span>
           <h3>A statistical methods workbench</h3>
-          <p>Recompute every reported p-value (statcheck), test a literature for evidential value (p-curve), catch impossible means (GRIM / GRIMMER), and check for retractions. Descriptive signals that prompt a closer look — never a verdict about anyone.</p>
-          <div class="chiprow"><span class="chip">statcheck</span><span class="chip">effect-size</span><span class="chip">p-curve</span><span class="chip">GRIM / GRIMMER</span><span class="chip">retraction</span><span class="chip">gap-finder</span></div>
+          <p>Recompute reported p-values — including table-aware candidates — inspect p-curve or z-curve, check GRIM/GRIMMER and DEBIT, and review repeated values, retractions, and corrections. Each is a descriptive signal that prompts a closer look, never a verdict.</p>
+          <div class="chiprow"><span class="chip">statcheck</span><span class="chip">effect size</span><span class="chip">p-curve · z-curve</span><span class="chip">GRIM / GRIMMER</span><span class="chip">DEBIT</span><span class="chip">corrections</span></div>
           <span class="mtag">deterministic · local · no LLM</span>
         </div>
         <div class="feat core reveal" data-d="1">
@@ -474,21 +511,21 @@
           <p>Every generated sentence is re-checked against the source and labeled verified, contrasted, flagged, or contradicted — with its quote, page, and confidence. Coordinates are marked <span class="mono">exact</span>, <span class="mono">region</span>, or <span class="mono">null</span>, and never shown as more precise than they are.</p>
         </div>
         <div class="feat reveal" data-d="2">
-          <span class="k">Cite-while-you-write</span>
-          <h3>Straight into your word processor</h3>
-          <p>Live, formatted citations and bibliographies rendered locally with citeproc-js. Insert, refresh, switch styles, and get citation suggestions for the sentence you're writing.</p>
-          <div class="chiprow"><span class="chip">LibreOffice Writer</span><span class="chip">Microsoft Word</span><span class="chip">Google Docs</span><span class="chip">APA · MLA · Chicago · IEEE</span></div>
+          <span class="k">Draft &amp; cite</span>
+          <h3>A manuscript workspace with a door into your document</h3>
+          <p>Watch manuscript roots, make exact checkpoints, retain tool receipts and findings, then insert evidence-aware citations and locally rendered bibliographies. LibreOffice Writer has the deepest integration; Microsoft Word and Google Docs are supported too.</p>
+          <div class="chiprow"><span class="chip">WIP checkpoints</span><span class="chip">LibreOffice Writer</span><span class="chip">Microsoft Word</span><span class="chip">Google Docs</span><span class="chip">CSL styles</span></div>
         </div>
         <div class="feat reveal" data-d="1">
           <span class="k">My Publications</span>
-          <h3>Track and visualize your impact</h3>
-          <p>Resolve your own work by ORCID, see citation counts from OpenAlex, and group your output by research domain to watch impact build over time — with the indexed-vs-library gap surfaced as an import nudge.</p>
-          <div class="chiprow"><span class="chip">ORCID</span><span class="chip">impact dashboard</span><span class="chip">by research domain</span><span class="chip">identity-only</span></div>
+          <h3>See the shape around your own work</h3>
+          <p>Resolve your publications by ORCID, review indexed-versus-library gaps, trace emerging topics and citing authors, and group your output by research domain. Public metadata queries use bibliographic identifiers, not library text.</p>
+          <div class="chiprow"><span class="chip">ORCID</span><span class="chip">impact dashboard</span><span class="chip">emerging topics</span><span class="chip">citing authors</span></div>
         </div>
         <div class="feat reveal" data-d="2">
           <span class="k">Selective, opt-in AI</span>
           <h3>Off by default, yours to swap</h3>
-          <p>AI is used for <em class="note-inline">generation only</em> — summaries, axis-term suggestions, and a help assistant whose own answers are citation-grounded too — and it's off until you turn it on. Bring your own key for Gemini, OpenAI, or Anthropic, or point it at any OpenAI/Anthropic-compatible endpoint — Ollama, DeepSeek, OpenRouter, and the like; a local, loopback provider runs with zero egress. The roster is yours to edit. Verification is always local, never delegated to the model.</p>
+          <p>AI is used only for explicit, reviewable assistance: summaries, extraction candidates, triage, suggestions, and help. It is off until you configure it. Bring your own key for Gemini, OpenAI, or Anthropic, use a compatible endpoint, or keep inference on loopback. Verification remains local and is never delegated to the model.</p>
         </div>
         <div class="feat reveal" data-d="1">
           <span class="k">Extract a meta-analysis · methods pane</span>
@@ -498,23 +535,23 @@
           <span class="mtag">AI proposes · you verify</span>
         </div>
         <div class="feat reveal" data-d="2">
-          <span class="k">Weigh your citations · theory pane</span>
-          <h3>See how a reference list leans</h3>
-          <p>Measure how concentrated a paper's citations are on a few sources, surface relevant work it may have overlooked, and see how the later literature has cited it. Descriptive signals about the shape of what's cited — never a judgment of who wrote it.</p>
-          <div class="chiprow"><span class="chip">citation concentration</span><span class="chip">overlooked work</span><span class="chip">incoming citations</span></div>
+          <span class="k">Meta-Preregistration</span>
+          <h3>Compare the paper with what was registered</h3>
+          <p>Extract registration references locally, confirm or reject candidates, explicitly acquire immutable versions, and compare commitments with publication evidence side by side. The crosswalk tracks provenance and goes stale when its evidence changes.</p>
+          <div class="chiprow"><span class="chip">local extraction</span><span class="chip">explicit acquisition</span><span class="chip">paired evidence</span><span class="chip">stale tracking</span></div>
         </div>
         <div class="feat reveal" data-d="1">
-          <span class="k">Reporting completeness · methods pane</span>
-          <h3>Did the paper report what it should?</h3>
-          <p>Structured completeness checklists for common designs — Bayesian analyses, mixed-effects models, meta-analyses — plus a scan for open-science disclosures. What's present, what's missing, nothing inferred.</p>
-          <div class="chiprow"><span class="chip">Bayesian</span><span class="chip">mixed-model</span><span class="chip">meta-analysis</span><span class="chip">open-science disclosures</span></div>
+          <span class="k">Reporting &amp; integrity</span>
+          <h3>Check what is present, missing, or changed</h3>
+          <p>Structured checks cover Bayesian analyses, mixed-effects models, meta-analyses, transparency disclosures, citation coverage, and manuscript integrity preflight. Findings preserve the underlying evidence and remain yours to accept or dismiss.</p>
+          <div class="chiprow"><span class="chip">Bayesian</span><span class="chip">mixed models</span><span class="chip">meta-analysis</span><span class="chip">transparency</span><span class="chip">citation coverage</span></div>
           <span class="mtag">deterministic · local</span>
         </div>
         <div class="feat reveal" data-d="2">
-          <span class="k">Write it up · theory pane</span>
-          <h3>From reading to writing</h3>
-          <p>Drafting your own manuscript? See where work like it could be submitted (journals weighed by fit, not ranked), build a CRediT contributor statement from an authors &times; roles grid, and insert it straight into your word processor. callosum formats what you assert — it never decides who did what.</p>
-          <div class="chiprow"><span class="chip">where to submit</span><span class="chip">CRediT statement</span><span class="chip">LibreOffice · Word · Docs</span></div>
+          <span class="k">Meta-Reference &amp; statements</span>
+          <h3>Carry structure into the final draft</h3>
+          <p>Explore a manuscript's citation neighborhood, look for journals by fit rather than prestige, build funding and CRediT statements from explicit inputs, and insert them into the document. Callosum formats what you assert; it does not invent contributions.</p>
+          <div class="chiprow"><span class="chip">Meta-Reference</span><span class="chip">journal fit</span><span class="chip">funding</span><span class="chip">CRediT</span></div>
         </div>
       </div>
       <div style="text-align:center;margin-top:36px;">
@@ -527,8 +564,8 @@
     <div class="wrap panel">
       <div class="sec-head reveal" style="margin-bottom:0;">
         <span class="eyebrow">Local-first, by construction</span>
-        <h2>Everything stays on your machine — until you decide otherwise.</h2>
-        <p class="lead">Callosum binds to <span class="mono">127.0.0.1</span>. After import it works fully offline. The only data that can ever leave is AI generation you switch on, sentence by sentence.</p>
+        <h2>Your research stays local. Every door out is explicit.</h2>
+        <p class="lead">Callosum binds to <span class="mono">127.0.0.1</span> and keeps PDFs, notes, indexes, checks, and citation rendering on your machine. Features that need a network connection say what they send and why.</p>
       </div>
       <div class="priv-grid reveal" data-d="1">
         <div class="machine">
@@ -538,8 +575,8 @@
           <div class="machine-row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span> Every citation check and confidence score</div>
           <div class="machine-row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span> Citation rendering (citeproc-js, local)</div>
           <div class="door">
-            <div class="cap">the one door</div>
-            <p>When you opt in to AI summary generation, the relevant text — and nothing else — is sent to the provider you chose. Set <span class="mono">CALLOSUM_ALLOW_DATA_EGRESS=1</span> to open it. It's shut by default.</p>
+            <div class="cap">the explicit doors</div>
+            <p>Public metadata lookups send identifiers such as a DOI, ORCID, author, or query. Configured AI calls send the displayed task context to your chosen provider. Encrypted sync is opt-in, and feedback is sent only after an exact preview. Each door is separately controlled.</p>
           </div>
         </div>
         <div class="priv-points">
@@ -552,8 +589,8 @@
             <p>Similarity, NLI stance, and the verbatim quote search run on-device on every result. A weaker model affects draft quality — never which citations get accepted.</p>
           </div>
           <div class="pp">
-            <h3>Optional ORCID, identity-only</h3>
-            <p>Signing in verifies who you are and pre-fills <span class="mono">My Publications</span>. It sends no library text, PDFs, or notes anywhere. The app works fully offline with no account.</p>
+            <h3>Accounts and sync are optional</h3>
+            <p>ORCID can identify your publications, and encrypted sync can connect devices when you choose it. Neither is required for the local app; bibliographic lookups and sync never upload your PDFs, notes, or highlights as a side effect.</p>
           </div>
           <div class="pp">
             <h3>Free and copyleft</h3>
@@ -575,8 +612,8 @@
         <div class="cl"><span class="idx">iv</span><p><b>Local-first and provider-swappable.</b> It runs on your machine and answers to no single vendor; silence is never a certificate.</p></div>
       </div>
       <div class="veto reveal" data-d="3">
-        <span class="lab">two hard lines</span>
-        <p><b>No paywall circumvention</b> — open-access only. <b>No accusation of individuals</b> — the open-science signals point you to look, never to judge. These have no “aligned alternative”; they are lines the tool does not cross.</p>
+        <span class="lab">three hard lines</span>
+        <p><b>No paywall circumvention</b> — open-access only. <b>No reaching into another tool's protected store</b> — imports use supported exports and interfaces. <b>No accusation of individuals</b> — integrity signals point you to inspect evidence, never to judge a person. These have no “aligned alternative.”</p>
       </div>
     </div>
   </section>
@@ -611,7 +648,7 @@
       </div>
       <div class="qs-grid">
         <div class="qs-meta reveal">
-          <p class="intro">You'll need a couple of standard tools. First run pulls a few hundred MB of local models from Hugging Face — once — then it works offline. The SQLite database auto-migrates on startup.</p>
+          <p class="intro">You'll need a couple of standard tools. Some local analysis features download models on first use, then run offline. The SQLite database auto-migrates on startup. The source tree also includes a read-only MCP server and a terminal client for working with the same local API.</p>
           <div class="req">
             <div><span class="mono a">→</span> <span><span class="mono">Python 3.11+</span> — backend &amp; verification</span></div>
             <div><span class="mono a">→</span> <span><span class="mono">Node.js</span> — frontend build &amp; citation engine</span></div>
@@ -620,20 +657,19 @@
         </div>
         <div class="code panel reveal" data-d="1">
           <div class="code-top"><span class="b"></span><span class="b"></span><span class="b"></span><span class="t">bash — macOS / Linux</span></div>
-<pre><span class="cm"># 1 · clone + a virtual environment</span>
+<pre><span class="cm"># 1 · clone</span>
 <span class="pr">$ </span><span class="hl">git clone</span> https://github.com/cliffworkman/callosum.git
 <span class="pr">$ </span>cd callosum
-<span class="pr">$ </span>python -m venv .venv &amp;&amp; source .venv/bin/activate
 
 <span class="cm"># 2 · python + js dependencies</span>
-<span class="pr">$ </span>pip install -r requirements.txt
+<span class="pr">$ </span>uv sync
 <span class="pr">$ </span>npm install
 
 <span class="cm"># 3 · build the single-file frontend</span>
-<span class="pr">$ </span>python tools/build_frontend.py
+<span class="pr">$ </span>uv run python tools/build_frontend.py
 
 <span class="cm"># 4 · run it, then open 127.0.0.1:8080</span>
-<span class="pr">$ </span><span class="hl">uvicorn</span> app.backend.api.app:app --port 8080</pre>
+<span class="pr">$ </span>uv run <span class="hl">uvicorn</span> app.backend.api.app:app --port 8080</pre>
         </div>
       </div>
     </div>
@@ -645,7 +681,7 @@
         <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></span>
         <div>
           <h3>Where it honestly stands</h3>
-          <p>Pre-1.0 and single-user-focused. It's used daily by its author and backed by a large test suite, but there's no auth for hosted deployment, the surface is still moving, and you should expect rough edges. Stating that plainly is itself the point — the README and the code shouldn't claim more certainty than the evidence shows.</p>
+          <p>Pre-1.0 and single-user-focused. It's used daily by its author and backed by 2,098 tests, but the interface is still moving, installers are unsigned, and the local-first architecture is not a hardened multi-tenant hosted service. Expect rough edges. Stating that plainly is itself the point: the site and the code should not claim more certainty than the evidence shows.</p>
         </div>
       </div>
     </div>
