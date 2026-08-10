@@ -28,8 +28,9 @@ class AgentWritesDisabled(RuntimeError):
 
 
 class TuiClient:
-    def __init__(self, base_url: str | None = None, *, token: str | None = None,
-                 http: httpx.Client | None = None) -> None:
+    def __init__(
+        self, base_url: str | None = None, *, token: str | None = None, http: httpx.Client | None = None
+    ) -> None:
         self.base_url = (base_url or os.environ.get("CALLOSUM_BASE_URL", DEFAULT_BASE_URL)).rstrip("/")
         token = token or os.environ.get("CALLOSUM_TOKEN")
         headers = {"Authorization": f"Bearer {token}"} if token else {}
@@ -37,11 +38,11 @@ class TuiClient:
 
     # -- core ------------------------------------------------------------------
 
-    def request(self, method: str, path: str, *, query: dict[str, Any] | None = None,
-                body: Any | None = None) -> httpx.Response:
+    def request(
+        self, method: str, path: str, *, query: dict[str, Any] | None = None, body: Any | None = None
+    ) -> httpx.Response:
         try:
-            r = self._http.request(method, path, params=query or None,
-                                   json=body if body is not None else None)
+            r = self._http.request(method, path, params=query or None, json=body if body is not None else None)
         except httpx.HTTPError as exc:
             raise CallosumUnavailable(
                 f"callosum isn't reachable at {self.base_url} — is it running? "
@@ -56,9 +57,7 @@ class TuiClient:
                 "callosum rejected the request (401) — set CALLOSUM_TOKEN to the app's access token."
             )
         if r.status_code == 403 and "agent" in r.text.lower():
-            raise AgentWritesDisabled(
-                "AI-agent writes are disabled — enable them in callosum Settings → AI agent."
-            )
+            raise AgentWritesDisabled("AI-agent writes are disabled — enable them in callosum Settings → AI agent.")
         if r.status_code >= 400:
             detail = r.text[:300]
             try:
@@ -79,8 +78,9 @@ class TuiClient:
 
     # -- jobs ------------------------------------------------------------------
 
-    def poll_job(self, poll_template: str, job_id: str, *, timeout: float = 600.0,
-                 interval: float = 1.0, on_tick=None) -> Any:
+    def poll_job(
+        self, poll_template: str, job_id: str, *, timeout: float = 600.0, interval: float = 1.0, on_tick=None
+    ) -> Any:
         """Poll a 202-style job endpoint until it reaches a terminal status."""
         path = poll_template.format(job_id=job_id)
         deadline = time.monotonic() + timeout

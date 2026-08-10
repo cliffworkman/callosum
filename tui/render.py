@@ -55,7 +55,9 @@ def detail(data: dict[str, Any]) -> str:
     for k, v in data.items():
         if isinstance(v, (dict, list)) and v:
             v = json.dumps(v, ensure_ascii=False, default=str)
-        lines.append(f"{k.rjust(width)}  {_cell(v) if not isinstance(v, str) else (v[:200] + '…' if len(str(v)) > 200 else v)}")
+        lines.append(
+            f"{k.rjust(width)}  {_cell(v) if not isinstance(v, str) else (v[:200] + '…' if len(str(v)) > 200 else v)}"
+        )
     return "\n".join(lines) if lines else "(empty)"
 
 
