@@ -9,7 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-09 — statcheck signal/work-state duality clarification -->
+<!-- HELP-DOCS-SYNCED: 2026-08-09 — Increment 469: repeated-values checker -->
+
+## 2026-08-09 — Increment 469: repeated-values checker (round 2, item #3, closes backlog #54)
+- **Files:** `app/backend/methods/duplicate_values.py`, `app/backend/persistence/schema_duplicate_value_checks.py`,
+  `app/backend/persistence/schema.py`, `alembic/versions/0072_paper_duplicate_value_checks.py`,
+  `app/backend/persistence/duplicate_value_checks_repo.py`, `app/backend/api/routers/methods_duplicate_values.py`,
+  `app/backend/api/app.py`, `app/frontend/js/07_methods_grim.jsx`, `app/frontend/styles.css`,
+  `tests/test_duplicate_values.py`, `tests/test_duplicate_values_saved.py`, `tests/test_health.py`,
+  `.claude/qa-routes/route_37_methods_grim.md`, `.claude/security-audits/2026-08-09_repeated-values.md`,
+  `app/backend/help/help_content.md`, `THIRD-PARTY-NOTICES.md`.
+- **What:** a fourth Methods → Data tool, `count_repeated_values` — a bounded, paper-scoped, within-one-paper
+  exact-value-repeat counter (`scrutiny`'s `duplicate_count`/`duplicate_tally` idea), paper-aware save/list/
+  delete like GRIM/GRIMMER/DEBIT. Deliberately renders a plain neutral list, never the `consistent`/`flagged`
+  pill the other three earn from a real mathematical constraint — this heuristic has none.
+- **Why:** item #3 of round 2 (memory `callosum-next5-backlog-roadmap-round2`). Research found backlog #54's
+  original "duplicate-publication detection" framing was an unverified assumption conflating two different
+  things: cross-paper salami-slicing (no algorithmic method exists — declined outright) and this within-paper
+  heuristic (buildable, honestly labeled as weaker than its GRIM/GRIMMER/DEBIT neighbors). Cliff confirmed
+  building only the narrow slice.
+- **Revert:** additive/backward-compatible; new table + migration, no existing endpoint touched.
 
 ## 2026-08-09 — Round 2, item #2: statcheck signal/work-state duality clarification
 - **Files:** `app/backend/help/help_content.md`, `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/styles.css`.

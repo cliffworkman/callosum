@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 468** (see Increment workflow) with **2064 root-suite pytest tests
+It is currently at **Increment 469** (see Increment workflow) with **2077 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -227,7 +227,17 @@ the full per-increment narrative for all other increments now lives in the reloc
   original "DEBIT/duplication analysis and perhaps a z-curve" phrasing had conflated three separate things;
   duplicate-publication detection (#54) and z-curve (#55) were spun off as their own gated backlog items rather
   than built here — duplicate-detection risks the no-accusation boundary (it compares a paper against *other*
-  papers/authors, unlike DEBIT), and z-curve needs LLM-assisted "focal statistic" extraction.
+  papers/authors, unlike DEBIT), and z-curve needs LLM-assisted "focal statistic" extraction. **Inc 469 closes
+  #54**, but narrower than first framed: research found the original "duplicate-publication detection" idea
+  conflated two different things. Salami-slicing (redundant publication across separate papers) has no
+  algorithmic detection method — declined outright, same disposition as #24. `scrutiny`'s actual
+  `duplicate_count`/`duplicate_tally` functions are something else: a within-one-paper repeated-exact-value
+  counter, architecturally GRIM/GRIMMER/DEBIT-shaped but with no peer-reviewed method behind it. Shipped only
+  the latter (`app/backend/methods/duplicate_values.py::count_repeated_values`, its own sibling router/tables
+  since `methods.py` had no headroom left) with a deliberately weaker presentation than its three neighbors: no
+  `consistent`/`flagged` field or pill anywhere, just a plain frequency list — a validated check earns its
+  verdict pill; an unvalidated heuristic sitting right next to one must not visually borrow that credibility.
+  Text-only credit line (no citable paper exists to add to the library).
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):
@@ -892,7 +902,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 468). Each increment of real work
+callosum is built in **numbered increments** (currently at 469). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

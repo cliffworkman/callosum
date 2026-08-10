@@ -284,6 +284,19 @@ new work goes in the open backlog.
   "To review" label above each library-header chip group (`.lib-chip-group-label`, mirroring the existing
   `.eyebrow` small-caps recipe) so the two-systems distinction reads at a glance, not just on hover. Both
   verified live via Playwright screenshots.
+- [x] **#54 Repeated-values checker — the narrowed half, fully closed** (inc 469) — research found #54's
+  original "duplicate-publication detection" framing (compares a paper against *other* papers/authors) was
+  itself an unverified assumption. Reality splits in two: salami-slicing (redundant publication across
+  separate papers) has no algorithmic detection method at all — declined outright, recorded in
+  `INCREMENT-BACKLOG.md` §6; `scrutiny`'s actual `duplicate_count`/`duplicate_tally` functions (the real source
+  of the design doc's "duplication analysis" mention) are a within-one-paper repeated-exact-value counter —
+  buildable, GRIM/GRIMMER/DEBIT-shaped, but with no peer-reviewed method behind it. Shipped the latter,
+  honestly: `count_repeated_values` (`app/backend/methods/duplicate_values.py`) + a new sibling router
+  (`methods_duplicate_values.py`, kept entirely separate from `methods.py`, which had no headroom left) +
+  paper-aware save. The result model carries no `consistent`/`flagged` field, and the frontend renders no
+  `cite-status` pill — a deliberate presentation choice so the tool can't visually borrow the credibility of
+  GRIM/GRIMMER/DEBIT sitting next to it. Text-only credit (no citable paper exists). Live-verified end-to-end
+  via Playwright; security audit PASS. **#54 is now fully closed.**
 
 ## Design-decision closures (migrated from open backlog §2, 2026-08-09)
 - [x] **#11 README front-door** (2026-07-22) — the screenshot landed with `www/`; the voice pass was drafted

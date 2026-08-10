@@ -113,6 +113,14 @@ The same data-consistency calculator adds **DEBIT**, the binary-data analog of G
 - Re-implemented from the paper (the reference R implementation is **`scrutiny`**, Lukas Jung,
   <https://lhdjung.github.io/scrutiny/>) — credited, not reused by name or code.
 
+### Repeated-values checker (inc 469)
+A blunt heuristic counting how often each exact value repeats within one paper's own reported table — a
+possible data-fabrication smell, inspired directly by `scrutiny`'s own `duplicate_count`/`duplicate_tally`
+functions (Lukas Jung, <https://lhdjung.github.io/scrutiny/>). Unlike GRIM/GRIMMER/DEBIT above, **no
+peer-reviewed paper describes this method** — `scrutiny`'s own documentation calls it "a blunt tool... not too
+informative." Credited as a software reference only (no citable paper exists to add to a library), matching
+the SciELO/Retraction-Watch/AJOL "no canonical paper — don't fabricate one" precedent elsewhere in this file.
+
 ### Retraction detection — Retraction Watch database (inc 132)
 Callosum's retraction/correction check (the Library "Integrity" refresh, Meta-Reference, and the LibreOffice
 adapter's "Citation integrity preflight") draws on the **Retraction Watch database**:

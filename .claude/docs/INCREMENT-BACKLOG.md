@@ -126,14 +126,6 @@ the Principles + A-A gates before build.)*
   ethically fraught, "the disfavored extreme — it reintroduces the 'these are bad' valence").
 - **#41 User-authored modules (plugins).** [future track — record only] Deferred record of the idea + open
   questions. Do not build a plugin system until a dedicated design pass.
-- **#54 Duplicate-publication detection.** [future track — fraught, gated] Spun off from #44 (inc 467), since it
-  was conflated with DEBIT in the original phrasing but is a materially different, harder feature: it compares
-  a paper's reported stats *against other papers/authors*, which risks the APPROACH-AVOIDANCE standalone
-  no-accusation boundary in a way a single-paper consistency check never does. Needs its own Principles (#9) +
-  APPROACH-AVOIDANCE values-layer pass before design — including what corpus it searches (the user's own
-  library only, vs. a genuine cross-author search, which raises new scope/egress questions) and how to reframe
-  as signal-not-accusation. `chatgpt5.5_future-tracks_integratinglakens.md` (item 5, "scrutiny") is the design
-  source.
 - **#55 Z-curve.** [future track — gated] Spun off from #44 (inc 467), same reason as #54. Collection-level
   (not per-paper) and needs LLM-assisted "focal statistic" extraction — the design source itself calls this
   "more dangerous" and judgment-laden, closer in shape to the assisted-extraction funnel (inc 259) than to a
@@ -170,4 +162,13 @@ the Principles + A-A gates before build.)*
   the user remembering to delete it — was declined on its own terms: silently discarding user data has no
   precedent anywhere else in this codebase (papers go to Trash, never straight deletion, for exactly this
   reason), so auto-expiry would cut against an established value rather than fill a real gap.
+- **Duplicate-publication / salami-slicing detection** (backlog #54's cross-paper branch) — declined 2026-08-09
+  after research, not guessed: the research-integrity literature is explicit that there is **no algorithmic
+  detection method** for redundant/overlapping publication across separate papers — it requires expert peer
+  judgment about whether findings should have been one paper, not something a deterministic check can answer.
+  Any automated attempt would mean guessing at an author's intent with no reliable evidence chain — the
+  APPROACH-AVOIDANCE no-accusation boundary, not a data-consistency question. The narrower, genuinely
+  buildable half of #54 — `scrutiny`'s actual within-paper repeated-value counting functions, which the
+  design doc's "duplication analysis" mention actually pointed at — shipped as inc 469's honestly-framed
+  repeated-values checker instead; see `INCREMENT-BACKLOG-DONE.md`.
 

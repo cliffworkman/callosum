@@ -1,14 +1,14 @@
 <!-- qa-coverage
-api: /methods/grim, GET /papers/{paper_id}/grim-checks, POST /papers/{paper_id}/grim-checks, DELETE /papers/{paper_id}/grim-checks/{check_id}, /methods/debit, GET /papers/{paper_id}/debit-checks, POST /papers/{paper_id}/debit-checks, DELETE /papers/{paper_id}/debit-checks/{check_id}
+api: /methods/grim, GET /papers/{paper_id}/grim-checks, POST /papers/{paper_id}/grim-checks, DELETE /papers/{paper_id}/grim-checks/{check_id}, /methods/debit, GET /papers/{paper_id}/debit-checks, POST /papers/{paper_id}/debit-checks, DELETE /papers/{paper_id}/debit-checks/{check_id}, /methods/duplicate-values, GET /papers/{paper_id}/duplicate-value-checks, POST /papers/{paper_id}/duplicate-value-checks, DELETE /papers/{paper_id}/duplicate-value-checks/{check_id}
 fe: 07_methods_grim.jsx
 -->
 
-# ROUTE 37 - Methods: GRIM + GRIMMER + DEBIT (data-consistency calculators)
+# ROUTE 37 - Methods: GRIM + GRIMMER + DEBIT + repeated-values (data-consistency calculators)
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust the assisted GRIM/GRIMMER/DEBIT calculators while preserving signal-not-verdict + no-accusation
-framing. All three are **user-driven, per-value** (the user types a reported value) — none scan, rank, or label
-papers.
+**Goal:** Exhaust the assisted GRIM/GRIMMER/DEBIT/repeated-values calculators while preserving
+signal-not-verdict + no-accusation framing. All four are **user-driven, per-value** (the user types/pastes a
+reported value) — none scan, rank, or label papers.
 
 ## Environment
 
@@ -61,16 +61,31 @@ genai-host request regardless). Register listeners before navigation.
    save/list/delete/paper-switch checks from step 7 against `/papers/{paper_id}/debit-checks` — confirm the same
    paperId-reset behavior (no stale form/result bleeding across a paper switch) since this is new code, not a
    copy that inherited the inc-401 fix for free.
+9. **Inc 469 repeated-values (a third block below DEBIT, deliberately weaker framing).** Paste values with a
+   repeat (e.g. `3.45`, `3.45`, `3.45`, `2.10`, `5.00`, one per line or comma-separated) -> **Check**
+   (`POST /methods/duplicate-values`) -> confirm a **plain list** `3.45 x 3` — **critically, no `cite-status`
+   verified/flagged pill anywhere in this block** (unlike GRIM/GRIMMER/DEBIT above) and the note explicitly
+   states this is "a blunt heuristic with no peer-reviewed method behind it, unlike GRIM/GRIMMER/DEBIT." Paste
+   values with no repeats -> confirm "No exact value repeats more than once." Confirm the credit line is
+   **text-only** — no `MethodCreditButton`/"add to library" affordance anywhere in this block (there is no
+   citable paper, only a software reference to `scrutiny`) — while the section's own shared `LakensCredit`
+   block (now at the very end of Data, after all three sub-tools) still renders its own button correctly.
+   Repeat the save/list/delete/paper-switch checks from step 7 against
+   `/papers/{paper_id}/duplicate-value-checks`. Adversarial: empty input, 501+ values, an oversized label ->
+   422-class, no crash.
 
 ## Pass criteria
 
-- Both calculators compute GRIM (+ GRIMMER when SD given) and DEBIT with nearest-possible/caveats + credit.
+- All calculators compute correctly: GRIM (+ GRIMMER when SD given), DEBIT, and repeated-values, each with
+  their own caveats + credit.
 - 0 console/page errors; **0 genai-host requests** (local).
-- No per-paper/per-author judgment, no score/rank; "impossible" is a prompt, not a verdict.
+- No per-paper/per-author judgment, no score/rank; "impossible" is a prompt, not a verdict. The repeated-values
+  block in particular renders **no pill/verdict at all**, only a plain frequency list — its own credit line is
+  text-only, never an "add to library" button (no citable paper exists for it).
 - Bad inputs fail closed (422-class); mobile viewport has no horizontal overflow.
-- Saved checks (both GRIM/GRIMMER and DEBIT) are correctly paper-scoped, survive a refresh, and are removable;
-  a saved verdict always matches a fresh server-side recomputation of the same inputs (never a trusted
-  client-side value).
+- Saved checks (GRIM/GRIMMER, DEBIT, and repeated-values) are correctly paper-scoped, survive a refresh, and
+  are removable; a saved verdict always matches a fresh server-side recomputation of the same inputs (never a
+  trusted client-side value).
 
 ## Deposit
 

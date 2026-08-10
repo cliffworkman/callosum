@@ -951,6 +951,10 @@
   .grim-k { font-family: var(--mono); font-size: 11px; color: var(--ink-3); width: 64px; }
   .grim-near { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
   .grim-caveat { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin: 6px 0; }
+  /* inc 469: repeated-values checker — a wider paste area (not the fixed-64px .grim-in) and a plain, neutral
+     list (deliberately NOT .cite-status verified/flagged — no pill, no verdict; see rule #9 note in the JSX). */
+  .duplicate-values-in { width: 100%; max-width: 320px; resize: vertical; }
+  .duplicate-values-list { font-family: var(--mono); font-size: 12px; color: var(--ink); margin: 6px 0; padding-left: 18px; }
   /* inc 401: the saved-checks log — a small per-paper list of past GRIM/GRIMMER checks, recalled whenever this
      section is open for that paper. */
   .grim-saved-list { margin: 10px 0; display: flex; flex-direction: column; gap: 2px; }
@@ -5716,9 +5720,69 @@
         onClick: () => removeSaved(c.id)
       },
       "\xD7"
-    )))), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " DEBIT \u2014 Heathers & Brown (2019).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [DEBIT_CSL] }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; cf. the ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " package (Lukas Jung). An unpublished OSF working paper \u2014 no DOI exists."), /* @__PURE__ */ React.createElement(LakensCredit, null)));
+    )))), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " DEBIT \u2014 Heathers & Brown (2019).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [DEBIT_CSL] }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; cf. the ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " package (Lukas Jung). An unpublished OSF working paper \u2014 no DOI exists.")));
   }
-  registerPaneSection({ id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true, render: (ctx) => /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(GrimSection, { ctx }), /* @__PURE__ */ React.createElement(DebitSection, { ctx })) });
+  function DuplicateValuesSection({ ctx }) {
+    const paperId = ctx.selectedPaper;
+    const [text, setText] = useState("");
+    const [state, setState] = useState({ status: "idle" });
+    const [saved, setSaved] = useState({ status: "idle", checks: [] });
+    useEffect(() => {
+      setText("");
+      setState({ status: "idle" });
+    }, [paperId]);
+    useEffect(() => {
+      setSaved({ status: "idle", checks: [] });
+      if (paperId == null) return void 0;
+      let live = true;
+      api(`/papers/${paperId}/duplicate-value-checks`).then((r) => {
+        if (live && r.ok) setSaved({ status: "done", checks: r.data.checks });
+      });
+      return () => {
+        live = false;
+      };
+    }, [paperId]);
+    const valuesFromText = () => text.split(/[\n,]/).map((v) => v.trim()).filter(Boolean);
+    const run = async () => {
+      const values = valuesFromText();
+      if (values.length === 0) return;
+      setState({ status: "running" });
+      const r = await apiPost("/methods/duplicate-values", { values });
+      setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
+    };
+    const save = async () => {
+      if (paperId == null) return;
+      const values = valuesFromText();
+      const r = await apiPost(`/papers/${paperId}/duplicate-value-checks`, { values });
+      if (r.ok) setSaved((s) => ({ status: "done", checks: [r.data, ...s.checks] }));
+    };
+    const removeSaved = async (checkId) => {
+      const r = await apiDelete(`/papers/${paperId}/duplicate-value-checks/${checkId}`);
+      if (r.ok) setSaved((s) => ({ ...s, checks: s.checks.filter((c) => c.id !== checkId) }));
+    };
+    const d = state.data;
+    return /* @__PURE__ */ React.createElement("div", { className: "grim-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "How often does each exact value repeat in a table of numbers you're reading \u2014 a possible data-fabrication smell, but a ", /* @__PURE__ */ React.createElement("b", null, "blunt heuristic with no peer-reviewed method"), " behind it (unlike GRIM/GRIMMER/DEBIT above). Paste values, one per line or comma-separated; local, no AI."), /* @__PURE__ */ React.createElement("div", { className: "grim-form" }, /* @__PURE__ */ React.createElement(
+      "textarea",
+      {
+        className: "grim-in duplicate-values-in",
+        rows: 3,
+        value: text,
+        onChange: (e) => setText(e.target.value),
+        placeholder: "3.45\n3.45\n2.10",
+        spellCheck: false
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: state.status === "running" || valuesFromText().length === 0, onClick: run }, "Check")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, null), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && /* @__PURE__ */ React.createElement("div", { className: "grim-result" }, d.duplicate_values.repeats.length > 0 ? /* @__PURE__ */ React.createElement("ul", { className: "duplicate-values-list" }, d.duplicate_values.repeats.map((r) => /* @__PURE__ */ React.createElement("li", { key: r.value }, r.value, " \xD7 ", r.count))) : /* @__PURE__ */ React.createElement("div", { className: "grim-caveat" }, "No exact value repeats more than once."), /* @__PURE__ */ React.createElement("div", { className: "grim-caveat" }, d.duplicate_values.note), paperId != null && /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: save }, "Save this check")), paperId != null && saved.checks.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "grim-saved-list" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Saved checks \u2014 this paper"), saved.checks.map((c) => /* @__PURE__ */ React.createElement("div", { className: "grim-saved-item", key: c.id }, /* @__PURE__ */ React.createElement("span", { className: "grim-saved-desc" }, c.label || `${c.values.length} values, ${c.duplicate_values.repeats.length} repeat${c.duplicate_values.repeats.length === 1 ? "" : "s"}`), /* @__PURE__ */ React.createElement("small", { className: "grim-saved-date" }, c.created_at ? c.created_at.slice(0, 10) : ""), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-icon",
+        title: "Remove this saved check",
+        "aria-label": "Remove this saved check",
+        onClick: () => removeSaved(c.id)
+      },
+      "\xD7"
+    )))), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " a repeated-value counter \u2014 cf. ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), "'s ", /* @__PURE__ */ React.createElement("code", null, "duplicate_count"), "/", /* @__PURE__ */ React.createElement("code", null, "duplicate_tally"), " (Lukas Jung).", /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "No canonical paper exists \u2014 a software-only reference implementation, not a citable method like GRIM/GRIMMER/DEBIT above."), /* @__PURE__ */ React.createElement(LakensCredit, null)));
+  }
+  registerPaneSection({ id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true, render: (ctx) => /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(GrimSection, { ctx }), /* @__PURE__ */ React.createElement(DebitSection, { ctx }), /* @__PURE__ */ React.createElement(DuplicateValuesSection, { ctx })) });
   const CITATION_EQUITY_CSL = [
     {
       type: "article-journal",

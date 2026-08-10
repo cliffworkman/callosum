@@ -822,19 +822,20 @@ Read it as a prompt to think, not a judgment:
 - The modal credits the method (Simonsohn, Nelson & Simmons, 2014) and offers a one-click **add missing to library**.
 
 <!-- section: data-consistency-grim -->
-## Data consistency (GRIM / GRIMMER / DEBIT)
+## Data consistency (GRIM / GRIMMER / DEBIT / repeated values)
 GRIM (Brown & Heathers, 2017) and GRIMMER (Anaya 2016 / Allard 2018) check whether a reported **mean** (and **SD**) of **integer-scale** data — counts, or Likert-type items — is mathematically *possible* for the stated sample size. A mean of N integers must equal a whole number divided by N, so at a given decimal precision only certain means can occur; GRIMMER extends the same logic to the standard deviation. **DEBIT** (Heathers & Brown, 2019) is the binary-data analog: for a variable that can only take values 0/1 — a proportion or response rate — the SD is *fully determined* by the mean and N, so a reported mean+SD+N can be checked for consistency the same way.
 
-It's an **assisted calculator**, not a scanner: in the **METHODS** pane, open **Data**, then type a value you're reading and click **Check**. Two separate mini-forms live in this section:
+It's an **assisted calculator**, not a scanner: in the **METHODS** pane, open **Data**, then type or paste a value you're reading and click **Check**. Three mini-tools live in this section:
 
 - **GRIM / GRIMMER:** the **mean** (and optionally **SD**), **N**, and **items** (the number of scale items averaged per score; leave 1 for a single integer measure). GRIM reports consistent, or **impossible** with the **nearest possible** means shown; GRIMMER (when you enter an SD) reports consistent or impossible for single- or multi-item scales. A **no-power** note appears when N is large for the precision.
 - **DEBIT:** the **mean**, **SD**, and **N** for a *binary* (0/1) variable — no `items` field, since binary data is inherently single-item. Reports consistent, or **impossible**, with a note on why.
+- **Repeated values:** paste a column of reported numbers (one per line, or comma-separated) and Callosum counts how often each exact value repeats. Unlike the three tools above, this is a **blunt heuristic with no peer-reviewed method behind it** — it shows only a plain `value × count` list, never a consistent/impossible verdict, because there's no ground truth to check against. Repeated values are common in real bounded/rounded data on their own; treat a repeat as a prompt to double-check your own transcription, not a finding.
 
-Read all three as a prompt, not a judgment:
+Read all four as a prompt, not a judgment:
 
-- GRIM/GRIMMER only apply to **integer-scale** data; DEBIT only applies to **binary (0/1)** data — none of them apply to continuous measures (reaction times, non-binary proportions). An inconsistency is usually a typo or a misreported N; it is **a prompt to look, never a verdict or an accusation**.
-- Because *you* enter a specific value, none of them scan, rank, or label papers or people.
-- Each method is credited (Brown & Heathers; Anaya / Allard; Heathers & Brown) with a one-click **add missing to library** — DEBIT's source is an unpublished OSF working paper with no DOI, so its library entry links to the OSF page directly rather than a fabricated identifier.
+- GRIM/GRIMMER only apply to **integer-scale** data; DEBIT only applies to **binary (0/1)** data; repeated values applies to any numeric column you paste — none of them apply findings automatically, and none of them scan, rank, or label papers or people, because *you* choose the specific value(s) to check.
+- An inconsistency (GRIM/GRIMMER/DEBIT) or a repeat (repeated values) is usually innocent — a typo, rounding, a misreported N, or ordinary bounded data — **a prompt to look, never a verdict or an accusation**.
+- GRIM, GRIMMER, and DEBIT are each credited to a real citable paper (Brown & Heathers 2017; Anaya 2016 / Allard 2018; Heathers & Brown 2019 — the last an unpublished OSF working paper with no DOI, so its library entry links to the OSF page directly) with a one-click **add missing to library**. Repeated values has **no canonical paper to add** — only a software reference to the `scrutiny` R package (Lukas Jung) — so its credit line is text-only.
 
 <!-- section: bayesian-statistics -->
 ## Checking Bayes factors (the Bayesian auditor)

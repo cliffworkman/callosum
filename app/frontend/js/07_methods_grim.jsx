@@ -210,10 +210,94 @@ function DebitSection({ ctx }) {
         <b>Method:</b> DEBIT — Heathers &amp; Brown (2019).{" "}
         <MethodCreditButton items={[DEBIT_CSL]} />
         <div className="method-credit-sub">Re-implemented in Python; cf. the <i>scrutiny</i> package (Lukas Jung). An unpublished OSF working paper — no DOI exists.</div>
+      </div>
+    </div>
+  );
+}
+
+// inc 469: a blunt data-fabrication smell (scrutiny's duplicate_count/duplicate_tally, Lukas Jung) — how often
+// does each exact reported value repeat within one paper's own table? Unlike GRIM/GRIMMER/DEBIT, no
+// peer-reviewed method backs this, so it deliberately renders NO consistent/flagged pill or verdict — just a
+// plain, neutral frequency list. Same paperId-reset + save/list/delete shape as GrimSection/DebitSection.
+function DuplicateValuesSection({ ctx }) {
+  const paperId = ctx.selectedPaper;
+  const [text, setText] = useState("");
+  const [state, setState] = useState({ status: "idle" }); // idle | running | done | error
+  const [saved, setSaved] = useState({ status: "idle", checks: [] });
+
+  useEffect(() => {
+    setText("");
+    setState({ status: "idle" });
+  }, [paperId]);
+
+  useEffect(() => {
+    setSaved({ status: "idle", checks: [] });
+    if (paperId == null) return undefined;
+    let live = true;
+    api(`/papers/${paperId}/duplicate-value-checks`).then(r => {
+      if (live && r.ok) setSaved({ status: "done", checks: r.data.checks });
+    });
+    return () => { live = false; };
+  }, [paperId]);
+
+  const valuesFromText = () => text.split(/[\n,]/).map(v => v.trim()).filter(Boolean);
+
+  const run = async () => {
+    const values = valuesFromText();
+    if (values.length === 0) return;
+    setState({ status: "running" });
+    const r = await apiPost("/methods/duplicate-values", { values });
+    setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
+  };
+  const save = async () => {
+    if (paperId == null) return;
+    const values = valuesFromText();
+    const r = await apiPost(`/papers/${paperId}/duplicate-value-checks`, { values });
+    if (r.ok) setSaved(s => ({ status: "done", checks: [r.data, ...s.checks] }));
+  };
+  const removeSaved = async (checkId) => {
+    const r = await apiDelete(`/papers/${paperId}/duplicate-value-checks/${checkId}`);
+    if (r.ok) setSaved(s => ({ ...s, checks: s.checks.filter(c => c.id !== checkId) }));
+  };
+  const d = state.data;
+  return (
+    <div className="grim-section">
+      <div className="settings-sub">How often does each exact value repeat in a table of numbers you're reading — a possible data-fabrication smell, but a <b>blunt heuristic with no peer-reviewed method</b> behind it (unlike GRIM/GRIMMER/DEBIT above). Paste values, one per line or comma-separated; local, no AI.</div>
+      <div className="grim-form">
+        <textarea className="grim-in duplicate-values-in" rows={3} value={text} onChange={e => setText(e.target.value)}
+          placeholder={"3.45\n3.45\n2.10"} spellCheck={false} />
+        <button className="btn btn-primary" disabled={state.status === "running" || valuesFromText().length === 0} onClick={run}>Check</button>
+      </div>
+      {state.status === "running" && <ProgressBar />}
+      {state.status === "error" && <div className="axis-err">Couldn't check: {state.error}</div>}
+      {state.status === "done" && d &&
+        <div className="grim-result">
+          {d.duplicate_values.repeats.length > 0
+            ? <ul className="duplicate-values-list">
+                {d.duplicate_values.repeats.map(r => <li key={r.value}>{r.value} × {r.count}</li>)}
+              </ul>
+            : <div className="grim-caveat">No exact value repeats more than once.</div>}
+          <div className="grim-caveat">{d.duplicate_values.note}</div>
+          {paperId != null && <button className="btn-link" onClick={save}>Save this check</button>}
+        </div>}
+      {paperId != null && saved.checks.length > 0 &&
+        <div className="grim-saved-list">
+          <p className="eyebrow">Saved checks — this paper</p>
+          {saved.checks.map(c =>
+            <div className="grim-saved-item" key={c.id}>
+              <span className="grim-saved-desc">{c.label || `${c.values.length} values, ${c.duplicate_values.repeats.length} repeat${c.duplicate_values.repeats.length === 1 ? "" : "s"}`}</span>
+              <small className="grim-saved-date">{c.created_at ? c.created_at.slice(0, 10) : ""}</small>
+              <button className="btn-icon" title="Remove this saved check" aria-label="Remove this saved check"
+                onClick={() => removeSaved(c.id)}>×</button>
+            </div>)}
+        </div>}
+      <div className="method-credit">
+        <b>Method:</b> a repeated-value counter — cf. <i>scrutiny</i>'s <code>duplicate_count</code>/<code>duplicate_tally</code> (Lukas Jung).
+        <div className="method-credit-sub">No canonical paper exists — a software-only reference implementation, not a citable method like GRIM/GRIMMER/DEBIT above.</div>
         <LakensCredit />
       </div>
     </div>
   );
 }
 
-registerPaneSection({ id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true, render: (ctx) => <><GrimSection ctx={ctx} /><DebitSection ctx={ctx} /></> });
+registerPaneSection({ id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true, render: (ctx) => <><GrimSection ctx={ctx} /><DebitSection ctx={ctx} /><DuplicateValuesSection ctx={ctx} /></> });

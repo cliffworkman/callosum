@@ -58,6 +58,7 @@ from app.backend.api.routers import (
     methods_ajol,
     methods_bayes,
     methods_debit_saved,
+    methods_duplicate_values,
     methods_grim_saved,
     methods_retraction,
     methods_statcheck_cache,
@@ -370,6 +371,9 @@ def create_app(
     api.include_router(
         methods_debit_saved.router
     )  # /papers/{id}/debit-checks — saved DEBIT checks, split from methods.py (inc 467)
+    api.include_router(
+        methods_duplicate_values.router
+    )  # /methods/duplicate-values, /papers/{id}/duplicate-value-checks — repeated-values checker (inc 469)
     api.include_router(
         methods_retraction.router
     )  # /methods/retraction/* — retraction findings, split from methods.py (inc 261)

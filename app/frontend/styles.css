@@ -927,6 +927,10 @@
   .grim-k { font-family: var(--mono); font-size: 11px; color: var(--ink-3); width: 64px; }
   .grim-near { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
   .grim-caveat { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin: 6px 0; }
+  /* inc 469: repeated-values checker — a wider paste area (not the fixed-64px .grim-in) and a plain, neutral
+     list (deliberately NOT .cite-status verified/flagged — no pill, no verdict; see rule #9 note in the JSX). */
+  .duplicate-values-in { width: 100%; max-width: 320px; resize: vertical; }
+  .duplicate-values-list { font-family: var(--mono); font-size: 12px; color: var(--ink); margin: 6px 0; padding-left: 18px; }
   /* inc 401: the saved-checks log — a small per-paper list of past GRIM/GRIMMER checks, recalled whenever this
      section is open for that paper. */
   .grim-saved-list { margin: 10px 0; display: flex; flex-direction: column; gap: 2px; }

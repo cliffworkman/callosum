@@ -451,6 +451,11 @@ from app.backend.persistence.schema_critical_review import critical_review_candi
 
 # Per-paper saved DEBIT checks (inc 467) — an append-only user-curated log, mirroring paper_grim_checks.
 from app.backend.persistence.schema_debit_checks import paper_debit_checks  # noqa: E402,F401
+
+# Per-paper saved repeated-values checks (inc 469) — an append-only user-curated log, mirroring paper_debit_checks.
+from app.backend.persistence.schema_duplicate_value_checks import (  # noqa: E402,F401
+    paper_duplicate_value_checks,
+)
 from app.backend.persistence.schema_feed import feed_items, feed_subscriptions  # noqa: E402,F401
 from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     agent_writes,
