@@ -28,6 +28,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import callosum_cite as cc  # noqa: E402  (after sys.path injection, matching selftest_uno.py's own convention)
+from a11y import enter_activates, focus_first, labeled_field, set_tab_order  # noqa: E402
 
 PREVIEW_MAX = 400  # cap the rendered-preview text length shown in the dialog
 
@@ -84,35 +85,32 @@ def _edit_item_options(ctx, item: dict) -> dict | None:
     def _label(name, x, y, w, h, text):
         lbl = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
         lbl.PositionX, lbl.PositionY, lbl.Width, lbl.Height, lbl.Label = x, y, w, h, text
+        lbl.Tabstop = False
         dm.insertByName(name, lbl)
 
     _label("subtitle", 6, 6, 308, 12, item["row"][:70])
 
-    _label("label_lbl", 6, 24, 90, 12, "Locator label:")
     label_box = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
     label_box.PositionX, label_box.PositionY, label_box.Width, label_box.Height = 100, 22, 120, 60
     label_box.Dropdown = True
     label_options = ("(none)", *cc.CSL_LOCATOR_LABELS)
     label_box.StringItemList = label_options
-    dm.insertByName("label", label_box)
+    labeled_field(dm, "label_lbl", "label", 6, 24, 90, 12, "Locator label:", label_box, 0)
 
-    _label("locator_lbl", 6, 44, 90, 12, "Locator value:")
     locator_edit = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
     locator_edit.PositionX, locator_edit.PositionY, locator_edit.Width, locator_edit.Height = 100, 42, 214, 14
     locator_edit.Text = item.get("locator") or ""
-    dm.insertByName("locator", locator_edit)
+    labeled_field(dm, "locator_lbl", "locator", 6, 44, 90, 12, "Locator value:", locator_edit, 2)
 
-    _label("prefix_lbl", 6, 64, 90, 12, "Prefix:")
     prefix_edit = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
     prefix_edit.PositionX, prefix_edit.PositionY, prefix_edit.Width, prefix_edit.Height = 100, 62, 214, 14
     prefix_edit.Text = item.get("prefix") or ""
-    dm.insertByName("prefix", prefix_edit)
+    labeled_field(dm, "prefix_lbl", "prefix", 6, 64, 90, 12, "Prefix:", prefix_edit, 4)
 
-    _label("suffix_lbl", 6, 84, 90, 12, "Suffix:")
     suffix_edit = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
     suffix_edit.PositionX, suffix_edit.PositionY, suffix_edit.Width, suffix_edit.Height = 100, 82, 214, 14
     suffix_edit.Text = item.get("suffix") or ""
-    dm.insertByName("suffix", suffix_edit)
+    labeled_field(dm, "suffix_lbl", "suffix", 6, 84, 90, 12, "Suffix:", suffix_edit, 6)
 
     suppress_box = dm.createInstance("com.sun.star.awt.UnoControlCheckBoxModel")
     suppress_box.PositionX, suppress_box.PositionY, suppress_box.Width, suppress_box.Height = 6, 104, 150, 14
@@ -148,6 +146,8 @@ def _edit_item_options(ctx, item: dict) -> dict | None:
     cancel_btn.PositionX, cancel_btn.PositionY, cancel_btn.Width, cancel_btn.Height = 234, 190, 80, 18
     cancel_btn.Label, cancel_btn.PushButtonType = "Cancel", 2
     dm.insertByName("cancel", cancel_btn)
+
+    set_tab_order(dm, ["suppress_author", "author_only", "clear", "ok", "cancel"], start=8)
 
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dm)
@@ -194,6 +194,7 @@ def _edit_item_options(ctx, item: dict) -> dict | None:
     author_only_ctrl.addItemListener(_MutexListener(author_only_ctrl, suppress_ctrl))
     dialog.getControl("clear").addActionListener(_ClearListener())
 
+    focus_first(dialog, "label")
     result = dialog.execute()  # 1 == OK
     updated = None
     if result == 1:
@@ -252,6 +253,7 @@ def run_composer_dialog(doc, base: str, existing_items: list[dict] | None = None
         lbl.PositionX, lbl.PositionY, lbl.Width, lbl.Height, lbl.Label = x, y, w, h, text
         if multiline:
             lbl.MultiLine = True
+        lbl.Tabstop = False
         dm.insertByName(name, lbl)
         return lbl
 
@@ -267,13 +269,12 @@ def run_composer_dialog(doc, base: str, existing_items: list[dict] | None = None
     )
 
     query = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
-    query.PositionX, query.PositionY, query.Width, query.Height, query.Text = 6, 26, 368, 14, ""
-    dm.insertByName("query", query)
+    query.PositionX, query.PositionY, query.Width, query.Height, query.Text = 60, 26, 314, 14, ""
+    labeled_field(dm, "query_lbl", "query", 6, 28, 50, 12, "Search:", query, 0)
 
-    _label("results_lbl", 6, 44, 300, 12, "Search results:")
     results = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
     results.PositionX, results.PositionY, results.Width, results.Height = 6, 56, 368, 58
-    dm.insertByName("results", results)
+    labeled_field(dm, "results_lbl", "results", 6, 44, 300, 12, "Search results:", results, 2)
 
     add_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     add_btn.PositionX, add_btn.PositionY, add_btn.Width, add_btn.Height, add_btn.Label = 6, 118, 88, 16, "Add →"
@@ -307,16 +308,16 @@ def run_composer_dialog(doc, base: str, existing_items: list[dict] | None = None
     down_btn.PositionX, down_btn.PositionY, down_btn.Width, down_btn.Height, down_btn.Label = 98, 136, 88, 16, "Move ↓"
     dm.insertByName("move_down", down_btn)
 
-    _label("assembly_lbl", 6, 156, 300, 12, "Citing (0):")
+    set_tab_order(dm, ["add", "remove", "options", "move_up", "move_down"], start=4)
+
     assembly = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
     assembly.PositionX, assembly.PositionY, assembly.Width, assembly.Height = 6, 168, 368, 58
-    dm.insertByName("assembly", assembly)
+    labeled_field(dm, "assembly_lbl", "assembly", 6, 156, 300, 12, "Citing (0):", assembly, 9)
 
-    _label("preview_lbl", 6, 230, 300, 12, "Preview (as it will render):")
     preview = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
     preview.PositionX, preview.PositionY, preview.Width, preview.Height = 6, 242, 368, 40
-    preview.MultiLine, preview.ReadOnly = True, True
-    dm.insertByName("preview", preview)
+    preview.MultiLine, preview.ReadOnly, preview.Tabstop = True, True, False
+    labeled_field(dm, "preview_lbl", "preview", 6, 230, 300, 12, "Preview (as it will render):", preview, 11)
 
     insert_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     insert_btn.PositionX, insert_btn.PositionY, insert_btn.Width, insert_btn.Height = 214, 288, 74, 18
@@ -327,6 +328,8 @@ def run_composer_dialog(doc, base: str, existing_items: list[dict] | None = None
     cancel_btn.PositionX, cancel_btn.PositionY, cancel_btn.Width, cancel_btn.Height = 294, 288, 80, 18
     cancel_btn.Label, cancel_btn.PushButtonType = "Cancel", 2
     dm.insertByName("cancel", cancel_btn)
+
+    set_tab_order(dm, ["insert", "cancel"], start=13)
 
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dm)
@@ -426,10 +429,16 @@ def run_composer_dialog(doc, base: str, existing_items: list[dict] | None = None
     dialog.getControl("move_up").addActionListener(_ActionListener(lambda: do_move(-1)))
     dialog.getControl("move_down").addActionListener(_ActionListener(lambda: do_move(1)))
 
+    # Zotero's documented "a second Enter inserts the citation" pattern: Enter while a result/assembly row has
+    # focus does what the adjacent Add/Remove button does, without requiring a mouse or an extra Tab.
+    enter_activates(results_ctrl, do_add)
+    enter_activates(assembly_ctrl, do_remove)
+
     if editing:
         _refresh_assembly_listbox()
         refresh_preview()
 
+    focus_first(dialog, "query")
     result = dialog.execute()  # 1 == Insert/Update (PushButtonType), 0/2 == Cancel
     items = [{"paper_id": it["paper_id"], **_item_overrides(it)} for it in state["assembly"]] if result == 1 else []
     dialog.dispose()

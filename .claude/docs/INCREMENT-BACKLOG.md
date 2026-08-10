@@ -94,8 +94,7 @@ the Principles + A-A gates before build.)*
   infrastructure this project doesn't have yet.
 - **#33/#34 Citation & bibliography engine + plugins — the LibreOffice adapter's next phase.** The full P0/P1/P2
   build-out (incs 106-464) is shipped (`INCREMENT-BACKLOG-DONE.md`). **Still genuinely open:**
-  - Traveling-library portability + comprehensive keyboard/screen-reader accessibility (named P1 future tracks,
-    never scheduled).
+  - Traveling-library portability (named a P1 future track, never scheduled).
   - **#43** a true Google Workspace Marketplace one-click install (its own project — GCP project, OAuth
     verification, a public privacy policy, Google app review; likely overkill for a local-first single-user
     tool — build only if it becomes worth the ongoing maintenance cost).

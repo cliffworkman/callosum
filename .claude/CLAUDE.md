@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 473** (see Increment workflow) with **2098 root-suite pytest tests
+It is currently at **Increment 474** (see Increment workflow) with **2098 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -382,6 +382,16 @@ the full per-increment narrative for all other increments now lives in the reloc
   bibliography TextSection for a callosum-managed one via the unchanged `refresh()`. Zotero's Bookmark-mode
   fallback storage (an unverified internal format) and note-style Zotero citations are detected and counted but
   not converted — disclosed in both the confirm dialog and the summary, never silently dropped.
+  **Inc 474** closes backlog #33/#34's long-open keyboard/screen-reader accessibility item: all 13 UNO
+  dialog-construction sites (`composer.py`, `callosum_cite.py`, `citations_panel.py`, `evidence_insert.py`) now
+  give LibreOffice's own accessibility bridge a real field name, a real Tab order, and initial focus on open,
+  plus Enter-to-add/remove in the composer (Zotero's own shortcut) — via a new shared `a11y.py` module. Found
+  and fixed a real bug before ship: an assumed `LabelControl` property doesn't exist on plain AWT dialog
+  controls (only on the separate *forms* API); the real, empirically-verified mechanism is a `TabIndex`-adjacent,
+  `Tabstop=False` `FixedText` label, which VCL's accessibility bridge auto-detects. Proven headless via a new
+  `spike_dialog_accessibility_wiring` (real `AccessibleName` + a real `XKeyListener`); real focus-landing and
+  screen-reader announcement need the manual script (real `--headless` soffice grants no window real OS focus
+  at all, confirmed empirically, so that half can't be headlessly proven).
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -940,7 +950,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 473). Each increment of real work
+callosum is built in **numbered increments** (currently at 474). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

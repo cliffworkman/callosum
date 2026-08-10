@@ -4306,6 +4306,11 @@ def _choose_citation_source(
     """Show a bounded single-select source list; return the chosen source or None when cancelled."""
     if not choices:
         return None
+    import sys
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from a11y import focus_first, set_tab_order
+
     smgr = _component_ctx().ServiceManager
     ctx = _component_ctx()
     dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
@@ -4313,12 +4318,15 @@ def _choose_citation_source(
     label = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
     label.PositionX, label.PositionY, label.Width, label.Height, label.Label = 6, 6, 348, 24, prompt
     label.MultiLine = True
+    label.TabIndex = 0
+    label.Tabstop = False
     dm.insertByName("lbl", label)
     source_list = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
     source_list.PositionX, source_list.PositionY, source_list.Width, source_list.Height = 6, 34, 348, 108
     source_list.Dropdown = False
     source_list.MultiSelection = False
     source_list.StringItemList = tuple(choice["row"] for choice in choices)
+    source_list.TabIndex = 1
     dm.insertByName("sources", source_list)
     ok = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     ok.PositionX, ok.PositionY, ok.Width, ok.Height, ok.Label, ok.PushButtonType = (
@@ -4340,12 +4348,14 @@ def _choose_citation_source(
         2,
     )
     dm.insertByName("cancel", cancel)
+    set_tab_order(dm, ["ok", "cancel"], start=2)
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dm)
     toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
     dialog.createPeer(toolkit, None)
     control = dialog.getControl("sources")
     control.selectItemPos(0, True)
+    focus_first(dialog, "sources")
     result = dialog.execute()
     position = control.getSelectedItemPos() if result == 1 else -1
     dialog.dispose()
@@ -4440,16 +4450,18 @@ def _current_doc():
 
 def _input_box(doc, title: str, prompt: str, default: str = "") -> str | None:
     """A minimal modal text-input dialog (UNO has no native input box). Returns the string, or None if cancelled."""
+    import sys
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from a11y import focus_first, labeled_field, set_tab_order
+
     smgr = _component_ctx().ServiceManager
     ctx = _component_ctx()
     dialog_model = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
     dialog_model.Width, dialog_model.Height, dialog_model.Title = 200, 70, title
-    label = dialog_model.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
-    label.PositionX, label.PositionY, label.Width, label.Height, label.Label = 6, 6, 188, 20, prompt
-    dialog_model.insertByName("lbl", label)
     edit = dialog_model.createInstance("com.sun.star.awt.UnoControlEditModel")
     edit.PositionX, edit.PositionY, edit.Width, edit.Height, edit.Text = 6, 28, 188, 14, default
-    dialog_model.insertByName("edit", edit)
+    labeled_field(dialog_model, "lbl", "edit", 6, 6, 188, 20, prompt, edit, 0)
     ok = dialog_model.createInstance("com.sun.star.awt.UnoControlButtonModel")
     ok.PositionX, ok.PositionY, ok.Width, ok.Height, ok.Label, ok.PushButtonType = 110, 50, 40, 14, "OK", 1
     dialog_model.insertByName("ok", ok)
@@ -4463,10 +4475,12 @@ def _input_box(doc, title: str, prompt: str, default: str = "") -> str | None:
         2,
     )
     dialog_model.insertByName("cancel", cancel)
+    set_tab_order(dialog_model, ["ok", "cancel"], start=2)
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dialog_model)
     toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
     dialog.createPeer(toolkit, None)
+    focus_first(dialog, "edit")
     result = dialog.execute()  # 1 == OK
     value = dialog.getControl("edit").getModel().Text if result == 1 else None
     dialog.dispose()
@@ -4481,18 +4495,20 @@ def _choice_box(
     current_value: str,
 ) -> str | None:
     """Small modal dropdown for a bounded setting; returns its stable value or None when cancelled."""
+    import sys
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from a11y import focus_first, labeled_field, set_tab_order
+
     smgr = _component_ctx().ServiceManager
     ctx = _component_ctx()
     dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
     dm.Width, dm.Height, dm.Title = 220, 72, title
-    label = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
-    label.PositionX, label.PositionY, label.Width, label.Height, label.Label = 6, 6, 208, 18, prompt
-    dm.insertByName("lbl", label)
     choices = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
     choices.PositionX, choices.PositionY, choices.Width, choices.Height = 6, 26, 208, 28
     choices.Dropdown = True
     choices.StringItemList = tuple(option[0] for option in options)
-    dm.insertByName("choices", choices)
+    labeled_field(dm, "lbl", "choices", 6, 6, 208, 18, prompt, choices, 0)
     ok = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     ok.PositionX, ok.PositionY, ok.Width, ok.Height, ok.Label, ok.PushButtonType = 130, 52, 40, 14, "OK", 1
     dm.insertByName("ok", ok)
@@ -4506,6 +4522,7 @@ def _choice_box(
         2,
     )
     dm.insertByName("cancel", cancel)
+    set_tab_order(dm, ["ok", "cancel"], start=2)
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dm)
     toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
@@ -4513,6 +4530,7 @@ def _choice_box(
     control = dialog.getControl("choices")
     selected = next((index for index, option in enumerate(options) if option[1] == current_value), 0)
     control.selectItemPos(selected, True)
+    focus_first(dialog, "choices")
     result = dialog.execute()
     position = control.getSelectedItemPos() if result == 1 else -1
     dialog.dispose()
@@ -4535,8 +4553,13 @@ def _section_bibliographies_dialog(
     damaged_count: int,
 ) -> tuple[str, str | None] | None:
     """Return ``(go|remove|remove_all, id)`` from the bounded section-bibliography manager."""
+    import sys
+
     import unohelper
     from com.sun.star.awt import XActionListener
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from a11y import focus_first, set_tab_order
 
     if not summaries:
         return None
@@ -4564,11 +4587,14 @@ def _section_bibliographies_dialog(
         else " Select one to jump to or remove."
     )
     label.MultiLine = True
+    label.TabIndex = 0
+    label.Tabstop = False
     dm.insertByName("label", label)
     section_list = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
     section_list.PositionX, section_list.PositionY, section_list.Width, section_list.Height = 6, 34, 408, 116
     section_list.MultiSelection = False
     section_list.StringItemList = tuple(summary["row"] for summary in summaries)
+    section_list.TabIndex = 1
     dm.insertByName("sections", section_list)
 
     for name, x, width, text in (
@@ -4583,6 +4609,7 @@ def _section_bibliographies_dialog(
     close.PositionX, close.PositionY, close.Width, close.Height = 340, 160, 74, 18
     close.Label, close.PushButtonType = "Close", 2
     dm.insertByName("close", close)
+    set_tab_order(dm, ["goto", "remove", "remove_all", "close"], start=2)
 
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dm)
@@ -4590,6 +4617,7 @@ def _section_bibliographies_dialog(
     dialog.createPeer(toolkit, None)
     list_control = dialog.getControl("sections")
     list_control.selectItemPos(0, True)
+    focus_first(dialog, "sections")
     state = {"action": None, "identifier": None}
 
     def choose(action: str) -> None:
@@ -4697,8 +4725,13 @@ def _suggestion_detail_dialog(base: str, item: dict, current_locator: str | None
     and an Open-in-PDF button. Mirrors `composer.py::_edit_item_options`'s exact "returns on OK, discard on
     Cancel" contract. Returns ``(changed, locator)`` -- `changed` is True only on OK, so the caller can leave
     any existing override untouched on Cancel/close."""
+    import sys
+
     import unohelper
     from com.sun.star.awt import XActionListener
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from a11y import focus_first, labeled_field, set_tab_order
 
     ctx = _component_ctx()
     smgr = ctx.ServiceManager
@@ -4709,6 +4742,7 @@ def _suggestion_detail_dialog(base: str, item: dict, current_locator: str | None
         lbl = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
         lbl.PositionX, lbl.PositionY, lbl.Width, lbl.Height, lbl.Label = x, y, w, h, text
         lbl.MultiLine = h > 14
+        lbl.Tabstop = False
         dm.insertByName(name, lbl)
 
     author = str(item.get("author") or "").strip()
@@ -4717,9 +4751,10 @@ def _suggestion_detail_dialog(base: str, item: dict, current_locator: str | None
     _label("subtitle", 6, 6, 348, 12, who[:80])
 
     quote_box = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
-    quote_box.PositionX, quote_box.PositionY, quote_box.Width, quote_box.Height = 6, 22, 348, 58
-    quote_box.MultiLine, quote_box.ReadOnly, quote_box.Text = True, True, str(item.get("quote") or "")
-    dm.insertByName("quote", quote_box)
+    quote_box.PositionX, quote_box.PositionY, quote_box.Width, quote_box.Height = 6, 30, 348, 50
+    quote_box.MultiLine, quote_box.ReadOnly, quote_box.Tabstop = True, True, False
+    quote_box.Text = str(item.get("quote") or "")
+    labeled_field(dm, "quote_lbl", "quote", 6, 20, 60, 9, "Quote:", quote_box, 0)
 
     page_start, page_end = item.get("page_start"), item.get("page_end")
     page_text = f"Page {page_start}" if page_start else "Page unknown"
@@ -4737,11 +4772,10 @@ def _suggestion_detail_dialog(base: str, item: dict, current_locator: str | None
     )
     _label("warning", 6, 140, 348, 22, warning)
 
-    _label("locator_lbl", 6, 166, 90, 12, "Page locator:")
     locator_edit = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
     locator_edit.PositionX, locator_edit.PositionY, locator_edit.Width, locator_edit.Height = 100, 164, 254, 14
     locator_edit.Text = current_locator if current_locator is not None else (_auto_locator(item) or "")
-    dm.insertByName("locator", locator_edit)
+    labeled_field(dm, "locator_lbl", "locator", 6, 166, 90, 12, "Page locator:", locator_edit, 2)
 
     open_pdf_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     open_pdf_btn.PositionX, open_pdf_btn.PositionY, open_pdf_btn.Width, open_pdf_btn.Height = 6, 186, 100, 18
@@ -4757,6 +4791,8 @@ def _suggestion_detail_dialog(base: str, item: dict, current_locator: str | None
     cancel_btn.PositionX, cancel_btn.PositionY, cancel_btn.Width, cancel_btn.Height = 280, 232, 74, 18
     cancel_btn.Label, cancel_btn.PushButtonType = "Cancel", 2
     dm.insertByName("cancel", cancel_btn)
+
+    set_tab_order(dm, ["open_pdf", "ok", "cancel"], start=4)
 
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dm)
@@ -4778,6 +4814,7 @@ def _suggestion_detail_dialog(base: str, item: dict, current_locator: str | None
 
     dialog.getControl("open_pdf").addActionListener(_OpenPdfListener())
 
+    focus_first(dialog, "locator")
     result = dialog.execute()  # 1 == OK
     dialog.dispose()
     if result != 1:
@@ -4812,8 +4849,13 @@ def _suggest_dialog(doc, base: str, text: str) -> list[tuple[str, dict, str | No
     Returns a list of ``(kind, item, locator_override)`` for every picked row — `kind` is ``"library"`` or
     ``"beyond"``, `locator_override` is whatever was set via Details (or None, meaning "use the auto pre-fill")
     — or None if nothing was picked / the selection was invalid (mixed kinds)."""
+    import sys
+
     import unohelper
     from com.sun.star.awt import XActionListener, XItemListener
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from a11y import focus_first, labeled_field, set_tab_order
 
     ctx = _component_ctx()
     smgr = ctx.ServiceManager
@@ -4824,13 +4866,14 @@ def _suggest_dialog(doc, base: str, text: str) -> list[tuple[str, dict, str | No
     label.PositionX, label.PositionY, label.Width, label.Height = 6, 6, 348, 22
     label.Label = _SUGGEST_CAVEAT
     label.MultiLine = True
+    label.Tabstop = False
     dm.insertByName("lbl", label)
 
     lst = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
-    lst.PositionX, lst.PositionY, lst.Width, lst.Height = 6, 32, 348, 108
+    lst.PositionX, lst.PositionY, lst.Width, lst.Height = 6, 40, 348, 100
     lst.Dropdown = False
     lst.MultiSelection = True
-    dm.insertByName("list", lst)
+    labeled_field(dm, "list_lbl", "list", 6, 30, 100, 9, "Suggestions:", lst, 0)
 
     beyond_box = dm.createInstance("com.sun.star.awt.UnoControlCheckBoxModel")
     beyond_box.PositionX, beyond_box.PositionY, beyond_box.Width, beyond_box.Height = 6, 144, 320, 14
@@ -4860,6 +4903,8 @@ def _suggest_dialog(doc, base: str, text: str) -> list[tuple[str, dict, str | No
         2,
     )
     dm.insertByName("cancel", cancel)
+
+    set_tab_order(dm, ["beyond", "details", "saveLater", "ok", "cancel"], start=2)
 
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dm)
@@ -4942,6 +4987,7 @@ def _suggest_dialog(doc, base: str, text: str) -> list[tuple[str, dict, str | No
     dialog.getControl("details").addActionListener(_DetailsListener())
     dialog.getControl("saveLater").addActionListener(_SaveForLaterListener())
 
+    focus_first(dialog, "list")
     result_code = dialog.execute()  # 1 == Insert
     positions = list(list_ctrl.getSelectedItemsPos()) if result_code == 1 else []
     dialog.dispose()

@@ -233,6 +233,15 @@ The managed heading is a bounded per-document user property; blank means the def
 inserted through Writer's plain-text API as part of the same bounded bibliography block, never interpreted as
 markup.
 
+## Accessibility
+Every dialog (the composer, Suggest citations, the citations panel, Insert evidence, and every smaller
+picker/input box) has a real Tab order, an initial focus target, and a field name LibreOffice's own
+accessibility bridge (Windows Narrator, Linux Orca) can announce — matched to the keyboard-complete bar Zotero's
+own LibreOffice plugin sets. In the composer, pressing **Enter** while the results/assembly list has focus does
+what the adjacent button does (Add / Remove) — Zotero's own "a second Enter inserts the citation" shortcut.
+This is table-stakes keyboard/screen-reader support for the adapter's own dialogs, not a broader accessibility
+audit of Writer itself.
+
 ## Testing
 Real UNO mutation logic (inserting/editing marks, the bibliography rebuild, flatten, …) isn't meaningfully
 fakeable, so it's proven against a real headless LibreOffice + a real callosum server instead of pytest:

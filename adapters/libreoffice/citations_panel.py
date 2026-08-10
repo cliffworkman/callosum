@@ -100,6 +100,7 @@ def _category_picker_options(
 def run_category_order_dialog(doc, base: str) -> bool:
     """Reorder active document categories, or reset to the alphabetical default; return whether Save was used."""
     import unohelper
+    from a11y import focus_first, set_tab_order
     from com.sun.star.awt import XActionListener
 
     alphabetical = sorted(set(cc.bibliography_categories(doc).values()), key=str.casefold)
@@ -132,10 +133,13 @@ def run_category_order_dialog(doc, base: str) -> bool:
         14,
         "Move categories into document order. Unassigned works remain last.",
     )
+    label.TabIndex = 0
+    label.Tabstop = False
     dm.insertByName("label", label)
 
     category_list = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
     category_list.PositionX, category_list.PositionY, category_list.Width, category_list.Height = 6, 24, 190, 116
+    category_list.TabIndex = 1
     dm.insertByName("categories", category_list)
 
     up_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
@@ -171,12 +175,14 @@ def run_category_order_dialog(doc, base: str) -> bool:
     cancel_btn.PositionX, cancel_btn.PositionY, cancel_btn.Width, cancel_btn.Height = 228, 166, 46, 18
     cancel_btn.Label, cancel_btn.PushButtonType = "Cancel", 2
     dm.insertByName("cancel", cancel_btn)
+    set_tab_order(dm, ["move_up", "move_down", "reset", "save", "cancel"], start=2)
 
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dm)
     toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
     dialog.createPeer(toolkit, None)
     list_ctrl = dialog.getControl("categories")
+    focus_first(dialog, "categories")
     state = {"order": list(current)}
 
     def refresh_list(selected: int = 0):
@@ -224,6 +230,7 @@ def run_citations_panel(doc, base: str):
     ReferenceMark if the user selected a cited work and clicked "Go to", else None — the caller (not this
     module) does the actual navigation, mirroring `composer.py::run_composer_dialog`'s own contract."""
     import unohelper
+    from a11y import focus_first, labeled_field, set_tab_order
     from com.sun.star.awt import XActionListener, XTextListener
 
     ctx = cc._component_ctx()
@@ -258,7 +265,6 @@ def run_citations_panel(doc, base: str):
         dm.insertByName(name, lbl)
         return lbl
 
-    _label("filter_lbl", 6, 6, 60, 12, "Filter:")
     filter_box = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
     filter_box.PositionX, filter_box.PositionY, filter_box.Width, filter_box.Height, filter_box.Text = (
         70,
@@ -267,13 +273,16 @@ def run_citations_panel(doc, base: str):
         14,
         "",
     )
-    dm.insertByName("filter", filter_box)
+    labeled_field(dm, "filter_lbl", "filter", 6, 6, 60, 12, "Filter:", filter_box, 0)
 
-    _label("count_lbl", 6, 22, 408, 12, "")
+    count_lbl = _label("count_lbl", 6, 22, 408, 12, "")
+    count_lbl.TabIndex = 2
+    count_lbl.Tabstop = False
 
     results = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
     results.PositionX, results.PositionY, results.Width, results.Height = 6, 36, 408, 200
     results.MultiSelection = True
+    results.TabIndex = 3
     dm.insertByName("results", results)
 
     goto_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
@@ -325,11 +334,17 @@ def run_citations_panel(doc, base: str):
     close_btn.PositionX, close_btn.PositionY, close_btn.Width, close_btn.Height = 340, 266, 74, 18
     close_btn.Label, close_btn.PushButtonType = "Close", 2
     dm.insertByName("close", close_btn)
+    set_tab_order(
+        dm,
+        ["goto", "exclude", "category", "add_uncited", "category_order", "view_evidence", "close"],
+        start=4,
+    )
 
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dm)
     toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
     dialog.createPeer(toolkit, None)
+    focus_first(dialog, "filter")
 
     filter_ctrl = dialog.getControl("filter")
     results_ctrl = dialog.getControl("results")

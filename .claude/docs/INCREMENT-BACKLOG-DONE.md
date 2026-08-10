@@ -372,9 +372,15 @@ new work goes in the open backlog.
   (#20), open-science statement insertion (#21), citation coverage audit (#18), and Zotero-to-callosum
   conversion (#22). Full narrative for any specific increment: its own `increment-notes/INCREMENT-NNN-NOTES.md`
   (106-464 span this arc) — not re-narrated here.
-  *(Still genuinely open — see open backlog #33/#34: traveling-library portability + keyboard/screen-reader
-  accessibility; #43 the Google Workspace Marketplace one-click install; the recorded Word/Google-Docs feature-
-  parity future goal.)*
+  *(Still genuinely open — see open backlog #33/#34: traveling-library portability; #43 the Google Workspace
+  Marketplace one-click install; the recorded Word/Google-Docs feature-parity future goal.)*
+- [x] **#33/#34 keyboard/screen-reader accessibility pass** (inc 474, round 3 item #3). All 13 UNO
+  dialog-construction sites gained a real Tab order, initial focus, LibreOffice-accessibility-bridge field
+  names (via `a11y.py`'s `TabIndex`-adjacent `Tabstop=False` label pattern — VCL's real mechanism, found by
+  probing the actual installed LibreOffice after a `LabelControl`-property first attempt crashed real-UNO),
+  and Enter-to-add/remove in the composer (Zotero's own shortcut). New `spike_dialog_accessibility_wiring`
+  proves it against real `AccessibleName`/`XKeyListener` behavior; real per-keystroke Tab traversal and
+  screen-reader announcement still need the manual script in `INCREMENT-474-NOTES.md`.
 - [x] **#35 My Publications — Layer 4, deterministic grounded prospection** (inc 386, 389, 390, 391) — grounded
   citation gaps (OpenAlex works citing shared reference anchors); domain-union scoping; grounded emerging citing
   topics (equal three-year windows, visible count differences); grounded citing-author connections (stable

@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-10 — Increment 474: LibreOffice adapter keyboard/screen-reader accessibility pass (round 3, item #3)
+- **Files:** `adapters/libreoffice/a11y.py` (new), `composer.py`, `callosum_cite.py`, `citations_panel.py`,
+  `evidence_insert.py`, `selftest_uno.py`, `README.md`.
+- **What:** all 13 UNO dialog-construction sites now give LibreOffice's accessibility bridge a real field name
+  (via `TabIndex`-adjacent, `Tabstop=False` `FixedText` labels — VCL's real mechanism, empirically confirmed
+  against the actual installed LibreOffice after a first attempt using a nonexistent `LabelControl` property
+  crashed the real-UNO spike), a real Tab order, initial focus on open, and — in the composer — Enter-to-add/
+  remove on the results/assembly lists (Zotero's own documented shortcut). New
+  `spike_dialog_accessibility_wiring` proves the wiring against real `AccessibleName`/`XKeyListener` behavior.
+- **Why:** round 3 item #3 (memory `callosum-next5-backlog-roadmap-round3`) — backlog #33/#34's long-open
+  P1 accessibility item, "never scheduled."
+- **Revert:** `git revert` the increment 474 commit; `a11y.py` is new and additive, the rest are mechanical
+  per-dialog edits.
+
 ## 2026-08-10 — Round 3, item #2: #24 Bayesian ANOVA/regression BF recheck, confirmed still blocked
 - **Files:** `.claude/docs/INCREMENT-BACKLOG.md`.
 - **What:** re-verified (not assumed) whether a trusted anchor for ANOVA/regression Bayes factors had emerged

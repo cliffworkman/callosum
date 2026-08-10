@@ -158,6 +158,7 @@ def _paper_search_dialog(ctx, base: str) -> dict | None:
     reinvented) for a single pick instead of a multi-item assembly. Returns the chosen search-result dict
     (``{"id", ...}``) or None on cancel/nothing picked."""
     import unohelper
+    from a11y import focus_first, labeled_field, set_tab_order
     from com.sun.star.awt import XTextListener
 
     smgr = ctx.ServiceManager
@@ -167,16 +168,18 @@ def _paper_search_dialog(ctx, base: str) -> dict | None:
     label = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
     label.PositionX, label.PositionY, label.Width, label.Height = 6, 6, 348, 14
     label.Label = "Search your library for the paper whose saved highlights you want to draw from."
+    label.TabIndex = 0
+    label.Tabstop = False
     dm.insertByName("lbl", label)
 
     query = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
-    query.PositionX, query.PositionY, query.Width, query.Height, query.Text = 6, 24, 348, 14, ""
-    dm.insertByName("query", query)
+    query.PositionX, query.PositionY, query.Width, query.Height, query.Text = 60, 24, 294, 14, ""
+    labeled_field(dm, "query_lbl", "query", 6, 26, 50, 12, "Search:", query, 1)
 
     results = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
-    results.PositionX, results.PositionY, results.Width, results.Height = 6, 42, 348, 108
+    results.PositionX, results.PositionY, results.Width, results.Height = 6, 56, 348, 94
     results.MultiSelection = False
-    dm.insertByName("results", results)
+    labeled_field(dm, "results_lbl", "results", 6, 42, 100, 12, "Results:", results, 3)
 
     ok = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     ok.PositionX, ok.PositionY, ok.Width, ok.Height, ok.Label, ok.PushButtonType = 262, 156, 44, 18, "Next", 1
@@ -191,11 +194,13 @@ def _paper_search_dialog(ctx, base: str) -> dict | None:
         2,
     )
     dm.insertByName("cancel", cancel)
+    set_tab_order(dm, ["ok", "cancel"], start=4)
 
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dm)
     toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
     dialog.createPeer(toolkit, None)
+    focus_first(dialog, "query")
 
     query_ctrl = dialog.getControl("query")
     results_ctrl = dialog.getControl("results")
@@ -225,6 +230,8 @@ def _paper_search_dialog(ctx, base: str) -> dict | None:
 def _annotation_list_dialog(ctx, paper_row: dict, annotations: list[dict]) -> dict | None:
     """Single-select list of a paper's saved highlights. Returns the chosen annotation dict, or None on
     cancel/nothing picked."""
+    from a11y import focus_first, set_tab_order
+
     smgr = ctx.ServiceManager
     dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
     dm.Width, dm.Height, dm.Title = 380, 220, "Insert evidence — pick a highlight"
@@ -232,12 +239,15 @@ def _annotation_list_dialog(ctx, paper_row: dict, annotations: list[dict]) -> di
     label = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
     label.PositionX, label.PositionY, label.Width, label.Height = 6, 6, 368, 14
     label.Label = str(paper_row.get("title") or "This paper")[:90]
+    label.TabIndex = 0
+    label.Tabstop = False
     dm.insertByName("lbl", label)
 
     lst = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
     lst.PositionX, lst.PositionY, lst.Width, lst.Height = 6, 24, 368, 150
     lst.MultiSelection = False
     lst.StringItemList = tuple(annotation_rows(annotations))
+    lst.TabIndex = 1
     dm.insertByName("list", lst)
 
     ok = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
@@ -253,11 +263,13 @@ def _annotation_list_dialog(ctx, paper_row: dict, annotations: list[dict]) -> di
         2,
     )
     dm.insertByName("cancel", cancel)
+    set_tab_order(dm, ["ok", "cancel"], start=2)
 
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dm)
     toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
     dialog.createPeer(toolkit, None)
+    focus_first(dialog, "list")
 
     list_ctrl = dialog.getControl("list")
     result = dialog.execute()
@@ -272,6 +284,7 @@ def _annotation_configure_dialog(ctx, base: str, annotation: dict) -> tuple[str,
     matching Suggest-citation/citation-integrity-preflight's own explicit-action convention), a format choice,
     and an editable pre-filled locator. Returns ``(format, locator)`` on Insert, else None."""
     import unohelper
+    from a11y import focus_first, labeled_field, set_tab_order
     from com.sun.star.awt import XActionListener
 
     smgr = ctx.ServiceManager
@@ -283,47 +296,50 @@ def _annotation_configure_dialog(ctx, base: str, annotation: dict) -> tuple[str,
         lbl.PositionX, lbl.PositionY, lbl.Width, lbl.Height, lbl.Label = x, y, w, h, text
         lbl.MultiLine = h > 14
         dm.insertByName(name, lbl)
+        return lbl
 
     page = annotation.get("page")
-    _label("subtitle", 6, 6, 368, 12, f"Page {page}" if page else "Page unknown")
+    subtitle = _label("subtitle", 6, 6, 368, 12, f"Page {page}" if page else "Page unknown")
+    subtitle.TabIndex = 0
+    subtitle.Tabstop = False
 
     quote_box = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
-    quote_box.PositionX, quote_box.PositionY, quote_box.Width, quote_box.Height = 6, 20, 368, 46
-    quote_box.MultiLine, quote_box.ReadOnly = True, True
+    quote_box.PositionX, quote_box.PositionY, quote_box.Width, quote_box.Height = 6, 30, 368, 36
+    quote_box.MultiLine, quote_box.ReadOnly, quote_box.Tabstop = True, True, False
     quote_box.Text = str(annotation.get("anchor_text") or "")
-    dm.insertByName("quote", quote_box)
+    labeled_field(dm, "quote_lbl", "quote", 6, 20, 60, 9, "Quote:", quote_box, 1)
 
     note_box = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
-    note_box.PositionX, note_box.PositionY, note_box.Width, note_box.Height = 6, 70, 368, 32
-    note_box.MultiLine, note_box.ReadOnly = True, True
+    note_box.PositionX, note_box.PositionY, note_box.Width, note_box.Height = 6, 80, 368, 22
+    note_box.MultiLine, note_box.ReadOnly, note_box.Tabstop = True, True, False
     note_box.Text = str(annotation.get("note") or "") or "(no note saved for this highlight)"
-    dm.insertByName("note", note_box)
+    labeled_field(dm, "note_lbl", "note", 6, 70, 60, 9, "Note:", note_box, 3)
 
-    _label("claim_lbl", 6, 106, 280, 12, "Claim to check (optional):")
     claim_edit = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
     claim_edit.PositionX, claim_edit.PositionY, claim_edit.Width, claim_edit.Height = 6, 120, 280, 14
     claim_edit.Text = ""
-    dm.insertByName("claim", claim_edit)
+    labeled_field(dm, "claim_lbl", "claim", 6, 106, 280, 12, "Claim to check (optional):", claim_edit, 5)
 
     check_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     check_btn.PositionX, check_btn.PositionY, check_btn.Width, check_btn.Height = 292, 118, 82, 18
     check_btn.Label = "Check stance"
+    check_btn.TabIndex = 7
     dm.insertByName("check", check_btn)
 
-    _label("stance", 6, 138, 368, 14, "")
+    stance = _label("stance", 6, 138, 368, 14, "")
+    stance.TabIndex = 8
+    stance.Tabstop = False
 
-    _label("format_lbl", 6, 158, 90, 12, "Insert as:")
     format_box = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
     format_box.PositionX, format_box.PositionY, format_box.Width, format_box.Height = 100, 156, 274, 60
     format_box.Dropdown = True
     format_box.StringItemList = tuple(label for _value, label in FORMATS)
-    dm.insertByName("format", format_box)
+    labeled_field(dm, "format_lbl", "format", 6, 158, 90, 12, "Insert as:", format_box, 9)
 
-    _label("locator_lbl", 6, 178, 90, 12, "Page locator:")
     locator_edit = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
     locator_edit.PositionX, locator_edit.PositionY, locator_edit.Width, locator_edit.Height = 100, 176, 274, 14
     locator_edit.Text = _annotation_locator(annotation) or ""
-    dm.insertByName("locator", locator_edit)
+    labeled_field(dm, "locator_lbl", "locator", 6, 178, 90, 12, "Page locator:", locator_edit, 11)
 
     insert_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     insert_btn.PositionX, insert_btn.PositionY, insert_btn.Width, insert_btn.Height = 226, 294, 70, 18
@@ -334,11 +350,13 @@ def _annotation_configure_dialog(ctx, base: str, annotation: dict) -> tuple[str,
     cancel_btn.PositionX, cancel_btn.PositionY, cancel_btn.Width, cancel_btn.Height = 302, 294, 72, 18
     cancel_btn.Label, cancel_btn.PushButtonType = "Cancel", 2
     dm.insertByName("cancel", cancel_btn)
+    set_tab_order(dm, ["insert", "cancel"], start=13)
 
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dm)
     toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
     dialog.createPeer(toolkit, None)
+    focus_first(dialog, "claim")
 
     format_ctrl = dialog.getControl("format")
     default_pos = next((i for i, (value, _label) in enumerate(FORMATS) if value == DEFAULT_FORMAT), 0)
