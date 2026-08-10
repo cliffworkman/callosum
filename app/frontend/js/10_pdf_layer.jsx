@@ -245,6 +245,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             {!trashView && <SavedSearchMenu searches={savedSearches} onApply={onApplySavedSearch} onSave={onSaveSearch} onDelete={onDeleteSavedSearch} />}
             {(showStatcheckChip || showRetractionChip || showTransparencyChip || showLmmChip || showMetaChip || showBayesChip) &&
               <span className="lib-chip-group lib-chip-signals" title="Check signals — a check detected something concrete on these papers">
+                <span className="lib-chip-group-label">Signals</span>
                 {showStatcheckChip &&
                   <button className="trash-toggle statcheck-chip" onClick={onShowStatcheckFlagged}
                     title="Papers where a reported p-value didn't recompute in the last statistics check — a signal to inspect, usually innocent (typos, rounding, one-tailed tests). Distinct from your review queue.">⚠ Flagged · {statcheckFlagged}</button>}
@@ -266,6 +267,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
               </span>}
             {showFindingsChip &&
               <span className="lib-chip-group lib-chip-queue" title="Your review queue — things for you to go look at; clears as you review">
+                <span className="lib-chip-group-label">To review</span>
                 {showFindingsChip &&
                   <button className="trash-toggle findings-chip" onClick={onShowFindingsToReview}
                     title="Findings you haven't marked reviewed yet — your review queue, separate from the check signals; open each paper's Review section">📋 Review · {findingsToReview}</button>}

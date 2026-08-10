@@ -9,7 +9,18 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-09 inc 467 — DEBIT consistency check -->
+<!-- HELP-DOCS-SYNCED: 2026-08-09 — statcheck signal/work-state duality clarification -->
+
+## 2026-08-09 — Round 2, item #2: statcheck signal/work-state duality clarification
+- **Files:** `app/backend/help/help_content.md`, `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/styles.css`.
+- **What:** research found collapsing the ⚠ flagged (fact) / 📋 to review (work-state) systems would violate
+  the facts-vs-candidates principle, so this closes a documentation + visual gap instead: a cross-reference
+  sentence in "Checking statistics" linking to "Reviewing findings" (a real working in-app anchor link,
+  `#help-reviewing-findings`), and a small "Signals" / "To review" label above each library-header chip group
+  (`.lib-chip-group-label`) so the two-systems distinction reads at a glance, not just on hover.
+- **Why:** item #2 of round 2 (memory `callosum-next5-backlog-roadmap-round2`). Cliff picked "doc fix + a small
+  visual cue" over collapsing, once the principle conflict was named.
+- **Revert:** additive/backward-compatible; no schema, no endpoint, no existing text removed.
 
 ## 2026-08-09 — Increment 468: Superuser capabilities — a reusable gate + Diagnostics (round 2, item #1)
 - **Files:** `app/backend/api/dependencies.py`, `app/backend/api/routers/diagnostics.py`,

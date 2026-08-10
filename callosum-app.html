@@ -1377,6 +1377,12 @@
      between, so the flagged-SIGNAL ≠ to-review-WORK-STATE distinction reads at a glance. */
   .lib-chip-group { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; min-width: 0; }
   .lib-chip-group.lib-chip-queue { padding-left: 10px; border-left: 1px solid var(--line); }
+  /* backlog round-2 #2: a glance-level label alongside the existing divider + tooltip, so the two chip groups
+     read as two systems (fact-signal vs. your-review-work-state) without requiring a hover to discover why. */
+  .lib-chip-group-label {
+    font-size: 9.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--ink-3); align-self: center;
+  }
   /* duplicate-detection modal (inc 56) — reuses .axis-modal* / .axis-link / .axis-danger */
   .dup-group { border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel); padding: 9px 11px; margin-bottom: 9px; }
   .dup-group-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
@@ -9549,7 +9555,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const showLmmChip = !trashView && lmmFlagged > 0 && librarySignalFilter !== "lmm-incomplete";
     const showMetaChip = !trashView && metaFlagged > 0 && librarySignalFilter !== "meta-incomplete";
     const showBayesChip = !trashView && bayesFlagged > 0 && librarySignalFilter !== "bayes-flagged";
-    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), (showStatcheckChip || showRetractionChip || showTransparencyChip || showLmmChip || showMetaChip || showBayesChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-signals", title: "Check signals \u2014 a check detected something concrete on these papers" }, showStatcheckChip && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), (showStatcheckChip || showRetractionChip || showTransparencyChip || showLmmChip || showMetaChip || showBayesChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-signals", title: "Check signals \u2014 a check detected something concrete on these papers" }, /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group-label" }, "Signals"), showStatcheckChip && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle statcheck-chip",
@@ -9603,7 +9609,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       },
       "B Bayes \xB7 ",
       bayesFlagged
-    )), showFindingsChip && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-queue", title: "Your review queue \u2014 things for you to go look at; clears as you review" }, showFindingsChip && /* @__PURE__ */ React.createElement(
+    )), showFindingsChip && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-queue", title: "Your review queue \u2014 things for you to go look at; clears as you review" }, /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group-label" }, "To review"), showFindingsChip && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle findings-chip",

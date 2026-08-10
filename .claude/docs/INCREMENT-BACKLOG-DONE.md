@@ -274,6 +274,16 @@ new work goes in the open backlog.
   counts and booleans only, no content/secrets). Live-verified against the maintainer's real running platform,
   including a stronger-than-planned negative-case proof (a real signed-in non-superuser identity correctly
   sees nothing). Security audit PASS.
+- [x] **statcheck signal/work-state duality** (2026-08-09) — research found collapsing the two systems would
+  violate the facts-vs-candidates principle (a flagged paper's inconsistency is a persistent fact; "to review"
+  is your work state; they're meant to diverge once you've reviewed a paper that stays flagged). The gap was
+  narrower than "confusing duality": the help docs already explained the relationship correctly, but only from
+  the review-queue side — "Checking statistics" (where a new user meets the ⚠ chip first) never linked forward.
+  Closed with (1) a cross-reference sentence in "Checking statistics" linking to "Reviewing findings" (a real
+  working in-app anchor link, `#help-reviewing-findings`, verified by clicking it), and (2) a small "Signals" /
+  "To review" label above each library-header chip group (`.lib-chip-group-label`, mirroring the existing
+  `.eyebrow` small-caps recipe) so the two-systems distinction reads at a glance, not just on hover. Both
+  verified live via Playwright screenshots.
 
 ## Design-decision closures (migrated from open backlog §2, 2026-08-09)
 - [x] **#11 README front-door** (2026-07-22) — the screenshot landed with `www/`; the voice pass was drafted

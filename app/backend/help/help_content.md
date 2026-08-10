@@ -802,6 +802,8 @@ Many method panels include a small source-credit line. Its **＋ add missing to 
 
 **Across your whole library:** in the same **METHODS → Statistics** section, under **Whole library**, click **Check all papers**. Callosum runs statcheck over every paper, including its bounded local table scan, and reports "N papers with statistics checked · M with inconsistencies." If any are flagged, a **⚠ N flagged** chip also appears in the Library header as a shortcut. Either click that chip or **Show flagged papers** in the section to filter the Library to just them (a banner appears; **clear** to return) — then open any one to see its specific tests. This is a **list to review, not a ranking**: papers aren't scored or ordered by inconsistency, and the same caveats apply (usually innocent; ambiguous rows are skipped; absence isn't a clean bill). Re-run the check after editing papers to refresh it.
 
+A flagged paper also gets a candidate in your **review queue** (the separate **"📋 N to review"** chip) — see [Reviewing findings](#help-reviewing-findings) for how the two relate: the ⚠ chip is a permanent fact about the paper, the 📋 chip tracks whether you've looked yet, and reviewing one never changes the other.
+
 <!-- section: p-curve -->
 ## p-curve: evidential value across a set of papers
 p-curve is a **collection-level** check (Simonsohn, Nelson & Simmons, 2014): given a *set* of statistically significant findings, it asks whether their p-values are **right-skewed** (many very-small p-values like .01, more than near .05) — which is consistent with **evidential value** — or **flat** (consistent with no/inadequate evidential value). It is **never about a single paper**, and it never labels anything "p-hacked."

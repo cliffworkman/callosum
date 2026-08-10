@@ -35,9 +35,7 @@
 
 ## 2. Needs a design decision from Cliff (not destructive/security — just your call)
 
-- **statcheck signal/work-state duality** (from #14 of the original close-out list): the "⚠ flagged" (signal) vs
-  "📋 to review" (work-state) coexistence is intentional (inc 133) but still reads as two overlapping systems to
-  a new user. Clarify or collapse — low urgency, a UX nuance not a bug.
+*(none currently — the statcheck signal/work-state duality was resolved 2026-08-09; see `INCREMENT-BACKLOG-DONE.md`.)*
 
 ---
 
