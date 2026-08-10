@@ -265,6 +265,15 @@ new work goes in the open backlog.
   `test_usage_logging.py` `_ListHandler`/`_capture()` pattern (not `caplog`, which doesn't reliably see
   `callosum.*` loggers in this project). No behavior change to the returned summary; no increment number
   (too small to rise to a full increment).
+- [x] **Superuser capabilities — a reusable gate + Diagnostics, its first application** (inc 468) — the
+  `is_superuser` flag (inc 195) gated nothing until now. Cliff's answer reframed this as a general
+  access-control pattern (any feature not yet proven safe for general release gets the *option* to sit behind
+  the gate — no exception to the standalone no-paywall-circumvention veto), not a one-off. Built
+  `require_superuser` (`app/backend/api/dependencies.py`, enforced at the route-decorator level) + its first
+  application, `GET /diagnostics` (library counts, remote-access/sync config state, app/DB identity — plain
+  counts and booleans only, no content/secrets). Live-verified against the maintainer's real running platform,
+  including a stronger-than-planned negative-case proof (a real signed-in non-superuser identity correctly
+  sees nothing). Security audit PASS.
 
 ## Design-decision closures (migrated from open backlog §2, 2026-08-09)
 - [x] **#11 README front-door** (2026-07-22) — the screenshot landed with `www/`; the voice pass was drafted

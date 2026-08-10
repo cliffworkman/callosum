@@ -1,9 +1,9 @@
 <!-- qa-coverage
-api: /auth/login, /oauth/callback, /auth/logout
+api: /auth/login, /oauth/callback, /auth/logout, /diagnostics
 fe: 35_settings.jsx
 -->
 
-# ROUTE 45 - Optional account (Sign in with ORCID)
+# ROUTE 45 - Optional account (Sign in with ORCID) + superuser diagnostics
 
 **Tier:** 1 local-stateful
 **Goal:** Exhaust the SP1 optional-account surface (Settings → Account) and its safety boundaries WITHOUT a live OIDC
@@ -66,13 +66,28 @@ default state to test. Register console/pageerror/request listeners before navig
 8. **Egress check:** across all of the above, **zero** requests to any genai/cloud host; no request carries library
    text.
 
+## Superuser diagnostics (inc 468 — `require_superuser`, the first application of the reusable gate)
+
+9. **Direct-API, unsigned-in:** `GET /diagnostics` → **403** (`{"detail": "Superuser access required"}`), not a
+   silent empty body or a 500.
+10. **Confirm the gate can't be bypassed via request data** — no header/body/query param on `GET /diagnostics`
+    changes the 403; the gate reads only the server-stored session (`app_settings.oauth_account_status`), never
+    a client-supplied claim. Sending a fabricated `X-Superuser: true`-style header (or any other invented
+    header) must still 403.
+11. Confirm the Settings UI shows **no** Diagnostics section when signed out or signed in as a non-superuser
+    (`acct.is_superuser` false/absent) — the section must not even flash briefly before hiding.
+12. **Egress check:** `GET /diagnostics` makes zero external requests (pure local DB + settings read).
+
 ## Manual-only (note in the report; not driven here)
 
 The full sign-in (Settings → Sign in with ORCID → the Authentik/ORCID consent → `/oauth/callback` → signed-in,
 My-Publications populated with the verified ORCID) needs a stood-up account platform + an ORCID account, so it is the
 **maintainer's manual check** (like the LibreOffice/Word/Google-Docs adapters). Verify the unit-tested flow contract
 instead (`tests/test_auth_oidc.py`): state+PKCE setup, callback exchange, write-only token storage, verified-ORCID →
-profile, callback exemption, logout.
+profile, callback exemption, logout. **The same applies to a real superuser sign-in** (`CALLOSUM_SUPERUSER_ORCIDS`
+matching the maintainer's own verified ORCID) — verify the unit-tested contract instead
+(`tests/test_diagnostics.py`): 403 signed-out, 403 for a non-allowlisted ORCID, 200 with correct counts for an
+allowlisted ORCID, and that the Diagnostics section only renders when `acct.is_superuser` is true.
 
 ## Pass criteria
 
@@ -80,6 +95,9 @@ profile, callback exemption, logout.
 - 0 console/page errors and 0 genai-host requests; no library text leaves the machine on any auth action.
 - Tokens never appear in `GET /settings`; the bad-state callback never signs in.
 - Local-first works fully with no account. Mobile viewport: no horizontal overflow.
+- `GET /diagnostics` 403s for anyone but a verified superuser, is not bypassable via request data, leaks no
+  secrets/content (counts and config booleans only), and the Diagnostics UI section is hidden unless
+  `acct.is_superuser` is true.
 
 ## Deposit
 

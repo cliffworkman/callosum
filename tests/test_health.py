@@ -165,6 +165,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
     allowed_route_paths = {
         "/",
         "/health",
+        "/diagnostics",
         "/papers",
         "/papers/item-types",
         "/papers/{paper_id}",

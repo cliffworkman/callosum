@@ -37,6 +37,7 @@ from app.backend.api.routers import (
     citations,
     credit,
     critical_review,
+    diagnostics,
     discovery,
     duplicates,
     feed,
@@ -334,6 +335,7 @@ def create_app(
         return _assembly_unavailable_response()
 
     api.include_router(health.router)
+    api.include_router(diagnostics.router)  # /diagnostics — superuser-only operational stats (inc 468)
     api.include_router(feedback.router)  # explicit, bounded proxy to the separately hosted feedback relay
     api.include_router(duplicates.router)  # before papers so "/papers/duplicates*" wins over "/papers/{paper_id}"
     api.include_router(acquisition.router)  # before papers so "/papers/acquire-oa*" wins over "/papers/{paper_id}"

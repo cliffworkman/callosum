@@ -17663,6 +17663,26 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const signedIn = !!(acct && acct.signed_in);
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Account"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Account sign in (Optional.)", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Callosum works fully offline with no account. Requires an ", /* @__PURE__ */ React.createElement("b", null, "ORCID iD"), " \u2014 signing in verifies your identity and enables cross-device sync. ", /* @__PURE__ */ React.createElement("b", null, "Identity only"), " \u2014 your library, PDFs, and notes never leave your machine.")), signedIn ? /* @__PURE__ */ React.createElement("div", { className: "settings-account-row" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: signOut }, busy ? "Signing out\u2026" : "Sign out"), /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Signed in", acct.display_name ? " as " + acct.display_name : acct.email ? " as " + acct.email : "", acct.orcid ? " \xB7 ORCID " + acct.orcid : "", acct.is_superuser ? " \xB7 superuser" : "", ".")) : acct && acct.configured ? /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: signIn }, busy ? "Starting\u2026" : "Sign in")) : /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Sign-in isn't set up on this Callosum yet \u2014 the account service is configured by whoever runs this instance.")), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
+  function DiagnosticsSettings() {
+    const [isSuperuser, setIsSuperuser] = useState(false);
+    const [stats, setStats] = useState(null);
+    useEffect(() => {
+      api("/settings").then((r) => {
+        if (r.ok) setIsSuperuser(!!(r.data.account && r.data.account.is_superuser));
+      });
+    }, []);
+    useEffect(() => {
+      if (!isSuperuser) {
+        setStats(null);
+        return;
+      }
+      api("/diagnostics").then((r) => {
+        if (r.ok) setStats(r.data);
+      });
+    }, [isSuperuser]);
+    if (!isSuperuser || !stats) return null;
+    return /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Diagnostics ", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "(superuser only)")), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Library: ", stats.paper_count, " papers \xB7 ", stats.chunk_count, " chunks \xB7 ", stats.embedding_count, " embeddings.", " ", "Remote access ", stats.remote_access_enabled ? "on" : "off", " \xB7 Sync ", stats.sync_enabled ? "on" : "off", stats.sync_server_configured ? " (server configured)" : "", ".", " ", "DB ", stats.db_reachable ? "reachable" : "unreachable", stats.db_migrated ? ", at head" : ", NOT at head", ".", stats.app_version ? ` Version ${stats.app_version}.` : "")));
+  }
   function SettingsCard({ title, children, id }) {
     return /* @__PURE__ */ React.createElement("section", { className: "settings-card", id }, /* @__PURE__ */ React.createElement("h2", { className: "settings-card-title" }, title), children);
   }
@@ -17694,7 +17714,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
   }
   function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, onRetractionRan, desktopUpdate }) {
     const dark = theme === "dark";
-    return /* @__PURE__ */ React.createElement("div", { className: "workspace-view scroll settings-view" }, /* @__PURE__ */ React.createElement("div", { className: "settings-grid" }, /* @__PURE__ */ React.createElement(SettingsCard, { title: "Account & sync" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "My Publications"), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed })), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement(MetadataSettings, null))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(SyncSettings, null), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Appearance"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Dark mode"), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "workspace-view scroll settings-view" }, /* @__PURE__ */ React.createElement("div", { className: "settings-grid" }, /* @__PURE__ */ React.createElement(SettingsCard, { title: "Account & sync" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement(DiagnosticsSettings, null), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "My Publications"), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed })), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement(MetadataSettings, null))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(SyncSettings, null), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Appearance"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Dark mode"), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",

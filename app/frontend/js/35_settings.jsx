@@ -336,6 +336,37 @@ function AccountSettings() {
   );
 }
 
+// inc 468: superuser-only diagnostics — the first application of the reusable require_superuser gate (inc 195's
+// deferred superuser capabilities). Self-contained (its own /settings check), matching AccountSettings's own
+// pattern above, so it renders nothing until is_superuser is confirmed true — never a flash of hidden content.
+function DiagnosticsSettings() {
+  const [isSuperuser, setIsSuperuser] = useState(false);
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    api("/settings").then(r => { if (r.ok) setIsSuperuser(!!(r.data.account && r.data.account.is_superuser)); });
+  }, []);
+  useEffect(() => {
+    if (!isSuperuser) { setStats(null); return; }
+    api("/diagnostics").then(r => { if (r.ok) setStats(r.data); });
+  }, [isSuperuser]);
+
+  if (!isSuperuser || !stats) return null;
+  return (
+    <div className="settings-subsection">
+      <p className="eyebrow">Diagnostics <span className="settings-sub">(superuser only)</span></p>
+      <div className="settings-field">
+        <span className="settings-sub">
+          Library: {stats.paper_count} papers · {stats.chunk_count} chunks · {stats.embedding_count} embeddings.
+          {" "}Remote access {stats.remote_access_enabled ? "on" : "off"} · Sync {stats.sync_enabled ? "on" : "off"}
+          {stats.sync_server_configured ? " (server configured)" : ""}.
+          {" "}DB {stats.db_reachable ? "reachable" : "unreachable"}{stats.db_migrated ? ", at head" : ", NOT at head"}.
+          {stats.app_version ? ` Version ${stats.app_version}.` : ""}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function SettingsCard({ title, children, id }) {
   return (
     <section className="settings-card" id={id}>
@@ -399,6 +430,7 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
           <div className="settings-sections-grid">
             <div className="settings-section">
               <AccountSettings />
+              <DiagnosticsSettings />
               <div className="settings-subsection">
                 <p className="eyebrow">My Publications</p>
                 <MyPubsSettings onRefreshed={onMyPubsRefreshed} />

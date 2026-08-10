@@ -11,6 +11,21 @@ are the design diary; this is the chronological "what & why" record.
 
 <!-- HELP-DOCS-SYNCED: 2026-08-09 inc 467 — DEBIT consistency check -->
 
+## 2026-08-09 — Increment 468: Superuser capabilities — a reusable gate + Diagnostics (round 2, item #1)
+- **Files:** `app/backend/api/dependencies.py`, `app/backend/api/routers/diagnostics.py`,
+  `app/backend/persistence/diagnostics_repo.py`, `app/backend/api/app.py`, `app/frontend/js/35_settings.jsx`,
+  `tests/test_diagnostics.py`, `tests/test_health.py`, `.claude/qa-routes/route_45_account.md`,
+  `.claude/security-audits/2026-08-09_superuser-diagnostics.md`.
+- **What:** the `is_superuser` flag (inc 195) gated nothing until now. Built a reusable `require_superuser`
+  FastAPI dependency (enforced at the route-decorator level) and its first application, `GET /diagnostics` —
+  library counts, remote-access/sync config state, and app/DB identity, gated to the verified superuser. A new
+  Settings section shows it only when `acct.is_superuser` is true.
+- **Why:** item #1 of round 2 (memory `callosum-next5-backlog-roadmap-round2`). Cliff's own framing: any future
+  feature that could stand in tension with the project's Principles/APPROACH-AVOIDANCE guidance should have the
+  *option* to sit behind this gate until proven safe for general release — a pattern, not a one-off. No
+  exception to the standalone no-paywall-circumvention veto; nothing built here touches it.
+- **Revert:** additive/backward-compatible; no schema change, no existing endpoint touched.
+
 ## 2026-08-09 — Backlog #53: log `import_citations`' silently-swallowed per-record exceptions
 - **Files:** `app/backend/metadata/citation_import.py`, `tests/test_citation_import.py`.
 - **What:** `import_citations`'s bare `except Exception: failed += 1` now logs the skipped record's title +

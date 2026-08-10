@@ -55,9 +55,6 @@
   intended private channel. Record the relay host/owner, monitoring and rotation procedure, then rotate by replacing
   the hosted secret, testing, and revoking the old webhook. Never put the webhook in a client `.env`, frontend/Tauri
   config, installer, log, issue, or feedback report. Full runbook: `feedback_relay/README.md`.
-- **Superuser *capabilities* — what the flag gates.** [decision] The flag shipped inc 195 (a verified-ORCID
-  allowlist → an `is_superuser` indicator) but **no capability is wired to it yet** — a design decision for when a
-  concrete superuser-only capability is wanted.
 - **#42 Rotate the Gemini API keys** (and the CORE key pasted in chat during inc 75). [non-code — your manual
   action] `.gitignore` keeps all key material out of GitHub (verified via `git check-ignore`), so this is **not
   blocking** — but rotation is the only way to neutralize copies that exist in Dropbox version history / chat
