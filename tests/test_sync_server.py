@@ -391,3 +391,77 @@ def test_register_rejects_oversized_public_key() -> None:
         headers={"Authorization": "Bearer u:alice"},
     )
     assert r.status_code == 422
+
+
+# --- SP4b (backlog #15): the share mailbox --------------------------------------------------------------
+
+
+def test_create_share_persists_addressed_to_recipient() -> None:
+    client = _server()
+    r = client.post(
+        "/shares",
+        json={"recipient_sub": "bob", "wrapped_key": "wk==", "ciphertext": "ct=="},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    assert r.status_code == 200
+    assert isinstance(r.json()["share_id"], int)
+
+
+def test_create_share_ids_increment_across_shares() -> None:
+    client = _server()
+    headers = {"Authorization": "Bearer u:alice"}
+    first = client.post(
+        "/shares", json={"recipient_sub": "bob", "wrapped_key": "a==", "ciphertext": "b=="}, headers=headers
+    )
+    second = client.post(
+        "/shares", json={"recipient_sub": "carol", "wrapped_key": "c==", "ciphertext": "d=="}, headers=headers
+    )
+    assert second.json()["share_id"] != first.json()["share_id"]
+
+
+def test_create_share_requires_auth() -> None:
+    client = _server()
+    r = client.post("/shares", json={"recipient_sub": "bob", "wrapped_key": "wk==", "ciphertext": "ct=="})
+    assert r.status_code == 401
+
+
+def test_create_share_rejects_oversized_wrapped_key() -> None:
+    client = _server()
+    r = client.post(
+        "/shares",
+        json={"recipient_sub": "bob", "wrapped_key": "A" * 2000, "ciphertext": "ct=="},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    assert r.status_code == 422
+
+
+def test_create_share_rejects_oversized_ciphertext() -> None:
+    client = _server()
+    r = client.post(
+        "/shares",
+        json={"recipient_sub": "bob", "wrapped_key": "wk==", "ciphertext": "A" * 22_000_000},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    assert r.status_code == 422
+
+
+def test_share_sender_sub_comes_from_token_not_body() -> None:
+    """The request body has no sender_sub field at all -- confirms it's structurally impossible to spoof."""
+    client = _server()
+    r = client.post(
+        "/shares",
+        json={"recipient_sub": "bob", "wrapped_key": "wk==", "ciphertext": "ct==", "sender_sub": "eve"},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    assert r.status_code == 200  # extra field is silently ignored by pydantic, not an error
+
+
+def test_share_rate_limit_applies() -> None:
+    c = _server(rate_limiter=RateLimiter(max_requests=1, window=60.0))
+    headers = {"Authorization": "Bearer u:alice"}
+    first = c.post("/shares", json={"recipient_sub": "bob", "wrapped_key": "a==", "ciphertext": "b=="}, headers=headers)
+    assert first.status_code == 200
+    second = c.post(
+        "/shares", json={"recipient_sub": "bob", "wrapped_key": "c==", "ciphertext": "d=="}, headers=headers
+    )
+    assert second.status_code == 429

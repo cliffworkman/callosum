@@ -376,3 +376,144 @@ def test_identity_lookup_unknown_sub_is_404(temp_db_url: str) -> None:
 def test_identity_lookup_refused_when_sync_not_ready(temp_db_url: str) -> None:
     c = TestClient(create_app(db_url=temp_db_url))
     assert c.get("/sync/identity/lookup", params={"sub": "alice"}).status_code == 409
+
+
+# --- SP4b (backlog #15): share -----------------------------------------------------------------------------
+
+
+def _register_real_identity(server: TestClient, sub: str, *, display_name: str | None = None):
+    """Register a REAL X25519 keypair for `sub` directly against the fake server (bypassing SP4a's own local
+    setup flow, which this file already covers) -- returns the private key + its base64 public key, so a share
+    addressed to `sub` can be genuinely decrypted in the test, not just proven to exist."""
+    import base64
+
+    from cryptography.hazmat.primitives.asymmetric import x25519
+
+    private_key = x25519.X25519PrivateKey.generate()
+    public_b64 = base64.b64encode(private_key.public_key().public_bytes_raw()).decode("ascii")
+    server.post(
+        "/identity/register",
+        json={"public_key": public_b64, "display_name": display_name},
+        headers={"Authorization": f"Bearer u:{sub}"},
+    )
+    return private_key, public_b64
+
+
+def test_share_happy_path_creates_a_decryptable_share(temp_db_url: str) -> None:
+    import json
+
+    from sync_server.schema import shares as shares_table
+
+    server = _sync_server()
+    bob_priv, _bob_pub = _register_real_identity(server, "bob", display_name="Bob")
+    transport = HttpSyncTransport("", "u:alice", client=server)
+    c = TestClient(create_app(db_url=temp_db_url, sync_transport=transport))
+    _add_paper(temp_db_url, "Attention Is All You Need")
+    _sync_ready(c)
+    c.post("/sync/identity/setup", json={"passphrase": "pw"})
+
+    eng = create_engine(temp_db_url)
+    with eng.connect() as conn:
+        pid = conn.execute(select(schema.papers.c.id)).scalar_one()
+    eng.dispose()
+
+    r = c.post("/sync/share", json={"recipient_sub": "bob", "paper_ids": [pid], "passphrase": "pw"})
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body["share_id"], int) and body["recipient_fingerprint"]
+
+    # confirm it really reached the server, addressed to bob, and bob's REAL private key decrypts it -- read
+    # the row back via the fake server's own ASGI app state (the engine `_sync_server()` built internally)
+    with server.app.state.engine.begin() as conn:  # type: ignore[attr-defined]
+        row = conn.execute(select(shares_table)).mappings().first()
+    assert row is not None and row["recipient_sub"] == "bob" and row["sender_sub"] == "alice"
+
+    from app.backend.sync.crypto import decrypt_payload
+    from app.backend.sync.sharing import WrappedKey, unwrap_content_key
+
+    wrapped = WrappedKey.from_dict(json.loads(row["wrapped_key"]))
+    content_key = unwrap_content_key(wrapped, bob_priv)
+    bundle = decrypt_payload(content_key, row["ciphertext"])
+    assert bundle["papers"][0]["csl_json"]["title"] == "Attention Is All You Need"
+
+
+def test_share_refused_when_sync_not_ready(temp_db_url: str) -> None:
+    c = TestClient(create_app(db_url=temp_db_url))
+    r = c.post("/sync/share", json={"recipient_sub": "bob", "paper_ids": [1], "passphrase": "pw"})
+    assert r.status_code == 409
+
+
+def test_share_refused_without_sharing_identity(temp_db_url: str) -> None:
+    server = _sync_server()
+    transport = HttpSyncTransport("", "u:alice", client=server)
+    c = TestClient(create_app(db_url=temp_db_url, sync_transport=transport))
+    _add_paper(temp_db_url, "Solo")
+    _sync_ready(c)  # sync ready, but alice never ran /sync/identity/setup
+    r = c.post("/sync/share", json={"recipient_sub": "bob", "paper_ids": [1], "passphrase": "pw"})
+    assert r.status_code == 409
+
+
+def test_share_wrong_passphrase_fails_closed_no_egress(temp_db_url: str) -> None:
+    server = _sync_server()
+    _register_real_identity(server, "bob")
+    transport = HttpSyncTransport("", "u:alice", client=server)
+    c = TestClient(create_app(db_url=temp_db_url, sync_transport=transport))
+    _add_paper(temp_db_url, "Solo")
+    _sync_ready(c)
+    c.post("/sync/identity/setup", json={"passphrase": "pw"})
+    eng = create_engine(temp_db_url)
+    with eng.connect() as conn:
+        pid = conn.execute(select(schema.papers.c.id)).scalar_one()
+    eng.dispose()
+
+    r = c.post("/sync/share", json={"recipient_sub": "bob", "paper_ids": [pid], "passphrase": "WRONG"})
+    assert r.status_code == 422
+    # nothing reached the server -- confirmed by the sync-server's own health of having zero shares
+    from sync_server.schema import shares as shares_table
+
+    with server.app.state.engine.begin() as conn:  # type: ignore[attr-defined]
+        assert conn.execute(select(shares_table)).first() is None
+
+
+def test_share_unknown_recipient_is_404(temp_db_url: str) -> None:
+    server = _sync_server()
+    transport = HttpSyncTransport("", "u:alice", client=server)
+    c = TestClient(create_app(db_url=temp_db_url, sync_transport=transport))
+    _add_paper(temp_db_url, "Solo")
+    _sync_ready(c)
+    c.post("/sync/identity/setup", json={"passphrase": "pw"})
+    eng = create_engine(temp_db_url)
+    with eng.connect() as conn:
+        pid = conn.execute(select(schema.papers.c.id)).scalar_one()
+    eng.dispose()
+
+    r = c.post("/sync/share", json={"recipient_sub": "nobody", "paper_ids": [pid], "passphrase": "pw"})
+    assert r.status_code == 404
+
+
+def test_share_empty_or_oversized_paper_ids_is_422(temp_db_url: str) -> None:
+    server = _sync_server()
+    _register_real_identity(server, "bob")
+    transport = HttpSyncTransport("", "u:alice", client=server)
+    c = TestClient(create_app(db_url=temp_db_url, sync_transport=transport))
+    _sync_ready(c)
+    c.post("/sync/identity/setup", json={"passphrase": "pw"})
+
+    assert c.post("/sync/share", json={"recipient_sub": "bob", "paper_ids": [], "passphrase": "pw"}).status_code == 422
+    too_many = list(range(1, 202))
+    assert (
+        c.post("/sync/share", json={"recipient_sub": "bob", "paper_ids": too_many, "passphrase": "pw"}).status_code
+        == 422
+    )
+
+
+def test_share_nonexistent_papers_produce_no_shareable_content_422(temp_db_url: str) -> None:
+    server = _sync_server()
+    _register_real_identity(server, "bob")
+    transport = HttpSyncTransport("", "u:alice", client=server)
+    c = TestClient(create_app(db_url=temp_db_url, sync_transport=transport))
+    _sync_ready(c)
+    c.post("/sync/identity/setup", json={"passphrase": "pw"})
+
+    r = c.post("/sync/share", json={"recipient_sub": "bob", "paper_ids": [999999], "passphrase": "pw"})
+    assert r.status_code == 422

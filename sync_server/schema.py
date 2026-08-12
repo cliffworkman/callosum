@@ -1,11 +1,13 @@
 """The sync-server's storage schema (SQLAlchemy Core, dialect-portable: Postgres in prod, SQLite in tests).
 
-Three tables, all scoped per user (the OIDC ``sub``): ``sync_records`` holds the latest opaque blob per
+Four tables, all scoped per user (the OIDC ``sub``): ``sync_records`` holds the latest opaque blob per
 ``(user, collection, record_id)`` with its version + a per-user monotonic ``seq`` (the client cursor); ``sync_cursor``
 holds each user's high-water ``seq`` so a push can assign the next one race-safely (a single counter row to lock,
 rather than ``MAX(seq)+1`` across the table); ``share_identities`` (SP4a, backlog #15) is a public-key directory —
 one row per user's *current* X25519 public key, reachable only by exact ``sub`` (never listed/searched — see
-``identity_store.py``). The server never sees a private key.
+``identity_store.py``); ``shares`` (SP4b, backlog #15) holds one row per live share, addressed by
+``recipient_sub`` (indexed for SP4c's future "list mine" query) — both ``wrapped_key`` and ``ciphertext`` are
+opaque to the server; it can decrypt neither.
 """
 
 from __future__ import annotations
@@ -52,6 +54,23 @@ share_identities = sa.Table(
     sa.Column("public_key", sa.String(length=200), nullable=False),
     sa.Column("display_name", sa.String(length=200)),
     sa.Column("updated_at", sa.DateTime(timezone=True)),
+)
+
+# SP4b (backlog #15): one row per live share. `wrapped_key` is the small JSON-encoded `WrappedKey` envelope
+# (`app/backend/sync/sharing.py`); `ciphertext` is `encrypt_payload`'s opaque AES-GCM blob of a
+# `build_bundle()` payload. Both are meaningless to the server -- it stores and relays bytes, nothing more.
+# `sender_sub` comes from the authenticated bearer token at write time (never client-supplied), so a share's
+# origin is trustworthy even though the envelope itself carries no sender authentication (see sharing.py).
+shares = sa.Table(
+    "shares",
+    metadata,
+    sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+    sa.Column("sender_sub", sa.String(length=255), nullable=False),
+    sa.Column("recipient_sub", sa.String(length=255), nullable=False),
+    sa.Column("wrapped_key", sa.Text(), nullable=False),
+    sa.Column("ciphertext", sa.Text(), nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Index("ix_shares_recipient_sub", "recipient_sub"),
 )
 
 

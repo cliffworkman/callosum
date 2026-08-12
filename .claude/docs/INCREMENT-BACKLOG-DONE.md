@@ -332,6 +332,12 @@ new work goes in the open backlog.
   id (structurally no listing/search function — backlog #15's own divergence fence), and a fingerprint-
   verification UI (`SharingIdentityPanel`, Signal's "safety number" pattern). No record is shared in this
   stage — SP4b/c/d remain open, see open backlog #15. Audit `2026-08-10_sync-identity-sp4a.md` PASS.
+- [x] **#15 SP4b — share** (inc 476, round 3 item #4). A "sealed" X25519 ECDH + HKDF-SHA256 + AES-256-GCM
+  content-key wrap (`sync/sharing.py`, the `crypto_box_seal`/HPKE-base-mode shape) lets a sender end-to-end
+  encrypt an ad-hoc picked set of Library papers (reusing the already-audited B2 `build_bundle()` unmodified,
+  no PDFs) to one fingerprint-confirmed recipient via a new bulk-bar "share…" action. Sender-only — no
+  receiving/importing capability yet; SP4c/d remain open, see open backlog #15. Audit
+  `2026-08-12_sync-sharing-sp4b.md` PASS.
 - [x] **#20 Harness hardening — fully closed** (2026-07-22, inc 342) — repo furniture (`SECURITY.md`,
   `CITATION.cff`, `.env.example`); uv adoption (`pyproject.toml` + committed `uv.lock`, CI via `uv sync
   --locked`); the hand-rolled pre-commit hook migrated to the standard pre-commit framework; 3 CI gates added

@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 475** (see Increment workflow) with **2128 root-suite pytest tests
+It is currently at **Increment 476** (see Increment workflow) with **2150 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -1067,8 +1067,17 @@ be made public later — so the discipline below is enforced now, not retrofitte
   directory (`sync_server/identity_store.py`, reachable only by exact `sub`, structurally never a listing/search
   surface), and a fingerprint-verification UI (`35c_sync.jsx`'s `SharingIdentityPanel`, Signal's "safety number"
   pattern — never trust a lookup alone). **No record is shared in this stage** — it only makes "who is this
-  collaborator, cryptographically" answerable; SP4b (wrap a per-share content key under a looked-up public key)
-  is next. Audit `2026-08-10_sync-identity-sp4a.md` PASS.
+  collaborator, cryptographically" answerable. Audit `2026-08-10_sync-identity-sp4a.md` PASS. **SP4b — share
+  (inc 476)** is the sender-only next stage: `app/backend/sync/sharing.py`'s `wrap_content_key`/
+  `unwrap_content_key` is a "sealed" hybrid-encryption envelope (fresh ephemeral X25519 ECDH + HKDF-SHA256 +
+  AES-256-GCM — the same construction shape as libsodium's `crypto_box_seal` / an HPKE base-mode ciphersuite;
+  no sender authentication in the envelope itself, since the sync-server's bearer-token-derived `sender_sub`
+  column already authenticates who created a share) that wraps a fresh one-time content key to a
+  fingerprint-confirmed recipient's public key. The share's plaintext content reuses the already-audited B2
+  `build_bundle(scope="selection", ...)` completely unmodified (no PDFs) — a new bulk-bar "share…" action
+  (`28c_share.jsx`) resolves the recipient via SP4a's own lookup before the passphrase/Share button render. No
+  record can be received/imported yet — SP4c (a "Shared with me" panel, decrypt-on-fetch, cross-user
+  provenance, independent re-verification) is next. Audit `2026-08-12_sync-sharing-sp4b.md` PASS.
 - SQLAlchemy bound parameters (rule #3); PDF + external-input validation at the boundary
   (rule #4).
 

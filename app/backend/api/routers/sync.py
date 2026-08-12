@@ -10,7 +10,9 @@ in memory). The rich Settings → Sync UI + conflict-review screen is SP3c; this
 from __future__ import annotations
 
 import base64
+import json
 import logging
+import os
 import time
 from datetime import datetime
 from typing import Literal
@@ -23,14 +25,24 @@ from sqlalchemy.exc import OperationalError
 from app.backend import app_settings as settings
 from app.backend.api.auth import oidc as oidc_mod
 from app.backend.api.dependencies import get_connection
+from app.backend.metadata.library_bundle import build_bundle
 from app.backend.persistence import sync_conflicts_repo
 from app.backend.persistence.sqlite_retry import is_sqlite_locked, run_write
 from app.backend.sync.changeset import SYNCABLE, collect_local
-from app.backend.sync.crypto import SyncCryptoError, SyncKeyring, create_keyring, unlock_with_passphrase
+from app.backend.sync.crypto import (
+    SyncCryptoError,
+    SyncKeyring,
+    create_keyring,
+    encrypt_payload,
+    unlock_with_passphrase,
+)
 from app.backend.sync.engine import run_sync
 from app.backend.sync.identity import ShareIdentity, create_identity
 from app.backend.sync.identity import fingerprint as identity_fingerprint
+from app.backend.sync.sharing import wrap_content_key
 from app.backend.sync.transport import HttpSyncTransport, SyncServerError
+
+MAX_SHARE_PAPERS = 200  # an "ad-hoc picked set," not a whole-library handoff (a deliberately different feature)
 
 router = APIRouter()  # full /sync/* paths per the house convention (the QA surface extractor reads literal paths)
 logger = logging.getLogger("callosum")
@@ -295,6 +307,69 @@ def sync_identity_lookup(request: Request, sub: str = Query(..., max_length=255)
     return IdentityLookupResult(
         public_key=result["public_key"], display_name=result.get("display_name"), fingerprint=fp
     )
+
+
+# --- SP4b (backlog #15): share — an ad-hoc picked set of papers, encrypted end-to-end to one recipient's own
+# public key (SP4a). Sender-only: there is no receiving/importing surface here (SP4c). Reuses `build_bundle`
+# (the already-audited B2 portable, no-PDF payload — `2026-07-01_library-bundle.md`) for the CONTENT, and
+# `crypto.py`'s existing AES-GCM primitive to encrypt it under a fresh, one-time content key; the only new
+# crypto is wrapping that content key so only the recipient can recover it (`sync/sharing.py`).
+
+
+class ShareBody(BaseModel):
+    recipient_sub: str = Field(min_length=1, max_length=255)
+    paper_ids: list[int] = Field(min_length=1, max_length=MAX_SHARE_PAPERS)
+    passphrase: str = Field(min_length=1, max_length=1024)
+
+
+class ShareResult(BaseModel):
+    share_id: int
+    recipient_fingerprint: str
+
+
+@router.post("/sync/share", response_model=ShareResult)
+def sync_share(request: Request, body: ShareBody, conn: Connection = Depends(get_connection)) -> ShareResult:
+    if not settings.stored_share_identity():
+        raise HTTPException(status_code=409, detail="set up your sharing identity before sharing")
+    cfg = settings.stored_sync_settings()
+    token = _fresh_access_token(request)
+    _require_egress_ready(cfg, token)
+    keyring = settings.stored_sync_keyring()
+    if keyring is None:
+        raise HTTPException(status_code=409, detail="sync is not set up")
+    try:
+        unlock_with_passphrase(SyncKeyring.from_dict(keyring), body.passphrase)  # validated before any egress
+    except SyncCryptoError as exc:
+        raise HTTPException(status_code=422, detail="wrong passphrase") from exc  # 422, not 401 -- see sync_run
+
+    transport = getattr(request.app.state, "sync_transport", None) or HttpSyncTransport(cfg["server_url"], token)
+    try:
+        try:
+            recipient = transport.lookup_identity(body.recipient_sub)
+        except SyncServerError as exc:
+            raise HTTPException(status_code=502, detail=f"sync server error: {exc}") from exc
+        if recipient is None:
+            raise HTTPException(status_code=404, detail="no sharing identity registered for that recipient")
+        try:
+            recipient_public_key = base64.b64decode(recipient["public_key"])
+            recipient_fingerprint = identity_fingerprint(recipient_public_key)
+        except (SyncCryptoError, ValueError, TypeError) as exc:
+            raise HTTPException(status_code=502, detail=f"sync server returned a malformed identity: {exc}") from exc
+
+        bundle = build_bundle(conn, scope="selection", paper_ids=body.paper_ids)
+        if not bundle["papers"]:
+            raise HTTPException(status_code=422, detail="none of the selected papers could be shared")
+
+        content_key = os.urandom(32)
+        ciphertext = encrypt_payload(content_key, bundle)
+        wrapped = wrap_content_key(content_key, recipient_public_key)
+        try:
+            share_id = transport.create_share(body.recipient_sub, json.dumps(wrapped.to_dict()), ciphertext)
+        except SyncServerError as exc:
+            raise HTTPException(status_code=502, detail=f"sync server error: {exc}") from exc
+    finally:
+        transport.close()
+    return ShareResult(share_id=share_id, recipient_fingerprint=recipient_fingerprint)
 
 
 # --- SP3c: conflict review (read `sync_conflicts`, pick a side) ------------------------------------------------

@@ -107,7 +107,7 @@ function App() {
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
     showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged, showMetaFlagged, showBayesFlagged, showTextHealthFilter, refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, refreshBayesChip, findingsRefresh, setFindingsRefresh, setReferenceWarningsRefresh,
     pcurvePapers, setPcurvePapers, zcurvePapers, setZcurvePapers, mergeIds, setMergeIds, onMerged,
-    critSetIds, setCritSetIds,
+    critSetIds, setCritSetIds, sharePaperIds, setSharePaperIds,
   } = lib;
 
   const {
@@ -494,6 +494,8 @@ function App() {
         </StatusScope>}
       {critSetIds &&
         <CriticalSetModal ids={critSetIds} onClose={() => setCritSetIds(null)} onOpenPaper={openPdf} />}
+      {sharePaperIds &&
+        <ShareModal ids={sharePaperIds} onClose={() => setSharePaperIds(null)} />}
       {wantedOpen &&
         <WantedModal onClose={() => setWantedOpen(false)} onOpenPaper={openPdf} onChanged={() => setLibRefresh(n => n + 1)} />}
       {textHealthOpen &&

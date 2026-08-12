@@ -1,19 +1,23 @@
 <!-- qa-coverage
-api: /sync/status, /sync/setup, /sync/settings, /sync/run, /sync/conflicts, /sync/conflicts/{conflict_id}/resolve, /sync/identity/status, /sync/identity/setup, /sync/identity/lookup
-fe: 35c_sync.jsx
+api: /sync/status, /sync/setup, /sync/settings, /sync/run, /sync/conflicts, /sync/conflicts/{conflict_id}/resolve, /sync/identity/status, /sync/identity/setup, /sync/identity/lookup, /sync/share
+fe: 35c_sync.jsx, 28c_share.jsx
 -->
 
-# ROUTE 46 - Opt-in E2E sync (accounts SP3b) + the Settings → Sync UI + conflict review (SP3c) + sharing identity (SP4a)
+# ROUTE 46 - Opt-in E2E sync (accounts SP3b) + the Settings → Sync UI + conflict review (SP3c) + sharing identity (SP4a) + share (SP4b)
 
 **Tier:** 1 local-stateful
 **Goal:** Exhaust the opt-in `/sync/*` surface (set up a vault, toggle on, status, run, list/resolve conflicts,
-set up/look up a sharing identity) and its safety boundaries WITHOUT a live sync-server or Authentik. The live
-deploy + live-token round-trip is the maintainer's MANUAL check (see the design spec). Steps 1-8 are direct-API
-(no UI); **steps 9-13 exercise the Settings → Sync UI** (`35c_sync.jsx`, inc 311) — browser-verified with
-Playwright (setup, the one-time recovery-code reveal, the sequential enable gate, run + its error paths, and the
-conflict-review panel). **Steps 14-17 (SP4a, inc "sync-identity-sp4a") cover the sharing-identity surface** —
-direct-API (setup/status/lookup, gating, no-private-key-exposure) plus a Playwright pass over the new "Sharing
-identity" subsection, browser-verified this increment against an isolated scratch instance.
+set up/look up a sharing identity, share a selection) and its safety boundaries WITHOUT a live sync-server or
+Authentik. The live deploy + live-token round-trip is the maintainer's MANUAL check (see the design spec).
+Steps 1-8 are direct-API (no UI); **steps 9-13 exercise the Settings → Sync UI** (`35c_sync.jsx`, inc 311) —
+browser-verified with Playwright (setup, the one-time recovery-code reveal, the sequential enable gate, run +
+its error paths, and the conflict-review panel). **Steps 14-17 (SP4a, inc "sync-identity-sp4a") cover the
+sharing-identity surface** — direct-API (setup/status/lookup, gating, no-private-key-exposure) plus a
+Playwright pass over the "Sharing identity" subsection, browser-verified against an isolated scratch instance.
+**Steps 18-22 (SP4b, inc "sync-sharing-sp4b") cover the sender-only share surface** — direct-API
+(`POST /sync/share`'s gating, resource caps, and unknown-recipient handling) plus a Playwright pass over the
+new `28c_share.jsx` `ShareModal` (opened from the Library bulk-bar's "share…" action). There is deliberately
+no receiving/importing surface to test yet (SP4c).
 
 ## Environment
 
@@ -80,6 +84,26 @@ session) and sync is **unconfigured** by default. Register console/pageerror/req
   decodes the server's returned public key and computes the fingerprint client-side (`identity_fingerprint`) —
   it never forwards a server-supplied fingerprint value (the server doesn't send one). A malformed/wrong-length
   public key from the server → a clean **502**, never a raw 500.
+- **SP4b — share rides the same egress gate, PLUS requires a sharing identity already exists.** `POST
+  /sync/share` refuses (**409**) unless sync is enabled+configured+signed-in+server-URL'd **and** the caller has
+  already run `/sync/identity/setup` — an unset-up sender can never create a share. A wrong passphrase → **422**
+  and creates **no** share row anywhere (no egress on a failed local unlock — same discipline as `/sync/run`
+  and `/sync/identity/setup`). Any of these gates missing or bypassed is **Critical**.
+- **The recipient is always resolved fresh, never a stale/cached lookup.** `/sync/share` calls
+  `/sync/identity/lookup` itself server-side on every share — an unregistered `recipient_sub` → **404**, never
+  a share silently created addressed to nobody. A share created for an unresolved recipient is **Critical**.
+- **Resource caps.** `paper_ids` is bounded to 1–200 (empty or >200 → **422**, mirroring the existing library-
+  bundle "select at least one paper" behavior); a selection that resolves to zero actual shareable papers
+  (e.g. all ids nonexistent/trashed) → **422**, never a share of an empty bundle. The server's own `ciphertext`/
+  `wrapped_key` caps (`sync_server/app.py`) are covered by `tests/test_sync_server.py`, outside this route's
+  surface map, same convention as every other server-side body cap.
+- **No PDFs; the same portable, no-PDF payload the audited library bundle already uses.** A share's content is
+  `build_bundle(scope="selection", ...)` unmodified — metadata + tags + annotations only. A PDF byte or an
+  `attachment` file path appearing in a share's plaintext bundle is **Critical**.
+- **The content key is single-use and never reused across shares.** Each `/sync/share` call generates a fresh
+  random content key and a fresh ephemeral wrap — verified at the crypto-unit level
+  (`tests/test_sync_sharing.py`); this route's own steps confirm the *endpoint* wiring (a second share to the
+  same recipient succeeds independently, never erroring as a duplicate/replay).
 
 ## Steps
 
@@ -151,12 +175,39 @@ scratch instance, so the check never touches a real stored keyring/passphrase).
     clean inline error (`settings-note-err`, "Couldn't set up your sharing identity: sync server error: …") —
     **no console error beyond the expected non-2xx fetch log line, no crash.** "Look up a collaborator" stays
     **hidden** until `has_identity` is true (confirmed: it does not appear after a failed setup attempt).
+18. **Share gating (direct-API, an injected `sync_transport` bound to an in-process fake sync-server).**
+    `POST /sync/share` before sync is ready → **409**; sync ready but no sharing identity set up yet → **409**.
+    Once both are true: a **wrong** passphrase → **422**, and the fake server's own store shows **zero** rows
+    (no egress). An unregistered `recipient_sub` → **404**.
+19. **Share happy path + real decrypt proof.** With a real X25519 identity registered for a second id directly
+    on the fake server, `POST /sync/share {recipient_sub, paper_ids:[<a real paper>], passphrase}` → **200**
+    `{share_id, recipient_fingerprint}`. Reading the row back from the fake server directly: `recipient_sub`
+    matches, `sender_sub` matches the caller — never swapped. Unwrapping `wrapped_key` with the **real**
+    recipient private key (not the sender's) recovers a usable content key that decrypts `ciphertext` back to
+    the exact `build_bundle` payload (paper title round-trips byte-for-byte).
+20. **Resource caps.** `paper_ids: []` → **422**; 201 ids → **422** (`MAX_SHARE_PAPERS = 200`); `paper_ids`
+    pointing only at nonexistent/trashed papers → **422** ("none of the selected papers could be shared") —
+    never a share of an empty bundle.
+21. **Share UI (`28c_share.jsx`'s `ShareModal`) — Playwright-driven against an isolated scratch instance,
+    same seeding pattern as step 17 plus ≥1 real paper in the library.** Selecting papers in the Library and
+    clicking the bulk-bar's "share…" button opens the modal showing "Share N papers." Pasting a recipient id
+    and clicking "Look up" reuses the SAME `/sync/identity/lookup` endpoint step 16 already covers — a found
+    identity shows its fingerprint with the SAME "confirm this matches" copy as `SharingIdentityPanel`'s own
+    lookup (not a duplicated/divergent wording); an unknown id shows a clean inline error. Only once a recipient
+    is resolved does the passphrase field + "Share N papers" button appear.
+22. **Share UI error path + console.** Submitting against a server URL with no real listener shows a clean
+    inline error ("Couldn't share: …"), no crash, no console error beyond the expected non-2xx fetch log line
+    (the same standing exception every other Settings/modal error path in this route already accepts).
 
 ## Notes for the runner
 
 The reference sync-server lives in `sync_server/` (a separate deployable, outside the app surface map — like the
-adapters). Its endpoints (`/sync/records`, `/health`, `/identity/register`, `/identity/lookup`) are covered by
-`tests/test_sync_server.py`, not this route.
+adapters). Its endpoints (`/sync/records`, `/health`, `/identity/register`, `/identity/lookup`, `/shares`) are
+covered by `tests/test_sync_server.py`, not this route.
+
+Step 21's scratch instance additionally needs a real paper in the library (create one via a direct
+`create_paper` call, or import a fixture PDF) — the Share modal's "Share N papers" flow needs at least one
+real, non-trashed `paper_ids` entry for `build_bundle` to produce a non-empty bundle.
 
 Seeding a conflict for step 12 without two real devices: insert a row directly —
 `insert(schema.sync_conflicts).values(collection="papers", record_id="<any string>", losing_version=1,

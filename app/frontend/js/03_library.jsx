@@ -47,6 +47,7 @@ function useLibrary(opts) {
   const [pcurvePapers, setPcurvePapers] = useState(null);  // inc-126: collection p-curve over the selection (modal)
   const [zcurvePapers, setZcurvePapers] = useState(null);  // inc-470: collection z-curve over the selection (modal)
   const [mergeIds, setMergeIds] = useState(null);          // inc-161: merge ≥2 papers into a survivor (modal)
+  const [sharePaperIds, setSharePaperIds] = useState(null); // SP4b: e2e-encrypt the selection to one collaborator (modal)
   const [critSetIds, setCritSetIds] = useState(null);      // #12: critically review a SET of papers together (modal)
 
   // --- selection (checkbox multi-select) ---
@@ -90,6 +91,11 @@ function useLibrary(opts) {
   const bulkMergePapers = useCallback(() => {
     const ids = [...selectedLibraryIds];
     if (ids.length >= 2) setMergeIds(ids);
+  }, [selectedLibraryIds]);
+  // SP4b (backlog #15): open the Share modal for the current selection (metadata + tags + annotations, no PDFs).
+  const bulkSharePapers = useCallback(() => {
+    const ids = [...selectedLibraryIds];
+    if (ids.length) setSharePaperIds(ids);
   }, [selectedLibraryIds]);
   // #12: critically review the selected papers TOGETHER (cross-paper contradictions + a fact-matrix; a signal).
   const bulkCriticalReadPapers = useCallback(() => {
@@ -527,7 +533,7 @@ function useLibrary(opts) {
     libraryReading, onReadingFilter: changeReadingFilter,
     libraryMissingPdf, onToggleMissingPdf: () => { setLibraryMissingPdf(v => !v); setPage(0); },
     onToggleLibrarySelect: toggleLibrarySelect, onClearLibrarySelect: clearLibrarySelect,
-    onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkPcurve: bulkPcurvePapers, onBulkZcurve: bulkZcurvePapers, onBulkMerge: bulkMergePapers, onBulkCriticalRead: bulkCriticalReadPapers, onBulkExport: bulkExportPapers, onBulkExportBundle: bulkExportBundle, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
+    onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkPcurve: bulkPcurvePapers, onBulkZcurve: bulkZcurvePapers, onBulkMerge: bulkMergePapers, onBulkCriticalRead: bulkCriticalReadPapers, onBulkExport: bulkExportPapers, onBulkExportBundle: bulkExportBundle, onBulkShare: bulkSharePapers, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
     onBulkReferenceCheckDone: bulkReferenceCheckDone,
     libraryAxisFilter, onClearAxisFilter: clearAxisFilter,
     libraryTagFilter, onClearTagFilter: clearTagFilter,
@@ -557,6 +563,6 @@ function useLibrary(opts) {
     showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged, showMetaFlagged, showBayesFlagged,
     refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, refreshBayesChip, findingsRefresh, setFindingsRefresh, setReferenceWarningsRefresh, showTextHealthFilter,
     pcurvePapers, setPcurvePapers, zcurvePapers, setZcurvePapers, mergeIds, setMergeIds, onMerged,
-    critSetIds, setCritSetIds,
+    critSetIds, setCritSetIds, sharePaperIds, setSharePaperIds,
   };
 }

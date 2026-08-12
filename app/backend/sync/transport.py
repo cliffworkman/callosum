@@ -81,6 +81,24 @@ class HttpSyncTransport:
         except (KeyError, TypeError, ValueError) as exc:
             raise SyncServerError(f"malformed identity lookup response: {exc}") from exc
 
+    def create_share(self, recipient_sub: str, wrapped_key: str, ciphertext: str) -> int:
+        """SP4b: create a share addressed to `recipient_sub`. Fails closed on any non-2xx. Returns the new
+        share's server-assigned id."""
+        try:
+            resp = self._client.post(
+                f"{self._base}/shares",
+                json={"recipient_sub": recipient_sub, "wrapped_key": wrapped_key, "ciphertext": ciphertext},
+                headers=self._headers(),
+            )
+        except httpx.HTTPError as exc:
+            raise SyncServerError(f"share creation failed: {exc}") from exc
+        if resp.status_code != 200:
+            raise SyncServerError(f"share creation failed: HTTP {resp.status_code}: {resp.text[:500]}")
+        try:
+            return int(resp.json()["share_id"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise SyncServerError(f"malformed share creation response: {exc}") from exc
+
     def push(self, records: list[SyncBlob]) -> int:
         body = {
             "records": [

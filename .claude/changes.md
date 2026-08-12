@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-12 — Increment 476: Sync SP4b — share (round 3, item #4, stage B of 4)
+- **Files:** `app/backend/sync/sharing.py` (new), `sync_server/share_store.py` (new),
+  `app/frontend/js/28c_share.jsx` (new), `sync_server/schema.py`, `sync_server/app.py`,
+  `app/backend/sync/transport.py`, `app/backend/api/routers/sync.py`, `app/frontend/js/03_library.jsx`,
+  `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/js/40_app.jsx`, `.claude/qa-routes/route_46_sync.md`.
+- **What:** a sender-only sharing capability — an ad-hoc picked set of Library papers can be end-to-end
+  encrypted (a "sealed" X25519 ECDH + HKDF-SHA256 + AES-256-GCM content-key wrap, the same shape as
+  `crypto_box_seal`/HPKE base mode) and sent to a fingerprint-confirmed collaborator via a new bulk-bar
+  "share…" action. Reuses the already-audited B2 `build_bundle()` unmodified for the plaintext content
+  (no PDFs). No receiving/importing capability yet (SP4c).
+- **Why:** backlog #15's SP4 sharing arc, stage B — the crypto envelope + transport needed once a share can
+  finally move data, following SP4a's identity/lookup groundwork (inc 475).
+- **Revert:** `git revert` the increment-476 commit; `sharing.py`/`share_store.py`/`28c_share.jsx` are new and
+  additive, the rest are mechanical extensions of existing endpoints/files.
+
 ## 2026-08-10 — Increment 475: Sync SP4a — sharing identity (round 3, item #4, stage A of 4)
 - **Files:** `app/backend/sync/identity.py` (new), `sync_server/identity_store.py` (new), `sync_server/schema.py`,
   `sync_server/app.py`, `app/backend/sync/transport.py`, `app/backend/app_settings.py`,

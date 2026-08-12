@@ -3827,6 +3827,7 @@
     const [pcurvePapers, setPcurvePapers] = useState(null);
     const [zcurvePapers, setZcurvePapers] = useState(null);
     const [mergeIds, setMergeIds] = useState(null);
+    const [sharePaperIds, setSharePaperIds] = useState(null);
     const [critSetIds, setCritSetIds] = useState(null);
     const toggleLibrarySelect = useCallback((id) => {
       setSelectedLibraryIds((prev) => {
@@ -3871,6 +3872,10 @@
     const bulkMergePapers = useCallback(() => {
       const ids = [...selectedLibraryIds];
       if (ids.length >= 2) setMergeIds(ids);
+    }, [selectedLibraryIds]);
+    const bulkSharePapers = useCallback(() => {
+      const ids = [...selectedLibraryIds];
+      if (ids.length) setSharePaperIds(ids);
     }, [selectedLibraryIds]);
     const bulkCriticalReadPapers = useCallback(() => {
       const ids = [...selectedLibraryIds];
@@ -4497,6 +4502,7 @@
       onBulkCriticalRead: bulkCriticalReadPapers,
       onBulkExport: bulkExportPapers,
       onBulkExportBundle: bulkExportBundle,
+      onBulkShare: bulkSharePapers,
       onBulkBibliography: bulkBibliography,
       onSelectAll: selectAllLibrary,
       onBulkReferenceCheckDone: bulkReferenceCheckDone,
@@ -4578,7 +4584,9 @@
       setMergeIds,
       onMerged,
       critSetIds,
-      setCritSetIds
+      setCritSetIds,
+      sharePaperIds,
+      setSharePaperIds
     };
   }
   function _loadLayout(key, fallback) {
@@ -9555,6 +9563,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     onBulkCriticalRead,
     onBulkExport,
     onBulkExportBundle,
+    onBulkShare,
     onBulkBibliography,
     onSelectAll,
     libraryAxisFilter,
@@ -9788,7 +9797,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       /* @__PURE__ */ React.createElement("option", { value: "bibtex" }, "BibTeX (.bib)"),
       /* @__PURE__ */ React.createElement("option", { value: "ris" }, "RIS (.ris)"),
       /* @__PURE__ */ React.createElement("option", { value: "csl-json" }, "CSL-JSON")
-    ), onBulkExportBundle && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkExportBundle, title: "Export the selected papers as a portable bundle \u2014 metadata + tags + annotations, no PDFs" }, "bundle"), citeStyles.length > 0 && /* @__PURE__ */ React.createElement(
+    ), onBulkExportBundle && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkExportBundle, title: "Export the selected papers as a portable bundle \u2014 metadata + tags + annotations, no PDFs" }, "bundle"), onBulkShare && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkShare, title: "End-to-end encrypt the selected papers' metadata + tags + annotations to one collaborator \u2014 no PDFs, only they can decrypt it" }, "share\u2026"), citeStyles.length > 0 && /* @__PURE__ */ React.createElement(
       "select",
       {
         className: "bulk-export",
@@ -15099,6 +15108,57 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     };
     const s = imp.summary;
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Import library bundle"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Choose a ", /* @__PURE__ */ React.createElement("b", null, "callosum library bundle"), " (.json) exported from another library. Its papers, tags, annotations, axis definitions, and syntheses merge into yours \u2014 existing papers keep their own metadata and just gain the bundle's tags + notes. An imported synthesis is shown as ", /* @__PURE__ */ React.createElement("b", null, "the sender's assessment"), " (not re-verified in your library). ", /* @__PURE__ */ React.createElement("b", null, "No PDFs"), " travel in a bundle; a highlight's box re-appears once you have the same PDF. Everything stays on your machine."), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".json", onChange: onPick }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: imp.status === "running" || !file, onClick: run }, imp.status === "running" ? "Importing\u2026" : "Import")), file && imp.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, file.name, " \u2014 ready to import."), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Merging + embedding\u2026", progress: imp.progress, managedBy: "backend-job" }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Import failed: ", imp.error), imp.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.papers_created), " new \xB7 ", s.papers_merged, " merged", s.tags_applied ? ` \xB7 ${s.tags_applied} tags` : "", s.annotations_added ? ` \xB7 ${s.annotations_added} highlights` : "", s.axes_created ? ` \xB7 ${s.axes_created} axes` : "", s.axes_members_added ? ` \xB7 ${s.axes_members_added} axis members` : "", s.syntheses_imported ? ` \xB7 ${s.syntheses_imported} syntheses` : "", s.skipped ? ` \xB7 ${s.skipped} skipped` : "", /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Merged papers keep your own metadata; new papers are filterable by type. Imported syntheses are the sender's \u2014 not re-verified here.")), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")));
+  }
+  function ShareModal({ ids, onClose }) {
+    const [recipientId, setRecipientId] = useState("");
+    const [lookingUp, setLookingUp] = useState(false);
+    const [recipient, setRecipient] = useState(null);
+    const [lookupErr, setLookupErr] = useState("");
+    const [passphrase, setPassphrase] = useState("");
+    const [sharing, setSharing] = useState(false);
+    const [result, setResult] = useState(null);
+    const [shareErr, setShareErr] = useState("");
+    const count = ids ? ids.length : 0;
+    const lookup = async () => {
+      if (!recipientId.trim()) return;
+      setLookingUp(true);
+      setLookupErr("");
+      setRecipient(null);
+      setResult(null);
+      const r = await api(`/sync/identity/lookup?sub=${encodeURIComponent(recipientId.trim())}`);
+      setLookingUp(false);
+      if (r.ok) setRecipient(r.data);
+      else setLookupErr("Couldn't look up that id: " + r.error);
+    };
+    const share = async () => {
+      if (!recipient || !passphrase) return;
+      setSharing(true);
+      setShareErr("");
+      const r = await apiPost("/sync/share", { recipient_sub: recipientId.trim(), paper_ids: ids, passphrase });
+      setSharing(false);
+      setPassphrase("");
+      if (r.ok) setResult(r.data);
+      else setShareErr("Couldn't share: " + r.error);
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Share ", count, " paper", count === 1 ? "" : "s"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Sends the selected papers' metadata + your tags + annotations, end-to-end encrypted to one collaborator \u2014 ", /* @__PURE__ */ React.createElement("b", null, "no PDFs"), ", and only they can decrypt it. Requires your own sharing identity (Settings \u2192 Cross-device sync) and theirs."), !result && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Recipient", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Paste the sharing ID they gave you, then confirm the fingerprint below matches what they told you \u2014 before sharing anything.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        placeholder: "Their sharing ID",
+        value: recipientId,
+        onChange: (e) => setRecipientId(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: lookingUp || !recipientId.trim(), onClick: lookup }, lookingUp ? "Looking up\u2026" : "Look up")), recipient && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, recipient.display_name ? recipient.display_name + " \u2014 " : "", "fingerprint: ", recipient.fingerprint), lookupErr && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, lookupErr)), recipient && /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Your sync passphrase"), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "password",
+        autoComplete: "off",
+        placeholder: "Passphrase",
+        value: passphrase,
+        onChange: (e) => setPassphrase(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: sharing || !passphrase, onClick: share }, sharing ? "Sharing\u2026" : `Share ${count} paper${count === 1 ? "" : "s"}`)), sharing && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Encrypting and sending\u2026" }), shareErr && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, shareErr))), result && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Sent \u2014 encrypted to fingerprint ", result.recipient_fingerprint, ". They'll need their own callosum, signed in, to receive it."), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));
   }
   const SNS2014_CSL = {
     type: "article-journal",
@@ -20441,7 +20501,9 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       setMergeIds,
       onMerged,
       critSetIds,
-      setCritSetIds
+      setCritSetIds,
+      sharePaperIds,
+      setSharePaperIds
     } = lib;
     const {
       focusAxis,
@@ -20863,7 +20925,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           onMerged(survivorId);
         }
       }
-    )), critSetIds && /* @__PURE__ */ React.createElement(CriticalSetModal, { ids: critSetIds, onClose: () => setCritSetIds(null), onOpenPaper: openPdf }), wantedOpen && /* @__PURE__ */ React.createElement(WantedModal, { onClose: () => setWantedOpen(false), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), textHealthOpen && /* @__PURE__ */ React.createElement(
+    )), critSetIds && /* @__PURE__ */ React.createElement(CriticalSetModal, { ids: critSetIds, onClose: () => setCritSetIds(null), onOpenPaper: openPdf }), sharePaperIds && /* @__PURE__ */ React.createElement(ShareModal, { ids: sharePaperIds, onClose: () => setSharePaperIds(null) }), wantedOpen && /* @__PURE__ */ React.createElement(WantedModal, { onClose: () => setWantedOpen(false), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), textHealthOpen && /* @__PURE__ */ React.createElement(
       TextHealthModal,
       {
         onClose: () => {

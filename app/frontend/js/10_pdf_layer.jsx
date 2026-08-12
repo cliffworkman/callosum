@@ -187,7 +187,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     trashView, selectedLibraryIds, librarySort, onSortChange, librarySearchField, onSearchFieldChange,
                     libraryItemType, itemTypes, onItemTypeChange, libraryReading, onReadingFilter,
                     onToggleLibrarySelect, onClearLibrarySelect, onBulkDelete,
-                    onBulkSummarize, onBulkPcurve, onBulkZcurve, onBulkMerge, onBulkCriticalRead, onBulkExport, onBulkExportBundle, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
+                    onBulkSummarize, onBulkPcurve, onBulkZcurve, onBulkMerge, onBulkCriticalRead, onBulkExport, onBulkExportBundle, onBulkShare, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     onBulkReferenceCheckDone,
                     libraryTagFilter, onClearTagFilter,
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
@@ -467,6 +467,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           </select>
           {onBulkExportBundle &&
             <button className="axis-link" onClick={onBulkExportBundle} title="Export the selected papers as a portable bundle — metadata + tags + annotations, no PDFs">bundle</button>}
+          {onBulkShare &&
+            <button className="axis-link" onClick={onBulkShare} title="End-to-end encrypt the selected papers' metadata + tags + annotations to one collaborator — no PDFs, only they can decrypt it">share…</button>}
           {citeStyles.length > 0 &&
             <select className="bulk-export" value="" title="Download a formatted bibliography for the selected papers"
               onChange={e => { if (e.target.value) { onBulkBibliography(e.target.value); e.target.value = ""; } }}>

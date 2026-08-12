@@ -19,12 +19,18 @@ from sync_server.auth import Identity, InvalidToken, TokenVerifier, verifier_fro
 from sync_server.identity_store import lookup_public_key, register_public_key
 from sync_server.rate_limit import RateLimiter
 from sync_server.schema import ensure_updated_at_column, metadata
+from sync_server.share_store import create_share
 from sync_server.store import Record, pull, push
 
 MAX_RECORDS_PER_PUSH = 1000
 MAX_CIPHERTEXT_LEN = 2_000_000  # ~2 MB — these are small metadata records, not files
 MAX_PUBLIC_KEY_LEN = 100  # base64 of a raw 32-byte key is ~44 chars; generous headroom, still tightly bounded
 MAX_DISPLAY_NAME_LEN = 200
+# SP4b: a share's ciphertext is a whole build_bundle() payload (papers + tags + annotations), so it needs the
+# SAME headroom as the local library_bundle.MAX_BUNDLE_BYTES cap (~20 MB) -- duplicated as its own literal
+# rather than imported, since sync_server is deliberately fenced from importing app.backend at all (tach.toml).
+MAX_SHARE_CIPHERTEXT_LEN = 21_000_000
+MAX_WRAPPED_KEY_LEN = 1_000  # a fixed-shape small envelope (two 32-byte fields + a nonce, base64'd), not bulk data
 
 # backlog #15: per-user rate limiting. Generous defaults for a personal/small-team self-host (a device polling
 # during active use), tunable via env without a code change. Keyed by ident.sub (see rate_limit.py) — a user's
@@ -64,6 +70,16 @@ class RegisterIdentityRequest(BaseModel):
 class IdentityResponse(BaseModel):
     public_key: str
     display_name: str | None
+
+
+class CreateShareRequest(BaseModel):
+    recipient_sub: str = Field(max_length=255)
+    wrapped_key: str = Field(max_length=MAX_WRAPPED_KEY_LEN)
+    ciphertext: str = Field(max_length=MAX_SHARE_CIPHERTEXT_LEN)
+
+
+class CreateShareResponse(BaseModel):
+    share_id: int
 
 
 def _identity(request: Request) -> Identity:
@@ -140,6 +156,24 @@ def create_server(engine, verifier: TokenVerifier | None, *, rate_limiter: RateL
         if record is None:
             raise HTTPException(status_code=404, detail="no identity registered for this id")
         return IdentityResponse(public_key=record.public_key, display_name=record.display_name)
+
+    # --- SP4b (backlog #15): create a share. `wrapped_key`/`ciphertext` are opaque to the server -- it
+    # relays bytes addressed to `recipient_sub`, nothing more. `sender_sub` comes from the authenticated
+    # token, never the request body. There is deliberately no read endpoint here yet (SP4c).
+
+    @app.post("/shares", response_model=CreateShareResponse)
+    def post_share(
+        request: Request, body: CreateShareRequest, ident: Identity = Depends(_rate_limited)
+    ) -> CreateShareResponse:
+        with request.app.state.engine.begin() as conn:
+            share_id = create_share(
+                conn,
+                sender_sub=ident.sub,
+                recipient_sub=body.recipient_sub,
+                wrapped_key=body.wrapped_key,
+                ciphertext=body.ciphertext,
+            )
+        return CreateShareResponse(share_id=share_id)
 
     return app
 
