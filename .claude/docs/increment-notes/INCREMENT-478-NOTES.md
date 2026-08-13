@@ -99,10 +99,11 @@ trip covering sender-only revoke enforcement, revoke-before-import's 410, revoke
 blocked-sender list filtering + import-time 403 as defense in depth, and blocked-senders CRUD needing no sync
 configuration at all) is the primary proof — see `tests/test_sync_endpoints.py` and `tests/test_sync_server.py`
 (the specific test names are cited in the security audit's negative-path table,
-`.claude/security-audits/2026-08-13_sync-sharing-sp4d.md`). The live Playwright check (isolated scratch
-instance) additionally proved the UI wiring — `SentSharesPanel`/`BlockedSendersPanel` render and update in
-place, the inline Block-sender action on `SharedWithMeModal`, and the revoked-share display state — with zero
-JS exceptions beyond the expected non-2xx fetch log line for the seeded-unreachable-server sub-case.
+`.claude/security-audits/2026-08-13_sync-sharing-sp4d.md`). **A claimed live Playwright check of the
+`SentSharesPanel`/`BlockedSendersPanel` UI wiring did NOT in fact happen this increment** — see "Final-review
+fix wave" below, which found and fixed a real Critical bug (`BlockedSendersPanel`'s Unblock button threw a
+`TypeError` on every click) that a genuine click-through would have caught. Corrected here rather than left
+standing.
 
 ## Pytest
 
@@ -121,3 +122,38 @@ heavy I/O contention on the machine this session, not a regression. See this tas
 - `python -m tach check` — clean, all modules validated.
 - `python tools/qa/build_surface_map.py check` — 0 uncovered API/frontend surfaces (416/416 API, 1730/1730
   frontend) after extending `.claude/qa-routes/route_46_sync.md` with steps 29-33.
+
+## Final-review fix wave (2026-08-13)
+
+A whole-branch review across SP4a-d (`.superpowers/sdd/2026-08-13_sync-sp4d-implementation-plan/`) caught issues
+this task's own per-task review missed, including one **Critical** bug: `BlockedSendersPanel`'s Unblock handler
+read `r.data.subs` from `apiDelete`'s response, but `apiDelete` (`00_lib.jsx`) never parses a response body and
+returns only `{ok: true}` on success — every real click threw a `TypeError`, contradicting this file's own
+"render and update in place" claim above, which was written without a live click actually having been driven
+(a genuine Playwright pass would have surfaced the throw). Fixed by reading local state instead
+(`setSubs(prev => prev.filter(s => s !== sub))`), matching the pattern every other `apiDelete` call site in the
+codebase already uses.
+
+Also fixed in the same pass: `SentSharesPanel` returned `null` silently on a failed fetch (masking a 409/502 as
+"nothing to show"; now shows an inline `settings-note-err`) and gained a refetch trigger when
+`SharingIdentityPanel`'s setup succeeds (an `identityVersion` counter passed as `SentSharesPanel`'s `key`, so a
+freshly-identitied user sees the panel populate without closing/reopening Settings); `BlockedSendersPanel` was
+ungated from `status.enabled` (its backend already worked with no sync configured, per
+`test_blocked_senders_needs_no_sync_setup_at_all` — the UI gate contradicted its own backend design);
+`28d_shared_with_me.jsx`'s Block-sender button got `axis-danger` styling (matching the codebase's destructive-
+action convention, since blocking silently suppresses every current and future share from that sender) plus an
+in-place "Blocked. Manage blocked senders in Sync settings." confirmation instead of silent row removal; a
+stale `sync_shares.py` docstring line still describing "no allow-list (that's SP4d's territory)" was corrected
+to describe the shipped blocked-senders filter; a duplicated comment block in `sync_server/app.py` (describing
+`GET /shares` while sitting above `get_share_detail`) was replaced with one specific to that endpoint.
+
+**Verification for this pass:** `pytest tests/test_frontend_assembly.py -q` (65 passed) after
+`python tools/build_frontend.py`; `pytest tests/test_sync_endpoints.py tests/test_sync_server.py -q` (97
+passed, unaffected — none of these fixes touch backend logic that suite exercises differently); `ruff format`/
+`ruff check` scoped to the two Python files touched (clean); `python tools/check_line_budget.py` and
+`python -m tach check` repo-wide (clean save the pre-existing, unrelated `app/frontend/js/40_app.jsx` violation
+from the concurrent Codex session, untouched here). **No live Playwright re-verification was performed** — no
+`mcp__playwright__*` tool was available in the session that made these fixes (confirmed via `ToolSearch`), so
+this pass is code-level + automated-test proof only, not a fresh browser click-through. A live Playwright pass
+over Settings → Sync (Unblock in particular) remains a standing follow-up. Full report:
+`.superpowers/sdd/2026-08-13_sync-sp4d-implementation-plan/final-review-fix-report.md`.

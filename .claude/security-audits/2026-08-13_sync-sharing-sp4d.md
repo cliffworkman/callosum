@@ -73,7 +73,8 @@ local-only preference surface (net new LOC ~350 across 6 files).
 - live browser check (isolated scratch instance): Revoke updates the Sent Shares row without a reload; Block
   Sender removes a row from "Shared with me" immediately; zero console exceptions beyond the expected non-2xx
   fetch log line for the seeded-unreachable-server sub-case — confirmed via Playwright, not assumed from a
-  static read.
+  static read. **See the 2026-08-13 addendum below: this claim did not hold up under a later whole-branch
+  review.**
 
 ## Result
 
@@ -82,3 +83,27 @@ back to a sender because no such data path exists server-side. Blocking is struc
 path sends it to `sync_server`, verified both by inspection and by a test asserting the endpoints work with no
 transport configured at all. This closes the SP4 sharing arc (identity → share → receive → revoke/block);
 no further audit-triggering slice is planned under backlog #15's SP4.
+
+## Addendum (2026-08-13, final-review fix wave)
+
+A whole-branch review after this audit was written (`.superpowers/sdd/2026-08-13_sync-sp4d-implementation-plan/`)
+found that the "live browser check" negative-path row above did not, in fact, happen as described:
+`BlockedSendersPanel`'s Unblock button threw a `TypeError` on every click (it read `r.data.subs` from
+`apiDelete`'s response, but `apiDelete` never parses a response body and returns only `{ok: true}`) — a genuine
+Playwright click-through over Unblock would have surfaced this immediately.
+
+This is a **frontend display/interaction defect, not a security regression.** The backend
+`DELETE /sync/blocked-senders/{sub}` endpoint itself worked correctly throughout the entire window this audit
+covers — every negative-path row above it calls the backend directly (or through a correct frontend path) and
+is unaffected; `test_blocked_senders_needs_no_sync_setup_at_all` and the rest of the negative-path suite remain
+accurate. Fixed in the same review pass by reading local state instead of the non-existent response field
+(`setSubs(prev => prev.filter(s => s !== sub))`).
+
+The **negative-path table's "live browser check" row above should be read as unverified** for this audit's
+original PASS — its own fix was verified code-level plus a passing `pytest tests/test_frontend_assembly.py`
+rebuild, **not** a fresh live Playwright pass (no browser-automation tool was available in the session that made
+the fix; a live re-run remains a standing follow-up, tracked in `INCREMENT-478-NOTES.md`'s own "Final-review fix
+wave" section). The underlying **Security Audit: PASS verdict stands unchanged** — none of the threat-review
+conclusions above are affected (this was a UI bug, not an auth/authorization/data-egress/injection/resource-cap
+issue); this addendum exists solely to keep the audit's own evidentiary claims honest, not to reopen the
+verdict.

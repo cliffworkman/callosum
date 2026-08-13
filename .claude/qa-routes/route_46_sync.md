@@ -300,12 +300,23 @@ scratch instance, so the check never touches a real stored keyring/passphrase).
     /sync/shares/{id}/import` against that share_id still **403**s even though the row no longer appears in the
     list (defense in depth against a stale UI). Unblocking restores visibility on the next `GET /sync/shares`.
 32. **Sent Shares + Blocked Senders UI (`35c_sync.jsx`) — Playwright-driven against an isolated scratch
-    instance, same seeding pattern as steps 17/21.** With sync enabled, "Shares I've sent" and "Blocked senders"
-    both appear below "Sharing identity." A seeded sent share shows "to \<sub\>" + date; clicking **Revoke**
-    updates the row to show "· Withdrawn" and removes the Revoke button, with no page reload. Blocked Senders
-    shows an empty state ("No one is blocked") plus a paste-a-sub-to-block input; adding one shows it in the
-    list with an Unblock action; unblocking removes it. Zero console errors beyond the expected non-2xx fetch
-    log line for any seeded-unreachable-server sub-case.
+    instance, same seeding pattern as steps 17/21.** "Shares I've sent" appears below "Sharing identity" when
+    sync is enabled; **"Blocked senders" renders unconditionally once `status` has loaded** — not gated on
+    `status.enabled` (its backend endpoints deliberately work with no sync configuration at all, see
+    `test_blocked_senders_needs_no_sync_setup_at_all`; corrected inc-478 final-review pass — it was originally
+    gated the same as the other two panels, contradicting its own backend design). A seeded sent share shows
+    "to \<sub\>" + date; clicking **Revoke** updates the row to show "· Withdrawn" and removes the Revoke
+    button, with no page reload. Blocked Senders shows an empty state ("No one is blocked") plus a
+    paste-a-sub-to-block input; adding one shows it in the list with an Unblock action; **unblocking removes it
+    from the list.** Note: the original Unblock handler read a non-existent `r.data.subs` from `apiDelete`'s
+    response (`apiDelete` never parses a body) and threw a `TypeError` on every real click — a genuine
+    Playwright pass over this step would have caught it, but the inc-478 record claimed this step passed
+    without one actually having been driven. Fixed in the inc-478 final-review pass (`setSubs` now filters
+    locally, matching every other `apiDelete` call site's convention) and confirmed by code read + a green
+    `pytest tests/test_frontend_assembly.py` rebuild; **not** re-driven live with Playwright in that pass (no
+    browser-automation tool was available in that session) — a live re-run of this step remains a standing
+    follow-up. Zero console errors beyond the expected non-2xx fetch log line for any seeded-unreachable-server
+    sub-case.
 33. **Inline "Block sender" on `28d_shared_with_me.jsx` — Playwright-driven, same scratch instance plus a share
     seeded server-side.** A pending row shows Import/Dismiss/**Block sender**. Clicking **Block sender** removes
     the row immediately (no confirmation dialog, matching Dismiss's own immediacy) and — confirmed via a
