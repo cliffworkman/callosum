@@ -55,6 +55,32 @@ SHARE_IMPORT_SOURCE = (
 )
 
 
+class BlockedSendersOut(BaseModel):
+    subs: list[str]
+
+
+class BlockSenderBody(BaseModel):
+    sub: str = Field(min_length=1, max_length=255)
+
+
+@router.get("/sync/blocked-senders", response_model=BlockedSendersOut)
+def list_blocked_senders() -> BlockedSendersOut:
+    """Pure local read -- no egress gate, works even on a completely unconfigured instance."""
+    return BlockedSendersOut(subs=settings.stored_blocked_senders())
+
+
+@router.post("/sync/blocked-senders", response_model=BlockedSendersOut)
+def add_blocked_sender(body: BlockSenderBody) -> BlockedSendersOut:
+    settings.block_sender(body.sub)
+    return BlockedSendersOut(subs=settings.stored_blocked_senders())
+
+
+@router.delete("/sync/blocked-senders/{sub}", response_model=BlockedSendersOut)
+def remove_blocked_sender(sub: str) -> BlockedSendersOut:
+    settings.unblock_sender(sub)
+    return BlockedSendersOut(subs=settings.stored_blocked_senders())
+
+
 class SharedShareOut(BaseModel):
     id: int
     sender_sub: str
@@ -77,6 +103,8 @@ def list_shares(request: Request, conn: Connection = Depends(get_connection)) ->
         raise HTTPException(status_code=502, detail=f"sync server error: {exc}") from exc
     finally:
         transport.close()
+    blocked = set(settings.stored_blocked_senders())
+    rows = [r for r in rows if r["sender_sub"] not in blocked]
     statuses = received_shares_repo.status_for_share_ids(conn, [r["id"] for r in rows])
     return [
         SharedShareOut(
@@ -235,6 +263,8 @@ def import_share(
             raise HTTPException(status_code=403, detail="this share is not addressed to you")
         if row.get("revoked_at") is not None:
             raise HTTPException(status_code=410, detail="this share was withdrawn by the sender")
+        if row["sender_sub"] in set(settings.stored_blocked_senders()):
+            raise HTTPException(status_code=403, detail="you've blocked this sender")
         try:
             wrapped = WrappedKey.from_dict(json.loads(row["wrapped_key"]))
         except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:

@@ -812,3 +812,51 @@ def test_revoke_unknown_share_404(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     _sync_ready_as(ca, "alice")
     ca.post("/sync/identity/setup", json={"passphrase": "pw"})
     assert ca.post("/sync/shares/999999/revoke", json={}).status_code == 404
+
+
+# --- SP4d (backlog #15): blocked senders --------------------------------------------------------------------
+
+
+def test_blocked_senders_add_list_remove_roundtrip(temp_db_url: str) -> None:
+    c = TestClient(create_app(db_url=temp_db_url))
+    assert c.get("/sync/blocked-senders").json() == {"subs": []}
+    r = c.post("/sync/blocked-senders", json={"sub": "eve"})
+    assert r.status_code == 200 and r.json() == {"subs": ["eve"]}
+    assert c.get("/sync/blocked-senders").json() == {"subs": ["eve"]}
+    r = c.delete("/sync/blocked-senders/eve")
+    assert r.status_code == 200 and r.json() == {"subs": []}
+
+
+def test_blocked_senders_needs_no_sync_setup_at_all(temp_db_url: str) -> None:
+    """Blocking is a pure local preference -- it must work even on a completely unconfigured instance, and it
+    must never touch the sync transport."""
+    c = TestClient(create_app(db_url=temp_db_url, sync_transport=None))
+    assert c.post("/sync/blocked-senders", json={"sub": "eve"}).status_code == 200
+
+
+def test_list_shares_omits_a_blocked_sender(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = _sync_server()
+    bob_db, share_id = _alice_shares_with_bob(server, tmp_path, monkeypatch)  # settings point at bob
+    bob_transport = HttpSyncTransport("", "u:bob", client=server)
+    cb = TestClient(create_app(db_url=bob_db, sync_transport=bob_transport))
+
+    assert cb.get("/sync/shares").json()[0]["id"] == share_id  # visible before blocking
+    cb.post("/sync/blocked-senders", json={"sub": "alice"})
+    assert cb.get("/sync/shares").json() == []  # gone after blocking -- filtered, not errored
+
+
+def test_import_from_a_blocked_sender_is_403(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Defense in depth: even a stale UI that still shows the row (e.g. a second open tab) can't import from a
+    sender the user has since blocked."""
+    server = _sync_server()
+    bob_db, share_id = _alice_shares_with_bob(server, tmp_path, monkeypatch)
+    bob_transport = HttpSyncTransport("", "u:bob", client=server)
+    cb = TestClient(create_app(db_url=bob_db, sync_transport=bob_transport))
+    cb.post("/sync/blocked-senders", json={"sub": "alice"})
+
+    r = cb.post(f"/sync/shares/{share_id}/import", json={"passphrase": "pw"})
+    assert r.status_code == 403
+    eng = create_engine(bob_db)
+    with eng.connect() as conn:
+        assert conn.execute(select(schema.papers)).first() is None
+    eng.dispose()

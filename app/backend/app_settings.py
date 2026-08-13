@@ -220,6 +220,37 @@ def stored_share_identity() -> dict | None:
     return data if isinstance(data, dict) else None
 
 
+# --- Sync SP4d: blocked senders (a local-only, client-enforced trust control -- never sent to the sync server,
+# and enforced regardless of whether sync is even configured). A blocked sender's shares are simply omitted from
+# `GET /sync/shares` and refused at import -- never a server-side policy, matching this project's
+# minimal-server-trust posture (the server already can't read share content; it shouldn't need to hold "who
+# blocks whom" either).
+
+
+def stored_blocked_senders() -> list[str]:
+    val = load_settings().get("blocked_senders")
+    return sorted(val) if isinstance(val, list) else []
+
+
+def block_sender(sub: str) -> None:
+    sub = (sub or "").strip()
+    if not sub:
+        return
+    data = load_settings()
+    current = set(data.get("blocked_senders") or [])
+    current.add(sub)
+    data["blocked_senders"] = sorted(current)
+    _write(data)
+
+
+def unblock_sender(sub: str) -> None:
+    data = load_settings()
+    current = set(data.get("blocked_senders") or [])
+    current.discard((sub or "").strip())
+    data["blocked_senders"] = sorted(current)
+    _write(data)
+
+
 # --- Multi-provider (inc 149): provider selection + per-provider keys + the local endpoint ---
 
 # The gemini key stays under "api_key" (the inc-146 field) for back-compat; other providers get their own field.
@@ -540,39 +571,10 @@ def clear_oauth_session() -> None:
 
 
 # --- Superuser (accounts SP1 follow-on, inc 195): a verified-ORCID allowlist ---
-# A superuser is identified by their VERIFIED ORCID claim (from the signed-in session), matched against the
-# `CALLOSUM_SUPERUSER_ORCIDS` env allowlist (comma/semicolon-separated bare iDs). Configured via the gitignored
-# `.env` — never hardcoded in the public repo. It is NOT self-asserted (you can't claim it via the API). What being
-# a superuser GATES is deferred — for now it's just an honest, verified flag.
-
-
-def _normalize_orcid(value: str | None) -> str | None:
-    """A bare ORCID iD (``0000-0002-2206-0325``) from a value that may be a full ``https://orcid.org/…`` URL.
-    Uppercases the checksum X; returns None for blanks."""
-    v = (value or "").strip()
-    if not v:
-        return None
-    if "orcid.org/" in v:
-        v = v.rsplit("orcid.org/", 1)[1]
-    v = v.strip().strip("/").upper()
-    return v or None
-
-
-def superuser_orcids() -> set[str]:
-    """The normalized superuser-ORCID allowlist from ``CALLOSUM_SUPERUSER_ORCIDS`` (comma/semicolon-separated)."""
-    raw = os.getenv("CALLOSUM_SUPERUSER_ORCIDS", "")
-    out: set[str] = set()
-    for part in raw.replace(";", ",").split(","):
-        n = _normalize_orcid(part)
-        if n:
-            out.add(n)
-    return out
-
-
-def is_superuser_orcid(orcid: str | None) -> bool:
-    """True iff the (verified) ORCID iD is in the allowlist. Match is normalization-insensitive (URL vs bare; X case)."""
-    n = _normalize_orcid(orcid)
-    return bool(n and n in superuser_orcids())
+# Moved to superuser.py (Sync SP4d, inc 478 — extracted to keep this module under the 600-line cap); re-exported
+# here so every existing call site (`app_settings.is_superuser_orcid` / `app_settings.superuser_orcids`) keeps
+# working unchanged — the inc-137/220/262/264 leaf-module pattern.
+from app.backend.superuser import is_superuser_orcid, superuser_orcids  # noqa: E402,F401
 
 
 def oauth_account_status() -> dict:
