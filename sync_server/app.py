@@ -20,7 +20,13 @@ from sync_server.auth import Identity, InvalidToken, TokenVerifier, verifier_fro
 from sync_server.identity_store import lookup_public_key, register_public_key
 from sync_server.rate_limit import RateLimiter
 from sync_server.schema import ensure_revoked_at_column, ensure_updated_at_column, metadata
-from sync_server.share_store import create_share, get_share, list_shares_for_recipient
+from sync_server.share_store import (
+    create_share,
+    get_share,
+    list_shares_for_recipient,
+    list_shares_for_sender,
+    revoke_share,
+)
 from sync_server.store import Record, pull, push
 
 MAX_RECORDS_PER_PUSH = 1000
@@ -88,6 +94,7 @@ class ShareListItem(BaseModel):
     id: int
     sender_sub: str
     created_at: datetime
+    revoked_at: datetime | None = None
 
 
 class ShareListResponse(BaseModel):
@@ -101,6 +108,18 @@ class ShareDetailResponse(BaseModel):
     wrapped_key: str
     ciphertext: str
     created_at: datetime
+    revoked_at: datetime | None = None
+
+
+class SentShareListItem(BaseModel):
+    id: int
+    recipient_sub: str
+    created_at: datetime
+    revoked_at: datetime | None = None
+
+
+class SentShareListResponse(BaseModel):
+    shares: list[SentShareListItem]
 
 
 def _identity(request: Request) -> Identity:
@@ -208,6 +227,21 @@ def create_server(engine, verifier: TokenVerifier | None, *, rate_limiter: RateL
             rows = list_shares_for_recipient(conn, ident.sub, limit=MAX_SHARES_LISTED)
         return ShareListResponse(shares=[ShareListItem(**r) for r in rows])
 
+    # --- SP4d (backlog #15): revoke a pending share (sender-only) + the sender's own sent-list. Revoking is a
+    # timestamp stamp, never a delete -- see `share_store.revoke_share`'s own docstring for why. There is no
+    # "already imported" refusal here: the server has no way to know that (see `list_shares_for_sender`).
+
+    @app.get("/shares/sent", response_model=SentShareListResponse)
+    def list_sent_shares(request: Request, ident: Identity = Depends(_rate_limited)) -> SentShareListResponse:
+        with request.app.state.engine.begin() as conn:
+            rows = list_shares_for_sender(conn, ident.sub, limit=MAX_SHARES_LISTED)
+        return SentShareListResponse(shares=[SentShareListItem(**r) for r in rows])
+
+    # --- SP4c (backlog #15): list/fetch -- the recipient's own inbox. `GET /shares` is metadata-only (no
+    # ciphertext) so the listing stays small; `GET /shares/{id}` is the full row, but ONLY for the addressed
+    # recipient -- a share's content is already ciphertext, but authorization is still enforced as defense in
+    # depth (never rely on encryption alone to gate who can even attempt to fetch a blob).
+
     @app.get("/shares/{share_id}", response_model=ShareDetailResponse)
     def get_share_detail(
         request: Request, share_id: int, ident: Identity = Depends(_rate_limited)
@@ -219,6 +253,16 @@ def create_server(engine, verifier: TokenVerifier | None, *, rate_limiter: RateL
         if row["recipient_sub"] != ident.sub:
             raise HTTPException(status_code=403, detail="this share is not addressed to you")
         return ShareDetailResponse(**row)
+
+    @app.post("/shares/{share_id}/revoke", status_code=204)
+    def revoke_share_route(request: Request, share_id: int, ident: Identity = Depends(_rate_limited)) -> None:
+        with request.app.state.engine.begin() as conn:
+            row = get_share(conn, share_id)
+            if row is None:
+                raise HTTPException(status_code=404, detail="no such share")
+            if row["sender_sub"] != ident.sub:
+                raise HTTPException(status_code=403, detail="this share is not yours to revoke")
+            revoke_share(conn, share_id, ident.sub)
 
     return app
 

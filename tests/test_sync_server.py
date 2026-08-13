@@ -567,3 +567,102 @@ def test_get_share_detail_404s_for_an_unknown_id() -> None:
 def test_get_share_detail_requires_auth() -> None:
     client = _server()
     assert client.get("/shares/1").status_code == 401
+
+
+# --- SP4d (backlog #15): revoke + sent-list ---------------------------------------------------------------
+
+
+def test_revoke_marks_the_share_revoked() -> None:
+    client = _server()
+    created = client.post(
+        "/shares",
+        json={"recipient_sub": "bob", "wrapped_key": "wk==", "ciphertext": "ct=="},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    share_id = created.json()["share_id"]
+    r = client.post(f"/shares/{share_id}/revoke", headers={"Authorization": "Bearer u:alice"})
+    assert r.status_code == 204
+    detail = client.get(f"/shares/{share_id}", headers={"Authorization": "Bearer u:bob"})
+    assert detail.json()["revoked_at"] is not None
+
+
+def test_revoke_is_idempotent() -> None:
+    client = _server()
+    created = client.post(
+        "/shares",
+        json={"recipient_sub": "bob", "wrapped_key": "wk==", "ciphertext": "ct=="},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    share_id = created.json()["share_id"]
+    headers = {"Authorization": "Bearer u:alice"}
+    assert client.post(f"/shares/{share_id}/revoke", headers=headers).status_code == 204
+    assert client.post(f"/shares/{share_id}/revoke", headers=headers).status_code == 204  # not an error
+
+
+def test_revoke_by_a_non_sender_is_403() -> None:
+    client = _server()
+    created = client.post(
+        "/shares",
+        json={"recipient_sub": "bob", "wrapped_key": "wk==", "ciphertext": "ct=="},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    share_id = created.json()["share_id"]
+    r = client.post(f"/shares/{share_id}/revoke", headers={"Authorization": "Bearer u:bob"})
+    assert r.status_code == 403
+    detail = client.get(f"/shares/{share_id}", headers={"Authorization": "Bearer u:bob"})
+    assert detail.json()["revoked_at"] is None  # bob's forbidden attempt did nothing
+
+
+def test_revoke_unknown_share_404() -> None:
+    client = _server()
+    r = client.post("/shares/999999/revoke", headers={"Authorization": "Bearer u:alice"})
+    assert r.status_code == 404
+
+
+def test_revoke_requires_auth() -> None:
+    client = _server()
+    assert client.post("/shares/1/revoke").status_code == 401
+
+
+def test_list_sent_shares_returns_only_the_caller_own_sent_items() -> None:
+    client = _server()
+    client.post(
+        "/shares",
+        json={"recipient_sub": "bob", "wrapped_key": "a==", "ciphertext": "b=="},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    client.post(
+        "/shares",
+        json={"recipient_sub": "carol", "wrapped_key": "c==", "ciphertext": "d=="},
+        headers={"Authorization": "Bearer u:eve"},
+    )
+    r = client.get("/shares/sent", headers={"Authorization": "Bearer u:alice"})
+    assert r.status_code == 200
+    sent = r.json()["shares"]
+    assert len(sent) == 1
+    assert sent[0]["recipient_sub"] == "bob" and sent[0]["revoked_at"] is None
+    assert "wrapped_key" not in sent[0] and "ciphertext" not in sent[0]  # list is metadata-only
+
+
+def test_list_sent_shares_shows_revoked_state() -> None:
+    client = _server()
+    created = client.post(
+        "/shares",
+        json={"recipient_sub": "bob", "wrapped_key": "a==", "ciphertext": "b=="},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    share_id = created.json()["share_id"]
+    client.post(f"/shares/{share_id}/revoke", headers={"Authorization": "Bearer u:alice"})
+    sent = client.get("/shares/sent", headers={"Authorization": "Bearer u:alice"}).json()["shares"]
+    assert sent[0]["revoked_at"] is not None
+
+
+def test_list_sent_shares_empty() -> None:
+    client = _server()
+    r = client.get("/shares/sent", headers={"Authorization": "Bearer u:nobody"})
+    assert r.status_code == 200 and r.json()["shares"] == []
+
+
+def test_list_sent_shares_requires_auth() -> None:
+    client = _server()
+    assert client.get("/shares/sent").status_code == 401

@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import Connection, insert, select
+from sqlalchemy import Connection, insert, select, update
 
 from sync_server.schema import shares
 
@@ -29,10 +29,10 @@ def create_share(conn: Connection, *, sender_sub: str, recipient_sub: str, wrapp
 
 
 def list_shares_for_recipient(conn: Connection, recipient_sub: str, *, limit: int = 200) -> list[dict[str, Any]]:
-    """The caller's own inbox -- id/sender/timestamp only, never `wrapped_key`/`ciphertext` (keeps the list
-    response small; content is fetched per-item via `get_share`)."""
+    """The caller's own inbox -- id/sender/timestamp/revoked only, never `wrapped_key`/`ciphertext` (keeps the
+    list response small; content is fetched per-item via `get_share`)."""
     rows = conn.execute(
-        select(shares.c.id, shares.c.sender_sub, shares.c.created_at)
+        select(shares.c.id, shares.c.sender_sub, shares.c.created_at, shares.c.revoked_at)
         .where(shares.c.recipient_sub == recipient_sub)
         .order_by(shares.c.created_at.desc())
         .limit(limit)
@@ -45,3 +45,29 @@ def get_share(conn: Connection, share_id: int) -> dict[str, Any] | None:
     against the caller's own identity before returning content -- this function does no authorization."""
     row = conn.execute(select(shares).where(shares.c.id == share_id)).mappings().first()
     return None if row is None else dict(row)
+
+
+def revoke_share(conn: Connection, share_id: int, sender_sub: str) -> None:
+    """Mark a share revoked (idempotent -- the WHERE guard means a second call is a harmless no-op, never
+    re-stamping the timestamp). The CALLER must already have verified `sender_sub` owns this share (via
+    `get_share`) before calling -- this function does no authorization, mirroring `get_share`'s own documented
+    division of responsibility."""
+    conn.execute(
+        update(shares)
+        .where(shares.c.id == share_id, shares.c.sender_sub == sender_sub, shares.c.revoked_at.is_(None))
+        .values(revoked_at=datetime.now(timezone.utc))
+    )
+
+
+def list_shares_for_sender(conn: Connection, sender_sub: str, *, limit: int = 200) -> list[dict[str, Any]]:
+    """The caller's own sent-list -- id/recipient/timestamp/revoked only, never `wrapped_key`/`ciphertext`
+    (mirrors `list_shares_for_recipient`'s own restraint). There is deliberately no `imported` field here: that
+    state lives only on the recipient's own device (SP4c's local `received_shares` table) and is never reported
+    back to the sender or this server -- sharing has no read receipts."""
+    rows = conn.execute(
+        select(shares.c.id, shares.c.recipient_sub, shares.c.created_at, shares.c.revoked_at)
+        .where(shares.c.sender_sub == sender_sub)
+        .order_by(shares.c.created_at.desc())
+        .limit(limit)
+    ).mappings()
+    return [dict(r) for r in rows]
