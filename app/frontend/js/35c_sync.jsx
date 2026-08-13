@@ -193,6 +193,112 @@ function SharingIdentityPanel() {
   );
 }
 
+// SP4d (backlog #15) -- the sender's own view of what they've shared, with a Revoke action on anything still
+// pending. Deliberately shows no "imported" state: the server has no way to know that (see
+// share_store.list_shares_for_sender's own docstring) -- sharing has no read receipts.
+function SentSharesPanel() {
+  const [rows, setRows] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+  const [msg, setMsg] = useState("");
+
+  const load = () => api("/sync/shares/sent").then(r => { if (r.ok) setRows(r.data); });
+  useEffect(() => { load(); }, []);
+
+  const revoke = async (id) => {
+    setBusyId(id); setMsg("");
+    const r = await apiPost(`/sync/shares/${id}/revoke`, {});
+    setBusyId(null);
+    if (r.ok) setRows(prev => prev.map(row => row.id === id ? { ...row, revoked: true } : row));
+    else setMsg("Couldn't revoke: " + r.error);
+  };
+
+  if (rows === null) return null;
+
+  return (
+    <div className="settings-field">
+      <label className="settings-field-label">Shares I've sent
+        <span className="settings-sub">
+          Revoking stops a share from being imported, if the recipient hasn't already done so. Sharing has no
+          read receipts — if they've already imported it, revoking here won't undo that.
+        </span>
+      </label>
+      {rows.length === 0 && <div className="settings-sub">You haven't shared anything yet.</div>}
+      {rows.map(row => (
+        <div className="gap-row" key={row.id}>
+          <div className="gap-row-info">
+            <div className="gap-row-title">to {row.recipient_sub}</div>
+            <div className="gap-row-meta">
+              {fmtDateTime(new Date(row.created_at))}{row.revoked ? " · Withdrawn" : ""}
+            </div>
+          </div>
+          {!row.revoked &&
+            <div className="gap-row-actions">
+              <button className="axis-link" disabled={busyId === row.id} onClick={() => revoke(row.id)}>
+                {busyId === row.id ? "Revoking…" : "Revoke"}
+              </button>
+            </div>}
+        </div>
+      ))}
+      {msg && <div className="settings-note settings-note-err">{msg}</div>}
+    </div>
+  );
+}
+
+// SP4d -- local-only trust control. Never sent to the sync server; enforced entirely on this device (filtered
+// out of "Shared with me", refused at import as defense in depth).
+function BlockedSendersPanel() {
+  const [subs, setSubs] = useState(null);
+  const [newSub, setNewSub] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const load = () => api("/sync/blocked-senders").then(r => { if (r.ok) setSubs(r.data.subs); });
+  useEffect(() => { load(); }, []);
+
+  const add = async () => {
+    if (!newSub.trim()) return;
+    setBusy(true); setMsg("");
+    const r = await apiPost("/sync/blocked-senders", { sub: newSub.trim() });
+    setBusy(false); setNewSub("");
+    if (r.ok) setSubs(r.data.subs); else setMsg("Couldn't block: " + r.error);
+  };
+
+  const remove = async (sub) => {
+    setBusy(true); setMsg("");
+    const r = await apiDelete(`/sync/blocked-senders/${encodeURIComponent(sub)}`);
+    setBusy(false);
+    if (r.ok) setSubs(r.data.subs); else setMsg("Couldn't unblock: " + r.error);
+  };
+
+  if (subs === null) return null;
+
+  return (
+    <div className="settings-field">
+      <label className="settings-field-label">Blocked senders
+        <span className="settings-sub">
+          Shares from a blocked sender never show up in "Shared with me" — enforced entirely on this device,
+          never sent to the sync server.
+        </span>
+      </label>
+      {subs.length === 0 && <div className="settings-sub">No one is blocked.</div>}
+      {subs.map(sub => (
+        <div className="gap-row" key={sub}>
+          <div className="gap-row-info"><div className="gap-row-title">{sub}</div></div>
+          <div className="gap-row-actions">
+            <button className="axis-link" disabled={busy} onClick={() => remove(sub)}>Unblock</button>
+          </div>
+        </div>
+      ))}
+      <div className="settings-keyrow">
+        <input className="settings-input" placeholder="Sharing ID to block"
+          value={newSub} onChange={e => setNewSub(e.target.value)} />
+        <button className="btn btn-ghost" disabled={busy || !newSub.trim()} onClick={add}>Block</button>
+      </div>
+      {msg && <div className="settings-note settings-note-err">{msg}</div>}
+    </div>
+  );
+}
+
 function SyncSettings() {
   const [status, setStatus] = useState(null);
   const [conflictCount, setConflictCount] = useState(0);
@@ -359,6 +465,8 @@ function SyncSettings() {
         </div>}
 
       {status.enabled && <SharingIdentityPanel />}
+      {status.enabled && <SentSharesPanel />}
+      {status.enabled && <BlockedSendersPanel />}
 
       {msg && <div className={"settings-note" + (msgErr ? " settings-note-err" : "")}>{msg}</div>}
 
