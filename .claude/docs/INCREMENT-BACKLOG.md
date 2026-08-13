@@ -57,13 +57,11 @@
   action] `.gitignore` keeps all key material out of GitHub (verified via `git check-ignore`), so this is **not
   blocking** — but rotation is the only way to neutralize copies that exist in Dropbox version history / chat
   history outside git. Deferred by you.
-- **#15 Sync — remaining threads.** [gated] Setup/enable/run UI, conflict review, and server hardening
-  (rate-limiting, tombstone retention, an operations runbook) all shipped — see `INCREMENT-BACKLOG-DONE.md`.
-  **Still open, not code:** the live deploy of `sync_server/` on Postgres + wiring the Authentik audience [your
-  infra]; a per-user storage quota + a real migration tool. **SP4 sharing** (= B2 collaboration, a
-  live-shared-library layer), staged like the original sync feature — **SP4a (identity) shipped, inc 475; SP4b
-  (share) shipped, inc 476; SP4c (receive) shipped, inc 477**; still open: **SP4d** (revoke/roles, with the
-  limits of revocation disclosed honestly) — the final stage of the arc.
+- **#15 Sync — remaining threads.** [gated, non-code] Setup/enable/run UI, conflict review, server hardening,
+  and the full SP4 sharing arc (identity → share → receive → revoke/block, staged like the original sync
+  feature) all shipped — see `INCREMENT-BACKLOG-DONE.md`. **Still open, not code:** the live deploy of
+  `sync_server/` on Postgres + wiring the Authentik audience [your infra]; a per-user storage quota + a real
+  migration tool.
 - **#49 Auto-updater — Cliff's own remaining rollout steps.** [non-code] The updater itself is live (inc 409) —
   see `INCREMENT-BACKLOG-DONE.md`. **Still open, not code:** (1) set the two `TAURI_SIGNING_PRIVATE_KEY`/
   `_PASSWORD` GitHub secrets yourself (`gh secret set`, from your own machine — the public key is already

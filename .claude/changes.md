@@ -9,6 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-13 — Sync SP4d: revoke pending shares + blocked senders (closes the SP4 arc)
+- **Files:** `sync_server/schema.py`, `sync_server/share_store.py`, `sync_server/app.py`,
+  `app/backend/sync/transport.py`, `app/backend/api/routers/sync_shares.py`, `app/backend/app_settings.py`,
+  `app/frontend/js/35c_sync.jsx`, `app/frontend/js/28d_shared_with_me.jsx`
+- **What:** a sender can withdraw a pending (not-yet-imported) share; a recipient can block future shares from a
+  sender, enforced entirely locally and never sent to the sync server.
+- **Why:** closes backlog #15's SP4 sharing arc (identity → share → receive → revoke/block) — see
+  `.claude/backups/plans/2026-08-13_sync-sp4d-revoke-block.md` for the full scoping rationale (why "roles" was
+  dropped in favor of this narrower, honestly-revocable pair of capabilities).
+- **Revert:** `git revert` the SP4d commit range, or restore from a pre-SP4d zip snapshot if one exists.
+
 ## 2026-08-12 — Increment 477: Sync SP4c — receive (round 3, item #4, stage C of 4)
 - **Files:** `app/backend/api/routers/sync_shares.py` (new), `app/frontend/js/28d_shared_with_me.jsx` (new),
   `app/backend/persistence/received_shares_repo.py` (new), `alembic/versions/0073_received_shares.py` (new),

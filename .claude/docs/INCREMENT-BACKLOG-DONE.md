@@ -346,6 +346,15 @@ new work goes in the open backlog.
   cross-user provenance log. Independent re-verification needed zero new code (B2 SP3's existing action already
   covers it). SP4d (revoke/roles) is the arc's final open stage, see open backlog #15. Audit
   `2026-08-12_sync-sharing-sp4c.md` PASS.
+- [x] **#15 SP4d — revoke + blocked senders, closes the SP4 arc** (inc 478, round 3 item #4). A sender-only soft
+  revoke (`revoked_at` on `sync_server`'s `shares` table, never a delete) lets a share be withdrawn before
+  import — never after, since the server structurally has no read-receipt concept and can't know if a recipient
+  already decrypted it (proven, not just disclosed, by `test_revoke_after_import_does_not_undo_the_import`). A
+  local-only, never-egressed blocked-senders list (`app_settings.py`) filters `GET /sync/shares` and refuses
+  import (403) as defense in depth, replacing the originally-sketched "roles" territory, which turned out to
+  have no target in the shipped one-shot-snapshot share architecture. Closes backlog #15's SP4 sharing arc
+  (identity → share → receive → revoke/block) in full; the live `sync_server` deploy + per-user quota/migration
+  tool remain open, see open backlog #15. Audit `2026-08-13_sync-sharing-sp4d.md` PASS.
 - [x] **#20 Harness hardening — fully closed** (2026-07-22, inc 342) — repo furniture (`SECURITY.md`,
   `CITATION.cff`, `.env.example`); uv adoption (`pyproject.toml` + committed `uv.lock`, CI via `uv sync
   --locked`); the hand-rolled pre-commit hook migrated to the standard pre-commit framework; 3 CI gates added

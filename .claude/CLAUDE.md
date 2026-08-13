@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 477** (see Increment workflow) with **2169 root-suite pytest tests
+It is currently at **Increment 478** (see Increment workflow) with **2202 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -951,7 +951,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 475). Each increment of real work
+callosum is built in **numbered increments** (currently at 478). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -1089,8 +1089,11 @@ be made public later — so the discipline below is enforced now, not retrofitte
   re-verification needed zero new code — B2 SP3's existing "Re-verify against my library" action already works
   on any relayed synthesis regardless of how it arrived. No new sender-verification mechanism or allow-list —
   the honest, minimal answer links to SP4a's existing fingerprint-lookup tool instead. Audit
-  `2026-08-12_sync-sharing-sp4c.md` PASS. **SP4d (revoke/roles, with revocation's real limits disclosed
-  honestly) is next and closes the SP4 arc.**
+  `2026-08-12_sync-sharing-sp4c.md` PASS. **SP4d (inc 478) closes the SP4 arc**: a sender-only soft-revoke
+  (`revoked_at` on `sync_server`'s `shares` table) lets a share be withdrawn before import — never after, since
+  the server structurally has no read-receipt concept and can't know if a recipient already decrypted it; a
+  local-only, never-egressed blocked-senders list (`app_settings.py`) replaces the originally-sketched "roles"
+  territory, which turned out to have no target in the shipped one-shot-snapshot share architecture.
 - SQLAlchemy bound parameters (rule #3); PDF + external-input validation at the boundary
   (rule #4).
 

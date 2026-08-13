@@ -1,9 +1,9 @@
 <!-- qa-coverage
-api: /sync/status, /sync/setup, /sync/settings, /sync/run, /sync/conflicts, /sync/conflicts/{conflict_id}/resolve, /sync/identity/status, /sync/identity/setup, /sync/identity/lookup, /sync/share, /sync/shares, /sync/shares/{share_id}/dismiss, /sync/shares/{share_id}/import, /sync/shares/{share_id}/import/{job_id}
+api: /sync/status, /sync/setup, /sync/settings, /sync/run, /sync/conflicts, /sync/conflicts/{conflict_id}/resolve, /sync/identity/status, /sync/identity/setup, /sync/identity/lookup, /sync/share, /sync/shares, /sync/shares/{share_id}/dismiss, /sync/shares/{share_id}/import, /sync/shares/{share_id}/import/{job_id}, /sync/shares/sent, /sync/shares/{share_id}/revoke, /sync/blocked-senders, /sync/blocked-senders/{sub}
 fe: 35c_sync.jsx, 28c_share.jsx, 28d_shared_with_me.jsx
 -->
 
-# ROUTE 46 - Opt-in E2E sync (accounts SP3b) + the Settings → Sync UI + conflict review (SP3c) + sharing identity (SP4a) + share (SP4b) + receive (SP4c)
+# ROUTE 46 - Opt-in E2E sync (accounts SP3b) + the Settings → Sync UI + conflict review (SP3c) + sharing identity (SP4a) + share (SP4b) + receive (SP4c) + revoke/block (SP4d)
 
 **Tier:** 1 local-stateful
 **Goal:** Exhaust the opt-in `/sync/*` surface (set up a vault, toggle on, status, run, list/resolve conflicts,
@@ -19,7 +19,11 @@ Playwright pass over the "Sharing identity" subsection, browser-verified against
 new `28c_share.jsx` `ShareModal` (opened from the Library bulk-bar's "share…" action). **Steps 23-28 (SP4c, inc
 "sync-sharing-sp4c") cover the recipient side** — list/dismiss/import gating, the 403 cross-recipient defense-
 in-depth check, a full decrypt-and-import round trip, and a Playwright pass over the new `28d_shared_with_me.jsx`
-`SharedWithMeModal` (opened from the Library "+ Add" menu's "Shared with me…" entry).
+`SharedWithMeModal` (opened from the Library "+ Add" menu's "Shared with me…" entry). **Steps 29-33 (SP4d, inc
+"sync-sharing-sp4d") cover revoke + blocked senders** — direct-API (sender-only revoke, import-after-revoke's 410,
+blocked-sender list filtering and import refusal, blocked-senders CRUD) plus a Playwright pass over the new
+`SentSharesPanel`/`BlockedSendersPanel` (Settings → Sync) and the inline "Block sender" action in
+`SharedWithMeModal`.
 
 ## Environment
 
@@ -133,11 +137,23 @@ session) and sync is **unconfigured** by default. Register console/pageerror/req
   "Re-verify against my library" action (B2 SP3, `reverify_imported_summary`) already works on it unmodified. A
   share-specific re-verification code path appearing anywhere is a **Medium** finding (unnecessary duplication,
   not a security issue) — the reuse is the point.
-- **No new sender-verification mechanism; no allow-list.** A listed share shows the sender's raw `sub` and a
-  link into the existing Settings → Sync fingerprint-lookup tool — never a new trust/verification UI, and never
-  an accept/block list gating who can address a share to you (that is SP4d's explicitly-deferred "roles"
-  territory). A new verification mechanism or allow-list appearing here is a **Medium** finding (scope
-  creep against the recorded design, not itself a vulnerability).
+- **No new sender-*verification* mechanism** (SP4a's fingerprint dance + lookup tool remains the only identity
+  proof) — but **SP4d adds a local-only block list**, not a server-side allow-list. Blocking is enforced
+  entirely client-side: a blocked sender's shares are silently omitted from `GET /sync/shares` and refused
+  (403) at import, but their `POST /shares` to the sync-server still nominally succeeds (harmless stored
+  ciphertext the blocker will simply never see) — blocking never becomes server-side policy. Blocked-senders
+  data appearing in any request to the sync-server is **Critical**.
+- **Revoke is soft and sender-only.** `POST /sync/shares/{id}/revoke` stamps `revoked_at` (never deletes the
+  row); it succeeds only for the original sender (**403** otherwise, **404** for an unknown id), and is
+  idempotent (revoking twice is not an error). A revoked share fails closed at import (**410**, distinct from
+  the generic 502/404 paths). A non-sender able to revoke, or a revoke that hard-deletes evidence, is
+  **Critical**.
+- **No read receipts.** `GET /sync/shares/sent` never reports whether a recipient has imported a share — there
+  is structurally no field for it (the server has no way to know). Revoking an already-imported share must not
+  change anything for the recipient (proven by `test_revoke_after_import_does_not_undo_the_import`) — the UI
+  copy must disclose this limit plainly, not imply a successful "undo." Any new mechanism that reports import
+  status back to a sender is a **Medium** finding (an unrequested new signal, not itself a vulnerability, but a
+  deliberate scope/values decision this route should catch if it silently appears).
 
 ## Steps
 
@@ -266,6 +282,36 @@ scratch instance, so the check never touches a real stored keyring/passphrase).
     the expected non-2xx fetch log line for the error-path sub-case below.
     - **Error path:** submitting Import against a server URL with no real listener shows a clean inline error
       ("Couldn't import: …"), no crash.
+29. **Sent-list + revoke gating (direct-API, the two-device harness from steps 23-28).** `GET /sync/shares/sent`
+    before sync is ready → **409**; sync ready but no identity → **409**. Once alice has shared a paper with
+    bob, her own `GET /sync/shares/sent` shows one row (`recipient_sub:"bob"`, `revoked:false`) — no
+    `wrapped_key`/`ciphertext` in the body. `POST /sync/shares/{id}/revoke` before sync is ready → **409**; an
+    unknown id → **404**; a third device (carol) attempting to revoke a share she didn't send → **403**
+    (confirms sender-only enforcement, not just recipient-only like the existing 403 check).
+30. **Revoke → import fails closed; revoke after import changes nothing.** Alice revokes her own pending share
+    (`POST /sync/shares/{id}/revoke` → **200** `{revoked:true}`); bob's `GET /sync/shares` now shows
+    `revoked:true` for that row; bob's `POST /sync/shares/{id}/import` → **410**, nothing merged. On a
+    **separate** fresh share: bob imports successfully first, *then* alice revokes — confirm bob's already-
+    imported paper is untouched (the disclosed limit, proven for real, not just in copy).
+31. **Blocked-senders CRUD + enforcement (direct-API).** `GET/POST/DELETE /sync/blocked-senders` work on a
+    completely unconfigured instance (no sync setup at all) — confirms this is a pure local preference, not
+    gated by egress-readiness. After bob blocks alice's sub, alice's pending share disappears from bob's `GET
+    /sync/shares` entirely (not shown-but-marked — actually absent from the response body); a direct `POST
+    /sync/shares/{id}/import` against that share_id still **403**s even though the row no longer appears in the
+    list (defense in depth against a stale UI). Unblocking restores visibility on the next `GET /sync/shares`.
+32. **Sent Shares + Blocked Senders UI (`35c_sync.jsx`) — Playwright-driven against an isolated scratch
+    instance, same seeding pattern as steps 17/21.** With sync enabled, "Shares I've sent" and "Blocked senders"
+    both appear below "Sharing identity." A seeded sent share shows "to \<sub\>" + date; clicking **Revoke**
+    updates the row to show "· Withdrawn" and removes the Revoke button, with no page reload. Blocked Senders
+    shows an empty state ("No one is blocked") plus a paste-a-sub-to-block input; adding one shows it in the
+    list with an Unblock action; unblocking removes it. Zero console errors beyond the expected non-2xx fetch
+    log line for any seeded-unreachable-server sub-case.
+33. **Inline "Block sender" on `28d_shared_with_me.jsx` — Playwright-driven, same scratch instance plus a share
+    seeded server-side.** A pending row shows Import/Dismiss/**Block sender**. Clicking **Block sender** removes
+    the row immediately (no confirmation dialog, matching Dismiss's own immediacy) and — confirmed via a
+    follow-up `GET /sync/blocked-senders` direct-API call in the same check — the sender's id is now present in
+    the blocked list. A **revoked** seeded share (server-side `revoked_at` set directly before the page loads)
+    shows "· Withdrawn by sender" in its meta line and has **no** Import button, only Dismiss + Block sender.
 
 ## Notes for the runner
 
@@ -299,3 +345,7 @@ directly (Python, same process env as the server) before starting uvicorn — ma
 steps 9-13 already use. **`PYTHON_KEYRING_BACKEND` must be set identically for both the seeding process and the
 server process**, or the seeded keyring silently won't unlock (a real OS-keychain-vs-file-fallback mismatch
 between two separate process invocations — caught live while writing this step, not assumed).
+
+Steps 30-31's "revoke after import" and "blocked-sender import refusal" sub-cases both need the same two-device
+harness steps 23-28 already establish (`tests/test_sync_endpoints.py::_alice_shares_with_bob`) — no new harness
+shape, just new assertions layered onto it.
