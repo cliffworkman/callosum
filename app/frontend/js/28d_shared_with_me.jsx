@@ -1,7 +1,10 @@
 // "Shared with me" modal (SP4c, backlog #15) — the recipient side of live sharing. Lists shares addressed to
 // you (sender + when, no content — no passphrase needed to see this list). Per row: Import (passphrase-gated,
-// decrypts + merges via the same background-job path POST /library/bundle/import already uses) or Dismiss
-// (local-only, no passphrase, never touches ciphertext). Mirrors 28b_bundle.jsx's BundleImportModal structurally.
+// decrypts + merges via the same background-job path POST /library/bundle/import already uses), Dismiss
+// (local-only, no passphrase, never touches ciphertext), or Block sender (SP4d — local-only; filters this and
+// every future share from that sender, shown with a brief in-place confirmation rather than silent removal). A
+// row whose sender revoked it (SP4d) shows "· Withdrawn by sender" and hides Import (Dismiss + Block sender
+// remain). Mirrors 28b_bundle.jsx's BundleImportModal structurally.
 
 function SharedWithMeModal({ onClose, onImported, onOpenSettings }) {
   return (
@@ -48,18 +51,30 @@ function SharedWithMeList({ onImported }) {
 
   const block = async (sub) => {
     const r = await apiPost("/sync/blocked-senders", { sub });
-    if (r.ok) setRows(prev => prev.filter(row => row.sender_sub !== sub));
+    // Keep the row(s) visible with a brief in-place confirmation rather than vanishing silently — blocking a
+    // sender affects every one of their pending shares, not just the one clicked.
+    if (r.ok) setRows(prev => prev.map(row => row.sender_sub === sub ? { ...row, blockedNow: true } : row));
   };
 
   if (state.status === "loading") return <div className="axis-hint">Checking for shares…</div>;
   if (state.status === "error") return <div className="axis-err">Couldn't check for shares: {state.error}</div>;
 
-  const pending = rows.filter(r => !r.status);
+  const blocked = rows.filter(r => !r.status && r.blockedNow);
+  const pending = rows.filter(r => !r.status && !r.blockedNow);
   const handled = rows.filter(r => r.status);
 
   return (
     <>
-      {pending.length === 0 && handled.length === 0 && <div className="axis-hint">No one has shared anything with you yet.</div>}
+      {pending.length === 0 && handled.length === 0 && blocked.length === 0 &&
+        <div className="axis-hint">No one has shared anything with you yet.</div>}
+      {blocked.map(row => (
+        <div className="gap-row" key={row.id}>
+          <div className="gap-row-info">
+            <div className="gap-row-title">from {row.sender_sub}</div>
+            <div className="gap-row-meta">Blocked. Manage blocked senders in Sync settings.</div>
+          </div>
+        </div>
+      ))}
       {pending.map(row => (
         <SharedRow key={row.id} row={row} onDismiss={() => dismiss(row.id)} onBlock={() => block(row.sender_sub)}
           onImported={() => { setRows(prev => prev.map(r => r.id === row.id ? { ...r, status: "imported" } : r)); onImported && onImported(); }} />
@@ -125,7 +140,7 @@ function SharedRow({ row, onDismiss, onImported, onBlock }) {
             <>
               {!row.revoked && <button className="axis-link" onClick={() => setImporting(true)}>Import</button>}
               <button className="axis-link" onClick={onDismiss}>Dismiss</button>
-              <button className="axis-link" onClick={onBlock}>Block sender</button>
+              <button className="axis-link axis-danger" onClick={onBlock}>Block sender</button>
             </>}
         </div>}
     </div>

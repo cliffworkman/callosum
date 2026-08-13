@@ -237,10 +237,9 @@ def create_server(engine, verifier: TokenVerifier | None, *, rate_limiter: RateL
             rows = list_shares_for_sender(conn, ident.sub, limit=MAX_SHARES_LISTED)
         return SentShareListResponse(shares=[SentShareListItem(**r) for r in rows])
 
-    # --- SP4c (backlog #15): list/fetch -- the recipient's own inbox. `GET /shares` is metadata-only (no
-    # ciphertext) so the listing stays small; `GET /shares/{id}` is the full row, but ONLY for the addressed
-    # recipient -- a share's content is already ciphertext, but authorization is still enforced as defense in
-    # depth (never rely on encryption alone to gate who can even attempt to fetch a blob).
+    # --- SP4c (backlog #15): fetch the full row for one share -- ONLY for the addressed recipient. The content
+    # is already ciphertext, but authorization is still enforced as defense in depth (never rely on encryption
+    # alone to gate who can even attempt to fetch a blob).
 
     @app.get("/shares/{share_id}", response_model=ShareDetailResponse)
     def get_share_detail(

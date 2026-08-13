@@ -98,7 +98,7 @@ function ConflictReviewPanel({ onClose, onResolved }) {
 // gate as a sync run, plus its own explicit passphrase entry — a distinct consent event from syncing your own
 // devices. The fingerprint comparison is the point: never trust a lookup result alone (Signal's "safety
 // number" pattern) — confirm it out-of-band with the collaborator before sharing anything.
-function SharingIdentityPanel() {
+function SharingIdentityPanel({ onIdentityReady }) {
   const [identity, setIdentity] = useState(null);
   const [passphrase, setPassphrase] = useState("");
   const [settingUp, setSettingUp] = useState(false);
@@ -117,8 +117,10 @@ function SharingIdentityPanel() {
     setSettingUp(true); setSetupMsg("");
     const r = await apiPost("/sync/identity/setup", { passphrase });
     setSettingUp(false); setPassphrase("");
-    if (r.ok) { await load(); setSetupErr(false); setSetupMsg("Sharing identity set up."); }
-    else { setSetupErr(true); setSetupMsg("Couldn't set up your sharing identity: " + r.error); }
+    if (r.ok) {
+      await load(); setSetupErr(false); setSetupMsg("Sharing identity set up.");
+      if (onIdentityReady) onIdentityReady();
+    } else { setSetupErr(true); setSetupMsg("Couldn't set up your sharing identity: " + r.error); }
   };
 
   const lookup = async () => {
@@ -198,10 +200,14 @@ function SharingIdentityPanel() {
 // share_store.list_shares_for_sender's own docstring) -- sharing has no read receipts.
 function SentSharesPanel() {
   const [rows, setRows] = useState(null);
+  const [loadErr, setLoadErr] = useState("");
   const [busyId, setBusyId] = useState(null);
   const [msg, setMsg] = useState("");
 
-  const load = () => api("/sync/shares/sent").then(r => { if (r.ok) setRows(r.data); });
+  const load = () => {
+    setLoadErr("");
+    api("/sync/shares/sent").then(r => { if (r.ok) setRows(r.data); else setLoadErr(r.error); });
+  };
   useEffect(() => { load(); }, []);
 
   const revoke = async (id) => {
@@ -212,7 +218,17 @@ function SentSharesPanel() {
     else setMsg("Couldn't revoke: " + r.error);
   };
 
-  if (rows === null) return null;
+  if (rows === null) {
+    if (loadErr) {
+      return (
+        <div className="settings-field">
+          <label className="settings-field-label">Shares I've sent</label>
+          <div className="settings-note settings-note-err">Couldn't load your sent shares: {loadErr}</div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div className="settings-field">
@@ -267,7 +283,7 @@ function BlockedSendersPanel() {
     setBusy(true); setMsg("");
     const r = await apiDelete(`/sync/blocked-senders/${encodeURIComponent(sub)}`);
     setBusy(false);
-    if (r.ok) setSubs(r.data.subs); else setMsg("Couldn't unblock: " + r.error);
+    if (r.ok) setSubs(prev => prev.filter(s => s !== sub)); else setMsg("Couldn't unblock: " + r.error);
   };
 
   if (subs === null) return null;
@@ -277,7 +293,8 @@ function BlockedSendersPanel() {
       <label className="settings-field-label">Blocked senders
         <span className="settings-sub">
           Shares from a blocked sender never show up in "Shared with me" — enforced entirely on this device,
-          never sent to the sync server.
+          never sent to the sync server. Paste the exact sharing ID as shown on a share row — matching is
+          exact-string, no fuzzy correction.
         </span>
       </label>
       {subs.length === 0 && <div className="settings-sub">No one is blocked.</div>}
@@ -316,6 +333,7 @@ function SyncSettings() {
   const [running, setRunning] = useState(false);
   const [runResult, setRunResult] = useState(null);
   const [reviewing, setReviewing] = useState(false);
+  const [identityVersion, setIdentityVersion] = useState(0);  // bumped on setup so SentSharesPanel refetches
 
   const loadConflictCount = () => api("/sync/conflicts").then(r => { if (r.ok) setConflictCount(r.data.length); });
   const load = () => {
@@ -464,9 +482,9 @@ function SyncSettings() {
             </div>}
         </div>}
 
-      {status.enabled && <SharingIdentityPanel />}
-      {status.enabled && <SentSharesPanel />}
-      {status.enabled && <BlockedSendersPanel />}
+      {status.enabled && <SharingIdentityPanel onIdentityReady={() => setIdentityVersion(v => v + 1)} />}
+      {status.enabled && <SentSharesPanel key={identityVersion} />}
+      <BlockedSendersPanel />{/* local-only; works with no sync configured at all — never gated on status.enabled */}
 
       {msg && <div className={"settings-note" + (msgErr ? " settings-note-err" : "")}>{msg}</div>}
 

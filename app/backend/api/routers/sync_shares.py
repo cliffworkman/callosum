@@ -13,8 +13,14 @@ instead of an uploaded file. Dismissing is local-only bookkeeping and never touc
 
 Recipient-side trust: a listed share's `sender_sub` is the OIDC subject SP4a's fingerprint dance never itself
 verifies to the *recipient* (only to the sender, when addressing a share). The honest, minimal answer is to
-show `sender_sub` plainly and let the UI link to the existing Settings → Sync fingerprint-lookup tool — no new
-verification mechanism, no allow-list (that's SP4d's "roles" territory).
+show `sender_sub` plainly and let the UI link to the existing Settings → Sync fingerprint-lookup tool.
+
+SP4d (shipped in this file) adds sender-only revoke (`POST /sync/shares/{id}/revoke`, `GET /sync/shares/sent`)
+and a local-only, never-egressed blocked-senders filter (`/sync/blocked-senders*`) -- not a server-side
+allow-list, and not a new verification mechanism. SP4a's fingerprint dance remains the only identity proof;
+"roles" (originally sketched as SP4d's territory) was dropped during design once it turned out to have no real
+target in this one-shot-snapshot share architecture (a share is a single encrypted blob, not a live-updating
+grant).
 """
 
 from __future__ import annotations

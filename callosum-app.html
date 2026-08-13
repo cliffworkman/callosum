@@ -7928,7 +7928,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       setRefreshKey((value) => value + 1);
     };
     if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "meta-preregistration ws-pad" }, /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a Library paper to find, attach, or compare a registration."));
-    return /* @__PURE__ */ React.createElement("div", { className: "meta-preregistration ws-pad" }, /* @__PURE__ */ React.createElement("div", { className: "meta-preregistration-intro" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Meta-Preregistration"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Compare a publication with a confirmed registration through evidence-bound flags for human inspection. Callosum does not produce a compliance, integrity, or author score, and \u201Cnot located\u201D never means absent."), isDemoMode() && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Saved deterministic crosswalk with evidence-bounded AI display triage. The complete OSF registration is not bundled because its record specifies \u201CNo license\u201D; this snapshot retains only verified metadata, short factual excerpts, and the canonical source link. Search, acquisition, reruns, new AI triage, and review edits require local Callosum.")), !meta && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Loading registration workspace\u2026"), meta?.error && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Could not load this paper: ", meta.error), meta && !meta.error && /* @__PURE__ */ React.createElement("div", { className: "meta-preregistration-grid" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "meta-preregistration ws-pad" }, /* @__PURE__ */ React.createElement("div", { className: "meta-preregistration-intro" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Meta-Preregistration"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Compare a publication with a confirmed registration through evidence-bound flags for human inspection. Callosum does not produce a compliance, integrity, or author score, and \u201Cnot located\u201D never means absent."), isDemoMode() && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Saved deterministic crosswalk with evidence-bounded AI display triage. The complete OSF registration is not bundled because no explicit reuse license is recorded; this snapshot retains only verified metadata, bounded excerpts, and the canonical source link. Search, acquisition, reruns, new AI triage, and review edits require local Callosum.")), !meta && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Loading registration workspace\u2026"), meta?.error && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Could not load this paper: ", meta.error), meta && !meta.error && /* @__PURE__ */ React.createElement("div", { className: "meta-preregistration-grid" }, /* @__PURE__ */ React.createElement(
       RegistrationDiscovery,
       {
         paperId,
@@ -15436,13 +15436,14 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     };
     const block = async (sub) => {
       const r = await apiPost("/sync/blocked-senders", { sub });
-      if (r.ok) setRows((prev) => prev.filter((row) => row.sender_sub !== sub));
+      if (r.ok) setRows((prev) => prev.map((row) => row.sender_sub === sub ? { ...row, blockedNow: true } : row));
     };
     if (state.status === "loading") return /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Checking for shares\u2026");
     if (state.status === "error") return /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check for shares: ", state.error);
-    const pending = rows.filter((r) => !r.status);
+    const blocked = rows.filter((r) => !r.status && r.blockedNow);
+    const pending = rows.filter((r) => !r.status && !r.blockedNow);
     const handled = rows.filter((r) => r.status);
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, pending.length === 0 && handled.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No one has shared anything with you yet."), pending.map((row) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, pending.length === 0 && handled.length === 0 && blocked.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No one has shared anything with you yet."), blocked.map((row) => /* @__PURE__ */ React.createElement("div", { className: "gap-row", key: row.id }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, "from ", row.sender_sub), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, "Blocked. Manage blocked senders in Sync settings.")))), pending.map((row) => /* @__PURE__ */ React.createElement(
       SharedRow,
       {
         key: row.id,
@@ -15499,7 +15500,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         value: passphrase,
         onChange: (e) => setPassphrase(e.target.value)
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !passphrase, onClick: run }, "Decrypt & import")), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Decrypting + merging\u2026", progress: imp.progress, managedBy: "backend-job" }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't import: ", imp.error)), !done && /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, !importing && imp.status !== "running" && /* @__PURE__ */ React.createElement(React.Fragment, null, !row.revoked && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => setImporting(true) }, "Import"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onDismiss }, "Dismiss"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBlock }, "Block sender"))));
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !passphrase, onClick: run }, "Decrypt & import")), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Decrypting + merging\u2026", progress: imp.progress, managedBy: "backend-job" }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't import: ", imp.error)), !done && /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, !importing && imp.status !== "running" && /* @__PURE__ */ React.createElement(React.Fragment, null, !row.revoked && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => setImporting(true) }, "Import"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onDismiss }, "Dismiss"), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", onClick: onBlock }, "Block sender"))));
   }
   const SNS2014_CSL = {
     type: "article-journal",
@@ -18776,7 +18777,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     };
     return /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Conflicts to review", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Two devices edited the same item since your last sync. Nothing is picked automatically \u2014 choose which version to keep for each.")), conflicts === null && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Loading\u2026"), conflicts && conflicts.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "No conflicts to review."), conflicts && conflicts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "provider-list" }, conflicts.map((c) => /* @__PURE__ */ React.createElement(ConflictCard, { key: c.id, c, busy, onResolve: resolve }))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, msg), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: onClose }, "Close")));
   }
-  function SharingIdentityPanel() {
+  function SharingIdentityPanel({ onIdentityReady }) {
     const [identity, setIdentity] = useState(null);
     const [passphrase, setPassphrase] = useState("");
     const [settingUp, setSettingUp] = useState(false);
@@ -18803,6 +18804,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         await load();
         setSetupErr(false);
         setSetupMsg("Sharing identity set up.");
+        if (onIdentityReady) onIdentityReady();
       } else {
         setSetupErr(true);
         setSetupMsg("Couldn't set up your sharing identity: " + r.error);
@@ -18841,11 +18843,16 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
   }
   function SentSharesPanel() {
     const [rows, setRows] = useState(null);
+    const [loadErr, setLoadErr] = useState("");
     const [busyId, setBusyId] = useState(null);
     const [msg, setMsg] = useState("");
-    const load = () => api("/sync/shares/sent").then((r) => {
-      if (r.ok) setRows(r.data);
-    });
+    const load = () => {
+      setLoadErr("");
+      api("/sync/shares/sent").then((r) => {
+        if (r.ok) setRows(r.data);
+        else setLoadErr(r.error);
+      });
+    };
     useEffect(() => {
       load();
     }, []);
@@ -18857,7 +18864,12 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       if (r.ok) setRows((prev) => prev.map((row) => row.id === id ? { ...row, revoked: true } : row));
       else setMsg("Couldn't revoke: " + r.error);
     };
-    if (rows === null) return null;
+    if (rows === null) {
+      if (loadErr) {
+        return /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Shares I've sent"), /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Couldn't load your sent shares: ", loadErr));
+      }
+      return null;
+    }
     return /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Shares I've sent", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Revoking stops a share from being imported, if the recipient hasn't already done so. Sharing has no read receipts \u2014 if they've already imported it, revoking here won't undo that.")), rows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "You haven't shared anything yet."), rows.map((row) => /* @__PURE__ */ React.createElement("div", { className: "gap-row", key: row.id }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, "to ", row.recipient_sub), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, fmtDateTime(new Date(row.created_at)), row.revoked ? " \xB7 Withdrawn" : "")), !row.revoked && /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: busyId === row.id, onClick: () => revoke(row.id) }, busyId === row.id ? "Revoking\u2026" : "Revoke")))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, msg));
   }
   function BlockedSendersPanel() {
@@ -18886,11 +18898,11 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       setMsg("");
       const r = await apiDelete(`/sync/blocked-senders/${encodeURIComponent(sub)}`);
       setBusy(false);
-      if (r.ok) setSubs(r.data.subs);
+      if (r.ok) setSubs((prev) => prev.filter((s) => s !== sub));
       else setMsg("Couldn't unblock: " + r.error);
     };
     if (subs === null) return null;
-    return /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Blocked senders", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, 'Shares from a blocked sender never show up in "Shared with me" \u2014 enforced entirely on this device, never sent to the sync server.')), subs.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "No one is blocked."), subs.map((sub) => /* @__PURE__ */ React.createElement("div", { className: "gap-row", key: sub }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, sub)), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: busy, onClick: () => remove(sub) }, "Unblock")))), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Blocked senders", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, 'Shares from a blocked sender never show up in "Shared with me" \u2014 enforced entirely on this device, never sent to the sync server. Paste the exact sharing ID as shown on a share row \u2014 matching is exact-string, no fuzzy correction.')), subs.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "No one is blocked."), subs.map((sub) => /* @__PURE__ */ React.createElement("div", { className: "gap-row", key: sub }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, sub)), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: busy, onClick: () => remove(sub) }, "Unblock")))), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "settings-input",
@@ -18915,6 +18927,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [running, setRunning] = useState(false);
     const [runResult, setRunResult] = useState(null);
     const [reviewing, setReviewing] = useState(false);
+    const [identityVersion, setIdentityVersion] = useState(0);
     const loadConflictCount = () => api("/sync/conflicts").then((r) => {
       if (r.ok) setConflictCount(r.data.length);
     });
@@ -19037,7 +19050,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         value: runPassphrase,
         onChange: (e) => setRunPassphrase(e.target.value)
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: running || !runPassphrase, onClick: run }, running ? "Syncing\u2026" : "Run sync")), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Syncing\u2026" }), runResult && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Pushed ", runResult.pushed, ", applied ", runResult.applied, ".", runResult.conflicts > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => setReviewing(true) }, runResult.conflicts, " new conflict", runResult.conflicts === 1 ? "" : "s", " \u2192")))), status.enabled && /* @__PURE__ */ React.createElement(SharingIdentityPanel, null), status.enabled && /* @__PURE__ */ React.createElement(SentSharesPanel, null), status.enabled && /* @__PURE__ */ React.createElement(BlockedSendersPanel, null), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (msgErr ? " settings-note-err" : "") }, msg), reviewing && /* @__PURE__ */ React.createElement(ConflictReviewPanel, { onClose: () => {
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: running || !runPassphrase, onClick: run }, running ? "Syncing\u2026" : "Run sync")), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Syncing\u2026" }), runResult && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Pushed ", runResult.pushed, ", applied ", runResult.applied, ".", runResult.conflicts > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => setReviewing(true) }, runResult.conflicts, " new conflict", runResult.conflicts === 1 ? "" : "s", " \u2192")))), status.enabled && /* @__PURE__ */ React.createElement(SharingIdentityPanel, { onIdentityReady: () => setIdentityVersion((v) => v + 1) }), status.enabled && /* @__PURE__ */ React.createElement(SentSharesPanel, { key: identityVersion }), /* @__PURE__ */ React.createElement(BlockedSendersPanel, null), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (msgErr ? " settings-note-err" : "") }, msg), reviewing && /* @__PURE__ */ React.createElement(ConflictReviewPanel, { onClose: () => {
       setReviewing(false);
       loadConflictCount();
     }, onResolved: loadConflictCount }));
