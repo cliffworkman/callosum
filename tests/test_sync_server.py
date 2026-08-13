@@ -246,6 +246,33 @@ def test_ensure_updated_at_column_is_idempotent() -> None:
     assert "updated_at" in {c["name"] for c in inspector.get_columns("sync_records")}
 
 
+def test_ensure_revoked_at_column_is_idempotent() -> None:
+    import sqlalchemy as sa
+
+    from sync_server.schema import ensure_revoked_at_column
+
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    # Build the `shares` table WITHOUT revoked_at, simulating an already-deployed pre-SP4d table.
+    legacy = sa.MetaData()
+    sa.Table(
+        "shares",
+        legacy,
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("sender_sub", sa.String(length=255), nullable=False),
+        sa.Column("recipient_sub", sa.String(length=255), nullable=False),
+        sa.Column("wrapped_key", sa.Text(), nullable=False),
+        sa.Column("ciphertext", sa.Text(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    )
+    legacy.create_all(engine)
+
+    ensure_revoked_at_column(engine)  # should add it
+    ensure_revoked_at_column(engine)  # calling again must be a safe no-op, not an error
+
+    inspector = sa.inspect(engine)
+    assert "revoked_at" in {c["name"] for c in inspector.get_columns("shares")}
+
+
 # --- end-to-end: two devices converge through the real HTTP transport → server → store ---
 
 

@@ -70,6 +70,11 @@ shares = sa.Table(
     sa.Column("wrapped_key", sa.Text(), nullable=False),
     sa.Column("ciphertext", sa.Text(), nullable=False),
     sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    # SP4d (backlog #15): NULL = still live; set once, never cleared -- a sender withdrawing a share before its
+    # recipient imports it. The server has no concept of "imported" (that lives only in the recipient's own
+    # local `received_shares` table, SP4c) -- revoking only ever means "stop this from being imported if it
+    # hasn't been already," never "undo a delivery."
+    sa.Column("revoked_at", sa.DateTime(timezone=True)),
     sa.Index("ix_shares_recipient_sub", "recipient_sub"),
 )
 
@@ -92,3 +97,17 @@ def ensure_updated_at_column(engine: sa.Engine) -> None:
         return
     with engine.begin() as conn:
         conn.execute(sa.text("ALTER TABLE sync_records ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE"))
+
+
+def ensure_revoked_at_column(engine: sa.Engine) -> None:
+    """One-time, idempotent defensive ALTER for the `revoked_at` column added in backlog #15's SP4d. Same
+    shape as `ensure_updated_at_column` above, for the same reason: `metadata.create_all()` never alters an
+    already-existing table. Safe to call every startup."""
+    inspector = sa.inspect(engine)
+    if "shares" not in inspector.get_table_names():
+        return  # create_all will create it WITH the column -- nothing to add
+    columns = {c["name"] for c in inspector.get_columns("shares")}
+    if "revoked_at" in columns:
+        return
+    with engine.begin() as conn:
+        conn.execute(sa.text("ALTER TABLE shares ADD COLUMN revoked_at TIMESTAMP WITH TIME ZONE"))

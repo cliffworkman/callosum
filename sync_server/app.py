@@ -19,7 +19,7 @@ from sqlalchemy import create_engine
 from sync_server.auth import Identity, InvalidToken, TokenVerifier, verifier_from_env
 from sync_server.identity_store import lookup_public_key, register_public_key
 from sync_server.rate_limit import RateLimiter
-from sync_server.schema import ensure_updated_at_column, metadata
+from sync_server.schema import ensure_revoked_at_column, ensure_updated_at_column, metadata
 from sync_server.share_store import create_share, get_share, list_shares_for_recipient
 from sync_server.store import Record, pull, push
 
@@ -121,6 +121,7 @@ def create_server(engine, verifier: TokenVerifier | None, *, rate_limiter: RateL
     async def lifespan(app: FastAPI):
         metadata.create_all(engine)  # v1: create-on-start; a general prod migration TOOL is a separate follow-on
         ensure_updated_at_column(engine)  # one-time defensive ALTER for an already-deployed table (backlog #15)
+        ensure_revoked_at_column(engine)  # SP4d's own defensive ALTER, same reasoning
         yield
 
     app = FastAPI(title="callosum sync-server", lifespan=lifespan)
