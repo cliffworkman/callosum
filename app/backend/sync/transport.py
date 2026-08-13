@@ -106,7 +106,7 @@ class HttpSyncTransport:
             raise SyncServerError(f"malformed share creation response: {exc}") from exc
 
     def list_shares(self) -> list[dict]:
-        """SP4c: the caller's own inbox -- ``[{id, sender_sub, created_at}]``, newest first. Never includes
+        """SP4c: the caller's own inbox -- ``[{id, sender_sub, created_at, revoked_at}]``, newest first. Never includes
         ciphertext (see `get_share` for that)."""
         try:
             resp = self._client.get(f"{self._base}/shares", headers=self._headers())
@@ -116,7 +116,12 @@ class HttpSyncTransport:
             raise SyncServerError(f"share list failed: HTTP {resp.status_code}: {resp.text[:500]}")
         try:
             return [
-                {"id": int(s["id"]), "sender_sub": s["sender_sub"], "created_at": s["created_at"]}
+                {
+                    "id": int(s["id"]),
+                    "sender_sub": s["sender_sub"],
+                    "created_at": s["created_at"],
+                    "revoked_at": s.get("revoked_at"),
+                }
                 for s in resp.json()["shares"]
             ]
         except (KeyError, TypeError, ValueError) as exc:
@@ -146,9 +151,49 @@ class HttpSyncTransport:
                 "wrapped_key": data["wrapped_key"],
                 "ciphertext": data["ciphertext"],
                 "created_at": data["created_at"],
+                "revoked_at": data.get("revoked_at"),
             }
         except (KeyError, TypeError, ValueError) as exc:
             raise SyncServerError(f"malformed share fetch response: {exc}") from exc
+
+    def revoke_share(self, share_id: int) -> bool:
+        """SP4d: withdraw a pending share I sent. Returns False if the share doesn't exist (404); raises
+        ShareForbiddenError if it exists but isn't mine to revoke (403). Idempotent -- revoking an
+        already-revoked share still returns True."""
+        try:
+            resp = self._client.post(f"{self._base}/shares/{share_id}/revoke", headers=self._headers())
+        except httpx.HTTPError as exc:
+            raise SyncServerError(f"share revoke failed: {exc}") from exc
+        if resp.status_code == 404:
+            return False
+        if resp.status_code == 403:
+            raise ShareForbiddenError("this share is not yours to revoke")
+        if resp.status_code != 204:
+            raise SyncServerError(f"share revoke failed: HTTP {resp.status_code}: {resp.text[:500]}")
+        return True
+
+    def list_sent_shares(self) -> list[dict]:
+        """SP4d: shares I've sent -- ``[{id, recipient_sub, created_at, revoked_at}]``, newest first. There is
+        no "imported" field -- the server has no way to know that (see `share_store.list_shares_for_sender`'s
+        own docstring)."""
+        try:
+            resp = self._client.get(f"{self._base}/shares/sent", headers=self._headers())
+        except httpx.HTTPError as exc:
+            raise SyncServerError(f"sent-share list request failed: {exc}") from exc
+        if resp.status_code != 200:
+            raise SyncServerError(f"sent-share list failed: HTTP {resp.status_code}: {resp.text[:500]}")
+        try:
+            return [
+                {
+                    "id": int(s["id"]),
+                    "recipient_sub": s["recipient_sub"],
+                    "created_at": s["created_at"],
+                    "revoked_at": s.get("revoked_at"),
+                }
+                for s in resp.json()["shares"]
+            ]
+        except (KeyError, TypeError, ValueError) as exc:
+            raise SyncServerError(f"malformed sent-share list response: {exc}") from exc
 
     def push(self, records: list[SyncBlob]) -> int:
         body = {
