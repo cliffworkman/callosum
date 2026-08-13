@@ -46,6 +46,11 @@ function SharedWithMeList({ onImported }) {
     if (r.ok) setRows(prev => prev.map(row => row.id === id ? { ...row, status: "dismissed" } : row));
   };
 
+  const block = async (sub) => {
+    const r = await apiPost("/sync/blocked-senders", { sub });
+    if (r.ok) setRows(prev => prev.filter(row => row.sender_sub !== sub));
+  };
+
   if (state.status === "loading") return <div className="axis-hint">Checking for shares…</div>;
   if (state.status === "error") return <div className="axis-err">Couldn't check for shares: {state.error}</div>;
 
@@ -56,7 +61,7 @@ function SharedWithMeList({ onImported }) {
     <>
       {pending.length === 0 && handled.length === 0 && <div className="axis-hint">No one has shared anything with you yet.</div>}
       {pending.map(row => (
-        <SharedRow key={row.id} row={row} onDismiss={() => dismiss(row.id)}
+        <SharedRow key={row.id} row={row} onDismiss={() => dismiss(row.id)} onBlock={() => block(row.sender_sub)}
           onImported={() => { setRows(prev => prev.map(r => r.id === row.id ? { ...r, status: "imported" } : r)); onImported && onImported(); }} />
       ))}
       {handled.length > 0 &&
@@ -65,7 +70,7 @@ function SharedWithMeList({ onImported }) {
   );
 }
 
-function SharedRow({ row, onDismiss, onImported }) {
+function SharedRow({ row, onDismiss, onImported, onBlock }) {
   const [importing, setImporting] = useState(false);   // reveal the passphrase field
   const [passphrase, setPassphrase] = useState("");
   const [imp, setImp] = useState({ status: "idle" });   // idle | running | done | error
@@ -94,7 +99,9 @@ function SharedRow({ row, onDismiss, onImported }) {
     <div className="gap-row">
       <div className="gap-row-info">
         <div className="gap-row-title">from {row.sender_sub}</div>
-        <div className="gap-row-meta">{fmtDateTime(new Date(row.created_at))}</div>
+        <div className="gap-row-meta">
+          {fmtDateTime(new Date(row.created_at))}{row.revoked ? " · Withdrawn by sender" : ""}
+        </div>
         {done &&
           <div className="gap-row-meta">
             <b>{s.papers_created}</b> new · {s.papers_merged} merged
@@ -116,8 +123,9 @@ function SharedRow({ row, onDismiss, onImported }) {
         <div className="gap-row-actions">
           {!importing && imp.status !== "running" &&
             <>
-              <button className="axis-link" onClick={() => setImporting(true)}>Import</button>
+              {!row.revoked && <button className="axis-link" onClick={() => setImporting(true)}>Import</button>}
               <button className="axis-link" onClick={onDismiss}>Dismiss</button>
+              <button className="axis-link" onClick={onBlock}>Block sender</button>
             </>}
         </div>}
     </div>

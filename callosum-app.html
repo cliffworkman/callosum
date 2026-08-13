@@ -15434,6 +15434,10 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       const r = await apiPost(`/sync/shares/${id}/dismiss`, {});
       if (r.ok) setRows((prev) => prev.map((row) => row.id === id ? { ...row, status: "dismissed" } : row));
     };
+    const block = async (sub) => {
+      const r = await apiPost("/sync/blocked-senders", { sub });
+      if (r.ok) setRows((prev) => prev.filter((row) => row.sender_sub !== sub));
+    };
     if (state.status === "loading") return /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Checking for shares\u2026");
     if (state.status === "error") return /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check for shares: ", state.error);
     const pending = rows.filter((r) => !r.status);
@@ -15444,6 +15448,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         key: row.id,
         row,
         onDismiss: () => dismiss(row.id),
+        onBlock: () => block(row.sender_sub),
         onImported: () => {
           setRows((prev) => prev.map((r) => r.id === row.id ? { ...r, status: "imported" } : r));
           onImported && onImported();
@@ -15451,7 +15456,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       }
     )), handled.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, handled.length, " already handled (imported or dismissed)."));
   }
-  function SharedRow({ row, onDismiss, onImported }) {
+  function SharedRow({ row, onDismiss, onImported, onBlock }) {
     const [importing, setImporting] = useState(false);
     const [passphrase, setPassphrase] = useState("");
     const [imp, setImp] = useState({ status: "idle" });
@@ -15484,7 +15489,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     };
     const s = imp.summary;
     const done = imp.status === "done" && s;
-    return /* @__PURE__ */ React.createElement("div", { className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, "from ", row.sender_sub), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, fmtDateTime(new Date(row.created_at))), done && /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("b", null, s.papers_created), " new \xB7 ", s.papers_merged, " merged", s.tags_applied ? ` \xB7 ${s.tags_applied} tags` : "", s.annotations_added ? ` \xB7 ${s.annotations_added} highlights` : "", s.syntheses_imported ? ` \xB7 ${s.syntheses_imported} syntheses` : "", s.skipped ? ` \xB7 ${s.skipped} skipped` : ""), importing && imp.status !== "running" && !done && /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, "from ", row.sender_sub), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, fmtDateTime(new Date(row.created_at)), row.revoked ? " \xB7 Withdrawn by sender" : ""), done && /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("b", null, s.papers_created), " new \xB7 ", s.papers_merged, " merged", s.tags_applied ? ` \xB7 ${s.tags_applied} tags` : "", s.annotations_added ? ` \xB7 ${s.annotations_added} highlights` : "", s.syntheses_imported ? ` \xB7 ${s.syntheses_imported} syntheses` : "", s.skipped ? ` \xB7 ${s.skipped} skipped` : ""), importing && imp.status !== "running" && !done && /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "settings-input",
@@ -15494,7 +15499,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         value: passphrase,
         onChange: (e) => setPassphrase(e.target.value)
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !passphrase, onClick: run }, "Decrypt & import")), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Decrypting + merging\u2026", progress: imp.progress, managedBy: "backend-job" }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't import: ", imp.error)), !done && /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, !importing && imp.status !== "running" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => setImporting(true) }, "Import"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onDismiss }, "Dismiss"))));
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !passphrase, onClick: run }, "Decrypt & import")), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Decrypting + merging\u2026", progress: imp.progress, managedBy: "backend-job" }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't import: ", imp.error)), !done && /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, !importing && imp.status !== "running" && /* @__PURE__ */ React.createElement(React.Fragment, null, !row.revoked && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => setImporting(true) }, "Import"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onDismiss }, "Dismiss"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBlock }, "Block sender"))));
   }
   const SNS2014_CSL = {
     type: "article-journal",
