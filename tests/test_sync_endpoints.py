@@ -709,3 +709,106 @@ def test_import_share_addressed_to_someone_else_is_403(tmp_path: Path, monkeypat
 
     r = cc.post(f"/sync/shares/{share_id}/import", json={"passphrase": "pw"})
     assert r.status_code == 403
+
+
+# --- SP4d (backlog #15): revoke + sent-list --------------------------------------------------------------
+
+
+def test_sent_shares_lists_what_alice_sent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = _sync_server()
+    _, share_id = _alice_shares_with_bob(server, tmp_path, monkeypatch)  # leaves settings pointed at bob
+
+    _switch_device(monkeypatch, tmp_path / "alice-settings")  # act as alice again
+    alice_transport = HttpSyncTransport("", "u:alice", client=server)
+    alice_db = _migrated_db_url(tmp_path / "alice")  # re-running upgrade-to-head on an already-current DB is a no-op
+    ca = TestClient(create_app(db_url=alice_db, sync_transport=alice_transport))
+
+    r = ca.get("/sync/shares/sent")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body) == 1
+    assert body[0]["id"] == share_id and body[0]["recipient_sub"] == "bob" and body[0]["revoked"] is False
+
+
+def test_sent_shares_refused_without_identity(temp_db_url: str) -> None:
+    c = TestClient(create_app(db_url=temp_db_url))
+    assert c.get("/sync/shares/sent").status_code == 409
+
+
+def test_revoke_before_import_then_import_returns_410(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = _sync_server()
+    bob_db, share_id = _alice_shares_with_bob(server, tmp_path, monkeypatch)  # settings now point at bob
+
+    _switch_device(monkeypatch, tmp_path / "alice-settings")
+    alice_transport = HttpSyncTransport("", "u:alice", client=server)
+    alice_db = _migrated_db_url(tmp_path / "alice")
+    ca = TestClient(create_app(db_url=alice_db, sync_transport=alice_transport))
+    assert ca.post(f"/sync/shares/{share_id}/revoke", json={}).status_code == 200
+
+    _switch_device(monkeypatch, tmp_path / "bob-settings")
+    bob_transport = HttpSyncTransport("", "u:bob", client=server)
+    cb = TestClient(create_app(db_url=bob_db, sync_transport=bob_transport))
+
+    listed = cb.get("/sync/shares").json()
+    assert listed[0]["revoked"] is True
+
+    r = cb.post(f"/sync/shares/{share_id}/import", json={"passphrase": "pw"})
+    assert r.status_code == 410
+    eng = create_engine(bob_db)
+    with eng.connect() as conn:
+        assert conn.execute(select(schema.papers)).first() is None  # nothing merged
+    eng.dispose()
+
+
+def test_revoke_after_import_does_not_undo_the_import(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The disclosed limit, proven for real: once bob has imported, alice revoking afterward changes nothing
+    for him -- the server has no way to claw back a decrypted copy."""
+    server = _sync_server()
+    bob_db, share_id = _alice_shares_with_bob(server, tmp_path, monkeypatch)
+    bob_transport = HttpSyncTransport("", "u:bob", client=server)
+    cb = TestClient(create_app(db_url=bob_db, sync_transport=bob_transport))
+    r = cb.post(f"/sync/shares/{share_id}/import", json={"passphrase": "pw"})
+    job_id = r.json()["job_id"]
+    assert cb.get(f"/sync/shares/{share_id}/import/{job_id}").json()["status"] == "done"
+
+    _switch_device(monkeypatch, tmp_path / "alice-settings")
+    alice_transport = HttpSyncTransport("", "u:alice", client=server)
+    alice_db = _migrated_db_url(tmp_path / "alice")
+    ca = TestClient(create_app(db_url=alice_db, sync_transport=alice_transport))
+    assert ca.post(f"/sync/shares/{share_id}/revoke", json={}).status_code == 200
+
+    eng = create_engine(bob_db)
+    with eng.connect() as conn:
+        assert conn.execute(select(schema.papers)).first() is not None  # bob's copy is untouched
+    eng.dispose()
+
+
+def test_revoke_by_a_non_sender_is_403(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = _sync_server()
+    _, share_id = _alice_shares_with_bob(server, tmp_path, monkeypatch)  # settings point at bob
+
+    carol_db = _migrated_db_url(tmp_path / "carol")
+    _switch_device(monkeypatch, tmp_path / "carol-settings")
+    carol_transport = HttpSyncTransport("", "u:carol", client=server)
+    cc = TestClient(create_app(db_url=carol_db, sync_transport=carol_transport))
+    _sync_ready_as(cc, "carol")
+    cc.post("/sync/identity/setup", json={"passphrase": "pw"})
+
+    r = cc.post(f"/sync/shares/{share_id}/revoke", json={})
+    assert r.status_code == 403
+
+
+def test_revoke_refused_without_identity(temp_db_url: str) -> None:
+    c = TestClient(create_app(db_url=temp_db_url))
+    assert c.post("/sync/shares/1/revoke", json={}).status_code == 409
+
+
+def test_revoke_unknown_share_404(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = _sync_server()
+    _switch_device(monkeypatch, tmp_path / "alice-settings")
+    alice_db = _migrated_db_url(tmp_path / "alice")
+    alice_transport = HttpSyncTransport("", "u:alice", client=server)
+    ca = TestClient(create_app(db_url=alice_db, sync_transport=alice_transport))
+    _sync_ready_as(ca, "alice")
+    ca.post("/sync/identity/setup", json={"passphrase": "pw"})
+    assert ca.post("/sync/shares/999999/revoke", json={}).status_code == 404

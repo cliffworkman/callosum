@@ -60,6 +60,7 @@ class SharedShareOut(BaseModel):
     sender_sub: str
     created_at: str
     status: str | None  # None = pending (not yet acted on); else "imported" | "dismissed"
+    revoked: bool = False
 
 
 @router.get("/sync/shares", response_model=list[SharedShareOut])
@@ -79,7 +80,11 @@ def list_shares(request: Request, conn: Connection = Depends(get_connection)) ->
     statuses = received_shares_repo.status_for_share_ids(conn, [r["id"] for r in rows])
     return [
         SharedShareOut(
-            id=r["id"], sender_sub=r["sender_sub"], created_at=str(r["created_at"]), status=statuses.get(r["id"])
+            id=r["id"],
+            sender_sub=r["sender_sub"],
+            created_at=str(r["created_at"]),
+            status=statuses.get(r["id"]),
+            revoked=r.get("revoked_at") is not None,
         )
         for r in rows
     ]
@@ -118,6 +123,69 @@ def dismiss_share(share_id: int, request: Request) -> DismissResult:
     except Exception as exc:  # a duplicate dismiss/import (unique share_id) — already handled, not fatal
         logger.info("sync: dismiss for share %s no-op (%s)", share_id, exc)
     return DismissResult(dismissed=True)
+
+
+class SentShareOut(BaseModel):
+    id: int
+    recipient_sub: str
+    created_at: str
+    revoked: bool
+
+
+@router.get("/sync/shares/sent", response_model=list[SentShareOut])
+def list_sent_shares(request: Request) -> list[SentShareOut]:
+    """The sender's own view of what they've shared. No `status`/"imported" field exists here -- the server
+    (and so this endpoint) has no way to know whether a recipient has imported a share; see
+    `share_store.list_shares_for_sender`'s own docstring. The frontend's copy must not imply otherwise."""
+    if not settings.stored_share_identity():
+        raise HTTPException(status_code=409, detail="set up your sharing identity before viewing sent shares")
+    cfg = settings.stored_sync_settings()
+    token = _fresh_access_token(request)
+    _require_egress_ready(cfg, token)
+    transport = getattr(request.app.state, "sync_transport", None) or HttpSyncTransport(cfg["server_url"], token)
+    try:
+        rows = transport.list_sent_shares()
+    except SyncServerError as exc:
+        raise HTTPException(status_code=502, detail=f"sync server error: {exc}") from exc
+    finally:
+        transport.close()
+    return [
+        SentShareOut(
+            id=r["id"],
+            recipient_sub=r["recipient_sub"],
+            created_at=str(r["created_at"]),
+            revoked=r.get("revoked_at") is not None,
+        )
+        for r in rows
+    ]
+
+
+class RevokeResult(BaseModel):
+    revoked: bool
+
+
+@router.post("/sync/shares/{share_id}/revoke", response_model=RevokeResult)
+def revoke_share(share_id: int, request: Request) -> RevokeResult:
+    """Withdraw a share I sent, if it hasn't been imported already -- never touches content/DEK, so no
+    passphrase is needed. See the module docstring for the honest limit: if the recipient already imported it,
+    this changes nothing for them."""
+    if not settings.stored_share_identity():
+        raise HTTPException(status_code=409, detail="set up your sharing identity first")
+    cfg = settings.stored_sync_settings()
+    token = _fresh_access_token(request)
+    _require_egress_ready(cfg, token)
+    transport = getattr(request.app.state, "sync_transport", None) or HttpSyncTransport(cfg["server_url"], token)
+    try:
+        found = transport.revoke_share(share_id)
+    except ShareForbiddenError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except SyncServerError as exc:
+        raise HTTPException(status_code=502, detail=f"sync server error: {exc}") from exc
+    finally:
+        transport.close()
+    if not found:
+        raise HTTPException(status_code=404, detail="no such share")
+    return RevokeResult(revoked=True)
 
 
 class ShareImportBody(BaseModel):
@@ -165,6 +233,8 @@ def import_share(
         own_sub = (settings.stored_oauth_session() or {}).get("sub")
         if row["recipient_sub"] != own_sub:  # defense in depth -- the server already enforces this
             raise HTTPException(status_code=403, detail="this share is not addressed to you")
+        if row.get("revoked_at") is not None:
+            raise HTTPException(status_code=410, detail="this share was withdrawn by the sender")
         try:
             wrapped = WrappedKey.from_dict(json.loads(row["wrapped_key"]))
         except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
