@@ -338,6 +338,14 @@ new work goes in the open backlog.
   no PDFs) to one fingerprint-confirmed recipient via a new bulk-bar "share…" action. Sender-only — no
   receiving/importing capability yet; SP4c/d remain open, see open backlog #15. Audit
   `2026-08-12_sync-sharing-sp4b.md` PASS.
+- [x] **#15 SP4c — receive** (inc 477, round 3 item #4). Closes the send→receive loop: a "Shared with me…"
+  Library entry lists shares addressed to me (no passphrase), then decrypts one on explicit per-row action
+  using my own SP4a identity's private key and merges it via `import_bundle()` (a new `source=` kwarg stamps
+  `imported_source="share-import"`, never overwriting a merged paper's own prior provenance). A non-recipient
+  can never fetch a share's content (server 403 + local re-check). A new `received_shares` table is the
+  cross-user provenance log. Independent re-verification needed zero new code (B2 SP3's existing action already
+  covers it). SP4d (revoke/roles) is the arc's final open stage, see open backlog #15. Audit
+  `2026-08-12_sync-sharing-sp4c.md` PASS.
 - [x] **#20 Harness hardening — fully closed** (2026-07-22, inc 342) — repo furniture (`SECURITY.md`,
   `CITATION.cff`, `.env.example`); uv adoption (`pyproject.toml` + committed `uv.lock`, CI via `uv sync
   --locked`); the hand-rolled pre-commit hook migrated to the standard pre-commit framework; 3 CI gates added

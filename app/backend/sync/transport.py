@@ -19,6 +19,12 @@ class SyncServerError(Exception):
     """A sync transport/protocol failure (network, non-200, or malformed response) — fail closed."""
 
 
+class ShareForbiddenError(SyncServerError):
+    """SP4c: the server 403'd `GET /shares/{id}` — a share that exists but isn't addressed to the caller. A
+    distinct subclass (not the generic 502 path) so the local router can surface a clean 403, since this is an
+    expected/meaningful outcome (the defense-in-depth recipient check), not an unexpected server condition."""
+
+
 class HttpSyncTransport:
     def __init__(self, base_url: str, token: str, *, client: httpx.Client | None = None, timeout: float = 30.0) -> None:
         self._base = base_url.rstrip("/")
@@ -98,6 +104,51 @@ class HttpSyncTransport:
             return int(resp.json()["share_id"])
         except (KeyError, TypeError, ValueError) as exc:
             raise SyncServerError(f"malformed share creation response: {exc}") from exc
+
+    def list_shares(self) -> list[dict]:
+        """SP4c: the caller's own inbox -- ``[{id, sender_sub, created_at}]``, newest first. Never includes
+        ciphertext (see `get_share` for that)."""
+        try:
+            resp = self._client.get(f"{self._base}/shares", headers=self._headers())
+        except httpx.HTTPError as exc:
+            raise SyncServerError(f"share list request failed: {exc}") from exc
+        if resp.status_code != 200:
+            raise SyncServerError(f"share list failed: HTTP {resp.status_code}: {resp.text[:500]}")
+        try:
+            return [
+                {"id": int(s["id"]), "sender_sub": s["sender_sub"], "created_at": s["created_at"]}
+                for s in resp.json()["shares"]
+            ]
+        except (KeyError, TypeError, ValueError) as exc:
+            raise SyncServerError(f"malformed share list response: {exc}") from exc
+
+    def get_share(self, share_id: int) -> dict | None:
+        """SP4c: the full share row, or None if it doesn't exist. A 403 (a share that exists but isn't
+        addressed to the caller) is NOT the same as "doesn't exist" -- it fails closed with `SyncServerError`
+        rather than being silently treated as a 404, since it should never happen for a legitimate caller (the
+        local app only ever fetches ids its own `list_shares()` just returned)."""
+        try:
+            resp = self._client.get(f"{self._base}/shares/{share_id}", headers=self._headers())
+        except httpx.HTTPError as exc:
+            raise SyncServerError(f"share fetch failed: {exc}") from exc
+        if resp.status_code == 404:
+            return None
+        if resp.status_code == 403:
+            raise ShareForbiddenError("this share is not addressed to you")
+        if resp.status_code != 200:
+            raise SyncServerError(f"share fetch failed: HTTP {resp.status_code}: {resp.text[:500]}")
+        try:
+            data = resp.json()
+            return {
+                "id": int(data["id"]),
+                "sender_sub": data["sender_sub"],
+                "recipient_sub": data["recipient_sub"],
+                "wrapped_key": data["wrapped_key"],
+                "ciphertext": data["ciphertext"],
+                "created_at": data["created_at"],
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise SyncServerError(f"malformed share fetch response: {exc}") from exc
 
     def push(self, records: list[SyncBlob]) -> int:
         body = {

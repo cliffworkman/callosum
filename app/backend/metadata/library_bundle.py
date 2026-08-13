@@ -290,10 +290,12 @@ def _get_or_create_axis(conn: Connection, label: str, description: Any, kind: st
     return axis_id, True
 
 
-def import_bundle(conn: Connection, bundle: dict[str, Any]) -> dict[str, Any]:
+def import_bundle(conn: Connection, bundle: dict[str, Any], *, source: str = BUNDLE_SOURCE) -> dict[str, Any]:
     """Merge a parsed bundle into the library (additive, non-destructive). Returns ``{summary, created}`` — the
     caller embeds ``created`` (the new paper ids). Each paper/axis runs in its own savepoint so a bad one is
-    skipped, never fatal."""
+    skipped, never fatal. ``source`` is the ``papers.imported_source`` stamped on newly-created rows only —
+    a merged (pre-existing) paper always keeps its own original provenance untouched. Defaults to the file-based
+    bundle's own provenance value; SP4c's live-share import passes a distinct one (``"share-import"``)."""
     summary = {
         "papers_created": 0,
         "papers_merged": 0,
@@ -330,7 +332,7 @@ def import_bundle(conn: Connection, bundle: dict[str, Any]) -> dict[str, Any]:
                 elif fields is not None:
                     paper_id = create_paper(
                         conn,
-                        imported_source=BUNDLE_SOURCE,
+                        imported_source=source,
                         openalex_work_id=ident.get("openalex_work_id"),
                         semantic_scholar_paper_id=ident.get("semantic_scholar_paper_id"),
                         **fields,

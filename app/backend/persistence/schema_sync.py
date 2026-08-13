@@ -5,8 +5,11 @@ E2E multi-device sync (design spec ``2026-06-29-accounts-sync-design.md``) track
 hash + version + tombstone, so the change-set is a **hash-diff at sync time** (no per-write hooks). ``sync_conflicts``
 keeps the **losing** side of a last-write-wins merge so a multi-device conflict is **surfaced + recoverable**, never
 silently clobbered (value A4). Both are **local-only**: they never sync, and (SP3a) the foundation makes no network
-call. Additive + guarded, registered on the shared ``metadata`` and re-exported from ``schema.py`` (like
-``schema_findings`` / ``schema_feed``).
+call. ``received_shares`` (SP4c, backlog #15) is the recipient-side cross-user provenance log: one row per share
+the local user has acted on (imported or dismissed) via the sharing feature (``sync/sharing.py``) — distinct from
+``sync_state``/``sync_conflicts``, which are about the E2E backup/restore of the user's OWN records, not
+someone else's data arriving via a share. Additive + guarded, registered on the shared ``metadata`` and
+re-exported from ``schema.py`` (like ``schema_findings`` / ``schema_feed``).
 """
 
 from __future__ import annotations
@@ -56,4 +59,23 @@ sync_conflicts = sa.Table(
     sa.Column("detected_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False),
     sa.Column("resolved", sa.Integer(), nullable=False, server_default="0"),
     sa.Index("ix_sync_conflicts_unresolved", "resolved"),
+)
+
+# SP4c: one row per share the local user (the recipient) has acted on — the cross-user provenance log. `share_id`
+# is the SERVER's share row id (unique per recipient's local DB, since a local DB has one identity). `status`
+# distinguishes an explicit import from an explicit dismiss (never both); `summary_json` mirrors the same
+# BundleImportSummary shape `POST /library/bundle/import` already returns, so the panel can show "what came in"
+# without re-deriving it from the (by-then-merged) papers table.
+RECEIVED_SHARE_STATUSES = ("imported", "dismissed")
+
+received_shares = sa.Table(
+    "received_shares",
+    metadata,
+    sa.Column("id", sa.Integer(), primary_key=True),
+    sa.Column("share_id", sa.Integer(), nullable=False, unique=True),
+    sa.Column("sender_sub", sa.String(length=255), nullable=False),
+    sa.Column("status", sa.String(length=20), nullable=False),
+    sa.Column("acted_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False),
+    sa.Column("summary_json", sa.JSON()),  # only set for status="imported"
+    sa.CheckConstraint("status IN ('imported', 'dismissed')", name="received_share_status_valid"),
 )

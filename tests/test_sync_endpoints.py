@@ -517,3 +517,195 @@ def test_share_nonexistent_papers_produce_no_shareable_content_422(temp_db_url: 
 
     r = c.post("/sync/share", json={"recipient_sub": "bob", "paper_ids": [999999], "passphrase": "pw"})
     assert r.status_code == 422
+
+
+# --- SP4c (backlog #15): receive ----------------------------------------------------------------------------
+# Each "device" needs its own local DB (its own library) AND its own local settings (its own keyring/identity/
+# oauth session) -- app_settings reads CALLOSUM_SETTINGS_PATH fresh on every call (no caching), so re-pointing
+# it mid-test via monkeypatch is enough to simulate a second device/user in one process, no second server needed.
+
+
+def _migrated_db_url(path: Path) -> str:
+    path.mkdir(parents=True, exist_ok=True)
+    db_url = f"sqlite:///{(path / 'callosum-api.sqlite').as_posix()}"
+    config = Config("alembic.ini")
+    config.set_main_option("sqlalchemy.url", db_url)
+    command.upgrade(config, "head")
+    return db_url
+
+
+def _switch_device(monkeypatch: pytest.MonkeyPatch, path: Path) -> None:
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(path / "app-settings.json"))
+
+
+def _sign_in_as(sub: str) -> None:
+    app_settings.set_oauth_session({"access_token": f"u:{sub}", "sub": sub})
+
+
+def _sync_ready_as(c: TestClient, sub: str, *, passphrase: str = "pw") -> None:
+    c.post("/sync/setup", json={"passphrase": passphrase})
+    _sign_in_as(sub)
+    c.put("/sync/settings", json={"enabled": True, "server_url": "https://s"})
+
+
+def _alice_shares_with_bob(server: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[str, int]:
+    """Sets up bob's identity, then alice's device shares a real paper with him. Returns (bob's db_url,
+    share_id). Leaves CALLOSUM_SETTINGS_PATH pointed at bob's own settings on return (the caller's next step is
+    almost always to act as bob)."""
+    bob_db = _migrated_db_url(tmp_path / "bob")
+    _switch_device(monkeypatch, tmp_path / "bob-settings")
+    bob_transport = HttpSyncTransport("", "u:bob", client=server)
+    cb = TestClient(create_app(db_url=bob_db, sync_transport=bob_transport))
+    _sync_ready_as(cb, "bob")
+    cb.post("/sync/identity/setup", json={"passphrase": "pw"})
+
+    alice_db = _migrated_db_url(tmp_path / "alice")
+    _switch_device(monkeypatch, tmp_path / "alice-settings")
+    alice_transport = HttpSyncTransport("", "u:alice", client=server)
+    ca = TestClient(create_app(db_url=alice_db, sync_transport=alice_transport))
+    _add_paper(alice_db, "Attention Is All You Need")
+    _sync_ready_as(ca, "alice")
+    ca.post("/sync/identity/setup", json={"passphrase": "pw"})
+    eng = create_engine(alice_db)
+    with eng.connect() as conn:
+        pid = conn.execute(select(schema.papers.c.id)).scalar_one()
+    eng.dispose()
+    r = ca.post("/sync/share", json={"recipient_sub": "bob", "paper_ids": [pid], "passphrase": "pw"})
+    assert r.status_code == 200
+    share_id = r.json()["share_id"]
+
+    _switch_device(monkeypatch, tmp_path / "bob-settings")  # leave the caller acting as bob
+    return bob_db, share_id
+
+
+def test_list_shares_shows_a_pending_share(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = _sync_server()
+    bob_db, share_id = _alice_shares_with_bob(server, tmp_path, monkeypatch)
+    bob_transport = HttpSyncTransport("", "u:bob", client=server)
+    cb = TestClient(create_app(db_url=bob_db, sync_transport=bob_transport))
+
+    r = cb.get("/sync/shares")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body) == 1
+    assert body[0]["id"] == share_id and body[0]["sender_sub"] == "alice" and body[0]["status"] is None
+
+
+def test_list_shares_refused_without_identity(temp_db_url: str) -> None:
+    c = TestClient(create_app(db_url=temp_db_url))
+    assert c.get("/sync/shares").status_code == 409
+
+
+def test_dismiss_marks_a_share_dismissed_no_passphrase(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = _sync_server()
+    bob_db, share_id = _alice_shares_with_bob(server, tmp_path, monkeypatch)
+    bob_transport = HttpSyncTransport("", "u:bob", client=server)
+    cb = TestClient(create_app(db_url=bob_db, sync_transport=bob_transport))
+
+    r = cb.post(f"/sync/shares/{share_id}/dismiss", json={})
+    assert r.status_code == 200 and r.json()["dismissed"] is True
+    listed = cb.get("/sync/shares").json()
+    assert listed[0]["status"] == "dismissed"
+    # nothing was ever decrypted -- no papers landed in bob's library
+    eng = create_engine(bob_db)
+    with eng.connect() as conn:
+        assert conn.execute(select(schema.papers)).first() is None
+    eng.dispose()
+
+
+def test_dismiss_unknown_share_404(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = _sync_server()
+    _switch_device(monkeypatch, tmp_path / "bob-settings")
+    bob_db = _migrated_db_url(tmp_path / "bob")
+    bob_transport = HttpSyncTransport("", "u:bob", client=server)
+    cb = TestClient(create_app(db_url=bob_db, sync_transport=bob_transport))
+    _sync_ready_as(cb, "bob")
+    cb.post("/sync/identity/setup", json={"passphrase": "pw"})
+    assert cb.post("/sync/shares/999999/dismiss", json={}).status_code == 404
+
+
+def test_import_happy_path_decrypts_and_merges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = _sync_server()
+    bob_db, share_id = _alice_shares_with_bob(server, tmp_path, monkeypatch)
+    bob_transport = HttpSyncTransport("", "u:bob", client=server)
+    cb = TestClient(create_app(db_url=bob_db, sync_transport=bob_transport))
+
+    r = cb.post(f"/sync/shares/{share_id}/import", json={"passphrase": "pw"})
+    assert r.status_code == 202
+    job_id = r.json()["job_id"]
+    status = cb.get(f"/sync/shares/{share_id}/import/{job_id}").json()
+    assert status["status"] == "done"
+    assert status["summary"]["papers_created"] == 1
+
+    eng = create_engine(bob_db)
+    with eng.connect() as conn:
+        row = conn.execute(select(schema.papers)).mappings().first()
+    eng.dispose()
+    assert row["title"] == "Attention Is All You Need"
+    assert row["imported_source"] == "share-import"  # distinct from a file-bundle's "bundle-import"
+
+    # cross-user provenance log
+    from app.backend.persistence.schema import received_shares
+
+    eng = create_engine(bob_db)
+    with eng.connect() as conn:
+        prow = conn.execute(select(received_shares)).mappings().first()
+    eng.dispose()
+    assert prow["share_id"] == share_id and prow["sender_sub"] == "alice" and prow["status"] == "imported"
+
+    listed = cb.get("/sync/shares").json()
+    assert listed[0]["status"] == "imported"
+
+
+def test_import_wrong_passphrase_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = _sync_server()
+    bob_db, share_id = _alice_shares_with_bob(server, tmp_path, monkeypatch)
+    bob_transport = HttpSyncTransport("", "u:bob", client=server)
+    cb = TestClient(create_app(db_url=bob_db, sync_transport=bob_transport))
+
+    r = cb.post(f"/sync/shares/{share_id}/import", json={"passphrase": "WRONG"})
+    assert r.status_code == 422
+    eng = create_engine(bob_db)
+    with eng.connect() as conn:
+        assert conn.execute(select(schema.papers)).first() is None  # nothing merged
+        assert conn.execute(select(schema.received_shares)).first() is None  # nothing logged
+    eng.dispose()
+
+
+def test_import_refused_when_sync_not_ready(temp_db_url: str) -> None:
+    c = TestClient(create_app(db_url=temp_db_url))
+    assert c.post("/sync/shares/1/import", json={"passphrase": "pw"}).status_code == 409
+
+
+def test_import_refused_without_identity(temp_db_url: str) -> None:
+    c = TestClient(create_app(db_url=temp_db_url, sync_transport=HttpSyncTransport("", "u:bob", client=_sync_server())))
+    _sync_ready_as(c, "bob")
+    assert c.post("/sync/shares/1/import", json={"passphrase": "pw"}).status_code == 409
+
+
+def test_import_unknown_share_404(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    server = _sync_server()
+    _switch_device(monkeypatch, tmp_path / "bob-settings")
+    bob_db = _migrated_db_url(tmp_path / "bob")
+    bob_transport = HttpSyncTransport("", "u:bob", client=server)
+    cb = TestClient(create_app(db_url=bob_db, sync_transport=bob_transport))
+    _sync_ready_as(cb, "bob")
+    cb.post("/sync/identity/setup", json={"passphrase": "pw"})
+    assert cb.post("/sync/shares/999999/import", json={"passphrase": "pw"}).status_code == 404
+
+
+def test_import_share_addressed_to_someone_else_is_403(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Carol has no legitimate way to learn a share_id addressed to bob (her own list only ever shows her own
+    inbox) -- this proves the defense-in-depth check holds even if she guesses/enumerates one."""
+    server = _sync_server()
+    _, share_id = _alice_shares_with_bob(server, tmp_path, monkeypatch)  # addressed to bob
+
+    carol_db = _migrated_db_url(tmp_path / "carol")
+    _switch_device(monkeypatch, tmp_path / "carol-settings")
+    carol_transport = HttpSyncTransport("", "u:carol", client=server)
+    cc = TestClient(create_app(db_url=carol_db, sync_transport=carol_transport))
+    _sync_ready_as(cc, "carol")
+    cc.post("/sync/identity/setup", json={"passphrase": "pw"})
+
+    r = cc.post(f"/sync/shares/{share_id}/import", json={"passphrase": "pw"})
+    assert r.status_code == 403

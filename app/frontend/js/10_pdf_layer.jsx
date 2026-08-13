@@ -196,7 +196,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
                     openDataDetected, onShowTransparencyReview, lmmFlagged, onShowLmmFlagged, metaFlagged, onShowMetaFlagged, bayesFlagged, onShowBayesFlagged,
                     findingsToReview, onShowFindingsToReview, findingsByPaper, referenceWarningsByPaper,
-                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenScan, onOpenImport, onOpenImportBundle, onExportBundle,
+                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenScan, onOpenImport, onOpenImportBundle, onOpenSharedWithMe, onExportBundle,
                     onCitationsRefreshed, onEnriched, onRetractionRan, onOpenTextHealth, onOpenReferenceWarnings,
                     savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch, readOnly, onReadingChanged,
                     libraryMissingPdf, onToggleMissingPdf }) {
@@ -241,7 +241,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
         <div className="lib-head">
           <p className="eyebrow">{trashView ? "Trash" : "Library"}</p>
           {!readOnly && <span className="lib-head-actions">
-            {!trashView && <AddMenu onScan={onOpenScan} onImport={onOpenImport} onImportBundle={onOpenImportBundle} onExportBundle={onExportBundle} />}
+            {!trashView && <AddMenu onScan={onOpenScan} onImport={onOpenImport} onImportBundle={onOpenImportBundle} onSharedWithMe={onOpenSharedWithMe} onExportBundle={onExportBundle} />}
             {!trashView && <SavedSearchMenu searches={savedSearches} onApply={onApplySavedSearch} onSave={onSaveSearch} onDelete={onDeleteSavedSearch} />}
             {(showStatcheckChip || showRetractionChip || showTransparencyChip || showLmmChip || showMetaChip || showBayesChip) &&
               <span className="lib-chip-group lib-chip-signals" title="Check signals — a check detected something concrete on these papers">

@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-12 — Increment 477: Sync SP4c — receive (round 3, item #4, stage C of 4)
+- **Files:** `app/backend/api/routers/sync_shares.py` (new), `app/frontend/js/28d_shared_with_me.jsx` (new),
+  `app/backend/persistence/received_shares_repo.py` (new), `alembic/versions/0073_received_shares.py` (new),
+  `app/backend/persistence/schema_sync.py`, `app/backend/persistence/schema.py`,
+  `app/backend/metadata/library_bundle.py`, `sync_server/share_store.py`, `sync_server/app.py`,
+  `app/backend/sync/transport.py`, `app/backend/api/app.py`, `app/backend/api/routers/status.py`,
+  `app/frontend/js/10b_libmenus.jsx`, `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/js/40_app.jsx`,
+  `.claude/qa-routes/route_46_sync.md`.
+- **What:** the receiving half of SP4 sharing — list shares addressed to me (no passphrase), decrypt one with
+  my own SP4a identity's private key, and merge it via the already-audited B2 `import_bundle()` (extended with
+  a backward-compatible `source=` kwarg so a share-imported paper is honestly stamped
+  `imported_source="share-import"`, distinct from a file-bundle's `"bundle-import"`). A non-recipient can never
+  fetch a share's content — the sync-server 403s, propagated locally as a clean, distinct signal. A new
+  `received_shares` table is the cross-user provenance log. Surfaced via a new "Shared with me…" entry in the
+  Library "+ Add" menu.
+- **Why:** backlog #15's SP4 sharing arc, stage C — closes the send→receive loop opened by SP4b (inc 476); the
+  sender→receive round trip is now complete. SP4d (revoke/roles) is the final, still-open stage.
+- **Revert:** `git revert` the increment-477 commit; `sync_shares.py`/`28d_shared_with_me.jsx`/
+  `received_shares_repo.py`/the migration are new and additive, the rest are mechanical extensions of existing
+  endpoints/files.
+
 ## 2026-08-12 — Increment 476: Sync SP4b — share (round 3, item #4, stage B of 4)
 - **Files:** `app/backend/sync/sharing.py` (new), `sync_server/share_store.py` (new),
   `app/frontend/js/28c_share.jsx` (new), `sync_server/schema.py`, `sync_server/app.py`,

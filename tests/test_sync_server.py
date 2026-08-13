@@ -465,3 +465,78 @@ def test_share_rate_limit_applies() -> None:
         "/shares", json={"recipient_sub": "bob", "wrapped_key": "c==", "ciphertext": "d=="}, headers=headers
     )
     assert second.status_code == 429
+
+
+# --- SP4c (backlog #15): list/fetch a share -- the recipient's own inbox ---------------------------------
+
+
+def test_list_shares_returns_only_the_caller_own_inbox() -> None:
+    client = _server()
+    client.post(
+        "/shares",
+        json={"recipient_sub": "bob", "wrapped_key": "a==", "ciphertext": "b=="},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    client.post(
+        "/shares",
+        json={"recipient_sub": "carol", "wrapped_key": "c==", "ciphertext": "d=="},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    r = client.get("/shares", headers={"Authorization": "Bearer u:bob"})
+    assert r.status_code == 200
+    shares = r.json()["shares"]
+    assert len(shares) == 1
+    assert shares[0]["sender_sub"] == "alice"
+    assert "wrapped_key" not in shares[0] and "ciphertext" not in shares[0]  # list is metadata-only
+
+
+def test_list_shares_empty_inbox() -> None:
+    client = _server()
+    r = client.get("/shares", headers={"Authorization": "Bearer u:nobody"})
+    assert r.status_code == 200
+    assert r.json()["shares"] == []
+
+
+def test_list_shares_requires_auth() -> None:
+    client = _server()
+    assert client.get("/shares").status_code == 401
+
+
+def test_get_share_detail_for_the_addressed_recipient() -> None:
+    client = _server()
+    created = client.post(
+        "/shares",
+        json={"recipient_sub": "bob", "wrapped_key": "wk==", "ciphertext": "ct=="},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    share_id = created.json()["share_id"]
+    r = client.get(f"/shares/{share_id}", headers={"Authorization": "Bearer u:bob"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["sender_sub"] == "alice" and body["recipient_sub"] == "bob"
+    assert body["wrapped_key"] == "wk==" and body["ciphertext"] == "ct=="
+
+
+def test_get_share_detail_403s_for_a_non_recipient() -> None:
+    """A share's content is already ciphertext, but authorization is still enforced -- defense in depth, never
+    relying on encryption alone to gate who can even attempt to fetch a blob."""
+    client = _server()
+    created = client.post(
+        "/shares",
+        json={"recipient_sub": "bob", "wrapped_key": "wk==", "ciphertext": "ct=="},
+        headers={"Authorization": "Bearer u:alice"},
+    )
+    share_id = created.json()["share_id"]
+    r = client.get(f"/shares/{share_id}", headers={"Authorization": "Bearer u:carol"})
+    assert r.status_code == 403
+
+
+def test_get_share_detail_404s_for_an_unknown_id() -> None:
+    client = _server()
+    r = client.get("/shares/999999", headers={"Authorization": "Bearer u:bob"})
+    assert r.status_code == 404
+
+
+def test_get_share_detail_requires_auth() -> None:
+    client = _server()
+    assert client.get("/shares/1").status_code == 401

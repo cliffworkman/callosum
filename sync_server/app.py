@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field
@@ -19,7 +20,7 @@ from sync_server.auth import Identity, InvalidToken, TokenVerifier, verifier_fro
 from sync_server.identity_store import lookup_public_key, register_public_key
 from sync_server.rate_limit import RateLimiter
 from sync_server.schema import ensure_updated_at_column, metadata
-from sync_server.share_store import create_share
+from sync_server.share_store import create_share, get_share, list_shares_for_recipient
 from sync_server.store import Record, pull, push
 
 MAX_RECORDS_PER_PUSH = 1000
@@ -31,6 +32,7 @@ MAX_DISPLAY_NAME_LEN = 200
 # rather than imported, since sync_server is deliberately fenced from importing app.backend at all (tach.toml).
 MAX_SHARE_CIPHERTEXT_LEN = 21_000_000
 MAX_WRAPPED_KEY_LEN = 1_000  # a fixed-shape small envelope (two 32-byte fields + a nonce, base64'd), not bulk data
+MAX_SHARES_LISTED = 200  # SP4c: a recipient's inbox listing cap -- matches SP4b's own MAX_SHARE_PAPERS spirit
 
 # backlog #15: per-user rate limiting. Generous defaults for a personal/small-team self-host (a device polling
 # during active use), tunable via env without a code change. Keyed by ident.sub (see rate_limit.py) — a user's
@@ -80,6 +82,25 @@ class CreateShareRequest(BaseModel):
 
 class CreateShareResponse(BaseModel):
     share_id: int
+
+
+class ShareListItem(BaseModel):
+    id: int
+    sender_sub: str
+    created_at: datetime
+
+
+class ShareListResponse(BaseModel):
+    shares: list[ShareListItem]
+
+
+class ShareDetailResponse(BaseModel):
+    id: int
+    sender_sub: str
+    recipient_sub: str
+    wrapped_key: str
+    ciphertext: str
+    created_at: datetime
 
 
 def _identity(request: Request) -> Identity:
@@ -159,7 +180,7 @@ def create_server(engine, verifier: TokenVerifier | None, *, rate_limiter: RateL
 
     # --- SP4b (backlog #15): create a share. `wrapped_key`/`ciphertext` are opaque to the server -- it
     # relays bytes addressed to `recipient_sub`, nothing more. `sender_sub` comes from the authenticated
-    # token, never the request body. There is deliberately no read endpoint here yet (SP4c).
+    # token, never the request body.
 
     @app.post("/shares", response_model=CreateShareResponse)
     def post_share(
@@ -174,6 +195,29 @@ def create_server(engine, verifier: TokenVerifier | None, *, rate_limiter: RateL
                 ciphertext=body.ciphertext,
             )
         return CreateShareResponse(share_id=share_id)
+
+    # --- SP4c (backlog #15): list/fetch -- the recipient's own inbox. `GET /shares` is metadata-only (no
+    # ciphertext) so the listing stays small; `GET /shares/{id}` is the full row, but ONLY for the addressed
+    # recipient -- a share's content is already ciphertext, but authorization is still enforced as defense in
+    # depth (never rely on encryption alone to gate who can even attempt to fetch a blob).
+
+    @app.get("/shares", response_model=ShareListResponse)
+    def list_shares(request: Request, ident: Identity = Depends(_rate_limited)) -> ShareListResponse:
+        with request.app.state.engine.begin() as conn:
+            rows = list_shares_for_recipient(conn, ident.sub, limit=MAX_SHARES_LISTED)
+        return ShareListResponse(shares=[ShareListItem(**r) for r in rows])
+
+    @app.get("/shares/{share_id}", response_model=ShareDetailResponse)
+    def get_share_detail(
+        request: Request, share_id: int, ident: Identity = Depends(_rate_limited)
+    ) -> ShareDetailResponse:
+        with request.app.state.engine.begin() as conn:
+            row = get_share(conn, share_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="no such share")
+        if row["recipient_sub"] != ident.sub:
+            raise HTTPException(status_code=403, detail="this share is not addressed to you")
+        return ShareDetailResponse(**row)
 
     return app
 

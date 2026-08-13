@@ -1,23 +1,25 @@
 <!-- qa-coverage
-api: /sync/status, /sync/setup, /sync/settings, /sync/run, /sync/conflicts, /sync/conflicts/{conflict_id}/resolve, /sync/identity/status, /sync/identity/setup, /sync/identity/lookup, /sync/share
-fe: 35c_sync.jsx, 28c_share.jsx
+api: /sync/status, /sync/setup, /sync/settings, /sync/run, /sync/conflicts, /sync/conflicts/{conflict_id}/resolve, /sync/identity/status, /sync/identity/setup, /sync/identity/lookup, /sync/share, /sync/shares, /sync/shares/{share_id}/dismiss, /sync/shares/{share_id}/import, /sync/shares/{share_id}/import/{job_id}
+fe: 35c_sync.jsx, 28c_share.jsx, 28d_shared_with_me.jsx
 -->
 
-# ROUTE 46 - Opt-in E2E sync (accounts SP3b) + the Settings → Sync UI + conflict review (SP3c) + sharing identity (SP4a) + share (SP4b)
+# ROUTE 46 - Opt-in E2E sync (accounts SP3b) + the Settings → Sync UI + conflict review (SP3c) + sharing identity (SP4a) + share (SP4b) + receive (SP4c)
 
 **Tier:** 1 local-stateful
 **Goal:** Exhaust the opt-in `/sync/*` surface (set up a vault, toggle on, status, run, list/resolve conflicts,
-set up/look up a sharing identity, share a selection) and its safety boundaries WITHOUT a live sync-server or
-Authentik. The live deploy + live-token round-trip is the maintainer's MANUAL check (see the design spec).
-Steps 1-8 are direct-API (no UI); **steps 9-13 exercise the Settings → Sync UI** (`35c_sync.jsx`, inc 311) —
-browser-verified with Playwright (setup, the one-time recovery-code reveal, the sequential enable gate, run +
-its error paths, and the conflict-review panel). **Steps 14-17 (SP4a, inc "sync-identity-sp4a") cover the
-sharing-identity surface** — direct-API (setup/status/lookup, gating, no-private-key-exposure) plus a
+set up/look up a sharing identity, share a selection, receive a share) and its safety boundaries WITHOUT a live
+sync-server or Authentik. The live deploy + live-token round-trip is the maintainer's MANUAL check (see the
+design spec). Steps 1-8 are direct-API (no UI); **steps 9-13 exercise the Settings → Sync UI** (`35c_sync.jsx`,
+inc 311) — browser-verified with Playwright (setup, the one-time recovery-code reveal, the sequential enable
+gate, run + its error paths, and the conflict-review panel). **Steps 14-17 (SP4a, inc "sync-identity-sp4a")
+cover the sharing-identity surface** — direct-API (setup/status/lookup, gating, no-private-key-exposure) plus a
 Playwright pass over the "Sharing identity" subsection, browser-verified against an isolated scratch instance.
 **Steps 18-22 (SP4b, inc "sync-sharing-sp4b") cover the sender-only share surface** — direct-API
 (`POST /sync/share`'s gating, resource caps, and unknown-recipient handling) plus a Playwright pass over the
-new `28c_share.jsx` `ShareModal` (opened from the Library bulk-bar's "share…" action). There is deliberately
-no receiving/importing surface to test yet (SP4c).
+new `28c_share.jsx` `ShareModal` (opened from the Library bulk-bar's "share…" action). **Steps 23-28 (SP4c, inc
+"sync-sharing-sp4c") cover the recipient side** — list/dismiss/import gating, the 403 cross-recipient defense-
+in-depth check, a full decrypt-and-import round trip, and a Playwright pass over the new `28d_shared_with_me.jsx`
+`SharedWithMeModal` (opened from the Library "+ Add" menu's "Shared with me…" entry).
 
 ## Environment
 
@@ -104,6 +106,38 @@ session) and sync is **unconfigured** by default. Register console/pageerror/req
   random content key and a fresh ephemeral wrap — verified at the crypto-unit level
   (`tests/test_sync_sharing.py`); this route's own steps confirm the *endpoint* wiring (a second share to the
   same recipient succeeds independently, never erroring as a duplicate/replay).
+- **SP4c — listing needs no passphrase; importing does.** `GET /sync/shares` (sender + timestamp only, no
+  content) is gated on egress-readiness + `has_identity` alone — no passphrase, no decrypt. Decrypting a
+  specific share (`POST /sync/shares/{id}/import`) is gated identically to `/sync/share` PLUS requires the
+  passphrase every time (never remembered). A wrong passphrase → **422** and merges **nothing** into the
+  library and writes **no** `received_shares` row (no partial state). Any of these gates missing or bypassed is
+  **Critical**.
+- **A share is never fetchable by a non-recipient, even though its content is already ciphertext.** The
+  sync-server 403s `GET /shares/{id}` for anyone but the addressed `recipient_sub`; the local endpoint
+  propagates this as a clean **403**, distinct from the generic 502 "sync server error" path, and separately
+  re-checks `recipient_sub` against the caller's own `sub` as defense in depth. A share importable by (or even
+  distinguishably-erroring-differently-for) a non-recipient is **Critical**.
+- **Dismiss never touches ciphertext or asks for a passphrase.** `POST /sync/shares/{id}/dismiss` is local-only
+  bookkeeping — a share dismissed without ever being decrypted must show **zero** new rows in the local
+  `papers`/`received_shares.summary_json` state beyond the one `received_shares` row recording the dismissal.
+  A dismiss that triggers any egress beyond the one list-lookup it needs, or that decrypts anything, is
+  **Critical**.
+- **Cross-user provenance is honest and separate from ordinary bundle-import provenance.** A paper newly
+  created via a share import carries `imported_source="share-import"` — never silently reusing the file-bundle's
+  `"bundle-import"` value, and never overwriting an existing (merged) paper's own prior provenance. The
+  `received_shares` log records exactly one row per share acted on (`imported` or `dismissed`, never both) with
+  the real sender `sub` and, for an import, the same summary shape `POST /library/bundle/import` already
+  returns. A share import that can't be traced back to its sender afterward is **High**.
+- **Independent re-verification needs no new code and none is added.** A relayed synthesis that arrives via a
+  share lands with `summaries.imported_json` set exactly like a file-bundle import does — the existing
+  "Re-verify against my library" action (B2 SP3, `reverify_imported_summary`) already works on it unmodified. A
+  share-specific re-verification code path appearing anywhere is a **Medium** finding (unnecessary duplication,
+  not a security issue) — the reuse is the point.
+- **No new sender-verification mechanism; no allow-list.** A listed share shows the sender's raw `sub` and a
+  link into the existing Settings → Sync fingerprint-lookup tool — never a new trust/verification UI, and never
+  an accept/block list gating who can address a share to you (that is SP4d's explicitly-deferred "roles"
+  territory). A new verification mechanism or allow-list appearing here is a **Medium** finding (scope
+  creep against the recorded design, not itself a vulnerability).
 
 ## Steps
 
@@ -198,16 +232,59 @@ scratch instance, so the check never touches a real stored keyring/passphrase).
 22. **Share UI error path + console.** Submitting against a server URL with no real listener shows a clean
     inline error ("Couldn't share: …"), no crash, no console error beyond the expected non-2xx fetch log line
     (the same standing exception every other Settings/modal error path in this route already accepts).
+23. **List gating + shape (direct-API, two simulated devices sharing one in-process fake sync-server — see
+    `tests/test_sync_endpoints.py::_alice_shares_with_bob` for the exact two-device harness: a second
+    `CALLOSUM_SETTINGS_PATH` + a second local DB simulate "bob's" own device within one test process).**
+    `GET /sync/shares` before sync is ready → **409**; sync ready but no sharing identity → **409**. Once both
+    are true and alice has shared a real paper with bob: bob's `GET /sync/shares` → one row,
+    `sender_sub:"alice"`, `status:null` (pending) — no `wrapped_key`/`ciphertext` in the list body.
+24. **Dismiss.** `POST /sync/shares/{id}/dismiss` with **no** passphrase in the body → **200**
+    `{dismissed:true}`; the same share now lists with `status:"dismissed"`; bob's `papers` table is still empty
+    (nothing was ever decrypted). `POST /sync/shares/999999/dismiss` (unknown id) → **404**.
+25. **Import happy path + real decrypt proof.** `POST /sync/shares/{id}/import {passphrase}` → **202**
+    `{job_id, status:"pending"}`; `GET /sync/shares/{id}/import/{job_id}` → `status:"done"`,
+    `summary.papers_created:1`. Reading bob's own local `papers` table directly: the new row's title matches
+    exactly what alice shared, and `imported_source == "share-import"` (not `"bundle-import"`). Reading bob's
+    local `received_shares` table: one row, `share_id` matches, `sender_sub:"alice"`, `status:"imported"`. The
+    same share now lists (`GET /sync/shares`) with `status:"imported"`.
+26. **Wrong passphrase fails closed.** `POST /sync/shares/{id}/import {passphrase:"WRONG"}` → **422**; bob's
+    `papers` table is still empty; bob's `received_shares` table has no row for this share.
+27. **Gating + the 403 cross-recipient check.** `POST /sync/shares/{id}/import` before sync is ready → **409**;
+    sync ready but no identity → **409**; an unknown share id → **404**. A third simulated device ("carol," her
+    own settings + DB, her own registered identity) attempting to import a share addressed to bob →
+    **403** — confirms the defense-in-depth check holds even against a guessed/enumerated share id she has no
+    legitimate way to have learned (her own list never shows it).
+28. **"Shared with me" UI (`28d_shared_with_me.jsx`'s `SharedWithMeModal`) — Playwright-driven against an
+    isolated scratch instance, same seeding pattern as steps 17/21 plus a share seeded server-side addressed to
+    the scratch instance's own identity.** The Library "+ Add" menu's "Shared with me…" entry opens the modal
+    listing the seeded share (sender id + received date, no passphrase prompt yet). Clicking **Import** reveals
+    a passphrase field scoped to that row only (the rest of the list stays interactive); submitting shows the
+    same summary line shape `BundleImportModal` already uses. Clicking **Dismiss** on a different (or the same,
+    in a separate seeded scratch instance) pending row removes it from the actionable list immediately, with
+    **no** passphrase prompt at any point. The "Verify identities in Sync settings →" link switches to the
+    Settings workspace (closing the modal) — confirm it does **not** silently no-op. Zero console errors beyond
+    the expected non-2xx fetch log line for the error-path sub-case below.
+    - **Error path:** submitting Import against a server URL with no real listener shows a clean inline error
+      ("Couldn't import: …"), no crash.
 
 ## Notes for the runner
 
 The reference sync-server lives in `sync_server/` (a separate deployable, outside the app surface map — like the
-adapters). Its endpoints (`/sync/records`, `/health`, `/identity/register`, `/identity/lookup`, `/shares`) are
-covered by `tests/test_sync_server.py`, not this route.
+adapters). Its endpoints (`/sync/records`, `/health`, `/identity/register`, `/identity/lookup`, `/shares`,
+`/shares/{id}`) are covered by `tests/test_sync_server.py`, not this route.
 
 Step 21's scratch instance additionally needs a real paper in the library (create one via a direct
 `create_paper` call, or import a fixture PDF) — the Share modal's "Share N papers" flow needs at least one
 real, non-trashed `paper_ids` entry for `build_bundle` to produce a non-empty bundle.
+
+Steps 23-27 need a genuine **second local device** simulated within the check, not just a second identity —
+`app_settings` reads `CALLOSUM_SETTINGS_PATH` fresh on every call (no caching), so re-pointing it to a second
+temp path mid-run (with its own local DB) is enough to give "bob" his own independent keyring/identity/
+oauth-session state, exactly the trick `tests/test_sync_endpoints.py::_alice_shares_with_bob` already uses —
+reuse that helper's shape rather than re-deriving it. Step 28's scratch instance needs a share seeded
+server-side (register a real X25519 identity for the scratch instance's own `sub` directly against the fake
+server, matching step 17/19's own real-identity seeding, then have a second simulated sender share a real
+paper to it) so the modal has something pending to show.
 
 Seeding a conflict for step 12 without two real devices: insert a row directly —
 `insert(schema.sync_conflicts).values(collection="papers", record_id="<any string>", losing_version=1,

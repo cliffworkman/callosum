@@ -9604,6 +9604,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     onOpenScan,
     onOpenImport,
     onOpenImportBundle,
+    onOpenSharedWithMe,
     onExportBundle,
     onCitationsRefreshed,
     onEnriched,
@@ -9644,7 +9645,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const showLmmChip = !trashView && lmmFlagged > 0 && librarySignalFilter !== "lmm-incomplete";
     const showMetaChip = !trashView && metaFlagged > 0 && librarySignalFilter !== "meta-incomplete";
     const showBayesChip = !trashView && bayesFlagged > 0 && librarySignalFilter !== "bayes-flagged";
-    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), (showStatcheckChip || showRetractionChip || showTransparencyChip || showLmmChip || showMetaChip || showBayesChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-signals", title: "Check signals \u2014 a check detected something concrete on these papers" }, /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group-label" }, "Signals"), showStatcheckChip && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onSharedWithMe: onOpenSharedWithMe, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), (showStatcheckChip || showRetractionChip || showTransparencyChip || showLmmChip || showMetaChip || showBayesChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-signals", title: "Check signals \u2014 a check detected something concrete on these papers" }, /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group-label" }, "Signals"), showStatcheckChip && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle statcheck-chip",
@@ -9871,7 +9872,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       );
     }), state.status === "ready" && (page > 0 || hasNextPage) && /* @__PURE__ */ React.createElement("div", { className: "pginate" }, /* @__PURE__ */ React.createElement("button", { disabled: page === 0, onClick: () => onPage(page - 1) }, "\u2190 Prev"), /* @__PURE__ */ React.createElement("button", { disabled: !hasNextPage, onClick: () => onPage(page + 1) }, "Next \u2192"))));
   }
-  function AddMenu({ onScan, onImport, onImportBundle, onExportBundle }) {
+  function AddMenu({ onScan, onImport, onImportBundle, onExportBundle, onSharedWithMe }) {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
     useEffect(() => {
@@ -9886,7 +9887,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       setOpen(false);
       fn();
     };
-    return /* @__PURE__ */ React.createElement("span", { className: "add-menu", ref }, /* @__PURE__ */ React.createElement("button", { className: "trash-toggle add", onClick: () => setOpen((o) => !o), title: "Add papers to the library" }, "+ Add \u25BE"), open && /* @__PURE__ */ React.createElement("div", { className: "add-menu-pop" }, /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onScan), title: "Add & watch folders of PDFs \u2014 new files are picked up automatically" }, "Watched folders\u2026"), /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImport), title: "Import a BibTeX, RIS, or CSL-JSON citation file" }, "Import file\u2026"), onImportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImportBundle), title: "Import a callosum library bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Import bundle\u2026"), onExportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onExportBundle), title: "Export your whole library as a portable bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Export library bundle\u2026")));
+    return /* @__PURE__ */ React.createElement("span", { className: "add-menu", ref }, /* @__PURE__ */ React.createElement("button", { className: "trash-toggle add", onClick: () => setOpen((o) => !o), title: "Add papers to the library" }, "+ Add \u25BE"), open && /* @__PURE__ */ React.createElement("div", { className: "add-menu-pop" }, /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onScan), title: "Add & watch folders of PDFs \u2014 new files are picked up automatically" }, "Watched folders\u2026"), /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImport), title: "Import a BibTeX, RIS, or CSL-JSON citation file" }, "Import file\u2026"), onImportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImportBundle), title: "Import a callosum library bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Import bundle\u2026"), onSharedWithMe && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onSharedWithMe), title: "Papers a collaborator end-to-end encrypted and sent you \u2014 no PDFs, decrypted only with your own sync passphrase" }, "Shared with me\u2026"), onExportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onExportBundle), title: "Export your whole library as a portable bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Export library bundle\u2026")));
   }
   function CitationCountsButton({ asOf, onRefreshed }) {
     const [busy, setBusy] = useState(false);
@@ -15159,6 +15160,90 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onChange: (e) => setPassphrase(e.target.value)
       }
     ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: sharing || !passphrase, onClick: share }, sharing ? "Sharing\u2026" : `Share ${count} paper${count === 1 ? "" : "s"}`)), sharing && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Encrypting and sending\u2026" }), shareErr && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, shareErr))), result && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Sent \u2014 encrypted to fingerprint ", result.recipient_fingerprint, ". They'll need their own callosum, signed in, to receive it."), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));
+  }
+  function SharedWithMeModal({ onClose, onImported, onOpenSettings }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Shared with me"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Papers a collaborator end-to-end encrypted and sent you \u2014 metadata + tags + annotations, ", /* @__PURE__ */ React.createElement("b", null, "no PDFs"), ". Only you can decrypt one, with your own sync passphrase. Before importing, confirm the sender's identity if you haven't already \u2014 a share's sender id alone isn't fingerprint-verified to you the way SP4a's lookup verifies a recipient to a sender.", " ", onOpenSettings && /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onOpenSettings }, "Verify identities in Sync settings \u2192")), /* @__PURE__ */ React.createElement(SharedWithMeList, { onImported }), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));
+  }
+  function SharedWithMeList({ onImported }) {
+    const [state, setState] = useState({ status: "loading" });
+    const [rows, setRows] = useState([]);
+    const load = () => {
+      setState({ status: "loading" });
+      api("/sync/shares").then((r) => {
+        if (!r.ok) {
+          setState({ status: "error", error: r.error });
+          return;
+        }
+        setRows(r.data);
+        setState({ status: "ready" });
+      });
+    };
+    useEffect(load, []);
+    const dismiss = async (id) => {
+      const r = await apiPost(`/sync/shares/${id}/dismiss`, {});
+      if (r.ok) setRows((prev) => prev.map((row) => row.id === id ? { ...row, status: "dismissed" } : row));
+    };
+    if (state.status === "loading") return /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Checking for shares\u2026");
+    if (state.status === "error") return /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check for shares: ", state.error);
+    const pending = rows.filter((r) => !r.status);
+    const handled = rows.filter((r) => r.status);
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, pending.length === 0 && handled.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No one has shared anything with you yet."), pending.map((row) => /* @__PURE__ */ React.createElement(
+      SharedRow,
+      {
+        key: row.id,
+        row,
+        onDismiss: () => dismiss(row.id),
+        onImported: () => {
+          setRows((prev) => prev.map((r) => r.id === row.id ? { ...r, status: "imported" } : r));
+          onImported && onImported();
+        }
+      }
+    )), handled.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, handled.length, " already handled (imported or dismissed)."));
+  }
+  function SharedRow({ row, onDismiss, onImported }) {
+    const [importing, setImporting] = useState(false);
+    const [passphrase, setPassphrase] = useState("");
+    const [imp, setImp] = useState({ status: "idle" });
+    const poll = (jobId) => api(`/sync/shares/${row.id}/import/${jobId}`).then((r) => {
+      if (!r.ok) {
+        setImp({ status: "error", error: r.error });
+        return;
+      }
+      const d = r.data;
+      if (d.status === "done") {
+        setImp({ status: "done", summary: d.summary });
+        onImported();
+      } else if (d.status === "error") setImp({ status: "error", error: d.detail || "Import failed." });
+      else {
+        setImp({ status: "running", progress: d.progress });
+        setTimeout(() => poll(jobId), 1500);
+      }
+    });
+    const run = () => {
+      if (!passphrase) return;
+      setImp({ status: "running" });
+      apiPost(`/sync/shares/${row.id}/import`, { passphrase }).then((r) => {
+        setPassphrase("");
+        if (!r.ok) {
+          setImp({ status: "error", error: r.error });
+          return;
+        }
+        poll(r.data.job_id);
+      });
+    };
+    const s = imp.summary;
+    const done = imp.status === "done" && s;
+    return /* @__PURE__ */ React.createElement("div", { className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, "from ", row.sender_sub), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, fmtDateTime(new Date(row.created_at))), done && /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("b", null, s.papers_created), " new \xB7 ", s.papers_merged, " merged", s.tags_applied ? ` \xB7 ${s.tags_applied} tags` : "", s.annotations_added ? ` \xB7 ${s.annotations_added} highlights` : "", s.syntheses_imported ? ` \xB7 ${s.syntheses_imported} syntheses` : "", s.skipped ? ` \xB7 ${s.skipped} skipped` : ""), importing && imp.status !== "running" && !done && /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "password",
+        autoComplete: "off",
+        placeholder: "Your sync passphrase",
+        value: passphrase,
+        onChange: (e) => setPassphrase(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !passphrase, onClick: run }, "Decrypt & import")), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Decrypting + merging\u2026", progress: imp.progress, managedBy: "backend-job" }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't import: ", imp.error)), !done && /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, !importing && imp.status !== "running" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => setImporting(true) }, "Import"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onDismiss }, "Dismiss"))));
   }
   const SNS2014_CSL = {
     type: "article-journal",
@@ -20437,6 +20522,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [scanOpen, setScanOpen] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
     const [bundleImportOpen, setBundleImportOpen] = useState(false);
+    const [sharedWithMeOpen, setSharedWithMeOpen] = useState(false);
     const cancelFocusRef = useRef(() => {
     });
     const setAxisRefreshRef = useRef(() => {
@@ -20718,7 +20804,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setHealthLoaded(true);
       });
     }, []);
-    const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers || !!zcurvePapers;
+    const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || bundleImportOpen || sharedWithMeOpen || !!pcurvePapers || !!zcurvePapers;
     useEffect(() => {
       if (!readingMode) return;
       const onKey = (e) => {
@@ -20858,6 +20944,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           onOpenScan: () => setScanOpen(true),
           onOpenImport: () => setImportOpen(true),
           onOpenImportBundle: () => setBundleImportOpen(true),
+          onOpenSharedWithMe: () => setSharedWithMeOpen(true),
           onExportBundle: () => downloadBundle("library")
         },
         wip,
@@ -20965,6 +21052,20 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           setLibRefresh((n) => n + 1);
           setAxisRefresh((n) => n + 1);
           libraryBits.onPage(0);
+        }
+      }
+    ), sharedWithMeOpen && /* @__PURE__ */ React.createElement(
+      SharedWithMeModal,
+      {
+        onClose: () => setSharedWithMeOpen(false),
+        onImported: () => {
+          setLibRefresh((n) => n + 1);
+          setAxisRefresh((n) => n + 1);
+          libraryBits.onPage(0);
+        },
+        onOpenSettings: () => {
+          setSharedWithMeOpen(false);
+          selectWorkspace("settings");
         }
       }
     ), !authLocked && healthLoaded && !onboardingDone && /* @__PURE__ */ React.createElement(

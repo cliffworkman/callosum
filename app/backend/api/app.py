@@ -89,6 +89,7 @@ from app.backend.api.routers import (
     status,
     summaries,
     sync,
+    sync_shares,
     tags,
     text_health,
     transparency,
@@ -217,6 +218,7 @@ def create_app(
     api.state.active_wip_scan_job_id = None
     api.state.library_import_jobs = JobStore()  # inc 93: citation-file import
     api.state.library_bundle_import_jobs = JobStore()  # B2 SP1 (inc 234): portable library bundle import
+    api.state.share_import_jobs = JobStore()  # SP4c (backlog #15): decrypt + import a received share
     api.state.statcheck_jobs = JobStore()  # inc 97: library-wide statcheck batch
     api.state.pcurve_jobs = JobStore()  # inc 126: collection-level p-curve over a selection
     api.state.zcurve_jobs = JobStore()  # inc 470: collection-level z-curve (EDR/ERR) over a selection
@@ -450,6 +452,9 @@ def create_app(
         agent.router
     )  # /agent/* — gated MCP agent writes: tag/axis/reference/note + audit + revert (SP2)
     api.include_router(sync.router)  # /sync/* — opt-in E2E sync: setup/settings/status/run (SP3b, inc 202)
+    api.include_router(
+        sync_shares.router
+    )  # /sync/shares/* — receive: list/dismiss/import a share, split from sync.py (SP4c, backlog #15)
     api.include_router(auth_router)  # /auth/* + /oauth/callback — optional account: Sign in with ORCID (SP1)
     api.include_router(
         libreoffice.router

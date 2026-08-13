@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 476** (see Increment workflow) with **2150 root-suite pytest tests
+It is currently at **Increment 477** (see Increment workflow) with **2169 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -1075,9 +1075,22 @@ be made public later — so the discipline below is enforced now, not retrofitte
   column already authenticates who created a share) that wraps a fresh one-time content key to a
   fingerprint-confirmed recipient's public key. The share's plaintext content reuses the already-audited B2
   `build_bundle(scope="selection", ...)` completely unmodified (no PDFs) — a new bulk-bar "share…" action
-  (`28c_share.jsx`) resolves the recipient via SP4a's own lookup before the passphrase/Share button render. No
-  record can be received/imported yet — SP4c (a "Shared with me" panel, decrypt-on-fetch, cross-user
-  provenance, independent re-verification) is next. Audit `2026-08-12_sync-sharing-sp4b.md` PASS.
+  (`28c_share.jsx`) resolves the recipient via SP4a's own lookup before the passphrase/Share button render.
+  Audit `2026-08-12_sync-sharing-sp4b.md` PASS. **SP4c — receive (inc 477)** closes the send→receive loop: a
+  new "Shared with me…" entry (Library "+ Add" menu, `28d_shared_with_me.jsx`) lists shares addressed to me
+  (no passphrase — sender + timestamp only), then decrypts one on explicit per-row action using my own SP4a
+  identity's private key (`unlock_private_key` + `unwrap_content_key` + `decrypt_payload`, all reused
+  unmodified) and merges it via `import_bundle()` (a new backward-compatible `source=` kwarg stamps a
+  share-imported paper `imported_source="share-import"`, distinct from a file-bundle's `"bundle-import"`,
+  without touching a merged paper's own prior provenance). A non-recipient can never fetch a share's content —
+  the sync-server 403s `GET /shares/{id}` to anyone but the addressed recipient, propagated locally as a clean,
+  distinct signal (never lumped into the generic "unexpected server error" path). A new local `received_shares`
+  table is the cross-user provenance log (one row per share acted on — imported or dismissed). Independent
+  re-verification needed zero new code — B2 SP3's existing "Re-verify against my library" action already works
+  on any relayed synthesis regardless of how it arrived. No new sender-verification mechanism or allow-list —
+  the honest, minimal answer links to SP4a's existing fingerprint-lookup tool instead. Audit
+  `2026-08-12_sync-sharing-sp4c.md` PASS. **SP4d (revoke/roles, with revocation's real limits disclosed
+  honestly) is next and closes the SP4 arc.**
 - SQLAlchemy bound parameters (rule #3); PDF + external-input validation at the boundary
   (rule #4).
 

@@ -525,8 +525,11 @@ from app.backend.persistence.schema_summaries import (  # noqa: E402,F401
     summary_sentences,
 )
 
-# Sync bookkeeping tables (accounts SP3a/SP3b) — same split rationale; local-only change-tracking + identity + conflicts.
+# Sync bookkeeping tables (accounts SP3a/SP3b) — same split rationale; local-only change-tracking + identity +
+# conflicts + (SP4c) the received-shares cross-user provenance log.
 from app.backend.persistence.schema_sync import (  # noqa: E402,F401
+    RECEIVED_SHARE_STATUSES,
+    received_shares,
     sync_conflicts,
     sync_identity,
     sync_state,

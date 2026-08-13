@@ -72,6 +72,7 @@ function App() {
   const [scanOpen, setScanOpen] = useState(false);              // inc-87 scan-a-folder modal
   const [importOpen, setImportOpen] = useState(false);          // inc-93 import-citations modal
   const [bundleImportOpen, setBundleImportOpen] = useState(false); // B2 SP1 import-library-bundle modal
+  const [sharedWithMeOpen, setSharedWithMeOpen] = useState(false); // SP4c (backlog #15) — receive a live share
   const cancelFocusRef = useRef(() => {});
   const setAxisRefreshRef = useRef(() => {});
 
@@ -328,7 +329,7 @@ function App() {
   }, []);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
-  const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers || !!zcurvePapers;
+  const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || bundleImportOpen || sharedWithMeOpen || !!pcurvePapers || !!zcurvePapers;
   useEffect(() => {
     if (!readingMode) return;
     const onKey = (e) => { if (e.key === "Escape" && !anyModalOpen) toggleReading(); };
@@ -440,7 +441,8 @@ function App() {
             onOpenTextHealth: () => openTextHealth(),
             onOpenReferenceWarnings: openReferenceWarnings,
             onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
-            onOpenImportBundle: () => setBundleImportOpen(true), onExportBundle: () => downloadBundle("library"),
+            onOpenImportBundle: () => setBundleImportOpen(true), onOpenSharedWithMe: () => setSharedWithMeOpen(true),
+            onExportBundle: () => downloadBundle("library"),
           }}
           wip={wip} wipTabs={hydratedWipTabs} selectedWipTab={selectedWipTab}
           tabs={tabs} selectedPaperTab={wipModeActive ? null : selectedPaperTab} activeTab={activeTab}
@@ -521,6 +523,10 @@ function App() {
       {bundleImportOpen &&
         <BundleImportModal onClose={() => setBundleImportOpen(false)}
           onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }} />}
+      {sharedWithMeOpen &&
+        <SharedWithMeModal onClose={() => setSharedWithMeOpen(false)}
+          onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }}
+          onOpenSettings={() => { setSharedWithMeOpen(false); selectWorkspace("settings"); }} />}
       {!authLocked && healthLoaded && !onboardingDone &&
         <OnboardingWizard onDone={() => setOnboardingDone(true)}
           onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)}
