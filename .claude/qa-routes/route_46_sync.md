@@ -21,9 +21,11 @@ new `28c_share.jsx` `ShareModal` (opened from the Library bulk-bar's "share…" 
 in-depth check, a full decrypt-and-import round trip, and a Playwright pass over the new `28d_shared_with_me.jsx`
 `SharedWithMeModal` (opened from the Library "+ Add" menu's "Shared with me…" entry). **Steps 29-33 (SP4d, inc
 "sync-sharing-sp4d") cover revoke + blocked senders** — direct-API (sender-only revoke, import-after-revoke's 410,
-blocked-sender list filtering and import refusal, blocked-senders CRUD) plus a Playwright pass over the new
-`SentSharesPanel`/`BlockedSendersPanel` (Settings → Sync) and the inline "Block sender" action in
-`SharedWithMeModal`.
+blocked-sender list filtering and import refusal, blocked-senders CRUD) plus code-level + automated-test
+verification of the new `SentSharesPanel`/`BlockedSendersPanel` (Settings → Sync) and the inline "Block sender"
+action in `SharedWithMeModal` — **not yet Playwright-verified live** (a final-review fix wave caught and fixed a
+real Critical bug in the Unblock path that an earlier, inaccurate "Playwright-verified" claim here had missed
+entirely; see step 32's own note). A live Playwright pass remains a standing follow-up.
 
 ## Environment
 
