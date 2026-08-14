@@ -226,6 +226,7 @@ chunks = Table(
     Column("attachment_id", ForeignKey("attachments.id", ondelete="CASCADE"), nullable=False),
     Column("text", Text, nullable=False),
     Column("section", Text),
+    Column("grobid_section_id", ForeignKey("paper_sections.id", ondelete="SET NULL")),
     Column("page_start", Integer, nullable=False),
     Column("page_end", Integer, nullable=False),
     Column("char_start", Integer),
@@ -494,6 +495,9 @@ from app.backend.persistence.schema_funding import (  # noqa: E402,F401
 
 # Per-paper saved GRIM/GRIMMER checks (inc 401) — an append-only user-curated log.
 from app.backend.persistence.schema_grim_checks import paper_grim_checks  # noqa: E402,F401
+
+# GROBID's own section structure (backlog #30 Stage 2) — a sibling table to chunks, not a retrofit of it.
+from app.backend.persistence.schema_grobid import paper_sections  # noqa: E402,F401
 
 # Generic async-job bookkeeping (inc 400 split — schema.py crossed the 600-line cap).
 from app.backend.persistence.schema_jobs import JOB_STATUSES, job_errors, jobs  # noqa: E402,F401

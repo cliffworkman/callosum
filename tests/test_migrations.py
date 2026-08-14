@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import Column, ForeignKey, Integer, MetaData, String, Table, Text, create_engine, inspect
 
 from alembic import command
 from alembic.config import Config
@@ -161,6 +161,60 @@ def test_domain_scoped_gap_migration_preserves_the_all_publications_snapshot(tmp
     assert {"scope_key", "scope"} <= {
         column["name"] for column in inspect(engine).get_columns("my_publication_citation_gap_cache")
     }
+    engine.dispose()
+
+
+def test_paper_sections_migration_upgrades_an_existing_0073_database(tmp_path):
+    """Regression: 0074's chunks.grobid_section_id column carries a FOREIGN KEY to paper_sections.id, and
+    SQLite's ALTER dialect cannot add a column with a FK constraint via a plain op.add_column (Alembic
+    raises NotImplementedError: "No support for ALTER of constraints in SQLite dialect") -- only
+    op.batch_alter_table's copy-and-move strategy works. A fresh-DB test alone can't catch this: migration
+    0001 creates every current-metadata table (including chunks.grobid_section_id) via metadata.create_all(),
+    which inlines the FK in the native CREATE TABLE DDL and never exercises Alembic's ALTER-based add-column
+    path at all. Only a real pre-existing database that predates 0074 -- built here by hand, since SQLite
+    also refuses to DROP a column that participates in a FOREIGN KEY, so a fully-migrated DB can't be
+    stripped back down to the "before" shape either -- exercises the branch that actually executes."""
+    db_url = f"sqlite:///{tmp_path / 'migration-paper-sections.sqlite'}"
+    pre_metadata = MetaData()
+    Table("papers", pre_metadata, Column("id", Integer, primary_key=True), Column("title", Text, nullable=False))
+    Table(
+        "chunks",
+        pre_metadata,
+        Column("id", Integer, primary_key=True),
+        Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), nullable=False),
+        Column("text", Text, nullable=False),
+        Column("page_start", Integer, nullable=False),
+        Column("page_end", Integer, nullable=False),
+        Column("bbox_coordinate_system", String(100), nullable=False),
+        Column("extraction_tool", String(100), nullable=False),
+        Column("extraction_version", String(100), nullable=False),
+        Column("chunking_strategy", String(255), nullable=False),
+        Column("chunk_version", String(255), nullable=False),
+        Column("source_attachment_checksum", String(128), nullable=False),
+    )
+    engine = create_engine(db_url)
+    pre_metadata.create_all(engine)
+    with engine.begin() as conn:
+        conn.exec_driver_sql("INSERT INTO papers (id, title) VALUES (1, 'Existing paper predating 0074')")
+        conn.exec_driver_sql(
+            "INSERT INTO chunks (id, paper_id, text, page_start, page_end, bbox_coordinate_system, "
+            "extraction_tool, extraction_version, chunking_strategy, chunk_version, source_attachment_checksum) "
+            "VALUES (1, 1, 'pre-existing chunk text', 1, 1, 'pdf-points-top-left', 't', 'v', 's', 'cv', 'ck')"
+        )
+    engine.dispose()
+
+    cfg = _config_for(db_url)
+    command.stamp(cfg, "0073_received_shares")
+    command.upgrade(cfg, "head")
+
+    engine = create_engine(db_url)
+    columns = {column["name"] for column in inspect(engine).get_columns("paper_sections")}
+    assert columns == {"id", "paper_id", "title", "section_kind", "page_start", "page_end", "order_index"}
+    chunk_columns = {column["name"] for column in inspect(engine).get_columns("chunks")}
+    assert "grobid_section_id" in chunk_columns
+    with engine.connect() as conn:
+        row = conn.exec_driver_sql("SELECT text FROM chunks WHERE id=1").mappings().one()
+    assert row["text"] == "pre-existing chunk text"  # the ALTER preserved the pre-existing row untouched
     engine.dispose()
 
 
