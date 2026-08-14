@@ -31,7 +31,7 @@ def parse_fulltext(
     try:
         resp = http_client.post(
             url,
-            params={"teiCoordinates": "div,head,p"},
+            data={"teiCoordinates": ["div", "head", "p"]},
             files={"input": ("document.pdf", pdf_bytes, "application/pdf")},
         )
     except httpx.HTTPError as exc:

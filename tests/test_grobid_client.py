@@ -9,7 +9,11 @@ from integrations.grobid.client import GrobidError, parse_fulltext
 def test_parse_fulltext_happy_path():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/processFulltextDocument"
-        assert "teiCoordinates" in str(request.url)
+        # teiCoordinates should be in the multipart form body, not URL
+        assert b"teiCoordinates" in request.content
+        assert b"div" in request.content
+        assert b"head" in request.content
+        assert b"p" in request.content
         return httpx.Response(200, content=b"<TEI>ok</TEI>")
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
