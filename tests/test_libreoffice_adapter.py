@@ -1426,6 +1426,45 @@ def test_build_suggest_rows_match_fallbacks() -> None:
     assert "match ?" in cc.build_suggest_rows([{"paper_id": 1, "title": "T", "quote": "q", "match_score": "n/a"}])[0]
 
 
+def test_build_suggest_rows_section_phase_narration() -> None:
+    # backlog #30 Stage 1: a candidate matched via the backend's section-scoped search phase gets an additive
+    # "why retrieved" note naming its section_family -- the existing row format is never replaced.
+    suggestions = [
+        {
+            "paper_id": 1,
+            "title": "T",
+            "quote": "q",
+            "search_phase": "expected-sections",
+            "section_family": "methods",
+        },
+        {
+            "paper_id": 2,
+            "title": "T2",
+            "quote": "q2",
+            "search_phase": None,
+            "section_family": None,
+        },
+        {
+            "paper_id": 3,
+            "title": "T3",
+            "quote": "q3",
+        },
+    ]
+    rows = cc.build_suggest_rows(suggestions)
+    assert rows[0].startswith('[no stance] T · match 0.00 — "q"')
+    assert rows[0].endswith("[from this paper's Methods section]")
+    # no search_phase / not "expected-sections" / missing section_family -> no note appended
+    assert "[from this paper's" not in rows[1]
+    assert "[from this paper's" not in rows[2]
+
+
+def test_build_suggest_rows_section_phase_without_family_adds_no_note() -> None:
+    # A matched phase with a blank/missing section_family should not append a broken/empty note.
+    suggestions = [{"paper_id": 1, "title": "T", "quote": "q", "search_phase": "expected-sections"}]
+    rows = cc.build_suggest_rows(suggestions)
+    assert "[from this paper's" not in rows[0]
+
+
 def test_fetch_suggestions_posts_and_returns_both_lists(monkeypatch) -> None:
     captured = {}
 
@@ -1443,6 +1482,7 @@ def test_fetch_suggestions_posts_and_returns_both_lists(monkeypatch) -> None:
         "evaluate": True,
         "include_beyond_library": False,
         "beyond_top_k": 5,
+        "current_heading": None,
     }
 
 
@@ -1457,6 +1497,23 @@ def test_fetch_suggestions_include_beyond_library_flag_passes_through(monkeypatc
     cc.fetch_suggestions("http://x", "s", include_beyond_library=True, beyond_top_k=3)
     assert captured["body"]["include_beyond_library"] is True
     assert captured["body"]["beyond_top_k"] == 3
+
+
+def test_fetch_suggestions_current_heading_passes_through(monkeypatch) -> None:
+    # backlog #30 Stage 1: the draft's current section heading, computed once at dialog-open time, rides the
+    # request body so the backend can rank same-section candidates first; None when there's no real heading.
+    captured = {}
+
+    def fake_post(url, body, timeout=20):
+        captured["body"] = body
+        return {"suggestions": [], "beyond_library_suggestions": []}
+
+    monkeypatch.setattr(cc, "_post_json", fake_post)
+    cc.fetch_suggestions("http://x", "s", current_heading="Methods")
+    assert captured["body"]["current_heading"] == "Methods"
+
+    cc.fetch_suggestions("http://x", "s")
+    assert captured["body"]["current_heading"] is None
 
 
 def test_fetch_csl_translates_422_to_value_error(monkeypatch) -> None:

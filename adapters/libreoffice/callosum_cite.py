@@ -365,6 +365,10 @@ def build_suggest_rows(suggestions: list[dict]) -> list[str]:
 
     The quote is the *reason* (the honesty surface) — a truncated preview so the writer can judge fit before
     inserting. Pure (no UNO); parallel to `suggestions` (row index → suggestion → paper_id).
+
+    backlog #30 Stage 1: when the backend matched this candidate via its section-scoped search
+    (`search_phase == "expected-sections"`), append a short "why retrieved" note naming the matched
+    `section_family` — additive to the existing row format, never replacing any part of it.
     """
     rows = []
     for s in suggestions:
@@ -383,7 +387,12 @@ def build_suggest_rows(suggestions: list[dict]) -> list[str]:
         quote = " ".join(str(s.get("quote") or "").split())
         if len(quote) > SUGGEST_QUOTE_MAX:
             quote = quote[:SUGGEST_QUOTE_MAX].rstrip() + "…"
-        rows.append(f'[{tag}] {who} · match {match} — "{quote}"')
+        row = f'[{tag}] {who} · match {match} — "{quote}"'
+        if s.get("search_phase") == "expected-sections":
+            family = str(s.get("section_family") or "").strip()
+            if family:
+                row += f" [from this paper's {family.capitalize()} section]"
+        rows.append(row)
     return rows
 
 
@@ -519,7 +528,12 @@ SUGGEST_TIMEOUT = 90  # suggest does local ML work (embed + NLI); the first call
 
 
 def fetch_suggestions(
-    base: str, text: str, top_k: int = 5, include_beyond_library: bool = False, beyond_top_k: int = 5
+    base: str,
+    text: str,
+    top_k: int = 5,
+    include_beyond_library: bool = False,
+    beyond_top_k: int = 5,
+    current_heading: str | None = None,
 ) -> dict:
     """Citation suggestions for a draft sentence via the inc-156 endpoint, now wired to the already-shipped
     beyond-library path (backlog #30 SP2/Stage-3, `app/backend/citations/beyond_library.py`, inc 271/272) — this
@@ -534,6 +548,10 @@ def fetch_suggestions(
     metadata providers (Crossref/PubMed/OpenAlex) — metadata-provider egress, not the Gemini/LLM gate, but real
     egress the user is explicitly opting into on this specific call.
 
+    `current_heading` (backlog #30 Stage 1) is the draft's own current section heading — e.g. "Methods" — so the
+    backend can rank same-section candidates first; `None` when the cursor has no real heading context (a
+    document with no headings, the preamble, or a footnote/endnote).
+
     The first call loads the embedding + NLI models server-side, so it uses a longer timeout than render/export.
     Defensive on shape — a malformed/empty response yields empty lists for both.
     """
@@ -545,6 +563,7 @@ def fetch_suggestions(
             "evaluate": True,
             "include_beyond_library": include_beyond_library,
             "beyond_top_k": beyond_top_k,
+            "current_heading": current_heading,
         },
         timeout=SUGGEST_TIMEOUT,
     )
@@ -4917,8 +4936,14 @@ def _suggest_dialog(doc, base: str, text: str) -> list[tuple[str, dict, str | No
     # state["locators"]: row position -> locator override set via Details (absent means "use the auto pre-fill").
     state = {"rows": [], "locators": {}}
 
+    # Computed once, at dialog-open time (backlog #30 Stage 1) -- the cursor position when Suggest was
+    # invoked is the right point to read the current section from, not a moving target while the dialog is up.
+    view_position = doc.getCurrentController().getViewCursor().getStart()
+    heading = _section_bibliography_label_at(doc, view_position)
+    current_heading = heading if heading not in ("Preamble", "Document") else None
+
     def refresh(include_beyond: bool) -> None:
-        result = fetch_suggestions(base, text, include_beyond_library=include_beyond)
+        result = fetch_suggestions(base, text, include_beyond_library=include_beyond, current_heading=current_heading)
         parallel = [("library", s) for s in result["suggestions"]]
         parallel += [("beyond", b) for b in result["beyond_library_suggestions"]]
         rows = build_suggest_rows(result["suggestions"]) + build_beyond_suggest_rows(
