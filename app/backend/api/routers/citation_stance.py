@@ -2,8 +2,10 @@
 explicit passage, what's the local NLI stance (support/contrast/mention) of the passage toward the claim?
 
 Split out as its own sibling router because `citations.py` (home of `POST /citations/suggest`, the ONLY other
-place this codebase calls `classify_stance`) is already at the 600-line cap (rule #1) -- the inc-226/262 sibling-
-router precedent (`paper_enrich.py`, `methods_retraction.py`). Every existing stance call site in this codebase
+place this codebase calls `classify_stance`) was already at the 600-line cap (rule #1) -- the inc-226/262 sibling-
+router precedent (`paper_enrich.py`, `methods_retraction.py`). `POST /citations/suggest` itself later moved out to
+its own sibling `citation_suggest.py` (inc 479), which is where `StanceResponse`/`_suggest_stance_scorer` are
+imported from below now. Every existing stance call site in this codebase
 bundles classification with a retrieval/search step first; this is the one place a caller supplies BOTH texts
 directly (built for the LibreOffice "Insert evidence…" command checking a typed claim against an already-picked
 saved annotation, but usable by any future caller with the same shape). Reuses the exact cached `NLIStanceScorer`
@@ -16,7 +18,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
-from app.backend.api.routers.citations import MAX_TEXT_LEN, StanceResponse, _suggest_stance_scorer
+from app.backend.api.routers.citation_suggest import StanceResponse, _suggest_stance_scorer
+from app.backend.citations.suggest import MAX_TEXT_LEN
 
 router = APIRouter(tags=["citations"])
 

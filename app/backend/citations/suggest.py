@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 from sqlalchemy import Connection, select
 
+from app.backend.citations.section_scope import candidate_section_family, expected_section_family, partition_by_phase
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.retrieval import RetrievalHit, search_similar
 from app.backend.embeddings.vector_store import VectorStore
@@ -47,6 +48,8 @@ class Suggestion:
     coordinate_precision: str
     attachment_id: int | None
     stance: Stance | None
+    section_family: str | None = None
+    search_phase: str | None = None
 
 
 def suggest_citations(
@@ -58,6 +61,7 @@ def suggest_citations(
     top_k: int = 5,
     evaluate: bool = True,
     stance_scorer: StanceScorer | None = None,
+    current_heading: str | None = None,
 ) -> list[Suggestion]:
     query = (text or "").strip()
     if not query:
@@ -82,7 +86,22 @@ def suggest_citations(
             continue
         if hit.paper_id not in best:
             best[hit.paper_id] = hit
-    ranked = list(best.values())[:limit]
+
+    # Section-aware reordering (backlog #30, Track C): compute the full best-per-paper list FIRST, then reorder,
+    # THEN slice to `limit` -- reordering before slicing is what lets a matched-but-lower-raw-score paper surface
+    # within top_k instead of being cut off before section-scoping ever sees it. Never filters -- every candidate
+    # stays present, just reordered.
+    expected_family = expected_section_family(current_heading)
+    candidate_dicts: list[dict] = []
+    families: dict[int, tuple[str | None, str]] = {}
+    for hit in best.values():
+        assert hit.chunk_id is not None
+        family, source = candidate_section_family(conn, hit.chunk_id)
+        families[hit.paper_id] = (family, source)
+        candidate_dicts.append({"paper_id": hit.paper_id, "section_family": family})
+    ordered_dicts, matched_any = partition_by_phase(candidate_dicts, expected_family)
+    ordered_paper_ids = [d["paper_id"] for d in ordered_dicts][:limit]
+    ranked = [best[pid] for pid in ordered_paper_ids]
 
     scorer: StanceScorer | None = None
     if evaluate:
@@ -95,6 +114,8 @@ def suggest_citations(
         chunk_text = str(chunk.get("text") or "")
         meta = _paper_meta(conn, hit.paper_id)
         stance = scorer.classify_stance(sentence=query, passage=chunk_text) if scorer is not None else None
+        family, _source = families[hit.paper_id]
+        phase = "expected-sections" if (matched_any and family == expected_family) else None
         suggestions.append(
             Suggestion(
                 paper_id=hit.paper_id,
@@ -110,6 +131,8 @@ def suggest_citations(
                 coordinate_precision="region",
                 attachment_id=_pdf_attachment_id(chunk),
                 stance=stance,
+                section_family=family,
+                search_phase=phase,
             )
         )
     return suggestions

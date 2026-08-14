@@ -19,7 +19,7 @@ from app.backend.embeddings.pipeline import embed_chunks
 from app.backend.embeddings.vector_store import InMemoryVectorStore
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
-from app.backend.persistence.repository import soft_delete_paper
+from app.backend.persistence.repository import create_attachment, create_chunk, create_paper, soft_delete_paper
 from app.backend.persistence.schema import attachments, papers
 from app.backend.summarization.verification import NLIStanceScorer, Stance, _stance_from_scores
 from integrations.semantic_scholar.adapter import RecommendedPaper
@@ -46,6 +46,95 @@ def _embed_all(db_url: str, model, store) -> None:
     with engine.begin() as conn:
         embed_chunks(conn, model=model, vector_store=store, document_roles=ARTICLE_DOCUMENT_ROLES)
     engine.dispose()
+
+
+def _seed_section_scoped_papers(db_url: str) -> dict[str, int]:
+    """Two papers, each with one chunk tagged with a distinct heuristic `chunks.section` -- the fixture the
+    section-scoping boost test needs (mirrors `_seed_summarization_library`'s shape, but that shared fixture's
+    chunks carry no `section`, so this is a standalone seed rather than a change to shared test infra). The
+    "methods" paper's chunk text deliberately does NOT match FACIAL_QUERY (banana/orchard -> a different fixed
+    vector under ApiFakeEmbeddingModel), so its raw retrieval score is naturally lower than the "results" paper's
+    -- proving search_phase genuinely reorders rather than merely reflecting an already-highest raw score."""
+    engine = make_engine(db_url)
+    with engine.begin() as conn:
+        methods_paper_id = create_paper(
+            conn,
+            title="Section-Scoped Methods Paper",
+            csl_json={
+                "type": "article-journal",
+                "title": "Section-Scoped Methods Paper",
+                "author": [{"given": "Marie", "family": "Curie"}],
+            },
+            first_author_family_name="Curie",
+            processing_tier="fully-chunked",
+        )
+        other_paper_id = create_paper(
+            conn,
+            title="Section-Scoped Facial Paper",
+            csl_json={
+                "type": "article-journal",
+                "title": "Section-Scoped Facial Paper",
+                "author": [{"given": "Ada", "family": "Lovelace"}],
+            },
+            first_author_family_name="Lovelace",
+            processing_tier="fully-chunked",
+        )
+        methods_attachment_id = create_attachment(
+            conn,
+            paper_id=methods_paper_id,
+            storage_mode="linked",
+            availability="available",
+            content_type="application/pdf",
+            checksum="section-methods-checksum",
+            import_source="test",
+            attachment_type="pdf",
+            role="primary",
+        )
+        other_attachment_id = create_attachment(
+            conn,
+            paper_id=other_paper_id,
+            storage_mode="linked",
+            availability="available",
+            content_type="application/pdf",
+            checksum="section-other-checksum",
+            import_source="test",
+            attachment_type="pdf",
+            role="primary",
+        )
+        create_chunk(
+            conn,
+            paper_id=methods_paper_id,
+            attachment_id=methods_attachment_id,
+            text="Banana orchard material is unrelated.",
+            section="methods",
+            page_start=1,
+            page_end=1,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="fixture",
+            extraction_version="1",
+            chunking_strategy="paragraph",
+            chunk_version="section-chunk-v1",
+            source_attachment_checksum="section-methods-checksum",
+            bbox_json=[{"page": 1, "x0": 10, "y0": 20, "x1": 120, "y1": 40}],
+        )
+        create_chunk(
+            conn,
+            paper_id=other_paper_id,
+            attachment_id=other_attachment_id,
+            text="Facial anomalies influence social judgments.",
+            section="results",
+            page_start=1,
+            page_end=1,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="fixture",
+            extraction_version="1",
+            chunking_strategy="paragraph",
+            chunk_version="section-chunk-v2",
+            source_attachment_checksum="section-other-checksum",
+            bbox_json=[{"page": 1, "x0": 11, "y0": 22, "x1": 121, "y1": 42}],
+        )
+    engine.dispose()
+    return {"methods_paper_id": methods_paper_id, "other_paper_id": other_paper_id}
 
 
 # ── engine ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -150,6 +239,54 @@ def test_suggest_empty_text_returns_nothing(temp_db_url: str) -> None:
     with engine.begin() as conn:
         assert suggest_citations(conn, text="   ", model=model, vector_store=store) == []
     engine.dispose()
+
+
+def test_suggest_citations_boosts_matching_section_without_dropping_others(temp_db_url: str) -> None:
+    """Two papers both match the query; the one whose best chunk is heuristic-tagged "methods" should rank
+    first when current_heading implies "methods", with search_phase disclosed -- and the other paper must
+    still be present in the results, just after it."""
+    ids = _seed_section_scoped_papers(temp_db_url)
+    model, store = ApiFakeEmbeddingModel(), InMemoryVectorStore()
+    _embed_all(temp_db_url, model, store)
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        result = suggest_citations(
+            conn,
+            text=FACIAL_QUERY,
+            model=model,
+            vector_store=store,
+            top_k=5,
+            evaluate=False,
+            current_heading="3. Methods",
+        )
+    engine.dispose()
+
+    assert result[0].paper_id == ids["methods_paper_id"]
+    assert result[0].section_family == "methods"
+    assert result[0].search_phase == "expected-sections"
+    assert {s.paper_id for s in result} == {ids["methods_paper_id"], ids["other_paper_id"]}  # nothing dropped
+    # the unmatched paper keeps its own real section tag and an honestly-absent search_phase -- reordering never
+    # mislabels a non-match as having matched too
+    trailing = next(s for s in result if s.paper_id == ids["other_paper_id"])
+    assert trailing.section_family == "results"
+    assert trailing.search_phase is None
+
+
+def test_suggest_citations_no_heading_context_behaves_exactly_as_before(temp_db_url: str) -> None:
+    """No current_heading passed (the pre-existing call shape) -- search_phase is None on every result, order
+    unaffected by section at all."""
+    ids = _seed_summarization_library(temp_db_url)
+    model, store = ApiFakeEmbeddingModel(), InMemoryVectorStore()
+    _embed_all(temp_db_url, model, store)
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        result = suggest_citations(conn, text=FACIAL_QUERY, model=model, vector_store=store, top_k=5, evaluate=False)
+    engine.dispose()
+
+    assert [s.paper_id for s in result] == [ids["facial_paper_id"], ids["unrelated_paper_id"]]
+    assert all(s.search_phase is None for s in result)
 
 
 # ── stance classifier (NLI label mapping) ─────────────────────────────────────────────────────────────────

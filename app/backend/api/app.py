@@ -34,6 +34,7 @@ from app.backend.api.routers import (
     citation_equity,
     citation_stance,
     citation_style_lifecycle,
+    citation_suggest,
     citations,
     credit,
     critical_review,
@@ -418,6 +419,9 @@ def create_app(
     api.include_router(feed.router)  # /feed/* — literature Feed: followed sources, polled (inc 187)
     api.include_router(citation_style_lifecycle.router)  # explicit CSL provenance/update/copy lifecycle (inc 369)
     api.include_router(citations.router)  # /citations/* — formatted-citation engine (inc 106)
+    api.include_router(
+        citation_suggest.router
+    )  # /citations/suggest — highlight-to-suggest, split from citations.py (inc 479)
     api.include_router(
         zotero_citations.router
     )  # /citations/zotero/resolve — Zotero citation conversion (P2 #22, inc 464)
