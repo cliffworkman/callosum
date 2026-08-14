@@ -13,10 +13,30 @@ Uses stdlib xml.etree.ElementTree -- deliberately NOT relying on its default ent
 security tool flagged this during plan-writing: ElementTree blocks EXTERNAL entity fetches by default in modern
 Python, but has no built-in defense against internal entity-expansion ("billion laughs") denial-of-service).
 Since this parses a response from a network service and legitimate GROBID TEI output never contains a DOCTYPE,
-`_reject_doctype` refuses any document that has one BEFORE handing it to ElementTree -- a DOCTYPE is the only
-vector for both XXE and entity-expansion attacks, so rejecting it outright is a complete, auditable defense
-that needs no new dependency (`defusedxml` was considered and declined: a good library, but an unneeded second
-dependency when a three-line guard closes the exact same gap for this specific, narrow use case)."""
+`_decode_and_reject_doctype` refuses any document that has one BEFORE handing it to ElementTree -- a DOCTYPE is
+the only vector for both XXE and entity-expansion attacks, so rejecting it outright is a complete, auditable
+defense that needs no new dependency (`defusedxml` was considered and declined: a good library, but an unneeded
+second dependency when a small guard closes the exact same gap for this specific, narrow use case).
+
+An earlier version of this guard did a raw ASCII byte-substring check (`b"<!DOCTYPE" in tei_xml.upper()`)
+directly on the undecoded bytes. A code review caught a real bypass: ElementTree auto-detects encoding from
+the document's own `<?xml ... encoding="..."?>` declaration (or a BOM), so a non-UTF-8-encoded payload has no
+contiguous `<!DOCTYPE` ASCII byte sequence for that check to find, yet ElementTree still parses it -- and
+still expands internal entities. Requiring strict UTF-8 decoding up front (GROBID always emits UTF-8) closes
+the BOM'd cases for free: every UTF-16/UTF-32 byte-order mark starts with a byte (0xFF, 0xFE, or a leading
+0x00 followed by one) that is never a valid UTF-8 lead byte, so `bytes.decode("utf-8", strict)` already fails
+on any of them. But a *bare* UTF-16/UTF-32 payload with NO BOM was verified to survive strict UTF-8 decoding:
+each ASCII byte of the original document is interleaved with literal 0x00 bytes, and 0x00 (NUL, U+0000) is a
+perfectly valid single-byte UTF-8 codepoint on its own -- so the "decode" succeeds, just producing text with a
+NUL wedged between every character, which no longer contains "<!DOCTYPE" as a contiguous substring. Worse,
+this was empirically confirmed to still parse via `ET.fromstring()` with the internal entity fully expanded
+(CPython's pyexpat re-encodes a `str` argument to UTF-8 before handing it to the underlying C parser, and the
+embedded NULs don't stop it from reconstructing the original tag/entity structure). Since NUL is not a legal
+XML character under the spec (real GROBID output -- or any well-formed XML -- never contains one), rejecting
+any decoded text containing `"\x00"` closes this second, deeper bypass; combined with the DOCTYPE substring
+check running against the *decoded* text (not raw bytes) and `ET.fromstring()` being called on that same
+already-decoded `str` (removing ElementTree's own byte-level encoding autodetection from the trust boundary
+entirely), this closes both the reported bypass and the related no-BOM variant found while fixing it."""
 
 from __future__ import annotations
 
@@ -30,12 +50,23 @@ class GrobidParseError(Exception):
     """The TEI-XML response could not be parsed. Fails closed -- callers must not proceed with partial data."""
 
 
-def _reject_doctype(tei_xml: bytes) -> None:
-    """Refuse any document containing a DOCTYPE declaration -- legitimate GROBID TEI output never has one, and
-    a DOCTYPE is required for both XXE and billion-laughs attacks. Checked on the raw bytes, before ElementTree
-    ever sees them."""
-    if b"<!DOCTYPE" in tei_xml.upper():
+def _decode_and_reject_doctype(tei_xml: bytes) -> str:
+    """Strictly decode `tei_xml` as UTF-8 (GROBID's only real encoding) and refuse any document containing a
+    DOCTYPE declaration or an embedded NUL character -- see the module docstring for why both checks are
+    necessary and must run against the *decoded text*, not the raw bytes. Returns the decoded text so callers
+    hand ElementTree an already-decoded `str`, never raw bytes it could re-interpret under a different
+    encoding."""
+    try:
+        text = tei_xml.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise GrobidParseError(f"TEI-XML is not valid UTF-8 (GROBID only emits UTF-8): {exc}") from exc
+    if "\x00" in text:
+        raise GrobidParseError(
+            "refusing to parse TEI-XML containing an embedded NUL character (not legal XML, not expected from GROBID)"
+        )
+    if "<!DOCTYPE" in text.upper():
         raise GrobidParseError("refusing to parse TEI-XML containing a DOCTYPE declaration (not expected from GROBID)")
+    return text
 
 
 @dataclass(frozen=True)
@@ -69,9 +100,9 @@ def parse_tei(tei_xml: bytes) -> list[SectionSpan]:
     has no verbatim `<head>` title, or if neither its head nor any of its paragraphs carry `@coords` data --
     a section with no location data can't be mapped to a page/chunk anyway, and reporting it as a zero-bbox
     span would look like a real (but empty) location result rather than an absence."""
-    _reject_doctype(tei_xml)
+    text = _decode_and_reject_doctype(tei_xml)
     try:
-        root = ET.fromstring(tei_xml)
+        root = ET.fromstring(text)
     except ET.ParseError as exc:
         raise GrobidParseError(f"malformed TEI-XML: {exc}") from exc
 

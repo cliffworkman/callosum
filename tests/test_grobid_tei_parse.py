@@ -94,6 +94,49 @@ def test_parse_tei_rejects_a_doctype_declaration():
         parse_tei(malicious)
 
 
+def test_parse_tei_rejects_a_doctype_hidden_by_non_utf8_encoding_with_bom():
+    """A code review caught a real bypass in an earlier version of the DOCTYPE guard: it did a raw ASCII
+    byte-substring check on the undecoded bytes, but ElementTree auto-detects encoding from the document's own
+    <?xml encoding=...?> declaration/BOM -- so a UTF-16-encoded payload has no contiguous b"<!DOCTYPE" byte
+    sequence for that check to find, yet ElementTree still parses it and still expands the internal entity.
+    This reproduces the reviewer's exact repro (UTF-16 with its native BOM)."""
+    import pytest
+
+    from integrations.grobid.tei_parse import GrobidParseError
+
+    xml_str = (
+        '<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE TEI [<!ENTITY x "hello">]>'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body>&x;</body></text></TEI>'
+    )
+    malicious = xml_str.encode("utf-16")  # Python's 'utf-16' codec includes a native-order BOM
+    assert b"<!DOCTYPE" not in malicious.upper()  # confirms the byte-substring check really is blind here
+    with pytest.raises(GrobidParseError):
+        parse_tei(malicious)
+
+
+def test_parse_tei_rejects_a_doctype_hidden_by_bom_less_utf16():
+    """A deeper variant of the same bypass, found while fixing the reviewer's report: a *bare* UTF-16 payload
+    with NO byte-order mark still decodes "successfully" as UTF-8 (each ASCII byte is interleaved with a
+    literal NUL byte, and NUL alone is valid UTF-8), so a naive "require strict UTF-8 decode, then check for
+    DOCTYPE" fix is not sufficient by itself -- the decoded text still doesn't contain "<!DOCTYPE" as a
+    contiguous substring, and ET.fromstring() was empirically confirmed to still parse it with the internal
+    entity fully expanded. Embedded-NUL rejection is what closes this variant."""
+    import pytest
+
+    from integrations.grobid.tei_parse import GrobidParseError
+
+    xml_str = (
+        '<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE TEI [<!ENTITY x "hello">]>'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body>&x;</body></text></TEI>'
+    )
+    malicious = xml_str.encode("utf-16-le")  # no BOM
+    assert b"<!DOCTYPE" not in malicious.upper()
+    decoded = malicious.decode("utf-8")  # confirms this variant really does survive strict UTF-8 decoding
+    assert "<!DOCTYPE" not in decoded.upper()
+    with pytest.raises(GrobidParseError):
+        parse_tei(malicious)
+
+
 def test_parse_tei_ignores_back_matter_divs():
     """GROBID's <back> element (references, acknowledgements, funding, availability) also contains <div>
     elements structurally identical to body sections. These must never be surfaced as content SectionSpans --
