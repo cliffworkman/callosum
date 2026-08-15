@@ -14195,7 +14195,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         title: "Re-extract searchable PDF text and section labels from the local PDF. Metadata, files, notes, tags, and annotations are preserved."
       },
       reprocessing ? "Reprocessing PDF\u2026" : "Reprocess PDF text"
-    ), p.attachments && p.attachments.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "detail-files" }, /* @__PURE__ */ React.createElement("span", { className: "detail-files-label" }, "Files"), /* @__PURE__ */ React.createElement("div", { className: "detail-files-list" }, p.attachments.map((a) => /* @__PURE__ */ React.createElement(
+    ), !readOnly && hasPdf && /* @__PURE__ */ React.createElement(GrobidParseRow, { paperId: p.id, onParsed: refreshDetail }), p.attachments && p.attachments.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "detail-files" }, /* @__PURE__ */ React.createElement("span", { className: "detail-files-label" }, "Files"), /* @__PURE__ */ React.createElement("div", { className: "detail-files-list" }, p.attachments.map((a) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: a.id,
@@ -14407,6 +14407,53 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       },
       status === "running" ? "Running OCR\u2026" : "OCR this paper (scanned)"
     ), status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Reading pages\u2026", progress: prog, managedBy: "backend-job" }), msg && /* @__PURE__ */ React.createElement("span", { className: "detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "") }, msg));
+  }
+  function GrobidParseRow({ paperId, onParsed }) {
+    const [status, setStatus] = useState("idle");
+    const [msg, setMsg] = useState(null);
+    const poll = async (jobId) => {
+      const r = await api(`/grobid/papers/${paperId}/parse/${jobId}`);
+      if (!r.ok) {
+        setStatus("error");
+        setMsg(r.error || "Parse status check failed.");
+        return;
+      }
+      const j = r.data;
+      if (j.status === "done") {
+        setStatus("done");
+        const res = j.result;
+        setMsg(res ? `Parsed ${res.sections_found} section${res.sections_found === 1 ? "" : "s"}; mapped ${res.chunks_mapped} chunk${res.chunks_mapped === 1 ? "" : "s"}.` : "Parse complete.");
+        onParsed && onParsed();
+        return;
+      }
+      if (j.status === "error") {
+        setStatus("error");
+        setMsg(j.detail || "Parse failed.");
+        return;
+      }
+      setTimeout(() => poll(jobId), 1500);
+    };
+    const start = async () => {
+      setStatus("running");
+      setMsg(null);
+      const r = await apiPost(`/grobid/papers/${paperId}/parse`, {});
+      if (!r.ok) {
+        setStatus("error");
+        setMsg(r.error || "Couldn't start parsing.");
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-acquire" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-ghost",
+        disabled: status === "running",
+        onClick: start,
+        title: "Parse this paper's document structure with GROBID (configured in Settings) -- maps its section detection onto this paper's already-extracted text."
+      },
+      status === "running" ? "Parsing structure\u2026" : "Parse document structure\u2026"
+    ), status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Parsing document structure\u2026", managedBy: "backend-job" }), msg && /* @__PURE__ */ React.createElement("span", { className: "detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "") }, msg));
   }
   function AddFieldRow({ onSave }) {
     const [name, setName] = useState("");
@@ -18057,7 +18104,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onChange: (e) => onAxisCutoffDefault(Number(e.target.value)),
         "aria-label": "Default axis cutoff"
       }
-    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Citation styles", id: "citation-styles" }, /* @__PURE__ */ React.createElement(CitationStylesSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Your usage" }, /* @__PURE__ */ React.createElement(UsageSettings, null))));
+    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(GrobidSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Citation styles", id: "citation-styles" }, /* @__PURE__ */ React.createElement(CitationStylesSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Your usage" }, /* @__PURE__ */ React.createElement(UsageSettings, null))));
   }
   function MyPubsSettings({ onRefreshed }) {
     const [name, setName] = useState("");
@@ -19567,6 +19614,79 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       poll(r.data.job_id);
     };
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Local maintenance"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Retraction Watch database"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: dbRun.status === "running", onClick: refreshDb }, dbRun.status === "running" ? "Downloading\u2026" : "Refresh database")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The local mirror of the Retraction Watch database (Crossref-hosted, CC0) \u2014 the richest source (reason/date/notice) the library's retraction check can draw on."), /* @__PURE__ */ React.createElement("span", { className: "method-credit-sub" }, "Courtesy of ", /* @__PURE__ */ React.createElement("a", { href: "https://retractionwatch.com/", target: "_blank", rel: "noopener noreferrer" }, "Retraction Watch"), ", a project of The Center for Scientific Integrity (Ivan Oransky & Adam Marcus), mirrored via Crossref's ", /* @__PURE__ */ React.createElement("a", { href: "https://api.labs.crossref.org/data/retractionwatch", target: "_blank", rel: "noopener noreferrer" }, "public CC0 dataset"), ". No single canonical paper describes the database itself \u2014 credited by acknowledgment, not fabricated as a citation."), /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (stale ? " settings-note-err" : "") }, db && db.count > 0 ? `${db.count.toLocaleString()} records${db.retrieved_at ? " \xB7 as of " + db.retrieved_at.slice(0, 10) : ""}` : "Not downloaded \u2014 refresh to enable the richest source", stale && ` \xB7 ${ageDays} days old \u2014 refresh recommended`), /* @__PURE__ */ React.createElement("label", { className: "auto-refresh-toggle", title: "When enabled, refreshes the mirror and re-checks your library automatically on launch (and when you switch back to Callosum) if the mirror is more than 30 days old." }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: autoRefresh, onChange: toggleAutoRefresh }), " Auto-refresh when stale (checked on launch)")), dbRun.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, dbRun.error), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "TOP Factor database"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: tfRun.status === "running", onClick: refreshTf }, tfRun.status === "running" ? "Downloading\u2026" : "Refresh database")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The Center for Open Science's per-journal transparency/openness rubric \u2014 a periodically-updated public snapshot (no live query API exists) that feeds Discover \u2192 Journals' TOP Factor fact once downloaded."), /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, tf && tf.count > 0 ? `${tf.count.toLocaleString()} journals${tf.retrieved_at ? " \xB7 as of " + tf.retrieved_at.slice(0, 10) : ""}` : "Not downloaded \u2014 refresh to include TOP Factor in Where-to-submit results")), tfRun.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, tfRun.error), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "AJOL database"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: ajolRun.status === "running", onClick: downloadAjol }, ajolRun.status === "running" ? "Downloading\u2026" : "Download database")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "A third-party, CC-BY-4.0 compiled snapshot of African Journals Online (AJOL) journal metadata \u2014 not an AJOL-official feed. A one-time academic dataset, not a periodically-updated source: downloading again will not fetch newer data than the ", ajol ? ajol.snapshot_date : "dataset's", " snapshot, and it may not reflect journals AJOL has added, removed, or reclassified since."), /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, ajol && ajol.count > 0 ? `${ajol.count.toLocaleString()} journals \xB7 ${ajol.snapshot_date} snapshot, downloaded ${ajol.retrieved_at ? ajol.retrieved_at.slice(0, 10) : "?"}` : "Not downloaded \u2014 download to include AJOL in Where-to-submit results")), ajolRun.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, ajolRun.error), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Synthesis cache"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: repairSummaryCache }, busy ? "Scanning\u2026" : "Repair synthesis cache")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Scans cached AI draft summaries and removes only malformed cache rows. Saved syntheses, verified citations, chunks, and evidence records are not changed.")), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
+  }
+  function GrobidSettings() {
+    const [url, setUrl] = useState("");
+    const [urlInput, setUrlInput] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    const [msgErr, setMsgErr] = useState(false);
+    const [testing, setTesting] = useState(false);
+    const [test, setTest] = useState(null);
+    const load = () => api("/grobid/status").then((r) => {
+      if (r.ok) {
+        setUrl(r.data.url || "");
+        setUrlInput(r.data.url || "");
+      }
+    });
+    useEffect(() => {
+      load();
+    }, []);
+    const save = async () => {
+      setBusy(true);
+      setMsg("");
+      setTest(null);
+      const r = await apiPost("/grobid/settings", { url: urlInput.trim() || null });
+      setBusy(false);
+      if (r.ok) {
+        setUrl(r.data.url || "");
+        setMsgErr(false);
+        setMsg(r.data.url ? "Saved." : "Cleared.");
+      } else {
+        setMsgErr(true);
+        setMsg("Couldn't save: " + (r.error || "error"));
+      }
+    };
+    const testConnection = async () => {
+      setTesting(true);
+      setTest(null);
+      const r = await apiPost("/grobid/test-connection", {});
+      setTesting(false);
+      setTest(r.ok ? r.data : { ok: false, detail: r.error || "Test failed." });
+    };
+    const [run, setRun] = useState({ status: "idle" });
+    const runLibrary = async () => {
+      setRun({ status: "running" });
+      const poll = (jobId) => api(`/grobid/library/parse/${jobId}`).then((r2) => {
+        if (!r2.ok) {
+          setRun({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") setRun({ status: "done", summary: d.summary });
+        else if (d.status === "error") setRun({ status: "error", error: d.detail || "Parse failed." });
+        else {
+          setRun({ status: "running", progress: d.progress });
+          setTimeout(() => poll(jobId), 1500);
+        }
+      });
+      const r = await apiPost("/grobid/library/parse", {});
+      if (!r.ok) {
+        setRun({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    const s = run.summary;
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "GROBID document structure"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "GROBID server URL", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "A separately-run, opt-in GROBID Docker service \u2014 parses a PDF's real document structure (sections/headings) more accurately than callosum's own local heuristic. Not bundled; run your own (e.g. ", /* @__PURE__ */ React.createElement("code", null, "docker run --rm -p 8070:8070 lfoppiano/grobid:latest"), ') and point callosum at it. A loopback URL needs no consent; a remote one is gated by the same "Allow AI features" egress toggle as a custom AI provider.')), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        placeholder: "http://127.0.0.1:8070",
+        value: urlInput,
+        onChange: (e) => setUrlInput(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: save }, busy ? "Saving\u2026" : "Save")), url && /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: testing, onClick: testConnection }, testing ? "Testing\u2026" : "Test connection")), test && /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (test.ok ? "" : " settings-note-err") }, test.detail), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (msgErr ? " settings-note-err" : "") }, msg)), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Parse structure for library"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: !url || run.status === "running", onClick: runLibrary }, run.status === "running" ? "Parsing\u2026" : "Parse all papers")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, `Runs GROBID structure parsing across every paper with a local PDF \u2014 the same per-paper action as the "Parse document structure\u2026" button in a paper's Details, just for the whole library at once.`)), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Parsing document structure\u2026", progress: run.progress, managedBy: "backend-job" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.papers_parsed, " paper", s.papers_parsed === 1 ? "" : "s", " parsed", s.papers_skipped ? ` \xB7 ${s.papers_skipped} skipped` : "", " \xB7 ", s.sections_found, " section", s.sections_found === 1 ? "" : "s", " found \xB7 ", s.chunks_mapped, " chunk", s.chunks_mapped === 1 ? "" : "s", " mapped."));
   }
   function UsageSettings() {
     const [summary, setSummary] = useState(null);

@@ -1,6 +1,8 @@
 // Settings → Local maintenance (split from 35_settings.jsx, backlog #40 -- adding the TOP Factor mirror row
 // pushed that file over the 600-line cap; extracted whole, matching the inc-256 35b_providers.jsx precedent).
 // Hoists across the shared IIFE, so SettingsModal (35_settings.jsx) calls it directly, unchanged.
+// GrobidSettings (backlog #30 Stage 2, task 11) lives in this same file -- a self-hosted opt-in service, the
+// same "local maintenance" territory as the mirrors above -- and is called separately from 35_settings.jsx.
 
 function LocalMaintenanceSettings({ onRetractionRan }) {
   const [busy, setBusy] = useState(false);
@@ -175,6 +177,113 @@ function LocalMaintenanceSettings({ onRetractionRan }) {
         </span>
       </div>
       {msg && <div className="settings-note">{msg}</div>}
+    </>
+  );
+}
+
+// GROBID document structure (backlog #30 Stage 2, task 11) -- mirrors 35b_providers.jsx's own Local-provider
+// endpoint field exactly (fetch GET /grobid/status on mount, a plain URL text input + Save via POST
+// /grobid/settings, then a Test connection button against POST /grobid/test-connection with the same inline
+// settings-note/settings-note-err result convention SharingIdentityPanel and ProviderRow both already use).
+// GROBID is a separately-run, opt-in Docker service (never bundled) that extracts a paper's real document
+// structure (sections/headings) more accurately than callosum's own local heuristic; task 10 already prefers
+// GROBID's mapped data over that heuristic once present. Sending a PDF to a non-loopback GROBID URL is
+// egress-gated exactly like a custom AI provider endpoint (invariant #3) -- a refused parse surfaces that 403
+// detail verbatim through the shared apiPost error path, nothing new to build here.
+function GrobidSettings() {
+  const [url, setUrl] = useState("");       // the STORED url, from GET /grobid/status
+  const [urlInput, setUrlInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [msgErr, setMsgErr] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [test, setTest] = useState(null);   // { ok, detail } | null
+
+  const load = () => api("/grobid/status").then(r => {
+    if (r.ok) { setUrl(r.data.url || ""); setUrlInput(r.data.url || ""); }
+  });
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    setBusy(true); setMsg(""); setTest(null);
+    const r = await apiPost("/grobid/settings", { url: urlInput.trim() || null });
+    setBusy(false);
+    if (r.ok) { setUrl(r.data.url || ""); setMsgErr(false); setMsg(r.data.url ? "Saved." : "Cleared."); }
+    else { setMsgErr(true); setMsg("Couldn't save: " + (r.error || "error")); }
+  };
+
+  const testConnection = async () => {
+    setTesting(true); setTest(null);
+    const r = await apiPost("/grobid/test-connection", {});
+    setTesting(false);
+    setTest(r.ok ? r.data : { ok: false, detail: r.error || "Test failed." });
+  };
+
+  // Bulk "Parse structure for library" -- POST /grobid/library/parse, a real backend JobStore (grobid_parse_jobs,
+  // already registered in JOB_NAV_DEFAULTS/JOB_LABELS/JOB_COMPUTE_KINDS by task 9, status.py) -- managedBy=
+  // "backend-job" so this ProgressBar doesn't ALSO register a duplicate client-side Status row (invariant #5 --
+  // the backend job is already the one source of truth for this operation's Status entry).
+  const [run, setRun] = useState({ status: "idle" });  // idle | running | done | error
+  const runLibrary = async () => {
+    setRun({ status: "running" });
+    const poll = (jobId) => api(`/grobid/library/parse/${jobId}`).then(r => {
+      if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+      const d = r.data;
+      if (d.status === "done") setRun({ status: "done", summary: d.summary });
+      else if (d.status === "error") setRun({ status: "error", error: d.detail || "Parse failed." });
+      else { setRun({ status: "running", progress: d.progress }); setTimeout(() => poll(jobId), 1500); }
+    });
+    const r = await apiPost("/grobid/library/parse", {});
+    if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+    poll(r.data.job_id);
+  };
+  const s = run.summary;
+
+  return (
+    <>
+      <p className="eyebrow">GROBID document structure</p>
+      <div className="settings-field">
+        <label className="settings-field-label">GROBID server URL
+          <span className="settings-sub">
+            A separately-run, opt-in GROBID Docker service — parses a PDF's real document structure
+            (sections/headings) more accurately than callosum's own local heuristic. Not bundled; run your own
+            (e.g. <code>docker run --rm -p 8070:8070 lfoppiano/grobid:latest</code>) and point callosum at it. A
+            loopback URL needs no consent; a remote one is gated by the same "Allow AI features" egress toggle
+            as a custom AI provider.
+          </span>
+        </label>
+        <div className="settings-keyrow">
+          <input className="settings-input" placeholder="http://127.0.0.1:8070" value={urlInput}
+            onChange={e => setUrlInput(e.target.value)} />
+          <button className="btn btn-ghost" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
+        </div>
+        {url &&
+          <div className="settings-keyrow">
+            <button className="btn btn-ghost" disabled={testing} onClick={testConnection}>{testing ? "Testing…" : "Test connection"}</button>
+          </div>}
+        {test && <div className={"settings-note" + (test.ok ? "" : " settings-note-err")}>{test.detail}</div>}
+        {msg && <div className={"settings-note" + (msgErr ? " settings-note-err" : "")}>{msg}</div>}
+      </div>
+
+      <div className="settings-field">
+        <div className="settings-row settings-maintenance-action">
+          <span className="settings-field-label">Parse structure for library</span>
+          <button className="btn btn-ghost" disabled={!url || run.status === "running"} onClick={runLibrary}>
+            {run.status === "running" ? "Parsing…" : "Parse all papers"}
+          </button>
+        </div>
+        <span className="settings-sub">
+          Runs GROBID structure parsing across every paper with a local PDF — the same per-paper action as the
+          "Parse document structure…" button in a paper's Details, just for the whole library at once.
+        </span>
+      </div>
+      {run.status === "running" && <ProgressBar label="Parsing document structure…" progress={run.progress} managedBy="backend-job" />}
+      {run.status === "error" && <div className="settings-note settings-note-err">{run.error}</div>}
+      {run.status === "done" && s &&
+        <div className="settings-note">
+          {s.papers_parsed} paper{s.papers_parsed === 1 ? "" : "s"} parsed
+          {s.papers_skipped ? ` · ${s.papers_skipped} skipped` : ""} · {s.sections_found} section{s.sections_found === 1 ? "" : "s"} found · {s.chunks_mapped} chunk{s.chunks_mapped === 1 ? "" : "s"} mapped.
+        </div>}
     </>
   );
 }

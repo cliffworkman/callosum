@@ -5,6 +5,8 @@
 // hoists across the shared IIFE, so SettingsModal below references it directly.
 // Local maintenance (`LocalMaintenanceSettings`, incl. the Retraction Watch + TOP Factor mirrors) lives in
 // js/35e_maintenance.jsx (backlog #40) — split out to stay under the 600-line cap, same hoist pattern.
+// GROBID document structure (`GrobidSettings`, URL + Test connection + bulk "Parse structure for library") also
+// lives in js/35e_maintenance.jsx (backlog #30 Stage 2, task 11) — same hoist pattern.
 
 // Metadata access (inc 158) — ONE contact email for the public metadata APIs' polite pool (Crossref, OpenAlex,
 // Retraction Watch). Setting it here enables the Retraction Watch database download, instead of an env var. Not a
@@ -487,6 +489,7 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
             </div>
             <div className="settings-section"><AcquisitionSettings /></div>
             <div className="settings-section"><LocalMaintenanceSettings onRetractionRan={onRetractionRan} /></div>
+            <div className="settings-section"><GrobidSettings /></div>
             <div className="settings-section settings-section-wide"><PublishersSettings /></div>
           </div>
         </SettingsCard>

@@ -416,6 +416,7 @@ function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsC
         <button className="btn-link detail-fill" onClick={reprocessPdf} disabled={reprocessing}
           title="Re-extract searchable PDF text and section labels from the local PDF. Metadata, files, notes, tags, and annotations are preserved.">
           {reprocessing ? "Reprocessing PDF…" : "Reprocess PDF text"}</button>}
+      {!readOnly && hasPdf && <GrobidParseRow paperId={p.id} onParsed={refreshDetail} />}
 
       {p.attachments && p.attachments.length > 0 &&
         <div className="detail-files">

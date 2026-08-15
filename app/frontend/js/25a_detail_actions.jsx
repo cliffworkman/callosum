@@ -1,6 +1,6 @@
 // Detail-pane action widgets split from 25_detail.jsx to keep the main editable metadata surface under the
-// application-source line budget. These stay behavior-only siblings: citation export, OA acquisition, OCR, and
-// adding arbitrary CSL fields.
+// application-source line budget. These stay behavior-only siblings: citation export, OA acquisition, OCR,
+// GROBID structure parsing, and adding arbitrary CSL fields.
 
 // inc-70: export this paper's citation (BibTeX/RIS/CSL-JSON). inc-106: render a FORMATTED citation (APA/MLA/
 // Chicago/IEEE/Nature/Harvard) via the citeproc engine + show/copy it. `apiPost` is fine for /citations/render
@@ -173,6 +173,50 @@ function OcrRow({ paperId, onOcred }) {
         {status === "running" ? "Running OCR…" : "OCR this paper (scanned)"}
       </button>
       {status === "running" && <ProgressBar label="Reading pages…" progress={prog} managedBy="backend-job" />}
+      {msg && <span className={"detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "")}>{msg}</span>}
+    </div>
+  );
+}
+
+// backlog #30 Stage 2 (task 11): parse this paper's document structure with GROBID -- an opt-in, separately-run
+// service the user configures + tests in Settings (GrobidSettings, js/35e_maintenance.jsx). GROBID maps its own
+// section boundaries onto this paper's already-extracted PyMuPDF chunk bboxes (task 10 already prefers that
+// mapped data over the local heuristic once present) -- server-side precondition is just a local PDF (422
+// otherwise), so this is shown alongside "Reprocess PDF text" whenever one exists. Async job -> poll, mirroring
+// OcrRow's poll shape below; unlike OcrRow's library-wide sibling (POST /grobid/library/parse), a single paper's
+// job reports no determinate progress, so the bar stays indeterminate like AcquireOaRow's above.
+function GrobidParseRow({ paperId, onParsed }) {
+  const [status, setStatus] = useState("idle"); // idle | running | done | error
+  const [msg, setMsg] = useState(null);
+  const poll = async (jobId) => {
+    const r = await api(`/grobid/papers/${paperId}/parse/${jobId}`);
+    if (!r.ok) { setStatus("error"); setMsg(r.error || "Parse status check failed."); return; }
+    const j = r.data;
+    if (j.status === "done") {
+      setStatus("done");
+      const res = j.result;
+      setMsg(res
+        ? `Parsed ${res.sections_found} section${res.sections_found === 1 ? "" : "s"}; mapped ${res.chunks_mapped} chunk${res.chunks_mapped === 1 ? "" : "s"}.`
+        : "Parse complete.");
+      onParsed && onParsed();
+      return;
+    }
+    if (j.status === "error") { setStatus("error"); setMsg(j.detail || "Parse failed."); return; }
+    setTimeout(() => poll(jobId), 1500); // pending / running -> keep polling
+  };
+  const start = async () => {
+    setStatus("running"); setMsg(null);
+    const r = await apiPost(`/grobid/papers/${paperId}/parse`, {});
+    if (!r.ok) { setStatus("error"); setMsg(r.error || "Couldn't start parsing."); return; }
+    poll(r.data.job_id);
+  };
+  return (
+    <div className="detail-acquire">
+      <button className="btn btn-ghost" disabled={status === "running"} onClick={start}
+        title="Parse this paper's document structure with GROBID (configured in Settings) -- maps its section detection onto this paper's already-extracted text.">
+        {status === "running" ? "Parsing structure…" : "Parse document structure…"}
+      </button>
+      {status === "running" && <ProgressBar label="Parsing document structure…" managedBy="backend-job" />}
       {msg && <span className={"detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "")}>{msg}</span>}
     </div>
   );
