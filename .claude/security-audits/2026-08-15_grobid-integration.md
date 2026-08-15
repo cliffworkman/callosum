@@ -141,11 +141,11 @@ model").
 **Disposition:** flagged here as a genuine, real, unaddressed gap per the audit's job — not fixed in this task,
 because (a) it matches this codebase's existing accepted posture for every comparable external-response path,
 (b) the threat model is user-self-inflicted, not a remote attacker, and (c) a real GROBID response for even a
-very long article tops out in the low tens of MB (the committed fixture, `sample_fulltext.tei.xml`, is under
-100KB for a full 17-page article), so the practical exposure is theoretical rather than observed. **Recorded as
-a disclosed, accepted risk** — a natural, low-cost future addition (e.g. an `httpx` streaming read with a hard
-byte cap, mirroring a size cap if one is ever added to the metadata-mirror downloads) rather than a blocking
-finding.
+very long article tops out in the low hundreds of KB (the committed fixture, `sample_fulltext.tei.xml`,
+directly measured via `wc -c` at **183,878 bytes (~180KB) for a full 17-page article**), so the practical
+exposure is theoretical rather than observed. **Recorded as a disclosed, accepted risk** — a natural, low-cost
+future addition (e.g. an `httpx` streaming read with a hard byte cap, mirroring a size cap if one is ever added
+to the metadata-mirror downloads) rather than a blocking finding.
 
 ### 5. URL validation on the configured GROBID host
 
