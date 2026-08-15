@@ -10,6 +10,7 @@ from app.backend.citations.section_scope import (
     partition_by_phase,
 )
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
+from app.backend.persistence.schema import chunks
 
 
 def test_expected_section_family_recognizes_a_known_heading():
@@ -114,3 +115,54 @@ def test_candidate_section_family_none_when_heuristic_never_tagged_it(temp_db_ur
         family, source = candidate_section_family(conn, chunk_id)
     eng.dispose()
     assert family is None and source == "none"
+
+
+def test_candidate_section_family_prefers_grobid_when_present(temp_db_url: str) -> None:
+    """A chunk tagged 'results' by the heuristic but mapped to a GROBID paper_sections row classified
+    'methods' should report the GROBID value, source='grobid' -- GROBID wins when both exist."""
+    eng = create_engine(temp_db_url)
+    with eng.begin() as conn:
+        pid = create_paper(conn, title="T", csl_json={"title": "T", "type": "article-journal"})
+        attachment_id = create_attachment(
+            conn,
+            paper_id=pid,
+            storage_mode="managed",
+            availability="available",
+            content_type="application/pdf",
+            checksum="test-hash",
+            role="article-fulltext",
+        )
+        from app.backend.persistence.schema_grobid import paper_sections
+
+        section_result = conn.execute(
+            paper_sections.insert().values(
+                paper_id=pid,
+                title="3. Methods",
+                section_kind="methods",
+                page_start=1,
+                page_end=1,
+                order_index=0,
+            )
+        )
+        section_id = section_result.inserted_primary_key[0]
+        chunk_result = conn.execute(
+            chunks.insert().values(
+                paper_id=pid,
+                attachment_id=attachment_id,
+                text="body",
+                section="results",  # heuristic says results
+                grobid_section_id=section_id,  # but GROBID mapped it to methods
+                page_start=1,
+                page_end=1,
+                bbox_coordinate_system="pdf-points-top-left",
+                extraction_tool="test",
+                extraction_version="1",
+                chunking_strategy="test",
+                chunk_version="1",
+                source_attachment_checksum="deadbeef",
+            )
+        )
+        chunk_id = chunk_result.inserted_primary_key[0]
+        family, source = candidate_section_family(conn, chunk_id)
+    eng.dispose()
+    assert family == "methods" and source == "grobid"

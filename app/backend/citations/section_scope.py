@@ -17,6 +17,7 @@ from sqlalchemy import Connection, select
 
 from app.backend.pdf_processing.sections import detect_section_heading
 from app.backend.persistence.schema import chunks
+from app.backend.persistence.schema_grobid import paper_sections
 
 
 def expected_section_family(heading_text: str | None) -> str | None:
@@ -29,11 +30,24 @@ def expected_section_family(heading_text: str | None) -> str | None:
 
 
 def candidate_section_family(conn: Connection, chunk_id: int) -> tuple[str | None, str]:
-    """A candidate chunk's own section family and where it came from. Stage 1: reads only the existing
-    `chunks.section` heuristic column, source is always "heuristic" (or "none" if untagged)."""
-    row = conn.execute(select(chunks.c.section).where(chunks.c.id == chunk_id)).first()
-    family = row[0] if row is not None else None
-    return (family, "heuristic") if family else (None, "none")
+    """A candidate chunk's own section family and where it came from -- GROBID's data is preferred when the
+    chunk has been mapped to one (grobid_section_id set AND that section has a recognized section_kind),
+    falling back to the pre-existing heuristic chunks.section column otherwise. GROBID's own bbox-mapping and
+    the heuristic never both apply at once for one chunk -- this is a strict preference, not a blend, so the
+    disclosed "source" is always accurate."""
+    row = conn.execute(
+        select(chunks.c.section, paper_sections.c.section_kind)
+        .select_from(chunks.outerjoin(paper_sections, paper_sections.c.id == chunks.c.grobid_section_id))
+        .where(chunks.c.id == chunk_id)
+    ).first()
+    if row is None:
+        return None, "none"
+    heuristic_section, grobid_kind = row
+    if grobid_kind:
+        return grobid_kind, "grobid"
+    if heuristic_section:
+        return heuristic_section, "heuristic"
+    return None, "none"
 
 
 def partition_by_phase(candidates: list[dict], expected_family: str | None) -> tuple[list[dict], bool]:
