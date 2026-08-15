@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection, Engine
 
-from app.backend import app_settings, providers_store
+from app.backend import app_settings, providers_store, publisher_settings
 from app.backend.acquisition.openurl import RESOLVER_BASE_MAX_LEN, resolver_base_valid
 from app.backend.api.dependencies import get_engine
 from app.backend.llm.cache import repair_summary_cache
@@ -147,9 +147,9 @@ def _status() -> SettingsStatus:
         access_token_set=app_settings.stored_access_token() is not None,
         agent_writes_enabled=app_settings.stored_agent_writes(),
         usage_events_enabled=app_settings.stored_usage_events_enabled(),
-        publisher_weighting=app_settings.stored_publisher_weighting(),
-        publisher_breadth=app_settings.stored_publisher_breadth(),
-        publisher_defaults_set=app_settings.publisher_defaults_set(),
+        publisher_weighting=publisher_settings.stored_publisher_weighting(),
+        publisher_breadth=publisher_settings.stored_publisher_breadth(),
+        publisher_defaults_set=publisher_settings.publisher_defaults_set(),
         account=AccountStatus(configured=app_settings.oidc_configured(), **app_settings.oauth_account_status()),
         onboarding_completed=app_settings.stored_onboarding_completed(),
     )
@@ -209,12 +209,12 @@ def put_settings(update: SettingsUpdate) -> SettingsStatus:
         w = update.publisher_weighting
         if w is not None and not (0.0 <= w <= 1.0):
             raise HTTPException(status_code=422, detail="The open-science weighting must be between 0.0 and 1.0.")
-        app_settings.set_publisher_weighting(w)
+        publisher_settings.set_publisher_weighting(w)
     if update.set_publisher_breadth:
         b = (update.publisher_breadth or "").strip()
         if b and b not in PUBLISHER_BREADTHS:
             raise HTTPException(status_code=422, detail=f"Unknown result breadth: {b}")
-        app_settings.set_publisher_breadth(b or None)
+        publisher_settings.set_publisher_breadth(b or None)
     if update.onboarding_completed is not None:
         app_settings.set_onboarding_completed(update.onboarding_completed)
     return _status()

@@ -73,6 +73,7 @@ JOB_LABELS: dict[str, str] = {
     "critical_review_set_jobs": "Critical Read (set)",
     "metadata_enrich_jobs": "Metadata enrichment",
     "ocr_jobs": "OCR",
+    "grobid_parse_jobs": "GROBID structure parsing",
     "text_health_jobs": "Text-health reprocessing",
     "gap_jobs": "Gap-finder",
     "overlooked_jobs": "Overlooked-work remediation",
@@ -130,6 +131,10 @@ JOB_NAV_DEFAULTS: dict[str, dict[str, Any]] = {
     "critical_review_set_jobs": {"workspace": "synthesis", "tab": "critique"},
     "metadata_enrich_jobs": {"workspace": "library"},
     "ocr_jobs": {"pane": "methods", "section": "details"},
+    # Placeholder destination (no dedicated UI location exists yet — task 11 of the backlog #30 Stage 2 plan
+    # builds it); mirrors ocr_jobs' own per-paper detail-pane action until then. paper_id (per-paper jobs only)
+    # is layered in automatically by _bounded_nav from Job.nav.
+    "grobid_parse_jobs": {"pane": "methods", "section": "details"},
     "text_health_jobs": {"workspace": "library", "modal": "text-health"},
     "gap_jobs": {"workspace": "discover", "tab": "search", "modal": "gaps"},
     "overlooked_lens_jobs": {"workspace": "discover", "tab": "search", "modal": "overlooked"},
@@ -180,6 +185,7 @@ JOB_COMPUTE_KINDS: dict[str, str] = {
     "critical_review_set_jobs": "Provider AI + local verification",
     "metadata_enrich_jobs": "Public metadata",
     "ocr_jobs": "Local AI",
+    "grobid_parse_jobs": "Local processing + self-hosted GROBID",
     "text_health_jobs": "Local AI",
     "gap_jobs": "Public metadata + local analysis",
     "overlooked_jobs": "Local AI + public metadata",

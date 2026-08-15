@@ -296,49 +296,28 @@ def set_local_base_url(url: str | None) -> None:
     _write(data)
 
 
-# --- PUBLISHERS "where to submit" preferences (#40 SP1b): the open-science weighting + result breadth ---
-# Local prefs, NOT secrets, and NEVER transmitted externally (the weighting reaches only the local
-# /methods/publishers/run endpoint; it is never forwarded to OpenAlex/DOAJ). Stored in the file (returnable by
-# GET /settings for the local UI). The first-use choice gate needs "no pre-selection", so both start as None
-# (unset) — `publisher_defaults_set()` is False until the user actively sets BOTH (never a pre-filled default).
-
-
-def set_publisher_weighting(value: float | None) -> None:
-    """The open-science weighting (0.0 = fit only … 1.0 = strongly favor open). None clears it (→ unset)."""
+def set_grobid_url(url: str | None) -> None:
+    """The user-configured GROBID server URL (backlog #30 Stage 2) -- a plain, NON-secret preference, exactly
+    like ``local_base_url`` above (a loopback address needs no egress gate; a non-loopback one is gated at the
+    endpoint via ``llm.providers.requires_egress``, invariant #3). Empty/None clears it."""
     data = load_settings()
-    if value is None:
-        data.pop("publisher_weighting", None)
+    url = (url or "").strip()
+    if url:
+        data["grobid_url"] = url
     else:
-        data["publisher_weighting"] = float(value)
+        data.pop("grobid_url", None)
     _write(data)
 
 
-def stored_publisher_weighting() -> float | None:
-    val = load_settings().get("publisher_weighting")
-    return float(val) if isinstance(val, (int, float)) else None
-
-
-def set_publisher_breadth(value: str | None) -> None:
-    """Result breadth ("focused" | "broad"). Empty/whitespace clears it (→ unset)."""
-    data = load_settings()
-    v = (value or "").strip()
-    if v:
-        data["publisher_breadth"] = v
-    else:
-        data.pop("publisher_breadth", None)
-    _write(data)
-
-
-def stored_publisher_breadth() -> str | None:
-    val = load_settings().get("publisher_breadth")
+def stored_grobid_url() -> str | None:
+    val = load_settings().get("grobid_url")
     return val if isinstance(val, str) and val.strip() else None
 
 
-def publisher_defaults_set() -> bool:
-    """True once the user has actively set BOTH consequential publisher defaults (the first-use gate is satisfied).
-    Nothing is pre-selected — neither is set until the user chooses, so the weighting is one forced choice among
-    peers (never the lone spotlighted one)."""
-    return stored_publisher_weighting() is not None and stored_publisher_breadth() is not None
+# --- PUBLISHERS "where to submit" preferences (#40 SP1b) moved to publisher_settings.py (backlog #30 Stage 2,
+# task 9 — keeping this file under the 600-line cap, the inc-478 superuser.py pattern). NOT re-exported here
+# (unlike superuser.py) since it depends on this module's own load_settings/save_settings, which would make a
+# re-export a two-way import; its one call site (routers/settings.py) imports it directly instead.
 
 
 # --- OS-keychain storage (inc 152): optional `keyring`, file fallback ---
