@@ -386,7 +386,16 @@ new work goes in the open backlog.
   `relationship_label`, never a bare score; wired into the web Cite pane and the LibreOffice adapter. Inc 465
   added an explicit "Save for later" button persisting a suggestion into a reviewable modal queue
   (`saved_beyond_library_suggestions`, keyed by `dedup_key`), mirroring how "Gaps" is itself built (a modal, not
-  a tab). *(Stage-4 section-scoping, needing GROBID + the plugin, remains open — see open backlog #30.)*
+  a tab).
+- [x] **#30 Highlight-to-suggest/evaluate — Stage-4 section-scoping, fully closed** (inc 479) — a
+  `citations/section_scope.py` disclosed-source (`grobid`/`heuristic`/`none`) reorder-never-filter ranking pass
+  for Suggest-Citation, plus the opt-in, self-hosted GROBID integration that gives it real section data:
+  loopback/non-loopback egress split (invariant #3), a hardened XXE/entity-expansion-safe TEI-XML parser (no
+  `defusedxml`), coordinate-overlap chunk mapping (`paper_sections`/`chunks.grobid_section_id`, never fuzzy
+  text matching, never touching the pre-existing heuristic column), and Settings/per-paper/bulk parse actions
+  Status-tracked as "Local processing + self-hosted GROBID." Live end-to-end verified against a real GROBID
+  0.8.1 container + a real PLOS ONE article (28 sections, 48/229 chunks correctly coordinate-mapped). See
+  `INCREMENT-479-NOTES.md` + `.claude/security-audits/2026-08-15_grobid-integration.md`.
 - [x] **#33/#34 Citation & bibliography engine — LibreOffice adapter, full P0/P1/P2 build-out** (inc 106-108,
   162-171, 193, 320-464). The competitor-informed roadmap
   (`future-tracks/chatgpt5.6_future-tracks_wordprocessorpluginsroadmap.md` + its `…competitivereview.md`

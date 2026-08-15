@@ -88,10 +88,6 @@ the Principles + A-A gates before build.)*
   inline (F, df, N), unlike the t-test/correlation cases that already shipped. Revisit only if a trusted
   anchor (R BayesFactor / a validated Rouder-2012 quadrature) turns up **and** a way exists to extract
   sufficient design/cell-size info from papers — a second, separate gap this recheck surfaced.
-- **#30 Highlight-to-suggest/evaluate (Track C) — Stage-4 section-scoping.** SP1/SP2/Stage-3 + the persistent
-  save-for-later queue are shipped (`INCREMENT-BACKLOG-DONE.md`). **Still genuinely open:** section-scoping
-  (needs GROBID + the plugin) — not "the highest-value unbuilt thing" anymore, just the one piece needing
-  infrastructure this project doesn't have yet.
 - **#33/#34 Citation & bibliography engine + plugins — the LibreOffice adapter's next phase.** The full P0/P1/P2
   build-out (incs 106-464) is shipped (`INCREMENT-BACKLOG-DONE.md`). **Still genuinely open:**
   - Traveling-library portability (named a P1 future track, never scheduled).
@@ -114,9 +110,10 @@ the Principles + A-A gates before build.)*
 - **#37 Equity & integrity signals — remaining, narrowed 2026-08-10.** The overlooked-work lens, positive
   self-correction, and the real field self-citation baseline (= #25) are shipped (`INCREMENT-BACKLOG-DONE.md`).
   Of the two forensic candidates it also named, stylometric inconsistency is declined (§6); analytic-flexibility
-  surfacing has an aligned design (decomposed, passage-linked decision points, never an index) but is blocked on
-  the same GROBID/methods-section-parsing infra backlog #30's own section-scoping is waiting on — not a separate
-  gap, revisit together. **Still open, blocked on external data, not a design question:** an evidence-grade
+  surfacing has an aligned design (decomposed, passage-linked decision points, never an index) — its own
+  GROBID/methods-section-parsing infra dependency shipped with backlog #30's section-scoping close (inc 479,
+  `INCREMENT-BACKLOG-DONE.md`), so this is now unblocked and ready for its own build/graduation pass, not
+  attempted here. **Still open, blocked on external data, not a design question:** an evidence-grade
   replication badge and a null-engagement badge — neither Crossref's relation vocabulary nor PubMed's publication
   types encode either fact today; an LLM-inferred version would only ever be candidate-class, which can't back
   the deterministic badge the design promised. Revisit only if a real metadata source appears (same disposition

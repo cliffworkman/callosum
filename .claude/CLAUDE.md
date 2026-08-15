@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 478** (see Increment workflow) with **2202 root-suite pytest tests
+It is currently at **Increment 479** (see Increment workflow) with **2222 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -451,6 +451,44 @@ the full per-increment narrative for all other increments now lives in the reloc
   candidate I explicitly flagged." Add reuses `save_item` (the same write path `/discovery/save`/`/gaps/add`
   already use); Dismiss is a soft status flip, never a hard delete. Explicit-save-only by design — never
   automatic accumulation of every suggestion merely shown.
+- **Section-scoped Suggest-Citation + the GROBID integration (backlog #30's actual last open piece, inc 479):**
+  closes Highlight-to-suggest/evaluate for good. A new `app/backend/citations/section_scope.py` gives
+  Suggest-Citation a section-aware ranking pass: `expected_section_family` classifies the draft's current
+  heading (LibreOffice already knew it, inc 380) into the same canonical family taxonomy
+  `pdf_processing/sections.py` already tags every chunk with at ingest time, and `partition_by_phase` reorders
+  (never filters) candidates so same-family matches lead — a disclosed `search_phase`, not a hidden re-rank.
+  `candidate_section_family` is a strict either/or lookup with its source always disclosed
+  (`"grobid"`/`"heuristic"`/`"none"`), which is what makes it safe to *extend* rather than redesign once real
+  section data exists. That real data comes from **GROBID** (`integrations/grobid/`), a separately-run,
+  opt-in, self-hosted Docker service (never bundled) a user points callosum at from Settings — a loopback URL
+  needs no consent; a non-loopback one is egress-gated exactly like a custom AI provider endpoint (invariant
+  #3, `_egress_refused`/`requires_egress`, verified to win over even a 404 for a nonexistent paper). The TEI-XML
+  client sends `teiCoordinates=div,head,p` as multipart fields (a real bug — it was first tried as a query
+  param — fixed before ship); the parser (`integrations/grobid/tei_parse.py`) hand-closes a genuine XXE/entity-
+  expansion gap `xml.etree.ElementTree` leaves open by default (external entities are already blocked; internal
+  "billion laughs" expansion isn't) — a strict-UTF-8-decode-then-reject-DOCTYPE-or-NUL guard that closes both
+  the obvious raw-byte-substring bypass and a deeper no-BOM UTF-16 variant found while fixing the first, with
+  no new `defusedxml` dependency. `app/backend/grobid_pipeline.py` maps GROBID's own section bounding boxes
+  onto callosum's **existing** PyMuPDF chunk bboxes by real coordinate overlap — never fuzzy text matching
+  between the two independent parses — and writes only the new `paper_sections` table +
+  `chunks.grobid_section_id` (migration 0074, which needed `op.batch_alter_table` for a SQLite-safe
+  `ForeignKey` add, a real Alembic/SQLite constraint confirmed against Alembic's own dialect source); the
+  pre-existing heuristic `chunks.section` column is **never** written by this pipeline, so deleting the whole
+  GROBID subsystem would leave the heuristic-only baseline exactly as it was. `candidate_section_family` then
+  prefers a mapped GROBID section over the heuristic when one exists — strictly either/or, never blended — which
+  needed **zero** changes at any Suggest-Citation call site, proving the original interface design held.
+  Settings gets a GROBID URL field + test-connection ping (deliberately **not** egress-gated itself — a bare
+  liveness check carries no library content, so invariant #3 doesn't apply to it) plus a per-paper "Parse
+  document structure…" action and a bulk "Parse structure for library" job, both Status-tracked (invariant #5)
+  through one shared `grobid_parse_jobs` `JobStore` labeled "Local processing + self-hosted GROBID" — a
+  deliberately distinct compute-kind, since this is neither pure local computation nor a hosted provider call.
+  Live-verified end-to-end (not just faked-client unit tests) against a real GROBID 0.8.1 container and a real
+  open-access PLOS ONE article: 28 real sections extracted with correct verbatim titles, 48 of 229 real chunks
+  correctly coordinate-mapped to the right section by content (spot-checked), and `candidate_section_family`
+  confirmed honestly reporting `"grobid"` provenance only where a real overlap was found and `"none"`/
+  `"heuristic"` everywhere else — closing a gap the pipeline's own implementation task had explicitly disclosed
+  as unverified. See `.claude/security-audits/2026-08-15_grobid-integration.md` and
+  `.claude/docs/increment-notes/INCREMENT-479-NOTES.md`.
 - **Local usage instrumentation (backlog #38A, inc 450):** a zero-egress local event log + a personal
   Settings → **Your usage** dashboard — the buildable-now half of the "Research-impact analytics" future track
   (`.claude/docs/future-tracks/opus4.8_future-tracks_researchimpactanalytics.md`; the cross-user Project B stays

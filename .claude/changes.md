@@ -9,6 +9,39 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-15 — Increment 479: GROBID section-scoping (backlog #30 Stage 2, closes the whole arc)
+- **Files:** `app/backend/citations/section_scope.py`, `app/backend/citations/suggest.py`,
+  `app/backend/api/routers/citation_suggest.py`, `app/backend/api/routers/citations.py`,
+  `app/backend/api/routers/citation_stance.py`, `adapters/libreoffice/callosum_cite.py`,
+  `integrations/grobid/client.py`, `integrations/grobid/tei_parse.py`, `integrations/grobid/section_classify.py`,
+  `app/backend/grobid_pipeline.py`, `app/backend/api/routers/grobid.py`, `app/backend/app_settings.py`,
+  `app/backend/publisher_settings.py`, `app/backend/persistence/schema.py`,
+  `app/backend/persistence/schema_grobid.py`, `alembic/versions/0074_paper_sections.py`,
+  `app/backend/api/app.py`, `app/backend/api/routers/settings.py`, `app/backend/api/routers/status.py`,
+  `app/frontend/js/25_detail.jsx`, `app/frontend/js/25a_detail_actions.jsx`, `app/frontend/js/35_settings.jsx`,
+  `app/frontend/js/35e_maintenance.jsx`, `tests/fixtures/grobid/`, `.claude/qa-routes/
+  route_91_grobid_document_structure.md`, `.claude/security-audits/2026-08-15_grobid-integration.md`,
+  `.claude/docs/increment-notes/INCREMENT-479-NOTES.md`.
+- **What:** a 12-task plan (tracked in `.superpowers/sdd/2026-08-13_grobid-section-scoping-implementation-plan/`)
+  closing backlog #30's last open piece. Tasks 1-3 give Suggest-Citation a disclosed, reorder-never-filter
+  section-aware ranking pass reusing the existing heuristic section taxonomy + the LibreOffice adapter's
+  already-known draft heading. Tasks 4-11 add the opt-in GROBID integration that gives that ranking real section
+  data: a loopback/non-loopback egress-gated HTTP client, a hardened DOCTYPE/NUL/UTF-8 XXE-and-entity-expansion
+  guard for the TEI-XML parser, a section classifier reusing the existing taxonomy, `paper_sections` +
+  `chunks.grobid_section_id` schema, a coordinate-overlap (never fuzzy-text) mapping pipeline that leaves the
+  pre-existing heuristic column untouched, a strict-either/or provenance preference in `candidate_section_family`,
+  and Settings + per-paper + bulk parse UI, all Status-tracked. Task 12 (this entry) added the QA route, a
+  security audit, and a genuine live end-to-end smoke test against a real GROBID 0.8.1 container + a real
+  open-access PLOS ONE article — closing Task 8's disclosed deferred verification gap with a positive result (28
+  real sections, 48/229 chunks correctly coordinate-mapped, provenance honestly disclosed for both mapped and
+  unmapped chunks).
+- **Why:** closes backlog #30 (Highlight-to-suggest/evaluate, Track C) in full — the only piece left open after
+  incs 156-159/271-272/449/465 was section-scoping, which needed infrastructure (GROBID) this project didn't
+  have yet.
+- **Revert:** `git revert` the increment-479 commit range, or restore from a pre-inc-479 zip snapshot if one
+  exists. The GROBID subsystem is fully additive (a new table + a nullable FK column + a new sibling router) —
+  deleting it leaves the pre-existing heuristic-only section baseline exactly as it was.
+
 ## 2026-08-13 — Sync SP4d: revoke pending shares + blocked senders (closes the SP4 arc)
 - **Files:** `sync_server/schema.py`, `sync_server/share_store.py`, `sync_server/app.py`,
   `app/backend/sync/transport.py`, `app/backend/api/routers/sync_shares.py`, `app/backend/app_settings.py`,
