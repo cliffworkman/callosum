@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How Callosum Works — retrieval, generation, and local verification</title>
+  <meta name="description" content="Follow a claim through Callosum: local PDF extraction, semantic retrieval, optional LLM generation, independent NLI and quote verification, and inspectable provenance.">
+  <link rel="icon" type="image/png" href="data:image/png;base64,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" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&amp;display=swap" rel="stylesheet">
+  <script>document.documentElement.classList.add("js");</script>
+  <script src="site-header.js" defer></script>
+  <style>
+    :root {
+      --paper: #f7f4ed;
+      --paper-2: #eee9df;
+      --card: #fffdf9;
+      --ink: #201d18;
+      --ink-2: #625d54;
+      --ink-3: #8b8479;
+      --line: #ddd7cc;
+      --line-2: #c9c1b3;
+      --accent: #37306f;
+      --accent-2: #5a5195;
+      --accent-soft: #ece9fb;
+      --accent-line: #d5cfee;
+      --verified: #2f6b45;
+      --verified-soft: #e6f0e9;
+      --flag: #9a642b;
+      --flag-soft: #f3eadf;
+      --danger: #a43a32;
+      --danger-soft: #f6e6e4;
+      --panel: #191816;
+      --panel-2: #24211d;
+      --panel-ink: #f3eee4;
+      --panel-soft: #bdb5a8;
+      --local: #28635f;
+      --local-soft: #e3efed;
+      --maxw: 1180px;
+      --ease: cubic-bezier(.22, .61, .36, 1);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 88px; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.62 "IBM Plex Sans", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    h1, h2, h3, h4 { margin: 0; font-family: "Newsreader", Georgia, serif; font-weight: 500; line-height: 1.08; letter-spacing: -.018em; }
+    p { margin: 0; }
+    a { color: inherit; }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    .wrap { width: min(100% - 48px, var(--maxw)); margin-inline: auto; }
+    .eyebrow, .mono, .boundary, .number { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+    .eyebrow { color: var(--ink-3); font-size: 11px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; }
+    .skip-link { position: fixed; top: 8px; left: 8px; z-index: 1000; transform: translateY(-160%); padding: 9px 13px; border-radius: 5px; background: var(--accent); color: white; }
+    .skip-link:focus { transform: none; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 18px; border: 1px solid transparent; border-radius: 7px; text-decoration: none; font-weight: 600; transition: transform .18s var(--ease), background .18s, border-color .18s; }
+    .btn:hover { transform: translateY(-2px); }
+    .btn.primary { background: var(--accent); color: white; }
+    .btn.primary:hover { background: #272151; }
+    .btn.secondary { border-color: var(--line-2); color: var(--accent); background: transparent; }
+    .btn.secondary:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+    .hero { padding: 86px 0 66px; }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: 76px; align-items: end; }
+    .hero h1 { max-width: 13ch; margin: 16px 0 25px; font-size: clamp(48px, 7.6vw, 88px); letter-spacing: -.035em; }
+    .hero h1 em { color: var(--accent); font-weight: 500; }
+    .lede { max-width: 61ch; color: var(--ink-2); font-size: clamp(18px, 2vw, 21px); }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 11px; margin-top: 30px; }
+    .hero-thesis { border-left: 2px solid var(--accent); padding: 5px 0 5px 25px; }
+    .hero-thesis strong { display: block; margin-bottom: 10px; font: 500 25px/1.18 "Newsreader", Georgia, serif; }
+    .hero-thesis p { color: var(--ink-2); font-size: 15px; }
+    .promise-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 58px; }
+    .promise { padding: 17px 18px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, .34); }
+    .promise .number { display: block; margin-bottom: 7px; color: var(--accent); font-size: 11px; }
+    .promise b { display: block; margin-bottom: 4px; font-size: 14px; }
+    .promise p { color: var(--ink-2); font-size: 13px; line-height: 1.45; }
+
+    .section { padding: 92px 0; border-top: 1px solid var(--line); }
+    .section-head { max-width: 750px; margin-bottom: 40px; }
+    .section-head h2 { margin: 10px 0 15px; font-size: clamp(36px, 5vw, 58px); }
+    .section-head p { max-width: 65ch; color: var(--ink-2); font-size: 17px; }
+    .section-head .aside-note { margin-top: 12px; color: var(--accent); font: 500 12px/1.5 "IBM Plex Mono", monospace; }
+
+    .pipeline-shell { overflow: hidden; border: 1px solid #37332d; border-radius: 16px; background: var(--panel); color: var(--panel-ink); box-shadow: 0 30px 65px -48px #111; }
+    .pipeline-key { display: flex; flex-wrap: wrap; gap: 9px 20px; padding: 15px 20px; border-bottom: 1px solid #39342d; color: var(--panel-soft); font: 11px "IBM Plex Mono", monospace; }
+    .key-item { display: inline-flex; align-items: center; gap: 7px; }
+    .key-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .key-dot.local { background: #75b7af; }
+    .key-dot.ml { background: #a69bdf; }
+    .key-dot.optional { border: 1.5px solid #ddb274; }
+    .key-dot.human { background: #ddd5c8; }
+    .pipeline-tabs { position: relative; display: grid; grid-template-columns: repeat(8, 1fr); padding: 22px 18px 19px; border-bottom: 1px solid #39342d; }
+    .pipeline-tabs::before { position: absolute; top: 41px; left: 7%; right: 7%; z-index: 0; height: 1px; background: #4a443b; content: ""; }
+    .pipeline-tab { position: relative; z-index: 1; border: 0; background: transparent; color: var(--panel-soft); cursor: pointer; text-align: center; }
+    .pipeline-tab .step-no { display: grid; width: 39px; height: 39px; margin: 0 auto 10px; place-items: center; border: 1px solid #5a5349; border-radius: 50%; background: var(--panel); font: 600 11px "IBM Plex Mono", monospace; transition: background .18s, border-color .18s, color .18s, transform .18s; }
+    .pipeline-tab .step-label { display: block; font-size: 12px; }
+    .pipeline-tab:hover .step-no { border-color: #aaa095; transform: translateY(-2px); }
+    .pipeline-tab[aria-selected="true"] { color: white; }
+    .pipeline-tab[aria-selected="true"] .step-no { border-color: #9c92df; background: var(--accent-2); color: white; }
+    .stage-detail { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(260px, .7fr); min-height: 340px; }
+    .js .stage-detail[hidden] { display: none; }
+    .no-js-title { display: none; }
+    html:not(.js) .pipeline-tabs { display: none; }
+    html:not(.js) .stage-detail { border-top: 1px solid #39342d; }
+    html:not(.js) .no-js-title { display: block; color: var(--panel-ink); font-size: 25px; }
+    .stage-copy { padding: 39px 42px 42px; }
+    .stage-copy h3 { max-width: 18ch; margin: 9px 0 14px; font-size: clamp(31px, 4vw, 45px); color: white; }
+    .stage-copy > p { max-width: 61ch; color: #c8c0b4; font-size: 16px; }
+    .io-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 28px; }
+    .io { padding: 14px 15px; border: 1px solid #3e3932; border-radius: 8px; background: #211f1b; }
+    .io b { display: block; margin-bottom: 5px; color: #d3cbbf; font: 500 10px "IBM Plex Mono", monospace; letter-spacing: .12em; text-transform: uppercase; }
+    .io span { color: #aaa196; font-size: 13px; }
+    .stage-meta { display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 35px; border-left: 1px solid #39342d; background: #201e1a; }
+    .boundary { display: inline-flex; align-self: flex-start; padding: 4px 9px; border: 1px solid #4e5f5a; border-radius: 999px; color: #9bd1c9; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+    .boundary.ml { border-color: #5b557a; color: #c2b9ee; }
+    .boundary.optional { border-color: #6f5b3e; color: #e2bd82; }
+    .boundary.human { border-color: #615b52; color: #d8d0c4; }
+    .stage-meta dl { display: grid; gap: 12px; margin: 0; }
+    .stage-meta dl div { padding-bottom: 12px; border-bottom: 1px dashed #454038; }
+    .stage-meta dl div:last-child { padding-bottom: 0; border: 0; }
+    .stage-meta dt { color: #8f877c; font: 10px "IBM Plex Mono", monospace; letter-spacing: .1em; text-transform: uppercase; }
+    .stage-meta dd { margin: 4px 0 0; color: #d7d0c5; font-size: 13px; }
+
+    .concept-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 54px; align-items: center; }
+    .concept-copy h2 { margin: 11px 0 17px; font-size: clamp(37px, 5vw, 57px); }
+    .concept-copy > p { color: var(--ink-2); font-size: 17px; }
+    .plain-definition { margin-top: 23px; padding: 17px 19px; border-left: 3px solid var(--accent); background: var(--accent-soft); color: var(--ink-2); }
+    .plain-definition b { color: var(--accent); }
+    .rag-map { padding: 24px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); box-shadow: 0 24px 55px -48px #111; }
+    .rag-question { padding: 15px 17px; border: 1px solid var(--accent-line); border-radius: 8px; background: var(--accent-soft); font-family: "Newsreader", Georgia, serif; font-size: 20px; }
+    .rag-arrow { display: grid; min-height: 35px; place-items: center; color: var(--ink-3); font: 12px "IBM Plex Mono", monospace; }
+    .rag-arrow::after { content: "↓"; }
+    .rag-results { display: grid; gap: 8px; }
+    .rag-result { display: grid; grid-template-columns: 44px 1fr auto; gap: 11px; align-items: center; padding: 11px 12px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+    .rag-result .paper-id { color: var(--accent); font: 600 10px "IBM Plex Mono", monospace; }
+    .rag-result p { color: var(--ink-2); font-size: 12px; line-height: 1.35; }
+    .rag-result .rank { color: var(--ink-3); font: 10px "IBM Plex Mono", monospace; }
+    .rag-provider { display: flex; justify-content: space-between; gap: 18px; padding: 15px 17px; border-radius: 8px; background: var(--panel); color: var(--panel-ink); }
+    .rag-provider b { font-size: 13px; }
+    .rag-provider span { color: var(--panel-soft); font: 10px "IBM Plex Mono", monospace; }
+
+    .dark-section { border-color: #322e28; background: var(--panel); color: var(--panel-ink); }
+    .dark-section .eyebrow { color: #9b9286; }
+    .dark-section .section-head p { color: #bdb5a8; }
+    .provider-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 11px; }
+    .provider { padding: 20px; border: 1px solid #3d3831; border-radius: 10px; background: var(--panel-2); }
+    .provider h3 { color: #fff; font-size: 23px; }
+    .provider p { margin-top: 8px; color: #aaa196; font-size: 13px; }
+    .provider .boundary { margin-top: 16px; }
+    .gate { display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center; margin-top: 22px; padding: 20px 22px; border: 1px solid #6f5b3e; border-radius: 10px; background: #2a241b; }
+    .gate-icon { display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid #8c7149; border-radius: 50%; color: #e2bd82; font-size: 18px; }
+    .gate b { display: block; color: #f0e8dc; }
+    .gate p { margin-top: 3px; color: #bdb09f; font-size: 13px; }
+    .gate .state { color: #e2bd82; font: 600 11px "IBM Plex Mono", monospace; text-transform: uppercase; }
+    .proposal { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 38px; align-items: start; margin-top: 55px; }
+    .proposal h3 { max-width: 14ch; color: #fff; font-size: 38px; }
+    .proposal > p { color: #bdb5a8; }
+    .structured-output { padding: 20px; border: 1px solid #3d3831; border-radius: 10px; background: #11100e; color: #cfc8bd; font: 12px/1.65 "IBM Plex Mono", monospace; overflow: auto; }
+    .structured-output .key { color: #9c92df; }
+    .structured-output .string { color: #9bcbb4; }
+
+    .verification-layout { display: grid; grid-template-columns: minmax(0, .83fr) minmax(0, 1.17fr); gap: 45px; align-items: start; }
+    .check-list { display: grid; gap: 11px; }
+    .check { display: grid; grid-template-columns: 45px 1fr; gap: 13px; padding: 16px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255, 255, 255, .4); }
+    .check-no { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 50%; background: var(--local-soft); color: var(--local); font: 600 11px "IBM Plex Mono", monospace; }
+    .check h3 { font: 600 15px "IBM Plex Sans", sans-serif; letter-spacing: 0; }
+    .check p { margin-top: 4px; color: var(--ink-2); font-size: 13px; }
+    .claim-card { overflow: hidden; border: 1px solid var(--line-2); border-left: 3px solid var(--verified); border-radius: 10px; background: white; box-shadow: 0 20px 45px -38px #111; }
+    .claim-head { display: flex; justify-content: space-between; gap: 16px; padding: 16px 18px 12px; }
+    .claim-head span:first-child { font: 500 10px "IBM Plex Mono", monospace; letter-spacing: .12em; text-transform: uppercase; }
+    .status { align-self: flex-start; padding: 3px 8px; border-radius: 999px; background: var(--verified-soft); color: var(--verified); font: 600 10px "IBM Plex Mono", monospace; text-transform: uppercase; }
+    .claim-text { padding: 0 18px 17px; font: 21px/1.35 "Newsreader", Georgia, serif; }
+    .evidence { margin: 0 13px 13px; padding: 14px 15px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); }
+    .evidence blockquote { margin: 0; color: var(--ink-2); font-size: 13px; }
+    .evidence-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 11px; color: var(--ink-3); font: 10px "IBM Plex Mono", monospace; }
+    .scores { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); }
+    .score { padding: 12px 13px; border-right: 1px solid var(--line); }
+    .score:last-child { border: 0; }
+    .score b { display: block; color: var(--ink-3); font: 9px "IBM Plex Mono", monospace; text-transform: uppercase; }
+    .score span { color: var(--verified); font: 600 13px "IBM Plex Mono", monospace; }
+    details.tech { margin-top: 28px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255, 255, 255, .35); }
+    details.tech summary { padding: 15px 17px; cursor: pointer; color: var(--accent); font: 600 13px "IBM Plex Mono", monospace; }
+    .tech-body { padding: 0 17px 17px; }
+    .thresholds { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .thresholds th, .thresholds td { padding: 9px 8px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .thresholds th { width: 29%; color: var(--ink-2); font-weight: 600; }
+    .thresholds td:last-child { color: var(--ink-2); }
+    .caveat { margin-top: 13px; color: var(--flag); font-size: 13px; }
+
+    .overview-flow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; }
+    .overview-box { min-height: 190px; padding: 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+    .overview-box h3 { font-size: 25px; }
+    .overview-box p { margin-top: 10px; color: var(--ink-2); font-size: 14px; }
+    .mini-claims { display: grid; gap: 7px; margin-top: 15px; }
+    .mini-claim { padding: 8px 10px; border-left: 2px solid var(--verified); background: var(--verified-soft); color: #335744; font-size: 11px; }
+    .overview-arrow { color: var(--accent); font: 24px "IBM Plex Mono", monospace; }
+    .trace-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 15px; }
+    .trace-chips span { padding: 4px 8px; border: 1px solid var(--accent-line); border-radius: 999px; background: var(--accent-soft); color: var(--accent); font: 10px "IBM Plex Mono", monospace; }
+
+    .families { display: grid; grid-template-columns: repeat(2, 1fr); gap: 13px; }
+    .family { padding: 23px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255, 255, 255, .4); }
+    .family .boundary { margin-bottom: 14px; border-color: var(--line-2); color: var(--ink-2); }
+    .family h3 { font-size: 27px; }
+    .family p { margin-top: 8px; color: var(--ink-2); font-size: 14px; }
+    .family ul { margin: 15px 0 0; padding-left: 18px; color: var(--ink-2); font-size: 13px; }
+    .family li + li { margin-top: 5px; }
+
+    .boundary-map { display: grid; grid-template-columns: minmax(0, 1.25fr) 70px minmax(260px, .75fr); align-items: stretch; }
+    .machine-box, .outside-box { padding: 27px; border-radius: 13px; }
+    .machine-box { border: 2px solid var(--local); background: var(--local-soft); }
+    .outside-box { border: 1px dashed #a77a45; background: #f4eadb; }
+    .machine-box h3, .outside-box h3 { font-size: 29px; }
+    .machine-box > p, .outside-box > p { margin-top: 8px; color: var(--ink-2); font-size: 13px; }
+    .boundary-items { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 19px; }
+    .boundary-item { padding: 9px 10px; border: 1px solid rgba(40, 99, 95, .25); border-radius: 6px; background: rgba(255, 255, 255, .44); color: #315c57; font-size: 12px; }
+    .outside-box .boundary-items { grid-template-columns: 1fr; }
+    .outside-box .boundary-item { border-color: rgba(154, 100, 43, .27); color: #775223; }
+    .boundary-door { display: grid; place-items: center; color: var(--flag); text-align: center; font: 10px "IBM Plex Mono", monospace; }
+    .boundary-door span { display: block; font-size: 24px; }
+    .channel-note { margin-top: 22px; padding: 16px 18px; border-left: 3px solid var(--accent); background: var(--accent-soft); color: var(--ink-2); font-size: 14px; }
+
+    .provenance-chain { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; background: var(--card); }
+    .provenance-step { position: relative; min-height: 145px; padding: 18px 14px; border-right: 1px solid var(--line); }
+    .provenance-step:last-child { border: 0; }
+    .provenance-step::after { position: absolute; top: 24px; right: -7px; z-index: 1; width: 12px; height: 12px; border-top: 1px solid var(--line-2); border-right: 1px solid var(--line-2); background: var(--card); content: ""; transform: rotate(45deg); }
+    .provenance-step:last-child::after { display: none; }
+    .provenance-step b { display: block; color: var(--accent); font: 600 10px "IBM Plex Mono", monospace; }
+    .provenance-step span { display: block; margin-top: 12px; font-size: 13px; font-weight: 600; }
+    .provenance-step p { margin-top: 6px; color: var(--ink-3); font-size: 11px; line-height: 1.4; }
+    .precision-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 22px; }
+    .precision { padding: 15px 16px; border: 1px solid var(--line); border-radius: 8px; }
+    .precision b { font: 600 11px "IBM Plex Mono", monospace; text-transform: uppercase; }
+    .precision p { margin-top: 5px; color: var(--ink-2); font-size: 12px; }
+
+    .demo-architecture { display: grid; grid-template-columns: 1fr auto 1fr; gap: 18px; align-items: center; padding: 28px; border: 1px solid var(--accent-line); border-radius: 13px; background: var(--accent-soft); }
+    .arch-branch { padding: 18px; border: 1px solid rgba(55, 48, 111, .2); border-radius: 8px; background: rgba(255, 255, 255, .5); }
+    .arch-branch b { color: var(--accent); }
+    .arch-branch p { margin-top: 6px; color: var(--ink-2); font-size: 13px; }
+    .arch-shared { text-align: center; color: var(--accent); font: 600 12px "IBM Plex Mono", monospace; }
+
+    .limits { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .limit { padding: 20px; border: 1px solid #4a443b; border-radius: 9px; background: var(--panel-2); }
+    .limit b { display: block; color: #f2ece2; }
+    .limit p { margin-top: 6px; color: #aaa196; font-size: 13px; }
+    .human-line { margin-top: 23px; padding: 22px 24px; border-left: 3px solid #d0c6ed; background: #24202f; color: #d7d0e7; font: 22px/1.4 "Newsreader", Georgia, serif; }
+
+    .closing { padding: 82px 0; }
+    .closing-card { display: flex; justify-content: space-between; gap: 38px; align-items: end; padding: 40px; border-radius: 15px; background: var(--accent); color: white; }
+    .closing h2 { max-width: 15ch; font-size: clamp(37px, 5vw, 56px); }
+    .closing p { max-width: 60ch; margin-top: 12px; color: #d5d0ec; }
+    .closing-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
+    .closing .btn { white-space: nowrap; background: #fff; color: var(--accent); }
+    .closing .btn.secondary { border-color: #766fa4; background: transparent; color: white; }
+
+    footer { padding: 26px 0; border-top: 1px solid var(--line); color: var(--ink-3); font: 11px "IBM Plex Mono", monospace; }
+    .foot { display: flex; justify-content: space-between; gap: 20px; }
+    .foot-links { display: flex; flex-wrap: wrap; gap: 16px; }
+    .foot a:hover { color: var(--accent); }
+    .reveal { opacity: 0; transform: translateY(16px); transition: opacity .65s var(--ease), transform .65s var(--ease); }
+    .reveal.in { opacity: 1; transform: none; }
+
+    @media (max-width: 980px) {
+      .pipeline-tabs { grid-template-columns: repeat(4, 1fr); gap: 18px 0; }
+      .pipeline-tabs::before { display: none; }
+      .provider-grid { grid-template-columns: repeat(2, 1fr); }
+      .provenance-chain { grid-template-columns: repeat(4, 1fr); }
+      .provenance-step { border-bottom: 1px solid var(--line); }
+      .provenance-step:nth-child(4) { border-right: 0; }
+      .provenance-step::after { display: none; }
+    }
+
+    @media (max-width: 800px) {
+      .hero-grid, .concept-grid, .verification-layout, .proposal { grid-template-columns: 1fr; gap: 34px; }
+      .hero-thesis { max-width: 560px; }
+      .promise-row { grid-template-columns: 1fr; }
+      .stage-detail { grid-template-columns: 1fr; }
+      .stage-meta { border-top: 1px solid #39342d; border-left: 0; }
+      .overview-flow, .demo-architecture { grid-template-columns: 1fr; }
+      .overview-arrow { transform: rotate(90deg); text-align: center; }
+      .families { grid-template-columns: 1fr; }
+      .boundary-map { grid-template-columns: 1fr; gap: 12px; }
+      .boundary-door span { transform: rotate(90deg); }
+      .provenance-chain { grid-template-columns: repeat(2, 1fr); }
+      .provenance-step:nth-child(even) { border-right: 0; }
+      .precision-row { grid-template-columns: 1fr; }
+      .closing-card { display: block; }
+      .closing-actions { justify-content: flex-start; margin-top: 26px; }
+    }
+
+    @media (max-width: 560px) {
+      .wrap { width: min(100% - 28px, var(--maxw)); }
+      .hero { padding-top: 58px; }
+      .hero h1 { font-size: 49px; }
+      .section { padding: 70px 0; }
+      .pipeline-key { display: grid; grid-template-columns: 1fr 1fr; }
+      .pipeline-tabs { grid-template-columns: repeat(2, 1fr); }
+      .stage-copy { padding: 29px 24px; }
+      .stage-meta { padding: 25px 24px; }
+      .io-row, .scores, .provider-grid, .limits { grid-template-columns: 1fr; }
+      .score { border-right: 0; border-bottom: 1px solid var(--line); }
+      .gate { grid-template-columns: auto 1fr; }
+      .gate .state { grid-column: 2; }
+      .boundary-items { grid-template-columns: 1fr; }
+      .provenance-chain { grid-template-columns: 1fr; }
+      .provenance-step { border-right: 0; }
+      .closing-card { padding: 29px 24px; }
+      .foot { display: block; }
+      .foot-links { margin-top: 9px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+      .reveal { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <callosum-site-header data-page="how"></callosum-site-header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="wrap">
+        <div class="hero-grid">
+          <div>
+            <span class="eyebrow">How Callosum works</span>
+            <h1>AI can draft. <em>Evidence still has to answer.</em></h1>
+            <p class="lede">Callosum is not a chatbot wrapped around a reference library. It is a local evidence pipeline: retrieval limits what a model sees, generation proposes claims, and independent local systems check those claims against the source.</p>
+            <div class="hero-actions">
+              <a class="btn primary" href="#pipeline">Explore the pipeline</a>
+              <a class="btn secondary" href="demo/">Inspect a saved synthesis</a>
+            </div>
+          </div>
+          <aside class="hero-thesis">
+            <strong>The model does not get a vote on whether its own citations are correct.</strong>
+            <p>Each proposed claim returns to the user with its source passage, page, location precision, and separate retrieval, quotation, and support signals.</p>
+          </aside>
+        </div>
+        <div class="promise-row" aria-label="Architecture commitments">
+          <div class="promise"><span class="number">01</span><b>Local-first processing</b><p>PDFs, extraction, embeddings, retrieval, NLI, and the library database remain on your machine.</p></div>
+          <div class="promise"><span class="number">02</span><b>Bounded generation</b><p>An optional model drafts from retrieved passages—not an invisible, unbounded search of your library.</p></div>
+          <div class="promise"><span class="number">03</span><b>Inspectable outcomes</b><p>Claims remain connected to quotations, locations, versions, confidence components, and review state.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="pipeline" aria-labelledby="pipeline-title">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <span class="eyebrow">One claim, end to end</span>
+          <h2 id="pipeline-title">From a PDF to an inspectable claim.</h2>
+          <p>Select a stage to see its input, output, compute boundary, and role. Without JavaScript, the same eight stages appear below in sequence.</p>
+        </header>
+
+        <div class="pipeline-shell reveal">
+          <div class="pipeline-key" aria-label="Pipeline legend">
+            <span class="key-item"><span class="key-dot local"></span>local deterministic work</span>
+            <span class="key-item"><span class="key-dot ml"></span>local probabilistic model</span>
+            <span class="key-item"><span class="key-dot optional"></span>optional generation</span>
+            <span class="key-item"><span class="key-dot human"></span>human review</span>
+          </div>
+          <div class="pipeline-tabs" role="tablist" aria-label="Evidence pipeline stages">
+            <button type="button" class="pipeline-tab" id="stage-import" role="tab" aria-controls="stage-panel-import" aria-selected="true" tabindex="0" data-stage="import"><span class="step-no">01</span><span class="step-label">Import</span></button>
+            <button type="button" class="pipeline-tab" id="stage-extract" role="tab" aria-controls="stage-panel-extract" aria-selected="false" tabindex="-1" data-stage="extract"><span class="step-no">02</span><span class="step-label">Extract</span></button>
+            <button type="button" class="pipeline-tab" id="stage-index" role="tab" aria-controls="stage-panel-index" aria-selected="false" tabindex="-1" data-stage="index"><span class="step-no">03</span><span class="step-label">Index</span></button>
+            <button type="button" class="pipeline-tab" id="stage-retrieve" role="tab" aria-controls="stage-panel-retrieve" aria-selected="false" tabindex="-1" data-stage="retrieve"><span class="step-no">04</span><span class="step-label">Retrieve</span></button>
+            <button type="button" class="pipeline-tab" id="stage-generate" role="tab" aria-controls="stage-panel-generate" aria-selected="false" tabindex="-1" data-stage="generate"><span class="step-no">05</span><span class="step-label">Generate</span></button>
+            <button type="button" class="pipeline-tab" id="stage-verify" role="tab" aria-controls="stage-panel-verify" aria-selected="false" tabindex="-1" data-stage="verify"><span class="step-no">06</span><span class="step-label">Verify</span></button>
+            <button type="button" class="pipeline-tab" id="stage-trace" role="tab" aria-controls="stage-panel-trace" aria-selected="false" tabindex="-1" data-stage="trace"><span class="step-no">07</span><span class="step-label">Trace</span></button>
+            <button type="button" class="pipeline-tab" id="stage-review" role="tab" aria-controls="stage-panel-review" aria-selected="false" tabindex="-1" data-stage="review"><span class="step-no">08</span><span class="step-label">Review</span></button>
+          </div>
+
+          <section class="stage-detail" id="stage-panel-import" role="tabpanel" aria-labelledby="stage-import" tabindex="0">
+            <div class="stage-copy"><span class="eyebrow">01 · Import documents</span><h3 class="no-js-title">Import documents</h3><h3>Begin with the scholar’s own corpus.</h3><p>Papers enter through supported imports, files, identifiers, or open-access acquisition. Bibliographic metadata and each attachment’s role remain distinct from the document itself.</p><div class="io-row"><div class="io"><b>Input</b><span>PDF, metadata, DOI, or supported library export</span></div><div class="io"><b>Output</b><span>A paper record with explicit attachment identity and provenance</span></div></div></div>
+            <aside class="stage-meta"><span class="boundary">local storage</span><dl><div><dt>Primary systems</dt><dd>SQLite, attachment store, metadata adapters</dd></div><div><dt>LLM involved?</dt><dd>No</dd></div><div><dt>Network</dt><dd>Only when the user invokes import, enrichment, or OA acquisition</dd></div></dl></aside>
+          </section>
+
+          <section class="stage-detail" id="stage-panel-extract" role="tabpanel" aria-labelledby="stage-extract" tabindex="0">
+            <div class="stage-copy"><span class="eyebrow">02 · Extract text and coordinates</span><h3 class="no-js-title">Extract text and coordinates</h3><h3>Turn pages into evidence that can lead back to pages.</h3><p>Local PDF processing extracts text spans, sections, page numbers, and bounding geometry. The attachment and extraction versions travel with later evidence records.</p><div class="io-row"><div class="io"><b>Input</b><span>The selected article attachment</span></div><div class="io"><b>Output</b><span>Versioned text chunks with page and region information</span></div></div></div>
+            <aside class="stage-meta"><span class="boundary">local deterministic</span><dl><div><dt>Primary systems</dt><dd>PyMuPDF extraction; optional local OCR paths</dd></div><div><dt>LLM involved?</dt><dd>No</dd></div><div><dt>Failure posture</dt><dd>Imprecise coordinates are labelled honestly rather than invented</dd></div></dl></aside>
+          </section>
+
+          <section class="stage-detail" id="stage-panel-index" role="tabpanel" aria-labelledby="stage-index" tabindex="0">
+            <div class="stage-copy"><span class="eyebrow">03 · Chunk and embed</span><h3 class="no-js-title">Chunk and embed</h3><h3>Build a semantic index beside the library.</h3><p>Document chunks receive local vector embeddings and are stored in an in-process vector index. Similar language can then be found even when it does not repeat the query’s exact words.</p><div class="io-row"><div class="io"><b>Input</b><span>Versioned document chunks</span></div><div class="io"><b>Output</b><span>Chunk embeddings linked to the exact source version</span></div></div></div>
+            <aside class="stage-meta"><span class="boundary ml">local probabilistic model</span><dl><div><dt>Default model</dt><dd>all-MiniLM-L6-v2 sentence embeddings</dd></div><div><dt>Storage</dt><dd>sqlite-vec, in the local application database</dd></div><div><dt>LLM involved?</dt><dd>No generative model</dd></div></dl></aside>
+          </section>
+
+          <section class="stage-detail" id="stage-panel-retrieve" role="tabpanel" aria-labelledby="stage-retrieve" tabindex="0">
+            <div class="stage-copy"><span class="eyebrow">04 · Retrieve evidence</span><h3 class="no-js-title">Retrieve evidence</h3><h3>Ask the library before asking a model.</h3><p>The question is embedded locally and compared with eligible source chunks. Retrieval respects the chosen papers and sections; multi-paper synthesis reserves coverage when the evidence budget permits.</p><div class="io-row"><div class="io"><b>Input</b><span>Question, paper scope, and optional section filters</span></div><div class="io"><b>Output</b><span>A bounded, relevance-ranked set of source passages</span></div></div></div>
+            <aside class="stage-meta"><span class="boundary ml">local vector search</span><dl><div><dt>Primary systems</dt><dd>Sentence embeddings and sqlite-vec similarity search</dd></div><div><dt>LLM involved?</dt><dd>No</dd></div><div><dt>Important limit</dt><dd>Retrieval can miss evidence; relevance is not proof</dd></div></dl></aside>
+          </section>
+
+          <section class="stage-detail" id="stage-panel-generate" role="tabpanel" aria-labelledby="stage-generate" tabindex="0">
+            <div class="stage-copy"><span class="eyebrow">05 · Generate candidates</span><h3 class="no-js-title">Generate candidates</h3><h3>Let a model propose—not certify—the answer.</h3><p>An optional configured model receives the bounded passages and returns structured candidate claims with proposed quotations and chunk references. This is the only generative step in the primary synthesis pass.</p><div class="io-row"><div class="io"><b>Input</b><span>Retrieved chunks and the explicit synthesis scope</span></div><div class="io"><b>Output</b><span>Candidate sentences and citation hints awaiting verification</span></div></div></div>
+            <aside class="stage-meta"><span class="boundary optional">optional local or cloud LLM</span><dl><div><dt>Providers</dt><dd>Gemini, OpenAI, Anthropic, custom, or loopback</dd></div><div><dt>Consent</dt><dd>Non-loopback endpoints require explicit data-egress permission</dd></div><div><dt>Authority</dt><dd>None—the result is still a candidate</dd></div></dl></aside>
+          </section>
+
+          <section class="stage-detail" id="stage-panel-verify" role="tabpanel" aria-labelledby="stage-verify" tabindex="0">
+            <div class="stage-copy"><span class="eyebrow">06 · Verify locally</span><h3 class="no-js-title">Verify locally</h3><h3>Check every citation independently.</h3><p>Callosum recomputes retrieval relevance, checks the proposed quotation against local text, measures NLI entailment and contradiction, and locates the quotation in the document. The generating model does not perform this judgment.</p><div class="io-row"><div class="io"><b>Input</b><span>Candidate claim, proposed citation, and local source corpus</span></div><div class="io"><b>Output</b><span>Verified, weak, unverified, or source-disagrees evidence state</span></div></div></div>
+            <aside class="stage-meta"><span class="boundary ml">local verification models</span><dl><div><dt>Signals</dt><dd>Embedding relevance, quote presence, NLI support/contradiction</dd></div><div><dt>LLM involved?</dt><dd>No generative model</dd></div><div><dt>Meaning</dt><dd>A probabilistic signal for inspection—not proof of truth</dd></div></dl></aside>
+          </section>
+
+          <section class="stage-detail" id="stage-panel-trace" role="tabpanel" aria-labelledby="stage-trace" tabindex="0">
+            <div class="stage-copy"><span class="eyebrow">07 · Preserve provenance</span><h3 class="no-js-title">Preserve provenance</h3><h3>Keep the result attached to how it was made.</h3><p>The saved synthesis records sentence order, citation mappings, verbatim evidence, component confidences, document versions, model versions, page coordinates, and location precision.</p><div class="io-row"><div class="io"><b>Input</b><span>Verified citation results and source identities</span></div><div class="io"><b>Output</b><span>A durable evidence trail that can be reopened and audited</span></div></div></div>
+            <aside class="stage-meta"><span class="boundary">local persistence</span><dl><div><dt>Primary system</dt><dd>SQLite relational provenance records</dd></div><div><dt>Coordinate states</dt><dd>Exact, region, or page-only/null</dd></div><div><dt>Silent fallback?</dt><dd>No—degraded precision remains visible</dd></div></dl></aside>
+          </section>
+
+          <section class="stage-detail" id="stage-panel-review" role="tabpanel" aria-labelledby="stage-review" tabindex="0">
+            <div class="stage-copy"><span class="eyebrow">08 · Human review</span><h3 class="no-js-title">Human review</h3><h3>Return the claim and its evidence to the researcher.</h3><p>The interface separates verified from flagged claims, opens citations to quotations and pages, and exposes confidence components. The scholar decides what the evidence means and what belongs in the manuscript.</p><div class="io-row"><div class="io"><b>Input</b><span>Claims, evidence states, quotations, and source locations</span></div><div class="io"><b>Output</b><span>An inspectable synthesis—not an automated verdict</span></div></div></div>
+            <aside class="stage-meta"><span class="boundary human">human judgment</span><dl><div><dt>Primary system</dt><dd>The real Callosum frontend and local PDF reader</dd></div><div><dt>Automation’s role</dt><dd>Prioritize attention and reduce search cost</dd></div><div><dt>Final responsibility</dt><dd>The researcher’s</dd></div></dl></aside>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="rag" aria-labelledby="rag-title">
+      <div class="wrap concept-grid">
+        <div class="concept-copy reveal">
+          <span class="eyebrow">Retrieval-augmented generation</span>
+          <h2 id="rag-title">RAG starts by narrowing the evidence.</h2>
+          <p>For synthesis, Callosum searches the selected local corpus before generation. The model receives a bounded set of passages, their chunk identities, and the research question. It is not asked to recall the literature from its training data.</p>
+          <div class="plain-definition"><b>In plain language:</b> semantic retrieval finds the passages most likely to matter; generation drafts from those passages; verification then checks the draft against the source again.</div>
+        </div>
+        <div class="rag-map reveal" aria-label="RAG data flow example">
+          <div class="rag-question">“What is the anomalous-is-bad bias?”</div>
+          <div class="rag-arrow"><span class="sr-only">retrieves</span></div>
+          <div class="rag-results">
+            <div class="rag-result"><span class="paper-id">P42</span><p>Discussion passage describing explicit negative attitudes toward facial anomalies…</p><span class="rank">rank 01</span></div>
+            <div class="rag-result"><span class="paper-id">P67</span><p>Results passage reporting warmth, competence, and dehumanization judgments…</p><span class="rank">rank 02</span></div>
+            <div class="rag-result"><span class="paper-id">P88</span><p>Evidence testing the proposed relationship with disgust sensitivity…</p><span class="rank">rank 03</span></div>
+          </div>
+          <div class="rag-arrow"><span class="sr-only">provides bounded context to</span></div>
+          <div class="rag-provider"><b>Configured generator</b><span>bounded passages · explicit scope · structured output</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section dark-section" id="generation" aria-labelledby="generation-title">
+      <div class="wrap">
+        <header class="section-head reveal"><span class="eyebrow">Selective, provider-swappable AI</span><h2 id="generation-title">The LLM is a drafting instrument.</h2><p>Generative models are optional, off by default for cloud endpoints, and reached through one provider-neutral seam. A loopback model can generate without data leaving the machine.</p></header>
+        <div class="provider-grid reveal">
+          <article class="provider"><h3>Gemini</h3><p>Google’s SDK and configured model, using the user’s own key.</p><span class="boundary optional">cloud · consent required</span></article>
+          <article class="provider"><h3>OpenAI</h3><p>Chat Completions or Responses-compatible transport.</p><span class="boundary optional">cloud · consent required</span></article>
+          <article class="provider"><h3>Anthropic</h3><p>Messages-compatible transport through the same gate.</p><span class="boundary optional">cloud · consent required</span></article>
+          <article class="provider"><h3>Local / custom</h3><p>OpenAI-compatible loopback endpoint, or an explicitly configured custom provider.</p><span class="boundary ml">loopback can be zero egress</span></article>
+        </div>
+        <div class="gate reveal"><span class="gate-icon" aria-hidden="true">◇</span><div><b>Library-text egress gate</b><p>A non-loopback endpoint cannot receive source text unless the user explicitly enables data egress. Provider checks repeat the boundary as defense in depth.</p></div><span class="state">off by default</span></div>
+        <div class="proposal reveal">
+          <div><h3>A structured candidate—not a finished answer.</h3><p>The generator must name a claim, the chunk it relies on, and a short proposed quotation. Malformed output fails rather than quietly becoming evidence.</p></div>
+          <pre class="structured-output" aria-label="Illustrative structured candidate output"><code>[
+  {
+    <span class="key">"text"</span>: <span class="string">"Candidate claim drafted from the retrieved corpus."</span>,
+    <span class="key">"citations"</span>: [
+      { <span class="key">"chunk_id"</span>: 42010, <span class="key">"quote"</span>: <span class="string">"short verbatim evidence…"</span> }
+    ]
+  }
+]</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="verification" aria-labelledby="verification-title">
+      <div class="wrap">
+        <header class="section-head reveal"><span class="eyebrow">The trust spine</span><h2 id="verification-title">Generation and verification are separate jobs.</h2><p>A fluent sentence is not enough. Every candidate citation passes through local checks whose components remain visible to the reader.</p></header>
+        <div class="verification-layout">
+          <div class="check-list reveal">
+            <article class="check"><span class="check-no">01</span><div><h3>Retrieval relevance</h3><p>Does the cited local passage remain semantically close to the proposed claim?</p></div></article>
+            <article class="check"><span class="check-no">02</span><div><h3>Verbatim evidence</h3><p>Does the proposed quotation occur in the source text after conservative canonical matching?</p></div></article>
+            <article class="check"><span class="check-no">03</span><div><h3>NLI stance</h3><p>With the passage as premise and claim as hypothesis, does a local cross-encoder estimate entailment, contradiction, or neutrality?</p></div></article>
+            <article class="check"><span class="check-no">04</span><div><h3>Source location</h3><p>Can Callosum return the reader to the supporting page and an honestly labelled exact or approximate region?</p></div></article>
+          </div>
+          <div class="reveal">
+            <article class="claim-card" aria-label="Example verified claim and its evidence">
+              <div class="claim-head"><span>Claim 03</span><span class="status">verified</span></div>
+              <p class="claim-text">People with facial anomalies were associated with less warmth and competence.</p>
+              <div class="evidence"><blockquote>“Anomalous faces with scars and palsies were seen as less warm, competent and dehumanized…”</blockquote><div class="evidence-meta"><span>source passage · p. 13</span><span>coordinate precision · exact</span></div></div>
+              <div class="scores"><div class="score"><b>retrieval</b><span>0.91</span></div><div class="score"><b>quotation</b><span>1.00</span></div><div class="score"><b>NLI support</b><span>0.86</span></div></div>
+            </article>
+            <details class="tech">
+              <summary>Technical details: current models, thresholds, and statuses</summary>
+              <div class="tech-body">
+                <table class="thresholds">
+                  <tbody>
+                    <tr><th>Embedding model</th><td><span class="mono">all-MiniLM-L6-v2</span> by default; <span class="mono">bge-base-en-v1.5</span> is supported.</td><td>Runs locally.</td></tr>
+                    <tr><th>NLI model</th><td><span class="mono">cross-encoder/nli-MiniLM2-L6-H768</span></td><td>Passage = premise; claim = hypothesis.</td></tr>
+                    <tr><th>Verified</th><td>Retrieval ≥ 0.70; quote = 1.00; support ≥ 0.55.</td><td>All conditions must pass.</td></tr>
+                    <tr><th>Source disagrees</th><td>Contradiction ≥ 0.55 and greater than support.</td><td>Shown as a stronger, red evidence alarm.</td></tr>
+                    <tr><th>Flagged</th><td>Weak or unverified evidence, or a sentence without fully verified citations.</td><td>Kept visible for inspection.</td></tr>
+                  </tbody>
+                </table>
+                <p class="caveat">These are calibrated software thresholds, not epistemic proof. NLI is probabilistic; detector silence is not evidence of absence.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="overview" aria-labelledby="overview-title">
+      <div class="wrap">
+        <header class="section-head reveal"><span class="eyebrow">Fluency after verification</span><h2 id="overview-title">The overview can only narrate claims that stood up.</h2><p>A second, optional generation pass receives the already-verified claims—not the raw corpus—and must map each overview sentence back to the claims it restates. If that pass fails, the verified claims remain intact.</p></header>
+        <div class="overview-flow reveal">
+          <div class="overview-box"><h3>Verified claim set</h3><div class="mini-claims"><span class="mini-claim">Claim 01 · verified evidence</span><span class="mini-claim">Claim 02 · verified evidence</span><span class="mini-claim">Claim 03 · verified evidence</span></div></div>
+          <div class="overview-arrow" aria-hidden="true">→</div>
+          <div class="overview-box"><h3>Readable overview</h3><p>A concise synthesis sentence that introduces no new source and retains its path to the underlying evidence.</p><div class="trace-chips"><span>traces to claim 01</span><span>traces to claim 03</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="tool-families" aria-labelledby="families-title">
+      <div class="wrap">
+        <header class="section-head reveal"><span class="eyebrow">Different tools earn different claims</span><h2 id="families-title">Not everything in Callosum is an LLM.</h2><p>The backend uses several kinds of computation. Their outputs should not share language, colors, or certainty merely because they appear in the same application.</p></header>
+        <div class="families reveal">
+          <article class="family"><span class="boundary">deterministic calculation</span><h3>Recompute what can be recomputed.</h3><p>Mathematical and standards-based tools operate without generative AI.</p><ul><li>statcheck p-value recomputation</li><li>GRIM, GRIMMER, and DEBIT constraints</li><li>citation and bibliography rendering</li></ul></article>
+          <article class="family"><span class="boundary">rule + evidence checks</span><h3>Expose a signal and its basis.</h3><p>Reporting and provenance checks look for bounded, inspectable evidence rather than issuing judgments about researchers.</p><ul><li>methods and transparency checklists</li><li>registration/publication crosswalks</li><li>reference-integrity signals</li></ul></article>
+          <article class="family"><span class="boundary ml">local statistical / ML signal</span><h3>Organize and compare meaning.</h3><p>Probabilistic local models help rank or classify while keeping their limitations visible.</p><ul><li>semantic retrieval and axes</li><li>clustering and tag suggestions</li><li>NLI stance classification</li></ul></article>
+          <article class="family"><span class="boundary optional">optional generative assistance</span><h3>Draft candidates for review.</h3><p>Models help where language generation reduces labor, but their products stay provisional.</p><ul><li>synthesis and overview drafting</li><li>AI-focused triage</li><li>structured extraction candidates</li></ul></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="boundaries" aria-labelledby="boundaries-title">
+      <div class="wrap">
+        <header class="section-head reveal"><span class="eyebrow">Local-first, not network-fiction</span><h2 id="boundaries-title">What stays. What may leave. Who decides.</h2><p>“Local-first” means the library and core evidence work remain useful on the user’s machine. It does not pretend that an explicitly invoked discovery service or cloud model is somehow local.</p></header>
+        <div class="boundary-map reveal">
+          <section class="machine-box"><h3>On your machine</h3><p>The durable scholarly record and the authoritative verification path.</p><div class="boundary-items"><span class="boundary-item">PDFs and attachments</span><span class="boundary-item">SQLite library</span><span class="boundary-item">text extraction</span><span class="boundary-item">embeddings + vector search</span><span class="boundary-item">NLI verification</span><span class="boundary-item">annotations + PDF display</span><span class="boundary-item">methods calculations</span><span class="boundary-item">loopback LLM option</span></div></section>
+          <div class="boundary-door"><span>→</span>explicit channel</div>
+          <section class="outside-box"><h3>Optional external services</h3><p>Each channel has a separate purpose and visible trigger.</p><div class="boundary-items"><span class="boundary-item">cloud LLM: bounded prompt after consent</span><span class="boundary-item">discovery APIs: query or identifier metadata</span><span class="boundary-item">OA acquisition: requested public documents</span><span class="boundary-item">feedback and sync: separately controlled paths</span></div></section>
+        </div>
+        <p class="channel-note reveal"><b>Provider-swappable by design.</b> Endpoint-based checks distinguish a true loopback provider from a cloud URL—even when the provider has a custom name—so “local” describes the actual network boundary, not a label.</p>
+      </div>
+    </section>
+
+    <section class="section" id="provenance" aria-labelledby="provenance-title">
+      <div class="wrap">
+        <header class="section-head reveal"><span class="eyebrow">Provenance from source to screen</span><h2 id="provenance-title">A score without a trail is not enough.</h2><p>Callosum stores the relationships needed to reopen a result: the paper and attachment, source version, chunk, quotation, coordinates, model versions, verification components, claim, and review state.</p></header>
+        <div class="provenance-chain reveal" aria-label="Provenance chain">
+          <div class="provenance-step"><b>01</b><span>Paper</span><p>Bibliographic identity</p></div>
+          <div class="provenance-step"><b>02</b><span>Attachment</span><p>Role + file version</p></div>
+          <div class="provenance-step"><b>03</b><span>Chunk</span><p>Text + pages</p></div>
+          <div class="provenance-step"><b>04</b><span>Quotation</span><p>Verbatim evidence</p></div>
+          <div class="provenance-step"><b>05</b><span>Verification</span><p>Models + scores</p></div>
+          <div class="provenance-step"><b>06</b><span>Claim</span><p>Citation mapping</p></div>
+          <div class="provenance-step"><b>07</b><span>Review</span><p>Visible evidence state</p></div>
+        </div>
+        <div class="precision-row reveal">
+          <article class="precision"><b>Exact</b><p>The matched quotation can be drawn with precise PDF rectangles.</p></article>
+          <article class="precision"><b>Region</b><p>Callosum can open an approximate page area and labels it accordingly.</p></article>
+          <article class="precision"><b>Page-only / null</b><p>The page may be known, but no rectangle is drawn or implied.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="demo-architecture" aria-labelledby="demo-architecture-title">
+      <div class="wrap">
+        <header class="section-head reveal"><span class="eyebrow">The public demo’s separate trust boundary</span><h2 id="demo-architecture-title">The same frontend, two data providers.</h2><p>The online demo is not a public Callosum backend. A versioned, whitelist-exported snapshot lets the real interface render a saved workflow without Python, a database server, credentials, AI calls, or live endpoints.</p></header>
+        <div class="demo-architecture reveal">
+          <div class="arch-branch"><b>Live Callosum</b><p>Shared React interface → backend client → local FastAPI, SQLite, documents, and computation.</p></div>
+          <div class="arch-shared">same UI<br>↔</div>
+          <div class="arch-branch"><b>Static online demo</b><p>Shared React interface → static client → validated immutable public snapshot and licensed assets.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section dark-section" id="limits" aria-labelledby="limits-title">
+      <div class="wrap">
+        <header class="section-head reveal"><span class="eyebrow">The honest boundary of automation</span><h2 id="limits-title">Inspectability does not eliminate uncertainty.</h2><p>Callosum is designed to make failure and uncertainty easier to see—not to make either disappear.</p></header>
+        <div class="limits reveal">
+          <article class="limit"><b>Retrieval can miss.</b><p>The strongest passage may fall outside the retrieved set or the selected scope.</p></article>
+          <article class="limit"><b>Extraction can degrade.</b><p>Scans, complex layouts, and malformed PDFs can reduce text or coordinate quality.</p></article>
+          <article class="limit"><b>NLI is not logical proof.</b><p>Entailment and contradiction scores are model estimates that require human interpretation.</p></article>
+          <article class="limit"><b>Generated prose can mislead.</b><p>Fluency does not guarantee completeness, importance, or a defensible scholarly conclusion.</p></article>
+          <article class="limit"><b>Detectors have bounded targets.</b><p>A tool’s silence means only that its specific rule did not produce a signal.</p></article>
+          <article class="limit"><b>Signals are not accusations.</b><p>Methods and integrity tools point the scholar toward evidence to inspect.</p></article>
+        </div>
+        <p class="human-line reveal">Callosum makes the chain inspectable. The researcher remains responsible for the conclusion.</p>
+      </div>
+    </section>
+
+    <section class="closing">
+      <div class="wrap closing-card reveal">
+        <div><h2>See the evidence pipeline from the inside.</h2><p>Open the saved three-paper workflow, inspect a completed synthesis, expand its citations, and return to the supporting pages.</p></div>
+        <div class="closing-actions"><a class="btn" href="demo/">Try the demo →</a><a class="btn secondary" href="showcase.html#tour">Tour every workspace</a></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot"><span>Callosum · AGPL-3.0-or-later · signal, not a verdict.</span><nav class="foot-links" aria-label="Footer"><a href="index.html">Home</a><a href="showcase.html#tour">Showcase</a><a href="demo/">Demo</a><a href="https://github.com/cliffworkman/callosum" target="_blank" rel="noopener">Source</a></nav></div>
+  </footer>
+
+  <script>
+    (function () {
+      "use strict";
+      var tabs = Array.prototype.slice.call(document.querySelectorAll(".pipeline-tab"));
+      var panels = Array.prototype.slice.call(document.querySelectorAll(".stage-detail"));
+      var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      function activate(index, focus, updateHash) {
+        tabs.forEach(function (tab, i) {
+          var active = i === index;
+          tab.setAttribute("aria-selected", active ? "true" : "false");
+          tab.tabIndex = active ? 0 : -1;
+          panels[i].hidden = !active;
+        });
+        if (focus) tabs[index].focus();
+        if (updateHash && history.replaceState) history.replaceState(null, "", "#stage-" + tabs[index].dataset.stage);
+      }
+
+      tabs.forEach(function (tab, index) {
+        tab.addEventListener("click", function () { activate(index, false, true); });
+        tab.addEventListener("keydown", function (event) {
+          var next = index;
+          if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (index + 1) % tabs.length;
+          else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (index - 1 + tabs.length) % tabs.length;
+          else if (event.key === "Home") next = 0;
+          else if (event.key === "End") next = tabs.length - 1;
+          else return;
+          event.preventDefault();
+          activate(next, true, true);
+        });
+      });
+
+      var initialIndex = 0;
+      var requested = location.hash.match(/^#stage-(.+)$/);
+      if (requested) {
+        var requestedIndex = tabs.findIndex(function (tab) { return tab.dataset.stage === requested[1]; });
+        if (requestedIndex >= 0) initialIndex = requestedIndex;
+      }
+      activate(initialIndex, false, false);
+
+      var reveals = document.querySelectorAll(".reveal");
+      if (reduce || !("IntersectionObserver" in window)) {
+        reveals.forEach(function (item) { item.classList.add("in"); });
+      } else {
+        var observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("in");
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: .12, rootMargin: "0px 0px -5% 0px" });
+        reveals.forEach(function (item) { observer.observe(item); });
+      }
+    })();
+  </script>
+</body>
+</html>

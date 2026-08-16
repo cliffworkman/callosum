@@ -1,0 +1,255 @@
+{
+  "schema": "callosum-showcase-coverage/1",
+  "canonical_positioning": "Callosum is a local-first scholarly research environment that keeps literature, evidence, methods, manuscripts, and scientific provenance connected throughout the research and writing process.",
+  "workflow": [
+    "discover",
+    "read",
+    "evaluate",
+    "synthesize",
+    "write",
+    "audit"
+  ],
+  "review": {
+    "reviewed_at": "2026-08-16",
+    "reviewed_rev": "713b5bc",
+    "source_fingerprint": "33f32f5cbbdfb976efcccaa1869f0fe90f95c7c10608e1166a5294e4a47f1db2",
+    "note": "Reviewed the new How Callosum Works page (RAG/LLM/NLI pipeline explainer): visual pass at desktop+mobile, keyboard tab navigation, no-JS progressive enhancement, and both index.html/site-header.js nav wiring. Existing showcase claims/screenshots remain accurate and unaffected. Known open gap NOT resolved by this review: route_91_grobid_document_structure has no showcase-coverage.json mapping yet (GROBID/section-scoping shipped in a concurrent session); flagged separately, not silently covered here."
+  },
+  "qa_routes": {
+    "route_00_smoke_readonly": "#tour",
+    "route_01_static_demo": "#online-demo",
+    "route_15_axes": "#cap-axes",
+    "route_20_tags": "#cap-tags",
+    "route_21_saved_searches": "#cap-saved-searches",
+    "route_22_fulltext": "#cap-fulltext",
+    "route_23_citation_counts": "#cap-mypubs",
+    "route_24_duplicates": "#cap-duplicates",
+    "route_27_scan_import": "#cap-import",
+    "route_30_detail_pane": "#cap-details",
+    "route_32_viewer_annotations": "#cap-highlights",
+    "route_33_methods_statcheck": "#cap-statcheck",
+    "route_34_citations_engine": "#cap-csl",
+    "route_35_settings": "#cap-providers",
+    "route_36_methods_pcurve": "#cap-pcurve",
+    "route_37_methods_grim": "#cap-grim",
+    "route_39_retraction": "#cap-retractions",
+    "route_40_papers_crud_trash": "#cap-trash",
+    "route_41_gaps": "#cap-literature-gaps",
+    "route_42_cite": "#cap-cite",
+    "route_43_discovery": "#cap-search",
+    "route_44_feed": "#cap-feed",
+    "route_45_account": "#cap-account",
+    "route_46_sync": "#cap-sync",
+    "route_47_agent_writes": "#cap-mcp-write",
+    "route_48_metadata_enrich": "#cap-enrichment",
+    "route_49_reading_queue": "#cap-reading-queue",
+    "route_50_reading_markers": "#cap-read-priority",
+    "route_51_methods_citation_equity": "#cap-citation-equity",
+    "route_52_ocr": "#cap-ocr",
+    "route_53_citation_context": "#cap-citation-context",
+    "route_54_library_bundle": "#cap-bundles",
+    "route_55_synthesis_verification": "#cap-synthesis",
+    "route_56_acquisition_wanted": "#cap-oa",
+    "route_57_my_publications": "#cap-mypubs",
+    "route_58_help_assistant": "#cap-help",
+    "route_59_methods_bayes": "#cap-bayesian",
+    "route_60_publishers": "#cap-journals",
+    "route_61_methods_lmm": "#cap-lmm",
+    "route_62_methods_metaanalysis": "#cap-meta-reporting",
+    "route_63_methods_transparency": "#cap-transparency",
+    "route_64_methods_effectsize": "#cap-effect-size",
+    "route_65_workbench": "#cap-meta-analyze",
+    "route_66_credit": "#cap-credit",
+    "route_67_critical_review": "#cap-critical-paper",
+    "route_68_reference_integrity": "#cap-reference-integrity",
+    "route_69_funding_discovery": "#cap-funding",
+    "route_70_tool_pane_visual_drift": "#fig-system",
+    "route_71_critical_review_set": "#cap-critical-multi",
+    "route_72_overlooked_work": "#cap-overlooked",
+    "route_73_workspaces": "#fig-library-map",
+    "route_74_retraction_watch": "#cap-retractions",
+    "route_75_wip_workspace": "#cap-wip",
+    "route_76_status_navigation": "#cap-status",
+    "route_77_onboarding_wizard": "#cap-onboarding",
+    "route_78_registration_discovery": "#cap-registration-discovery",
+    "route_79_registration_acquisition": "#cap-registration-acquire",
+    "route_80_registration_commitments": "#cap-commitments",
+    "route_81_registration_retrieval": "#cap-publication-evidence",
+    "route_82_registration_comparison": "#cap-crosswalk",
+    "route_83_registration_comparison_ui": "#fig-prereg",
+    "route_84_feedback": "#cap-feedback",
+    "route_85_top_factor": "#cap-journal-provenance",
+    "route_86_ajol": "#cap-journal-provenance",
+    "route_87_followed_authors": "#cap-followed-authors",
+    "route_88_statements": "#cap-funding-statements",
+    "route_89_beyond_library_saved": "#cap-beyond-library",
+    "route_90_methods_zcurve": "#cap-zcurve"
+  },
+  "excluded_qa_routes": {
+    "route_91_grobid_document_structure": "GROBID is a separately-run, opt-in, user-configured Docker service (never bundled, never running in the frozen public snapshot); the static demo has no live GROBID container to demonstrate the parse action against, so this Settings/detail-pane mechanic is internal/admin-only for public-tour purposes (QA-POLICY.md's documented exclusion path)."
+  },
+  "external_surfaces": {
+    "libreoffice": "#cap-libreoffice",
+    "word": "#cap-word",
+    "google_docs": "#cap-google-docs",
+    "tui": "#cap-tui",
+    "mcp_read": "#cap-mcp-read",
+    "mcp_write_revert": "#cap-mcp-revert"
+  },
+  "figures": {
+    "shots/app_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "360d47d8e0a5ba67f70adcaeea84d39cd925c6264461e83651cfdd4c956972b2",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/feed_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "cf393130f7b828215ba3889c5b26c53888468ad9a22455e6be709ee59ac4683f",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/my_publications_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "ece1ac824801112f558d1ec429023ab118b6b1165a9070e37b7afc4939f2b184",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/gaps_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 540,
+      "height": 860,
+      "sha256": "0afe95542e1a9ded82d86158d558325ccfc8c310f6890d7dcf3bdbe448cbae19",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/publishers_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "762374ef119dddebce960825d8fecbbef074786198ade27ddb1fbc863829d9ee",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/reader_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "6ee06e2acbdd885fc3390d373119c3645e78da34b4998bb21db1db25de82c220",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/saved_note_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 290,
+      "height": 861,
+      "sha256": "a84ed919074620b656ed7546e6c80c26aac6aa8f204890a3eb940ca461af750b",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/citation_evidence_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 796,
+      "height": 222,
+      "sha256": "91e15b6686189c6f3c24358d04a7ddbc8de954ac3c5490210d2d26266a52d03e",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/methods_data_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "54ceed7f78c792ae7a04a1a24d8fba778fd287d91a35840eb6b03ae1438aa157",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/statcheck_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 387,
+      "height": 2803,
+      "sha256": "d4ee10cf6f8c94a62777c571c459dfbd643f47235be8e3f0d249c2f16095d874",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/metaanalysis_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 387,
+      "height": 1641,
+      "sha256": "1e41fbb3b1b5ea8ea5221769a6562268bb00e9353d6929fefce02642d397b9f9",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/synthesis_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "3563070aa7da9bab7429f737b6bf7c68916f6ff7264bbc34180e61a6603c8367",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/meta_preregistration.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "de660525aa16c6594edfd75db403c78a98c74aca9d32ab909661c9037a1fb035",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/wip_workspace_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "6a3133206e598d864577f529ab1557001f68fecb3df2cc78e26b6c64743c1102",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/statements_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "4d90a79f172c06814aced3bb37c9f2ac4a08ab5a0ed282dc87a17f082695f6ad",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/cite_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "a100e0532d1e08f3d80c9334ec72f36156d10508bd44a1942fa47a4ec56d77a6",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/usage_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "1792bf79f0bddbac57263c16b80e6ffe89e7438b2d04dcf83275ae867e6ac754",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/meta_reference_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "7dc767ad009550fa19efccc33008f1ecd311d7a84d8f77b45dd33572c758a7c2",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/status_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "eebda2038c7f72201a0c3d32e2f089ca94fc821722e7ef428f53533d8d70cf18",
+      "reviewed_at": "2026-08-16"
+    },
+    "shots/dark_mode_current.png": {
+      "captured_at": "2026-08-10",
+      "width": 1600,
+      "height": 1000,
+      "sha256": "673ab97655a9ed9311dc7d524c8a4be64b2edc41884ae41a95cff5ec82e7fb2b",
+      "reviewed_at": "2026-08-16"
+    }
+  },
+  "index_links": [
+    "#cap-search",
+    "#cap-import",
+    "#cap-reader",
+    "#cap-statcheck",
+    "#cap-synthesis",
+    "#cap-wip",
+    "#cap-mypubs",
+    "#cap-providers",
+    "#cap-meta-analyze",
+    "#cap-crosswalk",
+    "#cap-wip-checklists",
+    "#cap-meta-reference"
+  ]
+}
