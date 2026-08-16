@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-16",
-    "reviewed_rev": "713b5bc",
-    "source_fingerprint": "33f32f5cbbdfb976efcccaa1869f0fe90f95c7c10608e1166a5294e4a47f1db2",
-    "note": "Reviewed the new How Callosum Works page (RAG/LLM/NLI pipeline explainer): visual pass at desktop+mobile, keyboard tab navigation, no-JS progressive enhancement, and both index.html/site-header.js nav wiring. Existing showcase claims/screenshots remain accurate and unaffected. Known open gap NOT resolved by this review: route_91_grobid_document_structure has no showcase-coverage.json mapping yet (GROBID/section-scoping shipped in a concurrent session); flagged separately, not silently covered here."
+    "reviewed_rev": "54be73e",
+    "source_fingerprint": "118eb8e84376363822f109fb29c0c2ea765b0305943ffdb992d7c373ef954fda",
+    "note": "Final review pass after fixing demo-test GROBID-schema drift and the wip-state extraction-hash staleness; no user-facing website content changed in this pass, purely backend/test fixes."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",
