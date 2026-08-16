@@ -479,6 +479,12 @@ def test_prefix_allow_list_line_break_hyphen_is_kept(monkeypatch) -> None:
     assert dropped.found is False
 
 
+def test_multiple_line_break_hyphens_canonicalize_without_recursive_suffix_work() -> None:
+    text = " ".join(["unusu-\nal"] * 12)
+
+    assert canonicalize_quote_text(text) == " ".join(["unusual"] * 12)
+
+
 def test_ligature_quote_location_uses_canonical_text_without_losing_coordinates(monkeypatch) -> None:
     document_text = "The di\ufb03cult \ufb01nd appears here."
     words = ["The", "di\ufb03cult", "\ufb01nd", "appears", "here."]

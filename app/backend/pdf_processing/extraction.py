@@ -430,9 +430,11 @@ def _line_break_hyphen_text(text: str, next_text: str) -> tuple[str, bool]:
 
 def _line_break_hyphen_forces_keep(left_text: str, right_text: str) -> bool:
     left = canonicalize_quote_text(left_text)
-    right = canonicalize_quote_text(right_text)
     left_char = _last_alnum(left)
-    right_char = _first_alnum(right)
+    # Only the first canonical alphanumeric character is needed here. Canonicalizing the entire remaining
+    # suffix recursively re-enters this function for every later line-break hyphen; a document containing
+    # several such breaks therefore grows exponentially expensive during quote verification.
+    right_char = _first_canonical_alnum(right_text)
     if (left_char and left_char.isdigit()) or (right_char and right_char.isdigit()):
         return True
     if _prefix_fragment(left) in LINE_BREAK_HYPHEN_PREFIXES:
@@ -458,6 +460,14 @@ def _first_alnum(text: str) -> str | None:
     for char in text:
         if char.isalnum():
             return char
+    return None
+
+
+def _first_canonical_alnum(text: str) -> str | None:
+    for char in text:
+        for normalized_char in _canonical_characters(char):
+            if normalized_char.isalnum():
+                return normalized_char
     return None
 
 
