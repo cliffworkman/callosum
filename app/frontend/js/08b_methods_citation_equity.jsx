@@ -99,7 +99,12 @@ function CitationEquityPaper({ paperId, meta }) {
   // meta ({ title, hasDoi } | null) is fetched once by CitationEquitySection and shared with OverlookedWork, so a
   // no-DOI paper gates BOTH controls off one source of truth (no duplicate /papers fetch).
   const [state, setState] = useState({ status: "idle" });  // idle | running | done | error
-  useEffect(() => { setState({ status: "idle" }); }, [paperId]);  // reset the audit when the paper changes
+  useEffect(() => {
+    setState({ status: "idle" });
+    if (isDemoMode() && paperId != null) api(`/demo/saved-artifacts/citation-equity/${paperId}`).then(r => {
+      if (r.ok && r.data) setState({ status: "done", report: r.data });
+    });
+  }, [paperId]);  // reset or load the saved audit when the paper changes
   const run = async () => {
     setState({ status: "running", progress: null });
     const poll = (jobId) => api(`/methods/citation-equity/run/${jobId}`).then(r => {
@@ -123,11 +128,11 @@ function CitationEquityPaper({ paperId, meta }) {
             How concentrated <b>{meta ? meta.title : "this paper"}</b>'s reference list is — does it lean on your own
             work, famous work, a few venues, a few elite institutions? Descriptive context, never a score or a target.
           </div>
-          {meta && meta.hasDoi && state.status === "idle" &&
+          {meta && meta.hasDoi && state.status === "idle" && !isDemoMode() &&
             <div className="cite-equity-egress-note">Running fetches public OpenAlex metadata about your references (their DOIs) — nothing about your draft or library text leaves your machine.</div>}
         </div>
         <div className="meta-ref-action-slot">
-          {meta && meta.hasDoi && state.status === "idle" &&
+          {meta && meta.hasDoi && state.status === "idle" && !isDemoMode() &&
             <button className="btn btn-primary" onClick={run}
               title="Resolve this paper's references via OpenAlex (public metadata) and compute its structural signals">
               Run audit
@@ -182,7 +187,8 @@ function OverlookedCard({ c }) {
         {openHref && <a className="btn-link cite-equity-cand-open" href={openHref} target="_blank" rel="noopener noreferrer">Open ↗</a>}
         {st === "in"
           ? <span className="cite-equity-cand-inlib">✓ in library</span>
-          : <button className="btn-link" disabled={st !== "idle"} onClick={add}>
+          : <button className="btn-link" disabled={isDemoMode() || st !== "idle"} onClick={add}
+              title={isDemoMode() ? "Adding papers is unavailable in the read-only online demo" : "Add this metadata record to the library"}>
               {st === "added" ? "✓ in library" : st === "adding" ? "adding…" : "＋ Add to library"}
             </button>}
       </div>
@@ -197,7 +203,12 @@ function OverlookedCard({ c }) {
 
 function OverlookedWork({ paperId, hasDoi }) {
   const [state, setState] = useState({ status: "idle" });  // idle | running | done | error
-  useEffect(() => { setState({ status: "idle" }); }, [paperId]);
+  useEffect(() => {
+    setState({ status: "idle" });
+    if (isDemoMode() && paperId != null) api(`/demo/saved-artifacts/overlooked-work/${paperId}`).then(r => {
+      if (r.ok && r.data) setState({ status: "done", report: r.data });
+    });
+  }, [paperId]);
   const run = async () => {
     setState({ status: "running", progress: null });
     const poll = (jobId) => api(`/methods/citation-equity/overlooked/${jobId}`).then(r => {

@@ -1,0 +1,75 @@
+name: Static demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_path:
+        description: Public URL path, including the repository name for project Pages
+        required: true
+        default: /callosum/demo/
+        type: string
+      deploy:
+        description: Deploy the validated artifact to GitHub Pages
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install dependencies
+        run: |
+          uv sync --locked
+          npm ci
+      - name: Install Chromium
+        run: uv run playwright install --with-deps chromium
+      - name: Validate snapshot and static build contract
+        run: |
+          uv run python tools/qa/check_demo_experience_coverage.py
+          uv run pytest tests/test_demo_snapshot.py tests/test_demo_experience_coverage.py -q
+      - name: Browser smoke of static artifact
+        env:
+          CALLOSUM_RUN_E2E: "1"
+        run: uv run pytest tests/e2e/test_demo_static.py -q
+      - name: Build deployable artifact
+        run: uv run python tools/demo/build_demo.py --base-path "${{ inputs.base_path }}"
+      - name: Upload validated demo artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: callosum-static-demo
+          path: dist-demo
+          if-no-files-found: error
+      - name: Stage GitHub Pages artifact
+        if: ${{ inputs.deploy }}
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist-demo
+
+  deploy:
+    if: ${{ inputs.deploy }}
+    needs: build-and-validate
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy validated static demo
+        id: deployment
+        uses: actions/deploy-pages@v4

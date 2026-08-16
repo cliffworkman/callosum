@@ -11,6 +11,9 @@ Callosum is a working local-first MVP at Increment 73. It runs as a localhost Fa
 - Retrieval and clustering: local embedding retrieval plus scikit-learn agglomerative clustering, axis scoring, duplicate detection, and c-TF-IDF tag/axis suggestions.
 - Summarization: Gemini `gemini-2.5-flash-lite` is optional, off by default, and used only to propose summary sentences/candidate citations. Local verification is authoritative.
 - Frontend: `app/frontend/` contains `index.html`, `styles.css`, and ordered `js/*.jsx` React chunks. `app/backend/api/frontend.py` assembles them for FastAPI; `tools/build_frontend.py` rebuilds `callosum-app.html`.
+- Static demo: the same assembled frontend calls the centralized `callosumFetch` transport. Normal builds use
+  FastAPI; the explicit demo build injects a static provider backed by a validated, versioned public snapshot.
+  `tools/demo/build_demo.py` emits a backend-free artifact and leaves normal web/desktop behavior unchanged.
 - Feedback: `app/backend/feedback/` owns the shared strict schema and fixed-destination local relay client;
   `feedback_relay/` is a separately deployed FastAPI service with rate limiting and a generic publisher protocol.
   Only the hosted service imports the Slack publisher/webhook configuration, so Tauri staging contains no Slack
@@ -55,3 +58,39 @@ Feedback is a separate, explicit, previewed egress channel. The React dialog sen
 the local `/feedback/reports` proxy; that proxy can reach only `CALLOSUM_FEEDBACK_RELAY_URL`. The hosted relay repeats
 strict validation, rate-limits by verified account or IP, and invokes `FeedbackPublisher`. Slack is the sole current
 publisher. No feedback content is persisted, automatically retried, or derived from library/WIP/PDF state.
+
+## Static Demo Trust Boundary
+
+The online demo is a separate deployment shape, not a hosted Callosum server. `app/backend/demo_snapshot.py`
+combines strict demo metadata with the live paper/summary API response models. A whitelist exporter reads an
+explicitly named dedicated database in read-only mode, strips all storage paths and private identifiers, verifies
+licensed assets by checksum, and fails on unknown fields, credential markers, or machine paths. The committed
+bundle contains only public data and licensed PDFs.
+
+The current snapshot schema also embeds the live statcheck/four-checklist response models for every curated paper, their library
+summary counts, a bounded completed Status receipt, a strict WIP state contract, and a strict extended-state
+contract for saved Discover, Work, and additional Library results. The extended fixture is captured from a fresh
+three-paper sandbox through production response models; the static provider exposes GET-shaped saved-artifact
+routes so the ordinary Search, Journals, Funding, Followed Authors, Cite, Meta-Reference, CRediT, Statements, and
+Meta-Analyze components remain the renderers. `demo/coverage-v1.json` is a build-validated workspace inventory
+whose status must agree with the centralized capability map. `demo/experience-coverage-v1.json` separately
+classifies every public-site capability claim, and the build rejects unclassified or stale claim ids; this makes
+website-to-demo drift visible without coupling ordinary frontend visual changes to snapshot regeneration. The WIP fixture is generated
+by migrating a fresh temporary database and driving the real manuscript discovery, workflow, provenance,
+reference-link, and five deterministic-check endpoints over two public synthetic drafts; no working library is
+read. A generated config starts the shared shell in Library and
+identifies the saved synthesis only when Synthesize or its receipt is activated. `demo/demo-runtime.js` answers
+those read-only API calls in memory. It rejects mutations and unknown routes locally;
+its browser network guard permits only files under the configured same-origin base path. The artifact contains no
+backend address or computational endpoint. Production FastAPI and Tauri builds do not include the runtime or
+snapshot. See `demo/README.md` for the full data, licensing, drift, and deployment contract.
+
+The only possible working-library input is the separately reviewed Feed candidate. Its whitelist exporter writes
+under `.local`, removes database identity, and requires the exact candidate SHA-256 before records may enter the
+public extended state. Unapproved Feed state is structurally required to be empty.
+
+Saved Synthesize coverage lives in the separately generated `demo/synthesis-state-v1.json` and validates through
+`DemoSynthesisState`. Critique, registration links/versions, and comparison runs/details embed production API
+response models. The static provider only indexes those responses; the shared Critique and Meta-Preregistration
+components remain the rendering paths. A public registry record with unclear reuse rights is excluded: its strict
+license audit and bounded evidence remain, while the complete registration does not enter the artifact.

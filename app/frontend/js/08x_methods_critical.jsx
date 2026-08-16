@@ -129,6 +129,11 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
     });
     api(`/papers/${paperId}/critical-read/candidates`).then(r => { if (live && r.ok) setCands(r.data.candidates); });
     api(`/papers/${paperId}/findings`).then(r => { if (live && r.ok) setFindingCands(r.data.candidates); });
+    if (isDemoMode()) api(`/papers/${paperId}/critical-read/saved`).then(r => {
+      if (!live) return;
+      if (r.ok && r.data.status === "done") setT1({ status: "done", backbone: r.data.backbone });
+      else if (!r.ok) setT1({ status: "error", error: r.error });
+    });
     return () => { live = false; };
   }, [paperId]);
 
@@ -185,6 +190,7 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
       {t1.status === "running" && <ProgressBar label="Assembling the scrutiny surface…" managedBy="backend-job" />}
       {t1.status === "error" && <div className="axis-err">Couldn’t assemble: {t1.error}</div>}
       {t1.status === "done" && t1.backbone && <ScrutinyBackboneView backbone={t1.backbone} onOpen={open} />}
+      {isDemoMode() && <div className="settings-note">Saved deterministic critical read. Reruns and AI critique generation require the local Callosum application.</div>}
 
       {findingCands.length > 0 &&
         <div className="cr-findings">
@@ -194,7 +200,9 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
 
       <div className="cr-tier2">
         <p className="eyebrow">AI-suggested critiques (candidates)</p>
-        {!aiReady
+        {isDemoMode()
+          ? <div className="tag-suggest-empty">AI critique generation is unavailable in the online demo; no paper text is sent anywhere.</div>
+          : !aiReady
           ? <div className="tag-suggest-empty">Enable AI features in Settings for AI-suggested critiques — the facts above need no AI.</div>
           : <button className="btn-link" disabled={gen === "generating"} onClick={generate}
               title="The AI proposes concerns; each must quote the paper verbatim, and you confirm or reject it.">
@@ -360,6 +368,6 @@ function CriticalReadSection({ ctx }) {
 }
 
 registerWorkspaceTab({ id: "synthesis" }, {
-  id: "critique", label: "Critique", order: 20, hideInReadOnly: true,
+  id: "critique", label: "Critique", order: 20, hideInReadOnly: true, demoInspectable: true,
   render: (ctx) => <CriticalReadSection ctx={ctx} />,
 });

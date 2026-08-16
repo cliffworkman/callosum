@@ -267,6 +267,10 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
 
   return (
     <div className="synth">
+      {isDemoMode() &&
+        <div className="synth-nudge demo-synth-note">
+          <span><b>Saved synthesis.</b> Generation is unavailable in the online demo; the claims, verification states, evidence quotations, and source locations below remain fully inspectable.</span>
+        </div>}
       {/* B5 SP2: on a read-only companion, hide the run controls — reading saved syntheses (below) still works. */}
       {!readOnly && <React.Fragment>
         <textarea

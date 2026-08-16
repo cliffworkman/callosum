@@ -84,7 +84,8 @@ function MyPubsEmergingTopics({ domains, onSelectPaper }) {
         <span id="mypubs-emerging-topics-title">
           Emerging citing topics <span className="mypubs-grounded-tag">Grounded prospection</span>
         </span>
-        <button className="btn btn-ghost" disabled={running} onClick={runRefresh}>
+        <button className="btn btn-ghost" disabled={isDemoMode() || running} onClick={runRefresh}
+          title={isDemoMode() ? "Refreshing emerging topics queries OpenAlex and requires local Callosum." : undefined}>
           {running ? "Scanning…" : refreshLabel}
         </button>
       </div>
@@ -92,6 +93,7 @@ function MyPubsEmergingTopics({ domains, onSelectPaper }) {
         OpenAlex primary topics appearing more often among recent works that cite you than in the preceding
         equal-length window. The visible paper-count increase is descriptive evidence, not a forecast.
       </p>
+      {isDemoMode() && <div className="settings-note">Saved bounded comparison of recent and earlier citing-work windows. Refreshing the OpenAlex snapshot requires local Callosum.</div>}
       {availableDomains.length > 0 &&
         <div className="mypubs-gap-scope">
           <span className="mypubs-gap-scope-label">Scan scope</span>

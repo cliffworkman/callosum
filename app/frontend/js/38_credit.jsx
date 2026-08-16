@@ -73,6 +73,26 @@ function _blankAuthor() {
   return { name: "", roles: {} };  // roles: { roleKey: degree|"" } — key present = assigned
 }
 
+// Demo edits stay genuinely interactive without inventing a second presentation path: this is the browser
+// equivalent of the tiny deterministic formatter in methods/credit.py, over the same fixed taxonomy and state.
+function formatCreditLocally(authors, useAnd) {
+  const suffix = degree => CREDIT_DEGREES.includes(degree) ? ` (${degree})` : "";
+  const byAuthor = authors.filter(a => a.name.trim() && Object.keys(a.roles).length).map(a => {
+    const roles = CREDIT_ROLES.filter(role => role.key in a.roles)
+      .map(role => role.label + suffix(a.roles[role.key]));
+    return `${a.name.trim()}: ${roles.join(", ")}.`;
+  });
+  const byRole = CREDIT_ROLES.flatMap(role => {
+    const names = authors.filter(a => a.name.trim() && role.key in a.roles)
+      .map(a => a.name.trim() + suffix(a.roles[role.key]));
+    if (!names.length) return [];
+    const joined = !useAnd || names.length < 2 ? names.join(", ")
+      : names.length === 2 ? names.join(" and ") : `${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
+    return [`${role.label}: ${joined}.`];
+  });
+  return { by_author: byAuthor, by_role: byRole, roles: CREDIT_ROLES };
+}
+
 function CreditSection({ ctx }) {
   const readOnly = React.useContext(AppReadOnly);  // inc 308: only format via the backend when confirmed read-write
   const paperKey = "callosum.credit." + (ctx && ctx.selectedPaper != null ? ctx.selectedPaper : "_");
@@ -90,6 +110,15 @@ function CreditSection({ ctx }) {
 
   // Load the saved grid on mount + whenever the selected paper changes (per-paper scratchpad).
   useEffect(() => {
+    if (isDemoMode()) {
+      api("/demo/saved-artifacts/credit").then(r => {
+        if (!r.ok) return;
+        loadedKeyRef.current = paperKey;
+        setAuthors(r.data.authors || [_blankAuthor()]);
+        setResult(r.data.result || null);
+      });
+      return;
+    }
     const saved = _loadLayout(paperKey, null);
     let next = [_blankAuthor()];
     if (saved) { try { const p = JSON.parse(saved); if (Array.isArray(p) && p.length) next = p; } catch (e) { /* ignore */ } }
@@ -109,6 +138,10 @@ function CreditSection({ ctx }) {
   // confirmed read-WRITE instance (inc 308) so the mount-time POST never fires + 403s during the brief window
   // before /health resolves on a read-only companion (the CRediT tab is `hideInReadOnly`, but it can mount first).
   useEffect(() => {
+    if (isDemoMode()) {
+      setResult(formatCreditLocally(authors, useAnd));
+      return;
+    }
     if (readOnly !== false) return;
     const body = {
       authors: authors.map((a) => ({
@@ -173,6 +206,7 @@ function CreditSection({ ctx }) {
   return (
     <div className="grim-section ws-pad">
       <div className="settings-sub">Build a <b>CRediT contribution statement</b> — assign each author their <a href="https://credit.niso.org/" target="_blank" rel="noopener noreferrer">NISO CRediT</a> roles (optionally lead / equal / supporting), and Callosum formats it. It formats the contributions <b>you assert</b>; it does not verify who did what — you are the source of truth.</div>
+      {isDemoMode() && <div className="settings-note">Saved CRediT grid and formatted output. Copy and display switching work locally; persistent changes and LibreOffice handoff require local Callosum.</div>}
 
       {ctx && ctx.selectedPaper != null &&
         <button className="btn-link credit-pull" onClick={pullAuthors} disabled={pulled === "pulling"}>
@@ -230,7 +264,7 @@ function CreditSection({ ctx }) {
 
       <div className="credit-actions">
         <button className="btn btn-primary" disabled={!lines.length} onClick={copy}>{copied ? "✓ copied" : "Copy"}</button>
-        <button className="btn btn-ghost" disabled={!lines.length} onClick={sendToManuscript} title="Stage the statement for the LibreOffice Callosum add-on to insert at the cursor (requires the add-on)">Send to LibreOffice</button>
+        <button className="btn btn-ghost" disabled={!lines.length || isDemoMode()} onClick={sendToManuscript} title="Stage the statement for the LibreOffice Callosum add-on to insert at the cursor (requires the add-on)">Send to LibreOffice</button>
       </div>
       {staged && <div className="credit-staged">Staged — switch to LibreOffice and run <b>Callosum → Insert CRediT statement</b> to place it at the cursor. (Editing the grid clears this — re-send after changes.)</div>}
 

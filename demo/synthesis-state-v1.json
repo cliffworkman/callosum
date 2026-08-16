@@ -1,0 +1,1865 @@
+{
+  "critical_candidates": {
+    "42": {
+      "candidates": []
+    },
+    "67": {
+      "candidates": []
+    },
+    "88": {
+      "candidates": []
+    }
+  },
+  "critical_reads": {
+    "42": {
+      "backbone": {
+        "citation_signal": null,
+        "contested_claims": [],
+        "method_signals": [
+          {
+            "detail": "9 checked, 0 inconsistent, 0 decision errors",
+            "kind": "statcheck",
+            "label": "Statistical consistency (statcheck)",
+            "notice_url": null
+          },
+          {
+            "detail": "5 detected, 1 not detected across 7 checks",
+            "kind": "transparency",
+            "label": "Transparency disclosures",
+            "notice_url": null
+          },
+          {
+            "detail": "4 review prompts across 7 checks",
+            "kind": "lmm",
+            "label": "Mixed-model reporting",
+            "notice_url": null
+          },
+          {
+            "detail": "3 review prompts across 7 checks",
+            "kind": "meta-analysis",
+            "label": "Meta-analysis reporting",
+            "notice_url": null
+          }
+        ]
+      },
+      "detail": null,
+      "job_id": "saved-demo-critical-42",
+      "status": "done"
+    },
+    "67": {
+      "backbone": {
+        "citation_signal": null,
+        "contested_claims": [],
+        "method_signals": [
+          {
+            "detail": "2 checked, 0 inconsistent, 0 decision errors",
+            "kind": "statcheck",
+            "label": "Statistical consistency (statcheck)",
+            "notice_url": null
+          },
+          {
+            "detail": "4 detected, 2 not detected across 7 checks",
+            "kind": "transparency",
+            "label": "Transparency disclosures",
+            "notice_url": null
+          },
+          {
+            "detail": "4 review prompts across 7 checks",
+            "kind": "lmm",
+            "label": "Mixed-model reporting",
+            "notice_url": null
+          },
+          {
+            "detail": "3 review prompts across 7 checks",
+            "kind": "meta-analysis",
+            "label": "Meta-analysis reporting",
+            "notice_url": null
+          }
+        ]
+      },
+      "detail": null,
+      "job_id": "saved-demo-critical-67",
+      "status": "done"
+    },
+    "88": {
+      "backbone": {
+        "citation_signal": null,
+        "contested_claims": [],
+        "method_signals": [
+          {
+            "detail": "7 checked, 1 inconsistent, 0 decision errors",
+            "kind": "statcheck",
+            "label": "Statistical consistency (statcheck)",
+            "notice_url": null
+          },
+          {
+            "detail": "6 detected, 0 not detected across 7 checks",
+            "kind": "transparency",
+            "label": "Transparency disclosures",
+            "notice_url": null
+          }
+        ]
+      },
+      "detail": null,
+      "job_id": "saved-demo-critical-88",
+      "status": "done"
+    }
+  },
+  "registration_comparison_details": {
+    "1": {
+      "article_source": [
+        {
+          "attachment_id": 42,
+          "checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6",
+          "chunk_count": 38,
+          "chunk_versions": [
+            "demo-public-v1:439fe3b38158f8b8"
+          ],
+          "extraction_versions": [
+            "1.27.2.3"
+          ],
+          "role": "primary"
+        }
+      ],
+      "commitment_extraction_version": "registration-commitments-v1",
+      "comparison_version": "registration-crosswalk-v1",
+      "completed_at": "2026-08-13T19:03:52.183885",
+      "configuration": {
+        "expand_beyond_expected_sections": true,
+        "include_supplements": false,
+        "top_k": 3,
+        "version_id": 4201
+      },
+      "created_at": "2026-08-13T19:03:52",
+      "framing": "This is an evidence crosswalk for human inspection, not a compliance, integrity, or author judgment.",
+      "id": 1,
+      "link_id": 4201,
+      "llm_triage_status": {
+        "annotated_count": 12,
+        "focused_count": 12,
+        "model_id": "gemini-2.5-flash-lite",
+        "prompt_version": "registration-comparison-triage-v1",
+        "provider_id": "gemini",
+        "stale_reasons": [],
+        "status": "success",
+        "warning": "These are the exact saved AI-triage annotations from the reviewed Callosum comparison against the published article. The static demo bundles a redistributable preprint, so its displayed publication passages and source locations can differ from that saved run."
+      },
+      "model_versions": {
+        "embedding": {
+          "name": "all-MiniLM-L6-v2",
+          "version": "all-MiniLM-L6-v2"
+        },
+        "llm_triage": {
+          "model_id": "gemini-2.5-flash-lite",
+          "prompt_version": "registration-comparison-triage-v1",
+          "provider_id": "gemini"
+        }
+      },
+      "paper_id": 42,
+      "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+      "registration_version_id": 4201,
+      "retrieval_version": "registration-publication-retrieval-v1",
+      "row_count": 12,
+      "rows": [
+        {
+          "commitment_id": 420101,
+          "comparison_status": "ambiguous-study-mapping",
+          "explanation": "The registration commitment could not be bounded to one reported study; inspect the study match.",
+          "field_type": "study-identity",
+          "id": 1,
+          "llm_triage": {
+            "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+            "concerns": [
+              "ambiguous-study-mapping"
+            ],
+            "label": "uncertain",
+            "model_id": "gemini-2.5-flash-lite",
+            "prompt_version": "registration-comparison-triage-v1",
+            "provider_id": "gemini",
+            "rationale": "The study identity in the registration \"What is good is beautiful: perceived moral cues influence facial beauty judgments\" is not clearly mapped to the publication evidence. The publication discusses \"good is beautiful\" stereotype in the context of attractiveness stereotyping but doesn't explicitly identify this as the study title.",
+            "show_in_triage": true,
+            "stale_reasons": [],
+            "status": "current"
+          },
+          "note": null,
+          "publication_attachment_checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6",
+          "publication_attachment_id": 42,
+          "publication_evidence_text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n2\nAbstract \nA well-documented “beauty-is-good” stereotype is expressed in the expectation that \nphysically attractive people have more positive characteristics. Recent evidence also \nfinds that unattractive faces are associated with negative character inferences. Is what \nis good (bad) also beautiful (ugly)? Whether this conflation of aesthetic and moral \nvalues is bidirectional is not known. This study tested the hypothesis that \ncomplementary “good-is-beautiful” and “bad-is-ugly” stereotypes bias aesthetic \njudgments. Using highly controlled face stimuli, this pre-registered study examined \nwhether moral character influences perceptions of attractiveness for different ages and \nsexes of faces. Compared to faces paired with non-moral vignettes, those paired with \nprosocial vignettes were rated significantly more attractive, confident, and friendlier. \nThe opposite pattern characterized faces paired with antisocial vignettes. A significant \ninteraction between vignette type and the age of the face was detected for attractiveness. \nMoral transgressions affected attractiveness more negatively for younger than older \nfaces. Sex-related differences were not detected. These results suggest information \nabout moral character affects our judgments about facial attractiveness. Better people \nare considered more attractive. These findings suggest that beliefs about moral \ngoodness and physical beauty influence each other bidirectionally. \n \nKey Words: attractiveness, morality, faces, age, beauty-is-good",
+          "publication_source_locator": {
+            "attachment_id": 42,
+            "bbox": null,
+            "chunk_id": 42002,
+            "page_end": 2,
+            "page_start": 2,
+            "search_phase": "whole-article",
+            "section": "full text",
+            "section_family": "unknown"
+          },
+          "publication_value": {
+            "text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n2\nAbstract \nA well-documented “beauty-is-good” stereotype is expressed in the expectation that \nphysically attractive people have more positive characteristics. Recent evidence also \nfinds that unattractive faces are associated with negative character inferences. Is what \nis good (bad) also beautiful (ugly)? Whether this conflation of aesthetic and moral \nvalues is bidirectional is not known. This study tested the hypothesis that \ncomplementary “good-is-beautiful” and “bad-is-ugly” stereotypes bias aesthetic \njudgments. Using highly controlled face stimuli, this pre-registered study examined \nwhether moral character influences perceptions of attractiveness for different ages and \nsexes of faces. Compared to faces paired with non-moral vignettes, those paired with \nprosocial vignettes were rated significantly more attractive, confident, and friendlier. \nThe opposite pattern characterized faces paired with antisocial vignettes. A significant \ninteraction between vignette type and the age of the face was detected for attractiveness. \nMoral transgressions affected attractiveness more negatively for younger than older \nfaces. Sex-related differences were not detected. These results suggest information \nabout moral character affects our judgments about facial attractiveness. Better people \nare considered more attractive. These findings suggest that beliefs about moral \ngoodness and physical beauty influence each other bidirectionally. \n \nKey Words: attractiveness, morality, faces, age, beauty-is-good"
+          },
+          "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+          "registration_evidence_text": "What is good is beautiful: perceived moral cues influence facial beauty judgments",
+          "registration_source_locator": {
+            "attachment_id": 4201,
+            "canonical_url": "https://osf.io/b9faw/",
+            "chunk_id": 4201001,
+            "external_id": "b9faw",
+            "page_end": 1,
+            "page_start": 1,
+            "provider": "osf",
+            "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+            "registration_version_id": 4201,
+            "source_key": "registration-metadata:title"
+          },
+          "registration_value": {
+            "text": "What is good is beautiful: perceived moral cues influence facial beauty judgments"
+          },
+          "registration_version_id": 4201,
+          "review_state": "unreviewed",
+          "run_id": 1,
+          "search_scope": {
+            "expected_section_families": [
+              "introduction",
+              "methods",
+              "results"
+            ],
+            "non_detection_note": "Not located is not proof of non-reporting.",
+            "publication_sources": [
+              {
+                "attachment_id": 42,
+                "checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6"
+              }
+            ],
+            "searched_chunk_ids": [
+              42001,
+              42002,
+              42003,
+              42004,
+              42005,
+              42006,
+              42007,
+              42008,
+              42009,
+              42010,
+              42011,
+              42012,
+              42013,
+              42014,
+              42015,
+              42016,
+              42017,
+              42018,
+              42019,
+              42020,
+              42021,
+              42022,
+              42023,
+              42024,
+              42025,
+              42026,
+              42027,
+              42028,
+              42029,
+              42030,
+              42031,
+              42032,
+              42033,
+              42034,
+              42035,
+              42036,
+              42037,
+              42038
+            ],
+            "sections_searched": [
+              "unknown"
+            ],
+            "study_labels_found": [
+              "study tested",
+              "study examined",
+              "study was",
+              "study materials",
+              "study on",
+              "experiment lasted",
+              "study provides",
+              "study has",
+              "study did",
+              "Study Abroad"
+            ],
+            "study_mapping": "ambiguous",
+            "supplements_searched": false,
+            "whole_article_expanded": true
+          },
+          "timing_status": null,
+          "uncertainty": "Inspect both sources. A surfaced difference may reflect reporting compression, amendments, underspecification, a legitimate deviation, extraction failure, or an incorrect registration match."
+        },
+        {
+          "commitment_id": 420102,
+          "comparison_status": "ambiguous-study-mapping",
+          "explanation": "The registration commitment could not be bounded to one reported study; inspect the study match.",
+          "field_type": "registration-timing",
+          "id": 2,
+          "llm_triage": {
+            "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+            "concerns": [
+              "ambiguous-study-mapping"
+            ],
+            "label": "uncertain",
+            "model_id": "gemini-2.5-flash-lite",
+            "prompt_version": "registration-comparison-triage-v1",
+            "provider_id": "gemini",
+            "rationale": "The registration timing (2020-09-19T16:47:56.097453) is a precise timestamp, while the publication evidence provides manuscript submission, revision, and acceptance dates (April 19, 2021; September 17, 2021; October 5, 2021). There's no clear correspondence.",
+            "show_in_triage": true,
+            "stale_reasons": [],
+            "status": "current"
+          },
+          "note": null,
+          "publication_attachment_checksum": null,
+          "publication_attachment_id": null,
+          "publication_evidence_text": null,
+          "publication_source_locator": null,
+          "publication_value": null,
+          "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+          "registration_evidence_text": "2020-09-19T16:47:56.097453",
+          "registration_source_locator": {
+            "attachment_id": 4201,
+            "canonical_url": "https://osf.io/b9faw/",
+            "chunk_id": 4201002,
+            "external_id": "b9faw",
+            "page_end": null,
+            "page_start": null,
+            "provider": "osf",
+            "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+            "registration_version_id": 4201,
+            "source_key": "registration-metadata:registered-at"
+          },
+          "registration_value": {
+            "registered_at": "2020-09-19T16:47:56.097453",
+            "registration_status": "public",
+            "updated_at": "2021-12-02T08:46:35.551539"
+          },
+          "registration_version_id": 4201,
+          "review_state": "unreviewed",
+          "run_id": 1,
+          "search_scope": {
+            "expected_section_families": [
+              "methods",
+              "participants",
+              "procedure"
+            ],
+            "non_detection_note": "Not located is not proof of non-reporting.",
+            "publication_sources": [
+              {
+                "attachment_id": 42,
+                "checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6"
+              }
+            ],
+            "searched_chunk_ids": [
+              42001,
+              42002,
+              42003,
+              42004,
+              42005,
+              42006,
+              42007,
+              42008,
+              42009,
+              42010,
+              42011,
+              42012,
+              42013,
+              42014,
+              42015,
+              42016,
+              42017,
+              42018,
+              42019,
+              42020,
+              42021,
+              42022,
+              42023,
+              42024,
+              42025,
+              42026,
+              42027,
+              42028,
+              42029,
+              42030,
+              42031,
+              42032,
+              42033,
+              42034,
+              42035,
+              42036,
+              42037,
+              42038
+            ],
+            "sections_searched": [
+              "unknown"
+            ],
+            "study_labels_found": [
+              "study tested",
+              "study examined",
+              "study was",
+              "study materials",
+              "study on",
+              "experiment lasted",
+              "study provides",
+              "study has",
+              "study did",
+              "Study Abroad"
+            ],
+            "study_mapping": "ambiguous",
+            "supplements_searched": false,
+            "whole_article_expanded": true
+          },
+          "timing_status": null,
+          "uncertainty": "Inspect both sources. A surfaced difference may reflect reporting compression, amendments, underspecification, a legitimate deviation, extraction failure, or an incorrect registration match."
+        },
+        {
+          "commitment_id": 420103,
+          "comparison_status": "ambiguous-study-mapping",
+          "explanation": "The registration commitment could not be bounded to one reported study; inspect the study match.",
+          "field_type": "hypothesis",
+          "id": 3,
+          "llm_triage": {
+            "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+            "concerns": [
+              "ambiguous-study-mapping"
+            ],
+            "label": "uncertain",
+            "model_id": "gemini-2.5-flash-lite",
+            "prompt_version": "registration-comparison-triage-v1",
+            "provider_id": "gemini",
+            "rationale": "The registration hypothesis details testing the 'good is beautiful' effect and its variation by face age, predicting specific influences of moral transgressions and goodness on attractiveness. The publication evidence discusses the 'good is beautiful' stereotype and its application to younger faces, noting unexplored interactions with aging, but does not explicitly state the hypotheses tested.",
+            "show_in_triage": true,
+            "stale_reasons": [],
+            "status": "current"
+          },
+          "note": null,
+          "publication_attachment_checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6",
+          "publication_attachment_id": 42,
+          "publication_evidence_text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n2\nless attractive and are assigned more negative traits than younger faces (He et al., 2021; \nNorth & Fiske, 2015), an effect that may be amplified by negative moral character \ninferences or dampened by beliefs of moral goodness. This study examined whether \nand how perceived moral character, whether informed by morally good actions or by \nmoral transgressions, influences perceptions of facial beauty among different ages and \nsexes of faces. \n \nThis pre-registered study (https://doi.org/10.17605/OSF.IO/B9FAW) tested the \nhypothesis that a “good-is-beautiful” stereotype biases facial beauty judgments, with \npeople ostensibly possessing good moral character considered more attractive. We \npredicted that reading about a person’s morally good actions would result in their being \nfound more attractive. We further hypothesized that a complementary “bad-is-ugly” \nstereotype operates in the opposite direction. We predicted that reading about a person’s \nmoral transgressions would result in their being found less attractive. Alternatively, \neffects of beauty on character inferences may be specific to unattractiveness, reflecting \nan evolved disgust response (Klebl et al., 2020). \n \nFace age may interact with moral character inferences to shape judgments of physical \nattractiveness in one of several ways. First, this interaction could have additive effects \n(similar to the amplification account; Albrecht & Carbon, 2014; Carr, Brady, & \nWinkielman, 2017). Positive features would be predicted to be perceived as more \npositive, and negative features would be predicted to be perceived as more negative. In \nother words, moral goodness would be predicted to effect attractiveness more positively \nfor younger than older faces. Moral transgressions, on the other hand, would be \npredicted to affect attractiveness more negatively for older than younger faces. \nAlternatively, the interaction may result in a selective effect. This account predicts that \nmoral transgressions should exert less effects on judgments of attractiveness made in \nresponse to older relative to younger faces. People over 50 and people under 21 received \nless severe criminal sentences compared to other age groups (Steffensmeier, Ulmer, & \nKramer, 1998). Likewise, Bergeron and Mckelvie (2004) found that for murder, 60-",
+          "publication_source_locator": {
+            "attachment_id": 42,
+            "bbox": null,
+            "chunk_id": 42004,
+            "page_end": 4,
+            "page_start": 4,
+            "search_phase": "whole-article",
+            "section": "full text",
+            "section_family": "unknown"
+          },
+          "publication_value": {
+            "text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n2\nless attractive and are assigned more negative traits than younger faces (He et al., 2021; \nNorth & Fiske, 2015), an effect that may be amplified by negative moral character \ninferences or dampened by beliefs of moral goodness. This study examined whether \nand how perceived moral character, whether informed by morally good actions or by \nmoral transgressions, influences perceptions of facial beauty among different ages and \nsexes of faces. \n \nThis pre-registered study (https://doi.org/10.17605/OSF.IO/B9FAW) tested the \nhypothesis that a “good-is-beautiful” stereotype biases facial beauty judgments, with \npeople ostensibly possessing good moral character considered more attractive. We \npredicted that reading about a person’s morally good actions would result in their being \nfound more attractive. We further hypothesized that a complementary “bad-is-ugly” \nstereotype operates in the opposite direction. We predicted that reading about a person’s \nmoral transgressions would result in their being found less attractive. Alternatively, \neffects of beauty on character inferences may be specific to unattractiveness, reflecting \nan evolved disgust response (Klebl et al., 2020). \n \nFace age may interact with moral character inferences to shape judgments of physical \nattractiveness in one of several ways. First, this interaction could have additive effects \n(similar to the amplification account; Albrecht & Carbon, 2014; Carr, Brady, & \nWinkielman, 2017). Positive features would be predicted to be perceived as more \npositive, and negative features would be predicted to be perceived as more negative. In \nother words, moral goodness would be predicted to effect attractiveness more positively \nfor younger than older faces. Moral transgressions, on the other hand, would be \npredicted to affect attractiveness more negatively for older than younger faces. \nAlternatively, the interaction may result in a selective effect. This account predicts that \nmoral transgressions should exert less effects on judgments of attractiveness made in \nresponse to older relative to younger faces. People over 50 and people under 21 received \nless severe criminal sentences compared to other age groups (Steffensmeier, Ulmer, & \nKramer, 1998). Likewise, Bergeron and Mckelvie (2004) found that for murder, 60-"
+          },
+          "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+          "registration_evidence_text": "We test the hypothesis that a “good is beautiful” effect exists, wherein learning morally-relevant information about a face is predicted to influence perceptions of facial beauty. We also investigate whether this effect varies by face age.\n\nSpecifically, we predict that reading about moral transgressions will elicit perceptions of facial unattractiveness. We also predict that reading about acts of moral goodness will elicit perceptions of facial attractiveness.\n\nAlternatively, effects of beauty on character inferences may be specific for unattractiveness, reflecting evolved disgust responses to pathogen threat. This prediction is consistent with a report by Workman and colleagues (submitted) of selective brain responses to anomalous faces—sensitive to disgust and to facial unattractiveness.",
+          "registration_source_locator": {
+            "attachment_id": 4201,
+            "canonical_url": "https://osf.io/b9faw/",
+            "chunk_id": 4201003,
+            "external_id": "b9faw",
+            "page_end": 1,
+            "page_start": 1,
+            "provider": "osf",
+            "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+            "registration_version_id": 4201,
+            "source_key": "question:q2"
+          },
+          "registration_value": {
+            "text": "We test the hypothesis that a “good is beautiful” effect exists, wherein learning morally-relevant information about a face is predicted to influence perceptions of facial beauty. We also investigate whether this effect varies by face age.\n\nSpecifically, we predict that reading about moral transgressions will elicit perceptions of facial unattractiveness. We also predict that reading about acts of moral goodness will elicit perceptions of facial attractiveness.\n\nAlternatively, effects of beauty on character inferences may be specific for unattractiveness, reflecting evolved disgust responses to pathogen threat. This prediction is consistent with a report by Workman and colleagues (submitted) of selective brain responses to anomalous faces—sensitive to disgust and to facial unattractiveness."
+          },
+          "registration_version_id": 4201,
+          "review_state": "unreviewed",
+          "run_id": 1,
+          "search_scope": {
+            "expected_section_families": [
+              "introduction",
+              "methods",
+              "results"
+            ],
+            "non_detection_note": "Not located is not proof of non-reporting.",
+            "publication_sources": [
+              {
+                "attachment_id": 42,
+                "checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6"
+              }
+            ],
+            "searched_chunk_ids": [
+              42001,
+              42002,
+              42003,
+              42004,
+              42005,
+              42006,
+              42007,
+              42008,
+              42009,
+              42010,
+              42011,
+              42012,
+              42013,
+              42014,
+              42015,
+              42016,
+              42017,
+              42018,
+              42019,
+              42020,
+              42021,
+              42022,
+              42023,
+              42024,
+              42025,
+              42026,
+              42027,
+              42028,
+              42029,
+              42030,
+              42031,
+              42032,
+              42033,
+              42034,
+              42035,
+              42036,
+              42037,
+              42038
+            ],
+            "sections_searched": [
+              "unknown"
+            ],
+            "study_labels_found": [
+              "study tested",
+              "study examined",
+              "study was",
+              "study materials",
+              "study on",
+              "experiment lasted",
+              "study provides",
+              "study has",
+              "study did",
+              "Study Abroad"
+            ],
+            "study_mapping": "ambiguous",
+            "supplements_searched": false,
+            "whole_article_expanded": true
+          },
+          "timing_status": null,
+          "uncertainty": "Inspect both sources. A surfaced difference may reflect reporting compression, amendments, underspecification, a legitimate deviation, extraction failure, or an incorrect registration match."
+        },
+        {
+          "commitment_id": 420104,
+          "comparison_status": "ambiguous-study-mapping",
+          "explanation": "The registration commitment could not be bounded to one reported study; inspect the study match.",
+          "field_type": "blinding",
+          "id": 4,
+          "llm_triage": {
+            "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+            "concerns": [
+              "ambiguous-study-mapping"
+            ],
+            "label": "uncertain",
+            "model_id": "gemini-2.5-flash-lite",
+            "prompt_version": "registration-comparison-triage-v1",
+            "provider_id": "gemini",
+            "rationale": "The registration states 'No blinding is involved in this study.' The publication describes participant recruitment, exclusion criteria, and sample characteristics but does not mention blinding procedures.",
+            "show_in_triage": true,
+            "stale_reasons": [],
+            "status": "current"
+          },
+          "note": null,
+          "publication_attachment_checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6",
+          "publication_attachment_id": 42,
+          "publication_evidence_text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n4\nMethods \nParticipants \nA total of 442 participants were recruited via Amazon’s Mechanical Turk service to \ncomplete an online survey administered through the Qualtrics platform (249 male; \nage: 38.11 ± 10.05 years; education: 14.91 ± 2.50 years). Using effect sizes computed \nfrom data reported in Paunonen (2006), a minimum sample of n = 322 participants \nwas expected to provide sufficient power (80%) to detect the effects of interest. Data \nwere excluded from 64 participants: 10 due to extreme values for duration (e.g., a \nduration 22.07 hours) identified with outlier analysis in SPSS (Curran, 2016), 4 for \nreporting that their responses were of poor quality, 14 for failing more than two of \nfive attentional catch trials, 1 for missing data, and 35 for choosing not to report their \nsex that gender of participant was reported to play a role in perceived facial \nattractiveness (He et al, 2021). The final sample consisted of n = 378 participants \n(age: 38.31 ± 10.06 years; range: 21-72 years; education: 14.96 ± 2.27 years; \nrace/ethnicity: 319 white, 31 black, 12 Asian, 15 Hispanic or Latinx, 1 American-\nIndian/Alaskan-Native; sexual orientation: 321 heterosexual, 14 homosexual, 40 \nbisexual, and 3 other). There were 235 men (age: 37.64 ± 10.06 years; range: 23-72 \nyears; education: 15.05 ± 2.14 years) and 143 women (age: 39.41 ± 9.98 years; rang: \n21-70 years; education: 14.81 ± 2.46 years). Participants were compensated ($4) for \ntheir time and participation in the study. This study was approved by the Institutional \nReview Board at the University of Pennsylvania. The study—including the sample \nsize rationale—was pre-registered (https://doi.org/10.17605/OSF.IO/B9FAW) and the \ncorresponding study materials, code, and data are available from: https://osf.io/aeygb/. \n \nMaterials \nFace Stimuli \nThe stimuli comprised 12 pairs of images, with each pair depicting the same face but \neither younger (age: 20-29 years; attractiveness: 4.53 ± .84) or older (age: 60 years \nand older; attractiveness: 3.20 ± .46) in appearance. These face images were chosen",
+          "publication_source_locator": {
+            "attachment_id": 42,
+            "bbox": null,
+            "chunk_id": 42006,
+            "page_end": 6,
+            "page_start": 6,
+            "search_phase": "whole-article",
+            "section": "full text",
+            "section_family": "unknown"
+          },
+          "publication_value": {
+            "text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n4\nMethods \nParticipants \nA total of 442 participants were recruited via Amazon’s Mechanical Turk service to \ncomplete an online survey administered through the Qualtrics platform (249 male; \nage: 38.11 ± 10.05 years; education: 14.91 ± 2.50 years). Using effect sizes computed \nfrom data reported in Paunonen (2006), a minimum sample of n = 322 participants \nwas expected to provide sufficient power (80%) to detect the effects of interest. Data \nwere excluded from 64 participants: 10 due to extreme values for duration (e.g., a \nduration 22.07 hours) identified with outlier analysis in SPSS (Curran, 2016), 4 for \nreporting that their responses were of poor quality, 14 for failing more than two of \nfive attentional catch trials, 1 for missing data, and 35 for choosing not to report their \nsex that gender of participant was reported to play a role in perceived facial \nattractiveness (He et al, 2021). The final sample consisted of n = 378 participants \n(age: 38.31 ± 10.06 years; range: 21-72 years; education: 14.96 ± 2.27 years; \nrace/ethnicity: 319 white, 31 black, 12 Asian, 15 Hispanic or Latinx, 1 American-\nIndian/Alaskan-Native; sexual orientation: 321 heterosexual, 14 homosexual, 40 \nbisexual, and 3 other). There were 235 men (age: 37.64 ± 10.06 years; range: 23-72 \nyears; education: 15.05 ± 2.14 years) and 143 women (age: 39.41 ± 9.98 years; rang: \n21-70 years; education: 14.81 ± 2.46 years). Participants were compensated ($4) for \ntheir time and participation in the study. This study was approved by the Institutional \nReview Board at the University of Pennsylvania. The study—including the sample \nsize rationale—was pre-registered (https://doi.org/10.17605/OSF.IO/B9FAW) and the \ncorresponding study materials, code, and data are available from: https://osf.io/aeygb/. \n \nMaterials \nFace Stimuli \nThe stimuli comprised 12 pairs of images, with each pair depicting the same face but \neither younger (age: 20-29 years; attractiveness: 4.53 ± .84) or older (age: 60 years \nand older; attractiveness: 3.20 ± .46) in appearance. These face images were chosen"
+          },
+          "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+          "registration_evidence_text": "No blinding is involved in this study.",
+          "registration_source_locator": {
+            "attachment_id": 4201,
+            "canonical_url": "https://osf.io/b9faw/",
+            "chunk_id": 4201004,
+            "external_id": "b9faw",
+            "page_end": 1,
+            "page_start": 1,
+            "provider": "osf",
+            "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+            "registration_version_id": 4201,
+            "source_key": "question:q4"
+          },
+          "registration_value": {
+            "raw": [
+              "No blinding is involved in this study."
+            ],
+            "text": "No blinding is involved in this study."
+          },
+          "registration_version_id": 4201,
+          "review_state": "unreviewed",
+          "run_id": 1,
+          "search_scope": {
+            "expected_section_families": [
+              "methods",
+              "procedure"
+            ],
+            "non_detection_note": "Not located is not proof of non-reporting.",
+            "publication_sources": [
+              {
+                "attachment_id": 42,
+                "checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6"
+              }
+            ],
+            "searched_chunk_ids": [
+              42001,
+              42002,
+              42003,
+              42004,
+              42005,
+              42006,
+              42007,
+              42008,
+              42009,
+              42010,
+              42011,
+              42012,
+              42013,
+              42014,
+              42015,
+              42016,
+              42017,
+              42018,
+              42019,
+              42020,
+              42021,
+              42022,
+              42023,
+              42024,
+              42025,
+              42026,
+              42027,
+              42028,
+              42029,
+              42030,
+              42031,
+              42032,
+              42033,
+              42034,
+              42035,
+              42036,
+              42037,
+              42038
+            ],
+            "sections_searched": [
+              "unknown"
+            ],
+            "study_labels_found": [
+              "study tested",
+              "study examined",
+              "study was",
+              "study materials",
+              "study on",
+              "experiment lasted",
+              "study provides",
+              "study has",
+              "study did",
+              "Study Abroad"
+            ],
+            "study_mapping": "ambiguous",
+            "supplements_searched": false,
+            "whole_article_expanded": true
+          },
+          "timing_status": null,
+          "uncertainty": "Inspect both sources. A surfaced difference may reflect reporting compression, amendments, underspecification, a legitimate deviation, extraction failure, or an incorrect registration match."
+        },
+        {
+          "commitment_id": 420105,
+          "comparison_status": "ambiguous-study-mapping",
+          "explanation": "The registration commitment could not be bounded to one reported study; inspect the study match.",
+          "field_type": "design",
+          "id": 5,
+          "llm_triage": {
+            "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+            "concerns": [
+              "ambiguous-study-mapping"
+            ],
+            "label": "uncertain",
+            "model_id": "gemini-2.5-flash-lite",
+            "prompt_version": "registration-comparison-triage-v1",
+            "provider_id": "gemini",
+            "rationale": "The registration describes an online experiment via Qualtrics with MTurk recruitment, presenting vignettes and faces, and rating scales for attractiveness, friendliness, and confidence, followed by dispositional measures and a socio-demographic questionnaire. The publication details a face rating task with similar stimuli and rating scales, followed by self-report measures, but the full design is not explicitly matched.",
+            "show_in_triage": true,
+            "stale_reasons": [],
+            "status": "current"
+          },
+          "note": null,
+          "publication_attachment_checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6",
+          "publication_attachment_id": 42,
+          "publication_evidence_text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n8\nattractiveness (how attractive is this face?) using a 7-point scale. Participants also \nrated the faces on confidence (how confident is this face?) and friendliness (how \nfriendly is this face?). \n \nAfter the face rating task, participants completed a battery of self-report measures \nassessing psychological dispositions. Specifically, trait empathy was assessed with the \nInterpersonal Reactivity Index Scale (IRI; Davis, 1980), which comprises four \nsubscales (i.e., empathic concern, perspective taking, personal distress, and fantasy), \nand sensitivity to disgust was assessed with the Three-Domain Disgust Scale (3DD; \nTybur, Lieberman, & Griskevicius, 2009), which includes subscales for sensitivities \nto moral, sexual, and pathogen disgust. Finally, participants completed a short socio-\ndemographic questionnaire. The face images and vignettes, questions, and self-report \nmeasures were presented in randomized order. There was no time limit, with ratings \nproceeding in a self-paced fashion. The experiment lasted approximately 30 minutes. \n \nData Analyses \nLinear mixed-effects analyses were carried out using the lme4 package (Bates et al., \n2015) in RStudio (R Core Team, 2020) to examine whether perceived moral character \ninfluences judgments of facial beauty and whether this influence varies as a function \nof face age, perceiver sex, and face sex. Exploratory analyses investigated whether \nand how sensitivity to moral disgust and/or trait empathic concern interact with story \ntype (prosocial, antisocial, and neutral) to modulate attractiveness judgments. We \nobtained p values for the parameter estimates generated by each model using \nSatterthwaite’s approximation as implemented by the lmerTest package (Kuznetsova, \nBrockhoff, & Christensen, 2017). Below, regression coefficients (β), standard errors \n(SE), and t-values are reported. Plots were generated with the effects package (Fox & \nWeisberg, 2018).",
+          "publication_source_locator": {
+            "attachment_id": 42,
+            "bbox": null,
+            "chunk_id": 42010,
+            "page_end": 10,
+            "page_start": 10,
+            "search_phase": "whole-article",
+            "section": "full text",
+            "section_family": "unknown"
+          },
+          "publication_value": {
+            "text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n8\nattractiveness (how attractive is this face?) using a 7-point scale. Participants also \nrated the faces on confidence (how confident is this face?) and friendliness (how \nfriendly is this face?). \n \nAfter the face rating task, participants completed a battery of self-report measures \nassessing psychological dispositions. Specifically, trait empathy was assessed with the \nInterpersonal Reactivity Index Scale (IRI; Davis, 1980), which comprises four \nsubscales (i.e., empathic concern, perspective taking, personal distress, and fantasy), \nand sensitivity to disgust was assessed with the Three-Domain Disgust Scale (3DD; \nTybur, Lieberman, & Griskevicius, 2009), which includes subscales for sensitivities \nto moral, sexual, and pathogen disgust. Finally, participants completed a short socio-\ndemographic questionnaire. The face images and vignettes, questions, and self-report \nmeasures were presented in randomized order. There was no time limit, with ratings \nproceeding in a self-paced fashion. The experiment lasted approximately 30 minutes. \n \nData Analyses \nLinear mixed-effects analyses were carried out using the lme4 package (Bates et al., \n2015) in RStudio (R Core Team, 2020) to examine whether perceived moral character \ninfluences judgments of facial beauty and whether this influence varies as a function \nof face age, perceiver sex, and face sex. Exploratory analyses investigated whether \nand how sensitivity to moral disgust and/or trait empathic concern interact with story \ntype (prosocial, antisocial, and neutral) to modulate attractiveness judgments. We \nobtained p values for the parameter estimates generated by each model using \nSatterthwaite’s approximation as implemented by the lmerTest package (Kuznetsova, \nBrockhoff, & Christensen, 2017). Below, regression coefficients (β), standard errors \n(SE), and t-values are reported. Plots were generated with the effects package (Fox & \nWeisberg, 2018)."
+          },
+          "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+          "registration_evidence_text": "The experiment will be conducted online through the Qualtrics platform. Participants will be recruited via MTurk. Participants will be presented a brief vignette describing a pro- social, anti-social and non-moral action on each trial (N = 72 vignettes). Each vignette is paired with a face (N = 24 images, appear three times). Participants then rate each face on facial attractiveness (How attractive is this person?), friendliness (How friendly is this person?), and confidence (How confident is this person?) on a scale from 1 to 7. There are 72 trials total. Stimuli will be presented in randomized order and there is no restriction in presentation time. Participants will then complete several dispositional measures (Three-Domain Disgust Scale, Tybur et al., 2009; Interpersonal Reactivity Index, Davis, 1980). Finally, participant will complete a short socio-demographic questionnaire. Participants will be compensated for their time and participation in the study.\n\nMaterials consist of 72 vignettes (24 pro-social, 24 anti-social and 24 non-moral) and 24 different sex and age face images. Each face image will appear three times together with one pro-social vignette, one anti-social vignette and one non-moral vignette.\n\nStimuli Selection\nVignettes will be selected from Knutson et al. (2010) research, which also provide researchers normative ratings of the vignettes along several dimensions including morally appropriate and level of harm or benefit caused, etc. Each vignette describes a real prosocial/antisocial scenario as described by volunteers asked to recount their real life experiences.  \n\nSpecifically, we will select 50 pro-social and 50 anti-social vignettes from Knutson et al. (2010) research. Then we will create 100 non-moral stories based on these pro-social and anti-social stories. Next, 80 participants will be recruited via MTurk. They will be presented half of the stories (100 of 200) randomly and will be asked several questions about that story: 1) how pleasant do you find the actions of the person described in the story? 2) how emotionally intense was the story you just read? 3) how praiseworthy are the actions of the person described in the story? 4) are the actions of the person in the story you just read related to morality (that is, they are related to right and wrong)? 5) do the actions of the person in the story you just read benefit themselves? 6) how uplifting are the actions of the person described in the story? 7) do the actions of the person in the story you just read benefit other people? Stimuli will be presented in randomized order and there is no restriction in presentation time. Participants will then complete a short socio-demographic questionnaire. Participants will be compensated for their time and participation in the study. Finally, we will select 72 vignettes (24 pro-social, 24 anti-social and 24 non-moral) based on the results.\n\n24 face images (12 per age bin, younger or older; 50% female) will be chosen from our previous study on effects of aging on judgments about different domains of attractiveness (He et al., in prep; https://osf.io/3qg6v/). Face stimuli are comprised of 12 sets of faces with each set containing two different aged faces of the same person.",
+          "registration_source_locator": {
+            "attachment_id": 4201,
+            "canonical_url": "https://osf.io/b9faw/",
+            "chunk_id": 4201005,
+            "external_id": "b9faw",
+            "page_end": 1,
+            "page_start": 1,
+            "provider": "osf",
+            "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+            "registration_version_id": 4201,
+            "source_key": "question:q6.question"
+          },
+          "registration_value": {
+            "text": "The experiment will be conducted online through the Qualtrics platform. Participants will be recruited via MTurk. Participants will be presented a brief vignette describing a pro- social, anti-social and non-moral action on each trial (N = 72 vignettes). Each vignette is paired with a face (N = 24 images, appear three times). Participants then rate each face on facial attractiveness (How attractive is this person?), friendliness (How friendly is this person?), and confidence (How confident is this person?) on a scale from 1 to 7. There are 72 trials total. Stimuli will be presented in randomized order and there is no restriction in presentation time. Participants will then complete several dispositional measures (Three-Domain Disgust Scale, Tybur et al., 2009; Interpersonal Reactivity Index, Davis, 1980). Finally, participant will complete a short socio-demographic questionnaire. Participants will be compensated for their time and participation in the study.\n\nMaterials consist of 72 vignettes (24 pro-social, 24 anti-social and 24 non-moral) and 24 different sex and age face images. Each face image will appear three times together with one pro-social vignette, one anti-social vignette and one non-moral vignette.\n\nStimuli Selection\nVignettes will be selected from Knutson et al. (2010) research, which also provide researchers normative ratings of the vignettes along several dimensions including morally appropriate and level of harm or benefit caused, etc. Each vignette describes a real prosocial/antisocial scenario as described by volunteers asked to recount their real life experiences.  \n\nSpecifically, we will select 50 pro-social and 50 anti-social vignettes from Knutson et al. (2010) research. Then we will create 100 non-moral stories based on these pro-social and anti-social stories. Next, 80 participants will be recruited via MTurk. They will be presented half of the stories (100 of 200) randomly and will be asked several questions about that story: 1) how pleasant do you find the actions of the person described in the story? 2) how emotionally intense was the story you just read? 3) how praiseworthy are the actions of the person described in the story? 4) are the actions of the person in the story you just read related to morality (that is, they are related to right and wrong)? 5) do the actions of the person in the story you just read benefit themselves? 6) how uplifting are the actions of the person described in the story? 7) do the actions of the person in the story you just read benefit other people? Stimuli will be presented in randomized order and there is no restriction in presentation time. Participants will then complete a short socio-demographic questionnaire. Participants will be compensated for their time and participation in the study. Finally, we will select 72 vignettes (24 pro-social, 24 anti-social and 24 non-moral) based on the results.\n\n24 face images (12 per age bin, younger or older; 50% female) will be chosen from our previous study on effects of aging on judgments about different domains of attractiveness (He et al., in prep; https://osf.io/3qg6v/). Face stimuli are comprised of 12 sets of faces with each set containing two different aged faces of the same person."
+          },
+          "registration_version_id": 4201,
+          "review_state": "unreviewed",
+          "run_id": 1,
+          "search_scope": {
+            "expected_section_families": [
+              "methods",
+              "participants",
+              "procedure"
+            ],
+            "non_detection_note": "Not located is not proof of non-reporting.",
+            "publication_sources": [
+              {
+                "attachment_id": 42,
+                "checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6"
+              }
+            ],
+            "searched_chunk_ids": [
+              42001,
+              42002,
+              42003,
+              42004,
+              42005,
+              42006,
+              42007,
+              42008,
+              42009,
+              42010,
+              42011,
+              42012,
+              42013,
+              42014,
+              42015,
+              42016,
+              42017,
+              42018,
+              42019,
+              42020,
+              42021,
+              42022,
+              42023,
+              42024,
+              42025,
+              42026,
+              42027,
+              42028,
+              42029,
+              42030,
+              42031,
+              42032,
+              42033,
+              42034,
+              42035,
+              42036,
+              42037,
+              42038
+            ],
+            "sections_searched": [
+              "unknown"
+            ],
+            "study_labels_found": [
+              "study tested",
+              "study examined",
+              "study was",
+              "study materials",
+              "study on",
+              "experiment lasted",
+              "study provides",
+              "study has",
+              "study did",
+              "Study Abroad"
+            ],
+            "study_mapping": "ambiguous",
+            "supplements_searched": false,
+            "whole_article_expanded": true
+          },
+          "timing_status": null,
+          "uncertainty": "Inspect both sources. A surfaced difference may reflect reporting compression, amendments, underspecification, a legitimate deviation, extraction failure, or an incorrect registration match."
+        },
+        {
+          "commitment_id": 420106,
+          "comparison_status": "ambiguous-study-mapping",
+          "explanation": "The registration commitment could not be bounded to one reported study; inspect the study match.",
+          "field_type": "sample-size-target",
+          "id": 6,
+          "llm_triage": {
+            "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+            "concerns": [
+              "ambiguous-study-mapping"
+            ],
+            "label": "uncertain",
+            "model_id": "gemini-2.5-flash-lite",
+            "prompt_version": "registration-comparison-triage-v1",
+            "provider_id": "gemini",
+            "rationale": "The registration targets N = 360 participants. The publication mentions an 'independent sample of n = 27 participants' in one sentence, but the context is unclear and potentially refers to a different part of the study or a previous one, as it is followed by the main study's recruitment and exclusion details.",
+            "show_in_triage": true,
+            "stale_reasons": [],
+            "status": "current"
+          },
+          "note": null,
+          "publication_attachment_checksum": null,
+          "publication_attachment_id": null,
+          "publication_evidence_text": null,
+          "publication_source_locator": null,
+          "publication_value": null,
+          "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+          "registration_evidence_text": "A sample size of N = 360 participants will be enrolled.",
+          "registration_source_locator": {
+            "attachment_id": 4201,
+            "canonical_url": "https://osf.io/b9faw/",
+            "chunk_id": 4201006,
+            "external_id": "b9faw",
+            "page_end": 1,
+            "page_start": 1,
+            "provider": "osf",
+            "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+            "registration_version_id": 4201,
+            "source_key": "question:q11"
+          },
+          "registration_value": {
+            "target_n": 360,
+            "text": "A sample size of N = 360 participants will be enrolled."
+          },
+          "registration_version_id": 4201,
+          "review_state": "unreviewed",
+          "run_id": 1,
+          "search_scope": {
+            "expected_section_families": [
+              "methods",
+              "participants",
+              "procedure",
+              "power-analysis"
+            ],
+            "non_detection_note": "Not located is not proof of non-reporting.",
+            "publication_sources": [
+              {
+                "attachment_id": 42,
+                "checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6"
+              }
+            ],
+            "searched_chunk_ids": [
+              42001,
+              42002,
+              42003,
+              42004,
+              42005,
+              42006,
+              42007,
+              42008,
+              42009,
+              42010,
+              42011,
+              42012,
+              42013,
+              42014,
+              42015,
+              42016,
+              42017,
+              42018,
+              42019,
+              42020,
+              42021,
+              42022,
+              42023,
+              42024,
+              42025,
+              42026,
+              42027,
+              42028,
+              42029,
+              42030,
+              42031,
+              42032,
+              42033,
+              42034,
+              42035,
+              42036,
+              42037,
+              42038
+            ],
+            "sections_searched": [
+              "unknown"
+            ],
+            "study_labels_found": [
+              "study tested",
+              "study examined",
+              "study was",
+              "study materials",
+              "study on",
+              "experiment lasted",
+              "study provides",
+              "study has",
+              "study did",
+              "Study Abroad"
+            ],
+            "study_mapping": "ambiguous",
+            "supplements_searched": false,
+            "whole_article_expanded": true
+          },
+          "timing_status": null,
+          "uncertainty": "Inspect both sources. A surfaced difference may reflect reporting compression, amendments, underspecification, a legitimate deviation, extraction failure, or an incorrect registration match."
+        },
+        {
+          "commitment_id": 420107,
+          "comparison_status": "ambiguous-study-mapping",
+          "explanation": "The registration commitment could not be bounded to one reported study; inspect the study match.",
+          "field_type": "sample-size-target",
+          "id": 7,
+          "llm_triage": {
+            "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+            "concerns": [
+              "ambiguous-study-mapping"
+            ],
+            "label": "uncertain",
+            "model_id": "gemini-2.5-flash-lite",
+            "prompt_version": "registration-comparison-triage-v1",
+            "provider_id": "gemini",
+            "rationale": "The registration states the sample size of N=322 was determined by a power analysis (f=0.157, α=0.05, 1–β=0.8) based on Paunonen (2006), with a recruitment target of N=360 to account for exclusions. The publication mentions recruiting 442 participants, with a minimum required sample of n=322 for power, and details exclusions leading to a final sample size not yet stated.",
+            "show_in_triage": true,
+            "stale_reasons": [],
+            "status": "current"
+          },
+          "note": null,
+          "publication_attachment_checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6",
+          "publication_attachment_id": 42,
+          "publication_evidence_text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n4\nMethods \nParticipants \nA total of 442 participants were recruited via Amazon’s Mechanical Turk service to \ncomplete an online survey administered through the Qualtrics platform (249 male; \nage: 38.11 ± 10.05 years; education: 14.91 ± 2.50 years). Using effect sizes computed \nfrom data reported in Paunonen (2006), a minimum sample of n = 322 participants \nwas expected to provide sufficient power (80%) to detect the effects of interest. Data \nwere excluded from 64 participants: 10 due to extreme values for duration (e.g., a \nduration 22.07 hours) identified with outlier analysis in SPSS (Curran, 2016), 4 for \nreporting that their responses were of poor quality, 14 for failing more than two of \nfive attentional catch trials, 1 for missing data, and 35 for choosing not to report their \nsex that gender of participant was reported to play a role in perceived facial \nattractiveness (He et al, 2021). The final sample consisted of n = 378 participants \n(age: 38.31 ± 10.06 years; range: 21-72 years; education: 14.96 ± 2.27 years; \nrace/ethnicity: 319 white, 31 black, 12 Asian, 15 Hispanic or Latinx, 1 American-\nIndian/Alaskan-Native; sexual orientation: 321 heterosexual, 14 homosexual, 40 \nbisexual, and 3 other). There were 235 men (age: 37.64 ± 10.06 years; range: 23-72 \nyears; education: 15.05 ± 2.14 years) and 143 women (age: 39.41 ± 9.98 years; rang: \n21-70 years; education: 14.81 ± 2.46 years). Participants were compensated ($4) for \ntheir time and participation in the study. This study was approved by the Institutional \nReview Board at the University of Pennsylvania. The study—including the sample \nsize rationale—was pre-registered (https://doi.org/10.17605/OSF.IO/B9FAW) and the \ncorresponding study materials, code, and data are available from: https://osf.io/aeygb/. \n \nMaterials \nFace Stimuli \nThe stimuli comprised 12 pairs of images, with each pair depicting the same face but \neither younger (age: 20-29 years; attractiveness: 4.53 ± .84) or older (age: 60 years \nand older; attractiveness: 3.20 ± .46) in appearance. These face images were chosen",
+          "publication_source_locator": {
+            "attachment_id": 42,
+            "bbox": null,
+            "chunk_id": 42006,
+            "page_end": 6,
+            "page_start": 6,
+            "search_phase": "whole-article",
+            "section": "full text",
+            "section_family": "unknown"
+          },
+          "publication_value": {
+            "text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n4\nMethods \nParticipants \nA total of 442 participants were recruited via Amazon’s Mechanical Turk service to \ncomplete an online survey administered through the Qualtrics platform (249 male; \nage: 38.11 ± 10.05 years; education: 14.91 ± 2.50 years). Using effect sizes computed \nfrom data reported in Paunonen (2006), a minimum sample of n = 322 participants \nwas expected to provide sufficient power (80%) to detect the effects of interest. Data \nwere excluded from 64 participants: 10 due to extreme values for duration (e.g., a \nduration 22.07 hours) identified with outlier analysis in SPSS (Curran, 2016), 4 for \nreporting that their responses were of poor quality, 14 for failing more than two of \nfive attentional catch trials, 1 for missing data, and 35 for choosing not to report their \nsex that gender of participant was reported to play a role in perceived facial \nattractiveness (He et al, 2021). The final sample consisted of n = 378 participants \n(age: 38.31 ± 10.06 years; range: 21-72 years; education: 14.96 ± 2.27 years; \nrace/ethnicity: 319 white, 31 black, 12 Asian, 15 Hispanic or Latinx, 1 American-\nIndian/Alaskan-Native; sexual orientation: 321 heterosexual, 14 homosexual, 40 \nbisexual, and 3 other). There were 235 men (age: 37.64 ± 10.06 years; range: 23-72 \nyears; education: 15.05 ± 2.14 years) and 143 women (age: 39.41 ± 9.98 years; rang: \n21-70 years; education: 14.81 ± 2.46 years). Participants were compensated ($4) for \ntheir time and participation in the study. This study was approved by the Institutional \nReview Board at the University of Pennsylvania. The study—including the sample \nsize rationale—was pre-registered (https://doi.org/10.17605/OSF.IO/B9FAW) and the \ncorresponding study materials, code, and data are available from: https://osf.io/aeygb/. \n \nMaterials \nFace Stimuli \nThe stimuli comprised 12 pairs of images, with each pair depicting the same face but \neither younger (age: 20-29 years; attractiveness: 4.53 ± .84) or older (age: 60 years \nand older; attractiveness: 3.20 ± .46) in appearance. These face images were chosen"
+          },
+          "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+          "registration_evidence_text": "The sample size was determined based on a power analysis given an effect size f = 0.157. This effect size was selected from a earlier study (Paunonen, 2006) that examined the effect of personality information on perceptions of physical attributions (e.g., attractiveness). Based on this effect size, we ran a power analysis (α = 0.05; 1 – β = 0.8) that suggested a total sample size of N = 322 participant is required to detect the effect of interest in this study. We will recruit a sample of N = 360 participants in total to ensure low quality data can be excluded without sacrificing statistical power.",
+          "registration_source_locator": {
+            "attachment_id": 4201,
+            "canonical_url": "https://osf.io/b9faw/",
+            "chunk_id": 4201007,
+            "external_id": "b9faw",
+            "page_end": 1,
+            "page_start": 1,
+            "provider": "osf",
+            "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+            "registration_version_id": 4201,
+            "source_key": "question:q12"
+          },
+          "registration_value": {
+            "target_n": 322,
+            "text": "The sample size was determined based on a power analysis given an effect size f = 0.157. This effect size was selected from a earlier study (Paunonen, 2006) that examined the effect of personality information on perceptions of physical attributions (e.g., attractiveness). Based on this effect size, we ran a power analysis (α = 0.05; 1 – β = 0.8) that suggested a total sample size of N = 322 participant is required to detect the effect of interest in this study. We will recruit a sample of N = 360 participants in total to ensure low quality data can be excluded without sacrificing statistical power."
+          },
+          "registration_version_id": 4201,
+          "review_state": "unreviewed",
+          "run_id": 1,
+          "search_scope": {
+            "expected_section_families": [
+              "methods",
+              "participants",
+              "procedure",
+              "power-analysis"
+            ],
+            "non_detection_note": "Not located is not proof of non-reporting.",
+            "publication_sources": [
+              {
+                "attachment_id": 42,
+                "checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6"
+              }
+            ],
+            "searched_chunk_ids": [
+              42001,
+              42002,
+              42003,
+              42004,
+              42005,
+              42006,
+              42007,
+              42008,
+              42009,
+              42010,
+              42011,
+              42012,
+              42013,
+              42014,
+              42015,
+              42016,
+              42017,
+              42018,
+              42019,
+              42020,
+              42021,
+              42022,
+              42023,
+              42024,
+              42025,
+              42026,
+              42027,
+              42028,
+              42029,
+              42030,
+              42031,
+              42032,
+              42033,
+              42034,
+              42035,
+              42036,
+              42037,
+              42038
+            ],
+            "sections_searched": [
+              "unknown"
+            ],
+            "study_labels_found": [
+              "study tested",
+              "study examined",
+              "study was",
+              "study materials",
+              "study on",
+              "experiment lasted",
+              "study provides",
+              "study has",
+              "study did",
+              "Study Abroad"
+            ],
+            "study_mapping": "ambiguous",
+            "supplements_searched": false,
+            "whole_article_expanded": true
+          },
+          "timing_status": null,
+          "uncertainty": "Inspect both sources. A surfaced difference may reflect reporting compression, amendments, underspecification, a legitimate deviation, extraction failure, or an incorrect registration match."
+        },
+        {
+          "commitment_id": 420108,
+          "comparison_status": "ambiguous-study-mapping",
+          "explanation": "The registration commitment could not be bounded to one reported study; inspect the study match.",
+          "field_type": "statistical-model",
+          "id": 8,
+          "llm_triage": {
+            "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+            "concerns": [
+              "ambiguous-study-mapping"
+            ],
+            "label": "uncertain",
+            "model_id": "gemini-2.5-flash-lite",
+            "prompt_version": "registration-comparison-triage-v1",
+            "provider_id": "gemini",
+            "rationale": "The registration specifies linear mixed effect models to examine the relationship between dependent variables (attractiveness, friendliness, confidence) and vignette type, considering face age and random intercepts for items and subjects. The publication states linear mixed-effects analyses were carried out using the lme4 package to examine perceived moral character's influence on judgments, and how this varies by face age, perceiver sex, and face sex, with exploratory analyses on moral disgust and empathic concern. It also mentions using Satterthwaite’s approximation for p-values.",
+            "show_in_triage": true,
+            "stale_reasons": [],
+            "status": "current"
+          },
+          "note": null,
+          "publication_attachment_checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6",
+          "publication_attachment_id": 42,
+          "publication_evidence_text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n9\nResults \nMorality and Facial Judgments \nTo examine the effect of moral information on facial attractiveness, a linear mixed \nmodel was constructed with attractiveness as the dependent variable and vignette type \n(Prosocial | Antisocial | Non-moral) as a fixed factor. Random intercepts for face \nstimulus and subject were modelled. Reading about morally good actions and about \nmoral transgressions significantly influenced perceptions of facial attractiveness. \nFaces paired with prosocial vignettes were rated more attractive than those paired \nwith non-moral vignettes (β = .138, SE = .018, t(26813) = 7.712, p < .001), and faces \npaired with antisocial vignettes were rated less attractive than those paired with non-\nmoral vignettes (β = -.373, SE = .018, t(26813) = -20.779, p < .001; see \nSupplementary Table S2 and S3 for remaining fixed effects and means). \n \nSimilar models were constructed to examine effects of vignette type on confidence \nand friendliness, with significant effects observed in both cases. Faces paired with \nprosocial vignettes were rated more confident (β = .419, SE = .017, t(26813) = 24.126, \np < .001) and friendly (β = .557, SE = .019, t(26813) = 29.126, p < .001) than those \npaired with non-moral vignettes, whereas faces paired with antisocial vignettes were \nrated less confident (β = -.201, SE = .017, t(26813) = -11.540, p < .001) and friendly \n(β = -1.026, SE = .019, t(26813) = -53.642, p < .001). \n \nAge-Related Differences \nNext, a linear mixed model examined whether an interaction between moral \ninformation and face age modulated attractiveness judgments, with attractiveness as \nthe dependent variable and vignette type (Prosocial | Antisocial | Non-moral) and face \nage (Younger | Older) as fixed factors. Random intercepts for stimulus and subject \nwere included and, for subject, slopes were allowed to vary according to face age. \nSignificant main effects were detected for vignette type and face age. Relative to non-\nmoral vignettes, younger and older faces were rated more attractive when paired with",
+          "publication_source_locator": {
+            "attachment_id": 42,
+            "bbox": null,
+            "chunk_id": 42011,
+            "page_end": 11,
+            "page_start": 11,
+            "search_phase": "whole-article",
+            "section": "full text",
+            "section_family": "unknown"
+          },
+          "publication_value": {
+            "text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n9\nResults \nMorality and Facial Judgments \nTo examine the effect of moral information on facial attractiveness, a linear mixed \nmodel was constructed with attractiveness as the dependent variable and vignette type \n(Prosocial | Antisocial | Non-moral) as a fixed factor. Random intercepts for face \nstimulus and subject were modelled. Reading about morally good actions and about \nmoral transgressions significantly influenced perceptions of facial attractiveness. \nFaces paired with prosocial vignettes were rated more attractive than those paired \nwith non-moral vignettes (β = .138, SE = .018, t(26813) = 7.712, p < .001), and faces \npaired with antisocial vignettes were rated less attractive than those paired with non-\nmoral vignettes (β = -.373, SE = .018, t(26813) = -20.779, p < .001; see \nSupplementary Table S2 and S3 for remaining fixed effects and means). \n \nSimilar models were constructed to examine effects of vignette type on confidence \nand friendliness, with significant effects observed in both cases. Faces paired with \nprosocial vignettes were rated more confident (β = .419, SE = .017, t(26813) = 24.126, \np < .001) and friendly (β = .557, SE = .019, t(26813) = 29.126, p < .001) than those \npaired with non-moral vignettes, whereas faces paired with antisocial vignettes were \nrated less confident (β = -.201, SE = .017, t(26813) = -11.540, p < .001) and friendly \n(β = -1.026, SE = .019, t(26813) = -53.642, p < .001). \n \nAge-Related Differences \nNext, a linear mixed model examined whether an interaction between moral \ninformation and face age modulated attractiveness judgments, with attractiveness as \nthe dependent variable and vignette type (Prosocial | Antisocial | Non-moral) and face \nage (Younger | Older) as fixed factors. Random intercepts for stimulus and subject \nwere included and, for subject, slopes were allowed to vary according to face age. \nSignificant main effects were detected for vignette type and face age. Relative to non-\nmoral vignettes, younger and older faces were rated more attractive when paired with"
+          },
+          "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+          "registration_evidence_text": "Linear mixed effect models will be used to identify the relationship between each of the dependent variables (i.e., attractiveness, friendliness, confidence) and vignette type (Pro-social | Anti-social | Non-moral). These models examine whether learning moral information influences our judgments of facial beauty. This analysis will allow us to model the variation in the effect of goodness on ratings across items (i.e., faces) and across subjects.\n\nMoreover, linear mixed models will examine how this effect varies by face age, with several dimensions (i.e., attractiveness, friendliness, confidence) treated as dependent variables, face age (Younger | Older) and vignette type (Pro-social | Anti-social | Non-moral) as fixed factors, and with random intercepts for items and subject.",
+          "registration_source_locator": {
+            "attachment_id": 4201,
+            "canonical_url": "https://osf.io/b9faw/",
+            "chunk_id": 4201008,
+            "external_id": "b9faw",
+            "page_end": 1,
+            "page_start": 1,
+            "provider": "osf",
+            "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+            "registration_version_id": 4201,
+            "source_key": "question:q17.question"
+          },
+          "registration_value": {
+            "text": "Linear mixed effect models will be used to identify the relationship between each of the dependent variables (i.e., attractiveness, friendliness, confidence) and vignette type (Pro-social | Anti-social | Non-moral). These models examine whether learning moral information influences our judgments of facial beauty. This analysis will allow us to model the variation in the effect of goodness on ratings across items (i.e., faces) and across subjects.\n\nMoreover, linear mixed models will examine how this effect varies by face age, with several dimensions (i.e., attractiveness, friendliness, confidence) treated as dependent variables, face age (Younger | Older) and vignette type (Pro-social | Anti-social | Non-moral) as fixed factors, and with random intercepts for items and subject."
+          },
+          "registration_version_id": 4201,
+          "review_state": "unreviewed",
+          "run_id": 1,
+          "search_scope": {
+            "expected_section_families": [
+              "methods",
+              "analysis",
+              "results"
+            ],
+            "non_detection_note": "Not located is not proof of non-reporting.",
+            "publication_sources": [
+              {
+                "attachment_id": 42,
+                "checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6"
+              }
+            ],
+            "searched_chunk_ids": [
+              42001,
+              42002,
+              42003,
+              42004,
+              42005,
+              42006,
+              42007,
+              42008,
+              42009,
+              42010,
+              42011,
+              42012,
+              42013,
+              42014,
+              42015,
+              42016,
+              42017,
+              42018,
+              42019,
+              42020,
+              42021,
+              42022,
+              42023,
+              42024,
+              42025,
+              42026,
+              42027,
+              42028,
+              42029,
+              42030,
+              42031,
+              42032,
+              42033,
+              42034,
+              42035,
+              42036,
+              42037,
+              42038
+            ],
+            "sections_searched": [
+              "unknown"
+            ],
+            "study_labels_found": [
+              "study tested",
+              "study examined",
+              "study was",
+              "study materials",
+              "study on",
+              "experiment lasted",
+              "study provides",
+              "study has",
+              "study did",
+              "Study Abroad"
+            ],
+            "study_mapping": "ambiguous",
+            "supplements_searched": false,
+            "whole_article_expanded": true
+          },
+          "timing_status": null,
+          "uncertainty": "Inspect both sources. A surfaced difference may reflect reporting compression, amendments, underspecification, a legitimate deviation, extraction failure, or an incorrect registration match."
+        },
+        {
+          "commitment_id": 420109,
+          "comparison_status": "ambiguous-study-mapping",
+          "explanation": "The registration commitment could not be bounded to one reported study; inspect the study match.",
+          "field_type": "statistical-model",
+          "id": 9,
+          "llm_triage": {
+            "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+            "concerns": [
+              "ambiguous-study-mapping"
+            ],
+            "label": "uncertain",
+            "model_id": "gemini-2.5-flash-lite",
+            "prompt_version": "registration-comparison-triage-v1",
+            "provider_id": "gemini",
+            "rationale": "The registration mentions significance determined with alpha = 0.05 and Benjamini-Hochberg correction for FDR control. The publication evidence provided is a snippet of statistical results (Confidence 5.21 (1.31) 4.59 (1.57) 4.79 (1.31)) which does not include information about statistical model corrections or significance thresholds.",
+            "show_in_triage": true,
+            "stale_reasons": [],
+            "status": "current"
+          },
+          "note": null,
+          "publication_attachment_checksum": null,
+          "publication_attachment_id": null,
+          "publication_evidence_text": null,
+          "publication_source_locator": null,
+          "publication_value": null,
+          "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+          "registration_evidence_text": "Significance will be determined with an alpha = 0.05, with Benjamini-Hochberg correction to control the false discovery rate.",
+          "registration_source_locator": {
+            "attachment_id": 4201,
+            "canonical_url": "https://osf.io/b9faw/",
+            "chunk_id": 4201009,
+            "external_id": "b9faw",
+            "page_end": 1,
+            "page_start": 1,
+            "provider": "osf",
+            "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+            "registration_version_id": 4201,
+            "source_key": "question:q19"
+          },
+          "registration_value": {
+            "text": "Significance will be determined with an alpha = 0.05, with Benjamini-Hochberg correction to control the false discovery rate."
+          },
+          "registration_version_id": 4201,
+          "review_state": "unreviewed",
+          "run_id": 1,
+          "search_scope": {
+            "expected_section_families": [
+              "methods",
+              "analysis",
+              "results"
+            ],
+            "non_detection_note": "Not located is not proof of non-reporting.",
+            "publication_sources": [
+              {
+                "attachment_id": 42,
+                "checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6"
+              }
+            ],
+            "searched_chunk_ids": [
+              42001,
+              42002,
+              42003,
+              42004,
+              42005,
+              42006,
+              42007,
+              42008,
+              42009,
+              42010,
+              42011,
+              42012,
+              42013,
+              42014,
+              42015,
+              42016,
+              42017,
+              42018,
+              42019,
+              42020,
+              42021,
+              42022,
+              42023,
+              42024,
+              42025,
+              42026,
+              42027,
+              42028,
+              42029,
+              42030,
+              42031,
+              42032,
+              42033,
+              42034,
+              42035,
+              42036,
+              42037,
+              42038
+            ],
+            "sections_searched": [
+              "unknown"
+            ],
+            "study_labels_found": [
+              "study tested",
+              "study examined",
+              "study was",
+              "study materials",
+              "study on",
+              "experiment lasted",
+              "study provides",
+              "study has",
+              "study did",
+              "Study Abroad"
+            ],
+            "study_mapping": "ambiguous",
+            "supplements_searched": false,
+            "whole_article_expanded": true
+          },
+          "timing_status": null,
+          "uncertainty": "Inspect both sources. A surfaced difference may reflect reporting compression, amendments, underspecification, a legitimate deviation, extraction failure, or an incorrect registration match."
+        },
+        {
+          "commitment_id": 420110,
+          "comparison_status": "ambiguous-study-mapping",
+          "explanation": "The registration commitment could not be bounded to one reported study; inspect the study match.",
+          "field_type": "statistical-model",
+          "id": 10,
+          "llm_triage": {
+            "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+            "concerns": [
+              "ambiguous-study-mapping"
+            ],
+            "label": "uncertain",
+            "model_id": "gemini-2.5-flash-lite",
+            "prompt_version": "registration-comparison-triage-v1",
+            "provider_id": "gemini",
+            "rationale": "The registration details MTurk sample restrictions (US-based, 18+, high approval ratings, not participated in previous study) and exclusion for failing more than 2 out of 3 attention checks. The publication describes recruiting from MTurk, and then details exclusions for extreme values, poor quality responses, failing attentional catch trials, missing data, and choosing not to report sex, but the specific number of attention checks or criteria for prior study participation are not directly stated as in the registration.",
+            "show_in_triage": true,
+            "stale_reasons": [],
+            "status": "current"
+          },
+          "note": null,
+          "publication_attachment_checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6",
+          "publication_attachment_id": 42,
+          "publication_evidence_text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n4\nMethods \nParticipants \nA total of 442 participants were recruited via Amazon’s Mechanical Turk service to \ncomplete an online survey administered through the Qualtrics platform (249 male; \nage: 38.11 ± 10.05 years; education: 14.91 ± 2.50 years). Using effect sizes computed \nfrom data reported in Paunonen (2006), a minimum sample of n = 322 participants \nwas expected to provide sufficient power (80%) to detect the effects of interest. Data \nwere excluded from 64 participants: 10 due to extreme values for duration (e.g., a \nduration 22.07 hours) identified with outlier analysis in SPSS (Curran, 2016), 4 for \nreporting that their responses were of poor quality, 14 for failing more than two of \nfive attentional catch trials, 1 for missing data, and 35 for choosing not to report their \nsex that gender of participant was reported to play a role in perceived facial \nattractiveness (He et al, 2021). The final sample consisted of n = 378 participants \n(age: 38.31 ± 10.06 years; range: 21-72 years; education: 14.96 ± 2.27 years; \nrace/ethnicity: 319 white, 31 black, 12 Asian, 15 Hispanic or Latinx, 1 American-\nIndian/Alaskan-Native; sexual orientation: 321 heterosexual, 14 homosexual, 40 \nbisexual, and 3 other). There were 235 men (age: 37.64 ± 10.06 years; range: 23-72 \nyears; education: 15.05 ± 2.14 years) and 143 women (age: 39.41 ± 9.98 years; rang: \n21-70 years; education: 14.81 ± 2.46 years). Participants were compensated ($4) for \ntheir time and participation in the study. This study was approved by the Institutional \nReview Board at the University of Pennsylvania. The study—including the sample \nsize rationale—was pre-registered (https://doi.org/10.17605/OSF.IO/B9FAW) and the \ncorresponding study materials, code, and data are available from: https://osf.io/aeygb/. \n \nMaterials \nFace Stimuli \nThe stimuli comprised 12 pairs of images, with each pair depicting the same face but \neither younger (age: 20-29 years; attractiveness: 4.53 ± .84) or older (age: 60 years \nand older; attractiveness: 3.20 ± .46) in appearance. These face images were chosen",
+          "publication_source_locator": {
+            "attachment_id": 42,
+            "bbox": null,
+            "chunk_id": 42006,
+            "page_end": 6,
+            "page_start": 6,
+            "search_phase": "whole-article",
+            "section": "full text",
+            "section_family": "unknown"
+          },
+          "publication_value": {
+            "text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n4\nMethods \nParticipants \nA total of 442 participants were recruited via Amazon’s Mechanical Turk service to \ncomplete an online survey administered through the Qualtrics platform (249 male; \nage: 38.11 ± 10.05 years; education: 14.91 ± 2.50 years). Using effect sizes computed \nfrom data reported in Paunonen (2006), a minimum sample of n = 322 participants \nwas expected to provide sufficient power (80%) to detect the effects of interest. Data \nwere excluded from 64 participants: 10 due to extreme values for duration (e.g., a \nduration 22.07 hours) identified with outlier analysis in SPSS (Curran, 2016), 4 for \nreporting that their responses were of poor quality, 14 for failing more than two of \nfive attentional catch trials, 1 for missing data, and 35 for choosing not to report their \nsex that gender of participant was reported to play a role in perceived facial \nattractiveness (He et al, 2021). The final sample consisted of n = 378 participants \n(age: 38.31 ± 10.06 years; range: 21-72 years; education: 14.96 ± 2.27 years; \nrace/ethnicity: 319 white, 31 black, 12 Asian, 15 Hispanic or Latinx, 1 American-\nIndian/Alaskan-Native; sexual orientation: 321 heterosexual, 14 homosexual, 40 \nbisexual, and 3 other). There were 235 men (age: 37.64 ± 10.06 years; range: 23-72 \nyears; education: 15.05 ± 2.14 years) and 143 women (age: 39.41 ± 9.98 years; rang: \n21-70 years; education: 14.81 ± 2.46 years). Participants were compensated ($4) for \ntheir time and participation in the study. This study was approved by the Institutional \nReview Board at the University of Pennsylvania. The study—including the sample \nsize rationale—was pre-registered (https://doi.org/10.17605/OSF.IO/B9FAW) and the \ncorresponding study materials, code, and data are available from: https://osf.io/aeygb/. \n \nMaterials \nFace Stimuli \nThe stimuli comprised 12 pairs of images, with each pair depicting the same face but \neither younger (age: 20-29 years; attractiveness: 4.53 ± .84) or older (age: 60 years \nand older; attractiveness: 3.20 ± .46) in appearance. These face images were chosen"
+          },
+          "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+          "registration_evidence_text": "We will use MTurk’s sample restriction features to ensure participants are: based in the US, aged 18 and older, and have successfully completed several hundred M-Turk jobs with high approval ratings prior to participating in this study. Participant cannot participate if they have participated the previous study (He et al., in prep). Further, we will use an attention check to ensure participants are engaged with the online survey. Participants who fail more than 2 of 3 attention checks embedded throughout the survey will be excluded.",
+          "registration_source_locator": {
+            "attachment_id": 4201,
+            "canonical_url": "https://osf.io/b9faw/",
+            "chunk_id": 4201010,
+            "external_id": "b9faw",
+            "page_end": 1,
+            "page_start": 1,
+            "provider": "osf",
+            "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+            "registration_version_id": 4201,
+            "source_key": "question:q20"
+          },
+          "registration_value": {
+            "text": "We will use MTurk’s sample restriction features to ensure participants are: based in the US, aged 18 and older, and have successfully completed several hundred M-Turk jobs with high approval ratings prior to participating in this study. Participant cannot participate if they have participated the previous study (He et al., in prep). Further, we will use an attention check to ensure participants are engaged with the online survey. Participants who fail more than 2 of 3 attention checks embedded throughout the survey will be excluded."
+          },
+          "registration_version_id": 4201,
+          "review_state": "unreviewed",
+          "run_id": 1,
+          "search_scope": {
+            "expected_section_families": [
+              "methods",
+              "analysis",
+              "results"
+            ],
+            "non_detection_note": "Not located is not proof of non-reporting.",
+            "publication_sources": [
+              {
+                "attachment_id": 42,
+                "checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6"
+              }
+            ],
+            "searched_chunk_ids": [
+              42001,
+              42002,
+              42003,
+              42004,
+              42005,
+              42006,
+              42007,
+              42008,
+              42009,
+              42010,
+              42011,
+              42012,
+              42013,
+              42014,
+              42015,
+              42016,
+              42017,
+              42018,
+              42019,
+              42020,
+              42021,
+              42022,
+              42023,
+              42024,
+              42025,
+              42026,
+              42027,
+              42028,
+              42029,
+              42030,
+              42031,
+              42032,
+              42033,
+              42034,
+              42035,
+              42036,
+              42037,
+              42038
+            ],
+            "sections_searched": [
+              "unknown"
+            ],
+            "study_labels_found": [
+              "study tested",
+              "study examined",
+              "study was",
+              "study materials",
+              "study on",
+              "experiment lasted",
+              "study provides",
+              "study has",
+              "study did",
+              "Study Abroad"
+            ],
+            "study_mapping": "ambiguous",
+            "supplements_searched": false,
+            "whole_article_expanded": true
+          },
+          "timing_status": null,
+          "uncertainty": "Inspect both sources. A surfaced difference may reflect reporting compression, amendments, underspecification, a legitimate deviation, extraction failure, or an incorrect registration match."
+        },
+        {
+          "commitment_id": 420111,
+          "comparison_status": "ambiguous-study-mapping",
+          "explanation": "The registration commitment could not be bounded to one reported study; inspect the study match.",
+          "field_type": "missing-data-procedure",
+          "id": 11,
+          "llm_triage": {
+            "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+            "concerns": [
+              "ambiguous-study-mapping"
+            ],
+            "label": "uncertain",
+            "model_id": "gemini-2.5-flash-lite",
+            "prompt_version": "registration-comparison-triage-v1",
+            "provider_id": "gemini",
+            "rationale": "The registration states the survey design prevents advancing without response and that missing rating data will be excluded from analyses. The publication details participant recruitment and exclusions, including 'one for missing data,' but does not explicitly describe a procedure for handling missing data as described in the registration.",
+            "show_in_triage": true,
+            "stale_reasons": [],
+            "status": "current"
+          },
+          "note": null,
+          "publication_attachment_checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6",
+          "publication_attachment_id": 42,
+          "publication_evidence_text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n4\nMethods \nParticipants \nA total of 442 participants were recruited via Amazon’s Mechanical Turk service to \ncomplete an online survey administered through the Qualtrics platform (249 male; \nage: 38.11 ± 10.05 years; education: 14.91 ± 2.50 years). Using effect sizes computed \nfrom data reported in Paunonen (2006), a minimum sample of n = 322 participants \nwas expected to provide sufficient power (80%) to detect the effects of interest. Data \nwere excluded from 64 participants: 10 due to extreme values for duration (e.g., a \nduration 22.07 hours) identified with outlier analysis in SPSS (Curran, 2016), 4 for \nreporting that their responses were of poor quality, 14 for failing more than two of \nfive attentional catch trials, 1 for missing data, and 35 for choosing not to report their \nsex that gender of participant was reported to play a role in perceived facial \nattractiveness (He et al, 2021). The final sample consisted of n = 378 participants \n(age: 38.31 ± 10.06 years; range: 21-72 years; education: 14.96 ± 2.27 years; \nrace/ethnicity: 319 white, 31 black, 12 Asian, 15 Hispanic or Latinx, 1 American-\nIndian/Alaskan-Native; sexual orientation: 321 heterosexual, 14 homosexual, 40 \nbisexual, and 3 other). There were 235 men (age: 37.64 ± 10.06 years; range: 23-72 \nyears; education: 15.05 ± 2.14 years) and 143 women (age: 39.41 ± 9.98 years; rang: \n21-70 years; education: 14.81 ± 2.46 years). Participants were compensated ($4) for \ntheir time and participation in the study. This study was approved by the Institutional \nReview Board at the University of Pennsylvania. The study—including the sample \nsize rationale—was pre-registered (https://doi.org/10.17605/OSF.IO/B9FAW) and the \ncorresponding study materials, code, and data are available from: https://osf.io/aeygb/. \n \nMaterials \nFace Stimuli \nThe stimuli comprised 12 pairs of images, with each pair depicting the same face but \neither younger (age: 20-29 years; attractiveness: 4.53 ± .84) or older (age: 60 years \nand older; attractiveness: 3.20 ± .46) in appearance. These face images were chosen",
+          "publication_source_locator": {
+            "attachment_id": 42,
+            "bbox": null,
+            "chunk_id": 42006,
+            "page_end": 6,
+            "page_start": 6,
+            "search_phase": "whole-article",
+            "section": "full text",
+            "section_family": "unknown"
+          },
+          "publication_value": {
+            "text": "GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY \n \n4\nMethods \nParticipants \nA total of 442 participants were recruited via Amazon’s Mechanical Turk service to \ncomplete an online survey administered through the Qualtrics platform (249 male; \nage: 38.11 ± 10.05 years; education: 14.91 ± 2.50 years). Using effect sizes computed \nfrom data reported in Paunonen (2006), a minimum sample of n = 322 participants \nwas expected to provide sufficient power (80%) to detect the effects of interest. Data \nwere excluded from 64 participants: 10 due to extreme values for duration (e.g., a \nduration 22.07 hours) identified with outlier analysis in SPSS (Curran, 2016), 4 for \nreporting that their responses were of poor quality, 14 for failing more than two of \nfive attentional catch trials, 1 for missing data, and 35 for choosing not to report their \nsex that gender of participant was reported to play a role in perceived facial \nattractiveness (He et al, 2021). The final sample consisted of n = 378 participants \n(age: 38.31 ± 10.06 years; range: 21-72 years; education: 14.96 ± 2.27 years; \nrace/ethnicity: 319 white, 31 black, 12 Asian, 15 Hispanic or Latinx, 1 American-\nIndian/Alaskan-Native; sexual orientation: 321 heterosexual, 14 homosexual, 40 \nbisexual, and 3 other). There were 235 men (age: 37.64 ± 10.06 years; range: 23-72 \nyears; education: 15.05 ± 2.14 years) and 143 women (age: 39.41 ± 9.98 years; rang: \n21-70 years; education: 14.81 ± 2.46 years). Participants were compensated ($4) for \ntheir time and participation in the study. This study was approved by the Institutional \nReview Board at the University of Pennsylvania. The study—including the sample \nsize rationale—was pre-registered (https://doi.org/10.17605/OSF.IO/B9FAW) and the \ncorresponding study materials, code, and data are available from: https://osf.io/aeygb/. \n \nMaterials \nFace Stimuli \nThe stimuli comprised 12 pairs of images, with each pair depicting the same face but \neither younger (age: 20-29 years; attractiveness: 4.53 ± .84) or older (age: 60 years \nand older; attractiveness: 3.20 ± .46) in appearance. These face images were chosen"
+          },
+          "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+          "registration_evidence_text": "The survey is designed such that participants cannot advance without responding to each question. Participants whose rating data are missing, either through testing error or exclusion, will be excluded from analyses in which these variables are examined.",
+          "registration_source_locator": {
+            "attachment_id": 4201,
+            "canonical_url": "https://osf.io/b9faw/",
+            "chunk_id": 4201011,
+            "external_id": "b9faw",
+            "page_end": 1,
+            "page_start": 1,
+            "provider": "osf",
+            "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+            "registration_version_id": 4201,
+            "source_key": "question:q21"
+          },
+          "registration_value": {
+            "text": "The survey is designed such that participants cannot advance without responding to each question. Participants whose rating data are missing, either through testing error or exclusion, will be excluded from analyses in which these variables are examined."
+          },
+          "registration_version_id": 4201,
+          "review_state": "unreviewed",
+          "run_id": 1,
+          "search_scope": {
+            "expected_section_families": [
+              "methods",
+              "data-preparation",
+              "analysis",
+              "results"
+            ],
+            "non_detection_note": "Not located is not proof of non-reporting.",
+            "publication_sources": [
+              {
+                "attachment_id": 42,
+                "checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6"
+              }
+            ],
+            "searched_chunk_ids": [
+              42001,
+              42002,
+              42003,
+              42004,
+              42005,
+              42006,
+              42007,
+              42008,
+              42009,
+              42010,
+              42011,
+              42012,
+              42013,
+              42014,
+              42015,
+              42016,
+              42017,
+              42018,
+              42019,
+              42020,
+              42021,
+              42022,
+              42023,
+              42024,
+              42025,
+              42026,
+              42027,
+              42028,
+              42029,
+              42030,
+              42031,
+              42032,
+              42033,
+              42034,
+              42035,
+              42036,
+              42037,
+              42038
+            ],
+            "sections_searched": [
+              "unknown"
+            ],
+            "study_labels_found": [
+              "study tested",
+              "study examined",
+              "study was",
+              "study materials",
+              "study on",
+              "experiment lasted",
+              "study provides",
+              "study has",
+              "study did",
+              "Study Abroad"
+            ],
+            "study_mapping": "ambiguous",
+            "supplements_searched": false,
+            "whole_article_expanded": true
+          },
+          "timing_status": null,
+          "uncertainty": "Inspect both sources. A surfaced difference may reflect reporting compression, amendments, underspecification, a legitimate deviation, extraction failure, or an incorrect registration match."
+        },
+        {
+          "commitment_id": 420112,
+          "comparison_status": "ambiguous-study-mapping",
+          "explanation": "The registration commitment could not be bounded to one reported study; inspect the study match.",
+          "field_type": "deviation-amendment-statement",
+          "id": 12,
+          "llm_triage": {
+            "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+            "concerns": [
+              "ambiguous-study-mapping"
+            ],
+            "label": "uncertain",
+            "model_id": "gemini-2.5-flash-lite",
+            "prompt_version": "registration-comparison-triage-v1",
+            "provider_id": "gemini",
+            "rationale": "The registration lists 'Updated response keys' with specific item identifiers. The publication evidence is 'Note. SE = standard error.', which does not appear to relate to response keys or deviations/amendments.",
+            "show_in_triage": true,
+            "stale_reasons": [],
+            "status": "current"
+          },
+          "note": null,
+          "publication_attachment_checksum": null,
+          "publication_attachment_id": null,
+          "publication_evidence_text": null,
+          "publication_source_locator": null,
+          "publication_value": null,
+          "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+          "registration_evidence_text": "Updated response keys: q18, q14.question, q10.uploader, q15.question, q10.question, q20, q23, q6.uploader, q7, q16.question, q17.question, q2, q11, q19, q14.uploader, q5, q12, q3, q16.uploader, q17.uploader, q9, q15.uploader, q22, q4, q21, q13, q8, q6.question",
+          "registration_source_locator": {
+            "attachment_id": 4201,
+            "canonical_url": "https://osf.io/b9faw/",
+            "chunk_id": 4201012,
+            "external_id": "b9faw",
+            "page_end": null,
+            "page_start": null,
+            "provider": "osf",
+            "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+            "registration_version_id": 4201,
+            "source_key": "registration-metadata:revision"
+          },
+          "registration_value": {
+            "text": "Updated response keys: q18, q14.question, q10.uploader, q15.question, q10.question, q20, q23, q6.uploader, q7, q16.question, q17.question, q2, q11, q19, q14.uploader, q5, q12, q3, q16.uploader, q17.uploader, q9, q15.uploader, q22, q4, q21, q13, q8, q6.question",
+            "updated_response_keys": [
+              "q18",
+              "q14.question",
+              "q10.uploader",
+              "q15.question",
+              "q10.question",
+              "q20",
+              "q23",
+              "q6.uploader",
+              "q7",
+              "q16.question",
+              "q17.question",
+              "q2",
+              "q11",
+              "q19",
+              "q14.uploader",
+              "q5",
+              "q12",
+              "q3",
+              "q16.uploader",
+              "q17.uploader",
+              "q9",
+              "q15.uploader",
+              "q22",
+              "q4",
+              "q21",
+              "q13",
+              "q8",
+              "q6.question"
+            ]
+          },
+          "registration_version_id": 4201,
+          "review_state": "unreviewed",
+          "run_id": 1,
+          "search_scope": {
+            "expected_section_families": [
+              "methods",
+              "analysis",
+              "results",
+              "discussion",
+              "supplement"
+            ],
+            "non_detection_note": "Not located is not proof of non-reporting.",
+            "publication_sources": [
+              {
+                "attachment_id": 42,
+                "checksum": "439fe3b38158f8b80b3e041223c87160efee6c883153a14d3b2fb4935fec09b6"
+              }
+            ],
+            "searched_chunk_ids": [
+              42001,
+              42002,
+              42003,
+              42004,
+              42005,
+              42006,
+              42007,
+              42008,
+              42009,
+              42010,
+              42011,
+              42012,
+              42013,
+              42014,
+              42015,
+              42016,
+              42017,
+              42018,
+              42019,
+              42020,
+              42021,
+              42022,
+              42023,
+              42024,
+              42025,
+              42026,
+              42027,
+              42028,
+              42029,
+              42030,
+              42031,
+              42032,
+              42033,
+              42034,
+              42035,
+              42036,
+              42037,
+              42038
+            ],
+            "sections_searched": [
+              "unknown"
+            ],
+            "study_labels_found": [
+              "study tested",
+              "study examined",
+              "study was",
+              "study materials",
+              "study on",
+              "experiment lasted",
+              "study provides",
+              "study has",
+              "study did",
+              "Study Abroad"
+            ],
+            "study_mapping": "ambiguous",
+            "supplements_searched": false,
+            "whole_article_expanded": true
+          },
+          "timing_status": null,
+          "uncertainty": "Inspect both sources. A surfaced difference may reflect reporting compression, amendments, underspecification, a legitimate deviation, extraction failure, or an incorrect registration match."
+        }
+      ],
+      "stale_reasons": [],
+      "status": "completed",
+      "supplement_source": [],
+      "unreviewed_count": 12
+    }
+  },
+  "registration_comparison_runs": {
+    "42": [
+      {
+        "commitment_extraction_version": "registration-commitments-v1",
+        "comparison_version": "registration-crosswalk-v1",
+        "completed_at": "2026-08-13T19:03:52.183885",
+        "configuration": {
+          "expand_beyond_expected_sections": true,
+          "include_supplements": false,
+          "top_k": 3,
+          "version_id": 4201
+        },
+        "created_at": "2026-08-13T19:03:52",
+        "id": 1,
+        "link_id": 4201,
+        "model_versions": {
+          "embedding": {
+            "name": "all-MiniLM-L6-v2",
+            "version": "all-MiniLM-L6-v2"
+          },
+          "llm_triage": {
+            "model_id": "gemini-2.5-flash-lite",
+            "prompt_version": "registration-comparison-triage-v1",
+            "provider_id": "gemini"
+          }
+        },
+        "paper_id": 42,
+        "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "registration_version_id": 4201,
+        "retrieval_version": "registration-publication-retrieval-v1",
+        "row_count": 12,
+        "stale_reasons": [],
+        "status": "completed",
+        "unreviewed_count": 12
+      }
+    ],
+    "67": [],
+    "88": []
+  },
+  "registration_license_audits": [
+    {
+      "bundled_full_registration": false,
+      "canonical_url": "https://osf.io/b9faw/",
+      "external_id": "b9faw",
+      "license_name": "No explicit reuse license recorded",
+      "notice": "The complete registration is not bundled. The demo stores public metadata and the 12 bounded commitment excerpts used by the saved comparison; the canonical OSF record remains the authoritative source.",
+      "provider": "OSF",
+      "redistribution": "metadata-and-bounded-evidence-only",
+      "verified_on": "2026-08-13",
+      "verified_via": "OSF registration metadata and DataCite linkage"
+    }
+  ],
+  "registration_links": {
+    "42": [
+      {
+        "attachment_id": 4201,
+        "canonical_url": "https://osf.io/b9faw/",
+        "contributors": [
+          "Xianyou He",
+          "Chatterjee, Anjan",
+          "He, Dexian",
+          "Workman, Clifford Ian"
+        ],
+        "external_id": "b9faw",
+        "id": 4201,
+        "link_status": "confirmed",
+        "linkage_class": "explicit-linkage",
+        "linkage_label": "Explicitly linked",
+        "match_evidence": [
+          {
+            "doi": "10.1037/aca0000454",
+            "kind": "datacite-related-identifier",
+            "relation_type": "References"
+          }
+        ],
+        "match_method": "datacite-related-identifier",
+        "paper_id": 42,
+        "provider": "osf",
+        "registered_at": "2020-09-19T16:47:56.097453",
+        "registration_doi": "10.17605/osf.io/b9faw",
+        "registration_status": "public",
+        "schema_name": "OSF Preregistration",
+        "source_metadata": {
+          "public_fixture": "bounded-commitments-only"
+        },
+        "title": "What is good is beautiful: perceived moral cues influence facial beauty judgments",
+        "user_confirmed": true
+      }
+    ],
+    "67": [],
+    "88": []
+  },
+  "registration_versions": {
+    "42": [
+      {
+        "attachment_id": 4201,
+        "canonical_url": "https://osf.io/b9faw/",
+        "content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "external_id": "b9faw",
+        "id": 4201,
+        "link_id": 4201,
+        "paper_id": 42,
+        "provider": "osf",
+        "registered_at": "2020-09-19T16:47:56.097453",
+        "registration_status": "public",
+        "retrieved_at": "2026-08-13T00:00:00",
+        "schema_name": "OSF Preregistration",
+        "schema_version": "3"
+      }
+    ],
+    "67": [],
+    "88": []
+  }
+}

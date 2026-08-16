@@ -143,11 +143,12 @@ function LmmPaper({ paperId, onOpenPaper, active }) {
   return (
     <div className="detail-statcheck">
       <span className="detail-cite-label">{meta ? meta.title : "This paper"}</span>
+      <DemoMethodAction label="Audit reporting" />
       {!meta
         ? <span className="tag-suggest-empty">loading…</span>
         : !hasText
           ? <span className="tag-suggest-empty">Process a PDF first — the auditor reads the paper's extracted text.</span>
-          : state.status === "idle"
+          : state.status === "idle" && !isDemoMode()
             ? <button className="btn-link" title="Audit this paper's mixed-model reporting — local, no AI" onClick={run}>Audit reporting</button>
             : null}
       {state.status === "running" && <span className="tag-suggest-empty">auditing…</span>}
@@ -182,10 +183,12 @@ function LmmLibrary({ onShowFlagged, onRan }) {
     <div className="statcheck-lib">
       <div className="settings-sub">Audit mixed-model reporting completeness across your whole library — local, no AI. Papers with an incomplete checklist appear below, filterable from the library header.</div>
       <div className="settings-actions">
-        <button className="btn btn-primary" disabled={run.status === "running"} onClick={start}>
+        <button className="btn btn-primary" disabled={run.status === "running" || isDemoMode()} onClick={start}
+          title={isDemoMode() ? "Library-wide computation is unavailable in the static online demo." : undefined}>
           {run.status === "running" ? "Auditing…" : "Audit all papers"}
         </button>
       </div>
+      {isDemoMode() && <div className="settings-note">This saved library snapshot is fully inspectable. Running the mixed-model audit requires the local Callosum application.</div>}
       {run.status === "running" && <ProgressBar label="Auditing mixed-model reporting…" />}
       {run.status === "error" && <div className="settings-note settings-note-err">Audit failed: {run.error}</div>}
       {run.status === "done" && s &&
@@ -274,7 +277,7 @@ function LmmSection({ ctx, active }) {
 registerPaneTab(
   { id: "checklists", label: "Checklists", paneId: "methods", order: 40 },
   {
-    id: "lmm", label: "Mixed-model reporting", order: 20, hideInReadOnly: true,
+    id: "lmm", label: "Mixed-model reporting", order: 20, hideInReadOnly: true, demoInspectable: true,
     render: (ctx, active) => <LmmSection ctx={ctx} active={active} />,
   },
 );

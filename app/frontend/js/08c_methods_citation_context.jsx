@@ -62,8 +62,14 @@ function CitationContextPaper({ paperId, direction }) {
     if (paperId == null) return;
     let live = true;
     api(`/papers/${paperId}`).then(r => { if (live && r.ok) setMeta({ title: r.data.title, hasDoi: !!r.data.doi }); });
+    if (isDemoMode()) {
+      const savedDirection = direction === "references" ? "outgoing" : "incoming";
+      api(`/demo/saved-artifacts/citation-context/${paperId}/${savedDirection}`).then(r => {
+        if (live && r.ok && r.data) setState({ status: "done", report: r.data });
+      });
+    }
     return () => { live = false; };
-  }, [paperId]);
+  }, [paperId, direction]);
   const D = direction === "references"
     ? { noun: "references", verb: "Fetch references",
         intro: <>How <b>{meta ? meta.title : "this paper"}</b> cites its own sources — does it <b>support</b>, <b>contrast</b>, or just <b>mention</b> each? A labeled signal to read, never a verdict.</>,
@@ -91,11 +97,11 @@ function CitationContextPaper({ paperId, direction }) {
       <div className="meta-ref-action-row">
         <div className="meta-ref-action-copy">
           <div className="cite-equity-intro">{D.intro}</div>
-          {meta && meta.hasDoi && state.status === "idle" &&
+          {meta && meta.hasDoi && state.status === "idle" && !isDemoMode() &&
             <div className="cite-equity-egress-note">Running sends this paper's DOI to Semantic Scholar (public metadata) and classifies the returned sentences on your machine — your library text never leaves.</div>}
         </div>
         <div className="meta-ref-action-slot">
-          {meta && meta.hasDoi && state.status === "idle" &&
+          {meta && meta.hasDoi && state.status === "idle" && !isDemoMode() &&
             <button className="btn btn-primary" onClick={run}
               title="Fetch the citing sentences from Semantic Scholar (public metadata) and classify each stance locally">
               {D.verb}

@@ -74,7 +74,7 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
       let res;
       try {
         // #5: explicit attachmentId opens that file instead of the paper's primary.
-        res = await fetch(API_BASE + `/papers/${paperId}/pdf` + (target?.attachmentId != null ? `?attachment_id=${target.attachmentId}` : ""), { headers: { "Accept": "application/pdf" } });
+        res = await callosumFetch(API_BASE + `/papers/${paperId}/pdf` + (target?.attachmentId != null ? `?attachment_id=${target.attachmentId}` : ""), { headers: { "Accept": "application/pdf" } });
       } catch (e) {
         if (!cancelled) setState({ status: "error", error: `Could not reach the ${API_LABEL}. Is uvicorn running?` });
         return;
@@ -290,64 +290,9 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
   }, []);
   usePinchZoom({ scrollRef, pagesRef, scaleRef, active: !!mobile && state.status === "ready", onCommit: commitZoom });
 
-  // On text selection, map the selection's per-line client rects into the
-  // increment-29 coordinate basis (page-relative PDF points) and offer a color.
-  const onPagesMouseUp = useCallback(() => {
-    const host = pagesRef.current;
-    if (!host) return;
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || sel.rangeCount === 0) { setPicker(null); return; }
-    const range = sel.getRangeAt(0);
-    const startEl = range.startContainer.nodeType === 3 ? range.startContainer.parentElement : range.startContainer;
-    const pageWrap = startEl && startEl.closest ? startEl.closest(".pdf-page-wrap") : null;
-    if (!pageWrap || !host.contains(pageWrap)) { setPicker(null); return; }
-    const textLayer = pageWrap.querySelector(".textLayer");
-    if (!textLayer || !textLayer.contains(range.startContainer)) { setPicker(null); return; }
-    const anchorText = sel.toString().trim();
-    if (!anchorText) { setPicker(null); return; }
-
-    const pageNum = Number(pageWrap.dataset.page);
-    const sourceWidth = Number(pageWrap.dataset.sourceWidth);
-    const sourceHeight = Number(pageWrap.dataset.sourceHeight);
-    const wrapRect = pageWrap.getBoundingClientRect();
-    if (!(wrapRect.width > 0 && wrapRect.height > 0 && sourceWidth > 0 && sourceHeight > 0)) { setPicker(null); return; }
-    // points-per-displayed-px (robust to CSS down-scaling, not just `scale`).
-    const sx = sourceWidth / wrapRect.width;
-    const sy = sourceHeight / wrapRect.height;
-
-    const bboxes = [];
-    const clientRects = Array.from(range.getClientRects());
-    clientRects.forEach(r => {
-      if (r.width < 1 || r.height < 1) return;
-      const x0 = (r.left - wrapRect.left) * sx;
-      const y0 = (r.top - wrapRect.top) * sy;
-      const x1 = (r.right - wrapRect.left) * sx;
-      const y1 = (r.bottom - wrapRect.top) * sy;
-      if (x1 <= x0 || y1 <= y0) return;
-      bboxes.push({ page: pageNum, x0, y0, x1, y1 });
-    });
-    if (bboxes.length === 0) { setPicker(null); return; }
-
-    // inc 255 (workbench SP2a-2): if a cell has armed "select in PDF", capture THIS selection as the cell's exact
-    // anchor — its verbatim text (the value the human vets + edits) + a single union bbox — and skip the highlight
-    // picker entirely. Nothing is parsed or inferred; the coordinate is a real drawn rectangle → exact precision.
-    const armed = armedRef.current;
-    if (armed) {
-      armed.cb({ page: pageNum, bbox: wbUnionRect(bboxes), quote: anchorText });
-      const sel2 = window.getSelection();
-      if (sel2) sel2.removeAllRanges();
-      setPicker(null);
-      return;
-    }
-
-    const ctx = selectionContext(textLayer, range);
-    const last = clientRects[clientRects.length - 1];
-    setPicker({
-      left: Math.max(8, Math.min(window.innerWidth - 190, last.left)),
-      top: Math.max(8, Math.min(window.innerHeight - 44, last.bottom + 6)),
-      page: pageNum, bboxes, anchorText, prefix: ctx.prefix, suffix: ctx.suffix,
-    });
-  }, []);
+  // On text selection, map the selection's per-line client rects into the increment-29 coordinate basis
+  // (page-relative PDF points) and offer a color. Extracted to 30g_pdf_selection.jsx (rule #1).
+  const onPagesMouseUp = usePagesMouseUpHandler({ pagesRef, armedRef, setPicker });
 
   // B5 (inc 240): on a phone, a long-press text selection has no mouseup — surface the same picker via
   // selectionchange (usePinchZoom's chunk). onPagesMouseUp is stable (deps []), so the listener never re-attaches.
@@ -355,6 +300,13 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
 
   const createHighlight = useCallback(async (color) => {
     if (!picker) return;
+    if (isDemoMode()) {
+      setPicker(null);
+      const sel = window.getSelection();
+      if (sel) sel.removeAllRanges();
+      explainDemoLock("This demo includes a genuine saved highlight and note to inspect. Creating new annotations requires your persistent local Callosum library.", `/papers/${paperId}/annotations`);
+      return;
+    }
     const body = {
       page: picker.page,
       color,
@@ -388,6 +340,13 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
   // the note editor on it so the user can type a comment + adjust the color.
   const createHighlightWithNote = useCallback(async () => {
     if (!picker) return;
+    if (isDemoMode()) {
+      setPicker(null);
+      const sel = window.getSelection();
+      if (sel) sel.removeAllRanges();
+      explainDemoLock("This demo includes a genuine saved highlight and note to inspect. Creating new annotations requires your persistent local Callosum library.", `/papers/${paperId}/annotations`);
+      return;
+    }
     const pos = { left: picker.left, top: picker.top };
     const body = {
       page: picker.page,
@@ -437,6 +396,11 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
 
   const saveEdit = useCallback(async () => {
     if (!editor) return;
+    if (isDemoMode()) {
+      setEditor(null);
+      explainDemoLock("The saved demo note is inspectable but immutable. Editing annotations requires your persistent local Callosum library.", `/annotations/${editor.id}`);
+      return;
+    }
     const { id, note, color } = editor;
     setEditor(null);
     const r = await apiPatch(`/annotations/${id}`, { note: note && note.trim() ? note : null, color });
@@ -446,6 +410,10 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
 
   const deleteAnnotation = useCallback(async (id) => {
     setEditor(null);
+    if (isDemoMode()) {
+      explainDemoLock("The saved demo note is inspectable but immutable. Deleting annotations requires your persistent local Callosum library.", `/annotations/${id}`);
+      return;
+    }
     const r = await apiDelete(`/annotations/${id}`);
     if (r.ok) setAnnotations(prev => prev.filter(a => a.id !== id));
     else flashNotice("Couldn't delete highlight — " + (r.error || "unknown error"));
@@ -597,4 +565,5 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
 }
 
 // MinimapTrack + usePinchZoom were extracted to 30f_pdf_gestures.jsx (inc 239, rule #1). LibraryFrame (the center
-// tab shell) lives in 30c_frame.jsx (inc 182). PdfViewer (above) references all three via the shared IIFE scope.
+// tab shell) lives in 30c_frame.jsx (inc 182). usePagesMouseUpHandler lives in 30g_pdf_selection.jsx (rule #1).
+// PdfViewer (above) references all four via the shared IIFE scope.

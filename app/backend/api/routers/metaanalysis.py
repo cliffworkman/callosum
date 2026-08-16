@@ -54,12 +54,15 @@ class MetaResponse(BaseModel):
     checks: list[MetaCheckOut]
 
 
-@router.get("/papers/{paper_id}/meta-analysis", response_model=MetaResponse)
-def paper_meta_analysis(paper_id: int, request: Request, conn: Connection = Depends(get_connection)) -> MetaResponse:
-    try:
-        get_paper(conn, paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
+def build_meta_analysis_response(
+    conn: Connection, paper_id: int, *, validate_paper: bool = True
+) -> tuple[MetaResponse, Any]:
+    """Build the exact public response without persisting derived library signals."""
+    if validate_paper:
+        try:
+            get_paper(conn, paper_id)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="Paper not found") from None
     chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES)
     pdf_attachment_ids = pdf_attachment_ids_for_chunks(conn, chunks)
     report = audit_meta_analysis(chunks)
@@ -80,6 +83,12 @@ def paper_meta_analysis(paper_id: int, request: Request, conn: Connection = Depe
             for c in report.checks
         ],
     )
+    return response, report
+
+
+@router.get("/papers/{paper_id}/meta-analysis", response_model=MetaResponse)
+def paper_meta_analysis(paper_id: int, request: Request, conn: Connection = Depends(get_connection)) -> MetaResponse:
+    response, report = build_meta_analysis_response(conn, paper_id)
     run_write(request.app.state.engine, lambda c: apply_meta_analysis(c, paper_id, report))
     return response
 

@@ -43,6 +43,8 @@ jobs:
         run: uv run pytest -n auto -q
       - name: QA surface-coverage check (report-only until the route suite is green; inc 120)
         run: uv run python tools/qa/build_surface_map.py check || true
+      - name: Website/showcase coverage drift check
+        run: uv run python tools/qa/check_website_coverage.py
 
   e2e-smoke:
     runs-on: ubuntu-latest

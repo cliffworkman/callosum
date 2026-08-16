@@ -378,6 +378,30 @@ function SettingsCard({ title, children, id }) {
   );
 }
 
+// The browser demo cannot execute editor, terminal, agent, or first-run shells. Keep those interfaces
+// inspectable without pretending that a static page can install or connect them.
+function DemoExternalInterfaces() {
+  if (!isDemoMode()) return null;
+  return (
+    <SettingsCard title="Other interfaces & first run">
+      <div className="settings-sections-grid settings-sections-grid-3">
+        <div className="settings-section">
+          <p className="eyebrow">First-run onboarding</p>
+          <span className="settings-sub">The installed app starts with a guided choice: import an existing Zotero library, scan a PDF folder, or begin with an empty local library. This public demo skips setup and opens the curated Library so no visitor is stranded before the evidence workflow.</span>
+        </div>
+        <div className="settings-section">
+          <p className="eyebrow">Terminal client</p>
+          <span className="settings-sub"><code>python -m tui</code> provides keyboard-first access to the same local API in the installed app. It cannot run in a browser-only static site.</span>
+        </div>
+        <div className="settings-section">
+          <p className="eyebrow">MCP agent interface</p>
+          <span className="settings-sub">The local MCP server exposes five read tools. Four write tools appear only after the explicit agent-write gate is enabled; every agent change is labeled, logged, and reversible. The public demo exposes no agent endpoint.</span>
+        </div>
+      </div>
+    </SettingsCard>
+  );
+}
+
 // inc 280 (stage 3): the Settings center view (the menu-bar "Settings" utility workspace) — formerly a modal.
 // Desktop-shell only (updater.rs) — a plain browser tab / the remote-access tunnel has no Tauri
 // bridge, so this renders nothing rather than a dead button. The live `desktopUpdate` state (shared
@@ -509,6 +533,8 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
         <SettingsCard title="Your usage">
           <UsageSettings />
         </SettingsCard>
+
+        <DemoExternalInterfaces />
 
       </div>
     </div>

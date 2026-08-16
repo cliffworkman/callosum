@@ -1,0 +1,292 @@
+{
+  "annotations": [
+    {
+      "basis_matches_demo": false,
+      "demo_basis_sha256": "cd889ff118004b498a4690c231d86554ac36d693bb95d65dc5b2794ca8c5dbf3",
+      "field_occurrence": 0,
+      "field_type": "study-identity",
+      "llm_triage": {
+        "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+        "concerns": [
+          "ambiguous-study-mapping"
+        ],
+        "label": "uncertain",
+        "model_id": "gemini-2.5-flash-lite",
+        "prompt_version": "registration-comparison-triage-v1",
+        "provider_id": "gemini",
+        "rationale": "The study identity in the registration \"What is good is beautiful: perceived moral cues influence facial beauty judgments\" is not clearly mapped to the publication evidence. The publication discusses \"good is beautiful\" stereotype in the context of attractiveness stereotyping but doesn't explicitly identify this as the study title.",
+        "show_in_triage": true,
+        "stale_reasons": [],
+        "status": "current"
+      },
+      "ordinal": 0,
+      "source_basis_sha256": "8e311dda2945521de145fbd58a92295b33075529bd7d7d9b16f70002c8dbc62c"
+    },
+    {
+      "basis_matches_demo": false,
+      "demo_basis_sha256": "beb4d353890b3a4f412fc3394b52007e185e67857ec2443b427d99a18cf337bf",
+      "field_occurrence": 0,
+      "field_type": "registration-timing",
+      "llm_triage": {
+        "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+        "concerns": [
+          "ambiguous-study-mapping"
+        ],
+        "label": "uncertain",
+        "model_id": "gemini-2.5-flash-lite",
+        "prompt_version": "registration-comparison-triage-v1",
+        "provider_id": "gemini",
+        "rationale": "The registration timing (2020-09-19T16:47:56.097453) is a precise timestamp, while the publication evidence provides manuscript submission, revision, and acceptance dates (April 19, 2021; September 17, 2021; October 5, 2021). There's no clear correspondence.",
+        "show_in_triage": true,
+        "stale_reasons": [],
+        "status": "current"
+      },
+      "ordinal": 1,
+      "source_basis_sha256": "1e08e6d9dce0b122f6c328bb13cbc78412de8767df98d8fa22d70828959ebf87"
+    },
+    {
+      "basis_matches_demo": false,
+      "demo_basis_sha256": "e43db9c33d4c67f63471029762d9912397fe70b6781bff4181a69a906070dedd",
+      "field_occurrence": 0,
+      "field_type": "hypothesis",
+      "llm_triage": {
+        "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+        "concerns": [
+          "ambiguous-study-mapping"
+        ],
+        "label": "uncertain",
+        "model_id": "gemini-2.5-flash-lite",
+        "prompt_version": "registration-comparison-triage-v1",
+        "provider_id": "gemini",
+        "rationale": "The registration hypothesis details testing the 'good is beautiful' effect and its variation by face age, predicting specific influences of moral transgressions and goodness on attractiveness. The publication evidence discusses the 'good is beautiful' stereotype and its application to younger faces, noting unexplored interactions with aging, but does not explicitly state the hypotheses tested.",
+        "show_in_triage": true,
+        "stale_reasons": [],
+        "status": "current"
+      },
+      "ordinal": 2,
+      "source_basis_sha256": "e8d895d0d32b43e91284635fb6cc3d24211a4954368bed04d38df60431554cf2"
+    },
+    {
+      "basis_matches_demo": false,
+      "demo_basis_sha256": "3fcdafe26f3f21add9e5964f42dd61e40dace9d809fb05a8bf224be6e531af28",
+      "field_occurrence": 0,
+      "field_type": "blinding",
+      "llm_triage": {
+        "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+        "concerns": [
+          "ambiguous-study-mapping"
+        ],
+        "label": "uncertain",
+        "model_id": "gemini-2.5-flash-lite",
+        "prompt_version": "registration-comparison-triage-v1",
+        "provider_id": "gemini",
+        "rationale": "The registration states 'No blinding is involved in this study.' The publication describes participant recruitment, exclusion criteria, and sample characteristics but does not mention blinding procedures.",
+        "show_in_triage": true,
+        "stale_reasons": [],
+        "status": "current"
+      },
+      "ordinal": 3,
+      "source_basis_sha256": "ed8903e43928b05a7a1fb6b1cfad45153e0c4d97c5618aed70bac115522a0896"
+    },
+    {
+      "basis_matches_demo": false,
+      "demo_basis_sha256": "fb7db276e40b296e7e4bcaa3a39060c6a36e4cbcc84fac0931e123d2777d377e",
+      "field_occurrence": 0,
+      "field_type": "design",
+      "llm_triage": {
+        "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+        "concerns": [
+          "ambiguous-study-mapping"
+        ],
+        "label": "uncertain",
+        "model_id": "gemini-2.5-flash-lite",
+        "prompt_version": "registration-comparison-triage-v1",
+        "provider_id": "gemini",
+        "rationale": "The registration describes an online experiment via Qualtrics with MTurk recruitment, presenting vignettes and faces, and rating scales for attractiveness, friendliness, and confidence, followed by dispositional measures and a socio-demographic questionnaire. The publication details a face rating task with similar stimuli and rating scales, followed by self-report measures, but the full design is not explicitly matched.",
+        "show_in_triage": true,
+        "stale_reasons": [],
+        "status": "current"
+      },
+      "ordinal": 4,
+      "source_basis_sha256": "438623dad52fdd7e862a8f2f6ad692cfcecc49f9dc319776377f8bb1400eefe2"
+    },
+    {
+      "basis_matches_demo": false,
+      "demo_basis_sha256": "3987cd696708222bfb353cb340c93639c356b829c7b43fa77b8f6a1354f60ea7",
+      "field_occurrence": 0,
+      "field_type": "sample-size-target",
+      "llm_triage": {
+        "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+        "concerns": [
+          "ambiguous-study-mapping"
+        ],
+        "label": "uncertain",
+        "model_id": "gemini-2.5-flash-lite",
+        "prompt_version": "registration-comparison-triage-v1",
+        "provider_id": "gemini",
+        "rationale": "The registration targets N = 360 participants. The publication mentions an 'independent sample of n = 27 participants' in one sentence, but the context is unclear and potentially refers to a different part of the study or a previous one, as it is followed by the main study's recruitment and exclusion details.",
+        "show_in_triage": true,
+        "stale_reasons": [],
+        "status": "current"
+      },
+      "ordinal": 5,
+      "source_basis_sha256": "3654d1ec96b5dcf044559837f58678d367e994c02838435b4830c1f9edbdbf59"
+    },
+    {
+      "basis_matches_demo": false,
+      "demo_basis_sha256": "1b0e8305361b538b2e98318a4db77ff938f87705564971be80337f9314e3d3ef",
+      "field_occurrence": 1,
+      "field_type": "sample-size-target",
+      "llm_triage": {
+        "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+        "concerns": [
+          "ambiguous-study-mapping"
+        ],
+        "label": "uncertain",
+        "model_id": "gemini-2.5-flash-lite",
+        "prompt_version": "registration-comparison-triage-v1",
+        "provider_id": "gemini",
+        "rationale": "The registration states the sample size of N=322 was determined by a power analysis (f=0.157, α=0.05, 1–β=0.8) based on Paunonen (2006), with a recruitment target of N=360 to account for exclusions. The publication mentions recruiting 442 participants, with a minimum required sample of n=322 for power, and details exclusions leading to a final sample size not yet stated.",
+        "show_in_triage": true,
+        "stale_reasons": [],
+        "status": "current"
+      },
+      "ordinal": 6,
+      "source_basis_sha256": "b10afc4bf814dd02ba7f3940265dd0a2401fb530cd6e0b8b569a271dc21df851"
+    },
+    {
+      "basis_matches_demo": false,
+      "demo_basis_sha256": "e78a2f2dfc42ad57ea519f8d7e98ec826da1826417b0642352196ff52b94a1b4",
+      "field_occurrence": 0,
+      "field_type": "statistical-model",
+      "llm_triage": {
+        "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+        "concerns": [
+          "ambiguous-study-mapping"
+        ],
+        "label": "uncertain",
+        "model_id": "gemini-2.5-flash-lite",
+        "prompt_version": "registration-comparison-triage-v1",
+        "provider_id": "gemini",
+        "rationale": "The registration specifies linear mixed effect models to examine the relationship between dependent variables (attractiveness, friendliness, confidence) and vignette type, considering face age and random intercepts for items and subjects. The publication states linear mixed-effects analyses were carried out using the lme4 package to examine perceived moral character's influence on judgments, and how this varies by face age, perceiver sex, and face sex, with exploratory analyses on moral disgust and empathic concern. It also mentions using Satterthwaite’s approximation for p-values.",
+        "show_in_triage": true,
+        "stale_reasons": [],
+        "status": "current"
+      },
+      "ordinal": 7,
+      "source_basis_sha256": "ef4cf726d489c9541b9f90a4c9ac5e9b66651d02f2726d6dc49c4a8d53ae38bc"
+    },
+    {
+      "basis_matches_demo": false,
+      "demo_basis_sha256": "7943dd1f801a59e924353dac0926f4121242b6d590094b2c733f1aea09bdace6",
+      "field_occurrence": 1,
+      "field_type": "statistical-model",
+      "llm_triage": {
+        "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+        "concerns": [
+          "ambiguous-study-mapping"
+        ],
+        "label": "uncertain",
+        "model_id": "gemini-2.5-flash-lite",
+        "prompt_version": "registration-comparison-triage-v1",
+        "provider_id": "gemini",
+        "rationale": "The registration mentions significance determined with alpha = 0.05 and Benjamini-Hochberg correction for FDR control. The publication evidence provided is a snippet of statistical results (Confidence 5.21 (1.31) 4.59 (1.57) 4.79 (1.31)) which does not include information about statistical model corrections or significance thresholds.",
+        "show_in_triage": true,
+        "stale_reasons": [],
+        "status": "current"
+      },
+      "ordinal": 8,
+      "source_basis_sha256": "3e6c8d063996a86711463fe493d00da12e94ad22588885723b6d2d3e9dae0fc1"
+    },
+    {
+      "basis_matches_demo": false,
+      "demo_basis_sha256": "6ea2001ec77873d1738bacc12f6294598a4a6f56daf06efab0de7b0bc3c09f1c",
+      "field_occurrence": 2,
+      "field_type": "statistical-model",
+      "llm_triage": {
+        "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+        "concerns": [
+          "ambiguous-study-mapping"
+        ],
+        "label": "uncertain",
+        "model_id": "gemini-2.5-flash-lite",
+        "prompt_version": "registration-comparison-triage-v1",
+        "provider_id": "gemini",
+        "rationale": "The registration details MTurk sample restrictions (US-based, 18+, high approval ratings, not participated in previous study) and exclusion for failing more than 2 out of 3 attention checks. The publication describes recruiting from MTurk, and then details exclusions for extreme values, poor quality responses, failing attentional catch trials, missing data, and choosing not to report sex, but the specific number of attention checks or criteria for prior study participation are not directly stated as in the registration.",
+        "show_in_triage": true,
+        "stale_reasons": [],
+        "status": "current"
+      },
+      "ordinal": 9,
+      "source_basis_sha256": "f902b87dd37054f571fa0da40deeec623bf679461ff3e5d647a99badcfc79412"
+    },
+    {
+      "basis_matches_demo": false,
+      "demo_basis_sha256": "3ecc078c77b6432da7bab888b50dd43a1f653ecfbcd7f56dcd84c7f56dcac05a",
+      "field_occurrence": 0,
+      "field_type": "missing-data-procedure",
+      "llm_triage": {
+        "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+        "concerns": [
+          "ambiguous-study-mapping"
+        ],
+        "label": "uncertain",
+        "model_id": "gemini-2.5-flash-lite",
+        "prompt_version": "registration-comparison-triage-v1",
+        "provider_id": "gemini",
+        "rationale": "The registration states the survey design prevents advancing without response and that missing rating data will be excluded from analyses. The publication details participant recruitment and exclusions, including 'one for missing data,' but does not explicitly describe a procedure for handling missing data as described in the registration.",
+        "show_in_triage": true,
+        "stale_reasons": [],
+        "status": "current"
+      },
+      "ordinal": 10,
+      "source_basis_sha256": "d2cc92253f8afbb081c5f12ea8f824d83b7a631484066f15dff70e96a123b82a"
+    },
+    {
+      "basis_matches_demo": false,
+      "demo_basis_sha256": "39c2907c39c703ca03cb8071055acfa9108977c80686be5591d1fa9b697f23b2",
+      "field_occurrence": 0,
+      "field_type": "deviation-amendment-statement",
+      "llm_triage": {
+        "basis": "LLM triage over one bounded comparison row and its paired evidence.",
+        "concerns": [
+          "ambiguous-study-mapping"
+        ],
+        "label": "uncertain",
+        "model_id": "gemini-2.5-flash-lite",
+        "prompt_version": "registration-comparison-triage-v1",
+        "provider_id": "gemini",
+        "rationale": "The registration lists 'Updated response keys' with specific item identifiers. The publication evidence is 'Note. SE = standard error.', which does not appear to relate to response keys or deviations/amendments.",
+        "show_in_triage": true,
+        "stale_reasons": [],
+        "status": "current"
+      },
+      "ordinal": 11,
+      "source_basis_sha256": "d41a3eadaf97fa2b1c4dd236ef97e8bd150752a763815b429439ebf258fd3c60"
+    }
+  ],
+  "demo_mapping": {
+    "comparison_run_id": 1,
+    "row_mapping": "stable ordinal plus field type and repeated-field occurrence"
+  },
+  "public_basis_warning": "These are the exact saved AI-triage annotations from the reviewed Callosum comparison against the published article. The static demo bundles a redistributable preprint, so its displayed publication passages and source locations can differ from that saved run.",
+  "schema_version": 1,
+  "source": {
+    "comparison_created_at": "2026-08-01T14:17:48",
+    "comparison_run_id": 2,
+    "curation_note": "Explicit whitelist snapshot of exact saved AI-triage annotations. Complete documents, working paths, credentials, notes, and review state are not included.",
+    "paper_doi": "10.1037/aca0000454",
+    "paper_id": 25,
+    "paper_title": "What is good is beautiful (and what isn’t, isn’t): How moral character affects perceived facial attractiveness."
+  },
+  "triage_status": {
+    "annotated_count": 12,
+    "focused_count": 12,
+    "model_id": "gemini-2.5-flash-lite",
+    "prompt_version": "registration-comparison-triage-v1",
+    "provider_id": "gemini",
+    "stale_reasons": [],
+    "status": "success",
+    "warning": null
+  }
+}

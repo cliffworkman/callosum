@@ -3,13 +3,16 @@
 [![CI](https://github.com/cliffworkman/callosum/actions/workflows/ci.yml/badge.svg)](https://github.com/cliffworkman/callosum/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-I got tired of reading an AI-generated summary of a paper and having no fast way to check whether it actually
-said what the summary claimed. **Callosum is a local-first, AI-assisted reference manager built around that one
-complaint**: an LLM summary is only trustworthy if every citation is independently verified against the source
-— so it verifies. Import a library, and Callosum extracts and chunks each PDF with page + bounding-box
-coordinates, embeds everything locally, lets you cluster papers along your own semantic axes, and generates
-citation-grounded summaries where **every sentence is checked back against the source and shown with its
-evidence** — the quote, the page, a confidence. You get to see the signal. It never hands you a verdict.
+**Callosum is a local-first scholarly research environment that keeps literature, evidence, methods,
+manuscripts, and scientific provenance connected throughout the research and writing process.** Reference
+managers organize sources. Callosum manages the relationship between a scholar's sources, evidence, claims,
+methods, and manuscript—from discovery through reading, evaluation, synthesis, writing, and audit.
+
+It began with one complaint: I got tired of reading an AI-generated summary of a paper and having no fast way
+to check whether it actually said what the summary claimed. So Callosum independently verifies every generated
+citation against the source. It now carries that same inspectable-evidence posture through the literature
+library, statistical and reporting checks, structured extraction, active manuscripts, document-editor
+integrations, and final audits. You get to see the signal. It never hands you a verdict.
 
 It runs on your machine. After import it works **offline**, and nothing leaves your computer unless you
 explicitly turn on an AI feature.
@@ -18,9 +21,10 @@ explicitly turn on an AI feature.
 > research, and it's backed by a large test suite — but it's built for one user at a time (me, so far), and the
 > surface is still moving fast. You will find rough edges. Tell me about them.
 
-![Verified synthesis: every sentence checked back against its source, with quote, page, and confidence](www/shots/synthesis.png)
+![Verified synthesis: every sentence checked back against its source, with quote, page, and confidence](www/shots/synthesis_current.png)
 
-*See more of the app: [a full screenshot tour](www/showcase.html) · [the project page](www/index.html).*
+*See more of the app: [a full screenshot tour](www/showcase.html) · [the project page](www/index.html) ·
+[how the static interactive demo is built](demo/README.md).*
 
 ## Download
 
@@ -102,6 +106,14 @@ uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080
 **First run downloads models.** Extraction/embedding/verification use local models (`sentence-transformers`
 `all-MiniLM-L6-v2` + a small NLI cross-encoder) pulled from Hugging Face on first use — a few hundred MB, one-time,
 then it works offline. The SQLite database auto-migrates to the latest schema on startup.
+
+### Build the static public demo
+
+The online demo is the same frontend over a curated immutable snapshot, with no Python backend, API keys, AI
+calls, or analytics. It starts in Library with three licensed papers, saved per-paper statcheck/checklist results, the full workspace map, a completed Status
+receipt, and an inspectable saved synthesis. `python tools/demo/build_demo.py --base-path /callosum-demo/` emits `dist-demo/`; generation
+and deployment are intentionally separate. See [`demo/README.md`](demo/README.md) for corpus licensing, snapshot
+curation, local testing, drift checks, and the manual deployment workflow.
 
 ## Configuration & privacy
 

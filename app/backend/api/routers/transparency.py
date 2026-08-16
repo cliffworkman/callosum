@@ -104,16 +104,21 @@ class AttachmentRoleIn(BaseModel):
     role: Literal["preregistration", "protocol", "supplement", "article-fulltext", "other"]
 
 
-@router.get("/papers/{paper_id}/transparency", response_model=TransparencyResponse)
-def paper_transparency(paper_id: int, conn: Connection = Depends(get_connection)) -> TransparencyResponse:
-    try:
-        get_paper(conn, paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
+def build_transparency_response(
+    conn: Connection, paper_id: int, *, persisted_references: list[dict] | None = None, validate_paper: bool = True
+) -> TransparencyResponse:
+    """Build the response; callers may supply a public-only persisted-reference whitelist."""
+    if validate_paper:
+        try:
+            get_paper(conn, paper_id)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="Paper not found") from None
     chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES)
     pdf_attachment_ids = pdf_attachment_ids_for_chunks(conn, chunks)
     report = detect_transparency(chunks)
-    references = _registration_reference_outputs(conn, paper_id, chunks, pdf_attachment_ids)
+    references = _registration_reference_outputs(
+        conn, paper_id, chunks, pdf_attachment_ids, persisted_references=persisted_references
+    )
     prereg_signal = next(check for check in report.checks if check.key == "preregistration")
     registration_signal = next(check for check in report.checks if check.key == "registration")
     if len(references) > 1:
@@ -144,8 +149,19 @@ def paper_transparency(paper_id: int, conn: Connection = Depends(get_connection)
     )
 
 
-def _registration_reference_outputs(conn, paper_id, chunks, pdf_attachment_ids) -> list[RegistrationReferenceOut]:
-    persisted = [dict(row) for row in list_registration_references(conn, paper_id)]
+@router.get("/papers/{paper_id}/transparency", response_model=TransparencyResponse)
+def paper_transparency(paper_id: int, conn: Connection = Depends(get_connection)) -> TransparencyResponse:
+    return build_transparency_response(conn, paper_id)
+
+
+def _registration_reference_outputs(
+    conn, paper_id, chunks, pdf_attachment_ids, *, persisted_references: list[dict] | None = None
+) -> list[RegistrationReferenceOut]:
+    persisted = (
+        [dict(row) for row in list_registration_references(conn, paper_id)]
+        if persisted_references is None
+        else persisted_references
+    )
     live = [reference.to_dict() | {"id": None} for reference in extract_registration_references(chunks)]
     grouped: dict[tuple[str, str], list[dict]] = {}
     for row in [*persisted, *live]:

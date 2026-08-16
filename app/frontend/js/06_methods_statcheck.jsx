@@ -45,10 +45,12 @@ function StatcheckLibrary({ onShowFlagged, onRan }) {
     <div className="statcheck-lib">
       <div className="settings-sub">Recompute reported APA-style p-values across your whole library (statcheck) — from running text and clearly headed table rows, local and without AI. It flags where a reported and recomputed p disagree; usually innocent (typos, rounding, one-tailed tests) — a list to review, not a verdict.</div>
       <div className="settings-actions">
-        <button className="btn btn-primary" disabled={run.status === "running"} onClick={start}>
+        <button className="btn btn-primary" disabled={run.status === "running" || isDemoMode()} onClick={start}
+          title={isDemoMode() ? "Library-wide computation is unavailable in the static online demo." : undefined}>
           {run.status === "running" ? "Checking…" : "Check all papers"}
         </button>
       </div>
+      {isDemoMode() && <div className="settings-note">This saved library snapshot is fully inspectable. Running statcheck requires the local Callosum application.</div>}
       {run.status === "running" && <ProgressBar label="Recomputing statistics…" />}
       {run.status === "error" && <div className="settings-note settings-note-err">Check failed: {run.error}</div>}
       {run.status === "done" && s &&
@@ -128,8 +130,8 @@ function StatcheckPaper({ paperId, onOpenPaper }) {
           ? <span className="tag-suggest-empty">Process a PDF or supported full-text document first — statcheck needs extracted evidence.</span>
           : (state.status === "empty" || state.status === "cached") &&
             <div className="statcheck-actions">
-              <button className="btn-link" disabled={state.status === "running"}
-                title="Recompute reported p-values from prose and clearly headed table rows — local, no AI"
+              <button className="btn-link" disabled={state.status === "running" || isDemoMode()}
+                title={isDemoMode() ? "Rescanning is unavailable in the static online demo." : "Recompute reported p-values from prose and clearly headed table rows — local, no AI"}
                 onClick={rescan}>
                 {state.status === "running" ? "Checking…" : state.status === "cached" ? "Rescan" : "Check statistics"}
               </button>
@@ -232,7 +234,7 @@ function StatcheckSection({ ctx }) {
 // (40_app.jsx) -- branch on researchContext.kind exactly like the "Details" section (05_panes.jsx) does,
 // delegating to the WIP-specific statcheck surface (10k_wip_checks.jsx) rather than a paper-shaped component.
 registerPaneSection({
-  id: "statcheck", label: "Statistics", paneId: "methods", order: 30, hideInReadOnly: true,
+  id: "statcheck", label: "Statistics", paneId: "methods", order: 30, hideInReadOnly: true, demoInspectable: true,
   render: (ctx) => ctx.researchContext && ctx.researchContext.kind === "manuscript"
     ? <WipStatcheckSection manuscript={ctx.researchContext.entity} ctx={ctx} />
     : <StatcheckSection ctx={ctx} />,

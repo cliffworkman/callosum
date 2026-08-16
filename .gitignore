@@ -12,6 +12,8 @@ __pycache__/
 *.pdf
 # …except the committed QA/test fixture PDF (a tiny real 2-page doc the seed renders; inc 120)
 !tests/fixtures/seed.pdf
+# Public demo documents are individually license-audited and checksum-pinned by the whitelist exporter.
+!demo/documents/*.pdf
 
 # --- Secrets (NEVER commit) ---
 .env
@@ -37,6 +39,7 @@ __pycache__/
 node_modules/
 
 # --- Build artifacts (generated; not committed) ---
+dist-demo/
 # the LibreOffice extension (inc 162) — built on demand by tools/build_libreoffice_oxt.py (the backend builds it
 # to serve/install); rebuild with `python tools/build_libreoffice_oxt.py`.
 adapters/libreoffice/dist/

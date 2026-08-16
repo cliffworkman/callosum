@@ -1,4 +1,5 @@
 function WipRelink({ manuscript, onRelinked }) {
+  const readOnly = React.useContext(AppReadOnly);
   const [editing, setEditing] = useState(false);
   const [path, setPath] = useState("");
   const [busy, setBusy] = useState(false);
@@ -24,7 +25,9 @@ function WipRelink({ manuscript, onRelinked }) {
       <span>Manuscript location</span>
       <code title={manuscript.root_path}>{manuscript.root_path}</code>
     </div>
-    <button className="btn-ghost" onClick={() => { setEditing(value => !value); setError(""); }}>
+    <button className="btn-ghost" disabled={readOnly}
+      title={readOnly ? "Relinking requires the local app." : undefined}
+      onClick={() => { setEditing(value => !value); setError(""); }}>
       {editing ? "Cancel" : "Relink folder"}
     </button>
     {editing && <form onSubmit={submit}>

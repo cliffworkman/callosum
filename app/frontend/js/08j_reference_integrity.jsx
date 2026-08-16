@@ -65,9 +65,11 @@ function RefReviewControls({ item, onReview }) {
     <div className="ref-review-controls" role="group" aria-label="Reference signal review state">
       <button type="button" className={"ref-review-btn" + (dismissed ? " on dismissed" : "")}
         aria-pressed={dismissed} aria-label="Reviewed and dismissed" title="Reviewed and dismissed"
+        disabled={isDemoMode()}
         onClick={() => onReview(item.id, "dismissed")}>✓</button>
       <button type="button" className={"ref-review-btn" + (confirmed ? " on confirmed" : "")}
         aria-pressed={confirmed} aria-label="Reviewed and confirmed as a concern" title="Reviewed and confirmed as a concern"
+        disabled={isDemoMode()}
         onClick={() => onReview(item.id, "confirmed_problem")}>×</button>
     </div>
   );
@@ -170,7 +172,8 @@ function MetaReferenceList({ ctx }) {
         </div>
         <div className="meta-ref-action-slot">
           {state.status !== "running" &&
-            <button className="btn btn-primary" onClick={run}>
+            <button className="btn btn-primary" onClick={run} disabled={isDemoMode()}
+              title={isDemoMode() ? "Reference refresh is unavailable in the read-only online demo" : "Check references"}>
               {state.status === "error" || hasPartialCoverage ? "Retry reference check" : "Check references"}
             </button>}
         </div>
@@ -269,7 +272,8 @@ function WipMetaReferenceList({ manuscriptId, onOpenPaper, onReload, refreshKey 
         </div>
         <div className="meta-ref-action-slot">
           {state.status !== "running" &&
-            <button className="btn btn-primary" onClick={run}>
+            <button className="btn btn-primary" onClick={run} disabled={isDemoMode()}
+              title={isDemoMode() ? "Refreshing manuscript references requires the local app and metadata providers." : undefined}>
               {state.status === "error" || hasPartialCoverage ? "Retry reference check" : "Check references"}
             </button>}
         </div>

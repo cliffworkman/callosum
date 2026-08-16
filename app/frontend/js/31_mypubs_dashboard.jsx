@@ -40,6 +40,7 @@ function MyPubsBarChart({ bars, ariaLabel }) {
 }
 
 function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOpenPdf, onLibraryChanged }) {
+  const demoMode = isDemoMode();
   const [data, setData] = useState({ status: "loading" });
   const [resolvedAxisId, setResolvedAxisId] = useState(axisId || null);
   const [summary, setSummary] = useState("");
@@ -180,7 +181,8 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
   // inc 117 (#10): the Decompose button is rendered inside the Publications controls row (passed as decomposeSlot),
   // not in the domains section header.
   const decomposeButton = (
-    <button className="btn btn-ghost" disabled={domainJob.status === "running"} onClick={decompose}>
+    <button className="btn btn-ghost" disabled={demoMode || domainJob.status === "running"} onClick={decompose}
+      title={demoMode ? "Domain decomposition needs the local Callosum backend and at least four confirmed publications." : undefined}>
       {domainJob.status === "running" ? "Working…" : (domains.length ? "Re-decompose domains" : "Break down by domain")}
     </button>
   );
@@ -253,10 +255,12 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
               <label className="mypubs-starred-toggle" title="Generate from only your ⭐ starred publications (star them in the My Publications sidebar card)">
                 <input type="checkbox" checked={starredOnly} onChange={e => setStarredOnly(e.target.checked)} /> ⭐ only
               </label>}
-            <button className="btn btn-ghost" disabled={gen.status === "running"} onClick={generate}>
+            <button className="btn btn-ghost" disabled={demoMode || gen.status === "running"} onClick={generate}
+              title={demoMode ? "Generating a new research-summary draft requires local Callosum and a configured AI provider." : undefined}>
               {gen.status === "running" ? "Generating…" : (summary ? "Regenerate" : "Generate")}
             </button>
-            <button className="btn btn-primary" disabled={save === "saving" || !dirty} onClick={saveSummary}>
+            <button className="btn btn-primary" disabled={demoMode || save === "saving" || !dirty} onClick={saveSummary}
+              title={demoMode ? "Saving changes requires the local Callosum database." : undefined}>
               {save === "saving" ? "Saving…" : (save === "saved" && !dirty ? "Saved" : "Save")}
             </button>
           </span>
@@ -269,6 +273,7 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
           value={summary}
           onChange={e => { setSummary(e.target.value); setDirty(true); setSave("idle"); }}
         />
+        {demoMode && <div className="settings-note">Saved research-summary draft. You can edit the text in this browser to try the editor; generating a new draft or saving changes requires local Callosum.</div>}
       </div>
 
       {/* Publications (r3) — axis-scoped library cards with full parity (#7/#10/#13); Decompose hangs in its controls row */}
@@ -280,7 +285,7 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
 
       <div className="mypubs-domains">
         <div className="mypubs-summary-head">
-          <span>Research domains{domains.length > 0 && <span className="mypubs-source"> · grouped by similarity — click to filter the chart</span>}</span>
+          <span>Research domains{domains.length > 0 && <span className="mypubs-source"> · {demoMode ? "saved demo presentation" : "grouped by similarity"} — click to filter the chart</span>}</span>
         </div>
         {domainJob.status === "running" && <ProgressBar label="Clustering your publications…" managedBy="backend-job" />}
         {domainJob.status === "error" && <div className="axis-err">{domainJob.error}</div>}
@@ -306,12 +311,15 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
                         <span className="domain-label">{d.label}</span>
                         <span className="domain-meta">{d.paper_count}p · {d.citation_count} cites</span>
                       </button>
-                      <button className="axis-icon-btn domain-edit" title="Rename this domain" onClick={() => startRename(i, d)}>✎</button>
+                      <button className="axis-icon-btn domain-edit" disabled={demoMode}
+                        title={demoMode ? "Renaming a research domain requires the local Callosum database." : "Rename this domain"}
+                        onClick={() => startRename(i, d)}>✎</button>
                     </>}
               </div>
             ))}
             <datalist id="mypubs-axis-names">{axisNames.map(n => <option key={n} value={n} />)}</datalist>
           </div>}
+        {demoMode && domains.length > 0 && <div className="settings-note">Production domain clustering starts at four confirmed publications. This two-paper demo uses one explicitly saved, hand-curated presentation so it does not fabricate a clustering result; filtering and grouping remain inspectable.</div>}
       </div>
 
       <MyPubsCitationGaps domains={domains} onSelectPaper={onSelectPaper} onLibraryChanged={onLibraryChanged} />
@@ -343,11 +351,13 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
                 target="_blank" rel="noopener noreferrer">OpenAlex profile ↗</a></>}
           </div>}
         <div className="openalex-actions">
-          <button className="btn btn-ghost" disabled={refreshing} onClick={refreshMyPubs}>
+          <button className="btn btn-ghost" disabled={demoMode || refreshing} onClick={refreshMyPubs}
+            title={demoMode ? "Refreshing sends public identifiers to OpenAlex and requires the local Callosum backend." : undefined}>
             {refreshing ? "Refreshing…" : "↻ Refresh from OpenAlex"}
           </button>
         </div>
         {refreshing && <ProgressBar label="Resolving via OpenAlex…" managedBy="backend-job" />}
+        {demoMode && <div className="settings-note">Saved OpenAlex snapshot scoped to the two genuine Workman publications in this demo corpus. Refreshing public metadata requires local Callosum.</div>}
       </section>
 
       <MissingWorksModal

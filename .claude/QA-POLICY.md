@@ -70,6 +70,19 @@ Add a new route, or extend an existing one's `qa-coverage` block + steps, whenev
 This belongs in the **same increment** as the feature, exactly like CLAUDE.md rule #6 (keep CLAUDE.md
 current) and rule #8 (read DESIGN.md). Shipping a surface without a route is the QA analogue of drift.
 
+### Public website coverage travels with the surface
+
+Every user-facing QA route is also mapped to a stable capability anchor in
+`www/showcase-coverage.json`. `python tools/qa/check_website_coverage.py` verifies that the route,
+showcase anchor, homepage deep link, screenshot provenance, and canonical product description still
+agree. It also fingerprints the graphical frontend, document adapters, TUI, MCP server, and grounded
+Help source. A relevant source change therefore requires an explicit website review in the same
+increment: update the visual or copy when needed, then record the completed review with
+`--refresh --note "..."`. The note is an acknowledgement, not permission to rubber-stamp stale imagery.
+
+Internal/admin-only mechanics may be excluded from the public tour, but the exclusion must be explicit
+in the registry. A new QA route with no registry entry is a hard website-drift failure.
+
 ---
 
 ## The honesty-invariant assertions (what makes this QA worth running)
@@ -131,6 +144,22 @@ least Medium; a page error is High.
 - **Tier 2 — egress-gated + external-fetch flows** (synthesis, My Publications, acquisition, help assistant):
   run hermetic by default (inject a fake generator/Crossref client — the app already supports
   `create_app(...)` injection); reserve a real-provider pass for explicit integration checks.
+
+### Static demo gate
+
+The public demo is tested as a static artifact, not against Uvicorn. `tests/test_demo_snapshot.py` owns schema,
+determinism, sanitization, shared-contract, base-path, and artifact checks. The opt-in
+`tests/e2e/test_demo_static.py` serves only generated files and must prove direct-route reload, saved synthesis and
+evidence rendering, PDF source navigation, zero console/page errors, no live API calls, and no request outside the
+configured origin/base path. Any demo artifact that needs a backend, silently accepts a stale schema, or emits an
+unexpected request is a release blocker.
+The smoke also opens the real WIP browser and a generated synthetic manuscript, then verifies its three linked
+sources, five saved detector runs, checkpoints, journal/funding receipts, and disabled computation controls. It
+ also traverses saved Search, Journals, Funding, Cite, CRediT, Statements, and Meta-Analyze results through their
+shared production components. The contract suite validates `coverage-v1.json` against the capability map and
+validates `experience-coverage-v1.json` against every homepage/showcase capability claim, so an unclassified
+marketing claim fails before deployment. It also proves that unapproved Feed records cannot enter a snapshot. The contract test regenerates
+the WIP fixture from a fresh migrated sandbox and requires byte-for-byte equality with the committed state.
 
 The route number `NN` encodes complexity order; the supervisor runs ascending and lets Tier 0 gate the rest.
 

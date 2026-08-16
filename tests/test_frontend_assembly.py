@@ -14,6 +14,7 @@ chunk-completeness test checks the raw concatenation, so it needs no toolchain.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from app.backend.api.frontend import (
@@ -57,6 +58,17 @@ def test_every_js_chunk_is_included():
     for chunk in chunks:
         text = chunk.read_text(encoding="utf-8")
         assert text in raw, f"{chunk.name} is missing from the assembled frontend"
+
+
+def test_frontend_uses_one_injectable_transport_without_changing_live_default():
+    raw = assemble_jsx()
+    assert "function callosumFetch(input, init)" in raw
+    assert "window.CALLOSUM_DATA_PROVIDER" in raw
+    assert "return window.fetch(input, init);" in raw
+    assert 'if (isDemoMode()) return "";' in raw
+    for chunk in sorted((FRONTEND_DIR / "js").glob("*.jsx")):
+        source = chunk.read_text(encoding="utf-8")
+        assert not re.search(r"(?<![.\w])fetch\(", source), f"{chunk.name} bypasses callosumFetch"
 
 
 def test_my_publications_emerging_topics_is_explicit_grounded_and_scoped():
@@ -966,8 +978,8 @@ def test_priority_syncs_between_cards_and_queue():
     # cards → queue: a card priority change reloads the Queue tab
     assert "onReadingChanged: () => setQueueRefresh(n => n + 1)" in raw
     # the callback is threaded down to the priority control, which fires it only after a successful write
-    assert "<ReadPriorityControl paper={p} onChanged={onReadingChanged} />" in raw
-    assert "function ReadPriorityControl({ paper, onChanged })" in raw
+    assert "<ReadPriorityControl paper={p} onChanged={onReadingChanged}" in raw
+    assert "function ReadPriorityControl({ paper, onChanged, demoLocked })" in raw
     assert "if (onChanged) onChanged();" in raw
 
 
@@ -1359,6 +1371,29 @@ def test_status_tracks_every_progress_bar_and_synchronous_ai_request_with_naviga
     assert 'invoke("check_for_updates_now")' in raw
     assert '<SettingsCard title="Desktop app">' not in raw
     assert "<DesktopUpdateSettings desktopUpdate={desktopUpdate} />" in raw
+
+
+def test_static_demo_orients_external_and_first_run_surfaces_without_forking_live_ui():
+    raw = assemble_jsx()
+    assert "function DemoExternalInterfaces()" in raw
+    assert "if (!isDemoMode()) return null;" in raw.split("function DemoExternalInterfaces()", 1)[1].split("}", 1)[0]
+    assert 'title="Other interfaces & first run"' in raw
+    for label in ("First-run onboarding", "Terminal client", "MCP agent interface"):
+        assert label in raw
+
+
+def test_static_demo_exposes_library_scope_and_locks_personal_reader_mutations_precisely():
+    raw = assemble_jsx()
+    runtime = (PROJECT_ROOT / "demo/demo-runtime.js").read_text(encoding="utf-8")
+    assert "const libraryActionsVisible = !readOnly || demoMode;" in raw
+    for label in ("Watched folders", "Import file", "Duplicates", "Text Health", "Trash"):
+        assert label in raw
+    assert "The saved searches below can be recalled in the demo" in raw
+    assert "The curated three-paper demo has no duplicate candidate to fabricate" in raw
+    assert "The saved demo note is inspectable but immutable" in raw
+    assert "Read state and priority are saved personal library markers" in raw
+    assert 'if (/^\\/annotations\\//.test(path)' in runtime
+    assert 'if (/^\\/papers\\/\\d+\\/(read|priority)$/.test(path))' in runtime
 
 
 def test_built_artifact_is_in_sync():

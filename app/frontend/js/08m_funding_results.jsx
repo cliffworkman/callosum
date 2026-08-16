@@ -242,9 +242,10 @@ function FundingRunActions({ report }) {
   if (!report || !report.run_id) return null;
   return (
     <div className="funding-actions">
-      <a className="btn btn-sm" href={`/funding-discovery/runs/${report.run_id}/export.csv`} download>
+      <button className="btn btn-sm" type="button"
+        onClick={() => downloadAsset(`/funding-discovery/runs/${report.run_id}/export.csv`, `funding-run-${report.run_id}.csv`)}>
         Export CSV
-      </a>
+      </button>
     </div>
   );
 }
@@ -293,7 +294,7 @@ function FundingResultSort({ sort, setSort }) {
   );
 }
 
-function FundingResultSummary({ visible, displayPool, surfacedTotal, hiddenLower, filter, sort }) {
+function FundingResultSummary({ visible, displayPool, surfacedTotal, hiddenLower, triageOnly, filter, sort }) {
   const filterLabel = fundingOptionLabel(FUNDING_RESULT_FILTERS, filter);
   const sortLabel = fundingOptionLabel(FUNDING_RESULT_SORTS, sort);
   return (
@@ -304,13 +305,16 @@ function FundingResultSummary({ visible, displayPool, surfacedTotal, hiddenLower
       </div>
       <div className="funding-result-stat">
         <b>{surfacedTotal}</b>
-        <span>surfaced before display-only hiding and filters</span>
+        <span>grouped results in the full saved run</span>
       </div>
       <div className="funding-result-stat">
         <b>{hiddenLower}</b>
         <span>lower-signal prospects hidden</span>
       </div>
-      <small>Filter: {filterLabel}. Sort: {sortLabel}. These controls change display only.</small>
+      <small>
+        {triageOnly ? "The LLM-triaged view narrows the display pool; All surfaced restores the complete saved run. " : ""}
+        Filter: {filterLabel}. Sort: {sortLabel}. These controls change display only.
+      </small>
     </div>
   );
 }

@@ -31,7 +31,7 @@ function CiteRow({ paperId }) {
 
   const copyExport = async (format) => {
     try {
-      const res = await fetch(API_BASE + "/papers/export", {
+      const res = await callosumFetch(API_BASE + "/papers/export", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paper_ids: [paperId], format }),
       });

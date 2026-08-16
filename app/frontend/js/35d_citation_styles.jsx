@@ -55,7 +55,7 @@ function CitationStylesSettings() {
 
   const postStyleFile = async (path, filename, csl, replace = false) => {
     try {
-      const response = await fetch(API_BASE + path, {
+      const response = await callosumFetch(API_BASE + path, {
         method: "POST",
         headers: { "Accept": "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ filename, csl, replace }),
@@ -138,7 +138,7 @@ function CitationStylesSettings() {
 
   const postRemoteStyle = async (path, body) => {
     try {
-      const response = await fetch(API_BASE + path, {
+      const response = await callosumFetch(API_BASE + path, {
         method: "POST",
         headers: { "Accept": "application/json", "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -240,7 +240,7 @@ function CitationStylesSettings() {
     if (!selected || !selected.custom) return;
     setBusy(true); setMsg("");
     try {
-      const response = await fetch(API_BASE + `/citations/styles/${encodeURIComponent(selected.id)}/export`);
+      const response = await callosumFetch(API_BASE + `/citations/styles/${encodeURIComponent(selected.id)}/export`);
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         setMsg("Couldn't export citation style: " + ((data && data.detail) || `HTTP ${response.status}`));
@@ -264,7 +264,7 @@ function CitationStylesSettings() {
     if (!confirmed) return;
     setBusy(true); setMsg("");
     try {
-      const response = await fetch(API_BASE + `/citations/styles/${encodeURIComponent(selected.id)}`, {
+      const response = await callosumFetch(API_BASE + `/citations/styles/${encodeURIComponent(selected.id)}`, {
         method: "DELETE",
         headers: { "Accept": "application/json" },
       });

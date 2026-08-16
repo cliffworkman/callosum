@@ -43,7 +43,9 @@ function CitingModal({ workId, paperTitle, onClose }) {
         </div>
         <div className="axis-modal-note">
           Papers OpenAlex records as citing this work (as of your last refresh — OpenAlex's coverage, not exhaustive).
-          Import the ones you want (metadata only; use a paper's “Acquire OA copy” afterward for the PDF).
+          {isDemoMode()
+            ? " This saved cited-by result is fully inspectable; importing a record or acquiring its document requires local Callosum."
+            : " Import the ones you want (metadata only; use a paper's “Acquire OA copy” afterward for the PDF)."}
           {state.capped ? " Showing the first 100." : ""}
         </div>
         {state.status === "loading" && <div className="axis-hint">Loading citing papers…</div>}
@@ -52,7 +54,8 @@ function CitingModal({ workId, paperTitle, onClose }) {
           <div className="axis-hint">OpenAlex records no citing papers for this work (yet).</div>}
         {state.status === "ready" && importable > 0 &&
           <div className="citing-allbar">
-            <button className="btn btn-ghost" onClick={importAll}>Import all ({importable})</button>
+            <button className="btn btn-ghost" disabled={isDemoMode()} onClick={importAll}
+              title={isDemoMode() ? "Importing citing works requires the local Callosum database." : undefined}>Import all ({importable})</button>
           </div>}
         {works.map((w, i) => (
           <div key={(w.doi || "") + i} className="citing-row missing-row">
@@ -65,7 +68,9 @@ function CitingModal({ workId, paperTitle, onClose }) {
             {w.in_library
               ? <span className="citing-inlib">✓ in library</span>
               : (w.doi
-                  ? <button className="btn btn-ghost citing-import" disabled={busy.has(w.doi)} onClick={() => importOne(w)}>Import</button>
+                  ? <button className="btn btn-ghost citing-import" disabled={isDemoMode() || busy.has(w.doi)}
+                      title={isDemoMode() ? "Importing this citing work requires the local Callosum database." : undefined}
+                      onClick={() => importOne(w)}>Import</button>
                   : <span className="axis-hint">no DOI</span>)}
           </div>
         ))}

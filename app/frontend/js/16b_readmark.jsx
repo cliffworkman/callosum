@@ -9,7 +9,7 @@
 const PRIORITY_LEVELS = ["high", "normal", "low"];
 const _cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function ReadPriorityControl({ paper, onChanged }) {
+function ReadPriorityControl({ paper, onChanged, demoLocked }) {
   const [read, setRead] = useState(!!paper.read_at);
   const [priority, setPriority] = useState(paper.priority || "");
   const [pop, setPop] = useState(false);
@@ -23,12 +23,21 @@ function ReadPriorityControl({ paper, onChanged }) {
 
   const toggleRead = (e) => {
     e.stopPropagation();
+    if (demoLocked) {
+      explainDemoLock("Read state and priority are saved personal library markers. Their current demo values remain visible, but changing them requires your local Callosum library.", `/papers/${paper.id}/read`);
+      return;
+    }
     const next = !read;
     setRead(next);  // optimistic
     apiPost(`/papers/${paper.id}/read`, { read: next }).then((r) => { if (!r.ok) setRead(!next); });
   };
   const setLevel = (e, level) => {
     e.stopPropagation();
+    if (demoLocked) {
+      setPop(false);
+      explainDemoLock("Read state and priority are saved personal library markers. Their current demo values remain visible, but changing them requires your local Callosum library.", `/papers/${paper.id}/priority`);
+      return;
+    }
     const prev = priority;
     setPriority(level || "");  // optimistic
     setPop(false);

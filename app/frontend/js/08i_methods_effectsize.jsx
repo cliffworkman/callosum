@@ -50,6 +50,7 @@ const ES_FORMS = [
 ];
 
 function EffectSizeSection() {
+  const savedDemo = isDemoMode();
   const [family, setFamily] = useState("smd");
   const [subVal, setSubVal] = useState("means"); // the sub-selector value (method/kind), per family
   const [choiceVal, setChoiceVal] = useState("or"); // the fixed choice (measure), for binary
@@ -97,19 +98,19 @@ function EffectSizeSection() {
 
       <div className="es-form">
         <label>Family
-          <select className="es-in es-sel" value={family} onChange={(e) => pickFamily(e.target.value)}>
+          <select className="es-in es-sel" value={family} disabled={savedDemo} onChange={(e) => pickFamily(e.target.value)}>
             {ES_FORMS.map((f) => <option key={f.family} value={f.family}>{f.label}</option>)}
           </select>
         </label>
         {form.sub &&
           <label>{form.sub.label}
-            <select className="es-in es-sel" value={subVal} onChange={(e) => { setSubVal(e.target.value); setState({ status: "idle" }); }}>
+            <select className="es-in es-sel" value={subVal} disabled={savedDemo} onChange={(e) => { setSubVal(e.target.value); setState({ status: "idle" }); }}>
               {form.sub.opts.map((o) => <option key={o.val} value={o.val}>{o.label}</option>)}
             </select>
           </label>}
         {form.choice &&
           <label>{form.choice.label}
-            <select className="es-in es-sel" value={choiceVal} onChange={(e) => setChoiceVal(e.target.value)}>
+            <select className="es-in es-sel" value={choiceVal} disabled={savedDemo} onChange={(e) => setChoiceVal(e.target.value)}>
               {form.choice.opts.map((o) => <option key={o.val} value={o.val}>{o.label}</option>)}
             </select>
           </label>}
@@ -117,10 +118,12 @@ function EffectSizeSection() {
       <div className="es-form">
         {fields.map((k) => (
           <label key={k}>{ES_FIELD[k]}{k === "var_logor" ? " (opt.)" : ""}
-            <input className="es-in" value={inputs[k] || ""} onChange={setIn(k)} spellCheck={false} inputMode="decimal" />
+            <input className="es-in" value={inputs[k] || ""} disabled={savedDemo} onChange={setIn(k)} spellCheck={false} inputMode="decimal" />
           </label>
         ))}
-        <button className="btn btn-primary" disabled={state.status === "running"} onClick={run}>Convert</button>
+        <button className="btn btn-primary" disabled={savedDemo || state.status === "running"}
+          title={savedDemo ? "The saved project above shows converted effects; new calculations require the local app." : undefined}
+          onClick={run}>Convert</button>
       </div>
 
       {state.status === "running" && <ProgressBar />}

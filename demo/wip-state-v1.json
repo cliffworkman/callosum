@@ -1,0 +1,3452 @@
+{
+  "by_id": {
+    "1": {
+      "activity": [
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-completed",
+          "id": 44,
+          "manuscript_id": 1,
+          "metadata_json": {
+            "snapshot_id": 7,
+            "tool_id": "meta-analysis",
+            "tool_version": "1"
+          },
+          "related_entity_id": "5",
+          "related_entity_type": "tool-run",
+          "summary": "Meta-analysis language detected; 6 reported, 1 not detected, and 0 not applicable across 7 checks."
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 43,
+          "manuscript_id": 1,
+          "metadata_json": {
+            "reason": "tool-run",
+            "reason_detail": "meta-analysis"
+          },
+          "related_entity_id": "7",
+          "related_entity_type": "snapshot",
+          "summary": "Created tool run checkpoint for integrated-review.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-started",
+          "id": 42,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Started meta-analysis reporting audit"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-completed",
+          "id": 41,
+          "manuscript_id": 1,
+          "metadata_json": {
+            "snapshot_id": 6,
+            "tool_id": "bayes",
+            "tool_version": "1"
+          },
+          "related_entity_id": "4",
+          "related_entity_type": "tool-run",
+          "summary": "Bayesian language detected; checked 1 inline Bayes factor, found 1 not reproduced under the default prior, and surfaced 4 review prompts."
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 40,
+          "manuscript_id": 1,
+          "metadata_json": {
+            "reason": "tool-run",
+            "reason_detail": "bayes"
+          },
+          "related_entity_id": "6",
+          "related_entity_type": "snapshot",
+          "summary": "Created tool run checkpoint for integrated-review.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-started",
+          "id": 39,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Started Bayesian reporting audit"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-completed",
+          "id": 38,
+          "manuscript_id": 1,
+          "metadata_json": {
+            "snapshot_id": 5,
+            "tool_id": "lmm",
+            "tool_version": "1"
+          },
+          "related_entity_id": "3",
+          "related_entity_type": "tool-run",
+          "summary": "Mixed-model language detected; 0 reported, 5 not detected, and 2 not applicable across 7 checks."
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 37,
+          "manuscript_id": 1,
+          "metadata_json": {
+            "reason": "tool-run",
+            "reason_detail": "lmm"
+          },
+          "related_entity_id": "5",
+          "related_entity_type": "snapshot",
+          "summary": "Created tool run checkpoint for integrated-review.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-started",
+          "id": 36,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Started mixed-model reporting audit"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-completed",
+          "id": 35,
+          "manuscript_id": 1,
+          "metadata_json": {
+            "snapshot_id": 4,
+            "tool_id": "transparency",
+            "tool_version": "1"
+          },
+          "related_entity_id": "2",
+          "related_entity_type": "tool-run",
+          "summary": "Detected 6 reported disclosures across 7 checks; 0 not detected; 1 not applicable."
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 34,
+          "manuscript_id": 1,
+          "metadata_json": {
+            "reason": "tool-run",
+            "reason_detail": "transparency"
+          },
+          "related_entity_id": "4",
+          "related_entity_type": "snapshot",
+          "summary": "Created tool run checkpoint for integrated-review.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-started",
+          "id": 33,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Started transparency disclosure check"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-completed",
+          "id": 32,
+          "manuscript_id": 1,
+          "metadata_json": {
+            "snapshot_id": 3,
+            "tool_id": "statcheck",
+            "tool_version": "2"
+          },
+          "related_entity_id": "1",
+          "related_entity_type": "tool-run",
+          "summary": "Checked 1 inline NHST result; surfaced 1 possible reporting inconsistency."
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 31,
+          "manuscript_id": 1,
+          "metadata_json": {
+            "reason": "tool-run",
+            "reason_detail": "statcheck"
+          },
+          "related_entity_id": "3",
+          "related_entity_type": "snapshot",
+          "summary": "Created tool run checkpoint for integrated-review.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-started",
+          "id": 30,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Started statcheck"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 29,
+          "manuscript_id": 1,
+          "metadata_json": {
+            "reason": "manual",
+            "reason_detail": ""
+          },
+          "related_entity_id": "2",
+          "related_entity_type": "snapshot",
+          "summary": "Created manual checkpoint for integrated-review.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "reference-linked",
+          "id": 28,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Linked Library paper 88"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "reference-linked",
+          "id": 27,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Linked Library paper 67"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "reference-linked",
+          "id": 26,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Linked Library paper 42"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "task-created",
+          "id": 25,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "3",
+          "related_entity_type": "task",
+          "summary": "Added task Verify the three corrected bibliography records"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "task-created",
+          "id": 24,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "2",
+          "related_entity_type": "task",
+          "summary": "Added task Connect every interpretive claim to quoted evidence"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "task-created",
+          "id": 23,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "1",
+          "related_entity_type": "task",
+          "summary": "Added task Resolve the intentionally surfaced detector candidates"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 22,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "13",
+          "related_entity_type": "section",
+          "summary": "Data availability statement: outlined"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 21,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "12",
+          "related_entity_type": "section",
+          "summary": "Author contributions: outlined"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 20,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "11",
+          "related_entity_type": "section",
+          "summary": "Open practices statement: complete"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 19,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "10",
+          "related_entity_type": "section",
+          "summary": "Supplement: outlined"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 18,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "9",
+          "related_entity_type": "section",
+          "summary": "Figures: outlined"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 17,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "8",
+          "related_entity_type": "section",
+          "summary": "Tables: outlined"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 16,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "7",
+          "related_entity_type": "section",
+          "summary": "References: complete"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 15,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "6",
+          "related_entity_type": "section",
+          "summary": "Discussion: drafting"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 14,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "5",
+          "related_entity_type": "section",
+          "summary": "Results: needs revision"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 13,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "4",
+          "related_entity_type": "section",
+          "summary": "Method: complete"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 12,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "3",
+          "related_entity_type": "section",
+          "summary": "Introduction: complete"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 11,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "2",
+          "related_entity_type": "section",
+          "summary": "Abstract: outlined"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 10,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "1",
+          "related_entity_type": "section",
+          "summary": "Title page: complete"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 9,
+          "manuscript_id": 1,
+          "metadata_json": {
+            "reason": "primary-file-replacement",
+            "reason_detail": "none -> 1"
+          },
+          "related_entity_id": "1",
+          "related_entity_type": "snapshot",
+          "summary": "Created primary file replacement checkpoint for integrated-review.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "primary-file-changed",
+          "id": 8,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "1",
+          "related_entity_type": "file",
+          "summary": "Primary manuscript: integrated-review.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-skipped",
+          "id": 7,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Could not create stage transition checkpoint: Select a primary manuscript file before creating a checkpoint"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "manuscript-renamed",
+          "id": 6,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Display title changed"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "stage-changed",
+          "id": 5,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Stage changed to analysis"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "file-added",
+          "id": 2,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": "1",
+          "related_entity_type": "file",
+          "summary": "Found integrated-review.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "manuscript-discovered",
+          "id": 1,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Discovered Integrated review"
+        }
+      ],
+      "checks": {
+        "runs": [
+          {
+            "callosum_version": "dev",
+            "coverage": "Seven text-detection checks cover the effect-size metric, pooling model, heterogeneity, publication-bias assessment, sensitivity or influence analysis, study count, and search and selection reporting. The search check is not applicable to a detected within-study mini-meta-analysis. Tables and figures are not fully read, and 'not detected' is never proof of omission. The auditor never pools, models, recomputes, scores, or judges the analysis.",
+            "error_detail": null,
+            "executed_at": "2026-08-11T12:00:00",
+            "file_id": 1,
+            "findings": [
+              {
+                "context": "the number of studies (k) — and, ideally, the total participants pooled — isn't clearly stated; it's the first thing a reader needs to weigh the meta-analysis (not detected in the extracted text — check the paper)",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "PRISMA 2020 (Page et al. 2021)",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "How many studies (and participants) were pooled. k governs the power of heterogeneity and publication-bias checks and how much any single study can dominate.",
+                  "key": "study_count",
+                  "label": "Number of studies (k) and participants",
+                  "note": "the number of studies (k) — and, ideally, the total participants pooled — isn't clearly stated; it's the first thing a reader needs to weigh the meta-analysis (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                },
+                "disposition": "open",
+                "file_id": 1,
+                "finding_type": "meta-analysis-study_count-not-detected",
+                "id": 17,
+                "kind": "candidate",
+                "manuscript_id": 1,
+                "quote": null,
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Review number of studies (k) and participants reporting",
+                "tool_run_id": 5,
+                "updated_at": "2026-08-11T12:00:00"
+              }
+            ],
+            "id": 5,
+            "manuscript_id": 1,
+            "parameters_json": {},
+            "result_summary": "Meta-analysis language detected; 6 reported, 1 not detected, and 0 not applicable across 7 checks.",
+            "snapshot_id": 7,
+            "status": "complete",
+            "structured_result_json": {
+              "checks": [
+                {
+                  "basis": "Borenstein et al. 2009 (Introduction to Meta-Analysis); Viechtbauer 2010 (metafor)",
+                  "coordinate_precision": null,
+                  "evidence": "s. We performed a synthetic random-effects meta-analysis of Hedges' g for demonstration only.",
+                  "explainer": "The common metric the study effects were converted to before pooling (Hedges' g, log OR, Fisher's z, …). A reader needs it to interpret the pooled estimate and its direction.",
+                  "key": "effect_size_metric",
+                  "label": "Effect-size metric",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "DerSimonian & Laird 1986; IntHout et al. 2014 (Hartung-Knapp)",
+                  "coordinate_precision": null,
+                  "evidence": "e perceived facial attractiveness. We performed a synthetic random-effects meta-analysis of Hedges' g for demonstration only.",
+                  "explainer": "A fixed-effect model assumes one true effect; a random-effects model allows the true effect to vary across studies. The choice (and the τ² estimator) changes the CI and the interpretation.",
+                  "key": "model",
+                  "label": "Model (fixed vs random-effects)",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "Higgins, Thompson, Deeks & Altman 2003",
+                  "coordinate_precision": null,
+                  "evidence": "cted effect sizes. We used a random-effects model, reported tau-squared and I-squared heterogeneity, examined influence diagnostics",
+                  "explainer": "How much the true effects differ across studies. I² is the share of variance due to heterogeneity rather than chance; τ² is the between-study variance; a prediction interval shows the spread.",
+                  "key": "heterogeneity",
+                  "label": "Heterogeneity (I² / τ² / Q)",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "Egger et al. 1997; Duval & Tweedie 2000 (trim-and-fill); Sterne et al. 2011",
+                  "coordinate_precision": null,
+                  "evidence": "heterogeneity, examined influence diagnostics, and assessed publication bias with a funnel plot and Egger test. This synthetic corpus co",
+                  "explainer": "Whether the meta-analysis checked for the tendency of significant results to be published more readily (which inflates the pooled effect) — funnel plots, Egger's regression, trim-and-fill, PET-PEESE.",
+                  "key": "publication_bias",
+                  "label": "Publication-bias assessment",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "Viechtbauer & Cheung 2010",
+                  "coordinate_precision": null,
+                  "evidence": "reported tau-squared and I-squared heterogeneity, examined influence diagnostics, and assessed publication bias with a funnel plot and Egge",
+                  "explainer": "Whether the pooled result is robust — leave-one-out, outlier/influence diagnostics (Baujat, Cook's distance), or subgroup checks reveal if one study or choice is driving the conclusion.",
+                  "key": "sensitivity",
+                  "label": "Sensitivity / influence analysis",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "PRISMA 2020 (Page et al. 2021)",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "How many studies (and participants) were pooled. k governs the power of heterogeneity and publication-bias checks and how much any single study can dominate.",
+                  "key": "study_count",
+                  "label": "Number of studies (k) and participants",
+                  "note": "the number of studies (k) — and, ideally, the total participants pooled — isn't clearly stated; it's the first thing a reader needs to weigh the meta-analysis (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                },
+                {
+                  "basis": "PRISMA 2020 (Page et al. 2021)",
+                  "coordinate_precision": null,
+                  "evidence": "The review protocol was preregistered at https://osf.io/demo-only. Searches and eligibility crite",
+                  "explainer": "For a systematic review, how the literature was searched and studies selected — databases, inclusion/eligibility criteria, a PRISMA flow diagram, a registered protocol (PROSPERO). It's what makes the included set auditable.",
+                  "key": "search_selection",
+                  "label": "Search & selection reporting",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                }
+              ],
+              "is_meta_analysis": true,
+              "not_applicable": 0,
+              "not_found": 1,
+              "present": 6
+            },
+            "tool_id": "meta-analysis",
+            "tool_version": "1",
+            "unresolved_findings": 1,
+            "validity": "current-with-findings"
+          },
+          {
+            "callosum_version": "dev",
+            "coverage": "Inline t-test and Pearson-correlation Bayes factors are recomputed under fixed default-prior assumptions, and three Bayesian reporting checks cover the prior, MCMC convergence diagnostics when applicable, and prior sensitivity. BFs in tables, unsupported designs, and results without an adjacent statistic are not checked. A mismatch commonly reflects a different prior or unreadable design; 'not detected' never proves omission. Advisories require expert judgment. The auditor never fits a model or produces a correctness verdict or score.",
+            "error_detail": null,
+            "executed_at": "2026-08-11T12:00:00",
+            "file_id": 1,
+            "findings": [
+              {
+                "context": "This reported BF10 did not reproduce under Callosum's fixed default-prior assumptions. A different prior, test definition, or design interpretation commonly explains a mismatch; inspect the source.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "computed_correlation": null,
+                  "computed_paired": 2.8452,
+                  "computed_two_sample": 3.1088,
+                  "consistency": "not-reproduced",
+                  "coordinate_precision": null,
+                  "correlation_prior_kappa": 1.0,
+                  "jzs_prior_scale": 0.7071,
+                  "log10_tolerance": 0.3,
+                  "matched_design": null,
+                  "page": null,
+                  "raw": "t(19) = 2.53, BF10 = 500",
+                  "reported_bf10": 500.0
+                },
+                "disposition": "open",
+                "file_id": 1,
+                "finding_type": "bayes-factor-not-reproduced",
+                "id": 13,
+                "kind": "candidate",
+                "manuscript_id": 1,
+                "quote": "t(19) = 2.53, BF10 = 500",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Review Bayes-factor reproduction under the default prior",
+                "tool_run_id": 4,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "a reported R-hat of 1.21 exceeds the conventional R-hat < 1.1 (modern practice uses < 1.01)",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "coordinate_precision": null,
+                  "evidence": "t(19) = 2.53, BF10 = 500. Posterior samples came from MCMC; R-hat = 1.21. We report a 95% confidence interval.",
+                  "key": "convergence",
+                  "label": "Convergence diagnostics (R-hat / ESS)",
+                  "note": "a reported R-hat of 1.21 exceeds the conventional R-hat < 1.1 (modern practice uses < 1.01)",
+                  "page": null,
+                  "status": "coherence-flag"
+                },
+                "disposition": "open",
+                "file_id": 1,
+                "finding_type": "bayes-convergence-coherence-flag",
+                "id": 14,
+                "kind": "candidate",
+                "manuscript_id": 1,
+                "quote": "t(19) = 2.53, BF10 = 500. Posterior samples came from MCMC; R-hat = 1.21. We report a 95% confidence interval.",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Review convergence diagnostics (r-hat / ess)",
+                "tool_run_id": 4,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "Not detected in the extracted primary manuscript; this is not proof of omission.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "key": "sensitivity",
+                  "label": "Prior sensitivity / robustness analysis",
+                  "note": null,
+                  "page": null,
+                  "status": "not-found"
+                },
+                "disposition": "open",
+                "file_id": 1,
+                "finding_type": "bayes-sensitivity-not-found",
+                "id": 15,
+                "kind": "candidate",
+                "manuscript_id": 1,
+                "quote": null,
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Review prior sensitivity / robustness analysis",
+                "tool_run_id": 4,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "Advisory requiring expert judgment: mentions a “confidence interval” but no “credible interval” — verify whether a credible interval was intended (a common Bayesian/frequentist conflation).",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "coordinate_precision": null,
+                  "evidence": "erior samples came from MCMC; R-hat = 1.21. We report a 95% confidence interval.",
+                  "key": "credible-confidence",
+                  "label": "Interval terminology",
+                  "note": "mentions a “confidence interval” but no “credible interval” — verify whether a credible interval was intended (a common Bayesian/frequentist conflation)",
+                  "page": null
+                },
+                "disposition": "open",
+                "file_id": 1,
+                "finding_type": "bayes-advisory-credible-confidence",
+                "id": 16,
+                "kind": "candidate",
+                "manuscript_id": 1,
+                "quote": "erior samples came from MCMC; R-hat = 1.21. We report a 95% confidence interval.",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Expert review: interval terminology",
+                "tool_run_id": 4,
+                "updated_at": "2026-08-11T12:00:00"
+              }
+            ],
+            "id": 4,
+            "manuscript_id": 1,
+            "parameters_json": {
+              "correlation_prior_kappa": 1.0,
+              "jzs_prior_scale": 0.7071,
+              "log10_tolerance": 0.3
+            },
+            "result_summary": "Bayesian language detected; checked 1 inline Bayes factor, found 1 not reproduced under the default prior, and surfaced 4 review prompts.",
+            "snapshot_id": 6,
+            "status": "complete",
+            "structured_result_json": {
+              "checked": 1,
+              "completeness": {
+                "advisories": [
+                  {
+                    "coordinate_precision": null,
+                    "evidence": "erior samples came from MCMC; R-hat = 1.21. We report a 95% confidence interval.",
+                    "key": "credible-confidence",
+                    "label": "Interval terminology",
+                    "note": "mentions a “confidence interval” but no “credible interval” — verify whether a credible interval was intended (a common Bayesian/frequentist conflation)",
+                    "page": null
+                  }
+                ],
+                "is_bayesian": true,
+                "items": [
+                  {
+                    "coordinate_precision": null,
+                    "evidence": "We also ran a Bayesian t-test with a Cauchy prior. The synthetic illustration was t(19) = 2.53, BF10 =",
+                    "key": "prior",
+                    "label": "Prior stated (family/scale)",
+                    "note": null,
+                    "page": null,
+                    "status": "present"
+                  },
+                  {
+                    "coordinate_precision": null,
+                    "evidence": "t(19) = 2.53, BF10 = 500. Posterior samples came from MCMC; R-hat = 1.21. We report a 95% confidence interval.",
+                    "key": "convergence",
+                    "label": "Convergence diagnostics (R-hat / ESS)",
+                    "note": "a reported R-hat of 1.21 exceeds the conventional R-hat < 1.1 (modern practice uses < 1.01)",
+                    "page": null,
+                    "status": "coherence-flag"
+                  },
+                  {
+                    "coordinate_precision": null,
+                    "evidence": null,
+                    "key": "sensitivity",
+                    "label": "Prior sensitivity / robustness analysis",
+                    "note": null,
+                    "page": null,
+                    "status": "not-found"
+                  }
+                ]
+              },
+              "not_reproduced": 1,
+              "prior_scale": 0.7071,
+              "results": [
+                {
+                  "computed_correlation": null,
+                  "computed_paired": 2.8452,
+                  "computed_two_sample": 3.1088,
+                  "consistency": "not-reproduced",
+                  "coordinate_precision": null,
+                  "matched_design": null,
+                  "page": null,
+                  "raw": "t(19) = 2.53, BF10 = 500",
+                  "reported_bf10": 500.0
+                }
+              ]
+            },
+            "tool_id": "bayes",
+            "tool_version": "1",
+            "unresolved_findings": 4,
+            "validity": "current-with-findings"
+          },
+          {
+            "callosum_version": "dev",
+            "coverage": "A fixed text gate first checks for linear mixed-model language. When detected, seven reporting checks cover random-effects structure, df or inference method, convergence, REML or ML estimation, ICC, marginal or conditional R-squared, and missing-data sensitivity when its longitudinal-dropout precondition holds. Checks only the extracted primary manuscript; tables are not fully read. 'Not detected' is a review prompt, not proof of omission. The auditor never runs a model and produces no correctness verdict or score.",
+            "error_detail": null,
+            "executed_at": "2026-08-11T12:00:00",
+            "file_id": 1,
+            "findings": [
+              {
+                "context": "the random-effects structure (which grouping factors carry random intercepts/slopes) isn't stated — a reader needs it, and the field debates maximal vs parsimonious, so the choice matters (not detected in the extracted text — check the paper)",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "Barr et al. 2013 (keep it maximal); Matuschek et al. 2017",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "Which grouping factors carry random intercepts and slopes. The maximal-vs-parsimonious debate (Barr et al. vs Matuschek et al.) makes the structure a modelling choice worth seeing — this flags absence, never adjudicates the choice.",
+                  "key": "random_effects",
+                  "label": "Random-effects structure",
+                  "note": "the random-effects structure (which grouping factors carry random intercepts/slopes) isn't stated — a reader needs it, and the field debates maximal vs parsimonious, so the choice matters (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                },
+                "disposition": "open",
+                "file_id": 1,
+                "finding_type": "lmm-random_effects-not-detected",
+                "id": 8,
+                "kind": "candidate",
+                "manuscript_id": 1,
+                "quote": null,
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Review random-effects structure reporting",
+                "tool_run_id": 3,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "the df / inference method (Satterthwaite / Kenward-Roger / Wald / LRT) isn't reported — it materially changes the p-values (not detected in the extracted text — check the paper)",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "Luke 2017",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "How p-values/CIs for fixed effects were obtained — Satterthwaite or Kenward-Roger approximate the denominator df; Wald/LRT/asymptotic don't. Luke (2017) shows the choice changes results.",
+                  "key": "df_method",
+                  "label": "Degrees-of-freedom / inference method",
+                  "note": "the df / inference method (Satterthwaite / Kenward-Roger / Wald / LRT) isn't reported — it materially changes the p-values (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                },
+                "disposition": "open",
+                "file_id": 1,
+                "finding_type": "lmm-df_method-not-detected",
+                "id": 9,
+                "kind": "candidate",
+                "manuscript_id": 1,
+                "quote": null,
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Review degrees-of-freedom / inference method reporting",
+                "tool_run_id": 3,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "whether the model converged, or the fit was singular, isn't mentioned (not detected in the extracted text — check the paper)",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "Bates et al. 2015 (lme4)",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "A mixed model can fail to converge or return a singular fit (a random-effects variance estimated at the boundary) — either undermines the estimates, so a careful reader looks for a convergence statement.",
+                  "key": "convergence",
+                  "label": "Convergence / singular fit",
+                  "note": "whether the model converged, or the fit was singular, isn't mentioned (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                },
+                "disposition": "open",
+                "file_id": 1,
+                "finding_type": "lmm-convergence-not-detected",
+                "id": 10,
+                "kind": "candidate",
+                "manuscript_id": 1,
+                "quote": null,
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Review convergence / singular fit reporting",
+                "tool_run_id": 3,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "REML vs ML isn't stated — it matters for likelihood-ratio tests on fixed effects (not detected in the extracted text — check the paper)",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "Bates et al. 2015 (lme4)",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "REML gives less-biased variance estimates but its likelihoods can't be compared across different fixed-effects structures; ML can. Which was used affects the validity of LRTs on fixed effects.",
+                  "key": "estimation",
+                  "label": "Estimation method (REML vs ML)",
+                  "note": "REML vs ML isn't stated — it matters for likelihood-ratio tests on fixed effects (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                },
+                "disposition": "open",
+                "file_id": 1,
+                "finding_type": "lmm-estimation-not-detected",
+                "id": 11,
+                "kind": "candidate",
+                "manuscript_id": 1,
+                "quote": null,
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Review estimation method (reml vs ml) reporting",
+                "tool_run_id": 3,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "the variance explained (marginal vs conditional R²) isn't reported (not detected in the extracted text — check the paper)",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "Nakagawa & Schielzeth 2013",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "Marginal R² is variance explained by fixed effects; conditional R² by fixed + random. Reporting which (Nakagawa & Schielzeth) tells the reader how much the model actually accounts for.",
+                  "key": "r2",
+                  "label": "Marginal vs conditional R²",
+                  "note": "the variance explained (marginal vs conditional R²) isn't reported (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                },
+                "disposition": "open",
+                "file_id": 1,
+                "finding_type": "lmm-r2-not-detected",
+                "id": 12,
+                "kind": "candidate",
+                "manuscript_id": 1,
+                "quote": null,
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Review marginal vs conditional r² reporting",
+                "tool_run_id": 3,
+                "updated_at": "2026-08-11T12:00:00"
+              }
+            ],
+            "id": 3,
+            "manuscript_id": 1,
+            "parameters_json": {},
+            "result_summary": "Mixed-model language detected; 0 reported, 5 not detected, and 2 not applicable across 7 checks.",
+            "snapshot_id": 5,
+            "status": "complete",
+            "structured_result_json": {
+              "checks": [
+                {
+                  "basis": "Barr et al. 2013 (keep it maximal); Matuschek et al. 2017",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "Which grouping factors carry random intercepts and slopes. The maximal-vs-parsimonious debate (Barr et al. vs Matuschek et al.) makes the structure a modelling choice worth seeing — this flags absence, never adjudicates the choice.",
+                  "key": "random_effects",
+                  "label": "Random-effects structure",
+                  "note": "the random-effects structure (which grouping factors carry random intercepts/slopes) isn't stated — a reader needs it, and the field debates maximal vs parsimonious, so the choice matters (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                },
+                {
+                  "basis": "Luke 2017",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "How p-values/CIs for fixed effects were obtained — Satterthwaite or Kenward-Roger approximate the denominator df; Wald/LRT/asymptotic don't. Luke (2017) shows the choice changes results.",
+                  "key": "df_method",
+                  "label": "Degrees-of-freedom / inference method",
+                  "note": "the df / inference method (Satterthwaite / Kenward-Roger / Wald / LRT) isn't reported — it materially changes the p-values (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                },
+                {
+                  "basis": "Bates et al. 2015 (lme4)",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "A mixed model can fail to converge or return a singular fit (a random-effects variance estimated at the boundary) — either undermines the estimates, so a careful reader looks for a convergence statement.",
+                  "key": "convergence",
+                  "label": "Convergence / singular fit",
+                  "note": "whether the model converged, or the fit was singular, isn't mentioned (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                },
+                {
+                  "basis": "Bates et al. 2015 (lme4)",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "REML gives less-biased variance estimates but its likelihoods can't be compared across different fixed-effects structures; ML can. Which was used affects the validity of LRTs on fixed effects.",
+                  "key": "estimation",
+                  "label": "Estimation method (REML vs ML)",
+                  "note": "REML vs ML isn't stated — it matters for likelihood-ratio tests on fixed effects (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                },
+                {
+                  "basis": "multilevel-modelling literature (e.g. Nakagawa & Schielzeth 2013)",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "In a multilevel design the intraclass correlation is how much variance sits between clusters — it motivates the multilevel model and gauges dependence.",
+                  "key": "icc",
+                  "label": "Intraclass correlation (ICC)",
+                  "note": "no multilevel/clustering structure is claimed, so an ICC isn't expected",
+                  "page": null,
+                  "status": "not-applicable"
+                },
+                {
+                  "basis": "Nakagawa & Schielzeth 2013",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "Marginal R² is variance explained by fixed effects; conditional R² by fixed + random. Reporting which (Nakagawa & Schielzeth) tells the reader how much the model actually accounts for.",
+                  "key": "r2",
+                  "label": "Marginal vs conditional R²",
+                  "note": "the variance explained (marginal vs conditional R²) isn't reported (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                },
+                {
+                  "basis": "FDA ICH E9(R1); Troendle et al. 2025; Cro et al. 2020; Moreno-Betancur & Chavance 2016",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "For a longitudinal model with dropout, the primary analysis assumes the missingness is ignorable (MAR). A sensitivity analysis (controlled/delta imputation, pattern-mixture, reference-based, tipping-point) checks whether the conclusion survives plausible departures.",
+                  "key": "missing_data",
+                  "label": "Missing-data sensitivity analysis",
+                  "note": "not a longitudinal design with evident dropout, so a missing-data sensitivity analysis isn't expected here",
+                  "page": null,
+                  "status": "not-applicable"
+                }
+              ],
+              "is_lmm": true,
+              "not_applicable": 2,
+              "not_found": 5,
+              "present": 0
+            },
+            "tool_id": "lmm",
+            "tool_version": "1",
+            "unresolved_findings": 5,
+            "validity": "current-with-findings"
+          },
+          {
+            "callosum_version": "dev",
+            "coverage": "Seven rule-based text checks: data and code availability, conflict of interest, funding, protocol or trial registration, preregistration, and 'available upon request'. Checks only the extracted primary manuscript; it does not inspect journal metadata, linked repositories, or files outside that primary source. 'Not detected' never means absent, and no result is a transparency score or judgment.",
+            "error_detail": null,
+            "executed_at": "2026-08-11T12:00:00",
+            "file_id": 1,
+            "findings": [
+              {
+                "context": "Whether the paper states where its data live (a statement and/or a repository link such as OSF, Zenodo, Dryad, or figshare). Detection is text-only — absence here is a prompt to look, not proof.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "ODDPub (Riedel et al. 2020)",
+                  "coordinate_precision": null,
+                  "evidence": "Data are available at https://osf.io/demo-only. Analysis code and materials ar",
+                  "explainer": "Whether the paper states where its data live (a statement and/or a repository link such as OSF, Zenodo, Dryad, or figshare). Detection is text-only — absence here is a prompt to look, not proof.",
+                  "key": "data_availability",
+                  "label": "Data availability",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                "disposition": null,
+                "file_id": 1,
+                "finding_type": "transparency-data_availability-detected",
+                "id": 2,
+                "kind": "fact",
+                "manuscript_id": 1,
+                "quote": "Data are available at https://osf.io/demo-only. Analysis code and materials ar",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Data availability disclosure detected",
+                "tool_run_id": 2,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "Whether the paper shares the analysis code/scripts (a statement and/or a repository such as GitHub, GitLab, or Code Ocean) — what a reader needs to reproduce the analysis.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "ODDPub (Riedel et al. 2020)",
+                  "coordinate_precision": null,
+                  "evidence": "The review protocol was preregistered at https://osf.io/demo-only. Searches and eligibility criteria were defined b",
+                  "explainer": "Whether the paper shares the analysis code/scripts (a statement and/or a repository such as GitHub, GitLab, or Code Ocean) — what a reader needs to reproduce the analysis.",
+                  "key": "code_availability",
+                  "label": "Code / software availability",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                "disposition": null,
+                "file_id": 1,
+                "finding_type": "transparency-code_availability-detected",
+                "id": 3,
+                "kind": "fact",
+                "manuscript_id": 1,
+                "quote": "The review protocol was preregistered at https://osf.io/demo-only. Searches and eligibility criteria were defined b",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Code / software availability disclosure detected",
+                "tool_run_id": 2,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "Whether the paper includes a competing-interests / conflict-of-interest declaration — a standard disclosure a reader looks for. Its absence in the text is not a claim of an undisclosed conflict.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "rtransparent (Serghiou et al. 2021)",
+                  "coordinate_precision": null,
+                  "evidence": "d materials are available in the same synthetic repository. The authors declare no conflicts of interest. This demonstration received no ex",
+                  "explainer": "Whether the paper includes a competing-interests / conflict-of-interest declaration — a standard disclosure a reader looks for. Its absence in the text is not a claim of an undisclosed conflict.",
+                  "key": "conflict_of_interest",
+                  "label": "Conflict-of-interest statement",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                "disposition": null,
+                "file_id": 1,
+                "finding_type": "transparency-conflict_of_interest-detected",
+                "id": 4,
+                "kind": "fact",
+                "manuscript_id": 1,
+                "quote": "d materials are available in the same synthetic repository. The authors declare no conflicts of interest. This demonstration received no ex",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Conflict-of-interest statement disclosure detected",
+                "tool_run_id": 2,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "Whether the paper reports its funding sources (or states it received none) — context for a reader weighing the work.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "rtransparent (Serghiou et al. 2021)",
+                  "coordinate_precision": null,
+                  "evidence": "flicts of interest. This demonstration received no external funding and used no human participants; ethics approval was therefo",
+                  "explainer": "Whether the paper reports its funding sources (or states it received none) — context for a reader weighing the work.",
+                  "key": "funding",
+                  "label": "Funding statement",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                "disposition": null,
+                "file_id": 1,
+                "finding_type": "transparency-funding-detected",
+                "id": 5,
+                "kind": "fact",
+                "manuscript_id": 1,
+                "quote": "flicts of interest. This demonstration received no external funding and used no human participants; ethics approval was therefo",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Funding statement disclosure detected",
+                "tool_run_id": 2,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "For a trial or systematic review, whether the protocol/trial was registered (ClinicalTrials.gov, PROSPERO, OSF Registries) — it lets a reader check the study against its plan.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "rtransparent (Serghiou et al. 2021); CONSORT / PRISMA",
+                  "coordinate_precision": null,
+                  "evidence": "The review protocol was preregistered at https://osf.io/demo-only. Searches and eligibility criteria",
+                  "explainer": "For a trial or systematic review, whether the protocol/trial was registered (ClinicalTrials.gov, PROSPERO, OSF Registries) — it lets a reader check the study against its plan.",
+                  "key": "registration",
+                  "label": "Protocol / trial registration",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                "disposition": null,
+                "file_id": 1,
+                "finding_type": "transparency-registration-detected",
+                "id": 6,
+                "kind": "fact",
+                "manuscript_id": 1,
+                "quote": "The review protocol was preregistered at https://osf.io/demo-only. Searches and eligibility criteria",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Protocol / trial registration disclosure detected",
+                "tool_run_id": 2,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "Whether the study's hypotheses/analysis plan were preregistered before data collection (AsPredicted, OSF) — a signal about confirmatory vs exploratory analysis.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "Nosek et al. 2018 (preregistration); AsPredicted / OSF Registries",
+                  "coordinate_precision": null,
+                  "evidence": "The review protocol was preregistered at https://osf.io/demo-only. Searches and eligibility crite",
+                  "explainer": "Whether the study's hypotheses/analysis plan were preregistered before data collection (AsPredicted, OSF) — a signal about confirmatory vs exploratory analysis.",
+                  "key": "preregistration",
+                  "label": "Preregistration",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                "disposition": null,
+                "file_id": 1,
+                "finding_type": "transparency-preregistration-detected",
+                "id": 7,
+                "kind": "fact",
+                "manuscript_id": 1,
+                "quote": "The review protocol was preregistered at https://osf.io/demo-only. Searches and eligibility crite",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Preregistration disclosure detected",
+                "tool_run_id": 2,
+                "updated_at": "2026-08-11T12:00:00"
+              }
+            ],
+            "id": 2,
+            "manuscript_id": 1,
+            "parameters_json": {},
+            "result_summary": "Detected 6 reported disclosures across 7 checks; 0 not detected; 1 not applicable.",
+            "snapshot_id": 4,
+            "status": "complete",
+            "structured_result_json": {
+              "checks": [
+                {
+                  "basis": "ODDPub (Riedel et al. 2020)",
+                  "coordinate_precision": null,
+                  "evidence": "Data are available at https://osf.io/demo-only. Analysis code and materials ar",
+                  "explainer": "Whether the paper states where its data live (a statement and/or a repository link such as OSF, Zenodo, Dryad, or figshare). Detection is text-only — absence here is a prompt to look, not proof.",
+                  "key": "data_availability",
+                  "label": "Data availability",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "ODDPub (Riedel et al. 2020)",
+                  "coordinate_precision": null,
+                  "evidence": "The review protocol was preregistered at https://osf.io/demo-only. Searches and eligibility criteria were defined b",
+                  "explainer": "Whether the paper shares the analysis code/scripts (a statement and/or a repository such as GitHub, GitLab, or Code Ocean) — what a reader needs to reproduce the analysis.",
+                  "key": "code_availability",
+                  "label": "Code / software availability",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "rtransparent (Serghiou et al. 2021)",
+                  "coordinate_precision": null,
+                  "evidence": "d materials are available in the same synthetic repository. The authors declare no conflicts of interest. This demonstration received no ex",
+                  "explainer": "Whether the paper includes a competing-interests / conflict-of-interest declaration — a standard disclosure a reader looks for. Its absence in the text is not a claim of an undisclosed conflict.",
+                  "key": "conflict_of_interest",
+                  "label": "Conflict-of-interest statement",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "rtransparent (Serghiou et al. 2021)",
+                  "coordinate_precision": null,
+                  "evidence": "flicts of interest. This demonstration received no external funding and used no human participants; ethics approval was therefo",
+                  "explainer": "Whether the paper reports its funding sources (or states it received none) — context for a reader weighing the work.",
+                  "key": "funding",
+                  "label": "Funding statement",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "rtransparent (Serghiou et al. 2021); CONSORT / PRISMA",
+                  "coordinate_precision": null,
+                  "evidence": "The review protocol was preregistered at https://osf.io/demo-only. Searches and eligibility criteria",
+                  "explainer": "For a trial or systematic review, whether the protocol/trial was registered (ClinicalTrials.gov, PROSPERO, OSF Registries) — it lets a reader check the study against its plan.",
+                  "key": "registration",
+                  "label": "Protocol / trial registration",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "Nosek et al. 2018 (preregistration); AsPredicted / OSF Registries",
+                  "coordinate_precision": null,
+                  "evidence": "The review protocol was preregistered at https://osf.io/demo-only. Searches and eligibility crite",
+                  "explainer": "Whether the study's hypotheses/analysis plan were preregistered before data collection (AsPredicted, OSF) — a signal about confirmatory vs exploratory analysis.",
+                  "key": "preregistration",
+                  "label": "Preregistration",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "ODDPub (Riedel et al. 2020) — 'upon request' is a weak availability signal",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "\"Data/code available upon request\" is a weaker availability signal than a repository link — the artifact isn't openly posted. Shown as a legibility note, never an accusation.",
+                  "key": "upon_request",
+                  "label": "\"Available upon request\" (weak signal)",
+                  "note": "no \"upon request\" availability language detected",
+                  "page": null,
+                  "status": "not-applicable"
+                }
+              ],
+              "not_applicable": 1,
+              "not_found": 0,
+              "present": 6
+            },
+            "tool_id": "transparency",
+            "tool_version": "1",
+            "unresolved_findings": 0,
+            "validity": "current"
+          },
+          {
+            "callosum_version": "dev",
+            "coverage": "Inline APA-style t, F, r, chi-square, and z results in extracted running text only. Tables, Bayesian results, confidence intervals, and unsupported reporting styles are not checked. No surfaced inconsistency never means the manuscript is clean.",
+            "error_detail": null,
+            "executed_at": "2026-08-11T12:00:00",
+            "file_id": 1,
+            "findings": [
+              {
+                "context": "The demonstration includes one intentionally inconsistent frequentist statement: t(18) = 2.10, p = .90. No numerical result in this synthetic draft is an estimate from the three bundled articles.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "computed_p": 0.0501,
+                  "consistency": "inconsistent",
+                  "page": 1,
+                  "page_end": 1,
+                  "reported_p": "p = .90",
+                  "section": null,
+                  "test_type": "t"
+                },
+                "disposition": "open",
+                "file_id": 1,
+                "finding_type": "statcheck-inconsistent",
+                "id": 1,
+                "kind": "candidate",
+                "manuscript_id": 1,
+                "quote": "t(18) = 2.10, p = .90",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "warning",
+                "summary": "Possible statistical reporting inconsistency",
+                "tool_run_id": 1,
+                "updated_at": "2026-08-11T12:00:00"
+              }
+            ],
+            "id": 1,
+            "manuscript_id": 1,
+            "parameters_json": {},
+            "result_summary": "Checked 1 inline NHST result; surfaced 1 possible reporting inconsistency.",
+            "snapshot_id": 3,
+            "status": "complete",
+            "structured_result_json": {
+              "checked": 1,
+              "decision_errors": 0,
+              "inconsistent": 1,
+              "results": [
+                {
+                  "attachment_id": null,
+                  "chunk_bbox_json": null,
+                  "computed_p": 0.0501,
+                  "consistency": "inconsistent",
+                  "context": "The demonstration includes one intentionally inconsistent frequentist statement: t(18) = 2.10, p = .90. No numerical result in this synthetic draft is an estimate from the three bundled articles.",
+                  "page": 1,
+                  "page_end": 1,
+                  "raw": "t(18) = 2.10, p = .90",
+                  "reported_p": "p = .90",
+                  "section": null,
+                  "source_kind": "prose",
+                  "table_caption": null,
+                  "table_index": null,
+                  "table_row": null,
+                  "test_type": "t"
+                }
+              ]
+            },
+            "tool_id": "statcheck",
+            "tool_version": "2",
+            "unresolved_findings": 1,
+            "validity": "current-with-findings"
+          }
+        ],
+        "tools": [
+          {
+            "id": "statcheck",
+            "kind": "deterministic-local",
+            "label": "Statcheck"
+          },
+          {
+            "id": "transparency",
+            "kind": "deterministic-local",
+            "label": "Transparency"
+          },
+          {
+            "id": "lmm",
+            "kind": "deterministic-local",
+            "label": "Mixed-model reporting"
+          },
+          {
+            "id": "bayes",
+            "kind": "deterministic-local",
+            "label": "Bayesian reporting"
+          },
+          {
+            "id": "meta-analysis",
+            "kind": "deterministic-local",
+            "label": "Meta-analysis reporting"
+          }
+        ]
+      },
+      "files": [
+        {
+          "existence_state": "available",
+          "extracted_from_whole_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b",
+          "extracted_text_hash": "95ac1cd6367c7d295980cfd218898458bd1243d8b71be255e2560fb0750a619c",
+          "extraction_error": null,
+          "extraction_provider": "plain-text",
+          "extraction_status": "complete",
+          "extraction_version": "1",
+          "file_size": 2652,
+          "id": 1,
+          "is_primary": true,
+          "last_scanned_at": "2026-08-11T12:00:00",
+          "manuscript_id": 1,
+          "modified_at": "2026-08-11T12:00:00",
+          "relative_path": "integrated-review.md",
+          "role": "primary-manuscript",
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
+        }
+      ],
+      "funding_runs": [],
+      "journal_runs": [],
+      "manuscript": {
+        "created_at": "2026-08-11T12:00:00",
+        "deadline": "2026-10-15",
+        "derived_title": "Integrated review",
+        "display_title": "Anomalous-is-bad bias: an integrated evidence review",
+        "file_count": 1,
+        "id": 1,
+        "last_filesystem_activity_at": "2026-08-11T12:00:00",
+        "manuscript_type": "systematic review and meta-analysis",
+        "missing_file_count": 0,
+        "missing_primary_file": false,
+        "missing_since": null,
+        "notes": "Synthetic public-demo draft. All detector results are genuine Callosum outputs; the study is not real.",
+        "open_task_count": 2,
+        "root_path": "Demo workspace / Integrated review",
+        "stage": "analysis",
+        "stale_check_count": 0,
+        "state": "active",
+        "target_journal": "Psychological Bulletin",
+        "title_override": "Anomalous-is-bad bias: an integrated evidence review",
+        "unresolved_finding_count": 11,
+        "updated_at": "2026-08-11T12:00:00"
+      },
+      "reference_integrity": {
+        "active_count": 0,
+        "checked_count": 3,
+        "items": [],
+        "last_checked_at": "2026-08-11T12:00:00",
+        "manuscript_id": 1,
+        "provider_statuses": []
+      },
+      "references": [
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "id": 2,
+          "manuscript_id": 1,
+          "notes": "Linked from the curated three-paper public demo library.",
+          "paper_id": 67,
+          "paper_title": "Morality is in the eye of the beholder: the neurocognitive basis of the ‘anomalous-is-bad’ stereotype",
+          "paper_year": 2021,
+          "relationship_state": "cited",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "id": 3,
+          "manuscript_id": 1,
+          "notes": "Linked from the curated three-paper public demo library.",
+          "paper_id": 88,
+          "paper_title": "Only human after all? a pre-registered study on gaze behavior and humanity attributions to people with facial difference",
+          "paper_year": 2023,
+          "relationship_state": "cited",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "id": 1,
+          "manuscript_id": 1,
+          "notes": "Linked from the curated three-paper public demo library.",
+          "paper_id": 42,
+          "paper_title": "What is good is beautiful (and what isn’t, isn’t): How moral character affects perceived facial attractiveness.",
+          "paper_year": 2024,
+          "relationship_state": "cited",
+          "updated_at": "2026-08-11T12:00:00"
+        }
+      ],
+      "sections": [
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 1,
+          "is_custom": false,
+          "manuscript_id": 1,
+          "name": "Title page",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 0,
+          "status": "complete",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 2,
+          "is_custom": false,
+          "manuscript_id": 1,
+          "name": "Abstract",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 1,
+          "status": "outlined",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 3,
+          "is_custom": false,
+          "manuscript_id": 1,
+          "name": "Introduction",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 2,
+          "status": "complete",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 4,
+          "is_custom": false,
+          "manuscript_id": 1,
+          "name": "Method",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 3,
+          "status": "complete",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 5,
+          "is_custom": false,
+          "manuscript_id": 1,
+          "name": "Results",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 4,
+          "status": "needs-revision",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 6,
+          "is_custom": false,
+          "manuscript_id": 1,
+          "name": "Discussion",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 5,
+          "status": "drafting",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 7,
+          "is_custom": false,
+          "manuscript_id": 1,
+          "name": "References",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 6,
+          "status": "complete",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 8,
+          "is_custom": false,
+          "manuscript_id": 1,
+          "name": "Tables",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 7,
+          "status": "outlined",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 9,
+          "is_custom": false,
+          "manuscript_id": 1,
+          "name": "Figures",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 8,
+          "status": "outlined",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 10,
+          "is_custom": false,
+          "manuscript_id": 1,
+          "name": "Supplement",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 9,
+          "status": "outlined",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 11,
+          "is_custom": false,
+          "manuscript_id": 1,
+          "name": "Open practices statement",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 10,
+          "status": "complete",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 12,
+          "is_custom": false,
+          "manuscript_id": 1,
+          "name": "Author contributions",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 11,
+          "status": "outlined",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 13,
+          "is_custom": false,
+          "manuscript_id": 1,
+          "name": "Data availability statement",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 12,
+          "status": "outlined",
+          "updated_at": "2026-08-11T12:00:00"
+        }
+      ],
+      "snapshots": [
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Anomalous-is-bad bias: an integrated evidence review",
+            "This deliberately synthetic manuscript exists only to demonstrate Callosum's unpublished-manuscript workspace. It reports no new participant data and must not be cited as research.",
+            "## Abstract",
+            "People can draw negative moral and social conclusions from visible facial differences. Workman et al. (2021) described this anomalous-is-bad stereotype, Rasset et al. (2023) tested gaze and humanity attributions, and He et al. (2024) tested whether complementary good-is-beautiful and bad-is-ugly stereotypes make moral character shape perceived facial attractiveness. We performed a synthetic random-effects meta-analysis of Hedges' g for demonstration only.",
+            "## Method"
+          ],
+          "extracted_char_count": 2641,
+          "extracted_text_hash": "95ac1cd6367c7d295980cfd218898458bd1243d8b71be255e2560fb0750a619c",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 1,
+          "id": 7,
+          "identity_status": "current",
+          "manuscript_id": 1,
+          "reason": "tool-run",
+          "reason_detail": "meta-analysis",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Anomalous-is-bad bias: an integrated evidence review",
+            "This deliberately synthetic manuscript exists only to demonstrate Callosum's unpublished-manuscript workspace. It reports no new participant data and must not be cited as research.",
+            "## Abstract",
+            "People can draw negative moral and social conclusions from visible facial differences. Workman et al. (2021) described this anomalous-is-bad stereotype, Rasset et al. (2023) tested gaze and humanity attributions, and He et al. (2024) tested whether complementary good-is-beautiful and bad-is-ugly stereotypes make moral character shape perceived facial attractiveness. We performed a synthetic random-effects meta-analysis of Hedges' g for demonstration only.",
+            "## Method"
+          ],
+          "extracted_char_count": 2641,
+          "extracted_text_hash": "95ac1cd6367c7d295980cfd218898458bd1243d8b71be255e2560fb0750a619c",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 1,
+          "id": 6,
+          "identity_status": "current",
+          "manuscript_id": 1,
+          "reason": "tool-run",
+          "reason_detail": "bayes",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Anomalous-is-bad bias: an integrated evidence review",
+            "This deliberately synthetic manuscript exists only to demonstrate Callosum's unpublished-manuscript workspace. It reports no new participant data and must not be cited as research.",
+            "## Abstract",
+            "People can draw negative moral and social conclusions from visible facial differences. Workman et al. (2021) described this anomalous-is-bad stereotype, Rasset et al. (2023) tested gaze and humanity attributions, and He et al. (2024) tested whether complementary good-is-beautiful and bad-is-ugly stereotypes make moral character shape perceived facial attractiveness. We performed a synthetic random-effects meta-analysis of Hedges' g for demonstration only.",
+            "## Method"
+          ],
+          "extracted_char_count": 2641,
+          "extracted_text_hash": "95ac1cd6367c7d295980cfd218898458bd1243d8b71be255e2560fb0750a619c",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 1,
+          "id": 5,
+          "identity_status": "current",
+          "manuscript_id": 1,
+          "reason": "tool-run",
+          "reason_detail": "lmm",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Anomalous-is-bad bias: an integrated evidence review",
+            "This deliberately synthetic manuscript exists only to demonstrate Callosum's unpublished-manuscript workspace. It reports no new participant data and must not be cited as research.",
+            "## Abstract",
+            "People can draw negative moral and social conclusions from visible facial differences. Workman et al. (2021) described this anomalous-is-bad stereotype, Rasset et al. (2023) tested gaze and humanity attributions, and He et al. (2024) tested whether complementary good-is-beautiful and bad-is-ugly stereotypes make moral character shape perceived facial attractiveness. We performed a synthetic random-effects meta-analysis of Hedges' g for demonstration only.",
+            "## Method"
+          ],
+          "extracted_char_count": 2641,
+          "extracted_text_hash": "95ac1cd6367c7d295980cfd218898458bd1243d8b71be255e2560fb0750a619c",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 1,
+          "id": 4,
+          "identity_status": "current",
+          "manuscript_id": 1,
+          "reason": "tool-run",
+          "reason_detail": "transparency",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Anomalous-is-bad bias: an integrated evidence review",
+            "This deliberately synthetic manuscript exists only to demonstrate Callosum's unpublished-manuscript workspace. It reports no new participant data and must not be cited as research.",
+            "## Abstract",
+            "People can draw negative moral and social conclusions from visible facial differences. Workman et al. (2021) described this anomalous-is-bad stereotype, Rasset et al. (2023) tested gaze and humanity attributions, and He et al. (2024) tested whether complementary good-is-beautiful and bad-is-ugly stereotypes make moral character shape perceived facial attractiveness. We performed a synthetic random-effects meta-analysis of Hedges' g for demonstration only.",
+            "## Method"
+          ],
+          "extracted_char_count": 2641,
+          "extracted_text_hash": "95ac1cd6367c7d295980cfd218898458bd1243d8b71be255e2560fb0750a619c",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 1,
+          "id": 3,
+          "identity_status": "current",
+          "manuscript_id": 1,
+          "reason": "tool-run",
+          "reason_detail": "statcheck",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Anomalous-is-bad bias: an integrated evidence review",
+            "This deliberately synthetic manuscript exists only to demonstrate Callosum's unpublished-manuscript workspace. It reports no new participant data and must not be cited as research.",
+            "## Abstract",
+            "People can draw negative moral and social conclusions from visible facial differences. Workman et al. (2021) described this anomalous-is-bad stereotype, Rasset et al. (2023) tested gaze and humanity attributions, and He et al. (2024) tested whether complementary good-is-beautiful and bad-is-ugly stereotypes make moral character shape perceived facial attractiveness. We performed a synthetic random-effects meta-analysis of Hedges' g for demonstration only.",
+            "## Method"
+          ],
+          "extracted_char_count": 2641,
+          "extracted_text_hash": "95ac1cd6367c7d295980cfd218898458bd1243d8b71be255e2560fb0750a619c",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 1,
+          "id": 2,
+          "identity_status": "current",
+          "manuscript_id": 1,
+          "reason": "manual",
+          "reason_detail": "",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Anomalous-is-bad bias: an integrated evidence review",
+            "This deliberately synthetic manuscript exists only to demonstrate Callosum's unpublished-manuscript workspace. It reports no new participant data and must not be cited as research.",
+            "## Abstract",
+            "People can draw negative moral and social conclusions from visible facial differences. Workman et al. (2021) described this anomalous-is-bad stereotype, Rasset et al. (2023) tested gaze and humanity attributions, and He et al. (2024) tested whether complementary good-is-beautiful and bad-is-ugly stereotypes make moral character shape perceived facial attractiveness. We performed a synthetic random-effects meta-analysis of Hedges' g for demonstration only.",
+            "## Method"
+          ],
+          "extracted_char_count": 2641,
+          "extracted_text_hash": "95ac1cd6367c7d295980cfd218898458bd1243d8b71be255e2560fb0750a619c",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 1,
+          "id": 1,
+          "identity_status": "current",
+          "manuscript_id": 1,
+          "reason": "primary-file-replacement",
+          "reason_detail": "none -> 1",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
+        }
+      ],
+      "tasks": [
+        {
+          "completed_at": null,
+          "created_at": "2026-08-11T12:00:00",
+          "description": "Public synthetic-demo task generated through the real WIP workflow API.",
+          "due_date": null,
+          "file_id": null,
+          "finding_id": null,
+          "id": 3,
+          "manuscript_id": 1,
+          "paper_id": null,
+          "section_id": 7,
+          "status": "complete",
+          "title": "Verify the three corrected bibliography records",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "completed_at": null,
+          "created_at": "2026-08-11T12:00:00",
+          "description": "Public synthetic-demo task generated through the real WIP workflow API.",
+          "due_date": null,
+          "file_id": null,
+          "finding_id": null,
+          "id": 1,
+          "manuscript_id": 1,
+          "paper_id": null,
+          "section_id": 5,
+          "status": "in-progress",
+          "title": "Resolve the intentionally surfaced detector candidates",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "completed_at": null,
+          "created_at": "2026-08-11T12:00:00",
+          "description": "Public synthetic-demo task generated through the real WIP workflow API.",
+          "due_date": null,
+          "file_id": null,
+          "finding_id": null,
+          "id": 2,
+          "manuscript_id": 1,
+          "paper_id": null,
+          "section_id": 6,
+          "status": "open",
+          "title": "Connect every interpretive claim to quoted evidence",
+          "updated_at": "2026-08-11T12:00:00"
+        }
+      ]
+    },
+    "2": {
+      "activity": [
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-completed",
+          "id": 84,
+          "manuscript_id": 2,
+          "metadata_json": {
+            "snapshot_id": 14,
+            "tool_id": "meta-analysis",
+            "tool_version": "1"
+          },
+          "related_entity_id": "10",
+          "related_entity_type": "tool-run",
+          "summary": "Meta-analysis language was not detected in the primary manuscript; no checklist was applied."
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 83,
+          "manuscript_id": 2,
+          "metadata_json": {
+            "reason": "tool-run",
+            "reason_detail": "meta-analysis"
+          },
+          "related_entity_id": "14",
+          "related_entity_type": "snapshot",
+          "summary": "Created tool run checkpoint for synthetic-replication.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-started",
+          "id": 82,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Started meta-analysis reporting audit"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-completed",
+          "id": 81,
+          "manuscript_id": 2,
+          "metadata_json": {
+            "snapshot_id": 13,
+            "tool_id": "bayes",
+            "tool_version": "1"
+          },
+          "related_entity_id": "9",
+          "related_entity_type": "tool-run",
+          "summary": "Bayesian analysis language was not detected in the primary manuscript; no checklist was applied."
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 80,
+          "manuscript_id": 2,
+          "metadata_json": {
+            "reason": "tool-run",
+            "reason_detail": "bayes"
+          },
+          "related_entity_id": "13",
+          "related_entity_type": "snapshot",
+          "summary": "Created tool run checkpoint for synthetic-replication.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-started",
+          "id": 79,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Started Bayesian reporting audit"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-completed",
+          "id": 78,
+          "manuscript_id": 2,
+          "metadata_json": {
+            "snapshot_id": 12,
+            "tool_id": "lmm",
+            "tool_version": "1"
+          },
+          "related_entity_id": "8",
+          "related_entity_type": "tool-run",
+          "summary": "Mixed-model language detected; 5 reported, 1 not detected, and 1 not applicable across 7 checks."
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 77,
+          "manuscript_id": 2,
+          "metadata_json": {
+            "reason": "tool-run",
+            "reason_detail": "lmm"
+          },
+          "related_entity_id": "12",
+          "related_entity_type": "snapshot",
+          "summary": "Created tool run checkpoint for synthetic-replication.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-started",
+          "id": 76,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Started mixed-model reporting audit"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-completed",
+          "id": 75,
+          "manuscript_id": 2,
+          "metadata_json": {
+            "snapshot_id": 11,
+            "tool_id": "transparency",
+            "tool_version": "1"
+          },
+          "related_entity_id": "7",
+          "related_entity_type": "tool-run",
+          "summary": "Detected 6 reported disclosures across 7 checks; 0 not detected; 1 not applicable."
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 74,
+          "manuscript_id": 2,
+          "metadata_json": {
+            "reason": "tool-run",
+            "reason_detail": "transparency"
+          },
+          "related_entity_id": "11",
+          "related_entity_type": "snapshot",
+          "summary": "Created tool run checkpoint for synthetic-replication.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-started",
+          "id": 73,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Started transparency disclosure check"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-completed",
+          "id": 72,
+          "manuscript_id": 2,
+          "metadata_json": {
+            "snapshot_id": 10,
+            "tool_id": "statcheck",
+            "tool_version": "2"
+          },
+          "related_entity_id": "6",
+          "related_entity_type": "tool-run",
+          "summary": "Checked 2 inline NHST results; surfaced 0 possible reporting inconsistencies."
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 71,
+          "manuscript_id": 2,
+          "metadata_json": {
+            "reason": "tool-run",
+            "reason_detail": "statcheck"
+          },
+          "related_entity_id": "10",
+          "related_entity_type": "snapshot",
+          "summary": "Created tool run checkpoint for synthetic-replication.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "tool-run-started",
+          "id": 70,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Started statcheck"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 69,
+          "manuscript_id": 2,
+          "metadata_json": {
+            "reason": "manual",
+            "reason_detail": ""
+          },
+          "related_entity_id": "9",
+          "related_entity_type": "snapshot",
+          "summary": "Created manual checkpoint for synthetic-replication.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "reference-linked",
+          "id": 68,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Linked Library paper 88"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "reference-linked",
+          "id": 67,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Linked Library paper 67"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "reference-linked",
+          "id": 66,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Linked Library paper 42"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "task-created",
+          "id": 65,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "6",
+          "related_entity_type": "task",
+          "summary": "Added task Verify the three corrected bibliography records"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "task-created",
+          "id": 64,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "5",
+          "related_entity_type": "task",
+          "summary": "Added task Connect every interpretive claim to quoted evidence"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "task-created",
+          "id": 63,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "4",
+          "related_entity_type": "task",
+          "summary": "Added task Resolve the intentionally surfaced detector candidates"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 62,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "26",
+          "related_entity_type": "section",
+          "summary": "Data availability statement: outlined"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 61,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "25",
+          "related_entity_type": "section",
+          "summary": "Author contributions: outlined"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 60,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "24",
+          "related_entity_type": "section",
+          "summary": "Open practices statement: complete"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 59,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "23",
+          "related_entity_type": "section",
+          "summary": "Supplement: outlined"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 58,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "22",
+          "related_entity_type": "section",
+          "summary": "Figures: outlined"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 57,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "21",
+          "related_entity_type": "section",
+          "summary": "Tables: outlined"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 56,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "20",
+          "related_entity_type": "section",
+          "summary": "References: complete"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 55,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "19",
+          "related_entity_type": "section",
+          "summary": "Discussion: drafting"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 54,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "18",
+          "related_entity_type": "section",
+          "summary": "Results: needs revision"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 53,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "17",
+          "related_entity_type": "section",
+          "summary": "Method: complete"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 52,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "16",
+          "related_entity_type": "section",
+          "summary": "Introduction: complete"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 51,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "15",
+          "related_entity_type": "section",
+          "summary": "Abstract: outlined"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "section-status-changed",
+          "id": 50,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "14",
+          "related_entity_type": "section",
+          "summary": "Title page: complete"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-created",
+          "id": 49,
+          "manuscript_id": 2,
+          "metadata_json": {
+            "reason": "primary-file-replacement",
+            "reason_detail": "none -> 2"
+          },
+          "related_entity_id": "8",
+          "related_entity_type": "snapshot",
+          "summary": "Created primary file replacement checkpoint for synthetic-replication.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "primary-file-changed",
+          "id": 48,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "2",
+          "related_entity_type": "file",
+          "summary": "Primary manuscript: synthetic-replication.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "checkpoint-skipped",
+          "id": 47,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Could not create stage transition checkpoint: Select a primary manuscript file before creating a checkpoint"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "manuscript-renamed",
+          "id": 46,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Display title changed"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "stage-changed",
+          "id": 45,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Stage changed to writing"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "file-added",
+          "id": 4,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": "2",
+          "related_entity_type": "file",
+          "summary": "Found synthetic-replication.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "manuscript-discovered",
+          "id": 3,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Discovered Synthetic replication"
+        }
+      ],
+      "checks": {
+        "runs": [
+          {
+            "callosum_version": "dev",
+            "coverage": "Seven text-detection checks cover the effect-size metric, pooling model, heterogeneity, publication-bias assessment, sensitivity or influence analysis, study count, and search and selection reporting. The search check is not applicable to a detected within-study mini-meta-analysis. Tables and figures are not fully read, and 'not detected' is never proof of omission. The auditor never pools, models, recomputes, scores, or judges the analysis.",
+            "error_detail": null,
+            "executed_at": "2026-08-11T12:00:00",
+            "file_id": 2,
+            "findings": [],
+            "id": 10,
+            "manuscript_id": 2,
+            "parameters_json": {},
+            "result_summary": "Meta-analysis language was not detected in the primary manuscript; no checklist was applied.",
+            "snapshot_id": 14,
+            "status": "complete",
+            "structured_result_json": {
+              "checks": [],
+              "is_meta_analysis": false,
+              "not_applicable": 0,
+              "not_found": 0,
+              "present": 0
+            },
+            "tool_id": "meta-analysis",
+            "tool_version": "1",
+            "unresolved_findings": 0,
+            "validity": "current"
+          },
+          {
+            "callosum_version": "dev",
+            "coverage": "Inline t-test and Pearson-correlation Bayes factors are recomputed under fixed default-prior assumptions, and three Bayesian reporting checks cover the prior, MCMC convergence diagnostics when applicable, and prior sensitivity. BFs in tables, unsupported designs, and results without an adjacent statistic are not checked. A mismatch commonly reflects a different prior or unreadable design; 'not detected' never proves omission. Advisories require expert judgment. The auditor never fits a model or produces a correctness verdict or score.",
+            "error_detail": null,
+            "executed_at": "2026-08-11T12:00:00",
+            "file_id": 2,
+            "findings": [],
+            "id": 9,
+            "manuscript_id": 2,
+            "parameters_json": {
+              "correlation_prior_kappa": 1.0,
+              "jzs_prior_scale": 0.7071,
+              "log10_tolerance": 0.3
+            },
+            "result_summary": "Bayesian analysis language was not detected in the primary manuscript; no checklist was applied.",
+            "snapshot_id": 13,
+            "status": "complete",
+            "structured_result_json": {
+              "checked": 0,
+              "completeness": {
+                "advisories": [],
+                "is_bayesian": false,
+                "items": []
+              },
+              "not_reproduced": 0,
+              "prior_scale": 0.7071,
+              "results": []
+            },
+            "tool_id": "bayes",
+            "tool_version": "1",
+            "unresolved_findings": 0,
+            "validity": "current"
+          },
+          {
+            "callosum_version": "dev",
+            "coverage": "A fixed text gate first checks for linear mixed-model language. When detected, seven reporting checks cover random-effects structure, df or inference method, convergence, REML or ML estimation, ICC, marginal or conditional R-squared, and missing-data sensitivity when its longitudinal-dropout precondition holds. Checks only the extracted primary manuscript; tables are not fully read. 'Not detected' is a review prompt, not proof of omission. The auditor never runs a model and produces no correctness verdict or score.",
+            "error_detail": null,
+            "executed_at": "2026-08-11T12:00:00",
+            "file_id": 2,
+            "findings": [
+              {
+                "context": "a longitudinal model with dropout, but no missing-data sensitivity analysis detected — FDA ICH E9(R1) recommends assessing robustness to the missing-at-random assumption (controlled/delta imputation, pattern-mixture, reference-based, tipping-point). Not a claim the analysis is wrong (not detected in the extracted text — check the paper)",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "FDA ICH E9(R1); Troendle et al. 2025; Cro et al. 2020; Moreno-Betancur & Chavance 2016",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "For a longitudinal model with dropout, the primary analysis assumes the missingness is ignorable (MAR). A sensitivity analysis (controlled/delta imputation, pattern-mixture, reference-based, tipping-point) checks whether the conclusion survives plausible departures.",
+                  "key": "missing_data",
+                  "label": "Missing-data sensitivity analysis",
+                  "note": "a longitudinal model with dropout, but no missing-data sensitivity analysis detected — FDA ICH E9(R1) recommends assessing robustness to the missing-at-random assumption (controlled/delta imputation, pattern-mixture, reference-based, tipping-point). Not a claim the analysis is wrong (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                },
+                "disposition": "open",
+                "file_id": 2,
+                "finding_type": "lmm-missing_data-not-detected",
+                "id": 24,
+                "kind": "candidate",
+                "manuscript_id": 2,
+                "quote": null,
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Review missing-data sensitivity analysis reporting",
+                "tool_run_id": 8,
+                "updated_at": "2026-08-11T12:00:00"
+              }
+            ],
+            "id": 8,
+            "manuscript_id": 2,
+            "parameters_json": {},
+            "result_summary": "Mixed-model language detected; 5 reported, 1 not detected, and 1 not applicable across 7 checks.",
+            "snapshot_id": 12,
+            "status": "complete",
+            "structured_result_json": {
+              "checks": [
+                {
+                  "basis": "Barr et al. 2013 (keep it maximal); Matuschek et al. 2017",
+                  "coordinate_precision": null,
+                  "evidence": "e synthetic analysis used a linear mixed-effects model with random intercepts for participant and stimulus and a random slope for condit",
+                  "explainer": "Which grouping factors carry random intercepts and slopes. The maximal-vs-parsimonious debate (Barr et al. vs Matuschek et al.) makes the structure a modelling choice worth seeing — this flags absence, never adjudicates the choice.",
+                  "key": "random_effects",
+                  "label": "Random-effects structure",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "Luke 2017",
+                  "coordinate_precision": null,
+                  "evidence": "dels were fitted with restricted maximum likelihood (REML), Satterthwaite degrees of freedom, and a documented software version. The",
+                  "explainer": "How p-values/CIs for fixed effects were obtained — Satterthwaite or Kenward-Roger approximate the denominator df; Wald/LRT/asymptotic don't. Luke (2017) shows the choice changes results.",
+                  "key": "df_method",
+                  "label": "Degrees-of-freedom / inference method",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "Bates et al. 2015 (lme4)",
+                  "coordinate_precision": null,
+                  "evidence": "es of freedom, and a documented software version. The model converged without a singular fit. We report marginal and conditional",
+                  "explainer": "A mixed model can fail to converge or return a singular fit (a random-effects variance estimated at the boundary) — either undermines the estimates, so a careful reader looks for a convergence statement.",
+                  "key": "convergence",
+                  "label": "Convergence / singular fit",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "Bates et al. 2015 (lme4)",
+                  "coordinate_precision": null,
+                  "evidence": "s and a random slope for condition. Models were fitted with restricted maximum likelihood (REML), Satterthwaite degrees of freedom, and a documented",
+                  "explainer": "REML gives less-biased variance estimates but its likelihoods can't be compared across different fixed-effects structures; ML can. Which was used affects the validity of LRTs on fixed effects.",
+                  "key": "estimation",
+                  "label": "Estimation method (REML vs ML)",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "multilevel-modelling literature (e.g. Nakagawa & Schielzeth 2013)",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "In a multilevel design the intraclass correlation is how much variance sits between clusters — it motivates the multilevel model and gauges dependence.",
+                  "key": "icc",
+                  "label": "Intraclass correlation (ICC)",
+                  "note": "no multilevel/clustering structure is claimed, so an ICC isn't expected",
+                  "page": null,
+                  "status": "not-applicable"
+                },
+                {
+                  "basis": "Nakagawa & Schielzeth 2013",
+                  "coordinate_precision": null,
+                  "evidence": "el converged without a singular fit. We report marginal and conditional R-squared and an intraclass correlation coefficient. There wa",
+                  "explainer": "Marginal R² is variance explained by fixed effects; conditional R² by fixed + random. Reporting which (Nakagawa & Schielzeth) tells the reader how much the model actually accounts for.",
+                  "key": "r2",
+                  "label": "Marginal vs conditional R²",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "FDA ICH E9(R1); Troendle et al. 2025; Cro et al. 2020; Moreno-Betancur & Chavance 2016",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "For a longitudinal model with dropout, the primary analysis assumes the missingness is ignorable (MAR). A sensitivity analysis (controlled/delta imputation, pattern-mixture, reference-based, tipping-point) checks whether the conclusion survives plausible departures.",
+                  "key": "missing_data",
+                  "label": "Missing-data sensitivity analysis",
+                  "note": "a longitudinal model with dropout, but no missing-data sensitivity analysis detected — FDA ICH E9(R1) recommends assessing robustness to the missing-at-random assumption (controlled/delta imputation, pattern-mixture, reference-based, tipping-point). Not a claim the analysis is wrong (not detected in the extracted text — check the paper)",
+                  "page": null,
+                  "status": "not-found"
+                }
+              ],
+              "is_lmm": true,
+              "not_applicable": 1,
+              "not_found": 1,
+              "present": 5
+            },
+            "tool_id": "lmm",
+            "tool_version": "1",
+            "unresolved_findings": 1,
+            "validity": "current-with-findings"
+          },
+          {
+            "callosum_version": "dev",
+            "coverage": "Seven rule-based text checks: data and code availability, conflict of interest, funding, protocol or trial registration, preregistration, and 'available upon request'. Checks only the extracted primary manuscript; it does not inspect journal metadata, linked repositories, or files outside that primary source. 'Not detected' never means absent, and no result is a transparency score or judgment.",
+            "error_detail": null,
+            "executed_at": "2026-08-11T12:00:00",
+            "file_id": 2,
+            "findings": [
+              {
+                "context": "Whether the paper states where its data live (a statement and/or a repository link such as OSF, Zenodo, Dryad, or figshare). Detection is text-only — absence here is a prompt to look, not proof.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "ODDPub (Riedel et al. 2020)",
+                  "coordinate_precision": null,
+                  "evidence": "## Data availability statement",
+                  "explainer": "Whether the paper states where its data live (a statement and/or a repository link such as OSF, Zenodo, Dryad, or figshare). Detection is text-only — absence here is a prompt to look, not proof.",
+                  "key": "data_availability",
+                  "label": "Data availability",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                "disposition": null,
+                "file_id": 2,
+                "finding_type": "transparency-data_availability-detected",
+                "id": 18,
+                "kind": "fact",
+                "manuscript_id": 2,
+                "quote": "## Data availability statement",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Data availability disclosure detected",
+                "tool_run_id": 7,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "Whether the paper shares the analysis code/scripts (a statement and/or a repository such as GitHub, GitLab, or Code Ocean) — what a reader needs to reproduce the analysis.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "ODDPub (Riedel et al. 2020)",
+                  "coordinate_precision": null,
+                  "evidence": "The analysis plan was preregistered at https://osf.io/demo-only before data inspection.",
+                  "explainer": "Whether the paper shares the analysis code/scripts (a statement and/or a repository such as GitHub, GitLab, or Code Ocean) — what a reader needs to reproduce the analysis.",
+                  "key": "code_availability",
+                  "label": "Code / software availability",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                "disposition": null,
+                "file_id": 2,
+                "finding_type": "transparency-code_availability-detected",
+                "id": 19,
+                "kind": "fact",
+                "manuscript_id": 2,
+                "quote": "The analysis plan was preregistered at https://osf.io/demo-only before data inspection.",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Code / software availability disclosure detected",
+                "tool_run_id": 7,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "Whether the paper includes a competing-interests / conflict-of-interest declaration — a standard disclosure a reader looks for. Its absence in the text is not a claim of an undisclosed conflict.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "rtransparent (Serghiou et al. 2021)",
+                  "coordinate_precision": null,
+                  "evidence": "study materials are available at https://osf.io/demo-only. The authors declare no conflicts of interest. This demonstration received no ex",
+                  "explainer": "Whether the paper includes a competing-interests / conflict-of-interest declaration — a standard disclosure a reader looks for. Its absence in the text is not a claim of an undisclosed conflict.",
+                  "key": "conflict_of_interest",
+                  "label": "Conflict-of-interest statement",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                "disposition": null,
+                "file_id": 2,
+                "finding_type": "transparency-conflict_of_interest-detected",
+                "id": 20,
+                "kind": "fact",
+                "manuscript_id": 2,
+                "quote": "study materials are available at https://osf.io/demo-only. The authors declare no conflicts of interest. This demonstration received no ex",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Conflict-of-interest statement disclosure detected",
+                "tool_run_id": 7,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "Whether the paper reports its funding sources (or states it received none) — context for a reader weighing the work.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "rtransparent (Serghiou et al. 2021)",
+                  "coordinate_precision": null,
+                  "evidence": "flicts of interest. This demonstration received no external funding. No people were studied, so ethics approval and trial regis",
+                  "explainer": "Whether the paper reports its funding sources (or states it received none) — context for a reader weighing the work.",
+                  "key": "funding",
+                  "label": "Funding statement",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                "disposition": null,
+                "file_id": 2,
+                "finding_type": "transparency-funding-detected",
+                "id": 21,
+                "kind": "fact",
+                "manuscript_id": 2,
+                "quote": "flicts of interest. This demonstration received no external funding. No people were studied, so ethics approval and trial regis",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Funding statement disclosure detected",
+                "tool_run_id": 7,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "For a trial or systematic review, whether the protocol/trial was registered (ClinicalTrials.gov, PROSPERO, OSF Registries) — it lets a reader check the study against its plan.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "rtransparent (Serghiou et al. 2021); CONSORT / PRISMA",
+                  "coordinate_precision": null,
+                  "evidence": "The analysis plan was preregistered at https://osf.io/demo-only before data inspection.",
+                  "explainer": "For a trial or systematic review, whether the protocol/trial was registered (ClinicalTrials.gov, PROSPERO, OSF Registries) — it lets a reader check the study against its plan.",
+                  "key": "registration",
+                  "label": "Protocol / trial registration",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                "disposition": null,
+                "file_id": 2,
+                "finding_type": "transparency-registration-detected",
+                "id": 22,
+                "kind": "fact",
+                "manuscript_id": 2,
+                "quote": "The analysis plan was preregistered at https://osf.io/demo-only before data inspection.",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Protocol / trial registration disclosure detected",
+                "tool_run_id": 7,
+                "updated_at": "2026-08-11T12:00:00"
+              },
+              {
+                "context": "Whether the study's hypotheses/analysis plan were preregistered before data collection (AsPredicted, OSF) — a signal about confirmatory vs exploratory analysis.",
+                "coordinate_precision": null,
+                "created_at": "2026-08-11T12:00:00",
+                "details_json": {
+                  "basis": "Nosek et al. 2018 (preregistration); AsPredicted / OSF Registries",
+                  "coordinate_precision": null,
+                  "evidence": "The analysis plan was preregistered at https://osf.io/demo-only before data inspection.",
+                  "explainer": "Whether the study's hypotheses/analysis plan were preregistered before data collection (AsPredicted, OSF) — a signal about confirmatory vs exploratory analysis.",
+                  "key": "preregistration",
+                  "label": "Preregistration",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                "disposition": null,
+                "file_id": 2,
+                "finding_type": "transparency-preregistration-detected",
+                "id": 23,
+                "kind": "fact",
+                "manuscript_id": 2,
+                "quote": "The analysis plan was preregistered at https://osf.io/demo-only before data inspection.",
+                "reference_id": null,
+                "resolution_notes": null,
+                "section_id": null,
+                "severity": "info",
+                "summary": "Preregistration disclosure detected",
+                "tool_run_id": 7,
+                "updated_at": "2026-08-11T12:00:00"
+              }
+            ],
+            "id": 7,
+            "manuscript_id": 2,
+            "parameters_json": {},
+            "result_summary": "Detected 6 reported disclosures across 7 checks; 0 not detected; 1 not applicable.",
+            "snapshot_id": 11,
+            "status": "complete",
+            "structured_result_json": {
+              "checks": [
+                {
+                  "basis": "ODDPub (Riedel et al. 2020)",
+                  "coordinate_precision": null,
+                  "evidence": "## Data availability statement",
+                  "explainer": "Whether the paper states where its data live (a statement and/or a repository link such as OSF, Zenodo, Dryad, or figshare). Detection is text-only — absence here is a prompt to look, not proof.",
+                  "key": "data_availability",
+                  "label": "Data availability",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "ODDPub (Riedel et al. 2020)",
+                  "coordinate_precision": null,
+                  "evidence": "The analysis plan was preregistered at https://osf.io/demo-only before data inspection.",
+                  "explainer": "Whether the paper shares the analysis code/scripts (a statement and/or a repository such as GitHub, GitLab, or Code Ocean) — what a reader needs to reproduce the analysis.",
+                  "key": "code_availability",
+                  "label": "Code / software availability",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "rtransparent (Serghiou et al. 2021)",
+                  "coordinate_precision": null,
+                  "evidence": "study materials are available at https://osf.io/demo-only. The authors declare no conflicts of interest. This demonstration received no ex",
+                  "explainer": "Whether the paper includes a competing-interests / conflict-of-interest declaration — a standard disclosure a reader looks for. Its absence in the text is not a claim of an undisclosed conflict.",
+                  "key": "conflict_of_interest",
+                  "label": "Conflict-of-interest statement",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "rtransparent (Serghiou et al. 2021)",
+                  "coordinate_precision": null,
+                  "evidence": "flicts of interest. This demonstration received no external funding. No people were studied, so ethics approval and trial regis",
+                  "explainer": "Whether the paper reports its funding sources (or states it received none) — context for a reader weighing the work.",
+                  "key": "funding",
+                  "label": "Funding statement",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "rtransparent (Serghiou et al. 2021); CONSORT / PRISMA",
+                  "coordinate_precision": null,
+                  "evidence": "The analysis plan was preregistered at https://osf.io/demo-only before data inspection.",
+                  "explainer": "For a trial or systematic review, whether the protocol/trial was registered (ClinicalTrials.gov, PROSPERO, OSF Registries) — it lets a reader check the study against its plan.",
+                  "key": "registration",
+                  "label": "Protocol / trial registration",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "Nosek et al. 2018 (preregistration); AsPredicted / OSF Registries",
+                  "coordinate_precision": null,
+                  "evidence": "The analysis plan was preregistered at https://osf.io/demo-only before data inspection.",
+                  "explainer": "Whether the study's hypotheses/analysis plan were preregistered before data collection (AsPredicted, OSF) — a signal about confirmatory vs exploratory analysis.",
+                  "key": "preregistration",
+                  "label": "Preregistration",
+                  "note": null,
+                  "page": null,
+                  "status": "present"
+                },
+                {
+                  "basis": "ODDPub (Riedel et al. 2020) — 'upon request' is a weak availability signal",
+                  "coordinate_precision": null,
+                  "evidence": null,
+                  "explainer": "\"Data/code available upon request\" is a weaker availability signal than a repository link — the artifact isn't openly posted. Shown as a legibility note, never an accusation.",
+                  "key": "upon_request",
+                  "label": "\"Available upon request\" (weak signal)",
+                  "note": "no \"upon request\" availability language detected",
+                  "page": null,
+                  "status": "not-applicable"
+                }
+              ],
+              "not_applicable": 1,
+              "not_found": 0,
+              "present": 6
+            },
+            "tool_id": "transparency",
+            "tool_version": "1",
+            "unresolved_findings": 0,
+            "validity": "current"
+          },
+          {
+            "callosum_version": "dev",
+            "coverage": "Inline APA-style t, F, r, chi-square, and z results in extracted running text only. Tables, Bayesian results, confidence intervals, and unsupported reporting styles are not checked. No surfaced inconsistency never means the manuscript is clean.",
+            "error_detail": null,
+            "executed_at": "2026-08-11T12:00:00",
+            "file_id": 2,
+            "findings": [],
+            "id": 6,
+            "manuscript_id": 2,
+            "parameters_json": {},
+            "result_summary": "Checked 2 inline NHST results; surfaced 0 possible reporting inconsistencies.",
+            "snapshot_id": 10,
+            "status": "complete",
+            "structured_result_json": {
+              "checked": 2,
+              "decision_errors": 0,
+              "inconsistent": 0,
+              "results": [
+                {
+                  "attachment_id": null,
+                  "chunk_bbox_json": null,
+                  "computed_p": 0.0424,
+                  "consistency": "consistent",
+                  "context": "For detector demonstration, the draft includes t(38) = 2.10, p = .042 and F(1, 38) = 4.41, p = .042.",
+                  "page": 1,
+                  "page_end": 1,
+                  "raw": "t(38) = 2.10, p = .042",
+                  "reported_p": "p = .042",
+                  "section": null,
+                  "source_kind": "prose",
+                  "table_caption": null,
+                  "table_index": null,
+                  "table_row": null,
+                  "test_type": "t"
+                },
+                {
+                  "attachment_id": null,
+                  "chunk_bbox_json": null,
+                  "computed_p": 0.0424,
+                  "consistency": "consistent",
+                  "context": "For detector demonstration, the draft includes t(38) = 2.10, p = .042 and F(1, 38) = 4.41, p = .042.",
+                  "page": 1,
+                  "page_end": 1,
+                  "raw": "F(1, 38) = 4.41, p = .042",
+                  "reported_p": "p = .042",
+                  "section": null,
+                  "source_kind": "prose",
+                  "table_caption": null,
+                  "table_index": null,
+                  "table_row": null,
+                  "test_type": "F"
+                }
+              ]
+            },
+            "tool_id": "statcheck",
+            "tool_version": "2",
+            "unresolved_findings": 0,
+            "validity": "current"
+          }
+        ],
+        "tools": [
+          {
+            "id": "statcheck",
+            "kind": "deterministic-local",
+            "label": "Statcheck"
+          },
+          {
+            "id": "transparency",
+            "kind": "deterministic-local",
+            "label": "Transparency"
+          },
+          {
+            "id": "lmm",
+            "kind": "deterministic-local",
+            "label": "Mixed-model reporting"
+          },
+          {
+            "id": "bayes",
+            "kind": "deterministic-local",
+            "label": "Bayesian reporting"
+          },
+          {
+            "id": "meta-analysis",
+            "kind": "deterministic-local",
+            "label": "Meta-analysis reporting"
+          }
+        ]
+      },
+      "files": [
+        {
+          "existence_state": "available",
+          "extracted_from_whole_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605",
+          "extracted_text_hash": "ba2754728911da17e84dbf763c270c29beb0af35f319ed16088ca0cf22eb8092",
+          "extraction_error": null,
+          "extraction_provider": "plain-text",
+          "extraction_status": "complete",
+          "extraction_version": "1",
+          "file_size": 1739,
+          "id": 2,
+          "is_primary": true,
+          "last_scanned_at": "2026-08-11T12:00:00",
+          "manuscript_id": 2,
+          "modified_at": "2026-08-11T12:00:00",
+          "relative_path": "synthetic-replication.md",
+          "role": "primary-manuscript",
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
+        }
+      ],
+      "funding_runs": [],
+      "journal_runs": [],
+      "manuscript": {
+        "created_at": "2026-08-11T12:00:00",
+        "deadline": "2026-09-30",
+        "derived_title": "Synthetic replication",
+        "display_title": "Facial difference impressions: synthetic replication report",
+        "file_count": 1,
+        "id": 2,
+        "last_filesystem_activity_at": "2026-08-11T12:00:00",
+        "manuscript_type": "empirical article",
+        "missing_file_count": 0,
+        "missing_primary_file": false,
+        "missing_since": null,
+        "notes": "Synthetic public-demo draft linked to the complete three-paper sandbox library.",
+        "open_task_count": 2,
+        "root_path": "Demo workspace / Synthetic replication",
+        "stage": "writing",
+        "stale_check_count": 0,
+        "state": "active",
+        "target_journal": "British Journal of Psychology",
+        "title_override": "Facial difference impressions: synthetic replication report",
+        "unresolved_finding_count": 1,
+        "updated_at": "2026-08-11T12:00:00"
+      },
+      "reference_integrity": {
+        "active_count": 0,
+        "checked_count": 3,
+        "items": [],
+        "last_checked_at": "2026-08-11T12:00:00",
+        "manuscript_id": 2,
+        "provider_statuses": []
+      },
+      "references": [
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "id": 5,
+          "manuscript_id": 2,
+          "notes": "Linked from the curated three-paper public demo library.",
+          "paper_id": 67,
+          "paper_title": "Morality is in the eye of the beholder: the neurocognitive basis of the ‘anomalous-is-bad’ stereotype",
+          "paper_year": 2021,
+          "relationship_state": "cited",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "id": 6,
+          "manuscript_id": 2,
+          "notes": "Linked from the curated three-paper public demo library.",
+          "paper_id": 88,
+          "paper_title": "Only human after all? a pre-registered study on gaze behavior and humanity attributions to people with facial difference",
+          "paper_year": 2023,
+          "relationship_state": "cited",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "id": 4,
+          "manuscript_id": 2,
+          "notes": "Linked from the curated three-paper public demo library.",
+          "paper_id": 42,
+          "paper_title": "What is good is beautiful (and what isn’t, isn’t): How moral character affects perceived facial attractiveness.",
+          "paper_year": 2024,
+          "relationship_state": "cited",
+          "updated_at": "2026-08-11T12:00:00"
+        }
+      ],
+      "sections": [
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 14,
+          "is_custom": false,
+          "manuscript_id": 2,
+          "name": "Title page",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 0,
+          "status": "complete",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 15,
+          "is_custom": false,
+          "manuscript_id": 2,
+          "name": "Abstract",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 1,
+          "status": "outlined",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 16,
+          "is_custom": false,
+          "manuscript_id": 2,
+          "name": "Introduction",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 2,
+          "status": "complete",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 17,
+          "is_custom": false,
+          "manuscript_id": 2,
+          "name": "Method",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 3,
+          "status": "complete",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 18,
+          "is_custom": false,
+          "manuscript_id": 2,
+          "name": "Results",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 4,
+          "status": "needs-revision",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 19,
+          "is_custom": false,
+          "manuscript_id": 2,
+          "name": "Discussion",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 5,
+          "status": "drafting",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 20,
+          "is_custom": false,
+          "manuscript_id": 2,
+          "name": "References",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 6,
+          "status": "complete",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 21,
+          "is_custom": false,
+          "manuscript_id": 2,
+          "name": "Tables",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 7,
+          "status": "outlined",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 22,
+          "is_custom": false,
+          "manuscript_id": 2,
+          "name": "Figures",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 8,
+          "status": "outlined",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 23,
+          "is_custom": false,
+          "manuscript_id": 2,
+          "name": "Supplement",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 9,
+          "status": "outlined",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 24,
+          "is_custom": false,
+          "manuscript_id": 2,
+          "name": "Open practices statement",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 10,
+          "status": "complete",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 25,
+          "is_custom": false,
+          "manuscript_id": 2,
+          "name": "Author contributions",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 11,
+          "status": "outlined",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "content_detected": false,
+          "created_at": "2026-08-11T12:00:00",
+          "id": 26,
+          "is_custom": false,
+          "manuscript_id": 2,
+          "name": "Data availability statement",
+          "notes": "Saved synthetic-demo planning state.",
+          "position": 12,
+          "status": "outlined",
+          "updated_at": "2026-08-11T12:00:00"
+        }
+      ],
+      "snapshots": [
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Facial difference impressions: synthetic replication report",
+            "This draft is a demonstration fixture, not a real experiment, dataset, protocol, or result.",
+            "## Abstract",
+            "This synthetic replication draft links the three public demo papers to show how Callosum connects manuscript planning, tasks, sources, provenance, and reporting checks.",
+            "## Introduction"
+          ],
+          "extracted_char_count": 1736,
+          "extracted_text_hash": "ba2754728911da17e84dbf763c270c29beb0af35f319ed16088ca0cf22eb8092",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 2,
+          "id": 14,
+          "identity_status": "current",
+          "manuscript_id": 2,
+          "reason": "tool-run",
+          "reason_detail": "meta-analysis",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Facial difference impressions: synthetic replication report",
+            "This draft is a demonstration fixture, not a real experiment, dataset, protocol, or result.",
+            "## Abstract",
+            "This synthetic replication draft links the three public demo papers to show how Callosum connects manuscript planning, tasks, sources, provenance, and reporting checks.",
+            "## Introduction"
+          ],
+          "extracted_char_count": 1736,
+          "extracted_text_hash": "ba2754728911da17e84dbf763c270c29beb0af35f319ed16088ca0cf22eb8092",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 2,
+          "id": 13,
+          "identity_status": "current",
+          "manuscript_id": 2,
+          "reason": "tool-run",
+          "reason_detail": "bayes",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Facial difference impressions: synthetic replication report",
+            "This draft is a demonstration fixture, not a real experiment, dataset, protocol, or result.",
+            "## Abstract",
+            "This synthetic replication draft links the three public demo papers to show how Callosum connects manuscript planning, tasks, sources, provenance, and reporting checks.",
+            "## Introduction"
+          ],
+          "extracted_char_count": 1736,
+          "extracted_text_hash": "ba2754728911da17e84dbf763c270c29beb0af35f319ed16088ca0cf22eb8092",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 2,
+          "id": 12,
+          "identity_status": "current",
+          "manuscript_id": 2,
+          "reason": "tool-run",
+          "reason_detail": "lmm",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Facial difference impressions: synthetic replication report",
+            "This draft is a demonstration fixture, not a real experiment, dataset, protocol, or result.",
+            "## Abstract",
+            "This synthetic replication draft links the three public demo papers to show how Callosum connects manuscript planning, tasks, sources, provenance, and reporting checks.",
+            "## Introduction"
+          ],
+          "extracted_char_count": 1736,
+          "extracted_text_hash": "ba2754728911da17e84dbf763c270c29beb0af35f319ed16088ca0cf22eb8092",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 2,
+          "id": 11,
+          "identity_status": "current",
+          "manuscript_id": 2,
+          "reason": "tool-run",
+          "reason_detail": "transparency",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Facial difference impressions: synthetic replication report",
+            "This draft is a demonstration fixture, not a real experiment, dataset, protocol, or result.",
+            "## Abstract",
+            "This synthetic replication draft links the three public demo papers to show how Callosum connects manuscript planning, tasks, sources, provenance, and reporting checks.",
+            "## Introduction"
+          ],
+          "extracted_char_count": 1736,
+          "extracted_text_hash": "ba2754728911da17e84dbf763c270c29beb0af35f319ed16088ca0cf22eb8092",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 2,
+          "id": 10,
+          "identity_status": "current",
+          "manuscript_id": 2,
+          "reason": "tool-run",
+          "reason_detail": "statcheck",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Facial difference impressions: synthetic replication report",
+            "This draft is a demonstration fixture, not a real experiment, dataset, protocol, or result.",
+            "## Abstract",
+            "This synthetic replication draft links the three public demo papers to show how Callosum connects manuscript planning, tasks, sources, provenance, and reporting checks.",
+            "## Introduction"
+          ],
+          "extracted_char_count": 1736,
+          "extracted_text_hash": "ba2754728911da17e84dbf763c270c29beb0af35f319ed16088ca0cf22eb8092",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 2,
+          "id": 9,
+          "identity_status": "current",
+          "manuscript_id": 2,
+          "reason": "manual",
+          "reason_detail": "",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "evidence_context_json": [
+            "# SYNTHETIC DEMO MANUSCRIPT — NOT A REAL STUDY",
+            "## Facial difference impressions: synthetic replication report",
+            "This draft is a demonstration fixture, not a real experiment, dataset, protocol, or result.",
+            "## Abstract",
+            "This synthetic replication draft links the three public demo papers to show how Callosum connects manuscript planning, tasks, sources, provenance, and reporting checks.",
+            "## Introduction"
+          ],
+          "extracted_char_count": 1736,
+          "extracted_text_hash": "ba2754728911da17e84dbf763c270c29beb0af35f319ed16088ca0cf22eb8092",
+          "extraction_provider": "plain-text",
+          "extraction_version": "1",
+          "file_id": 2,
+          "id": 8,
+          "identity_status": "current",
+          "manuscript_id": 2,
+          "reason": "primary-file-replacement",
+          "reason_detail": "none -> 2",
+          "section_hashes_json": null,
+          "status_detail": "The primary file matches this checkpoint.",
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
+        }
+      ],
+      "tasks": [
+        {
+          "completed_at": null,
+          "created_at": "2026-08-11T12:00:00",
+          "description": "Public synthetic-demo task generated through the real WIP workflow API.",
+          "due_date": null,
+          "file_id": null,
+          "finding_id": null,
+          "id": 6,
+          "manuscript_id": 2,
+          "paper_id": null,
+          "section_id": 20,
+          "status": "complete",
+          "title": "Verify the three corrected bibliography records",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "completed_at": null,
+          "created_at": "2026-08-11T12:00:00",
+          "description": "Public synthetic-demo task generated through the real WIP workflow API.",
+          "due_date": null,
+          "file_id": null,
+          "finding_id": null,
+          "id": 4,
+          "manuscript_id": 2,
+          "paper_id": null,
+          "section_id": 18,
+          "status": "in-progress",
+          "title": "Resolve the intentionally surfaced detector candidates",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "completed_at": null,
+          "created_at": "2026-08-11T12:00:00",
+          "description": "Public synthetic-demo task generated through the real WIP workflow API.",
+          "due_date": null,
+          "file_id": null,
+          "finding_id": null,
+          "id": 5,
+          "manuscript_id": 2,
+          "paper_id": null,
+          "section_id": 19,
+          "status": "open",
+          "title": "Connect every interpretive claim to quoted evidence",
+          "updated_at": "2026-08-11T12:00:00"
+        }
+      ]
+    }
+  },
+  "generated_with": {
+    "checks": "Callosum deterministic WIP endpoints",
+    "curated_on": "2026-08-13",
+    "source": "fresh dedicated public-demo database",
+    "workflow": "Callosum WIP scan and workflow APIs"
+  },
+  "manuscripts": [
+    {
+      "created_at": "2026-08-11T12:00:00",
+      "deadline": "2026-10-15",
+      "derived_title": "Integrated review",
+      "display_title": "Anomalous-is-bad bias: an integrated evidence review",
+      "file_count": 1,
+      "id": 1,
+      "last_filesystem_activity_at": "2026-08-11T12:00:00",
+      "manuscript_type": "systematic review and meta-analysis",
+      "missing_file_count": 0,
+      "missing_primary_file": false,
+      "missing_since": null,
+      "notes": "Synthetic public-demo draft. All detector results are genuine Callosum outputs; the study is not real.",
+      "open_task_count": 2,
+      "root_path": "Demo workspace / Integrated review",
+      "stage": "analysis",
+      "stale_check_count": 0,
+      "state": "active",
+      "target_journal": "Psychological Bulletin",
+      "title_override": "Anomalous-is-bad bias: an integrated evidence review",
+      "unresolved_finding_count": 11,
+      "updated_at": "2026-08-11T12:00:00"
+    },
+    {
+      "created_at": "2026-08-11T12:00:00",
+      "deadline": "2026-09-30",
+      "derived_title": "Synthetic replication",
+      "display_title": "Facial difference impressions: synthetic replication report",
+      "file_count": 1,
+      "id": 2,
+      "last_filesystem_activity_at": "2026-08-11T12:00:00",
+      "manuscript_type": "empirical article",
+      "missing_file_count": 0,
+      "missing_primary_file": false,
+      "missing_since": null,
+      "notes": "Synthetic public-demo draft linked to the complete three-paper sandbox library.",
+      "open_task_count": 2,
+      "root_path": "Demo workspace / Synthetic replication",
+      "stage": "writing",
+      "stale_check_count": 0,
+      "state": "active",
+      "target_journal": "British Journal of Psychology",
+      "title_override": "Facial difference impressions: synthetic replication report",
+      "unresolved_finding_count": 1,
+      "updated_at": "2026-08-11T12:00:00"
+    }
+  ],
+  "schema_version": 1
+}

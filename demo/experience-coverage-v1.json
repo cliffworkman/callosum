@@ -1,0 +1,189 @@
+{
+  "schema": "callosum-demo-experience-coverage/1",
+  "reviewed_at": "2026-08-13",
+  "review_state": "wave-1-reconnaissance",
+  "status_definitions": {
+    "saved-inspectable": "A representative saved result is rendered through the shared frontend and its important read-only interactions work.",
+    "saved-partial": "A saved result exists, but the current demo has a confirmed data, navigation, fidelity, or explanatory gap.",
+    "browser-local": "The interaction can run without a backend and is available as disposable browser state or a local calculation.",
+    "visible-live-only": "The real control or orientation is visible, but the operation needs backend, persistent, acquisition, or private state and has no representative saved outcome yet.",
+    "external-surface": "The capability lives in a desktop, editor, terminal, or agent interface that cannot execute inside the static browser demo.",
+    "scientifically-inapplicable": "The saved corpus has an honest zero result; fabricating a positive result would be misleading.",
+    "missing-snapshot": "The website claims this capability, but Wave 1 found no inspectable representative result in the demo."
+  },
+  "stages": {
+    "discover": {
+      "saved-partial": [
+        "cap-search",
+        "cap-feed",
+        "cap-followed-authors",
+        "cap-registration-discovery",
+        "cap-funding",
+        "cap-journals",
+        "cap-journal-provenance",
+        "cap-mypubs",
+        "cap-citation-gaps",
+        "cap-citing-authors",
+        "cap-emerging-topics",
+        "cap-indexed-works"
+      ],
+      "visible-live-only": [
+        "cap-import",
+        "cap-watch-folder",
+        "cap-enrichment",
+        "cap-oa"
+      ],
+      "missing-snapshot": [
+        "cap-beyond-library",
+        "cap-overlooked",
+        "cap-wanted",
+        "cap-literature-gaps",
+        "cap-domains"
+      ]
+    },
+    "read": {
+      "saved-inspectable": [
+        "cap-axes",
+        "cap-tags",
+        "cap-saved-searches",
+        "cap-fulltext",
+        "cap-reading-queue",
+        "cap-attachments",
+        "cap-reader",
+        "cap-fit",
+        "cap-two-up",
+        "cap-reading-mode",
+        "cap-position",
+        "cap-highlights",
+        "cap-notes",
+        "cap-mark-nav",
+        "cap-coordinates",
+        "cap-citation-context"
+      ],
+      "saved-partial": [
+        "cap-read-priority",
+        "cap-details"
+      ],
+      "visible-live-only": [
+        "cap-duplicates",
+        "cap-trash",
+        "cap-bundles",
+        "cap-ocr"
+      ],
+      "missing-snapshot": [
+        "cap-pdf-search"
+      ]
+    },
+    "evaluate": {
+      "saved-inspectable": [
+        "cap-statcheck",
+        "cap-grim",
+        "cap-debit",
+        "cap-repeated-values",
+        "cap-bayesian",
+        "cap-lmm",
+        "cap-meta-reporting",
+        "cap-transparency",
+        "cap-reference-integrity",
+        "cap-citation-concentration",
+        "cap-citation-equity",
+        "cap-citation-stance",
+        "cap-wip-critical"
+      ],
+      "saved-partial": [
+        "cap-critical-paper",
+        "cap-critical-multi"
+      ],
+      "browser-local": [
+        "cap-effect-size",
+        "cap-pcurve",
+        "cap-zcurve"
+      ],
+      "scientifically-inapplicable": [
+        "cap-retractions"
+      ]
+    },
+    "synthesize": {
+      "saved-partial": [
+        "cap-synthesis",
+        "cap-verification",
+        "cap-contrasts",
+        "cap-open-source",
+        "cap-meta-analyze",
+        "cap-extraction-candidates",
+        "cap-extraction-anchors",
+        "cap-extraction-export",
+        "cap-registration-reference",
+        "cap-registration-acquire",
+        "cap-commitments",
+        "cap-publication-evidence",
+        "cap-crosswalk",
+        "cap-staleness",
+        "cap-registration-review",
+        "cap-registration-correction",
+        "cap-registration-triage",
+        "cap-raw-registration"
+      ]
+    },
+    "write": {
+      "saved-inspectable": [
+        "cap-wip",
+        "cap-checkpoints",
+        "cap-history",
+        "cap-findings",
+        "cap-wip-routes",
+        "cap-funding-statements",
+        "cap-credit",
+        "cap-statement-stage"
+      ],
+      "saved-partial": [
+        "cap-cite",
+        "cap-cite-stance",
+        "cap-csl",
+        "cap-bibliography"
+      ],
+      "external-surface": [
+        "cap-libreoffice",
+        "cap-word",
+        "cap-google-docs",
+        "cap-citation-insert",
+        "cap-evidence-insert",
+        "cap-statement-insert"
+      ]
+    },
+    "audit": {
+      "saved-inspectable": [
+        "cap-wip-statcheck",
+        "cap-wip-checklists",
+        "cap-status",
+        "cap-progress",
+        "cap-usage",
+        "cap-help"
+      ],
+      "saved-partial": [
+        "cap-meta-reference"
+      ],
+      "browser-local": [
+        "cap-feedback",
+        "cap-dark-mode"
+      ],
+      "visible-live-only": [
+        "cap-providers",
+        "cap-egress",
+        "cap-local-models",
+        "cap-sync",
+        "cap-account",
+        "cap-onboarding"
+      ],
+      "external-surface": [
+        "cap-citation-preflight",
+        "cap-citation-coverage",
+        "cap-zotero-convert",
+        "cap-tui",
+        "cap-mcp-read",
+        "cap-mcp-write",
+        "cap-mcp-revert"
+      ]
+    }
+  }
+}

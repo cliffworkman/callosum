@@ -11,6 +11,12 @@ Implemented local operations are simple:
 - Keep secrets in environment variables such as `GOOGLE_API_KEY`, `CALLOSUM_DB_URL`, and `CALLOSUM_ALLOW_DATA_EGRESS`.
 - Deploy the optional hosted feedback relay separately; its Slack secret and abuse controls are documented in
   [`feedback_relay/README.md`](../feedback_relay/README.md). The relay is not part of the desktop sidecar.
+- Build the backend-free public demo explicitly with
+  `python tools/demo/build_demo.py --base-path /callosum/demo/`. This creates the ignored `dist-demo/` artifact and
+  never publishes it. Snapshot curation, local serving, licensing, and security checks are documented in
+  [`demo/README.md`](../demo/README.md).
+- Validate/upload or explicitly deploy that artifact with the manual `demo-static.yml` GitHub Actions workflow.
+  Deployment requires `deploy=true`, a confirmed base path, and GitHub Pages configured to use Actions.
 
 Packaging, desktop distribution, OS keychain integration, and GROBID service operations are planned or
 exploratory, not implemented here — tracked under **"Packaging & distribution (post-V1)"** (Theme 4) in

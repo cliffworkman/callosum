@@ -90,14 +90,17 @@ class BayesResponse(BaseModel):
     completeness: BayesCompletenessOut  # SP2: the Tier-2 BARG/WAMBS/JASP reporting checklist
 
 
-@router.get("/papers/{paper_id}/bayes", response_model=BayesResponse)
-def paper_bayes(paper_id: int, request: Request, conn: Connection = Depends(get_connection)) -> BayesResponse:
+def build_bayes_response(
+    conn: Connection, paper_id: int, *, validate_paper: bool = True
+) -> tuple[BayesResponse, Any, Any]:
+    """Build the exact public response without persisting derived library signals."""
     # Deterministic, local recompute of default JZS Bayes factors + a Tier-2 completeness checklist over the paper's
     # extracted text. No chunks → checked: 0, an honest "no extractable text" — never an error.
-    try:
-        get_paper(conn, paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
+    if validate_paper:
+        try:
+            get_paper(conn, paper_id)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="Paper not found") from None
     chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES)
     pdf_attachment_ids = pdf_attachment_ids_for_chunks(conn, chunks)
     report = run_bayes(chunks)
@@ -147,6 +150,12 @@ def paper_bayes(paper_id: int, request: Request, conn: Connection = Depends(get_
             ],
         ),
     )
+    return response, report, completeness
+
+
+@router.get("/papers/{paper_id}/bayes", response_model=BayesResponse)
+def paper_bayes(paper_id: int, request: Request, conn: Connection = Depends(get_connection)) -> BayesResponse:
+    response, report, completeness = build_bayes_response(conn, paper_id)
     run_write(request.app.state.engine, lambda c: apply_bayes(c, paper_id, report, completeness))
     return response
 

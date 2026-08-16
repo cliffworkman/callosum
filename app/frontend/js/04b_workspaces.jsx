@@ -37,9 +37,13 @@ function registerWorkspaceTab(host, tab) {
   if (!w.defined) { w.label = host.label; w.order = host.order || 0; if (host.hideInReadOnly != null) w.hideInReadOnly = !!host.hideInReadOnly; if (host.utility != null) w.utility = !!host.utility; }
   _addWsTab(w, tab);
 }
+function _demoInspectable(workspaceId, tabId) {
+  return !!demoWorkspaceCapability(workspaceId, tabId);
+}
 function _wsHiddenReadOnly(w) {
   // Hidden on a read-only companion if the workspace is flagged, or it has registered tabs and EVERY one is hidden.
   // A shell-rendered workspace (0 registered tabs, e.g. Library/My Publications) shows unless explicitly hideInReadOnly.
+  if (isDemoMode() && (_demoInspectable(w.id) || w.tabs.some(t => _demoInspectable(w.id, t.id)))) return false;
   if (w.hideInReadOnly) return true;
   return w.tabs.length > 0 && w.tabs.every(t => t.hideInReadOnly);
 }
@@ -47,7 +51,8 @@ function workspaces(readOnly) {
   return WORKSPACES.filter(w => !(readOnly && _wsHiddenReadOnly(w))).sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 function workspaceTabs(w, readOnly) {
-  return [...w.tabs].filter(t => !(readOnly && t.hideInReadOnly)).sort((a, b) => (a.order || 0) - (b.order || 0));
+  return [...w.tabs].filter(t => !(readOnly && t.hideInReadOnly && !_demoInspectable(w.id, t.id)))
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 function getWorkspace(id) { return WORKSPACES.find(w => w.id === id) || null; }
 
@@ -159,6 +164,7 @@ function WorkspacePane({ ws, ctx, readOnly, wsActive }) {
   }, [requested ? requested.nonce : null, ws.id]);
   if (tabs.length === 0) return null;
   const at = tabs.some(t => t.id === activeTab) ? activeTab : tabs[0].id;
+  const demoCapability = demoWorkspaceCapability(ws.id, at);
   return (
     <div className="workspace-pane">
       {tabs.length > 1 &&
@@ -169,6 +175,12 @@ function WorkspacePane({ ws, ctx, readOnly, wsActive }) {
               className={"tags-srcfilter-btn" + (t.id === at ? " on" : "")}
               onClick={() => setTab(t.id)}>{t.label}</button>
           ))}
+        </div>}
+      {demoCapability && at !== "ask" &&
+        <div className={"demo-workspace-note " + demoCapability.mode} role="note">
+          <b>{demoCapability.mode === "saved" ? "Saved demo view" :
+            demoCapability.mode === "ephemeral-local" ? "Browser-local preview" : "Visible for orientation"}</b>
+          <span>{demoCapability.note}</span>
         </div>}
       {tabs.map(t => (
         <div key={t.id} className={"workspace-body pane-tab" + (t.id === at ? " active" : "")}>

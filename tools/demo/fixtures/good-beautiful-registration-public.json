@@ -1,0 +1,402 @@
+{
+  "commitments": [
+    {
+      "evidence_text": "What is good is beautiful: perceived moral cues influence facial beauty judgments",
+      "extraction_confidence": "high",
+      "extraction_method": "structured-registry-metadata",
+      "extraction_version": "registration-commitments-v1",
+      "field_type": "study-identity",
+      "ordinal": 0,
+      "page": 1,
+      "source_key": "registration-metadata:title",
+      "source_locator": {
+        "canonical_url": "https://osf.io/b9faw/",
+        "external_id": "b9faw",
+        "page_end": 1,
+        "page_start": 1,
+        "provider": "osf",
+        "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "registration_version_id": 4201,
+        "source_key": "registration-metadata:title"
+      },
+      "source_section": "Registration metadata",
+      "structured_value": {
+        "text": "What is good is beautiful: perceived moral cues influence facial beauty judgments"
+      },
+      "study_label": null
+    },
+    {
+      "evidence_text": "2020-09-19T16:47:56.097453",
+      "extraction_confidence": "high",
+      "extraction_method": "structured-registry-metadata",
+      "extraction_version": "registration-commitments-v1",
+      "field_type": "registration-timing",
+      "ordinal": 1,
+      "page": null,
+      "source_key": "registration-metadata:registered-at",
+      "source_locator": {
+        "canonical_url": "https://osf.io/b9faw/",
+        "external_id": "b9faw",
+        "page_end": null,
+        "page_start": null,
+        "provider": "osf",
+        "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "registration_version_id": 4201,
+        "source_key": "registration-metadata:registered-at"
+      },
+      "source_section": "Registration metadata",
+      "structured_value": {
+        "registered_at": "2020-09-19T16:47:56.097453",
+        "registration_status": "public",
+        "updated_at": "2021-12-02T08:46:35.551539"
+      },
+      "study_label": null
+    },
+    {
+      "evidence_text": "We test the hypothesis that a “good is beautiful” effect exists, wherein learning morally-relevant information about a face is predicted to influence perceptions of facial beauty. We also investigate whether this effect varies by face age.\n\nSpecifically, we predict that reading about moral transgressions will elicit perceptions of facial unattractiveness. We also predict that reading about acts of moral goodness will elicit perceptions of facial attractiveness.\n\nAlternatively, effects of beauty on character inferences may be specific for unattractiveness, reflecting evolved disgust responses to pathogen threat. This prediction is consistent with a report by Workman and colleagues (submitted) of selective brain responses to anomalous faces—sensitive to disgust and to facial unattractiveness.",
+      "extraction_confidence": "high",
+      "extraction_method": "structured-osf",
+      "extraction_version": "registration-commitments-v1",
+      "field_type": "hypothesis",
+      "ordinal": 2,
+      "page": 1,
+      "source_key": "question:q2",
+      "source_locator": {
+        "canonical_url": "https://osf.io/b9faw/",
+        "external_id": "b9faw",
+        "page_end": 1,
+        "page_start": 1,
+        "provider": "osf",
+        "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "registration_version_id": 4201,
+        "source_key": "question:q2"
+      },
+      "source_section": "Study Information",
+      "structured_value": {
+        "text": "We test the hypothesis that a “good is beautiful” effect exists, wherein learning morally-relevant information about a face is predicted to influence perceptions of facial beauty. We also investigate whether this effect varies by face age.\n\nSpecifically, we predict that reading about moral transgressions will elicit perceptions of facial unattractiveness. We also predict that reading about acts of moral goodness will elicit perceptions of facial attractiveness.\n\nAlternatively, effects of beauty on character inferences may be specific for unattractiveness, reflecting evolved disgust responses to pathogen threat. This prediction is consistent with a report by Workman and colleagues (submitted) of selective brain responses to anomalous faces—sensitive to disgust and to facial unattractiveness."
+      },
+      "study_label": null
+    },
+    {
+      "evidence_text": "No blinding is involved in this study.",
+      "extraction_confidence": "high",
+      "extraction_method": "structured-osf",
+      "extraction_version": "registration-commitments-v1",
+      "field_type": "blinding",
+      "ordinal": 3,
+      "page": 1,
+      "source_key": "question:q4",
+      "source_locator": {
+        "canonical_url": "https://osf.io/b9faw/",
+        "external_id": "b9faw",
+        "page_end": 1,
+        "page_start": 1,
+        "provider": "osf",
+        "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "registration_version_id": 4201,
+        "source_key": "question:q4"
+      },
+      "source_section": "Design Plan",
+      "structured_value": {
+        "raw": [
+          "No blinding is involved in this study."
+        ],
+        "text": "No blinding is involved in this study."
+      },
+      "study_label": null
+    },
+    {
+      "evidence_text": "The experiment will be conducted online through the Qualtrics platform. Participants will be recruited via MTurk. Participants will be presented a brief vignette describing a pro- social, anti-social and non-moral action on each trial (N = 72 vignettes). Each vignette is paired with a face (N = 24 images, appear three times). Participants then rate each face on facial attractiveness (How attractive is this person?), friendliness (How friendly is this person?), and confidence (How confident is this person?) on a scale from 1 to 7. There are 72 trials total. Stimuli will be presented in randomized order and there is no restriction in presentation time. Participants will then complete several dispositional measures (Three-Domain Disgust Scale, Tybur et al., 2009; Interpersonal Reactivity Index, Davis, 1980). Finally, participant will complete a short socio-demographic questionnaire. Participants will be compensated for their time and participation in the study.\n\nMaterials consist of 72 vignettes (24 pro-social, 24 anti-social and 24 non-moral) and 24 different sex and age face images. Each face image will appear three times together with one pro-social vignette, one anti-social vignette and one non-moral vignette.\n\nStimuli Selection\nVignettes will be selected from Knutson et al. (2010) research, which also provide researchers normative ratings of the vignettes along several dimensions including morally appropriate and level of harm or benefit caused, etc. Each vignette describes a real prosocial/antisocial scenario as described by volunteers asked to recount their real life experiences.  \n\nSpecifically, we will select 50 pro-social and 50 anti-social vignettes from Knutson et al. (2010) research. Then we will create 100 non-moral stories based on these pro-social and anti-social stories. Next, 80 participants will be recruited via MTurk. They will be presented half of the stories (100 of 200) randomly and will be asked several questions about that story: 1) how pleasant do you find the actions of the person described in the story? 2) how emotionally intense was the story you just read? 3) how praiseworthy are the actions of the person described in the story? 4) are the actions of the person in the story you just read related to morality (that is, they are related to right and wrong)? 5) do the actions of the person in the story you just read benefit themselves? 6) how uplifting are the actions of the person described in the story? 7) do the actions of the person in the story you just read benefit other people? Stimuli will be presented in randomized order and there is no restriction in presentation time. Participants will then complete a short socio-demographic questionnaire. Participants will be compensated for their time and participation in the study. Finally, we will select 72 vignettes (24 pro-social, 24 anti-social and 24 non-moral) based on the results.\n\n24 face images (12 per age bin, younger or older; 50% female) will be chosen from our previous study on effects of aging on judgments about different domains of attractiveness (He et al., in prep; https://osf.io/3qg6v/). Face stimuli are comprised of 12 sets of faces with each set containing two different aged faces of the same person.",
+      "extraction_confidence": "high",
+      "extraction_method": "structured-osf",
+      "extraction_version": "registration-commitments-v1",
+      "field_type": "design",
+      "ordinal": 4,
+      "page": 1,
+      "source_key": "question:q6.question",
+      "source_locator": {
+        "canonical_url": "https://osf.io/b9faw/",
+        "external_id": "b9faw",
+        "page_end": 1,
+        "page_start": 1,
+        "provider": "osf",
+        "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "registration_version_id": 4201,
+        "source_key": "question:q6.question"
+      },
+      "source_section": "Design Plan",
+      "structured_value": {
+        "text": "The experiment will be conducted online through the Qualtrics platform. Participants will be recruited via MTurk. Participants will be presented a brief vignette describing a pro- social, anti-social and non-moral action on each trial (N = 72 vignettes). Each vignette is paired with a face (N = 24 images, appear three times). Participants then rate each face on facial attractiveness (How attractive is this person?), friendliness (How friendly is this person?), and confidence (How confident is this person?) on a scale from 1 to 7. There are 72 trials total. Stimuli will be presented in randomized order and there is no restriction in presentation time. Participants will then complete several dispositional measures (Three-Domain Disgust Scale, Tybur et al., 2009; Interpersonal Reactivity Index, Davis, 1980). Finally, participant will complete a short socio-demographic questionnaire. Participants will be compensated for their time and participation in the study.\n\nMaterials consist of 72 vignettes (24 pro-social, 24 anti-social and 24 non-moral) and 24 different sex and age face images. Each face image will appear three times together with one pro-social vignette, one anti-social vignette and one non-moral vignette.\n\nStimuli Selection\nVignettes will be selected from Knutson et al. (2010) research, which also provide researchers normative ratings of the vignettes along several dimensions including morally appropriate and level of harm or benefit caused, etc. Each vignette describes a real prosocial/antisocial scenario as described by volunteers asked to recount their real life experiences.  \n\nSpecifically, we will select 50 pro-social and 50 anti-social vignettes from Knutson et al. (2010) research. Then we will create 100 non-moral stories based on these pro-social and anti-social stories. Next, 80 participants will be recruited via MTurk. They will be presented half of the stories (100 of 200) randomly and will be asked several questions about that story: 1) how pleasant do you find the actions of the person described in the story? 2) how emotionally intense was the story you just read? 3) how praiseworthy are the actions of the person described in the story? 4) are the actions of the person in the story you just read related to morality (that is, they are related to right and wrong)? 5) do the actions of the person in the story you just read benefit themselves? 6) how uplifting are the actions of the person described in the story? 7) do the actions of the person in the story you just read benefit other people? Stimuli will be presented in randomized order and there is no restriction in presentation time. Participants will then complete a short socio-demographic questionnaire. Participants will be compensated for their time and participation in the study. Finally, we will select 72 vignettes (24 pro-social, 24 anti-social and 24 non-moral) based on the results.\n\n24 face images (12 per age bin, younger or older; 50% female) will be chosen from our previous study on effects of aging on judgments about different domains of attractiveness (He et al., in prep; https://osf.io/3qg6v/). Face stimuli are comprised of 12 sets of faces with each set containing two different aged faces of the same person."
+      },
+      "study_label": "Study design"
+    },
+    {
+      "evidence_text": "A sample size of N = 360 participants will be enrolled.",
+      "extraction_confidence": "high",
+      "extraction_method": "structured-osf",
+      "extraction_version": "registration-commitments-v1",
+      "field_type": "sample-size-target",
+      "ordinal": 5,
+      "page": 1,
+      "source_key": "question:q11",
+      "source_locator": {
+        "canonical_url": "https://osf.io/b9faw/",
+        "external_id": "b9faw",
+        "page_end": 1,
+        "page_start": 1,
+        "provider": "osf",
+        "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "registration_version_id": 4201,
+        "source_key": "question:q11"
+      },
+      "source_section": "Sampling Plan",
+      "structured_value": {
+        "target_n": 360,
+        "text": "A sample size of N = 360 participants will be enrolled."
+      },
+      "study_label": null
+    },
+    {
+      "evidence_text": "The sample size was determined based on a power analysis given an effect size f = 0.157. This effect size was selected from a earlier study (Paunonen, 2006) that examined the effect of personality information on perceptions of physical attributions (e.g., attractiveness). Based on this effect size, we ran a power analysis (α = 0.05; 1 – β = 0.8) that suggested a total sample size of N = 322 participant is required to detect the effect of interest in this study. We will recruit a sample of N = 360 participants in total to ensure low quality data can be excluded without sacrificing statistical power.",
+      "extraction_confidence": "high",
+      "extraction_method": "structured-osf",
+      "extraction_version": "registration-commitments-v1",
+      "field_type": "sample-size-target",
+      "ordinal": 6,
+      "page": 1,
+      "source_key": "question:q12",
+      "source_locator": {
+        "canonical_url": "https://osf.io/b9faw/",
+        "external_id": "b9faw",
+        "page_end": 1,
+        "page_start": 1,
+        "provider": "osf",
+        "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "registration_version_id": 4201,
+        "source_key": "question:q12"
+      },
+      "source_section": "Sampling Plan",
+      "structured_value": {
+        "target_n": 322,
+        "text": "The sample size was determined based on a power analysis given an effect size f = 0.157. This effect size was selected from a earlier study (Paunonen, 2006) that examined the effect of personality information on perceptions of physical attributions (e.g., attractiveness). Based on this effect size, we ran a power analysis (α = 0.05; 1 – β = 0.8) that suggested a total sample size of N = 322 participant is required to detect the effect of interest in this study. We will recruit a sample of N = 360 participants in total to ensure low quality data can be excluded without sacrificing statistical power."
+      },
+      "study_label": null
+    },
+    {
+      "evidence_text": "Linear mixed effect models will be used to identify the relationship between each of the dependent variables (i.e., attractiveness, friendliness, confidence) and vignette type (Pro-social | Anti-social | Non-moral). These models examine whether learning moral information influences our judgments of facial beauty. This analysis will allow us to model the variation in the effect of goodness on ratings across items (i.e., faces) and across subjects.\n\nMoreover, linear mixed models will examine how this effect varies by face age, with several dimensions (i.e., attractiveness, friendliness, confidence) treated as dependent variables, face age (Younger | Older) and vignette type (Pro-social | Anti-social | Non-moral) as fixed factors, and with random intercepts for items and subject.",
+      "extraction_confidence": "high",
+      "extraction_method": "structured-osf",
+      "extraction_version": "registration-commitments-v1",
+      "field_type": "statistical-model",
+      "ordinal": 7,
+      "page": 1,
+      "source_key": "question:q17.question",
+      "source_locator": {
+        "canonical_url": "https://osf.io/b9faw/",
+        "external_id": "b9faw",
+        "page_end": 1,
+        "page_start": 1,
+        "provider": "osf",
+        "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "registration_version_id": 4201,
+        "source_key": "question:q17.question"
+      },
+      "source_section": "Analysis Plan",
+      "structured_value": {
+        "text": "Linear mixed effect models will be used to identify the relationship between each of the dependent variables (i.e., attractiveness, friendliness, confidence) and vignette type (Pro-social | Anti-social | Non-moral). These models examine whether learning moral information influences our judgments of facial beauty. This analysis will allow us to model the variation in the effect of goodness on ratings across items (i.e., faces) and across subjects.\n\nMoreover, linear mixed models will examine how this effect varies by face age, with several dimensions (i.e., attractiveness, friendliness, confidence) treated as dependent variables, face age (Younger | Older) and vignette type (Pro-social | Anti-social | Non-moral) as fixed factors, and with random intercepts for items and subject."
+      },
+      "study_label": null
+    },
+    {
+      "evidence_text": "Significance will be determined with an alpha = 0.05, with Benjamini-Hochberg correction to control the false discovery rate.",
+      "extraction_confidence": "high",
+      "extraction_method": "structured-osf",
+      "extraction_version": "registration-commitments-v1",
+      "field_type": "statistical-model",
+      "ordinal": 8,
+      "page": 1,
+      "source_key": "question:q19",
+      "source_locator": {
+        "canonical_url": "https://osf.io/b9faw/",
+        "external_id": "b9faw",
+        "page_end": 1,
+        "page_start": 1,
+        "provider": "osf",
+        "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "registration_version_id": 4201,
+        "source_key": "question:q19"
+      },
+      "source_section": "Analysis Plan",
+      "structured_value": {
+        "text": "Significance will be determined with an alpha = 0.05, with Benjamini-Hochberg correction to control the false discovery rate."
+      },
+      "study_label": null
+    },
+    {
+      "evidence_text": "We will use MTurk’s sample restriction features to ensure participants are: based in the US, aged 18 and older, and have successfully completed several hundred M-Turk jobs with high approval ratings prior to participating in this study. Participant cannot participate if they have participated the previous study (He et al., in prep). Further, we will use an attention check to ensure participants are engaged with the online survey. Participants who fail more than 2 of 3 attention checks embedded throughout the survey will be excluded.",
+      "extraction_confidence": "high",
+      "extraction_method": "structured-osf",
+      "extraction_version": "registration-commitments-v1",
+      "field_type": "statistical-model",
+      "ordinal": 9,
+      "page": 1,
+      "source_key": "question:q20",
+      "source_locator": {
+        "canonical_url": "https://osf.io/b9faw/",
+        "external_id": "b9faw",
+        "page_end": 1,
+        "page_start": 1,
+        "provider": "osf",
+        "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "registration_version_id": 4201,
+        "source_key": "question:q20"
+      },
+      "source_section": "Analysis Plan",
+      "structured_value": {
+        "text": "We will use MTurk’s sample restriction features to ensure participants are: based in the US, aged 18 and older, and have successfully completed several hundred M-Turk jobs with high approval ratings prior to participating in this study. Participant cannot participate if they have participated the previous study (He et al., in prep). Further, we will use an attention check to ensure participants are engaged with the online survey. Participants who fail more than 2 of 3 attention checks embedded throughout the survey will be excluded."
+      },
+      "study_label": null
+    },
+    {
+      "evidence_text": "The survey is designed such that participants cannot advance without responding to each question. Participants whose rating data are missing, either through testing error or exclusion, will be excluded from analyses in which these variables are examined.",
+      "extraction_confidence": "high",
+      "extraction_method": "structured-osf",
+      "extraction_version": "registration-commitments-v1",
+      "field_type": "missing-data-procedure",
+      "ordinal": 10,
+      "page": 1,
+      "source_key": "question:q21",
+      "source_locator": {
+        "canonical_url": "https://osf.io/b9faw/",
+        "external_id": "b9faw",
+        "page_end": 1,
+        "page_start": 1,
+        "provider": "osf",
+        "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "registration_version_id": 4201,
+        "source_key": "question:q21"
+      },
+      "source_section": "Analysis Plan",
+      "structured_value": {
+        "text": "The survey is designed such that participants cannot advance without responding to each question. Participants whose rating data are missing, either through testing error or exclusion, will be excluded from analyses in which these variables are examined."
+      },
+      "study_label": null
+    },
+    {
+      "evidence_text": "Updated response keys: q18, q14.question, q10.uploader, q15.question, q10.question, q20, q23, q6.uploader, q7, q16.question, q17.question, q2, q11, q19, q14.uploader, q5, q12, q3, q16.uploader, q17.uploader, q9, q15.uploader, q22, q4, q21, q13, q8, q6.question",
+      "extraction_confidence": "high",
+      "extraction_method": "structured-registry-metadata",
+      "extraction_version": "registration-commitments-v1",
+      "field_type": "deviation-amendment-statement",
+      "ordinal": 11,
+      "page": null,
+      "source_key": "registration-metadata:revision",
+      "source_locator": {
+        "canonical_url": "https://osf.io/b9faw/",
+        "external_id": "b9faw",
+        "page_end": null,
+        "page_start": null,
+        "provider": "osf",
+        "registration_content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+        "registration_version_id": 4201,
+        "source_key": "registration-metadata:revision"
+      },
+      "source_section": "Registration revision metadata",
+      "structured_value": {
+        "text": "Updated response keys: q18, q14.question, q10.uploader, q15.question, q10.question, q20, q23, q6.uploader, q7, q16.question, q17.question, q2, q11, q19, q14.uploader, q5, q12, q3, q16.uploader, q17.uploader, q9, q15.uploader, q22, q4, q21, q13, q8, q6.question",
+        "updated_response_keys": [
+          "q18",
+          "q14.question",
+          "q10.uploader",
+          "q15.question",
+          "q10.question",
+          "q20",
+          "q23",
+          "q6.uploader",
+          "q7",
+          "q16.question",
+          "q17.question",
+          "q2",
+          "q11",
+          "q19",
+          "q14.uploader",
+          "q5",
+          "q12",
+          "q3",
+          "q16.uploader",
+          "q17.uploader",
+          "q9",
+          "q15.uploader",
+          "q22",
+          "q4",
+          "q21",
+          "q13",
+          "q8",
+          "q6.question"
+        ]
+      },
+      "study_label": null
+    }
+  ],
+  "demo_mapping": {
+    "link_id": 4201,
+    "paper_id": 42,
+    "version_id": 4201
+  },
+  "license_audit": {
+    "canonical_url": "https://osf.io/b9faw/",
+    "external_id": "b9faw",
+    "license_name": "No explicit reuse license recorded",
+    "notice": "The complete registration is not bundled. The demo stores public metadata and the 12 bounded commitment excerpts used by the saved comparison; the canonical OSF record remains the authoritative source.",
+    "provider": "OSF",
+    "redistribution": "metadata-and-bounded-evidence-only",
+    "verified_on": "2026-08-13",
+    "verified_via": "OSF registration metadata and DataCite linkage"
+  },
+  "link": {
+    "canonical_url": "https://osf.io/b9faw/",
+    "content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+    "contributors": [
+      "Xianyou He",
+      "Chatterjee, Anjan",
+      "He, Dexian",
+      "Workman, Clifford Ian"
+    ],
+    "external_id": "b9faw",
+    "link_status": "confirmed",
+    "linkage_class": "explicit-linkage",
+    "match_evidence": [
+      {
+        "doi": "10.1037/aca0000454",
+        "kind": "datacite-related-identifier",
+        "relation_type": "References"
+      }
+    ],
+    "match_method": "datacite-related-identifier",
+    "provider": "osf",
+    "registered_at": "2020-09-19T16:47:56.097453",
+    "registration_doi": "10.17605/osf.io/b9faw",
+    "registration_status": "public",
+    "schema_name": "OSF Preregistration",
+    "title": "What is good is beautiful: perceived moral cues influence facial beauty judgments",
+    "user_confirmed": true
+  },
+  "schema_version": 1,
+  "source": {
+    "comparison_run_id": 2,
+    "curation_note": "Explicit whitelist export from the completed local comparison; the complete OSF registration and working-library state are not included.",
+    "paper_doi": "10.1037/aca0000454",
+    "paper_id": 25,
+    "paper_title": "What is good is beautiful (and what isn’t, isn’t): How moral character affects perceived facial attractiveness."
+  },
+  "version": {
+    "canonical_url": "https://osf.io/b9faw/",
+    "content_hash": "d8abe42581258a72b2a5b914e2283aa5d17389d7fa343280a6d1dbad0cda6053",
+    "external_id": "b9faw",
+    "provider": "osf",
+    "registered_at": "2020-09-19T16:47:56.097453",
+    "registration_status": "public",
+    "schema_name": "OSF Preregistration",
+    "schema_version": "3"
+  }
+}

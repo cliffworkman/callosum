@@ -340,6 +340,7 @@ function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsC
           title="Add this paper to your reading Queue (the Queue tab in the left pane)">
           {queuing ? "Adding…" : "+ Reading queue"}</button>}
       </div>
+      {isDemoMode() && <div className="settings-note">Saved bibliographic metadata, provenance, tags, and attachment roles are inspectable here. Editing, re-resolving metadata, acquiring files, OCR, and persistent queue changes require your local Callosum library.</div>}
 
       <EditableText variant="title" value={p.title} placeholder="Add title" onSave={(t) => saveField("title", t)} />
 

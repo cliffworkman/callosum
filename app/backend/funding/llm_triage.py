@@ -89,6 +89,8 @@ def _prompt(research_context: str, profile: dict[str, Any], items: list[dict[str
         "- Do not call anything a recommendation, best match, verified, eligible, likely to fund, or open unless the "
         "item data already says it is open.\n"
         "- Do not invent opportunities, deadlines, funder priorities, eligibility, or application routes.\n"
+        "- Do not infer a funder's remit beyond the supplied item. Describe overlap as 'the surfaced evidence "
+        "mentions' rather than saying a funder 'likely funds' a topic.\n"
         "- Preserve uncertainty. A low apparent fit is not evidence the funder is irrelevant.\n"
         "- Judge topical, population, method, activity, support-strategy, geography, and application-surface fit "
         "separately when possible.\n"

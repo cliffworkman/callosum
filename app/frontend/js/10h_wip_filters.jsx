@@ -5,7 +5,7 @@ const WIP_EMPTY_FILTERS = {
   hasOpenTasks: false, hasUnresolvedFindings: false, hasStaleChecks: false, missingPrimary: false,
 };
 
-function useWipWorkspace({ enabled }) {
+function useWipWorkspace({ enabled, readOnly = false }) {
   const [state, setState] = useState({ status: "idle", manuscripts: [], roots: [], error: null });
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState("");
@@ -65,12 +65,12 @@ function useWipWorkspace({ enabled }) {
   }, [enabled, scanning, pollScan]);
 
   useEffect(() => {
-    if (!enabled) return undefined;
+    if (!enabled || readOnly) return undefined;
     rescan();
     const onFocus = () => rescan();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [enabled]); // one launch/focus scan; rescan identity is intentionally excluded
+  }, [enabled, readOnly]); // one launch/focus scan; rescan identity is intentionally excluded
 
   const addRoot = useCallback(async (values) => {
     const result = await apiPost("/wip/watch-roots", values);
@@ -105,7 +105,7 @@ function useWipWorkspace({ enabled }) {
 
   const selected = state.manuscripts.find(item => item.id === selectedId) || null;
   return {
-    ...state, enabled, query, setQuery, stage, setStage, workspaceState, setWorkspaceState, sort, filters, setFilters,
+    ...state, enabled, readOnly, query, setQuery, stage, setStage, workspaceState, setWorkspaceState, sort, filters, setFilters,
     setSort: value => { setSort(value); _saveLayout("callosum.wip.sort", value); },
     selectedId, setSelectedId, selected, scanning, rescan, addRoot, updateManuscript, deleteManuscript, deleteRoot,
     refresh, reload: () => setRefresh(n => n + 1),

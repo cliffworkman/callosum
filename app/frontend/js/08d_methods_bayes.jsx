@@ -73,11 +73,12 @@ function BayesPaper({ paperId, onOpenPaper, active }) {
   return (
     <div className="detail-statcheck">
       <span className="detail-cite-label">{meta ? meta.title : "This paper"}</span>
+      <DemoMethodAction label="Check Bayes factors" />
       {!meta
         ? <span className="tag-suggest-empty">loading…</span>
         : !hasText
           ? <span className="tag-suggest-empty">Process a PDF first — the auditor reads the paper's extracted text.</span>
-          : state.status === "idle"
+          : state.status === "idle" && !isDemoMode()
             ? <button className="btn-link" title="Recompute reported default Bayes factors from this paper's text — local, no AI" onClick={run}>Check Bayes factors</button>
             : null}
       {state.status === "running" && <span className="tag-suggest-empty">checking…</span>}
@@ -226,10 +227,12 @@ function BayesLibrary({ onShowFlagged, onRan }) {
     <div className="statcheck-lib">
       <div className="settings-sub">Audit Bayesian statistics across your whole library — local, no AI. Papers where a Bayes factor didn't reproduce, or the reporting checklist found a gap, appear below, filterable from the library header.</div>
       <div className="settings-actions">
-        <button className="btn btn-primary" disabled={run.status === "running"} onClick={start}>
+        <button className="btn btn-primary" disabled={run.status === "running" || isDemoMode()} onClick={start}
+          title={isDemoMode() ? "Library-wide computation is unavailable in the static online demo." : undefined}>
           {run.status === "running" ? "Auditing…" : "Audit all papers"}
         </button>
       </div>
+      {isDemoMode() && <div className="settings-note">This saved library snapshot is fully inspectable. Running the Bayesian auditor requires the local Callosum application.</div>}
       {run.status === "running" && <ProgressBar label="Auditing Bayesian statistics…" />}
       {run.status === "error" && <div className="settings-note settings-note-err">Audit failed: {run.error}</div>}
       {run.status === "done" && s &&
@@ -269,7 +272,7 @@ function BayesSection({ ctx, active }) {
 registerPaneTab(
   { id: "checklists", label: "Checklists", paneId: "methods", order: 40 },
   {
-    id: "bayes", label: "Bayesian statistics", order: 30, hideInReadOnly: true,
+    id: "bayes", label: "Bayesian statistics", order: 30, hideInReadOnly: true, demoInspectable: true,
     render: (ctx, active) => <BayesSection ctx={ctx} active={active} />,
   },
 );

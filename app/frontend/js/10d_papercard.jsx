@@ -25,7 +25,7 @@ function PaperCopyButton({ paperId }) {
   const copy = async (e) => {
     e.stopPropagation();  // don't select/open the card
     try {
-      const res = await fetch(API_BASE + "/papers/export", {
+      const res = await callosumFetch(API_BASE + "/papers/export", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paper_ids: [paperId], format: "bibtex" }),
       });
@@ -122,7 +122,7 @@ function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked,
           : <span className="paper-cite paper-cite-static"
               title={citeInfo.asOf ? `Cited by ${citeInfo.count}, per OpenAlex · as of ${String(citeInfo.asOf).slice(0, 10)}` : "Cited-by count, per OpenAlex"}>{citeInfo.count} cited-by</span>)}
         {footExtra}
-        {!readOnly && <ReadPriorityControl paper={p} onChanged={onReadingChanged} />}  {/* inc 220: read toggle + priority (user markers); inc 294: onChanged re-reads the Queue strata */}
+        {(!readOnly || isDemoMode()) && <ReadPriorityControl paper={p} onChanged={onReadingChanged} demoLocked={readOnly && isDemoMode()} />}  {/* inc 220: read toggle + priority (user markers); the demo shows saved values but locks persistence. */}
       </div>
     </div>
   );

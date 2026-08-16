@@ -149,7 +149,7 @@ function FeedbackDialog({ onClose }) {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 12000);
     try {
-      const response = await fetch(API_BASE + "/feedback/reports", {
+      const response = await callosumFetch(API_BASE + "/feedback/reports", {
         method: "POST", headers: { "Accept": "application/json", "Content-Type": "application/json" },
         body: preview, signal: controller.signal,
       });

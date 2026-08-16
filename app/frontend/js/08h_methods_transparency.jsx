@@ -89,11 +89,12 @@ function TransparencyPaper({ paperId, onOpenPaper, onOpenMetaPreregistration, ac
   return (
     <div className="detail-statcheck">
       <span className="detail-cite-label">{meta ? meta.title : "This paper"}</span>
+      <DemoMethodAction label="Check disclosures" />
       {!meta
         ? <span className="tag-suggest-empty">loading…</span>
         : !hasText
           ? <span className="tag-suggest-empty">Process a PDF first — the auditor reads the paper's extracted text.</span>
-          : state.status === "idle"
+          : state.status === "idle" && !isDemoMode()
             ? <button className="btn-link" title="Detect this paper's open-science disclosures — local, no AI" onClick={run}>Check disclosures</button>
             : null}
       {state.status === "running" && <span className="tag-suggest-empty">checking…</span>}
@@ -178,6 +179,10 @@ function RegistrationReferenceActions({ paperId, attachments, onChanged }) {
   const [selectedAttachment, setSelectedAttachment] = useState("");
   const [status, setStatus] = useState({ state: "idle" });
   const fileInput = useRef(null);
+  if (isDemoMode()) return <section className="settings-card registration-reference-actions">
+    <h2 className="settings-card-title">Add or correct a source</h2>
+    <div className="settings-note">Source edits and local-file attachment are unavailable in this immutable online demo.</div>
+  </section>;
   const addReference = async () => {
     if (!value.trim()) return;
     setStatus({ state: "working" });
@@ -307,7 +312,7 @@ function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper, refreshKey = 
   const invalid = links.filter(link => link.link_status !== "confirmed");
   const candidates = links.filter(link => link.link_status === "candidate" || link.link_status === "withdrawn" || link.link_status === "unavailable");
   const statusLabel = rejected.length && !confirmed.length ? "Incorrect registration match"
-    : versions.length ? "Registration attached, not compared"
+    : versions.length ? "Registration source saved"
     : confirmed.length ? "Registration linked, not acquired"
     : candidates.length ? "Candidates found, choose"
       : "No registration linked";
@@ -315,7 +320,8 @@ function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper, refreshKey = 
     <section className="settings-card registration-discovery">
       <div className="settings-row registration-discovery-head">
         <div><h2 className="settings-card-title">Registration source</h2><div className="settings-sub">{statusLabel}</div></div>
-        <button className="btn btn-ghost" disabled={state.status === "running" || state.status === "working"} onClick={showDisclosure}>
+        <button className="btn btn-ghost" disabled={isDemoMode() || state.status === "running" || state.status === "working"} onClick={showDisclosure}
+          title={isDemoMode() ? "Registry search is unavailable in the static online demo." : undefined}>
           {links.length ? "Search again" : "Find registration"}
         </button>
       </div>
@@ -389,16 +395,18 @@ function RegistrationCandidateCard({ link, confirmed, versions = [], busy, onCon
         Version {latestVersion.content_hash.slice(0, 12)} · retrieved {new Date(latestVersion.retrieved_at).toLocaleDateString()}
         {versions.length > 1 ? ` · ${versions.length} preserved versions` : ""}
       </div>
-      <div className="settings-sub">Registration content is attached and can be inspected independently. No comparison has run yet.</div>
+      <div className="settings-sub">{isDemoMode()
+        ? "The saved source version is independently identifiable; inspect its publication crosswalk below."
+        : "Registration content is attached and can be inspected independently. No comparison has run yet."}</div>
     </div>}
     <div className="settings-actions">
       {link.canonical_url && <button className="axis-link" onClick={() => window.open(link.canonical_url, "_blank", "noopener")}>Open externally</button>}
-      {!confirmed && <button className="btn btn-ghost" disabled={busy || unavailableLink || ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status)} onClick={onConfirm}>Confirm link</button>}
-      {!confirmed && <button className="btn-link" disabled={busy} onClick={onReject}>Dismiss</button>}
-      {confirmed && canAcquire && <button className="btn btn-ghost" disabled={busy} onClick={onAcquire}>
+      {!confirmed && <button className="btn btn-ghost" disabled={isDemoMode() || busy || unavailableLink || ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status)} onClick={onConfirm}>Confirm link</button>}
+      {!confirmed && <button className="btn-link" disabled={isDemoMode() || busy} onClick={onReject}>Dismiss</button>}
+      {confirmed && canAcquire && <button className="btn btn-ghost" disabled={isDemoMode() || busy} onClick={onAcquire}>
         {latestVersion ? "Check for an updated version" : "Acquire registration"}
       </button>}
-      {confirmed && <button className="btn-link" disabled={busy} onClick={onIncorrect}>Incorrect registration match</button>}
+      {confirmed && <button className="btn-link" disabled={isDemoMode() || busy} onClick={onIncorrect}>Incorrect registration match</button>}
     </div>
     {confirmed && !latestVersion && !canAcquire && <div className="settings-sub">This provider has no bounded acquisition route. Attach a local registration PDF below.</div>}
     <div className="settings-sub registration-candidate-caveat">Candidate evidence supports inspection, not a claim that this is the paper's correct registration or that the paper followed it.</div>
@@ -438,10 +446,12 @@ function TransparencyLibrary({ onReview, onRan }) {
     <div className="statcheck-lib">
       <div className="settings-sub">Detect open-science disclosures across your whole library — local, no AI. Present disclosures become evidence-carrying marks in each paper's Review section; the review queues below list papers where the auditor <i>didn't</i> detect a disclosure in the text (it may still share elsewhere — a prompt to look, never a claim it hides anything).</div>
       <div className="settings-actions">
-        <button className="btn btn-primary" disabled={run.status === "running"} onClick={start}>
+        <button className="btn btn-primary" disabled={run.status === "running" || isDemoMode()} onClick={start}
+          title={isDemoMode() ? "Library-wide computation is unavailable in the static online demo." : undefined}>
           {run.status === "running" ? "Detecting…" : "Check all papers"}
         </button>
       </div>
+      {isDemoMode() && <div className="settings-note">This saved library snapshot is fully inspectable. Running disclosure detection requires the local Callosum application.</div>}
       {run.status === "running" && <ProgressBar label="Detecting transparency signals…" managedBy="backend-job" />}
       {run.status === "error" && <div className="settings-note settings-note-err">Detection failed: {run.error}</div>}
       {run.status === "done" && s &&
@@ -504,7 +514,7 @@ function TransparencySection({ ctx, active }) {
 registerPaneTab(
   { id: "checklists", label: "Checklists", paneId: "methods", order: 40 },
   {
-    id: "transparency", label: "Transparency signals", order: 10, hideInReadOnly: true,
+    id: "transparency", label: "Transparency signals", order: 10, hideInReadOnly: true, demoInspectable: true,
     render: (ctx, active) => <TransparencySection ctx={ctx} active={active} />,
   },
 );

@@ -109,7 +109,8 @@ function MyPubsCitationGaps({ domains, onSelectPaper, onLibraryChanged }) {
         <span id="mypubs-citation-gaps-title">
           Citation gaps <span className="mypubs-grounded-tag">Grounded prospection</span>
         </span>
-        <button className="btn btn-ghost" disabled={running} onClick={runRefresh}>
+        <button className="btn btn-ghost" disabled={isDemoMode() || running} onClick={runRefresh}
+          title={isDemoMode() ? "Refreshing citation gaps queries OpenAlex and requires local Callosum." : undefined}>
           {running ? "Scanning…" : refreshLabel}
         </button>
       </div>
@@ -117,6 +118,7 @@ function MyPubsCitationGaps({ domains, onSelectPaper, onLibraryChanged }) {
         Works that share reference anchors with several of your publications, while none of the scanned
         publications cites the candidate. Every suggestion shows the exact OpenAlex graph evidence.
       </p>
+      {isDemoMode() && <div className="settings-note">Saved citation-gap graph with inspectable reference anchors. Refreshing, adding, or dismissing candidates requires local Callosum.</div>}
       {availableDomains.length > 0 &&
         <div className="mypubs-gap-scope">
           <span className="mypubs-gap-scope-label">Scan scope</span>
@@ -193,10 +195,14 @@ function MyPubsCitationGaps({ domains, onSelectPaper, onLibraryChanged }) {
                 </div>
                 <div className="gap-row-actions">
                   {candidate.doi &&
-                    <button className="axis-link mypubs-gap-add" disabled={busy} onClick={() => add(candidate)}>
+                    <button className="axis-link mypubs-gap-add" disabled={isDemoMode() || busy}
+                      title={isDemoMode() ? "Adding this candidate requires the local Callosum database." : undefined}
+                      onClick={() => add(candidate)}>
                       {action === "adding" ? "Adding…" : "Add"}
                     </button>}
-                  <button className="axis-link" disabled={busy} onClick={() => dismiss(candidate)}>
+                  <button className="axis-link" disabled={isDemoMode() || busy}
+                    title={isDemoMode() ? "Dismissing this candidate requires the local Callosum database." : undefined}
+                    onClick={() => dismiss(candidate)}>
                     {action === "dismissing" ? "Dismissing…" : "Dismiss"}
                   </button>
                 </div>

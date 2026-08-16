@@ -64,7 +64,7 @@ function FundingLlmTriageControls({ report, ready, running, onRun }) {
   if (!report) return null;
   return (
     <div className="funding-llm-controls">
-      <button className="btn btn-ghost" type="button" disabled={running} onClick={onRun}>
+      <button className="btn btn-ghost" type="button" disabled={running || isDemoMode()} onClick={onRun}>
         {ready ? "Re-evaluate apparent fit with AI" : "Evaluate apparent fit with AI"}
       </button>
       <small>Advisory labels only. This does not remove records, alter saved items, or create recommendations.</small>
@@ -135,7 +135,19 @@ function FundingDiscoveryPanel({ ctx }) {
   }, []);
   useEffect(() => {
     let live = true;
-    api("/funding-discovery/runs?limit=8").then(r => { if (live && r.ok) setRecentRuns(r.data.runs || []); });
+    api("/funding-discovery/runs?limit=8").then(async r => {
+      if (!live || !r.ok) return;
+      const runs = r.data.runs || [];
+      setRecentRuns(runs);
+      if (isDemoMode() && runs.length) {
+        const saved = await api(`/funding-discovery/runs/${runs[0].run_id}`);
+        if (live && saved.ok) {
+          setState({ status: "done", report: saved.data.report });
+          setTriageOnly(saved.data.report.llm_triage_status && saved.data.report.llm_triage_status.status === "success");
+          setRunLoadState({ status: "done", runId: runs[0].run_id });
+        }
+      }
+    });
     return () => { live = false; };
   }, []);
 
@@ -214,9 +226,13 @@ function FundingDiscoveryPanel({ ctx }) {
   };
 
   const report = state.report;
-  const canRun = mode === "paper" ? ctx.selectedPaper != null : description.trim();
+  const canRun = !isDemoMode() && (mode === "paper" ? ctx.selectedPaper != null : description.trim());
   const triageReady = report && report.llm_triage_status && report.llm_triage_status.status === "success";
   const effectiveTriageOnly = triageOnly && triageReady;
+  const allOpportunities = fundingGroupedItems(report && report.open_opportunities, "opportunity");
+  const allSchemes = fundingGroupedItems(report && report.recurring_schemes, "scheme");
+  const allFundingProspects = fundingGroupedItems(report && report.funding_prospects, "prospect");
+  const fullSavedRunCount = allOpportunities.length + allSchemes.length + allFundingProspects.length;
   const baseOpportunities = fundingGroupedItems(fundingTriageItems(report && report.open_opportunities, effectiveTriageOnly), "opportunity");
   const baseSchemes = fundingGroupedItems(fundingTriageItems(report && report.recurring_schemes, effectiveTriageOnly), "scheme");
   const allProspects = fundingGroupedItems(fundingTriageItems(report && report.funding_prospects, effectiveTriageOnly), "prospect");
@@ -277,6 +293,7 @@ function FundingDiscoveryPanel({ ctx }) {
       <FundingRunActions report={report} />
       <FundingLlmTriageControls report={report} ready={triageReady}
         running={triageState.status === "running"} onRun={runTriage} />
+      {isDemoMode() && <div className="settings-note">Saved funding results and bounded AI fit triage generated through Callosum's real sandbox workflow. Refresh, new AI triage, saving, and external provider calls are unavailable online.</div>}
       {triageState.status === "running" && <ProgressBar label="Evaluating apparent funding fit…" managedBy="tracked-request" />}
       {triageState.status === "error" && <div className="axis-err">AI fit triage failed: {triageState.error}</div>}
       {report && <FundingLlmStatus status={report.llm_triage_status} />}
@@ -285,7 +302,7 @@ function FundingDiscoveryPanel({ ctx }) {
         counts={resultFilterCounts} hiddenCount={filteredHiddenCount} />}
       {report && <FundingResultSort sort={resultSort} setSort={setResultSort} />}
       {report && <FundingResultSummary visible={sortedResultItems.length} displayPool={baseResultItems.length}
-        surfacedTotal={surfacedResultItems.length} hiddenLower={hiddenLowerCount}
+        surfacedTotal={fullSavedRunCount} hiddenLower={hiddenLowerCount} triageOnly={effectiveTriageOnly}
         filter={resultFilter} sort={resultSort} />}
       {report && <FundingCoverage statuses={report.provider_statuses} />}
       {report &&

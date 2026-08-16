@@ -148,7 +148,7 @@ function StatusJobRow({ job, onDismiss, onNavigate }) {
           ? <button className="status-row-label status-row-label-link" onClick={() => onNavigate(job)}
               title={`Open ${job.label}`}>{job.label}</button>
           : <span className="status-row-label">{job.label}</span>}
-        {finished &&
+        {finished && !isDemoMode() &&
           <button className="status-row-dismiss" title="Dismiss" aria-label={`Dismiss ${job.label}`}
             onClick={() => onDismiss(job)}>×</button>}
       </div>
@@ -248,7 +248,7 @@ function StatusMenu({ onNavigate, desktopUpdate }) {
           {displayJobs.length === 0
             ? <div className="status-empty">Nothing running.</div>
             : displayJobs.map(j => <StatusJobRow key={j.store + ":" + j.job_id} job={j} onDismiss={dismiss} onNavigate={navigate} />)}
-          {hasFinished &&
+          {hasFinished && !isDemoMode() &&
             <button className="status-clear-finished" onClick={clearFinished}>Clear all finished</button>}
         </div>,
         document.body

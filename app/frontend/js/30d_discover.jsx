@@ -33,12 +33,26 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
   const [history, setHistory] = useState(_discoverLoadSearchHistory);
   const inputRef = useRef(null);
   const listRef = useRef(null);
+  const demoLoadedRef = useRef(false);
   const searchGenRef = useRef(0);  // inc 308 (QA): bumps per search + on Clear, so Clear cancels an in-flight search
                                    // and a late response can't repopulate a cleared/superseded query.
 
   useEffect(() => {
     api("/discovery/sources").then(r => { if (r.ok) setSources(r.data.sources || []); });
   }, []);
+
+  useEffect(() => {
+    if (!isDemoMode() || !active || demoLoadedRef.current) return;
+    demoLoadedRef.current = true;
+    api("/demo/saved-artifacts/search").then(r => {
+      if (!r.ok) { setStatus("error"); setError(r.error || "Saved search is unavailable."); return; }
+      const saved = r.data;
+      setQ(saved.query || ""); setSource(saved.source || "");
+      setItems((saved.items || []).map(it => ({ ...it, saved: !!it.in_library })));
+      setRelevance(saved.relevance || {}); setStatus("ready");
+      setCursor((saved.items || []).length ? 0 : -1);
+    });
+  }, [active]);
 
   const rememberSearch = useCallback((entry) => {
     setHistory(prev => {
@@ -79,7 +93,7 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
       rememberSearch({ q: query, source: selectedSource || "", sourceLabel: selectedLabel });
       // SP1b: highlight likely axis matches WITHIN the complete list (best-effort; failure → no badges, never
       // breaks the list). The list is never filtered/reordered by relevance.
-      if (rows.length) {
+      if (rows.length && !isDemoMode()) {
         const rr = await apiPost("/discovery/relevance", {
           items: rows.map(it => ({ dedup_key: it.dedup_key, title: it.title || "", abstract: it.abstract || null })),
         });
@@ -149,13 +163,14 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
         <div className="searchbar">
           <input
             ref={inputRef} value={q} onChange={e => setQ(e.target.value)} autoFocus
+            disabled={isDemoMode()}
             placeholder="Search the literature — title, author, keywords…"
           />
-          <select className="lib-sort" value={source} onChange={e => setSource(e.target.value)} title="Search source">
+          <select className="lib-sort" value={source} disabled={isDemoMode()} onChange={e => setSource(e.target.value)} title="Search source">
             <option value="">All sources</option>
             {sources.map(s => <option key={s.kind} value={s.kind}>{s.label || s.kind}</option>)}
           </select>
-          <button className="btn btn-primary" onClick={() => runSearch()} disabled={status === "loading" || !q.trim()}>
+          <button className="btn btn-primary" onClick={() => runSearch()} disabled={isDemoMode() || status === "loading" || !q.trim()}>
             {status === "loading" ? "Searching…" : "Search"}
           </button>
           <button className="btn btn-primary" onClick={clearActiveSearch}
@@ -209,7 +224,7 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
               {(it.sources || []).map(s => <span key={s} className="discover-source">{s}</span>)}
               {it.saved
                 ? <span className="discover-inlib">✓ in library</span>
-                : <button className="btn btn-link" disabled={savingKey === it.dedup_key}
+                : <button className="btn btn-link" disabled={isDemoMode() || savingKey === it.dedup_key}
                     onClick={(e) => { e.stopPropagation(); save(it); }}>
                     {savingKey === it.dedup_key ? "Saving…" : "Save"}
                   </button>}

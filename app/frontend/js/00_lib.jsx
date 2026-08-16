@@ -16,6 +16,7 @@ const AppReadOnly = React.createContext(undefined);
 // override with ?api=http://127.0.0.1:8080 or window.CALLOSUM_API_BASE.
 // ─────────────────────────────────────────────────────────────
 const API_BASE = (() => {
+  if (isDemoMode()) return "";
   const params = new URLSearchParams(window.location.search);
   const override = params.get("api") || window.CALLOSUM_API_BASE || "";
   return override.replace(/\/+$/, "");
@@ -107,7 +108,7 @@ const PAGE_SIZE = 50;
 async function api(path) {
   const tracked = _startTrackedApiOperation("GET", path); const finish = result => { _finishTrackedApiOperation(tracked, result); return result; };
   try {
-    const res = await fetch(API_BASE + path, { headers: { "Accept": "application/json" } });
+    const res = await callosumFetch(API_BASE + path, { headers: { "Accept": "application/json" } });
     if (!res.ok) {
       if (res.status === 401) { _notifyAuthRequired(); return finish({ ok: false, status: 401, authRequired: true, error: `HTTP 401 on ${path}` }); }
       return finish({ ok: false, error: `HTTP ${res.status} on ${path}` });
@@ -121,7 +122,7 @@ async function api(path) {
 async function apiPost(path, body) {
   const tracked = _startTrackedApiOperation("POST", path); const finish = result => { _finishTrackedApiOperation(tracked, result); return result; };
   try {
-    const res = await fetch(API_BASE + path, {
+    const res = await callosumFetch(API_BASE + path, {
       method: "POST",
       headers: { "Accept": "application/json", "Content-Type": "application/json" },
       body: JSON.stringify(body)
@@ -141,7 +142,7 @@ async function apiPost(path, body) {
 
 async function apiDelete(path) {
   try {
-    const res = await fetch(API_BASE + path, { method: "DELETE", headers: { "Accept": "application/json" } });
+    const res = await callosumFetch(API_BASE + path, { method: "DELETE", headers: { "Accept": "application/json" } });
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const detail = data && data.detail ? data.detail : `HTTP ${res.status} on ${path}`;
@@ -157,7 +158,7 @@ async function apiDelete(path) {
 
 async function apiPatch(path, body) {
   try {
-    const res = await fetch(API_BASE + path, {
+    const res = await callosumFetch(API_BASE + path, {
       method: "PATCH",
       headers: { "Accept": "application/json", "Content-Type": "application/json" },
       body: JSON.stringify(body)
@@ -177,7 +178,7 @@ async function apiPatch(path, body) {
 
 async function apiPut(path, body) {
   try {
-    const res = await fetch(API_BASE + path, {
+    const res = await callosumFetch(API_BASE + path, {
       method: "PUT",
       headers: { "Accept": "application/json", "Content-Type": "application/json" },
       body: JSON.stringify(body)
@@ -212,7 +213,7 @@ async function downloadCitationExport(ids, format) {
   if (!ids || !ids.length) return;
   const ext = format === "ris" ? "ris" : format === "csl-json" ? "json" : "bib";
   try {
-    const res = await fetch(API_BASE + "/papers/export", {
+    const res = await callosumFetch(API_BASE + "/papers/export", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ paper_ids: ids, format }),
     });
@@ -238,7 +239,7 @@ async function downloadBibliography(ids, style) {
 // shim, so it carries the access token under Remote access — a plain <a download> navigation would NOT, and 401s.
 async function downloadAsset(path, filename) {
   try {
-    const res = await fetch(API_BASE + path);
+    const res = await callosumFetch(API_BASE + path);
     if (!res.ok) { console.warn("[callosum] download failed:", path, res.status); return; }
     _downloadBlob(await res.blob(), filename);
   } catch (e) { console.warn("[callosum] download error:", path, e); }
@@ -251,7 +252,7 @@ async function downloadAsset(path, filename) {
 // tokened fetch through the auth shim (so it carries the Remote-access token) since apiPost forces .json().
 async function downloadBundle(scope, paperIds) {
   try {
-    const res = await fetch(API_BASE + "/library/bundle/export", {
+    const res = await callosumFetch(API_BASE + "/library/bundle/export", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scope, paper_ids: paperIds || [] }),
     });
@@ -269,30 +270,6 @@ function buildAnnotationDigest(title, annotations) {
     lines.push("");
   }
   return lines.join("\n").trim() + "\n";
-}
-
-// ─────────────────────────────────────────────────────────────
-// PDF.js — loaded lazily from cdnjs, exactly once, the first time a
-// PDF tab is opened. UMD build (3.x) so it works with no build step.
-// ─────────────────────────────────────────────────────────────
-const PDFJS_VERSION = "3.11.174";
-let pdfLibPromise = null;
-function loadPdfJs() {
-  if (pdfLibPromise) return pdfLibPromise;
-  pdfLibPromise = new Promise((resolve, reject) => {
-    if (window.pdfjsLib) { resolve(window.pdfjsLib); return; }
-    const script = document.createElement("script");
-    script.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
-    script.onload = () => {
-      if (!window.pdfjsLib) { reject(new Error("PDF.js failed to initialize")); return; }
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
-      resolve(window.pdfjsLib);
-    };
-    script.onerror = () => reject(new Error("Could not load PDF.js from the CDN"));
-    document.head.appendChild(script);
-  });
-  return pdfLibPromise;
 }
 
 function tierClass(t) {
@@ -490,7 +467,7 @@ function methodEvidenceTarget(paperId, paperTitle, evidence, key) {
 // unlike apiPost, this intentionally does not JSON/base64-wrap potentially large bytes.
 async function apiUpload(path, file) {
   try {
-    const res = await fetch(API_BASE + path, {
+    const res = await callosumFetch(API_BASE + path, {
       method: "POST",
       headers: { "Accept": "application/json", "Content-Type": file.type || "application/octet-stream" },
       body: file,

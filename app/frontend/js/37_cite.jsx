@@ -18,7 +18,7 @@ function CiteCopyButton({ paperId }) {
   const copy = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(API_BASE + "/papers/export", {
+      const res = await callosumFetch(API_BASE + "/papers/export", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paper_ids: [paperId], format: "bibtex" }),
       });
@@ -208,6 +208,15 @@ function CitePane({ ctx }) {
       setStyle(r.data.default_style || "apa");
     }
   }); }, []);
+  useEffect(() => {
+    if (!isDemoMode()) return;
+    api("/demo/saved-artifacts/cite").then(r => {
+      if (!r.ok) return;
+      setText(r.data.claim || "");
+      const result = r.data.result || {};
+      setState({ status: "done", suggestions: result.suggestions || [], beyond: result.beyond_library_suggestions || [], coverage: result.source_coverage || [] });
+    });
+  }, []);
   const run = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -234,19 +243,20 @@ function CitePane({ ctx }) {
         placeholder="Paste a sentence from your draft to find papers to cite…"
         value={text}
         onChange={e => setText(e.target.value)}
-        disabled={busy}
+        disabled={busy || isDemoMode()}
       />
       <div className="synth-actions">
-        <button disabled={busy || !text.trim()} onClick={run}>Suggest</button>
+        <button disabled={busy || !text.trim() || isDemoMode()} onClick={run}>Suggest</button>
         <span className={"synth-status" + (busy ? " running" : "")}>
           {busy ? "Finding suggestions…" : includeBeyond ? "library + public metadata sources" : "from your library · local, no egress"}
         </span>
       </div>
       <label className="cite-beyond-toggle">
-        <input type="checkbox" checked={includeBeyond} onChange={e => setIncludeBeyond(e.target.checked)} />
+        <input type="checkbox" checked={includeBeyond} disabled={isDemoMode()} onChange={e => setIncludeBeyond(e.target.checked)} />
         <span>Also search beyond my library</span>
         <small>Uses public metadata providers. Abstract-level stance is weaker than full-text library evidence.</small>
       </label>
+      {isDemoMode() && <div className="settings-note">Saved citation suggestions generated in Callosum. Rerunning or searching public providers requires the local application.</div>}
       {busy && <ProgressBar label="Finding citation evidence locally…" managedBy="tracked-request" />}
       {state.status === "error" &&
         <div className="errbox" style={{ margin: "12px 0 0" }}><b>Couldn't get suggestions.</b><br />{state.error}</div>}

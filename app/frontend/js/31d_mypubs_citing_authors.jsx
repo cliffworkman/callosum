@@ -93,7 +93,8 @@ function MyPubsCitingAuthors({ domains, onSelectPaper }) {
         <span id="mypubs-citing-authors-title">
           Authors citing your work <span className="mypubs-grounded-tag">Grounded prospection</span>
         </span>
-        <button className="btn btn-ghost" disabled={running} onClick={runRefresh}>
+        <button className="btn btn-ghost" disabled={isDemoMode() || running} onClick={runRefresh}
+          title={isDemoMode() ? "Refreshing citing authors queries OpenAlex and requires local Callosum." : undefined}>
           {running ? "Scanning…" : refreshLabel}
         </button>
       </div>
@@ -101,6 +102,7 @@ function MyPubsCitingAuthors({ domains, onSelectPaper }) {
         Authors on at least two retrieved works that together cite at least two of your confirmed publications.
         Use this private index to inspect their work; it does not infer collaboration fit or recommend a person.
       </p>
+      {isDemoMode() && <div className="settings-note">Saved repeated citation connections that meet the visible two-work/two-publication threshold. Refreshing or following an author requires local Callosum.</div>}
       {availableDomains.length > 0 &&
         <div className="mypubs-gap-scope">
           <span className="mypubs-gap-scope-label">Scan scope</span>
@@ -172,7 +174,9 @@ function MyPubsCitingAuthors({ domains, onSelectPaper }) {
                   target="_blank" rel="noopener noreferrer">{author.name} ↗</a>
                 {followedIds.has(author.author_id)
                   ? <span className="discover-inlib" title="Already following">✓ Following</span>
-                  : <button className="btn btn-link" onClick={() => followAuthor(author.author_id, author.name)}>
+                  : <button className="btn btn-link" disabled={isDemoMode()}
+                      title={isDemoMode() ? "Following an author requires the local Callosum database." : undefined}
+                      onClick={() => followAuthor(author.author_id, author.name)}>
                       Follow
                     </button>}
                 <div className="mypubs-topic-hierarchy">

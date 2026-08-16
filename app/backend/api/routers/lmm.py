@@ -55,12 +55,13 @@ class LmmResponse(BaseModel):
     checks: list[LmmCheckOut]
 
 
-@router.get("/papers/{paper_id}/lmm", response_model=LmmResponse)
-def paper_lmm(paper_id: int, request: Request, conn: Connection = Depends(get_connection)) -> LmmResponse:
-    try:
-        get_paper(conn, paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
+def build_lmm_response(conn: Connection, paper_id: int, *, validate_paper: bool = True) -> tuple[LmmResponse, Any]:
+    """Build the exact public response without persisting derived library signals."""
+    if validate_paper:
+        try:
+            get_paper(conn, paper_id)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="Paper not found") from None
     chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES)
     pdf_attachment_ids = pdf_attachment_ids_for_chunks(conn, chunks)
     report = audit_lmm(chunks)
@@ -81,6 +82,12 @@ def paper_lmm(paper_id: int, request: Request, conn: Connection = Depends(get_co
             for c in report.checks
         ],
     )
+    return response, report
+
+
+@router.get("/papers/{paper_id}/lmm", response_model=LmmResponse)
+def paper_lmm(paper_id: int, request: Request, conn: Connection = Depends(get_connection)) -> LmmResponse:
+    response, report = build_lmm_response(conn, paper_id)
     run_write(request.app.state.engine, lambda c: apply_lmm(c, paper_id, report))
     return response
 

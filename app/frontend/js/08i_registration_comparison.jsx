@@ -160,7 +160,8 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
             : "Registration attached, not compared"}
         </div>
       </div>
-      <button className="btn btn-primary" disabled={state.status === "running" || !selectedVersion || incorrectMatch} onClick={compare}>
+      <button className="btn btn-primary" disabled={isDemoMode() || state.status === "running" || !selectedVersion || incorrectMatch} onClick={compare}
+        title={isDemoMode() ? "Comparison execution is unavailable in the static online demo." : undefined}>
         {detail ? "Re-run comparison" : "Compare now"}
       </button>
     </div>
@@ -173,11 +174,11 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
           </option>)}
         </select>
       </label>}
-      <label className="settings-check"><input type="checkbox" checked={includeSupplements}
+      <label className="settings-check"><input type="checkbox" checked={includeSupplements} disabled={isDemoMode()}
         onChange={event => setIncludeSupplements(event.target.checked)} /> Include relevant supplements</label>
-      <label className="settings-check"><input type="checkbox" checked={expandSearch}
+      <label className="settings-check"><input type="checkbox" checked={expandSearch} disabled={isDemoMode()}
         onChange={event => setExpandSearch(event.target.checked)} /> Expand beyond expected sections when bounded search is weak</label>
-      <button className="btn-link" onClick={inspectRaw}>{showRaw ? "Hide stored registration" : "Inspect stored registration"}</button>
+      <button className="btn-link" disabled={isDemoMode()} onClick={inspectRaw}>{showRaw ? "Hide stored registration" : "Inspect stored registration"}</button>
       {selectedVersion?.attachment_id && selectedVersion.provider !== "osf" && <button className="btn-link"
         onClick={() => onOpenPaper && onOpenPaper({ id: paperId, title: paperTitle }, {
           id: `file:${selectedVersion.attachment_id}`, paperId, attachmentId: selectedVersion.attachment_id,
@@ -220,7 +221,7 @@ function RegistrationLlmTriageControls({ detail, status, running, triageOnly, hi
         <p className="eyebrow">AI triage</p>
         <div className="settings-sub">Sends only the saved comparison fields and bounded registration/publication passages to your configured model. The model adds reversible display labels; it cannot alter evidence, statuses, or review state.</div>
       </div>
-      <button className="btn btn-ghost" disabled={running || detail.status === "stale"} onClick={onRun}>
+      <button className="btn btn-ghost" disabled={isDemoMode() || running || detail.status === "stale"} onClick={onRun}>
         {ready ? "Re-triage rows with AI" : "Triage rows with AI"}
       </button>
     </div>
@@ -296,11 +297,11 @@ function RegistrationComparisonRow({ row, onUpdated, onOpenRegistration, onOpenP
       <div>{row.uncertainty}</div>
     </details>
     <div className="registration-row-review">
-      <textarea className="settings-input" value={note} onChange={event => setNote(event.target.value)} placeholder="Add a private review note…" aria-label="Comparison review note" />
+      <textarea className="settings-input" value={note} disabled={isDemoMode()} onChange={event => setNote(event.target.value)} placeholder="Add a private review note…" aria-label="Comparison review note" />
       <div className="settings-actions">
-        <button className="btn btn-ghost" disabled={busy} onClick={() => save("reviewed")}>Mark reviewed</button>
-        <button className="btn-link" disabled={busy} onClick={() => save("dismissed")}>Dismiss flag</button>
-        <button className="btn-link" disabled={busy || note === (row.note || "")} onClick={() => save(row.review_state)}>Save note</button>
+        <button className="btn btn-ghost" disabled={isDemoMode() || busy} onClick={() => save("reviewed")}>Mark reviewed</button>
+        <button className="btn-link" disabled={isDemoMode() || busy} onClick={() => save("dismissed")}>Dismiss flag</button>
+        <button className="btn-link" disabled={isDemoMode() || busy || note === (row.note || "")} onClick={() => save(row.review_state)}>Save note</button>
       </div>
       {error && <div className="axis-err">{error}</div>}
     </div>
@@ -337,6 +338,7 @@ function MetaPreregistrationPane({ ctx, active }) {
     <div className="meta-preregistration-intro">
       <p className="eyebrow">Meta-Preregistration</p>
       <div className="settings-sub">Compare a publication with a confirmed registration through evidence-bound flags for human inspection. Callosum does not produce a compliance, integrity, or author score, and “not located” never means absent.</div>
+      {isDemoMode() && <div className="settings-note">Saved deterministic crosswalk with evidence-bounded AI display triage. The complete OSF registration is not bundled because no explicit reuse license is recorded; this snapshot retains only verified metadata, bounded excerpts, and the canonical source link. Search, acquisition, reruns, new AI triage, and review edits require local Callosum.</div>}
     </div>
     {!meta && <div className="settings-note">Loading registration workspace…</div>}
     {meta?.error && <div className="settings-note settings-note-err">Could not load this paper: {meta.error}</div>}
@@ -350,6 +352,6 @@ function MetaPreregistrationPane({ ctx, active }) {
 
 registerWorkspaceTab(
   { id: "synthesis", label: "Synthesize", order: 30 },
-  { id: "meta-preregistration", label: "Meta-Preregistration", order: 30, hideInReadOnly: true,
+  { id: "meta-preregistration", label: "Meta-Preregistration", order: 30, hideInReadOnly: true, demoInspectable: true,
     render: (ctx, active) => <MetaPreregistrationPane ctx={ctx} active={active} /> },
 );

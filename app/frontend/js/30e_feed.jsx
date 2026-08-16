@@ -115,6 +115,11 @@ function FeedPane({ onSaved, active, embedded }) {
     loadItems();
   }, [loadItems]);
 
+  const resetDemoTriage = useCallback(async () => {
+    const r = await apiPost("/demo/feed-state/reset", {});
+    if (r.ok) loadItems();
+  }, [loadItems]);
+
   const save = useCallback(async (item) => {
     if (item.in_library || savingKey) return;
     setSavingKey(item.id);
@@ -149,7 +154,8 @@ function FeedPane({ onSaved, active, embedded }) {
             return (
               <span key={s.id} className="feed-sub" title={`${meta ? meta.label : s.kind} · ${s.value}`}>
                 <span className="feed-sub-kind">{tag}</span>{s.label || s.value}
-                <button className="feed-sub-x" title="Unfollow" onClick={() => unfollow(s.id)}>×</button>
+                <button className="feed-sub-x" title={isDemoMode() ? "Unfollowing needs the persistent local library" : "Unfollow"}
+                  onClick={() => unfollow(s.id)}>×</button>
               </span>
             );
           })}
@@ -157,12 +163,13 @@ function FeedPane({ onSaved, active, embedded }) {
         </div>
         <div className="searchbar">
           {addableSourceMeta.length > 1 ? (
-            <select className="lib-sort" value={selKind} onChange={e => setSelKind(e.target.value)}>
+            <select className="lib-sort" value={selKind} disabled={isDemoMode()} onChange={e => setSelKind(e.target.value)}>
               {addableSourceMeta.map(m => <option key={m.kind} value={m.kind}>{m.label}</option>)}
             </select>
           ) : null}
           <input
             value={cat} onChange={e => setCat(e.target.value)} list="feed-source-suggestions"
+            disabled={isDemoMode()}
             placeholder={(addableSourceMeta.find(m => m.kind === selKind) || {}).placeholder || "Follow a source…"}
             onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); follow(); } }}
           />
@@ -172,11 +179,12 @@ function FeedPane({ onSaved, active, embedded }) {
               : ((addableSourceMeta.find(m => m.kind === selKind) || {}).suggestions || [])
             ).map(c => <option key={c} value={c} />)}
           </datalist>
-          <button className="btn btn-ghost" onClick={follow} disabled={!cat.trim()}>Follow</button>
+          <button className="btn btn-ghost" onClick={follow} disabled={isDemoMode() || !cat.trim()}>Follow</button>
           {selKind === "journal"
             ? <button className="btn btn-ghost" onClick={() => setSuggestOpen(true)} title="Journals already in your library">Suggest</button>
             : null}
-          <button className="btn btn-primary" onClick={refresh} disabled={refreshing || !subs.length}>
+          <button className="btn btn-primary" onClick={refresh} disabled={refreshing || !subs.length}
+            title={isDemoMode() ? "Refresh needs external journal and search providers" : undefined}>
             {refreshing ? "Refreshing…" : "Refresh"}
           </button>
         </div>
@@ -195,6 +203,12 @@ function FeedPane({ onSaved, active, embedded }) {
             {unread ? <button className="btn btn-link" onClick={markAllRead}>Mark all read</button> : null}
           </div>
         </div>
+        {isDemoMode() &&
+          <div className="settings-note">
+            The reviewed snapshot contains 1,240 cached public-metadata records; this view loads the same 200-item
+            default as live Callosum. The sample star and any read/star changes are practice state stored only in
+            this browser. <button className="btn-link" onClick={resetDemoTriage}>Reset read/star practice</button>
+          </div>}
       </div>
       <div className="pane-list-body">
         {!subs.length

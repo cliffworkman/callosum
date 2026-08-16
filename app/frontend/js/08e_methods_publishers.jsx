@@ -50,11 +50,11 @@ function pubWeightLabel(value) {
 
 // A segmented control (reuses the .tags-srcfilter recipe). No option is highlighted until `value` matches one — so
 // at first use nothing is pre-selected (the choice-gate veto).
-function PubSegmented({ options, value, onChange, ariaLabel }) {
+function PubSegmented({ options, value, onChange, ariaLabel, disabled = false }) {
   return (
     <div className="tags-srcfilter" role="group" aria-label={ariaLabel}>
       {options.map(o => (
-        <button key={o.id} type="button" className={"tags-srcfilter-btn" + (o.id === value ? " on" : "")}
+        <button key={o.id} type="button" disabled={disabled} className={"tags-srcfilter-btn" + (o.id === value ? " on" : "")}
           onClick={() => onChange(o.id)}>{o.label}</button>
       ))}
     </div>
@@ -243,6 +243,14 @@ function PublishersPanel({ ctx }) {
 
   const loadStatus = () => api("/settings").then(r => { if (r.ok) setStatus(r.data); });
   useEffect(() => { loadStatus(); }, []);
+  useEffect(() => {
+    if (!isDemoMode()) return;
+    api("/demo/saved-artifacts/journals").then(r => {
+      if (!r.ok) return;
+      setLastRunInput({ kind: "paper", paperId: 67, label: "Why we dehumanize people with facial anomalies" });
+      setState({ status: "done", report: r.data });
+    });
+  }, []);
   useEffect(() => {  // fetch the selected paper's title for legibility (like CitationEquityPaper)
     setMeta(null);
     if (ctx.selectedPaper == null) return;
@@ -386,7 +394,7 @@ function PublishersPanel({ ctx }) {
 
       {state.status !== "running" &&
         <div className="settings-actions">
-          <button className="btn btn-primary" disabled={!canRun} onClick={() => run()}>
+          <button className="btn btn-primary" disabled={!canRun || isDemoMode()} onClick={() => run()}>
             {state.status === "done" ? "Search again" : "Find journals"}
           </button>
           <select className="lib-sort" value="" onChange={e => {
@@ -403,6 +411,7 @@ function PublishersPanel({ ctx }) {
         </div>}
 
       {state.status === "running" && <ProgressBar progress={state.progress} label="Matching journals…" managedBy="backend-job" />}
+      {isDemoMode() && <div className="settings-note">Saved journal search from the curated three-paper sandbox. New searches and preference changes require local Callosum.</div>}
       {state.status === "error" && <div className="axis-err">Couldn't search: {state.error}</div>}
 
       {state.status === "done" && rep &&
@@ -412,7 +421,7 @@ function PublishersPanel({ ctx }) {
               Open-science weighting: <b>{pubWeightLabel(weighting)}</b>
               {weightingOn ? ` — ${elevated.length} journal${elevated.length === 1 ? "" : "s"} elevated${elevatedGoods.length ? " for " + elevatedGoods.join(", ") : ""}` : " — ranked by topical fit only"} · adjust:
             </span>
-            <PubSegmented options={PUB_WEIGHTS} value={pubWeightId(weighting)} onChange={adjustWeighting} ariaLabel="Adjust open-science weighting" />
+            <PubSegmented options={PUB_WEIGHTS} value={pubWeightId(weighting)} onChange={adjustWeighting} disabled={isDemoMode()} ariaLabel="Adjust open-science weighting" />
           </div>
           {rep.shown === 0
             ? <div className="tag-suggest-empty">No candidate journals found for this topic.</div>

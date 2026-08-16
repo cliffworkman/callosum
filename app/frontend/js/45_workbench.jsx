@@ -39,7 +39,13 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
   const [draftingRow, setDraftingRow] = useState(null);
   const [draftBatch, setDraftBatch] = useState(null); // {current,total}; sequential to bound provider load
 
-  const loadProjects = async () => { const r = await api("/workbench/projects"); if (r.ok) setProjects(r.data); };
+  const loadProjects = async () => {
+    const r = await api("/workbench/projects");
+    if (r.ok) {
+      setProjects(r.data);
+      if (isDemoMode() && !project && r.data.length) openProject(r.data[0].id);
+    }
+  };
   const openProject = async (id) => { const r = await api("/workbench/projects/" + id); if (r.ok) { setConvMsg(""); setAiErr(""); setDraftMsg(""); setProject(r.data); } };
 
   useEffect(() => { if (active && !project) loadProjects(); }, [active]);
@@ -258,14 +264,15 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
     return (
       <div className="wb-pane">
         <div className="wb-intro">Assemble a meta-analysis dataset from your library, anchor each value to its source, and convert + export it. It <b>extracts and converts one study at a time</b>.</div>
+        {isDemoMode() && <div className="settings-note">Saved extraction project. Open source anchors and all four production exports work; changing or recomputing the dataset requires the local app.</div>}
         {err && <div className="axis-err">{err}</div>}
         <div className="wb-newproj">
-          <input className="wb-in" placeholder="New project name…" value={newName}
+          <input className="wb-in" placeholder="New project name…" value={newName} disabled={isDemoMode()}
             onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === "Enter" && createProject()} />
-          <select className="wb-in" value={newDesign} onChange={e => setNewDesign(e.target.value)}>
+          <select className="wb-in" value={newDesign} disabled={isDemoMode()} onChange={e => setNewDesign(e.target.value)}>
             {WB_DESIGNS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
           </select>
-          <button className="btn btn-primary" onClick={createProject}>Create project</button>
+          <button className="btn btn-primary" disabled={isDemoMode()} onClick={createProject}>Create project</button>
         </div>
         <ul className="wb-projects">
           {projects.length === 0 && <li className="wb-empty">No projects yet — create one above.</li>}
@@ -273,7 +280,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
             <li key={p.id} className="wb-project-row">
               <button className="btn-link wb-open" onClick={() => openProject(p.id)}>{p.name}</button>
               <span className="wb-meta">{p.design.replace(/_/g, " ")} · {p.row_count} row{p.row_count === 1 ? "" : "s"}</span>
-              <button className="btn-link wb-del" onClick={() => removeProject(p.id)}>delete</button>
+              <button className="btn-link wb-del" disabled={isDemoMode()} onClick={() => removeProject(p.id)}>delete</button>
             </li>
           ))}
         </ul>
@@ -292,10 +299,11 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
   const exportUrl = (fmt) => `/workbench/projects/${project.id}/export?format=${fmt}`;
   return (
     <div className="wb-pane">
+      {isDemoMode() && <div className="settings-note">Saved extraction project. Open source anchors and all four production exports work; changing or recomputing the dataset requires the local app.</div>}
       <div className="wb-head">
         <button className="btn-link" disabled={!!draftBatch || draftingRow != null}
           onClick={() => { setProject(null); loadProjects(); }}>← Projects</button>
-        <input className="wb-name" defaultValue={project.name} key={"name" + project.id}
+        <input className="wb-name" defaultValue={project.name} key={"name" + project.id} disabled={isDemoMode()}
           onBlur={e => e.target.value.trim() && apiPatch("/workbench/projects/" + project.id, { name: e.target.value.trim() })} />
         <span className="wb-meta">{project.design.replace(/_/g, " ")}</span>
         {project.rows.length > 0 &&
@@ -309,7 +317,8 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
             {draftBatch ? `Drafting ${draftBatch.current} / ${draftBatch.total}…` : "Draft all un-filled rows →"}
           </button>}
         {project.rows.length > 0 &&
-          <button className="btn-link" title="Convert every row that has valid inputs" onClick={convertAll}>Convert all →</button>}
+          <button className="btn-link" title={isDemoMode() ? "Recomputing requires the local app." : "Convert every row that has valid inputs"}
+            disabled={isDemoMode()} onClick={convertAll}>Convert all →</button>}
         {project.rows.length > 0 &&
           <span className="wb-meta">{convertedCount} of {project.rows.length} converted</span>}
         <span className="wb-spacer" />
@@ -323,7 +332,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
         <button className="btn-link" title="Provenance audit (JSON): every cell's page + quote — your source trail"
           onClick={() => downloadAsset(exportUrl("audit"), `extraction-${project.id}-provenance.json`)}>provenance</button>
       </div>
-      <textarea className="wb-protocol" placeholder="Protocol note (question, inclusion criteria)…" defaultValue={project.protocol_note || ""}
+      <textarea className="wb-protocol" placeholder="Protocol note (question, inclusion criteria)…" defaultValue={project.protocol_note || ""} disabled={isDemoMode()}
         key={"proto" + project.id} onBlur={e => apiPatch("/workbench/projects/" + project.id, { protocol_note: e.target.value })} />
       {convMsg && <div className="wb-note">{convMsg}</div>}
       {err && <div className="axis-err">{err}</div>}
@@ -340,7 +349,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
               <th className="wb-src">Source</th>
               {fields.map(f => <th key={f.key} title={f.role ? "converter input" : "moderator/notes"}>{f.label}</th>)}
               <th className="wb-eff">Effect size</th>
-              <th className="wb-colbtn"><button className="btn-link" title="Add a moderator/notes column" onClick={addColumn}>+ col</button></th>
+              <th className="wb-colbtn"><button className="btn-link" title="Adding columns requires the local app." disabled={isDemoMode()} onClick={addColumn}>+ col</button></th>
             </tr>
           </thead>
           <tbody>
@@ -365,11 +374,11 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
                   return (
                     <td key={f.key} className="wb-cell">
                       {f.type === "choice"
-                        ? <select className="wb-cellin" value={cell.value || (f.options && f.options[0]) || ""}
+                        ? <select className="wb-cellin" value={cell.value || (f.options && f.options[0]) || ""} disabled={isDemoMode()}
                             onChange={e => putCell(row.id, f.key, { value: e.target.value })}>
                             {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
                           </select>
-                        : <input className="wb-cellin" defaultValue={cell.value || ""} key={"c" + row.id + f.key + (cell.value || "")}
+                        : <input className="wb-cellin" defaultValue={cell.value || ""} key={"c" + row.id + f.key + (cell.value || "")} disabled={isDemoMode()}
                             inputMode={f.type === "number" ? "decimal" : "text"}
                             onBlur={e => e.target.value !== (cell.value || "") && putCell(row.id, f.key, { value: e.target.value || null })} />}
                       {row.paper_id != null &&
@@ -389,9 +398,9 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
                 <td className="wb-eff">
                   {row.converted
                     ? <span className="wb-conv" title={`Var ${row.converted.variance}`}>{row.converted.metric} = <b>{row.converted.value}</b></span>
-                    : <button className="btn-link" onClick={() => convertRow(row.id)}>Convert →</button>}
+                    : <button className="btn-link" disabled={isDemoMode()} onClick={() => convertRow(row.id)}>Convert →</button>}
                 </td>
-                <td className="wb-colbtn"><button className="wb-rowx" title="Remove row" onClick={() => removeRow(row.id)}>×</button></td>
+                <td className="wb-colbtn"><button className="wb-rowx" title="Removing rows requires the local app." disabled={isDemoMode()} onClick={() => removeRow(row.id)}>×</button></td>
               </tr>
             ))}
           </tbody>
@@ -399,9 +408,9 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
       </div>
 
       <div className="wb-add">
-        <button className="btn-link" onClick={() => addRow(null)}>+ Add row (no paper)</button>
+        <button className="btn-link" disabled={isDemoMode()} onClick={() => addRow(null)}>+ Add row (no paper)</button>
         <span className="wb-addpaper">
-          <input className="wb-in" placeholder="+ Add paper — search your library…" value={addQuery} onChange={e => searchPapers(e.target.value)} />
+          <input className="wb-in" placeholder="+ Add paper — search your library…" value={addQuery} disabled={isDemoMode()} onChange={e => searchPapers(e.target.value)} />
           {addResults.length > 0 &&
             <div className="wb-addresults">
               {addResults.map(p => <button key={p.id} className="wb-addhit" onClick={() => addRow(p.id)}>{p.title}</button>)}
@@ -414,12 +423,12 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
         <div className="wb-anchor-pop" onClick={() => setAnchor(null)}>
           <div className="wb-anchor-box" onClick={e => e.stopPropagation()}>
             <div className="wb-anchor-title">Anchor this value to its source</div>
-            <button className="btn btn-primary wb-anchor-select" onClick={armFromPopover}>◎ Select the value in the PDF</button>
+            <button className="btn btn-primary wb-anchor-select" disabled={isDemoMode()} onClick={armFromPopover}>◎ Select the value in the PDF</button>
             <div className="wb-anchor-or">— or enter it by hand (page-level) —</div>
-            <label>Page <input className="wb-in" type="number" min="1" value={anchor.page} onChange={e => setAnchor(a => ({ ...a, page: e.target.value }))} /></label>
-            <label>Quote <input className="wb-in" placeholder="the reported text…" value={anchor.quote} onChange={e => setAnchor(a => ({ ...a, quote: e.target.value }))} /></label>
+            <label>Page <input className="wb-in" type="number" min="1" value={anchor.page} disabled={isDemoMode()} onChange={e => setAnchor(a => ({ ...a, page: e.target.value }))} /></label>
+            <label>Quote <input className="wb-in" placeholder="the reported text…" value={anchor.quote} disabled={isDemoMode()} onChange={e => setAnchor(a => ({ ...a, quote: e.target.value }))} /></label>
             <div className="wb-anchor-actions">
-              <button className="btn btn-primary" onClick={saveAnchor}>Save anchor</button>
+              <button className="btn btn-primary" disabled={isDemoMode()} onClick={saveAnchor}>Save anchor</button>
               {anchor.hasCell && <button className="btn-link" onClick={openAtAnchor}>Open at anchor →</button>}
               <button className="btn-link" onClick={() => setAnchor(null)}>Cancel</button>
             </div>

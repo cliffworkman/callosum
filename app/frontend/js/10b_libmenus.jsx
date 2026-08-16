@@ -4,6 +4,11 @@
 
 // inc-93→94: the "bring papers in" actions (Scan folder + Import) folded into one "+ Add ▾" menu to declutter
 // the library header. Closes on outside-click. The trigger styles as a .trash-toggle so it blends with the row.
+function DemoLockedLibraryButton({ label, title, message, path, className }) {
+  return <button className={className || "trash-toggle"} title={title || message}
+    onClick={() => explainDemoLock(message, path)}>{label}</button>;
+}
+
 function AddMenu({ onScan, onImport, onImportBundle, onExportBundle, onSharedWithMe }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);

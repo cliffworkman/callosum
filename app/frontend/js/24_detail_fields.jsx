@@ -97,7 +97,14 @@ function EditableText({ label, value, placeholder, onSave, rows, variant, expand
 
 // Literature Type — a select over the Mendeley vocabulary; preserves an unknown stored value.
 function TypeSelect({ value, onSave }) {
+  const ro = React.useContext(DetailReadOnly);
   const known = LIT_TYPES.some(([v]) => v === value);
+  if (ro) {
+    const match = LIT_TYPES.find(([v]) => v === value);
+    return <span className="detail-type detail-ro" title={isDemoMode()
+      ? "Editing bibliographic metadata requires the persistent local Callosum library."
+      : "This Callosum instance is read-only."}>{match ? match[1] : value || "Unspecified"}</span>;
+  }
   return (
     <select className="detail-type" value={value || "document"} onChange={(e) => onSave("item_type", e.target.value)}>
       {!known && value ? <option value={value}>{value}</option> : null}

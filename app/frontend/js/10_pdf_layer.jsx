@@ -200,6 +200,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     onCitationsRefreshed, onEnriched, onRetractionRan, onOpenTextHealth, onOpenReferenceWarnings,
                     savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch, readOnly, onReadingChanged,
                     libraryMissingPdf, onToggleMissingPdf }) {
+  const demoMode = isDemoMode();
+  const libraryActionsVisible = !readOnly || demoMode;
   const [bulkFocus, setBulkFocus] = useState("");  // inc-145: optional focus query for the multi-paper synthesis
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
@@ -240,9 +242,16 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
       <div className="pane-head">
         <div className="lib-head">
           <p className="eyebrow">{trashView ? "Trash" : "Library"}</p>
-          {!readOnly && <span className="lib-head-actions">
-            {!trashView && <AddMenu onScan={onOpenScan} onImport={onOpenImport} onImportBundle={onOpenImportBundle} onSharedWithMe={onOpenSharedWithMe} onExportBundle={onExportBundle} />}
-            {!trashView && <SavedSearchMenu searches={savedSearches} onApply={onApplySavedSearch} onSave={onSaveSearch} onDelete={onDeleteSavedSearch} />}
+          {libraryActionsVisible && <span className="lib-head-actions">
+            {!trashView && <AddMenu
+              onScan={demoMode ? () => explainDemoLock("Watched folders read local directories and persist their paths. The static browser demo has no filesystem or backend; use local Callosum to add and watch PDF folders.", "/library/scan") : onOpenScan}
+              onImport={demoMode ? () => explainDemoLock("Citation import creates persistent library records. The static demo keeps its curated three-paper library immutable; use local Callosum to import BibTeX, RIS, or CSL-JSON.", "/papers/import") : onOpenImport}
+              onImportBundle={demoMode ? () => explainDemoLock("Importing a Callosum bundle changes the persistent library. The static demo has no database; use local Callosum to merge a portable bundle.", "/library/bundle/import") : onOpenImportBundle}
+              onSharedWithMe={demoMode ? () => explainDemoLock("Receiving a shared library requires a local encrypted-sync identity and persistent library. No account or sync endpoint exists in the static demo.", "/sync/shares") : onOpenSharedWithMe}
+              onExportBundle={demoMode ? () => explainDemoLock("Library-bundle export is produced by the local backend from your records, tags, axes, and annotations. The public presentation snapshot is not exported as a personal library bundle.", "/library/bundle/export") : onExportBundle} />}
+            {!trashView && <SavedSearchMenu searches={savedSearches} onApply={onApplySavedSearch}
+              onSave={demoMode ? () => explainDemoLock("The saved searches below can be recalled in the demo. Saving a new one requires persistent local library state.", "/saved-searches") : onSaveSearch}
+              onDelete={demoMode ? () => explainDemoLock("The curated saved searches are part of the immutable demo snapshot. Deleting them requires your local Callosum library.", "/saved-searches") : onDeleteSavedSearch} />}
             {(showStatcheckChip || showRetractionChip || showTransparencyChip || showLmmChip || showMetaChip || showBayesChip) &&
               <span className="lib-chip-group lib-chip-signals" title="Check signals — a check detected something concrete on these papers">
                 <span className="lib-chip-group-label">Signals</span>
@@ -272,22 +281,41 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                   <button className="trash-toggle findings-chip" onClick={onShowFindingsToReview}
                     title="Findings you haven't marked reviewed yet — your review queue, separate from the check signals; open each paper's Review section">📋 Review · {findingsToReview}</button>}
               </span>}
-            {!trashView &&
-              <button className="trash-toggle" onClick={onToggleNeedsReview}
-                title={libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review — raw imports, unresolved DOIs"}>
-                {libraryNeedsReview ? "← Library" : "Unsorted"}</button>}
-            {!trashView &&
-              <button className="trash-toggle" onClick={onFindDuplicates} title="Scan for likely duplicates">Duplicates</button>}
-            {!trashView && <CitationCountsButton asOf={maxCitedAsOf} onRefreshed={onCitationsRefreshed} />}
-            {!trashView && <EnrichMetadataButton onRefreshed={onEnriched} />}
-            {!trashView && <RetractionCheckButton onDone={onRetractionRan} />}
-            {!trashView && <TextHealthButton onOpen={onOpenTextHealth} />}
+            {!trashView && (demoMode
+              ? <DemoLockedLibraryButton label="Unsorted" path="/papers?needs_review=true"
+                  message="All three curated demo records have resolved metadata. In local Callosum, Unsorted isolates raw imports and unresolved identifiers for review." />
+              : <button className="trash-toggle" onClick={onToggleNeedsReview}
+                  title={libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review — raw imports, unresolved DOIs"}>
+                  {libraryNeedsReview ? "← Library" : "Unsorted"}</button>)}
+            {!trashView && (demoMode
+              ? <DemoLockedLibraryButton label="Duplicates" path="/papers/duplicates"
+                  message="The curated three-paper demo has no duplicate candidate to fabricate. Local Callosum scans likely duplicates and lets you inspect and merge them reversibly." />
+              : <button className="trash-toggle" onClick={onFindDuplicates} title="Scan for likely duplicates">Duplicates</button>)}
+            {!trashView && (demoMode
+              ? <DemoLockedLibraryButton label="Citations ↻" path="/papers/citation-counts/refresh"
+                  message="The saved cited-by counts remain visible. Refreshing them requires the local backend and an explicit OpenAlex metadata request." />
+              : <CitationCountsButton asOf={maxCitedAsOf} onRefreshed={onCitationsRefreshed} />)}
+            {!trashView && (demoMode
+              ? <DemoLockedLibraryButton label="Metadata ↻" path="/library/enrich/refresh"
+                  message="The demo preserves the curated metadata exactly. Filling missing fields requires the local backend and explicit public-metadata requests." />
+              : <EnrichMetadataButton onRefreshed={onEnriched} />)}
+            {!trashView && (demoMode
+              ? <DemoLockedLibraryButton label="Integrity ↻" path="/methods/retraction/run"
+                  message="No demo paper is recorded as retracted. Refreshing registry evidence requires the local backend; Callosum never fabricates a positive warning for demonstration." />
+              : <RetractionCheckButton onDone={onRetractionRan} />)}
+            {!trashView && (demoMode
+              ? <DemoLockedLibraryButton label="Text Health" path="/papers/text-health/overview"
+                  message="All three demo PDFs already have extracted text. Text-health repair and OCR operate on local files through the backend and are unavailable in the static browser demo." />
+              : <TextHealthButton onOpen={onOpenTextHealth} />)}
             {trashView && state.status === "ready" && state.papers.length > 0 &&
               <button className="trash-toggle danger" onClick={onEmptyTrash}
                 title="Permanently delete every paper in Trash — cannot be undone">Empty Trash</button>}
-            <button className="trash-toggle" onClick={onToggleTrash} title={trashView ? "Back to the library" : "View deleted papers"}>
-              {trashView ? "← Library" : "Trash"}
-            </button>
+            {demoMode
+              ? <DemoLockedLibraryButton label="Trash" path="/papers?deleted=true"
+                  message="The curated demo contains no deleted paper. Trash, restore, and permanent deletion require persistent local library state." />
+              : <button className="trash-toggle" onClick={onToggleTrash} title={trashView ? "Back to the library" : "View deleted papers"}>
+                  {trashView ? "← Library" : "Trash"}
+                </button>}
           </span>}
         </div>
         {focusAxis &&

@@ -4,6 +4,7 @@
 // Reuses GET /papers?axis_id=<my-pubs> + the shared PaperCard, so it inherits the library aesthetic and the
 // tested list/bulk endpoints. The Decompose button is passed in (decomposeSlot) so it hangs with the controls (#10).
 function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decomposeSlot, domains, starredIds, paperCitations, onOpenCiting }) {
+  const demoMode = isDemoMode();
   const [state, setState] = useState({ status: "loading", papers: [] });
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -41,7 +42,7 @@ function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decompos
     const ext = format === "ris" ? "ris" : format === "csl-json" ? "json" : "bib";
     (async () => {
       try {
-        const res = await fetch(API_BASE + "/papers/export", {
+        const res = await callosumFetch(API_BASE + "/papers/export", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ paper_ids: list, format }),
         });
@@ -142,8 +143,10 @@ function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decompos
       {sel.size > 0 &&
         <div className="axis-bulk-bar">
           <span className="axis-bulk-count">{sel.size} selected</span>
-          <button className="axis-link" onClick={doSummarize} title="Generate a verified synthesis of the selected papers">summarize</button>
+          <button className="axis-link" disabled={demoMode} onClick={doSummarize}
+            title={demoMode ? "Generating a new synthesis requires local Callosum." : "Generate a verified synthesis of the selected papers"}>summarize</button>
           <select className="bulk-export" value="" title="Export citations for the selected papers"
+            disabled={demoMode}
             onChange={e => { if (e.target.value) { doExport(e.target.value); e.target.value = ""; } }}>
             <option value="" disabled>export…</option>
             <option value="bibtex">BibTeX (.bib)</option>
@@ -151,13 +154,14 @@ function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decompos
             <option value="csl-json">CSL-JSON</option>
           </select>
           {citeStyles.length > 0 &&
-            <select className="bulk-export" value="" title="Download a formatted bibliography for the selected papers"
+            <select className="bulk-export" value="" disabled={demoMode} title={demoMode ? "Formatting and downloading a new bibliography requires local Callosum." : "Download a formatted bibliography for the selected papers"}
               onChange={e => { if (e.target.value) { doBibliography(e.target.value); e.target.value = ""; } }}>
               <option value="" disabled>bibliography…</option>
               {citeStyles.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
             </select>}
-          <button className="axis-link axis-danger" onClick={doDelete}>delete</button>
+          <button className="axis-link axis-danger" disabled={demoMode} title={demoMode ? "Deleting publications requires the local Callosum database." : undefined} onClick={doDelete}>delete</button>
           <button className="axis-link" onClick={clearSel}>clear</button>
+          {demoMode && <span className="axis-hint">Selection is local to this page; synthesis, export, bibliography, and deletion require the installed app.</span>}
         </div>}
 
       {state.status === "loading" && <div className="axis-hint">Loading your publications…</div>}

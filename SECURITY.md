@@ -25,6 +25,24 @@ distributed desktop secret would not authenticate clients, anonymous spam remain
 [`feedback_relay/README.md`](feedback_relay/README.md). Do not put credentials, unpublished material, or sensitive
 vulnerability details into an ordinary feedback report.
 
+The public online demo is deliberately **not** a hosted instance of that local service. It is a static build of
+the shared frontend over a curated immutable snapshot: no FastAPI process, database, credentials, AI calls,
+telemetry, or live endpoints are deployed. Its data provider rejects mutations in memory and a browser guard plus
+Content Security Policy restrict requests to static files beneath the deployment path. Snapshot export is
+whitelist-based and rejects unknown fields, local paths, credential markers, and unverified document assets. Treat
+saved axes, tags, tag suggestions, queue/profile state, method results, Status receipts, synthetic manuscripts,
+manuscript checkpoints, tasks, references, WIP findings, discovery results, journal/funding reports, followed-author
+records, extraction rows, annotations, and statement drafts as public data too. A current-Feed candidate is never
+public merely because it was sanitized: it must be reviewed and approved by its exact SHA-256, and the schema
+rejects any unapproved Feed records.
+Treat every byte under `demo/` as public; never point either the library-state generator or snapshot exporter at an
+ordinary user database. The detailed trust and
+licensing boundary is in [`demo/README.md`](demo/README.md).
+
+Public registry access is not treated as a reuse license. The Rasset OSF registration reports “No license,” so the
+demo contains verified metadata, short bounded comparison excerpts, and the canonical URL—not the complete
+registration or its files. That decision is explicit in the strict snapshot license audit.
+
 ## Reporting a vulnerability
 
 <!-- TODO(maintainer): add a preferred private contact (email, or enable GitHub's private vulnerability

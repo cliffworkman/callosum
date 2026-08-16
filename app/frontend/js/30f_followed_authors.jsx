@@ -71,16 +71,19 @@ function FollowedAuthorsPane({ active, onSaved }) {
             <span key={a.author_id} className="feed-sub"
               title={`OpenAlex ${a.author_id}${a.matched_by === "name" ? " · matched by name, not ORCID — lower confidence" : ""}${a.last_refreshed_at ? ` · last refreshed ${new Date(a.last_refreshed_at).toLocaleString()}` : " · never refreshed"}`}>
               <span className="feed-sub-kind">Author</span>{a.display_name}
-              <button className="feed-sub-x" title="Unfollow" onClick={() => unfollow(a.author_id)}>×</button>
+              <button className="feed-sub-x"
+                title={isDemoMode() ? "Unfollowing needs the persistent local library" : "Unfollow"}
+                onClick={() => unfollow(a.author_id)}>×</button>
             </span>
           ))}
           {!authors.length ? <span className="discover-hint">Follow an author to start surfacing their absent works.</span> : null}
         </div>
         <div className="searchbar">
-          <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="Author name…" />
-          <input value={orcidInput} onChange={e => setOrcidInput(e.target.value)} placeholder="or ORCID (0000-0002-1825-0097)" />
-          <button className="btn btn-ghost" onClick={follow} disabled={!nameInput.trim() && !orcidInput.trim()}>Follow</button>
-          <button className="btn btn-primary" disabled={running || !authors.length} onClick={() => runRefresh(null)}>
+          <input value={nameInput} disabled={isDemoMode()} onChange={e => setNameInput(e.target.value)} placeholder="Author name…" />
+          <input value={orcidInput} disabled={isDemoMode()} onChange={e => setOrcidInput(e.target.value)} placeholder="or ORCID (0000-0002-1825-0097)" />
+          <button className="btn btn-ghost" onClick={follow} disabled={isDemoMode() || (!nameInput.trim() && !orcidInput.trim())}>Follow</button>
+          <button className="btn btn-primary" disabled={running || !authors.length} onClick={() => runRefresh(null)}
+            title={isDemoMode() ? "Refresh needs the local backend and OpenAlex" : undefined}>
             {running ? "Scanning…" : "Refresh all"}
           </button>
         </div>
@@ -109,8 +112,10 @@ function FollowedAuthorsPane({ active, onSaved }) {
               </div>
             </div>
             <div className="gap-row-actions">
-              <button className="axis-link" onClick={() => add(row)}>Add</button>
-              <button className="axis-link" onClick={() => dismiss(row)}>Dismiss</button>
+              <button className="axis-link" onClick={() => add(row)}
+                title={isDemoMode() ? "Adding changes the persistent local library" : undefined}>Add</button>
+              <button className="axis-link" onClick={() => dismiss(row)}
+                title={isDemoMode() ? "Dismissing changes persistent local state" : undefined}>Dismiss</button>
             </div>
           </div>
         ))}

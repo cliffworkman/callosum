@@ -15,7 +15,7 @@
 const PANE_SECTIONS = [];
 function _ensureSection(id) {
   let s = PANE_SECTIONS.find(x => x.id === id);
-  if (!s) { s = { id, label: id, paneId: "theory", order: 0, hideInReadOnly: false, tabs: [], defined: false }; PANE_SECTIONS.push(s); }
+  if (!s) { s = { id, label: id, paneId: "theory", order: 0, hideInReadOnly: false, demoInspectable: false, tabs: [], defined: false }; PANE_SECTIONS.push(s); }
   return s;
 }
 function _addPaneTab(section, tab) {
@@ -26,8 +26,8 @@ function registerPaneSection(section) {
   // tab-adding chunk that loads first only seeds a placeholder). Adds its content as the first tab; `tabLabel`
   // overrides that tab's label (else the section label) — used when a section holds >1 tab (inc 248).
   const s = _ensureSection(section.id);
-  s.label = section.label; s.paneId = section.paneId; s.order = section.order; s.hideInReadOnly = section.hideInReadOnly; s.defined = true;
-  _addPaneTab(s, { id: section.id, label: section.tabLabel || section.label, order: 0, render: section.render, hideInReadOnly: section.hideInReadOnly });
+  s.label = section.label; s.paneId = section.paneId; s.order = section.order; s.hideInReadOnly = section.hideInReadOnly; s.demoInspectable = !!section.demoInspectable; s.defined = true;
+  _addPaneTab(s, { id: section.id, label: section.tabLabel || section.label, order: 0, render: section.render, hideInReadOnly: section.hideInReadOnly, demoInspectable: !!section.demoInspectable });
 }
 function registerPaneTab(host, tab) {
   // Adds a tab to a (find-or-create) section. Host metadata seeds a not-yet-`defined` section only. A tab may carry
@@ -40,9 +40,12 @@ function paneSections(paneId) {
   // ordered by the section's `order` (ascending) so display order is data-driven, not chunk-load order.
   return PANE_SECTIONS.filter(s => s.paneId === paneId).sort((a, b) => (a.order || 0) - (b.order || 0));
 }
+function paneItemHidden(item, readOnly) {
+  return !!(readOnly && item.hideInReadOnly && !(isDemoMode() && item.demoInspectable));
+}
 function sectionTabs(section, readOnly) {
   // inc 248: drop per-tab hideInReadOnly tabs on a read-only companion (the section itself may still be shown).
-  return [...section.tabs].filter(t => !(readOnly && t.hideInReadOnly)).sort((a, b) => (a.order || 0) - (b.order || 0));
+  return [...section.tabs].filter(t => !paneItemHidden(t, readOnly)).sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
 // The DETAILS (methods) section is registered here rather than in 25_detail.jsx because that file is at the
@@ -66,7 +69,7 @@ function PaneAccordion({ paneId, ctx, openId, onOpen }) {
   const readOnly = !!(ctx && ctx.readOnly);
   // B5 SP2 / inc 248: on a read-only instance drop a section that's explicitly hideInReadOnly OR whose every tab is
   // hidden read-only (per-tab hideInReadOnly). A section with a surviving tab (e.g. Cite → Suggest) stays.
-  const sections = paneSections(paneId).filter(s => !(readOnly && (s.hideInReadOnly || sectionTabs(s, true).length === 0)));
+  const sections = paneSections(paneId).filter(s => !paneItemHidden(s, readOnly) && !(readOnly && sectionTabs(s, true).length === 0));
   const [tabState, setTabState] = useState({});  // sectionId -> active tabId (also persisted to localStorage)
   if (sections.length === 0) return null;
   // fall back to the first section if the persisted openId no longer matches a registered section

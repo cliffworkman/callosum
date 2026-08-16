@@ -260,9 +260,41 @@
     padding: 7px 16px; font-size: 12.5px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.18); cursor: pointer;
   }
 
+  /* Static online demo: a persistent provenance notice, using the established accent/flag status families. */
+.demo-mode-banner {
+  position: fixed; top: 8px; left: 50%; z-index: 61; transform: translateX(-50%); pointer-events: none;
+    display: flex; align-items: center; gap: 9px; max-width: min(760px, calc(100vw - 190px));
+    padding: 6px 10px; border: 1px solid var(--accent-line); border-radius: var(--radius-pill);
+    background: var(--accent-soft); color: var(--ink-2); box-shadow: 0 2px 12px rgba(0,0,0,.12);
+    font-size: 11px; line-height: 1.25; font-family: var(--sans);
+}
+.demo-mode-banner a { pointer-events: auto; }
+  .demo-mode-banner b { color: var(--accent); white-space: nowrap; }
+  .demo-mode-banner a { color: var(--accent); font-weight: 600; white-space: nowrap; }
+  .demo-mode-banner .demo-banner-close {
+    flex: 0 0 auto; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%;
+    background: transparent; color: currentColor; pointer-events: auto; cursor: pointer;
+    font: 600 16px/18px var(--sans);
+  }
+  .demo-mode-banner .demo-banner-close:hover { background: var(--surface-hover); }
+  .demo-mode-banner .demo-banner-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .demo-mode-banner.blocked { border-color: var(--flag-line); background: var(--flag-soft); color: var(--flag-ink); }
+.demo-mode-banner.blocked b, .demo-mode-banner.blocked a { color: var(--flag-ink); }
+.demo-workspace-note { display:flex; gap:10px; align-items:baseline; margin:10px 14px 0; padding:9px 12px; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface-2); color:var(--muted); font-size:12px; }
+.demo-workspace-note b { color:var(--ink); white-space:nowrap; }
+.demo-workspace-note.saved { border-color:var(--accent-line); background:var(--accent-soft); }
+.demo-workspace-note.visible-disabled { border-style:dashed; }
+  .demo-synth-note { margin-bottom: 12px; }
+
+  @media (max-width: 760px) {
+    .demo-mode-banner { left: 8px; right: 8px; transform: none; max-width: none; border-radius: var(--radius); }
+    .demo-mode-banner span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .demo-mode-banner a { display: none; }
+  }
+
   /* B5 SP2 (inc 238): read-only companion. A fixed badge marks the read-only instance; write controls hide via the
      `readOnly` context flag threaded into each panel. Tokens only (rule #8). */
-  .read-only-badge {
+.read-only-badge {
     position: fixed; top: 8px; right: 10px; z-index: 60; pointer-events: none;
     font-size: 10.5px; font-weight: 600; color: var(--flag-ink); background: var(--flag-soft);
     border: 1px solid var(--flag-line); border-radius: var(--radius-pill); padding: 3px 9px;

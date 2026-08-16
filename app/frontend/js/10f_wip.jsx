@@ -132,6 +132,7 @@ function WipBrowser({ wip, onOpen }) {
     event.preventDefault();
     event.stopPropagation();
     wip.setSelectedId(manuscript.id);
+    if (wip.readOnly) return;
     setMenu({ manuscript, x: position ? position.x : event.clientX, y: position ? position.y : event.clientY });
   };
   return (
@@ -141,8 +142,10 @@ function WipBrowser({ wip, onOpen }) {
           <p className="eyebrow">Work in progress</p>
           <span className="wip-mode-label"><span className="wip-badge">WIP</span> Unpublished manuscripts</span>
         </div>
-        <WipRootSetup roots={wip.roots} scanning={wip.scanning} onAdd={wip.addRoot} onRescan={wip.rescan}
-          onDeleteRoot={wip.deleteRoot} />
+        {wip.readOnly ? <div className="axis-hint demo-wip-note">
+          Saved synthetic manuscripts · browse, inspect sources, and open genuine saved check results. Changes and reruns require the local app.
+        </div> : <WipRootSetup roots={wip.roots} scanning={wip.scanning} onAdd={wip.addRoot} onRescan={wip.rescan}
+          onDeleteRoot={wip.deleteRoot} />}
         <WipFilters wip={wip} />
         {wip.status === "ready" && <div className="list-meta">{wip.manuscripts.length} shown</div>}
       </div>
@@ -158,13 +161,13 @@ function WipBrowser({ wip, onOpen }) {
       {wip.status === "ready" && wip.manuscripts.map(item =>
         <WipCard key={item.id} manuscript={item} selected={wip.selectedId === item.id}
           onSelect={wip.setSelectedId} onOpen={onOpen} onMenu={openMenu} />)}
-      <WipContextMenu menu={menu} onClose={() => setMenu(null)} onOpen={onOpen}
-        onUpdate={wip.updateManuscript} onRescan={wip.rescan} onDelete={wip.deleteManuscript} />
+      {!wip.readOnly && <WipContextMenu menu={menu} onClose={() => setMenu(null)} onOpen={onOpen}
+        onUpdate={wip.updateManuscript} onRescan={wip.rescan} onDelete={wip.deleteManuscript} />}
     </div>
   );
 }
 
-function WipStructure({ manuscriptId, sections, onReload }) {
+function WipStructure({ manuscriptId, sections, onReload, readOnly }) {
   const [name, setName] = useState("");
   const change = async (section, values) => {
     const result = await apiPatch(`/wip/manuscripts/${manuscriptId}/sections/${section.id}`, values);
@@ -186,29 +189,29 @@ function WipStructure({ manuscriptId, sections, onReload }) {
   return (
     <section className="wip-work-view">
       <div className="wip-section-add">
-        <input value={name} onChange={event => setName(event.target.value)} placeholder="Add a custom section"
+        <input value={name} disabled={readOnly} onChange={event => setName(event.target.value)} placeholder="Add a custom section"
           onKeyDown={event => { if (event.key === "Enter") add(); }} />
-        <button className="axis-btn" disabled={!name.trim()} onClick={add}>Add section</button>
+        <button className="axis-btn" disabled={readOnly || !name.trim()} onClick={add}>Add section</button>
       </div>
       {sections.map((section, index) =>
         <div className="wip-section-row" key={section.id}>
           <span className="wip-section-name">{section.name}</span>
           {section.content_detected && <span className="wip-detected">Content detected</span>}
-          <select value={section.status} onChange={event => change(section, { status: event.target.value })}>
+          <select value={section.status} disabled={readOnly} onChange={event => change(section, { status: event.target.value })}>
             {["not-started", "outlined", "drafting", "complete", "needs-revision", "under-review", "approved", "not-applicable"]
               .map(status => <option key={status} value={status}>{status.replace(/-/g, " ")}</option>)}
           </select>
-          <button className="btn-icon" title="Move section up" disabled={index === 0} onClick={() => move(index, -1)}>↑</button>
-          <button className="btn-icon" title="Move section down" disabled={index === sections.length - 1} onClick={() => move(index, 1)}>↓</button>
+          <button className="btn-icon" title="Move section up" disabled={readOnly || index === 0} onClick={() => move(index, -1)}>↑</button>
+          <button className="btn-icon" title="Move section down" disabled={readOnly || index === sections.length - 1} onClick={() => move(index, 1)}>↓</button>
           {section.is_custom &&
             <button className="btn-icon danger" title="Delete custom section"
-              onClick={async () => { const result = await apiDelete(`/wip/manuscripts/${manuscriptId}/sections/${section.id}`); if (result.ok) onReload(); }}>×</button>}
+              disabled={readOnly} onClick={async () => { const result = await apiDelete(`/wip/manuscripts/${manuscriptId}/sections/${section.id}`); if (result.ok) onReload(); }}>×</button>}
         </div>)}
     </section>
   );
 }
 
-function WipTasks({ manuscriptId, tasks, sections, onReload }) {
+function WipTasks({ manuscriptId, tasks, sections, onReload, readOnly }) {
   const [title, setTitle] = useState("");
   const [sectionId, setSectionId] = useState("");
   const add = async () => {
@@ -221,39 +224,39 @@ function WipTasks({ manuscriptId, tasks, sections, onReload }) {
   return (
     <section className="wip-work-view">
       <div className="wip-task-add">
-        <input value={title} onChange={event => setTitle(event.target.value)} placeholder="Add a manuscript task"
+        <input value={title} disabled={readOnly} onChange={event => setTitle(event.target.value)} placeholder="Add a manuscript task"
           onKeyDown={event => { if (event.key === "Enter") add(); }} />
-        <select value={sectionId} onChange={event => setSectionId(event.target.value)}>
+        <select value={sectionId} disabled={readOnly} onChange={event => setSectionId(event.target.value)}>
           <option value="">Whole manuscript</option>
           {sections.map(section => <option key={section.id} value={section.id}>{section.name}</option>)}
         </select>
-        <button className="axis-btn" disabled={!title.trim()} onClick={add}>Add task</button>
+        <button className="axis-btn" disabled={readOnly || !title.trim()} onClick={add}>Add task</button>
       </div>
       {tasks.length === 0 && <p className="axis-hint">No manuscript tasks.</p>}
       {tasks.map(task =>
         <div className={"wip-task-row" + (task.status === "complete" ? " complete" : "")} key={task.id}>
-          <input type="checkbox" checked={task.status === "complete"}
+          <input type="checkbox" checked={task.status === "complete"} disabled={readOnly}
             onChange={async event => {
               const result = await apiPatch(`/wip/manuscripts/${manuscriptId}/tasks/${task.id}`,
                 { status: event.target.checked ? "complete" : "open" });
               if (result.ok) onReload();
             }} />
           <span>{task.title}</span>
-          <select value={task.status} onChange={async event => {
+          <select value={task.status} disabled={readOnly} onChange={async event => {
             const result = await apiPatch(`/wip/manuscripts/${manuscriptId}/tasks/${task.id}`, { status: event.target.value });
             if (result.ok) onReload();
           }}>
             {["open", "in-progress", "blocked", "complete", "deferred", "cancelled"]
               .map(status => <option key={status} value={status}>{status.replace(/-/g, " ")}</option>)}
           </select>
-          <button className="btn-icon danger" title="Delete task"
+          <button className="btn-icon danger" title="Delete task" disabled={readOnly}
             onClick={async () => { const result = await apiDelete(`/wip/manuscripts/${manuscriptId}/tasks/${task.id}`); if (result.ok) onReload(); }}>×</button>
         </div>)}
     </section>
   );
 }
 
-function WipReferences({ manuscriptId, references, onReload, onOpenPaper }) {
+function WipReferences({ manuscriptId, references, onReload, onOpenPaper, readOnly }) {
   const [paperId, setPaperId] = useState("");
   const [relationship, setRelationship] = useState("possibly-cited");
   const [error, setError] = useState("");
@@ -268,13 +271,13 @@ function WipReferences({ manuscriptId, references, onReload, onOpenPaper }) {
   return (
     <section className="wip-work-view">
       <div className="wip-reference-add">
-        <input inputMode="numeric" value={paperId} onChange={event => setPaperId(event.target.value)}
+        <input inputMode="numeric" value={paperId} disabled={readOnly} onChange={event => setPaperId(event.target.value)}
           placeholder="Library paper ID" />
-        <select value={relationship} onChange={event => setRelationship(event.target.value)}>
+        <select value={relationship} disabled={readOnly} onChange={event => setRelationship(event.target.value)}>
           {["cited", "possibly-cited", "background-reading", "to-cite", "rejected-for-use", "needs-verification"]
             .map(state => <option key={state} value={state}>{state.replace(/-/g, " ")}</option>)}
         </select>
-        <button className="axis-btn" disabled={!paperId} onClick={add}>Link paper</button>
+        <button className="axis-btn" disabled={readOnly || !paperId} onClick={add}>Link paper</button>
       </div>
       {error && <div className="wip-root-error">{error}</div>}
       {references.length === 0 && <p className="axis-hint">No Library references linked yet.</p>}
@@ -284,7 +287,7 @@ function WipReferences({ manuscriptId, references, onReload, onOpenPaper }) {
             id: reference.paper_id, title: reference.paper_title,
           })}>{reference.paper_title}</button>
           <span>{reference.paper_year || ""}</span>
-          <select value={reference.relationship_state} onChange={async event => {
+          <select value={reference.relationship_state} disabled={readOnly} onChange={async event => {
             const result = await apiPost(`/wip/manuscripts/${manuscriptId}/references`, {
               paper_id: reference.paper_id, relationship_state: event.target.value, notes: reference.notes,
             });
@@ -293,7 +296,7 @@ function WipReferences({ manuscriptId, references, onReload, onOpenPaper }) {
             {["cited", "possibly-cited", "background-reading", "to-cite", "rejected-for-use", "needs-verification"]
               .map(state => <option key={state} value={state}>{state.replace(/-/g, " ")}</option>)}
           </select>
-          <button className="btn-icon danger" title="Unlink paper"
+          <button className="btn-icon danger" title="Unlink paper" disabled={readOnly}
             onClick={async () => { const result = await apiDelete(`/wip/manuscripts/${manuscriptId}/references/${reference.paper_id}`); if (result.ok) onReload(); }}>×</button>
         </div>)}
     </section>
@@ -350,6 +353,7 @@ function WipJournalRuns({ runs }) {
 }
 
 function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace = false, externalRefresh }) {
+  const readOnly = React.useContext(AppReadOnly);
   const [files, setFiles] = useState([]);
   const [activity, setActivity] = useState([]);
   const [sections, setSections] = useState([]);
@@ -416,27 +420,28 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
       reload();
     }} />
     <div className="wip-detail-grid">
-      <label>Display title<input value={draft.title_override || ""} placeholder={manuscript.derived_title}
+      <label>Display title<input value={draft.title_override || ""} disabled={readOnly} placeholder={manuscript.derived_title}
         onChange={event => setDraft({ ...draft, title_override: event.target.value })} /></label>
-      <label>Stage<select value={draft.stage || "idea"} onChange={event => setDraft({ ...draft, stage: event.target.value })}>
+      <label>Stage<select value={draft.stage || "idea"} disabled={readOnly} onChange={event => setDraft({ ...draft, stage: event.target.value })}>
         {WIP_STAGES.map(item => <option key={item[0]} value={item[0]}>{item[1]}</option>)}
       </select></label>
-      <label>Manuscript type<input value={draft.manuscript_type || ""}
+      <label>Manuscript type<input value={draft.manuscript_type || ""} disabled={readOnly}
         onChange={event => setDraft({ ...draft, manuscript_type: event.target.value })} /></label>
-      <label>Target journal<input value={draft.target_journal || ""}
+      <label>Target journal<input value={draft.target_journal || ""} disabled={readOnly}
         onChange={event => setDraft({ ...draft, target_journal: event.target.value })} /></label>
-      <label>Deadline<input type="date" value={draft.deadline || ""}
+      <label>Deadline<input type="date" value={draft.deadline || ""} disabled={readOnly}
         onChange={event => setDraft({ ...draft, deadline: event.target.value })} /></label>
-      <label className="wip-detail-wide">Notes<textarea rows={workspace ? 4 : 3} value={draft.notes || ""}
+      <label className="wip-detail-wide">Notes<textarea rows={workspace ? 4 : 3} value={draft.notes || ""} disabled={readOnly}
         onChange={event => setDraft({ ...draft, notes: event.target.value })} /></label>
     </div>
-    <button className="axis-btn" disabled={saving} onClick={save}>{saving ? "Saving…" : "Save manuscript"}</button>
+    <button className="axis-btn" disabled={saving || readOnly} onClick={save}
+      title={isDemoMode() ? "Manuscript changes require the local app." : undefined}>{saving ? "Saving…" : "Save manuscript"}</button>
   </>;
   const fileView = <section className="wip-work-view">
     {files.length === 0 ? <p className="axis-hint">No files discovered.</p> :
       files.map(file => <div className="wip-file-row" key={file.id}>
         <span>{file.relative_path}</span>
-        <select value={file.role} onChange={async event => {
+        <select value={file.role} disabled={readOnly} onChange={async event => {
           const result = await apiPatch(`/wip/manuscripts/${manuscript.id}/files/${file.id}`, { role: event.target.value });
           if (result.ok) reload();
         }}>
@@ -446,14 +451,14 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
           {file.is_primary && <option value="primary-manuscript">primary manuscript</option>}
         </select>
         <button className={"btn-ghost" + (file.is_primary ? " wip-primary" : "")}
-          disabled={file.existence_state !== "available"}
+          disabled={readOnly || file.existence_state !== "available"}
           onClick={async () => {
             const result = await apiPatch(`/wip/manuscripts/${manuscript.id}/files/${file.id}`, { is_primary: true });
             if (result.ok) reload();
           }}>{file.is_primary ? "Primary" : "Make primary"}</button>
-        <button className="btn-icon" title="Open file"
+        <button className="btn-icon" title={readOnly ? "Opening the local manuscript file requires the local app." : "Open file"} disabled={readOnly}
           onClick={() => apiPost(`/wip/manuscripts/${manuscript.id}/files/${file.id}/open`, {})}>↗</button>
-        <button className="btn-icon" title="Reveal file in its folder"
+        <button className="btn-icon" title={readOnly ? "Revealing local files requires the local app." : "Reveal file in its folder"} disabled={readOnly}
           onClick={() => apiPost(`/wip/manuscripts/${manuscript.id}/files/${file.id}/reveal`, {})}>⌖</button>
       </div>)}
   </section>;
@@ -470,17 +475,21 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
         <div><h2>{manuscript.display_title}</h2><p>Unpublished manuscript workspace</p></div>
       </header>
       {workspace ? <>
+        {isDemoMode() && <div className="settings-note">
+          Synthetic public-demo manuscript. Its structure, tasks, linked sources, detector receipts, and provenance
+          are genuine saved Callosum state; editing, rerunning, and local file actions require the installed app.
+        </div>}
         <div className="tags-srcfilter wip-work-tabs" role="tablist">
           {["overview", "structure", "tasks", "files", "references", "checks", "activity"].map(value =>
             <button key={value} className={"tags-srcfilter-btn" + (tab === value ? " on" : "")}
               onClick={() => setTab(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}
         </div>
         {tab === "overview" && overview}
-        {tab === "structure" && <WipStructure manuscriptId={manuscript.id} sections={sections} onReload={reload} />}
-        {tab === "tasks" && <WipTasks manuscriptId={manuscript.id} tasks={tasks} sections={sections} onReload={reload} />}
+        {tab === "structure" && <WipStructure manuscriptId={manuscript.id} sections={sections} onReload={reload} readOnly={readOnly} />}
+        {tab === "tasks" && <WipTasks manuscriptId={manuscript.id} tasks={tasks} sections={sections} onReload={reload} readOnly={readOnly} />}
         {tab === "files" && fileView}
         {tab === "references" && <WipReferences manuscriptId={manuscript.id} references={references}
-          onReload={reload} onOpenPaper={onOpenPaper} />}
+          onReload={reload} onOpenPaper={onOpenPaper} readOnly={readOnly} />}
         {tab === "checks" && <>
           <WipChecks manuscriptId={manuscript.id} snapshots={snapshots} checks={checks} onReload={reload} />
           <WipFundingRuns runs={fundingRuns} />

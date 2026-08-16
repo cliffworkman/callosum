@@ -4,10 +4,12 @@
 // Methods panel's "Statistics" section (self-fetching wrapper below) -- both read/write the same manuscript-scoped
 // data, kept in sync via the shared wip.refresh counter (ctx.wipRefresh / externalRefresh).
 function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
+  const readOnly = React.useContext(AppReadOnly);
   const [creating, setCreating] = useState(false);
   const [runningTool, setRunningTool] = useState("");
   const [error, setError] = useState("");
   const running = runningTool !== "";
+  const savedDemo = isDemoMode();
   const createCheckpoint = async () => {
     setCreating(true);
     setError("");
@@ -35,26 +37,27 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
         <p>Each run names its exact checkpoint, tool version, coverage, and reviewable findings.</p>
       </div>
       <div className="wip-check-actions">
-        <button className="btn-ghost" disabled={creating} onClick={createCheckpoint}>
+        <button className="btn-ghost" disabled={creating || readOnly} onClick={createCheckpoint}
+          title={savedDemo ? "Checkpoint creation requires the local app." : undefined}>
           {creating ? "Creating…" : "Create checkpoint"}
         </button>
-        <button className="axis-btn" disabled={running}
+        <button className="axis-btn" disabled={running || readOnly} title={savedDemo ? "Rerunning checks requires the local app." : undefined}
           onClick={() => runCheck("statcheck", "Statcheck could not run.")}>
           {runningTool === "statcheck" ? "Running…" : "Run statcheck"}
         </button>
-        <button className="axis-btn" disabled={running}
+        <button className="axis-btn" disabled={running || readOnly} title={savedDemo ? "Rerunning checks requires the local app." : undefined}
           onClick={() => runCheck("transparency", "Transparency check could not run.")}>
           {runningTool === "transparency" ? "Checking…" : "Check transparency"}
         </button>
-        <button className="axis-btn" disabled={running}
+        <button className="axis-btn" disabled={running || readOnly} title={savedDemo ? "Rerunning checks requires the local app." : undefined}
           onClick={() => runCheck("lmm", "Mixed-model reporting audit could not run.")}>
           {runningTool === "lmm" ? "Auditing…" : "Audit LMM reporting"}
         </button>
-        <button className="axis-btn" disabled={running}
+        <button className="axis-btn" disabled={running || readOnly} title={savedDemo ? "Rerunning checks requires the local app." : undefined}
           onClick={() => runCheck("bayes", "Bayesian reporting audit could not run.")}>
           {runningTool === "bayes" ? "Auditing…" : "Audit Bayesian reporting"}
         </button>
-        <button className="axis-btn" disabled={running}
+        <button className="axis-btn" disabled={running || readOnly} title={savedDemo ? "Rerunning checks requires the local app." : undefined}
           onClick={() => runCheck("meta-analysis", "Meta-analysis reporting audit could not run.")}>
           {runningTool === "meta-analysis" ? "Auditing…" : "Audit meta-analysis reporting"}
         </button>
@@ -72,7 +75,9 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
       </div>
       <p>{run.result_summary}</p>
       <small>v{run.tool_version} · snapshot {run.snapshot_id} · {run.coverage}</small>
-      <div><button className="btn-link" onClick={() => openSourceFile(run.file_id)}>Open source file</button></div>
+      <div><button className="btn-link" disabled={readOnly}
+        title={savedDemo ? "The synthetic manuscript file is local-app only; saved quotations and detector details remain below." : undefined}
+        onClick={() => openSourceFile(run.file_id)}>Open source file</button></div>
       {run.tool_id === "transparency" && <WipTransparencyResult run={run}
         onOpenSource={() => openSourceFile(run.file_id)} />}
       {run.tool_id === "lmm" && <WipLmmResult run={run}
@@ -85,7 +90,7 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
         <div>
           <strong>Candidate</strong> <span>{finding.summary}</span>
         </div>
-        <select value={finding.disposition || "open"} onChange={async event => {
+        <select value={finding.disposition || "open"} disabled={readOnly} title={savedDemo ? "Review changes require the local app." : undefined} onChange={async event => {
           const result = await apiPatch(`/wip/findings/${finding.id}`, { disposition: event.target.value });
           if (result.ok) onReload();
           else setError(result.error || "Could not update the finding.");
@@ -244,7 +249,8 @@ function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText
   return <div className="detail-statcheck">
     <span className="detail-cite-label">{manuscript.display_title || manuscript.derived_title || "This manuscript"}</span>
     <div className="settings-actions">
-      <button className="btn btn-primary" disabled={state.status === "running"} onClick={start}>
+      <button className="btn btn-primary" disabled={state.status === "running" || isDemoMode()} onClick={start}
+        title={isDemoMode() ? "Rerunning checks requires the local app." : undefined}>
         {state.status === "running" ? labels.running : latest ? labels.again : labels.first}
       </button>
     </div>

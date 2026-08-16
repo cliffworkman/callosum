@@ -73,6 +73,14 @@ function StatementsSection({ ctx }) {
   // Load the saved drafts on mount + whenever the selected paper changes (per-paper scratchpad, the exact
   // CRediT scoping convention — keyed on ctx.selectedPaper with a "_" fallback).
   useEffect(() => {
+    if (isDemoMode()) {
+      api("/demo/saved-artifacts/statements").then(r => {
+        if (!r.ok) return;
+        loadedKeyRef.current = paperKey;
+        setTexts(r.data || {});
+      });
+      return;
+    }
     const saved = _loadLayout(paperKey, null);
     let next = {};
     if (saved) { try { const parsed = JSON.parse(saved); if (parsed && typeof parsed === "object") next = parsed; } catch (e) { /* ignore */ } }
@@ -112,6 +120,7 @@ function StatementsSection({ ctx }) {
   return (
     <div className="grim-section ws-pad">
       <div className="settings-sub">Build the manuscript-level disclosures many journals require. Callosum offers common starting phrasing for each — you decide what applies and edit freely; it never asserts a fact about your study on your behalf.</div>
+      {isDemoMode() && <div className="settings-note">Saved synthetic-manuscript disclosure drafts. Copying and browser-local edits work; persistent storage and LibreOffice handoff require local Callosum.</div>}
       {STATEMENT_TYPES.map((type) => {
         const text = texts[type.kind] || "";
         return (
@@ -134,6 +143,7 @@ function StatementsSection({ ctx }) {
               <button className="btn btn-primary" disabled={!text} onClick={() => copy(type.kind)}>{copiedKind === type.kind ? "✓ copied" : "Copy"}</button>
               <button
                 className="btn btn-ghost"
+                disabled={isDemoMode()}
                 onClick={() => sendToLibreOffice(type.kind)}
                 title="Stage this statement for the LibreOffice Callosum add-on to insert at the cursor (requires the add-on)"
               >

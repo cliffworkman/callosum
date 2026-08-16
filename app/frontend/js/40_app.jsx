@@ -19,7 +19,7 @@ function App() {
     mobile, mobilePane, setMobilePane,
   } = useUiPrefs();
 
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(() => isDemoMode() ? CALLOSUM_DEMO.initial_paper_id : null);
   // tabbed library frame: a persistent Library tab plus open PDF tabs.
   const [tabs, setTabs] = useState([]);            // [{ key, paperId, title, target }]
   const [selectedPaperTab, setSelectedPaperTab] = useState(null);  // selected in Library, not yet opened as a PDF tab
@@ -28,7 +28,8 @@ function App() {
   // Library workspace's sub-tab (the list | an open PDF). The active workspace persists across reloads; a
   // library-list navigation (filter/focus, via gotoLibrary) also switches to the Library workspace.
   const [activeWorkspace, setActiveWorkspace] = useState(() =>
-    window.location.hash === "#citation-styles" ? "settings" : _loadLayout("callosum.workspace", "library"));
+    window.location.hash === "#citation-styles" ? "settings" :
+      (isDemoMode() ? (CALLOSUM_DEMO.initial_workspace || "synthesis") : _loadLayout("callosum.workspace", "library")));
   const [workspaceTabRequest, setWorkspaceTabRequest] = useState(null);
   const [paneTabRequest, setPaneTabRequest] = useState(null);
   const selectWorkspace = useCallback((id) => {
@@ -49,6 +50,12 @@ function App() {
   // just the Ask tab in general). Mirrors workspaceTabRequest's nonce idiom so a repeat click on the same
   // job still re-fires the effect in SynthesisPane.
   const [requestedSummary, setRequestedSummary] = useState(null);
+  useEffect(() => {
+    if (activeWorkspace !== "synthesis" || !isDemoMode() || requestedSummary) return;
+    if (CALLOSUM_DEMO.initial_summary_id != null) {
+      setRequestedSummary({ summaryId: CALLOSUM_DEMO.initial_summary_id, nonce: 1 });
+    }
+  }, [activeWorkspace, requestedSummary]);
   const openSynthesisSummary = useCallback((summaryId) => {
     openSynthesisWorkspace();
     if (summaryId != null) setRequestedSummary(prev => ({ summaryId, nonce: (prev ? prev.nonce : 0) + 1 }));
@@ -81,13 +88,14 @@ function App() {
   // launch rescan until /health has resolved, so it never fires the doomed write before readOnly is known.
   // undefined until /health resolves (so a background read-implemented-as-POST like /citations/render doesn't fire
   // before we know); then true (read-only) or false (read-write). The write-control gates treat undefined as falsy.
-  const [readOnly, setReadOnly] = useState(undefined);
+  const [readOnly, setReadOnly] = useState(isDemoMode() ? true : undefined);
   const [healthLoaded, setHealthLoaded] = useState(false);
   // inc 416: defaults true (never undefined) — a FAILED /health still sets healthLoaded=true, and if this
   // defaulted falsy the wizard would incorrectly appear over a broken instance instead of the connection-error
   // state. Only flips false when a real /health response says the wizard hasn't run/been skipped yet.
   const [onboardingDone, setOnboardingDone] = useState(true);
-  const wip = useWipWorkspace({ enabled: healthLoaded && readOnly === false });
+  const savedDemoWip = demoWorkspaceCapability("library", "wip")?.mode === "saved";
+  const wip = useWipWorkspace({ enabled: healthLoaded && (readOnly === false || savedDemoWip), readOnly });
   // inc 460: WIP tab state/management lives in its own hook (10h_wip_filters.jsx, alongside useWipWorkspace) --
   // kept app/frontend/js/40_app.jsx under the rule #1 600-line cap.
   const { wipTabs, openWip, closeWipTab, activateWipTab, reorderWipTabs } = useWipTabs({
@@ -152,32 +160,8 @@ function App() {
     if (tab && tab.paperId != null) setSelected(tab.paperId);
   }, [activeTab, tabs]);
 
-  // A URL deep link ("?open_paper=<id>") opens that paper's PDF tab on load -- the LibreOffice adapter's
-  // "Open in Callosum" action (P0 phase 6, backlog #33/#34) launches exactly this URL against the local server.
-  // inc 460 (roadmap #17): the Suggest-citation Details dialog's "Open in PDF" button also passes "page"/
-  // "precision", jumping straight to the matched passage's page -- mirrors armCapture's own minimal-target
-  // shape below (id/paperId/page/precision; no bboxJson needed since these matches are always "region"
-  // precision, never a fabricated exact rect per invariant #2, and applyPdfCitationTarget only needs bboxJson
-  // for "exact"). One-shot: the params are stripped from the address bar right after use so a page refresh
-  // doesn't reopen it.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const raw = params.get("open_paper");
-    if (!raw) return;
-    const paperId = parseInt(raw, 10);
-    if (!Number.isFinite(paperId)) return;
-    const rawPage = params.get("page");
-    const page = rawPage ? parseInt(rawPage, 10) : null;
-    const target = Number.isFinite(page)
-      ? { id: `open_paper:${paperId}:${page}`, paperId, page, precision: params.get("precision") || null }
-      : undefined;
-    openPdf({ id: paperId }, target);
-    params.delete("open_paper");
-    params.delete("page");
-    params.delete("precision");
-    const qs = params.toString();
-    window.history.replaceState(null, "", window.location.pathname + (qs ? "?" + qs : ""));
-  }, [openPdf]);
+  // A URL deep link ("?open_paper=<id>") opens that paper's PDF tab on load. Extracted to 40b_deep_link.jsx (rule #1).
+  useOpenPaperDeepLink(openPdf);
 
   // inc 280: the Workbench "select-in-PDF" capture (formerly in LibraryFrame) lives here now that Work + the
   // Library PDF tabs are different workspaces. Arming opens the paper UNDER Library (openPdf →
@@ -551,6 +535,7 @@ function App() {
     return (
       <AppReadOnly.Provider value={readOnly}>
       <div className={"app mobile" + (readOnly ? " read-only" : "")}>
+        <DemoModeBanner />
         {readOnlyBadge}
         <div className="mobile-body">{activeEl}</div>
         {backPill}
@@ -564,6 +549,7 @@ function App() {
   return (
     <AppReadOnly.Provider value={readOnly}>
     <div className={"app" + (readingMode ? " reading" : "") + (readOnly ? " read-only" : "")} style={{ gridTemplateColumns: cols }}>
+      <DemoModeBanner />
       {readOnlyBadge}
       {leftOpen && !readingMode ? sidebarEl : <div className="pane-collapsed" />}
       <Divider
