@@ -842,14 +842,18 @@ class _OutlineRange:
 
 
 class _OutlineParagraph(_OutlineRange):
-    def __init__(self, position: int, level: int) -> None:
+    def __init__(self, position: int, level: int, text: str = "") -> None:
         super().__init__(position)
         self.OutlineLevel = level
+        self._text = text
 
     def getPropertyValue(self, name: str):
         if name != "OutlineLevel":
             raise KeyError(name)
         return self.OutlineLevel
+
+    def getString(self) -> str:
+        return self._text
 
 
 class _OutlineEnumeration:
@@ -870,7 +874,9 @@ class _OutlineEnumeration:
 
 class _OutlineText:
     def __init__(self, headings) -> None:
-        self._paragraphs = [_OutlineParagraph(position, level) for position, level in headings]
+        # Each entry is (position, level) or (position, level, text) -- the third element (heading text) is
+        # only needed by tests that resolve a label, e.g. `_current_section_heading`.
+        self._paragraphs = [_OutlineParagraph(*heading) for heading in headings]
 
     def createEnumeration(self):
         return _OutlineEnumeration(self._paragraphs)
@@ -917,6 +923,31 @@ class _OutlineDoc:
 def test_current_outline_section_bounds_follow_heading_subtrees(headings, cursor, expected) -> None:
     start, end = cc._current_outline_section_bounds(_OutlineDoc(headings, cursor))
     assert (start.position, end.position) == expected
+
+
+# ── Finding 1 (backlog #30 final-review fix): `_current_section_heading` is Suggest-Citation's section-scope
+# lookup. The bug it fixes: feeding a raw caret straight to `_section_bibliography_label_at` (which only
+# matches a position that IS EXACTLY a heading's own start) meant an ordinary caret anywhere in body text
+# never resolved -- `current_heading` was `None` for virtually every real invocation. The fix is the same
+# two-step "resolve to the enclosing heading's start first" pattern `insert_section_bibliography` already
+# uses. These tests exercise resolution, not just "doesn't throw".
+def test_current_section_heading_resolves_body_caret_to_enclosing_heading() -> None:
+    headings = [(10, 1, "Intro"), (30, 1, "Methods"), (80, 1, "Discussion")]
+    # cursor=45 is mid-paragraph body text under "Methods" (30..80), nowhere near a heading's own start.
+    doc = _OutlineDoc(headings, 45)
+    assert cc._current_section_heading(doc) == "Methods"
+
+
+def test_current_section_heading_returns_none_in_preamble() -> None:
+    headings = [(10, 1, "Intro"), (30, 1, "Methods")]
+    # cursor=5 precedes the first heading -- an honest "Preamble", not a real section name.
+    doc = _OutlineDoc(headings, 5)
+    assert cc._current_section_heading(doc) is None
+
+
+def test_current_section_heading_returns_none_with_no_headings() -> None:
+    doc = _OutlineDoc([], 5)
+    assert cc._current_section_heading(doc) is None
 
 
 def test_refresh_current_section_targets_only_section_marks(monkeypatch) -> None:
@@ -1463,6 +1494,32 @@ def test_build_suggest_rows_section_phase_without_family_adds_no_note() -> None:
     suggestions = [{"paper_id": 1, "title": "T", "quote": "q", "search_phase": "expected-sections"}]
     rows = cc.build_suggest_rows(suggestions)
     assert "[from this paper's" not in rows[0]
+
+
+def test_build_suggest_rows_discloses_section_source() -> None:
+    # Finding 4 (final-review fix): a GROBID-derived match and a heuristic-tagged match must not read
+    # identically -- the design doc's "source disclosed" promise, closed by threading section_source through.
+    suggestions = [
+        {
+            "paper_id": 1,
+            "title": "T",
+            "quote": "q",
+            "search_phase": "expected-sections",
+            "section_family": "methods",
+            "section_source": "grobid",
+        },
+        {
+            "paper_id": 2,
+            "title": "T2",
+            "quote": "q2",
+            "search_phase": "expected-sections",
+            "section_family": "methods",
+            "section_source": "heuristic",
+        },
+    ]
+    rows = cc.build_suggest_rows(suggestions)
+    assert rows[0].endswith("[from this paper's Methods section — GROBID]")
+    assert rows[1].endswith("[from this paper's Methods section — heuristic]")
 
 
 def test_fetch_suggestions_posts_and_returns_both_lists(monkeypatch) -> None:

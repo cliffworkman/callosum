@@ -50,6 +50,7 @@ class Suggestion:
     stance: Stance | None
     section_family: str | None = None
     search_phase: str | None = None
+    section_source: str | None = None  # "grobid" | "heuristic" | "none" -- candidate_section_family's provenance
 
 
 def suggest_citations(
@@ -114,7 +115,7 @@ def suggest_citations(
         chunk_text = str(chunk.get("text") or "")
         meta = _paper_meta(conn, hit.paper_id)
         stance = scorer.classify_stance(sentence=query, passage=chunk_text) if scorer is not None else None
-        family, _source = families[hit.paper_id]
+        family, source = families[hit.paper_id]
         phase = "expected-sections" if (matched_any and family == expected_family) else None
         suggestions.append(
             Suggestion(
@@ -133,6 +134,7 @@ def suggest_citations(
                 stance=stance,
                 section_family=family,
                 search_phase=phase,
+                section_source=source,
             )
         )
     return suggestions

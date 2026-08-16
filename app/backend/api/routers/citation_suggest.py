@@ -65,6 +65,7 @@ class SuggestionResponse(BaseModel):
     stance: StanceResponse | None = None
     section_family: str | None = None
     search_phase: str | None = None
+    section_source: str | None = None  # "grobid" | "heuristic" | "none" -- disclosed provenance of section_family
 
 
 class BeyondSuggestionResponse(BaseModel):
@@ -165,6 +166,7 @@ def _suggestion_response(item: Suggestion) -> SuggestionResponse:
         stance=stance,
         section_family=item.section_family,
         search_phase=item.search_phase,
+        section_source=item.section_source,
     )
 
 

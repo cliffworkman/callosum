@@ -369,6 +369,12 @@ def build_suggest_rows(suggestions: list[dict]) -> list[str]:
     backlog #30 Stage 1: when the backend matched this candidate via its section-scoped search
     (`search_phase == "expected-sections"`), append a short "why retrieved" note naming the matched
     `section_family` — additive to the existing row format, never replacing any part of it.
+
+    Finding 4 (final-review fix): the note also discloses `section_source` -- "GROBID" (the paper was
+    explicitly parsed and this family came from GROBID's own structure) or "heuristic" (the pre-existing
+    heading-alias tagger) -- so a real, provenance-verified section match is never presented identically to a
+    heuristic guess (the design doc's "source disclosed" promise, per `candidate_section_family`'s own
+    strict-either/or contract).
     """
     rows = []
     for s in suggestions:
@@ -391,7 +397,9 @@ def build_suggest_rows(suggestions: list[dict]) -> list[str]:
         if s.get("search_phase") == "expected-sections":
             family = str(s.get("section_family") or "").strip()
             if family:
-                row += f" [from this paper's {family.capitalize()} section]"
+                source = s.get("section_source")
+                disclosure = " — GROBID" if source == "grobid" else (" — heuristic" if source == "heuristic" else "")
+                row += f" [from this paper's {family.capitalize()} section{disclosure}]"
         rows.append(row)
     return rows
 
@@ -2130,6 +2138,26 @@ def _section_bibliography_label_at(doc, position) -> str:
         except Exception:
             pass
     return "Document"
+
+
+def _current_section_heading(doc) -> str | None:
+    """Return the caret's enclosing heading text for Suggest-Citation section-scoping (backlog #30 Stage 1).
+
+    `_section_bibliography_label_at` only matches a position that is EXACTLY a heading paragraph's start
+    (`compareRegionStarts(start, position) == 0`), so an ordinary caret in body text must first be resolved to
+    its enclosing heading's start via `_outline_section_bounds_at` -- the same two-step pattern
+    `insert_section_bibliography` already uses -- or the label lookup always misses and falls through to a
+    "Preamble"/"Document" sentinel. "Preamble"/"Document"/"Section"/"Untitled heading" are all
+    `_section_bibliography_label_at`'s own honest non-real-heading fallbacks (no enclosing heading, or the
+    walk itself failed) -- none of them name a real section, so all four are excluded, not just the first two.
+    """
+    try:
+        view_position = doc.getCurrentController().getViewCursor().getStart()
+        bounds = _outline_section_bounds_at(doc, view_position)
+        heading = _section_bibliography_label_at(doc, bounds[0]) if bounds else None
+    except Exception:
+        heading = None
+    return heading if heading not in (None, "Preamble", "Document", "Section", "Untitled heading") else None
 
 
 def section_bibliography_summaries(doc) -> tuple[list[dict], list[str]]:
@@ -4938,9 +4966,7 @@ def _suggest_dialog(doc, base: str, text: str) -> list[tuple[str, dict, str | No
 
     # Computed once, at dialog-open time (backlog #30 Stage 1) -- the cursor position when Suggest was
     # invoked is the right point to read the current section from, not a moving target while the dialog is up.
-    view_position = doc.getCurrentController().getViewCursor().getStart()
-    heading = _section_bibliography_label_at(doc, view_position)
-    current_heading = heading if heading not in ("Preamble", "Document") else None
+    current_heading = _current_section_heading(doc)
 
     def refresh(include_beyond: bool) -> None:
         result = fetch_suggestions(base, text, include_beyond_library=include_beyond, current_heading=current_heading)

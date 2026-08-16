@@ -166,3 +166,58 @@ def test_candidate_section_family_prefers_grobid_when_present(temp_db_url: str) 
         family, source = candidate_section_family(conn, chunk_id)
     eng.dispose()
     assert family == "methods" and source == "grobid"
+
+
+def test_candidate_section_family_falls_back_to_heuristic_when_grobid_kind_unrecognized(temp_db_url: str) -> None:
+    """Finding 7 (final-review): a chunk CAN be mapped to a real paper_sections row (grobid_section_id set)
+    whose title GROBID extracted verbatim but `classify_section_title` didn't recognize -- an honest
+    `section_kind IS NULL`, e.g. a custom subsection title like "Musical activity and late-life cognition"
+    (see INCREMENT-479-NOTES.md's live smoke test). That must fall back to the pre-existing heuristic
+    `chunks.section` column and report `source="heuristic"` -- not `(None, "grobid")` (silently discarding a
+    real heuristic tag) and not silently skipping the heuristic fallback entirely."""
+    eng = create_engine(temp_db_url)
+    with eng.begin() as conn:
+        pid = create_paper(conn, title="T", csl_json={"title": "T", "type": "article-journal"})
+        attachment_id = create_attachment(
+            conn,
+            paper_id=pid,
+            storage_mode="managed",
+            availability="available",
+            content_type="application/pdf",
+            checksum="test-hash",
+            role="article-fulltext",
+        )
+        from app.backend.persistence.schema_grobid import paper_sections
+
+        section_result = conn.execute(
+            paper_sections.insert().values(
+                paper_id=pid,
+                title="Musical activity and late-life cognition",  # verbatim GROBID title, unrecognized
+                section_kind=None,  # classify_section_title() found no matching alias
+                page_start=1,
+                page_end=1,
+                order_index=0,
+            )
+        )
+        section_id = section_result.inserted_primary_key[0]
+        chunk_result = conn.execute(
+            chunks.insert().values(
+                paper_id=pid,
+                attachment_id=attachment_id,
+                text="body",
+                section="discussion",  # the heuristic DID tag this chunk
+                grobid_section_id=section_id,  # mapped, but to an unrecognized GROBID title
+                page_start=1,
+                page_end=1,
+                bbox_coordinate_system="pdf-points-top-left",
+                extraction_tool="test",
+                extraction_version="1",
+                chunking_strategy="test",
+                chunk_version="1",
+                source_attachment_checksum="deadbeef",
+            )
+        )
+        chunk_id = chunk_result.inserted_primary_key[0]
+        family, source = candidate_section_family(conn, chunk_id)
+    eng.dispose()
+    assert family == "discussion" and source == "heuristic"

@@ -185,12 +185,16 @@ def _run_grobid_parse_job(app: FastAPI, job_id: str, paper_id: int, base_url: st
     try:
         engine = app.state.engine
         with engine.connect() as conn:
-            pdf_path = _local_attachment_path(_select_primary_pdf_attachment(get_attachments_for_paper(conn, paper_id)))
+            attachment = _select_primary_pdf_attachment(get_attachments_for_paper(conn, paper_id))
+            pdf_path = _local_attachment_path(attachment)
         if pdf_path is None:
             jobs.mark_error(job_id, "This paper has no local PDF to parse.")
             return
         pdf_bytes = pdf_path.read_bytes()
-        result = run_write(engine, lambda conn: parse_paper_structure(conn, paper_id, pdf_bytes, base_url))
+        attachment_id = attachment["id"]
+        result = run_write(
+            engine, lambda conn: parse_paper_structure(conn, paper_id, attachment_id, pdf_bytes, base_url)
+        )
         jobs.mark_done(
             job_id,
             GrobidParseResponse(job_id=job_id, status="done", result=GrobidParseResult(**result)),
@@ -247,11 +251,12 @@ def _bulk_parse_one(conn: Connection, paper_id: int, base_url: str) -> dict | No
     """One paper's worth of work inside a single ``run_write`` unit -- None means "skipped, no local PDF"
     (not an error); a real parse failure propagates so the caller's ``on_item_error="skip"`` handling logs +
     skips it, mirroring ``library_enrich.py``'s exact per-item shape."""
-    pdf_path = _local_attachment_path(_select_primary_pdf_attachment(get_attachments_for_paper(conn, paper_id)))
+    attachment = _select_primary_pdf_attachment(get_attachments_for_paper(conn, paper_id))
+    pdf_path = _local_attachment_path(attachment)
     if pdf_path is None:
         return None
     pdf_bytes = pdf_path.read_bytes()
-    return parse_paper_structure(conn, paper_id, pdf_bytes, base_url)
+    return parse_paper_structure(conn, paper_id, attachment["id"], pdf_bytes, base_url)
 
 
 def _run_grobid_bulk_parse_job(app: FastAPI, job_id: str, base_url: str) -> None:

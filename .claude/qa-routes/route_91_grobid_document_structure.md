@@ -85,6 +85,16 @@ attachment at all) — the button must not render there. See `_TEMPLATE.md` for 
 - clear the saved URL (Save with an empty field) while a bulk job might still be "done" from a prior run →
   confirm `!url` correctly disables **Parse structure for library** again
 - resize to `375x812`, hard refresh — no horizontal overflow on either the Settings card or the Detail-pane row
+- **re-parse idempotency (final-review fix, backlog #30):** if a real GROBID instance answered in Step 5, click
+  **Parse document structure…** on the SAME paper a second time (only possible when a real GROBID server is
+  reachable — skip this bullet and note it as untestable-this-environment otherwise, don't fabricate a result).
+  Confirm the second run's own "Parsed N sections; mapped M chunks" message reports **the same order of
+  magnitude** as the first run's result, not roughly double it — a re-parse must REPLACE the paper's prior
+  `paper_sections` rows and chunk mappings, never append alongside them. If you have DB access to the running
+  instance, directly confirm `SELECT COUNT(*) FROM paper_sections WHERE paper_id = ?` after the second parse
+  equals the first parse's own `sections_found` count, not double it (this is the exact regression
+  `tests/test_grobid_pipeline.py::test_parse_paper_structure_reparse_is_idempotent_not_additive` covers at the
+  unit level — this step is the live end-to-end analogue).
 
 ## Steps
 

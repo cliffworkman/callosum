@@ -109,6 +109,18 @@ caller's IP — a much smaller disclosure than even a single character of librar
 than what a plain DNS/TCP connection attempt already reveals to that host's network operator regardless of
 gating. **No change recommended.**
 
+**Operational guardrail added by the final-review fix wave (2026-08-16), recorded here for discoverability:**
+`/grobid/*` must **never** be added to the cloudflared tunnel ingress allowlist that fronts the single-user
+remote-access add-on (CLAUDE.md's Security baseline section — today that allowlist forwards only `/papers`,
+`/papers/export`, and `/citations/*`). The `/grobid/test-connection` design above is correctly reasoned for the
+threat model it was scoped against (a local caller who already trusts the machine), but that reasoning does
+NOT extend to Remote access: with the tunnel enabled, an unauthenticated-content, no-egress-gated `GET`-any-host
+endpoint would become a blind LAN-scanning primitive for any caller holding the remote-access bearer token — it
+would let that caller probe arbitrary internal hosts/ports reachable from the callosum machine and read back
+liveness/reachability, something `/papers`, `/papers/export`, and `/citations/*` cannot do. This is a control to
+maintain going forward (the allowlist is a manual, out-of-repo cloudflared config, not something this codebase
+can enforce structurally), not a code defect in the current PASS verdict.
+
 ### 4. Response size caps — a real gap, judged low-severity and accepted rather than silently left unmentioned
 
 **Finding:** neither `client.py::parse_fulltext` nor `tei_parse.py::parse_tei` bounds the size of the TEI-XML

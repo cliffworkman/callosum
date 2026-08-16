@@ -265,12 +265,62 @@ def test_suggest_citations_boosts_matching_section_without_dropping_others(temp_
     assert result[0].paper_id == ids["methods_paper_id"]
     assert result[0].section_family == "methods"
     assert result[0].search_phase == "expected-sections"
+    # Finding 4 (final-review fix): section_source must round-trip too -- these chunks only ever got the
+    # pre-existing heuristic chunks.section tag, never a GROBID mapping, so the disclosed source is "heuristic".
+    assert result[0].section_source == "heuristic"
     assert {s.paper_id for s in result} == {ids["methods_paper_id"], ids["other_paper_id"]}  # nothing dropped
     # the unmatched paper keeps its own real section tag and an honestly-absent search_phase -- reordering never
     # mislabels a non-match as having matched too
     trailing = next(s for s in result if s.paper_id == ids["other_paper_id"])
     assert trailing.section_family == "results"
     assert trailing.search_phase is None
+    assert trailing.section_source == "heuristic"
+
+
+def test_suggest_citations_discloses_grobid_section_source(temp_db_url: str) -> None:
+    """Finding 4 (final-review fix): when a candidate chunk was mapped by an explicit GROBID parse (not just
+    the heuristic), section_source must disclose "grobid", not "heuristic" or a silently-discarded value --
+    the design doc's "source disclosed" promise, closed end-to-end through the real suggest_citations() engine."""
+    ids = _seed_section_scoped_papers(temp_db_url)
+    model, store = ApiFakeEmbeddingModel(), InMemoryVectorStore()
+    _embed_all(temp_db_url, model, store)
+
+    from app.backend.persistence.schema import chunks
+    from app.backend.persistence.schema_grobid import paper_sections
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        # Map the methods paper's chunk to a real GROBID-derived section -- GROBID must now win over the
+        # pre-existing heuristic "methods" tag already on this same chunk (candidate_section_family's strict
+        # either/or contract).
+        section_result = conn.execute(
+            paper_sections.insert().values(
+                paper_id=ids["methods_paper_id"],
+                title="3. Methods",
+                section_kind="methods",
+                page_start=1,
+                page_end=1,
+                order_index=0,
+            )
+        )
+        section_id = section_result.inserted_primary_key[0]
+        conn.execute(
+            chunks.update().where(chunks.c.paper_id == ids["methods_paper_id"]).values(grobid_section_id=section_id)
+        )
+        result = suggest_citations(
+            conn,
+            text=FACIAL_QUERY,
+            model=model,
+            vector_store=store,
+            top_k=5,
+            evaluate=False,
+            current_heading="3. Methods",
+        )
+    engine.dispose()
+
+    top = next(s for s in result if s.paper_id == ids["methods_paper_id"])
+    assert top.section_family == "methods"
+    assert top.section_source == "grobid"
 
 
 def test_suggest_citations_no_heading_context_behaves_exactly_as_before(temp_db_url: str) -> None:
@@ -362,6 +412,46 @@ def test_suggest_endpoint_returns_suggestions_with_stance(temp_db_url: str) -> N
     assert top["attachment_id"] is not None
     assert top["stance"]["label"] == "support"
     assert "Facial anomalies" in top["quote"]
+
+
+def test_suggest_endpoint_discloses_section_source(temp_db_url: str) -> None:
+    """Finding 4 (final-review fix): section_source must round-trip through the actual HTTP response, for
+    both a heuristic-only candidate and a GROBID-mapped one -- the design doc's "source disclosed" promise,
+    verified at the wire contract, not just the internal Suggestion dataclass."""
+    ids = _seed_section_scoped_papers(temp_db_url)
+    app = _suggest_app(temp_db_url, stance_scorer=FakeStanceScorer("support"))
+
+    from app.backend.persistence.schema import chunks
+    from app.backend.persistence.schema_grobid import paper_sections
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        section_result = conn.execute(
+            paper_sections.insert().values(
+                paper_id=ids["methods_paper_id"],
+                title="3. Methods",
+                section_kind="methods",
+                page_start=1,
+                page_end=1,
+                order_index=0,
+            )
+        )
+        section_id = section_result.inserted_primary_key[0]
+        conn.execute(
+            chunks.update().where(chunks.c.paper_id == ids["methods_paper_id"]).values(grobid_section_id=section_id)
+        )
+    engine.dispose()
+
+    client = TestClient(app)
+    resp = client.post(
+        "/citations/suggest",
+        json={"text": FACIAL_QUERY, "top_k": 5, "evaluate": False, "current_heading": "3. Methods"},
+    )
+
+    assert resp.status_code == 200
+    suggestions = {item["paper_id"]: item for item in resp.json()["suggestions"]}
+    assert suggestions[ids["methods_paper_id"]]["section_source"] == "grobid"
+    assert suggestions[ids["other_paper_id"]]["section_source"] == "heuristic"
 
 
 def test_suggest_endpoint_evaluate_false_omits_stance(temp_db_url: str) -> None:

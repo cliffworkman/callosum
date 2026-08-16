@@ -37,12 +37,29 @@ def _chunk_overlaps_span(chunk_row: dict, span: SectionSpan) -> bool:
     return any(_bboxes_overlap(span_box, chunk_box) for span_box in span.bboxes for chunk_box in chunk_bboxes)
 
 
-def parse_paper_structure(conn: Connection, paper_id: int, pdf_bytes: bytes, base_url: str) -> dict:
-    """Fetch + parse + map GROBID structure for one paper. Raises GrobidError/GrobidParseError on any failure
-    with zero writes (caller must not commit on exception -- this function itself never calls conn.commit(),
-    matching this codebase's run_write convention). Returns {"sections_found": int, "chunks_mapped": int}."""
+def parse_paper_structure(conn: Connection, paper_id: int, attachment_id: int, pdf_bytes: bytes, base_url: str) -> dict:
+    """Fetch + parse + map GROBID structure for one paper's `attachment_id` (the specific PDF actually sent to
+    GROBID -- resolved by the caller, e.g. via `_select_primary_pdf_attachment`). Raises GrobidError/
+    GrobidParseError on any failure with zero writes (caller must not commit on exception -- this function
+    itself never calls conn.commit(), matching this codebase's run_write convention). Returns
+    {"sections_found": int, "chunks_mapped": int}.
+
+    Idempotent re-parse (a re-parse is a REPLACE, not an APPEND): this attachment's prior chunk mappings are
+    cleared and this paper's prior paper_sections rows are deleted before writing fresh ones, in the same
+    transaction as the inserts below -- otherwise repeated parses would duplicate paper_sections rows without
+    bound, and a chunk no longer covered by the new structure would keep pointing at a stale, no-longer-current
+    section. Zero-partial-writes still holds: parse_fulltext/parse_tei already raised before either statement
+    below would run.
+    """
     tei_xml = parse_fulltext(pdf_bytes, base_url)
     spans = parse_tei(tei_xml)
+
+    conn.execute(
+        chunks.update()
+        .where(chunks.c.paper_id == paper_id, chunks.c.attachment_id == attachment_id)
+        .values(grobid_section_id=None)
+    )
+    conn.execute(paper_sections.delete().where(paper_sections.c.paper_id == paper_id))
 
     section_ids: list[int] = []
     for order_index, span in enumerate(spans):
@@ -58,8 +75,17 @@ def parse_paper_structure(conn: Connection, paper_id: int, pdf_bytes: bytes, bas
         )
         section_ids.append(result.inserted_primary_key[0])
 
+    # Scoped to the ATTACHMENT actually sent to GROBID -- a paper can carry supplement/preregistration/protocol
+    # attachments under the same paper_id (inc 425's document-scope invariant), and their chunks must never be
+    # mapped onto this attachment's GROBID spans just because a bbox happens to overlap.
     paper_chunks = (
-        conn.execute(select(chunks.c.id, chunks.c.bbox_json).where(chunks.c.paper_id == paper_id)).mappings().all()
+        conn.execute(
+            select(chunks.c.id, chunks.c.bbox_json).where(
+                chunks.c.paper_id == paper_id, chunks.c.attachment_id == attachment_id
+            )
+        )
+        .mappings()
+        .all()
     )
 
     chunks_mapped = 0
