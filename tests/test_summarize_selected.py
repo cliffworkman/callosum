@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
 from app.backend.summarization.generators import CandidateCitation, CandidateSummarySentence, SourceChunk
-from app.backend.summarization.pipeline import _round_robin_by_paper
+from app.backend.summarization.pipeline import _round_robin_by_paper, _select_ranked_with_paper_coverage
 from tests.api_helpers import _summarization_app
 
 # Multi-paper "summarize selected" coverage: a papers-scope summary with no query must spread its top_k
@@ -35,6 +35,21 @@ def test_round_robin_single_paper_is_identity() -> None:
     rows = [_sc(1, 10), _sc(2, 10), _sc(3, 10)]
     assert _round_robin_by_paper(rows) is rows  # ≤1 paper → returned unchanged
     assert _round_robin_by_paper([]) == []
+
+
+def test_ranked_focus_reserves_each_selected_paper_best_chunk() -> None:
+    ranked = [_sc(1, 10), _sc(2, 10), _sc(3, 10), _sc(4, 20), _sc(5, 30), _sc(6, 20)]
+
+    out = _select_ranked_with_paper_coverage(ranked, top_k=4)
+
+    assert [chunk.chunk_id for chunk in out] == [1, 2, 4, 5]
+    assert {chunk.paper_id for chunk in out} == {10, 20, 30}
+
+
+def test_ranked_focus_keeps_global_order_when_budget_cannot_cover_every_paper() -> None:
+    ranked = [_sc(1, 10), _sc(2, 20), _sc(3, 30)]
+
+    assert [chunk.chunk_id for chunk in _select_ranked_with_paper_coverage(ranked, top_k=2)] == [1, 2]
 
 
 def _seed_two_papers_two_chunks(db_url: str) -> dict[str, int]:

@@ -249,6 +249,7 @@ def _source_chunks_for_scope(
             model=model,
             vector_store=vector_store,
             top_k=top_k,
+            preserve_paper_coverage=scope.scope_type == "papers",
         )
     # No query → prefer real body content over title-page/masthead chunks, then spread the budget across the
     # selected papers so a multi-paper summary covers them all (rows are chunk-id-ordered = import order, so the
@@ -292,6 +293,7 @@ def _rank_chunks_for_query(
     model: EmbeddingModel,
     vector_store: VectorStore,
     top_k: int,
+    preserve_paper_coverage: bool = False,
 ) -> list[SourceChunk]:
     if not source_chunks:
         return []
@@ -302,11 +304,41 @@ def _rank_chunks_for_query(
     hits = vector_store.search(
         conn,
         vector=model.encode_texts([query])[0],
-        top_k=min(top_k, len(embedding_to_chunk)),
+        # A selected-papers synthesis is an explicit request to consider those papers. Retrieve the full ranked
+        # candidate set so the selector below can reserve each paper's strongest hit; ordinary library/query
+        # searches retain the narrower global top-k behavior.
+        top_k=min(len(embedding_to_chunk) if preserve_paper_coverage else top_k, len(embedding_to_chunk)),
         candidate_embedding_ids=set(embedding_to_chunk),
     )
     source_by_id = {chunk.chunk_id: chunk for chunk in source_chunks}
-    return [source_by_id[embedding_to_chunk[hit.embedding_id]] for hit in hits]
+    ranked = [source_by_id[embedding_to_chunk[hit.embedding_id]] for hit in hits]
+    return _select_ranked_with_paper_coverage(ranked, top_k) if preserve_paper_coverage else ranked
+
+
+def _select_ranked_with_paper_coverage(ranked: list[SourceChunk], top_k: int) -> list[SourceChunk]:
+    """Keep global relevance order while reserving one best-ranked chunk per selected paper when possible.
+
+    A focus query over an explicit paper selection should not silently erase a selected paper merely because
+    another paper contains the query phrase many more times. If the budget is smaller than the number of papers,
+    global relevance remains authoritative because complete coverage is impossible.
+    """
+    if top_k <= 0:
+        return []
+    paper_ids = {chunk.paper_id for chunk in ranked}
+    if len(paper_ids) <= 1 or top_k < len(paper_ids):
+        return ranked[:top_k]
+    reserved: set[int] = set()
+    seen_papers: set[int] = set()
+    for chunk in ranked:
+        if chunk.paper_id not in seen_papers:
+            reserved.add(chunk.chunk_id)
+            seen_papers.add(chunk.paper_id)
+    selected = set(reserved)
+    for chunk in ranked:
+        if len(selected) >= top_k:
+            break
+        selected.add(chunk.chunk_id)
+    return [chunk for chunk in ranked if chunk.chunk_id in selected]
 
 
 def _insert_summary(

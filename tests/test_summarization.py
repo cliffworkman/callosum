@@ -23,6 +23,7 @@ from app.backend.summarization.generators import CandidateCitation, CandidateSum
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
 from app.backend.summarization.verification import EmbeddingSupportScorer, LocalCitationVerifier, VerificationConfig
 from integrations.gemini import DataEgressDisabledError, GeminiConfig, GeminiSummaryGenerator
+from integrations.gemini.generator import SUMMARY_PROMPT_VERSION, _prompt
 
 
 @dataclass(frozen=True)
@@ -125,7 +126,7 @@ def test_missing_claimed_quote_is_flagged_and_not_verified(tmp_path: Path) -> No
     assert mapping_row["status"] == "weak"
     assert quote_row["retrieval_confidence"] >= 0.99
     assert quote_row["quote_confidence"] == 0.0
-    assert quote_row["support_confidence"] >= 0.99
+    assert quote_row["support_confidence"] == 0.0  # nonexistent claimed evidence cannot support the claim
     assert quote_row["page_start"] is None
     assert quote_row["bbox_json"] is None
 
@@ -531,11 +532,11 @@ def test_verify_many_batches_encode_and_nli_calls_instead_of_looping(tmp_path: P
         items = [
             (
                 "Alpha sentence one.",
-                CandidateCitation(chunk_id=fixture["alpha_chunk_id"], quote="Alpha beta evidence supports the claim."),
+                CandidateCitation(chunk_id=fixture["alpha_chunk_id"], quote="Alpha beta evidence"),
             ),
             (
                 "Banana sentence two.",
-                CandidateCitation(chunk_id=fixture["banana_chunk_id"], quote="Banana orchard material is unrelated."),
+                CandidateCitation(chunk_id=fixture["banana_chunk_id"], quote="Banana orchard material"),
             ),
         ]
         results = verifier.verify_many(conn, items=items, source_chunks=[])
@@ -544,6 +545,10 @@ def test_verify_many_batches_encode_and_nli_calls_instead_of_looping(tmp_path: P
     assert encode_calls == [["Alpha sentence one.", "Banana sentence two."]]  # ONE call, both sentences together
     assert len(nli_calls) == 1
     assert len(nli_calls[0]) == 2  # ONE call, both pairs together
+    assert nli_calls[0] == [
+        ("Alpha beta evidence", "Alpha sentence one."),
+        ("Banana orchard material", "Banana sentence two."),
+    ]  # NLI evaluates the validated evidence quote, not the rest of its page-sized chunk
 
 
 def test_gemini_generator_refuses_data_egress_before_sdk_call() -> None:
@@ -551,6 +556,18 @@ def test_gemini_generator_refuses_data_egress_before_sdk_call() -> None:
 
     with pytest.raises(DataEgressDisabledError):
         generator.generate(source_chunks=[], scope_ref={"paper_ids": [1]})
+
+
+def test_summary_prompt_requests_concise_cross_paper_answer_and_bounded_evidence() -> None:
+    prompt = _prompt(source_chunks=[], scope_ref={"paper_ids": [1, 2, 3], "query": "What is the bias?"})
+
+    assert SUMMARY_PROMPT_VERSION == "summary-v4"
+    assert "MUST contain 4 to 7" in prompt
+    assert "MUST be exactly one complete standalone sentence" in prompt
+    assert "qualifications or null findings" in prompt
+    assert "across those papers" in prompt
+    assert "contain 1 to 3 citations" in prompt
+    assert "No quote may exceed 80 words" in prompt
 
 
 def _migrated_engine(tmp_path: Path):

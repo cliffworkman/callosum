@@ -69,6 +69,21 @@ class EmbeddingSupportScorer:
         sentence_vector, passage_vector = self.model.encode_texts([sentence, passage])
         return _cosine_similarity_confidence(sentence_vector, passage_vector)
 
+    def support_and_contradiction_many(self, pairs: list[tuple[str, str]]) -> list[tuple[float, float | None]]:
+        """Score every ``(passage, sentence)`` pair in one embedding-model batch.
+
+        Embeddings do not provide a contradiction probability, so the second tuple item remains ``None`` just as
+        it does on the single-item fallback path.
+        """
+        if not pairs:
+            return []
+        texts = [text for passage, sentence in pairs for text in (sentence, passage)]
+        vectors = self.model.encode_texts(texts)
+        return [
+            (_cosine_similarity_confidence(vectors[index], vectors[index + 1]), None)
+            for index in range(0, len(vectors), 2)
+        ]
+
 
 @dataclass
 class NLISupportScorer:
@@ -247,7 +262,11 @@ class LocalCitationVerifier:
             self._quote_confidence(conn, citation=citation, cited_chunk=cited_chunk)
             for (_, citation), cited_chunk in zip(items, cited_chunks, strict=True)
         ]
-        pairs = [(cited_chunk.text, sentence) for (sentence, _), cited_chunk in zip(items, cited_chunks, strict=True)]
+        # Support is a property of the evidence the generator actually cited, not every other sentence that
+        # happens to share its page-sized source chunk. Quote verification above has already established whether
+        # this exact passage occurs in the chunk; using it here both preserves the evidentiary boundary and avoids
+        # a long page causing the cross-encoder to truncate the cited passage out of its own input.
+        pairs = [(citation.quote, sentence) for sentence, citation in items]
         support_results = self._support_and_contradiction_many(pairs)
 
         results: list[VerificationResult] = []

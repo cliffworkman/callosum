@@ -74,6 +74,20 @@ class UnavailableNLIModel:
         raise OSError("model is not cached")
 
 
+class CountingEmbeddingModel:
+    name = "counting-embedding"
+    version = "v1"
+    dimension = 2
+    normalization = DEFAULT_NORMALIZATION
+
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+
+    def encode_texts(self, texts: list[str]) -> list[list[float]]:
+        self.calls.append(list(texts))
+        return [[1.0, 0.0] if "alpha" in text else [0.0, 1.0] for text in texts]
+
+
 def test_nli_support_scorer_satisfies_protocol_without_loading_real_model() -> None:
     scorer: SupportScorer = NLISupportScorer(_loader=lambda: _StubCrossEncoder([[0.05, 0.9, 0.05]]))
 
@@ -88,6 +102,18 @@ def test_verifier_default_uses_nli_with_embedding_fallback() -> None:
     assert isinstance(verifier.support_scorer, NLISupportScorer)
     assert isinstance(verifier.support_scorer.fallback_scorer, EmbeddingSupportScorer)
     assert verifier.support_scorer.fallback_scorer.model is model
+
+
+def test_embedding_support_scorer_batches_all_pairs_in_one_encode_call() -> None:
+    model = CountingEmbeddingModel()
+    scorer = EmbeddingSupportScorer(model)
+
+    result = scorer.support_and_contradiction_many(
+        [("alpha evidence", "alpha claim"), ("beta evidence", "alpha claim")]
+    )
+
+    assert model.calls == [["alpha claim", "alpha evidence", "alpha claim", "beta evidence"]]
+    assert result == [(1.0, None), (0.0, None)]
 
 
 def test_topically_similar_unentailed_claim_fails_with_nli_but_passes_embedding(tmp_path: Path) -> None:
