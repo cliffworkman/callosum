@@ -86,7 +86,9 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             expect(page.locator(".demo-wip-note")).to_contain_text("genuine saved check results")
             page.locator(".wip-card:visible").first.dblclick()
             expect(page.locator(".wip-work-tabs")).to_be_visible()
-            expect(page.locator(".workspace-slot:visible .settings-note")).to_contain_text("Synthetic public-demo manuscript")
+            expect(page.locator(".workspace-slot:visible .settings-note")).to_contain_text(
+                "Synthetic public-demo manuscript"
+            )
             expect(page.locator('.workspace-slot:visible input[placeholder="Integrated review"]')).to_be_disabled()
             page.get_by_role("button", name="Structure", exact=True).click()
             expect(page.locator(".workspace-slot:visible .wip-section-row select").first).to_be_disabled()
@@ -96,7 +98,11 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             page.get_by_role("button", name="Checks", exact=True).click()
             expect(page.locator(".wip-tool-run:visible")).to_have_count(5)
             expect(page.get_by_role("button", name="Run statcheck", exact=True)).to_be_disabled()
-            expect(page.locator(".workspace-slot:visible .ref-panel").get_by_role("button", name="Check references", exact=True)).to_be_disabled()
+            expect(
+                page.locator(".workspace-slot:visible .ref-panel").get_by_role(
+                    "button", name="Check references", exact=True
+                )
+            ).to_be_disabled()
             expect(page.locator(".wip-checkpoint-row:visible")).to_have_count(9)
             expect(page.get_by_text("Funding searches", exact=True)).to_be_visible()
             expect(page.get_by_text("Journal searches", exact=True)).to_be_visible()
@@ -199,9 +205,7 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
                 candidate_count,
                 incoming_count,
                 outgoing_count,
-            ) in enumerate(
-                expected_meta_reference
-            ):
+            ) in enumerate(expected_meta_reference):
                 page.get_by_role("tab", name="Library", exact=True).click()
                 page.locator(".paper:visible").nth(paper_index).click()
                 page.get_by_role("tab", name="Work", exact=True).click()
@@ -238,7 +242,9 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             expect(page.locator(".workspace-slot:visible .demo-workspace-note")).to_contain_text("Saved demo view")
             expect(page.locator(".feed-sub:visible")).to_have_count(9)
             expect(page.locator(".feed-item:visible")).to_have_count(200)
-            expect(page.locator(".settings-note:visible", has_text="same 200-item default as live Callosum")).to_be_visible()
+            expect(
+                page.locator(".settings-note:visible", has_text="same 200-item default as live Callosum")
+            ).to_be_visible()
             page.get_by_role("button", name="Starred", exact=True).click()
             expect(page.locator(".feed-item:visible")).to_have_count(1)
             page.get_by_role("button", name="Reset read/star practice", exact=True).click()
@@ -285,7 +291,9 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             expect(page.locator(".cite-results:visible")).to_be_visible()
             expect(page.locator(".cite-card:visible").first).to_be_visible()
             page.locator(".cite-card:visible").first.get_by_role("button", name="Cite", exact=True).click()
-            expect(page.locator(".cite-card:visible").first.get_by_role("button", name="Copied ✓", exact=True)).to_be_visible()
+            expect(
+                page.locator(".cite-card:visible").first.get_by_role("button", name="Copied ✓", exact=True)
+            ).to_be_visible()
             page.get_by_role("tab", name="Meta-Analyze", exact=True).click()
             expect(page.locator(".wb-grid:visible tbody tr")).to_have_count(3)
             with page.expect_download() as workbench_download:
@@ -301,7 +309,9 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             expect(page.locator(".mypubs-summary-text")).to_contain_text("facial appearance")
             expect(page.locator(".mypubs-summary .settings-note")).to_contain_text("Saved research-summary draft")
             expect(page.locator(".mypubs-domains .domain-row")).to_have_count(1)
-            expect(page.locator(".mypubs-domains .settings-note")).to_contain_text("starts at four confirmed publications")
+            expect(page.locator(".mypubs-domains .settings-note")).to_contain_text(
+                "starts at four confirmed publications"
+            )
             page.locator(".mypubs-chart-flip").get_by_role("button", name="Citations", exact=True).click()
             citation_chart = page.get_by_role("img", name="Citations by year", exact=True)
             expect(citation_chart).to_be_visible()

@@ -47,8 +47,8 @@ def _demo_source_db(tmp_path: Path) -> Path:
         );
         CREATE TABLE chunks (
           id INTEGER PRIMARY KEY, paper_id INTEGER, attachment_id INTEGER, text TEXT, section TEXT,
-          page_start INTEGER, page_end INTEGER, char_start INTEGER, char_end INTEGER, bbox_json TEXT,
-          bbox_coordinate_system TEXT, extraction_tool TEXT, extraction_version TEXT,
+          grobid_section_id INTEGER, page_start INTEGER, page_end INTEGER, char_start INTEGER, char_end INTEGER,
+          bbox_json TEXT, bbox_coordinate_system TEXT, extraction_tool TEXT, extraction_version TEXT,
           chunking_strategy TEXT, chunk_version TEXT, source_attachment_checksum TEXT, created_at TEXT
         );
         CREATE TABLE summaries (
@@ -267,12 +267,18 @@ def test_snapshot_generation_is_deterministic_and_uses_live_contracts(tmp_path: 
     cite_ids = {item.paper_id for item in snapshot.api.extended.work.cite.suggestions}
     assert set(map(int, snapshot.api.extended.work.citation_renderings)) == cite_ids
     assert set(map(int, snapshot.api.extended.work.citation_bibtex)) == cite_ids
-    assert all("reference_text" in next(iter(value["items"])) for value in snapshot.api.extended.work.citation_renderings.values())
+    assert all(
+        "reference_text" in next(iter(value["items"]))
+        for value in snapshot.api.extended.work.citation_renderings.values()
+    )
     assert snapshot.api.extended.work.workbench_projects
     assert set(map(int, snapshot.api.extended.work.workbench_exports)) == {
         item.id for item in snapshot.api.extended.work.workbench_projects
     }
-    assert all(set(exports) == {"csv", "metafor", "revman", "audit"} for exports in snapshot.api.extended.work.workbench_exports.values())
+    assert all(
+        set(exports) == {"csv", "metafor", "revman", "audit"}
+        for exports in snapshot.api.extended.work.workbench_exports.values()
+    )
     assert all(snapshot.api.extended.library.grim_checks.values())
     assert snapshot.api.synthesis.registration_license_audits[0].license_name == "No explicit reuse license recorded"
     assert snapshot.api.synthesis.registration_license_audits[0].bundled_full_registration is False
@@ -303,7 +309,11 @@ def test_demo_library_state_generation_is_deterministic(tmp_path: Path):
 def test_demo_wip_state_regenerates_from_real_sandbox_deterministically(tmp_path: Path):
     output = tmp_path / "wip-state.json"
     generate_wip_state(output)
-    assert output.read_bytes() == Path("demo/wip-state-v1.json").read_bytes()
+    # The generator always writes LF; a checked-out working copy may carry CRLF on a platform where
+    # core.autocrlf normalizes text files on checkout (the git-stored blob itself is LF -- confirmed via
+    # `git show HEAD:demo/wip-state-v1.json`). Comparing content, not raw checkout-dependent bytes.
+    committed = Path("demo/wip-state-v1.json").read_bytes().replace(b"\r\n", b"\n")
+    assert output.read_bytes() == committed
 
 
 def test_demo_synthesis_state_regenerates_deterministically(tmp_path: Path):
@@ -384,16 +394,12 @@ def test_saved_demo_synthesis_is_the_verified_three_paper_sandbox_run():
     assert summary.summary_status == "verified"
     assert len(summary.sentences or []) == 5
     assert all(not sentence.flagged for sentence in summary.sentences or [])
-    assert {
-        citation.paper_id
-        for sentence in summary.sentences or []
-        for citation in sentence.citations
-    } == {42, 67, 88}
-    citations = [
-        citation
-        for sentence in summary.sentences or []
-        for citation in sentence.citations
-    ]
+    assert {citation.paper_id for sentence in summary.sentences or [] for citation in sentence.citations} == {
+        42,
+        67,
+        88,
+    }
+    citations = [citation for sentence in summary.sentences or [] for citation in sentence.citations]
     assert all(citation.status == "verified" for citation in citations)
     assert all(citation.quote_confidence == pytest.approx(1.0) for citation in citations)
     assert all(citation.support_confidence == pytest.approx(1.0) for citation in citations)
@@ -530,7 +536,13 @@ def test_demo_runtime_resolves_system_reads_and_explains_every_unavailable_surfa
         assert path in runtime
     assert "This read-only surface is not included in the current demo snapshot" in runtime
     assert "blocked(missingReadMessage, path)" in runtime
-    for boundary in ("Settings changes", "Sync is unavailable", "LibreOffice installation", "Word add-in", "Feedback submission"):
+    for boundary in (
+        "Settings changes",
+        "Sync is unavailable",
+        "LibreOffice installation",
+        "Word add-in",
+        "Feedback submission",
+    ):
         assert boundary in runtime
 
 

@@ -83,7 +83,9 @@ def promote(
                 paper_ids.add(int(row["paper_id"]))
                 copied.append((sentence, row, target_chunk))
         if paper_ids != CURATED_PAPER_IDS:
-            raise ValueError(f"source synthesis covers papers {sorted(paper_ids)}, expected {sorted(CURATED_PAPER_IDS)}")
+            raise ValueError(
+                f"source synthesis covers papers {sorted(paper_ids)}, expected {sorted(CURATED_PAPER_IDS)}"
+            )
         overview = json.loads(summary["overview_json"])
         if not isinstance(overview, list) or not overview:
             raise ValueError("source Overview is malformed")
