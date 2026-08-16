@@ -1203,7 +1203,7 @@ def test_frontend_registration_and_forbidden_language_absent():
     assert "Sorting changes display order only; result lanes and evidence records are unchanged." in text
     assert "FundingResultSummary" in text and "funding-result-summary" in text
     assert "visible of {displayPool} in the current display pool" in text
-    assert "surfaced before display-only hiding and filters" in text
+    assert "grouped results in the full saved run" in text
     assert "lower-signal prospects hidden" in text
     assert "These controls change display only." in text
     assert "Open Opportunities (${opportunities.length})" in text
