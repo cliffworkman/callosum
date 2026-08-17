@@ -78,7 +78,7 @@ const TRACKED_AI_REQUESTS = [
   { method: "POST", re: /^\/summaries\/\d+\/reverify$/, label: "Re-verifying synthesis evidence", kind: "Local AI", nav: { workspace: "synthesis", tab: "ask" } },
   { method: "POST", re: /^\/workbench\/rows\/\d+\/propose$/, label: "Drafting extraction candidates", kind: "Provider AI + local retrieval", nav: { workspace: "work", tab: "meta-analyze" } },
   { method: "POST", re: /^\/papers\/\d+\/analytic-flexibility$/, label: "Surfacing analytic decision points", kind: "Provider AI + local anchoring", nav: { pane: "methods", section: "checklists" } },
-  { method: "POST", re: /^\/wip\/manuscripts\/\d+\/checks\/analytic-flexibility$/, label: "Surfacing analytic decision points", kind: "Provider AI + local anchoring", nav: { workspace: "library", view: "wip" } },
+  { method: "POST", re: /^\/wip\/manuscripts\/\d+\/checks\/analytic-flexibility$/, label: "Surfacing analytic decision points", kind: "Provider AI + local anchoring", nav: { workspace: "library" } },
 ];
 
 function _startTrackedApiOperation(method, path) {
