@@ -44,12 +44,17 @@ fixed JSON body wrapping `[{"category": "...", "quote": "..."}]` as the assistan
 the builtin **Local** provider's base URL (default `http://localhost:11434`) to point at your stub, or add a
 custom provider with a loopback `base_url` and `wire_format: chat_completions`, then make it the active provider.
 
-**Toggle "Data egress consent" ON in Settings anyway**, even for the loopback provider. Both Checklists surfaces'
-frontend gates its own button purely on `GET /settings`'s `data_egress_enabled` flag
-(`08n_methods_analytic_flexibility.jsx`'s `aiReady`) -- more conservatively than the backend actually requires for
-a loopback provider. This is not dishonest (the button's own copy literally says "Enable AI features in Settings
-(data-egress consent)"), just stricter than the backend needs; note it if you hit it, don't file it as a
-contradiction.
+**Toggle "Data egress consent" ON in Settings anyway**, even for the loopback provider -- but note the two
+surfaces are NOT symmetric here. **Only the Library surface** gates its own button on `GET /settings`'s
+`data_egress_enabled` flag (`08n_methods_analytic_flexibility.jsx:17,28,52-53`'s `aiReady`) -- more
+conservatively than the backend actually requires for a loopback provider; this is not dishonest (the button's
+own copy literally says "Enable AI features in Settings (data-egress consent)"), just stricter than the backend
+needs. **The WIP surface has no equivalent frontend pre-check at all** -- `WipChecklistSection`'s "Surface
+decision points" button (`10k_wip_checks.jsx:241-275,332-339`) is disabled only by
+`state.status === "running" || isDemoMode()`, exactly like every other WIP checklist tool's button, and never
+reads `data_egress_enabled`. Clicking it with consent off still correctly refuses at the backend (403, same as
+always), so no Step needs to change for this -- just don't assert a frontend gate exists on the WIP side, since
+it doesn't.
 
 Reserve a **real** cloud provider (Gemini/OpenAI/Anthropic with a real key + `CALLOSUM_ALLOW_DATA_EGRESS=1`) for
 an explicit, separate integration pass only. Never use one by default in a QA run, and never send real
@@ -147,6 +152,13 @@ Configure the same loopback stub provider for both WIP runs.
   methods text never calls the assistant at all (`propose_analytic_flexibility`/`analytic_flexibility_run` both
   short-circuit before constructing `AnalyticFlexibilityAssistant` when there's no text) -- confirm via the stub
   server's own request log staying empty for that specific run.
+- **Library/WIP quote-visibility asymmetry (Low, disclose don't silently accept).** The Library-side
+  `FindingCard` never renders `payload.quote` -- a human reviewing a Library candidate can only see its category
+  label; they cannot see the actual evidence quote without opening the PDF via "show in paper" (and an
+  unanchored candidate has no such link at all, so its quote is unreachable from the UI entirely). The WIP-side
+  per-candidate row (`10k_wip_checks.jsx:103`) DOES render `finding.quote` in a `<blockquote>`. Fixing the
+  underlying Library gap is out of this task's scope -- the assertion here is that a QA agent notices and
+  reports this asymmetry rather than assuming quote-visibility is consistent across the two surfaces.
 
 ## Adversarial checklist
 
@@ -184,8 +196,13 @@ Configure the same loopback stub provider for both WIP runs.
    `test-selection`) plus one item with an invalid category. Click **Surface decision points**. Confirm a Status
    popover entry appears labeled "Provider AI + local anchoring" and clicks back to this paper's Checklists
    section.
-3. Confirm exactly **one** candidate card renders (the invalid-category item silently dropped) with its category
-   label + quote + `speculative` tier badge, and no count/index/tally anywhere on the panel.
+3. Confirm exactly **one** candidate card renders (the invalid-category item silently dropped). On the Library
+   side, `FindingCard` (`08x_methods_critical.jsx:14-16,31-56`) renders only the generic category sentence
+   (`payload.desc`, e.g. "Possible analytic-flexibility decision point: statistical test/model selection"), the
+   `speculative` tier badge, the "show in paper" link (if anchored), and the review buttons -- **the quote text
+   itself is never rendered here** (`findingText()` reads only `desc`/`label`/`text`/`title`; `FindingCard`'s
+   JSX never reads `payload.quote`). Confirm no count/index/tally anywhere on the panel, and confirm this
+   quote-invisibility directly -- don't assume the quote is shown just because it's in the API response.
 4. Click **show in paper · p.1** -> confirm a real highlighted bbox rectangle draws on page 1 (Task 8's fix), not
    a vague region note.
 5. Confirm or dismiss the candidate via **Confirmed** / **Accepted…** / **Noted**; reload the panel; confirm the
@@ -208,15 +225,24 @@ Configure the same loopback stub provider for both WIP runs.
 
 10. Restore the loopback provider + Data egress consent ON. Create Manuscript A and Manuscript B per the Seed
     contract (watch root + rescan; mark each manuscript's primary file explicitly).
-11. Open Manuscript A. From either the manuscript's own **Checks** tab or Methods -> Checklists -> Analytic
-    flexibility (the WIP branch), click **Surface decision points**. Configure the stub to return one valid
-    candidate from the Methods-heading paragraph's text. Confirm the run reports `scoped: true` with no degrade
-    caveat, and the candidate renders with the seven-state disposition select.
-12. Change that candidate's disposition via the select (`PATCH /wip/findings/{id}`). Confirm both the manuscript's
-    own Checks tab and the Methods-panel mount reflect the change without a manual reload (the shared
-    `ctx.wipRefresh` counter).
-13. Open Manuscript B. Click **Surface decision points**. Confirm the run reports `scoped: false` and the exact
-    disclosed degrade caveat renders (confirm the live wording).
+11. Open Manuscript A. The run can only be **started** from Methods -> Checklists -> Analytic flexibility (the
+    WIP branch, `WipAnalyticFlexibilitySection`/`WipChecklistSection`) -- the manuscript's own **Checks** tab
+    (`WipChecks`) has no "Surface decision points" button of its own (it only displays runs already started
+    elsewhere, unlike statcheck/transparency/LMM/Bayes/meta-analysis, which all have their own Checks-tab run
+    buttons). From the Methods-panel mount, click **Surface decision points**. Configure the stub to return one
+    valid candidate from the Methods-heading paragraph's text. Confirm the run reports `scoped: true` with no
+    degrade caveat -- this Methods-panel mount (`WipAnalyticFlexibilityResult`) shows only the tool-run summary
+    + scoping caveat, **no per-candidate row**. Then switch to the manuscript's own **Checks** tab and confirm
+    the same run appears there WITH its per-candidate row: the quote in a `<blockquote>` and the seven-state
+    disposition select (`10k_wip_checks.jsx:91-107`).
+12. In the **Checks** tab, change that candidate's disposition via the select (`PATCH /wip/findings/{id}`).
+    Confirm it persists on reload of the Checks tab. Do **not** expect the Methods-panel mount to visibly
+    reflect this change -- it has no per-candidate UI at all (only the tool-run summary + caveat), so there is
+    nothing there for a disposition change to affect; confirm its content is simply unchanged, not that it
+    "updates."
+13. Open Manuscript B. From the Methods-panel mount (same as Step 11 -- the Checks tab has no run button), click
+    **Surface decision points**. Confirm the run reports `scoped: false` and the exact disclosed degrade caveat
+    renders (confirm the live wording).
 14. Reconfigure the stub to return a quote not locatable in either manuscript's source text. Re-run on Manuscript
     A or B. Confirm the resulting `wip_findings` row's `coordinate_precision` is **NULL** (inspect the raw API
     response -- never the literal string `"unanchored"`), while `details_json.anchor_state` still honestly reads
