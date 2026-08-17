@@ -86,6 +86,8 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
         onOpenSource={() => openSourceFile(run.file_id)} />}
       {run.tool_id === "meta-analysis" && <WipMetaAnalysisResult run={run}
         onOpenSource={() => openSourceFile(run.file_id)} />}
+      {run.tool_id === "analytic-flexibility" && <WipAnalyticFlexibilityResult run={run}
+        onOpenSource={() => openSourceFile(run.file_id)} />}
       {(run.findings || []).filter(finding => finding.kind === "candidate").map(finding => <div className="wip-finding-row" key={finding.id}>
         <div>
           <strong>Candidate</strong> <span>{finding.summary}</span>
@@ -130,6 +132,7 @@ function wipToolLabel(toolId) {
   if (toolId === "lmm") return "Mixed-model reporting";
   if (toolId === "bayes") return "Bayesian reporting";
   if (toolId === "meta-analysis") return "Meta-analysis reporting";
+  if (toolId === "analytic-flexibility") return "Analytic flexibility";
   return "Statcheck";
 }
 
@@ -213,6 +216,22 @@ function WipMetaAnalysisResult({ run, onOpenSource }) {
       Each “not found” row is retained as a reviewable <b>info</b> candidate, never proof of omission or a claim that
       reporting is absent. Review dispositions are available in the WIP Checks tab; none is a score, verdict, or
       accusation.
+    </div>
+  </div>;
+}
+
+function WipAnalyticFlexibilityResult({ run }) {
+  const result = run.structured_result_json || {};
+  if (!result.methods_text_found) return <div className="statcheck-caveat">
+    No methods-section text was found in the primary manuscript file; nothing to surface.
+  </div>;
+  return <div className="wip-analytic-flexibility-result">
+    {!result.scoped && <div className="statcheck-caveat">
+      This file type has no per-block section scoping, so the whole manuscript text was searched rather than
+      just its methods section.
+    </div>}
+    <div className="statcheck-caveat">
+      Review dispositions for surfaced candidates are available in the WIP Checks tab, below.
     </div>
   </div>;
 }
@@ -308,6 +327,16 @@ function WipMetaAnalysisSection({ manuscript, ctx }) {
     emptyText="No meta-analysis reporting audit yet. An empty history says nothing about the manuscript."
     selectText="Select a WIP manuscript to audit its meta-analysis reporting."
     renderResult={(run, openSource) => <WipMetaAnalysisResult run={run} onOpenSource={openSource} />} />;
+}
+
+function WipAnalyticFlexibilitySection({ manuscript, ctx }) {
+  return <WipChecklistSection manuscript={manuscript} ctx={ctx} toolId="analytic-flexibility"
+    label="Analytic-flexibility surfacing"
+    labels={{ first: "Surface decision points", again: "Surface again", running: "Surfacing…",
+      progress: "Surfacing analytic decision points…", error: "Analytic-flexibility surfacing failed" }}
+    emptyText="No analytic-flexibility run yet. An empty history is not a claim the design had no flexibility."
+    selectText="Select a WIP manuscript to surface its analytic decision points."
+    renderResult={(run, openSource) => <WipAnalyticFlexibilityResult run={run} onOpenSource={openSource} />} />;
 }
 
 // inc 402: the Methods panel's "Statistics" section, for a WIP manuscript instead of a Library paper. Self-fetches

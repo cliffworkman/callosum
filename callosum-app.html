@@ -9333,7 +9333,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     )), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Surfacing analytic decision points\u2026", managedBy: "tracked-request" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't surface decision points: ", state.error), state.status === "done" && state.result && state.result.methods_text_found === false ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No methods-section text was found to check \u2014 process a PDF first, or this paper's methods section wasn't detected. That is not a claim the design has no analytic flexibility.") : findings.length === 0 && state.status !== "running" && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No candidates surfaced yet. An empty list isn't a claim the design had no analytic flexibility \u2014 only that nothing was proposed (or everything proposed has since been reviewed away) here."), findings.map((f) => /* @__PURE__ */ React.createElement(FindingCard, { key: f.id, finding: f, onReviewed: load, onOpenPaper })));
   }
   function AnalyticFlexibilitySection({ ctx }) {
-    if (ctx.researchContext.kind === "manuscript") return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Analytic-flexibility surfacing isn't available for WIP manuscripts in this panel yet \u2014 it currently covers Library papers only."));
+    if (ctx.researchContext.kind === "manuscript") return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Surface specific, disclosed ", /* @__PURE__ */ React.createElement("b", null, "analytic decision points"), ` the current manuscript's methods section reports, against its exact primary-file checkpoint. LLM-assisted (opt-in, egress-gated); every candidate is a reviewable suggestion you confirm against its quoted source text \u2014 never a verdict about the design's rigor or a "researcher degrees of freedom" score. An empty result is not a claim the design had no analytic flexibility.`), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This manuscript"), /* @__PURE__ */ React.createElement(WipAnalyticFlexibilitySection, { manuscript: ctx.researchContext.entity, ctx }));
     return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Surface specific, disclosed ", /* @__PURE__ */ React.createElement("b", null, "analytic decision points"), ` a paper's methods section reports \u2014 places where a different reasonable choice could have changed the result. LLM-assisted (opt-in, egress-gated); every candidate is a reviewable suggestion you confirm against its quoted, page-anchored source text \u2014 never a verdict about the paper's rigor or a "researcher degrees of freedom" score.`), /* @__PURE__ */ React.createElement(
       AnalyticFlexibilityPaper,
       {
@@ -11816,6 +11816,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         run,
         onOpenSource: () => openSourceFile(run.file_id)
       }
+    ), run.tool_id === "analytic-flexibility" && /* @__PURE__ */ React.createElement(
+      WipAnalyticFlexibilityResult,
+      {
+        run,
+        onOpenSource: () => openSourceFile(run.file_id)
+      }
     ), (run.findings || []).filter((finding) => finding.kind === "candidate").map((finding) => /* @__PURE__ */ React.createElement("div", { className: "wip-finding-row", key: finding.id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Candidate"), " ", /* @__PURE__ */ React.createElement("span", null, finding.summary)), /* @__PURE__ */ React.createElement("select", { value: finding.disposition || "open", disabled: readOnly, title: savedDemo ? "Review changes require the local app." : void 0, onChange: async (event) => {
       const result = await apiPatch(`/wip/findings/${finding.id}`, { disposition: event.target.value });
       if (result.ok) onReload();
@@ -11827,6 +11833,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     if (toolId === "lmm") return "Mixed-model reporting";
     if (toolId === "bayes") return "Bayesian reporting";
     if (toolId === "meta-analysis") return "Meta-analysis reporting";
+    if (toolId === "analytic-flexibility") return "Analytic flexibility";
     return "Statcheck";
   }
   function WipTransparencyResult({ run, onOpenSource }) {
@@ -11867,6 +11874,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const result = run.structured_result_json || {};
     if (!result.is_meta_analysis) return /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Meta-analysis language was not detected, so the seven-item reporting checklist was not applied and no review candidates were created. This does not prove the manuscript contains no meta-analysis.");
     return /* @__PURE__ */ React.createElement("div", { className: "wip-meta-analysis-result" }, /* @__PURE__ */ React.createElement(MetaChecklist, { checks: result.checks || [], onOpen: onOpenSource }), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Each \u201Cnot found\u201D row is retained as a reviewable ", /* @__PURE__ */ React.createElement("b", null, "info"), " candidate, never proof of omission or a claim that reporting is absent. Review dispositions are available in the WIP Checks tab; none is a score, verdict, or accusation."));
+  }
+  function WipAnalyticFlexibilityResult({ run }) {
+    const result = run.structured_result_json || {};
+    if (!result.methods_text_found) return /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "No methods-section text was found in the primary manuscript file; nothing to surface.");
+    return /* @__PURE__ */ React.createElement("div", { className: "wip-analytic-flexibility-result" }, !result.scoped && /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "This file type has no per-block section scoping, so the whole manuscript text was searched rather than just its methods section."), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Review dispositions for surfaced candidates are available in the WIP Checks tab, below."));
   }
   function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText, selectText, renderResult }) {
     const manuscriptId = manuscript ? manuscript.id : null;
@@ -11992,6 +12004,27 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         emptyText: "No meta-analysis reporting audit yet. An empty history says nothing about the manuscript.",
         selectText: "Select a WIP manuscript to audit its meta-analysis reporting.",
         renderResult: (run, openSource) => /* @__PURE__ */ React.createElement(WipMetaAnalysisResult, { run, onOpenSource: openSource })
+      }
+    );
+  }
+  function WipAnalyticFlexibilitySection({ manuscript, ctx }) {
+    return /* @__PURE__ */ React.createElement(
+      WipChecklistSection,
+      {
+        manuscript,
+        ctx,
+        toolId: "analytic-flexibility",
+        label: "Analytic-flexibility surfacing",
+        labels: {
+          first: "Surface decision points",
+          again: "Surface again",
+          running: "Surfacing\u2026",
+          progress: "Surfacing analytic decision points\u2026",
+          error: "Analytic-flexibility surfacing failed"
+        },
+        emptyText: "No analytic-flexibility run yet. An empty history is not a claim the design had no flexibility.",
+        selectText: "Select a WIP manuscript to surface its analytic decision points.",
+        renderResult: (run, openSource) => /* @__PURE__ */ React.createElement(WipAnalyticFlexibilityResult, { run, onOpenSource: openSource })
       }
     );
   }

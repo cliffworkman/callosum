@@ -7,10 +7,10 @@
 // reviewable via the shared FindingCard (08x_methods_critical.jsx, unmodified) — AI funnel, human filter. No
 // count, index, tally, or aggregate score appears anywhere in this panel, by design.
 //
-// Library papers only for now: a WIP manuscript has no `papers.id`, so the endpoints this panel calls (both
-// scoped to a Library `paper_id`) don't apply to one. A later increment adds the WIP-side counterpart (the
-// backend orchestration + endpoint already exist — analytic_flexibility_text.py / wip_checks.py — only this
-// panel's WIP branch is still open).
+// AnalyticFlexibilityPaper (below) is the Library-paper path: a WIP manuscript has no `papers.id`, so the
+// per-paper endpoints it calls don't apply to one. The WIP counterpart is `WipAnalyticFlexibilitySection`
+// (10k_wip_checks.jsx), called from this file's own manuscript branch — the shared-IIFE cross-chunk hoist
+// pattern (inc-208/222) the sibling checklist panels (08f/08d/08g/08h) already use for their own WIP branches.
 
 function AnalyticFlexibilityPaper({ paperId, onOpenPaper, onFindingsChanged, findingsRefresh }) {
   const [findings, setFindings] = useState([]);
@@ -78,9 +78,14 @@ function AnalyticFlexibilitySection({ ctx }) {
   if (ctx.researchContext.kind === "manuscript") return (
     <div className="statcheck-section">
       <div className="settings-sub">
-        Analytic-flexibility surfacing isn't available for WIP manuscripts in this panel yet — it currently
-        covers Library papers only.
+        Surface specific, disclosed <b>analytic decision points</b> the current manuscript's methods section
+        reports, against its exact primary-file checkpoint. LLM-assisted (opt-in, egress-gated); every candidate
+        is a reviewable suggestion you confirm against its quoted source text — never a verdict about the
+        design's rigor or a "researcher degrees of freedom" score. An empty result is not a claim the design had
+        no analytic flexibility.
       </div>
+      <p className="eyebrow">This manuscript</p>
+      <WipAnalyticFlexibilitySection manuscript={ctx.researchContext.entity} ctx={ctx} />
     </div>
   );
   return (
