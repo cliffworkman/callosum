@@ -117,3 +117,42 @@ def test_findings_endpoints(temp_db_url):
     assert ok.status_code == 200 and ok.json()["review_state"] == "accepted"
     assert {o["paper_id"]: o for o in client.get("/findings/overview").json()}[pid]["unreviewed_count"] == 0
     assert client.post("/findings/999999/review", json={"state": "noted"}).status_code == 404
+
+
+def test_get_paper_findings_source_filter(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(conn, "Multi-source")
+        upsert_findings(conn, pid, "demo", [FACT, CAND])
+        other_cand = {"kind": "candidate", "tier": "speculative", "payload": {"desc": "other-source candidate"}}
+        upsert_findings(conn, pid, "analytic-flexibility", [other_cand])
+
+        unfiltered = get_paper_findings(conn, pid)
+        af_only = get_paper_findings(conn, pid, source="analytic-flexibility")
+        demo_only = get_paper_findings(conn, pid, source="demo")
+    engine.dispose()
+
+    assert len(unfiltered["facts"]) == 1 and len(unfiltered["candidates"]) == 2  # both sources, unfiltered
+    assert len(af_only["facts"]) == 0 and len(af_only["candidates"]) == 1
+    assert af_only["candidates"][0]["source"] == "analytic-flexibility"
+    assert len(demo_only["facts"]) == 1 and len(demo_only["candidates"]) == 1
+    assert demo_only["candidates"][0]["source"] == "demo"
+
+
+def test_findings_endpoint_source_query_param(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(conn, "Endpoint source filter")
+        upsert_findings(conn, pid, "demo", [FACT, CAND])
+        other_cand = {"kind": "candidate", "tier": "speculative", "payload": {"desc": "other-source candidate"}}
+        upsert_findings(conn, pid, "analytic-flexibility", [other_cand])
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    # No source param: unchanged, backward-compatible behavior -- both sources' candidates come back.
+    got = client.get(f"/papers/{pid}/findings").json()
+    assert len(got["facts"]) == 1 and len(got["candidates"]) == 2
+
+    filtered = client.get(f"/papers/{pid}/findings", params={"source": "analytic-flexibility"}).json()
+    assert len(filtered["facts"]) == 0 and len(filtered["candidates"]) == 1
+    assert filtered["candidates"][0]["payload"]["desc"] == "other-source candidate"

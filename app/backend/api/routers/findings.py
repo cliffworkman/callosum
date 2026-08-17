@@ -49,12 +49,17 @@ class ReviewRequest(BaseModel):
 
 
 @router.get("/papers/{paper_id}/findings", response_model=PaperFindingsResponse)
-def paper_findings_get(paper_id: int, conn: Connection = Depends(get_connection)) -> PaperFindingsResponse:
+def paper_findings_get(
+    paper_id: int, source: str | None = None, conn: Connection = Depends(get_connection)
+) -> PaperFindingsResponse:
+    """``source`` is an optional query param scoping the result to one producer's findings (e.g.
+    ``?source=analytic-flexibility``); omitted, it returns every source's findings exactly as before this
+    parameter existed."""
     try:
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    data = get_paper_findings(conn, paper_id)
+    data = get_paper_findings(conn, paper_id, source=source)
     return PaperFindingsResponse(
         facts=[FindingModel(**f) for f in data["facts"]],
         candidates=[FindingModel(**c) for c in data["candidates"]],

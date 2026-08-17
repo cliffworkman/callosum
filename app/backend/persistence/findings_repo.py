@@ -78,12 +78,13 @@ def _finding_dict(row: RowMapping) -> dict:
     }
 
 
-def get_paper_findings(conn: Connection, paper_id: int) -> dict:
-    rows = list(
-        conn.execute(
-            select(paper_findings).where(paper_findings.c.paper_id == paper_id).order_by(paper_findings.c.id)
-        ).mappings()
-    )
+def get_paper_findings(conn: Connection, paper_id: int, source: str | None = None) -> dict:
+    """``source`` optionally scopes to one producer (e.g. "analytic-flexibility") -- unset returns every
+    source's findings for this paper, unchanged from before this parameter existed."""
+    query = select(paper_findings).where(paper_findings.c.paper_id == paper_id)
+    if source is not None:
+        query = query.where(paper_findings.c.source == source)
+    rows = list(conn.execute(query.order_by(paper_findings.c.id)).mappings())
     facts = [_finding_dict(r) for r in rows if r["kind"] == "fact"]
     candidates = [_finding_dict(r) for r in rows if r["kind"] == "candidate"]
     tier_rank = {"primary": 0, "speculative": 1}

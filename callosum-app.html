@@ -9287,6 +9287,74 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const sortLabel = fundingOptionLabel(FUNDING_RESULT_SORTS, sort);
     return /* @__PURE__ */ React.createElement("div", { className: "funding-result-summary", "aria-live": "polite" }, /* @__PURE__ */ React.createElement("div", { className: "funding-result-stat" }, /* @__PURE__ */ React.createElement("b", null, visible), /* @__PURE__ */ React.createElement("span", null, "visible of ", displayPool, " in the current display pool")), /* @__PURE__ */ React.createElement("div", { className: "funding-result-stat" }, /* @__PURE__ */ React.createElement("b", null, surfacedTotal), /* @__PURE__ */ React.createElement("span", null, "grouped results in the full saved run")), /* @__PURE__ */ React.createElement("div", { className: "funding-result-stat" }, /* @__PURE__ */ React.createElement("b", null, hiddenLower), /* @__PURE__ */ React.createElement("span", null, "lower-signal prospects hidden")), /* @__PURE__ */ React.createElement("small", null, triageOnly ? "The LLM-triaged view narrows the display pool; All surfaced restores the complete saved run. " : "", "Filter: ", filterLabel, ". Sort: ", sortLabel, ". These controls change display only."));
   }
+  function AnalyticFlexibilityPaper({ paperId, onOpenPaper, onFindingsChanged, findingsRefresh }) {
+    const [findings, setFindings] = useState([]);
+    const [aiReady, setAiReady] = useState(false);
+    const [state, setState] = useState({ status: "idle" });
+    const load = useCallback(() => {
+      if (paperId == null) {
+        setFindings([]);
+        return;
+      }
+      api(`/papers/${paperId}/findings?source=analytic-flexibility`).then((r) => {
+        if (r.ok) setFindings(r.data.candidates || []);
+      });
+    }, [paperId]);
+    useEffect(() => {
+      setState({ status: "idle" });
+      load();
+    }, [load, findingsRefresh]);
+    useEffect(() => {
+      api("/settings").then((r) => {
+        if (r.ok) setAiReady(Boolean(r.data.data_egress_enabled));
+      });
+    }, []);
+    const run = async () => {
+      setState({ status: "running" });
+      const r = await apiPost(`/papers/${paperId}/analytic-flexibility`, {});
+      if (!r.ok) {
+        setState({ status: "error", error: r.error });
+        return;
+      }
+      setState({ status: "done", result: r.data });
+      load();
+      if (onFindingsChanged) onFindingsChanged();
+    };
+    if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to surface analytic decision points.");
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Proposes specific, disclosed analytic decision points from this paper's methods section \u2014 exclusion criteria, covariate/control choices, statistical test or model selection, outcome/measure choices, and other reported branch points \u2014 each a reviewable ", /* @__PURE__ */ React.createElement("b", null, "candidate"), " you confirm or dismiss, never a flexibility count or score. The model only proposes a quote; a local, deterministic check independently decides where (or whether) it anchors in the source PDF."), isDemoMode() ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Surfacing analytic decision points requires the local Callosum application; no paper text is sent anywhere from this saved demo.") : !aiReady ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Enable AI features in Settings (data-egress consent) to surface analytic-flexibility candidates.") : /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-primary",
+        disabled: state.status === "running",
+        onClick: run,
+        title: "Proposes candidate analytic decision points from this paper's methods section \u2014 opt-in AI, each candidate reviewable against its quoted source text"
+      },
+      state.status === "running" ? "Surfacing\u2026" : findings.length ? "Surface again" : "Surface decision points"
+    )), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Surfacing analytic decision points\u2026", managedBy: "tracked-request" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't surface decision points: ", state.error), state.status === "done" && state.result && state.result.methods_text_found === false && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No methods-section text was found to check \u2014 process a PDF first, or this paper's methods section wasn't detected. That is not a claim the design has no analytic flexibility."), findings.length === 0 && state.status !== "running" && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No candidates surfaced yet. An empty list isn't a claim the design had no analytic flexibility \u2014 only that nothing was proposed (or everything proposed has since been reviewed away) here."), findings.map((f) => /* @__PURE__ */ React.createElement(FindingCard, { key: f.id, finding: f, onReviewed: load, onOpenPaper })));
+  }
+  function AnalyticFlexibilitySection({ ctx }) {
+    if (ctx.researchContext.kind === "manuscript") return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Analytic-flexibility surfacing isn't available for WIP manuscripts in this panel yet \u2014 it currently covers Library papers only."));
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Surface specific, disclosed ", /* @__PURE__ */ React.createElement("b", null, "analytic decision points"), ` a paper's methods section reports \u2014 places where a different reasonable choice could have changed the result. LLM-assisted (opt-in, egress-gated); every candidate is a reviewable suggestion you confirm against its quoted, page-anchored source text \u2014 never a verdict about the paper's rigor or a "researcher degrees of freedom" score.`), /* @__PURE__ */ React.createElement(
+      AnalyticFlexibilityPaper,
+      {
+        paperId: ctx.selectedPaper,
+        onOpenPaper: ctx.onOpenPaper,
+        onFindingsChanged: ctx.onFindingsChanged,
+        findingsRefresh: ctx.findingsRefresh
+      }
+    ));
+  }
+  registerPaneTab(
+    { id: "checklists", label: "Checklists", paneId: "methods", order: 40 },
+    {
+      id: "analytic-flexibility",
+      label: "Analytic flexibility",
+      order: 50,
+      hideInReadOnly: true,
+      demoInspectable: true,
+      render: (ctx, active) => /* @__PURE__ */ React.createElement(AnalyticFlexibilitySection, { ctx })
+    }
+  );
   function findingText(f) {
     const p = f.payload || {};
     return p.desc || p.label || p.text || p.title || JSON.stringify(p);

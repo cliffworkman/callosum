@@ -784,17 +784,18 @@ def test_methods_pane_regrouped_details_data_statistics_checklists():
     assert 'label: "Data consistency (GRIM)"' not in raw
     assert 'id: "statcheck", label: "Statistics", paneId: "methods", order: 30, hideInReadOnly: true' in raw
     assert 'label: "Statistics check"' not in raw
-    # The 4 checklist tools no longer self-register as standalone sections...
+    # The checklist tools no longer self-register as standalone sections...
     assert 'registerPaneSection({\n  id: "bayes"' not in raw
     assert 'registerPaneSection({\n  id: "lmm"' not in raw
     assert 'registerPaneSection({\n  id: "transparency"' not in raw
-    # ...they register as tabs on one shared "checklists" host, ordered for the 2x2 grid (transparency top-left,
-    # lmm top-right, bayes bottom-left, meta bottom-right).
-    assert raw.count('{ id: "checklists", label: "Checklists", paneId: "methods", order: 40 }') == 4
+    # ...they register as tabs on one shared "checklists" host, ordered for the grid (transparency top-left,
+    # lmm top-right, bayes bottom-left, meta bottom-right, analytic-flexibility added inc backlog #37 as a 5th).
+    assert raw.count('{ id: "checklists", label: "Checklists", paneId: "methods", order: 40 }') == 5
     assert 'id: "transparency", label: "Transparency signals", order: 10, hideInReadOnly: true' in raw
     assert 'id: "lmm", label: "Mixed-model reporting", order: 20, hideInReadOnly: true' in raw
     assert 'id: "bayes", label: "Bayesian statistics", order: 30, hideInReadOnly: true' in raw
     assert 'id: "meta", label: "Meta-analysis reporting", order: 40, hideInReadOnly: true' in raw
+    assert 'id: "analytic-flexibility", label: "Analytic flexibility", order: 50, hideInReadOnly: true' in raw
     # Each section's render signature now takes `active` as a real prop (not re-derived from ctx.methodsOpen).
     assert "function TransparencySection({ ctx, active })" in raw
     assert 'ctx.researchContext.kind === "manuscript"' in raw
