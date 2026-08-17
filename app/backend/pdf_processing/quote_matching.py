@@ -134,3 +134,30 @@ def _line_rectangles(tokens: list[_WordToken]) -> list[dict[str, Any]]:
             }
         )
     return rectangles
+
+
+def anchor_quote(pdf_path: str | Path, quote: str, claimed_page: int | None = None) -> dict:
+    """Locate `quote` in the PDF and classify the result — never invents a location. Mirrors the
+    classification half of workbench_assist.py's anchor_proposal, minus its value-in-quote check (a
+    bare-quote candidate has no separate value to verify against itself)."""
+    match = locate_quote(pdf_path, quote)
+    if not match.found:
+        return {
+            "anchor_state": "unanchored",
+            "page": claimed_page,
+            "bbox_json": None,
+            "reason": "quote_not_found",
+        }
+    if not match.rectangles:
+        return {
+            "anchor_state": "region",
+            "page": match.page_start,
+            "bbox_json": None,
+            "reason": "no_rects",
+        }
+    return {
+        "anchor_state": "exact",
+        "page": match.page_start,
+        "bbox_json": list(match.rectangles),
+        "reason": None,
+    }
