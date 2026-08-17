@@ -16,6 +16,8 @@ from __future__ import annotations
 from sqlalchemy import Connection, select
 
 from app.backend.pdf_processing.sections import detect_section_heading
+from app.backend.persistence.document_roles import ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES
+from app.backend.persistence.repository import get_chunks_for_paper
 from app.backend.persistence.schema import chunks
 from app.backend.persistence.schema_grobid import paper_sections
 
@@ -63,3 +65,18 @@ def partition_by_phase(candidates: list[dict], expected_family: str | None) -> t
         return candidates, False
     unmatched = [c for c in candidates if c.get("section_family") != expected_family]
     return matched + unmatched, True
+
+
+def paper_methods_text(conn: Connection, paper_id: int, *, max_chars: int = 20000) -> str | None:
+    """This paper's methods-section text, GROBID-preferred / heuristic-fallback per chunk (via
+    candidate_section_family), concatenated in chunk-id order and capped at max_chars. None (not "") when no
+    methods-section chunk is found at all -- distinct from a methods section that was found but is short."""
+    paper_chunks = get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_AND_SUPPLEMENT_DOCUMENT_ROLES)
+    methods_texts: list[str] = []
+    for chunk in paper_chunks:
+        family, _source = candidate_section_family(conn, chunk["id"])
+        if family == "methods" and chunk.get("text"):
+            methods_texts.append(chunk["text"])
+    if not methods_texts:
+        return None
+    return "\n\n".join(methods_texts)[:max_chars]

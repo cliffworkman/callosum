@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from app.backend.citations.section_scope import (
     candidate_section_family,
     expected_section_family,
+    paper_methods_text,
     partition_by_phase,
 )
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
@@ -221,3 +222,143 @@ def test_candidate_section_family_falls_back_to_heuristic_when_grobid_kind_unrec
         family, source = candidate_section_family(conn, chunk_id)
     eng.dispose()
     assert family == "discussion" and source == "heuristic"
+
+
+def test_paper_methods_text_concatenates_methods_chunks_in_order(temp_db_url: str) -> None:
+    eng = create_engine(temp_db_url)
+    with eng.begin() as conn:
+        pid = create_paper(conn, title="T", csl_json={"title": "T", "type": "article-journal"})
+        attachment_id = create_attachment(
+            conn,
+            paper_id=pid,
+            storage_mode="managed",
+            availability="available",
+            content_type="application/pdf",
+            checksum="test-hash",
+            role="article-fulltext",
+        )
+        for section, text in [
+            ("intro", "Introduction text."),
+            ("methods", "Methods part one."),
+            ("methods", "Methods part two."),
+            ("results", "Results text."),
+        ]:
+            create_chunk(
+                conn,
+                paper_id=pid,
+                attachment_id=attachment_id,
+                text=text,
+                section=section,
+                page_start=1,
+                page_end=1,
+                bbox_coordinate_system="pdf-points-top-left",
+                extraction_tool="test",
+                extraction_version="1",
+                chunking_strategy="test",
+                chunk_version="1",
+                source_attachment_checksum="deadbeef",
+            )
+        result = paper_methods_text(conn, pid)
+    eng.dispose()
+    assert result == "Methods part one.\n\nMethods part two."
+
+
+def test_paper_methods_text_returns_none_when_no_methods_chunks(temp_db_url: str) -> None:
+    eng = create_engine(temp_db_url)
+    with eng.begin() as conn:
+        pid = create_paper(conn, title="T", csl_json={"title": "T", "type": "article-journal"})
+        attachment_id = create_attachment(
+            conn,
+            paper_id=pid,
+            storage_mode="managed",
+            availability="available",
+            content_type="application/pdf",
+            checksum="test-hash",
+            role="article-fulltext",
+        )
+        create_chunk(
+            conn,
+            paper_id=pid,
+            attachment_id=attachment_id,
+            text="Only intro.",
+            section="intro",
+            page_start=1,
+            page_end=1,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="test",
+            extraction_version="1",
+            chunking_strategy="test",
+            chunk_version="1",
+            source_attachment_checksum="deadbeef",
+        )
+        result = paper_methods_text(conn, pid)
+    eng.dispose()
+    assert result is None
+
+
+def test_paper_methods_text_caps_length(temp_db_url: str) -> None:
+    eng = create_engine(temp_db_url)
+    with eng.begin() as conn:
+        pid = create_paper(conn, title="T", csl_json={"title": "T", "type": "article-journal"})
+        attachment_id = create_attachment(
+            conn,
+            paper_id=pid,
+            storage_mode="managed",
+            availability="available",
+            content_type="application/pdf",
+            checksum="test-hash",
+            role="article-fulltext",
+        )
+        create_chunk(
+            conn,
+            paper_id=pid,
+            attachment_id=attachment_id,
+            text="x" * 100,
+            section="methods",
+            page_start=1,
+            page_end=1,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="test",
+            extraction_version="1",
+            chunking_strategy="test",
+            chunk_version="1",
+            source_attachment_checksum="deadbeef",
+        )
+        result = paper_methods_text(conn, pid, max_chars=10)
+    eng.dispose()
+    assert result is not None and len(result) == 10
+
+
+def test_paper_methods_text_excludes_preregistration_chunks(temp_db_url: str) -> None:
+    """The inc-425 document-scope invariant: paper_methods_text must only read article/supplement-role
+    chunks, never registration/preregistration chunks, even if one happened to be tagged "methods"."""
+    eng = create_engine(temp_db_url)
+    with eng.begin() as conn:
+        pid = create_paper(conn, title="T", csl_json={"title": "T", "type": "article-journal"})
+        prereg_attachment_id = create_attachment(
+            conn,
+            paper_id=pid,
+            storage_mode="managed",
+            availability="available",
+            content_type="application/pdf",
+            checksum="prereg-hash",
+            role="preregistration",
+        )
+        create_chunk(
+            conn,
+            paper_id=pid,
+            attachment_id=prereg_attachment_id,
+            text="Preregistered methods text.",
+            section="methods",
+            page_start=1,
+            page_end=1,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="test",
+            extraction_version="1",
+            chunking_strategy="test",
+            chunk_version="1",
+            source_attachment_checksum="deadbeef",
+        )
+        result = paper_methods_text(conn, pid)
+    eng.dispose()
+    assert result is None
