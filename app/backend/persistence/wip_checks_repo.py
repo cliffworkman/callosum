@@ -35,6 +35,15 @@ LMM_COVERAGE = (
     "Checks only the extracted primary manuscript; tables are not fully read. 'Not detected' is a review prompt, "
     "not proof of omission. The auditor never runs a model and produces no correctness verdict or score."
 )
+ANALYTIC_FLEXIBILITY_VERSION = "1"
+ANALYTIC_FLEXIBILITY_COVERAGE = (
+    "An egress-gated large language model proposes candidate analytic-decision points -- exclusion criteria, "
+    "covariate or control choices, statistical test or model selections, outcome or measure choices, and other "
+    "reported branch points -- from the methods section of the extracted primary manuscript when section "
+    "scoping is available, or the whole manuscript text when it is not. Every proposed quote is anchored "
+    "afterward, deterministically and locally -- never by the model. Candidates are a starting point for "
+    "reviewer judgment, never a flexibility score, ranking, or verdict."
+)
 OPEN_DISPOSITIONS = {"open", "acknowledged", "deferred"}
 FINDING_DISPOSITIONS = OPEN_DISPOSITIONS | {
     "resolved",
@@ -287,6 +296,95 @@ def store_lmm_run(
         "tool-run-completed",
         summary,
         metadata={"tool_id": "lmm", "tool_version": LMM_VERSION, "snapshot_id": snapshot_id},
+        related_entity_type="tool-run",
+        related_entity_id=str(tool_run_id),
+    )
+    return get_tool_run(conn, tool_run_id) or {}
+
+
+def store_analytic_flexibility_run(
+    conn: Connection,
+    prepared: PreparedSnapshot,
+    snapshot_id: int,
+    candidates: list[dict],
+    *,
+    methods_text_found: bool,
+    scoped: bool,
+) -> dict:
+    if not methods_text_found:
+        summary = "No manuscript text was found; nothing to surface."
+        scope = "none"
+    elif scoped:
+        summary = (
+            f"{len(candidates)} candidate decision point{'s' if len(candidates) != 1 else ''} surfaced "
+            "from the methods section."
+        )
+        scope = "methods-section"
+    else:
+        summary = (
+            f"{len(candidates)} candidate decision point{'s' if len(candidates) != 1 else ''} surfaced "
+            "from the whole manuscript text (no per-block section scoping available for this file type)."
+        )
+        scope = "whole-manuscript"
+    run_result = conn.execute(
+        insert(tool_runs).values(
+            uid=str(uuid4()),
+            tool_id="analytic-flexibility",
+            tool_version=ANALYTIC_FLEXIBILITY_VERSION,
+            callosum_version=_callosum_version(),
+            parameters_json={},
+            result_summary=summary,
+            structured_result_json={
+                "methods_text_found": methods_text_found,
+                "scoped": scoped,
+                "scope": scope,
+                "candidate_count": len(candidates),
+            },
+            coverage=ANALYTIC_FLEXIBILITY_COVERAGE,
+            status="complete",
+        )
+    )
+    tool_run_id = int(run_result.inserted_primary_key[0])
+    conn.execute(
+        insert(wip_tool_runs).values(
+            tool_run_id=tool_run_id,
+            manuscript_id=prepared.manuscript_id,
+            file_id=prepared.file_id,
+            snapshot_id=snapshot_id,
+            relevant_content_hash=prepared.identity.extracted_text_hash,
+        )
+    )
+    for candidate in candidates:
+        conn.execute(
+            insert(wip_findings).values(
+                uid=str(uuid4()),
+                tool_run_id=tool_run_id,
+                manuscript_id=prepared.manuscript_id,
+                file_id=prepared.file_id,
+                kind="candidate",
+                finding_type=f"analytic-flexibility-{candidate['category']}",
+                severity="info",
+                summary=f"Possible {candidate['category'].replace('-', ' ')} decision point",
+                details_json=candidate,
+                quote=candidate["quote"],
+                context=None,
+                # The CHECK constraint on wip_findings.coordinate_precision permits only NULL/exact/region --
+                # "unanchored" (a real anchor_state this feature produces) has no matching literal here, so it
+                # maps to NULL. The fuller anchor_state value still lives in details_json for inspection.
+                coordinate_precision=(candidate["anchor_state"] if candidate["anchor_state"] != "unanchored" else None),
+                disposition="open",
+            )
+        )
+    add_activity(
+        conn,
+        prepared.manuscript_id,
+        "tool-run-completed",
+        summary,
+        metadata={
+            "tool_id": "analytic-flexibility",
+            "tool_version": ANALYTIC_FLEXIBILITY_VERSION,
+            "snapshot_id": snapshot_id,
+        },
         related_entity_type="tool-run",
         related_entity_id=str(tool_run_id),
     )
