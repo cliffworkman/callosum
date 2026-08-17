@@ -5093,14 +5093,17 @@
     { method: "POST", re: /^\/papers\/\d+\/reprocess-pdf$/, label: "Reprocessing and embedding PDF", kind: "Local AI", nav: { pane: "methods", section: "details" } },
     { method: "POST", re: /^\/settings\/test-key$/, label: "Testing AI provider", kind: "Provider AI", nav: { workspace: "settings" } },
     { method: "POST", re: /^\/summaries\/\d+\/reverify$/, label: "Re-verifying synthesis evidence", kind: "Local AI", nav: { workspace: "synthesis", tab: "ask" } },
-    { method: "POST", re: /^\/workbench\/rows\/\d+\/propose$/, label: "Drafting extraction candidates", kind: "Provider AI + local retrieval", nav: { workspace: "work", tab: "meta-analyze" } }
+    { method: "POST", re: /^\/workbench\/rows\/\d+\/propose$/, label: "Drafting extraction candidates", kind: "Provider AI + local retrieval", nav: { workspace: "work", tab: "meta-analyze" } },
+    { method: "POST", re: /^\/papers\/\d+\/analytic-flexibility$/, label: "Surfacing analytic decision points", kind: "Provider AI + local anchoring", nav: { pane: "methods", section: "checklists" } },
+    { method: "POST", re: /^\/wip\/manuscripts\/\d+\/checks\/analytic-flexibility$/, label: "Surfacing analytic decision points", kind: "Provider AI + local anchoring", nav: { workspace: "library", view: "wip" } }
   ];
   function _startTrackedApiOperation(method, path) {
     const cleanPath = path.split("?")[0];
     const route = TRACKED_AI_REQUESTS.find((item) => item.method === method && item.re.test(cleanPath));
     if (!route) return null;
     const paperMatch = cleanPath.match(/^\/papers\/(\d+)\//);
-    const nav = paperMatch ? { ...route.nav, paper_id: Number(paperMatch[1]) } : route.nav;
+    const manuscriptMatch = cleanPath.match(/^\/wip\/manuscripts\/(\d+)\//);
+    const nav = paperMatch ? { ...route.nav, paper_id: Number(paperMatch[1]) } : manuscriptMatch ? { ...route.nav, manuscript_id: Number(manuscriptMatch[1]) } : route.nav;
     return _startClientStatus({ label: route.label, nav, computeKind: route.kind });
   }
   function _finishTrackedApiOperation(jobId, result) {
