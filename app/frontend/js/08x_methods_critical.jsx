@@ -35,7 +35,11 @@ function FindingCard({ finding, onReviewed, onOpenPaper }) {
         {finding.tier === "speculative" && <span className="finding-tier">speculative</span>}
       </div>
       {page != null && onOpenPaper &&
-        <button className="btn-link finding-anchor" onClick={() => onOpenPaper({ id: finding.paper_id, title: "" }, { page, precision: "region" })}>show in paper · p.{page}</button>}
+        <button className="btn-link finding-anchor" onClick={() => {
+          const p = finding.payload || {};
+          const exact = p.anchor_state === "exact";
+          onOpenPaper({ id: finding.paper_id, title: "" }, { page, precision: exact ? "exact" : "region", bboxJson: exact ? p.bbox_json : null });
+        }}>show in paper · p.{page}</button>}
       {reviewed
         ? <div className="finding-reviewed">✓ {finding.review_state}{finding.review_reason ? ` — ${finding.review_reason}` : ""}</div>
         : <div className="finding-actions">
