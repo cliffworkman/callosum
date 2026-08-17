@@ -21,10 +21,10 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-import httpx
 from sqlalchemy import Connection
 
 from integrations.api_cache import get_cached, put_cached
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 SCIELO_PROVIDER = "scielo-journals"
 SCIELO_BASE_URL = "https://articlemeta.scielo.org/api/v1/journal/"
@@ -124,7 +124,9 @@ def _first_isis_value(field_value: Any) -> str | None:
 
 
 def _httpx_fetcher(issn: str, *, headers: dict[str, str], timeout: float) -> tuple[int, Any]:
-    response = httpx.get(SCIELO_BASE_URL, params={"issn": issn}, headers=headers, timeout=timeout)
+    response = bounded_get(
+        SCIELO_BASE_URL, max_bytes=METADATA_RESPONSE_CAP, params={"issn": issn}, headers=headers, timeout=timeout
+    )
     try:
         body = response.json()
     except ValueError:

@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-import httpx
 from sqlalchemy import Connection
 
 from app.backend.acquisition.registry import OaColor, OaLocation, PaperRef
 from integrations.api_cache import get_cached, put_cached
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 EUROPEPMC_PROVIDER = "europepmc"
 EUROPEPMC_SEARCH_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
@@ -89,7 +89,9 @@ def _headers() -> dict[str, str]:
 
 def _httpx_fetcher(query: str, *, headers: dict[str, str], timeout: float) -> tuple[int, dict[str, Any] | None]:
     params = {"query": query, "format": "json", "resultType": "core", "pageSize": "1"}
-    response = httpx.get(EUROPEPMC_SEARCH_URL, params=params, headers=headers, timeout=timeout)
+    response = bounded_get(
+        EUROPEPMC_SEARCH_URL, max_bytes=METADATA_RESPONSE_CAP, params=params, headers=headers, timeout=timeout
+    )
     try:
         body = response.json()
     except ValueError:

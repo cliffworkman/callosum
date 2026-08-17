@@ -22,9 +22,16 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 479** (see Increment workflow) with **2222 root-suite pytest tests
+It is currently at **Increment 480** (see Increment workflow) with **2285 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
+(A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
+`tools/qa/check_demo_experience_coverage.py`/`check_website_coverage.py`, plus a new `www/how-it-works.html`
+pipeline-explainer page — landed between incs 479 and 480 without its own increment number: it was built across
+several Codex sessions this same calendar week and only got committed to git in bulk once its handoff was
+picked up mid-session. See `.claude/security-audits/2026-08-10_static-online-demo.md` and `demo/README.md` for
+its own design/threat-model documentation; a proper retroactive increment-notes entry for it is a known gap,
+not yet backfilled.)
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
 the full per-increment narrative for all other increments now lives in the relocated
 `.claude/session-kickoff-log.md`, and the detailed per-increment diary in `.claude/docs/increment-notes/`.)
@@ -489,6 +496,15 @@ the full per-increment narrative for all other increments now lives in the reloc
   `"heuristic"` everywhere else — closing a gap the pipeline's own implementation task had explicitly disclosed
   as unverified. See `.claude/security-audits/2026-08-15_grobid-integration.md` and
   `.claude/docs/increment-notes/INCREMENT-479-NOTES.md`.
+- **Response-size caps on external HTTP reads (backlog #56, inc 480):** a shared `integrations/http_bounds.py`
+  (`bounded_get`/`bounded_post`, streamed + a hard byte cap, fails closed with `ResponseTooLargeError` before
+  the rest of a response body is read) wired into every previously-unbounded external fetch. The real gap was
+  narrower than the backlog item's own description: the three "mirror download" adapters it named by name
+  (AJOL/Retraction Watch/TOP Factor) already had correct per-adapter caps, confirmed by reading each rather than
+  trusting the summary — left untouched (rule #7, no drive-by refactor of already-correct code). The genuine gap
+  was 16 sites across 15 files: 15 metadata `httpx.get()` lookups (arXiv/bioRxiv/CORE/Crossref/DOAJ ×2/Europe
+  PMC/NLM/OpenAlex ×3/OSF/SciELO/Semantic Scholar ×2) plus GROBID's one `httpx.post()` call — the latter needed
+  a bespoke catch since it wraps every `httpx.HTTPError` into its own `GrobidError` type.
 - **Local usage instrumentation (backlog #38A, inc 450):** a zero-egress local event log + a personal
   Settings → **Your usage** dashboard — the buildable-now half of the "Research-impact analytics" future track
   (`.claude/docs/future-tracks/opus4.8_future-tracks_researchimpactanalytics.md`; the cross-user Project B stays

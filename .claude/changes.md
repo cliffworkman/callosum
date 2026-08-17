@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-16 — Increment 480: response-size caps on external HTTP reads (backlog #56)
+- **Files:** `integrations/http_bounds.py` (new), `integrations/grobid/client.py`,
+  `integrations/{openalex/adapter,openalex/author,openalex/sources,crossref/adapter,arxiv/adapter,
+  biorxiv/adapter,core/adapter,doaj/adapter,doaj/journals,europepmc/adapter,nlm/journals,osf/adapter,
+  scielo/journals,semantic_scholar/adapter}.py`, `tests/test_http_bounds.py` (new),
+  `tests/test_grobid_client.py`, `.claude/security-audits/2026-08-16_http-response-size-caps.md` (new),
+  `.claude/docs/increment-notes/INCREMENT-480-NOTES.md` (new), `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/INCREMENT-BACKLOG-DONE.md`.
+- **What:** a shared streaming bounded-read helper (`bounded_get`/`bounded_post`, fails closed with
+  `ResponseTooLargeError` before a response body is fully buffered) wired into every previously-unbounded
+  external fetch — 16 call sites across 15 files, confirmed empirically (the three "mirror download" adapters
+  the backlog item named already had their own correct caps and were left untouched).
+- **Why:** closes a gap the GROBID security audit surfaced and the backlog generalized codebase-wide, before
+  any future broader/multi-user deployment.
+- **Revert:** `git revert` the increment-480 commit(s); no schema/migration involved.
+
 ## 2026-08-15 — Increment 479: GROBID section-scoping (backlog #30 Stage 2, closes the whole arc)
 - **Files:** `app/backend/citations/section_scope.py`, `app/backend/citations/suggest.py`,
   `app/backend/api/routers/citation_suggest.py`, `app/backend/api/routers/citations.py`,

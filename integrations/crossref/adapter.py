@@ -6,11 +6,11 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 from urllib.parse import quote
 
-import httpx
 from sqlalchemy import Connection
 
 from app.backend.app_settings import resolved_mailto
 from integrations.api_cache import get_cached, put_cached
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 CROSSREF_PROVIDER = "crossref"
 CROSSREF_BASE_URL = "https://api.crossref.org/works"
@@ -123,7 +123,7 @@ class CrossrefClient:
 
 def _httpx_fetcher(doi: str, *, headers: dict[str, str], timeout: float) -> tuple[int, dict[str, Any] | None]:
     url = f"{CROSSREF_BASE_URL}/{quote(doi, safe='')}"
-    response = httpx.get(url, headers=headers, timeout=timeout)
+    response = bounded_get(url, max_bytes=METADATA_RESPONSE_CAP, headers=headers, timeout=timeout)
     try:
         body = response.json()
     except ValueError:

@@ -13,11 +13,11 @@ import hashlib
 import re
 from typing import Protocol
 
-import httpx
 from sqlalchemy import Connection
 
 from app.backend.acquisition.registry import OaLocation, PaperRef
 from integrations.api_cache import get_cached, put_cached
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 ARXIV_PROVIDER = "arxiv"
 ARXIV_API_URL = "https://export.arxiv.org/api/query"
@@ -92,8 +92,9 @@ def _arxiv_id_from_doi(doi: str | None) -> str | None:
 
 
 def _httpx_fetcher(params: dict[str, str], *, timeout: float) -> tuple[int, str | None]:
-    response = httpx.get(
+    response = bounded_get(
         ARXIV_API_URL,
+        max_bytes=METADATA_RESPONSE_CAP,
         params=params,
         headers={"User-Agent": "Callosum/0.1 (local-first reference manager)"},
         timeout=timeout,

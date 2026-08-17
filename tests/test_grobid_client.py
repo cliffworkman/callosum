@@ -46,3 +46,14 @@ def test_parse_fulltext_timeout_raises_grobid_error():
     client = httpx.Client(transport=httpx.MockTransport(handler))
     with pytest.raises(GrobidError):
         parse_fulltext(b"bytes", "http://127.0.0.1:8070", timeout=5.0, client=client)
+
+
+def test_parse_fulltext_oversized_response_raises_grobid_error_not_response_too_large():
+    # backlog #56: an oversized GROBID response must fail closed as this module's own GrobidError
+    # (never leak the shared http_bounds.ResponseTooLargeError type across the module boundary).
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"x" * (11 * 1024 * 1024))
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with pytest.raises(GrobidError):
+        parse_fulltext(b"bytes", "http://127.0.0.1:8070", timeout=5.0, client=client)

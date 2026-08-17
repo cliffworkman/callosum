@@ -30,15 +30,6 @@
 
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
-- **#56 Response-size caps on external HTTP response reads.** Surfaced by the GROBID security audit
-  (`.claude/security-audits/2026-08-15_grobid-integration.md`, item 4) and confirmed codebase-wide, not
-  GROBID-specific: no client in `integrations/` (GROBID, OpenAlex, Crossref, Retraction Watch/TOP Factor/AJOL
-  mirror downloads) bounds the size of an inbound response before fully buffering it into memory — each trusts
-  the external service to behave. Low-severity today (every one of these is either a self-run/self-configured
-  local service the user points at, or a small, well-known public metadata API — not a cross-user attack
-  surface), but worth closing with a shared bounded-read helper (an `httpx` streaming read + a hard byte cap,
-  same shape a future size cap on the mirror downloads would need anyway) **before** any broader/multi-user
-  deployment, per CLAUDE.md's own "Before any public/internet-facing deployment" checklist.
 
 ---
 

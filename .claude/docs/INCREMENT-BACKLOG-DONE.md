@@ -631,3 +631,9 @@ appended here.)*
   **`dedup_jobs` remains the one deliberately-indeterminate job in the app** (no per-item loop exposed to
   the router without restructuring the duplicate-detection algorithm itself) — an honest gap, not an
   oversight; revisit only if that algorithm changes for other reasons.
+- [x] **#56 Response-size caps on external HTTP reads** (inc 480) — a shared `integrations/http_bounds.py`
+  (`bounded_get`/`bounded_post`, streaming + a hard byte cap, fails closed with `ResponseTooLargeError` before
+  the rest of a body is read) wired into every previously-unbounded fetch. Real scope, confirmed by reading
+  every call site rather than trusting the item's own description: the three "mirror download" adapters it
+  named (AJOL/Retraction Watch/TOP Factor) already had correct per-adapter caps — left untouched; the genuine
+  gap was 16 sites across 15 files (15 metadata `httpx.get()` lookups + GROBID's one `httpx.post()`).

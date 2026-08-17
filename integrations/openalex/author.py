@@ -13,11 +13,11 @@ import re
 from dataclasses import asdict, dataclass
 from typing import Any, Protocol
 
-import httpx
 from sqlalchemy import Connection, Engine
 
 from app.backend.app_settings import resolved_mailto
 from integrations.api_cache import get_cached, put_cached, put_cached_committing
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 OPENALEX_ROOT = "https://api.openalex.org"
 OPENALEX_AUTHOR_PROVIDER = "openalex_author"
@@ -300,7 +300,7 @@ class OpenAlexAuthorClient:
 def _httpx_fetcher(
     url: str, *, params: dict[str, str], headers: dict[str, str], timeout: float
 ) -> tuple[int, dict[str, Any] | None]:
-    response = httpx.get(url, params=params, headers=headers, timeout=timeout)
+    response = bounded_get(url, max_bytes=METADATA_RESPONSE_CAP, params=params, headers=headers, timeout=timeout)
     try:
         body = response.json()
     except ValueError:

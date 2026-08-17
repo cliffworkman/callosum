@@ -18,10 +18,10 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 from urllib.parse import quote
 
-import httpx
 from sqlalchemy import Connection
 
 from integrations.api_cache import get_cached, put_cached
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 DOAJ_JOURNALS_PROVIDER = "doaj-journals"
 DOAJ_JOURNALS_BASE_URL = "https://doaj.org/api/search/journals"
@@ -140,7 +140,12 @@ def _apc(apc: dict[str, Any]) -> tuple[float | None, str | None]:
 
 
 def _httpx_fetcher(query: str, *, headers: dict[str, str], timeout: float) -> tuple[int, dict[str, Any] | None]:
-    response = httpx.get(f"{DOAJ_JOURNALS_BASE_URL}/{quote(query, safe=':')}", headers=headers, timeout=timeout)
+    response = bounded_get(
+        f"{DOAJ_JOURNALS_BASE_URL}/{quote(query, safe=':')}",
+        max_bytes=METADATA_RESPONSE_CAP,
+        headers=headers,
+        timeout=timeout,
+    )
     try:
         body = response.json()
     except ValueError:

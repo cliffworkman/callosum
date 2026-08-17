@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import httpx
 
+from integrations.http_bounds import METADATA_RESPONSE_CAP, ResponseTooLargeError, bounded_post
+
 
 class GrobidError(Exception):
     """A GROBID request failed -- connection, timeout, or non-200. Fails closed; callers must never proceed
@@ -29,11 +31,15 @@ def parse_fulltext(
     owns_client = client is None
     http_client = client or httpx.Client(timeout=timeout)
     try:
-        resp = http_client.post(
+        resp = bounded_post(
             url,
+            max_bytes=METADATA_RESPONSE_CAP,
+            client=http_client,
             data={"teiCoordinates": ["div", "head", "p"]},
             files={"input": ("document.pdf", pdf_bytes, "application/pdf")},
         )
+    except ResponseTooLargeError as exc:
+        raise GrobidError(f"GROBID response exceeded the {METADATA_RESPONSE_CAP}-byte cap") from exc
     except httpx.HTTPError as exc:
         raise GrobidError(f"GROBID request failed: {exc}") from exc
     finally:

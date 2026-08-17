@@ -10,11 +10,11 @@ from __future__ import annotations
 from typing import Any, Protocol
 from urllib.parse import quote
 
-import httpx
 from sqlalchemy import Connection
 
 from app.backend.acquisition.registry import OaLocation, PaperRef
 from integrations.api_cache import get_cached, put_cached
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 DOAJ_PROVIDER = "doaj"
 DOAJ_BASE_URL = "https://doaj.org/api/search/articles"
@@ -67,7 +67,9 @@ def _headers() -> dict[str, str]:
 
 
 def _httpx_fetcher(query: str, *, headers: dict[str, str], timeout: float) -> tuple[int, dict[str, Any] | None]:
-    response = httpx.get(f"{DOAJ_BASE_URL}/{quote(query, safe=':')}", headers=headers, timeout=timeout)
+    response = bounded_get(
+        f"{DOAJ_BASE_URL}/{quote(query, safe=':')}", max_bytes=METADATA_RESPONSE_CAP, headers=headers, timeout=timeout
+    )
     try:
         body = response.json()
     except ValueError:

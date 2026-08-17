@@ -12,11 +12,11 @@ import hashlib
 import os
 from typing import Any, Protocol
 
-import httpx
 from sqlalchemy import Connection
 
 from app.backend.acquisition.registry import OaLocation, PaperRef
 from integrations.api_cache import get_cached, put_cached
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 CORE_PROVIDER = "core"
 CORE_SEARCH_URL = "https://api.core.ac.uk/v3/search/works"
@@ -86,7 +86,13 @@ def _httpx_fetcher(query: str, *, api_key: str, timeout: float) -> tuple[int, di
         "User-Agent": "Callosum/0.1 (local-first reference manager)",
         "Accept": "application/json",
     }
-    response = httpx.get(CORE_SEARCH_URL, params={"q": query, "limit": "1"}, headers=headers, timeout=timeout)
+    response = bounded_get(
+        CORE_SEARCH_URL,
+        max_bytes=METADATA_RESPONSE_CAP,
+        params={"q": query, "limit": "1"},
+        headers=headers,
+        timeout=timeout,
+    )
     try:
         body = response.json()
     except ValueError:

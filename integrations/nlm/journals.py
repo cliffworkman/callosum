@@ -46,11 +46,11 @@ import re
 import time
 from typing import Any, Protocol
 
-import httpx
 from sqlalchemy import Connection
 
 from app.backend.app_settings import resolved_mailto
 from integrations.api_cache import get_cached, put_cached
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 NLM_PROVIDER = "nlm-medline-index"
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
@@ -134,7 +134,7 @@ def _is_indexed(body: Any) -> bool:
 
 
 def _httpx_fetcher(issn: str, *, params: dict[str, str], timeout: float) -> tuple[int, Any]:
-    response = httpx.get(f"{EUTILS}/esearch.fcgi", params=params, timeout=timeout)
+    response = bounded_get(f"{EUTILS}/esearch.fcgi", max_bytes=METADATA_RESPONSE_CAP, params=params, timeout=timeout)
     try:
         body = response.json()
     except ValueError:

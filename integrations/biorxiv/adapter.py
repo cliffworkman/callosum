@@ -10,11 +10,11 @@ from __future__ import annotations
 from typing import Any, Protocol
 from urllib.parse import quote
 
-import httpx
 from sqlalchemy import Connection
 
 from app.backend.acquisition.registry import OaLocation, PaperRef
 from integrations.api_cache import get_cached, put_cached
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 BIORXIV_PROVIDER = "biorxiv"
 BIORXIV_DETAILS_BASE = "https://api.biorxiv.org/details"
@@ -88,8 +88,9 @@ def _record(body: dict[str, Any]) -> dict[str, Any] | None:
 
 def _httpx_fetcher(server: str, doi: str, *, timeout: float) -> tuple[int, dict[str, Any] | None]:
     url = f"{BIORXIV_DETAILS_BASE}/{server}/{quote(doi, safe='/')}"
-    response = httpx.get(
+    response = bounded_get(
         url,
+        max_bytes=METADATA_RESPONSE_CAP,
         headers={"User-Agent": "Callosum/0.1 (local-first reference manager)", "Accept": "application/json"},
         timeout=timeout,
     )

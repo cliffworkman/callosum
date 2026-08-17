@@ -13,12 +13,12 @@ import re
 from typing import Any, Protocol
 from urllib.parse import quote
 
-import httpx
 from sqlalchemy import Connection, Engine
 
 from app.backend.acquisition.registry import OaColor, OaLocation, OaVersion, PaperRef
 from app.backend.app_settings import resolved_mailto
 from integrations.api_cache import put_cached, put_cached_committing
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 from integrations.openalex.field_sample import FieldSampleMixin
 from integrations.openalex.work_keywords import keywords_from_work
 from integrations.openalex.work_meta import (
@@ -276,7 +276,9 @@ def _endpoint_for(ref: PaperRef) -> tuple[str | None, dict[str, str], str]:
 def _httpx_fetcher(
     path: str, *, params: dict[str, str], headers: dict[str, str], timeout: float
 ) -> tuple[int, dict[str, Any] | None]:
-    response = httpx.get(OPENALEX_BASE_URL + path, params=params, headers=headers, timeout=timeout)
+    response = bounded_get(
+        OPENALEX_BASE_URL + path, max_bytes=METADATA_RESPONSE_CAP, params=params, headers=headers, timeout=timeout
+    )
     try:
         body = response.json()
     except ValueError:

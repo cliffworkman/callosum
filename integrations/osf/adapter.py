@@ -9,11 +9,11 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-import httpx
 from sqlalchemy import Connection
 
 from app.backend.acquisition.registry import OaLocation, PaperRef
 from integrations.api_cache import get_cached, put_cached
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 OSF_PROVIDER = "osf"
 OSF_PREPRINTS_URL = "https://api.osf.io/v2/preprints/"
@@ -78,8 +78,9 @@ def _download_url(body: dict[str, Any]) -> str | None:
 
 def _httpx_fetcher(doi: str, *, timeout: float) -> tuple[int, dict[str, Any] | None]:
     params = {"filter[doi]": doi, "embed": "primary_file"}
-    response = httpx.get(
+    response = bounded_get(
         OSF_PREPRINTS_URL,
+        max_bytes=METADATA_RESPONSE_CAP,
         params=params,
         headers={"User-Agent": "Callosum/0.1 (local-first reference manager)", "Accept": "application/json"},
         timeout=timeout,

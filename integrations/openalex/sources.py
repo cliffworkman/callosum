@@ -24,11 +24,11 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-import httpx
 from sqlalchemy import Connection, Engine
 
 from app.backend.app_settings import resolved_mailto
 from integrations.api_cache import get_cached, put_cached, put_cached_committing
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 OPENALEX_SOURCES_PROVIDER = "openalex-sources"
 OPENALEX_API_BASE = "https://api.openalex.org"  # root — this client hits /topics, /works, /sources
@@ -312,7 +312,9 @@ def _source_meta(src: Any) -> SourceMeta | None:
 def _httpx_fetcher(
     path: str, *, params: dict[str, str], headers: dict[str, str], timeout: float
 ) -> tuple[int, dict[str, Any] | None]:
-    response = httpx.get(OPENALEX_API_BASE + path, params=params, headers=headers, timeout=timeout)
+    response = bounded_get(
+        OPENALEX_API_BASE + path, max_bytes=METADATA_RESPONSE_CAP, params=params, headers=headers, timeout=timeout
+    )
     try:
         body = response.json()
     except ValueError:

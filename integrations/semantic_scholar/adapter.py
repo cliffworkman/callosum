@@ -21,10 +21,10 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 from urllib.parse import quote
 
-import httpx
 from sqlalchemy import Connection
 
 from integrations.api_cache import get_cached, put_cached
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 S2_PROVIDER = "semantic-scholar"
 S2_BASE_URL = "https://api.semanticscholar.org/graph/v1"
@@ -217,7 +217,9 @@ def _parse(payload: dict[str, Any], *, other_key: str = "citingPaper", want_clai
 def _httpx_fetcher(
     path: str, *, params: dict[str, str], headers: dict[str, str], timeout: float
 ) -> tuple[int, dict[str, Any] | None]:
-    response = httpx.get(S2_BASE_URL + path, params=params, headers=headers, timeout=timeout)
+    response = bounded_get(
+        S2_BASE_URL + path, max_bytes=METADATA_RESPONSE_CAP, params=params, headers=headers, timeout=timeout
+    )
     try:
         body = response.json()
     except ValueError:
@@ -253,7 +255,13 @@ def _parse_recommendations(payload: dict[str, Any]) -> list[RecommendedPaper]:
 def _httpx_recommendations_fetcher(
     path: str, *, params: dict[str, str], headers: dict[str, str], timeout: float
 ) -> tuple[int, dict[str, Any] | None]:
-    response = httpx.get(S2_RECOMMENDATIONS_BASE_URL + path, params=params, headers=headers, timeout=timeout)
+    response = bounded_get(
+        S2_RECOMMENDATIONS_BASE_URL + path,
+        max_bytes=METADATA_RESPONSE_CAP,
+        params=params,
+        headers=headers,
+        timeout=timeout,
+    )
     try:
         body = response.json()
     except ValueError:
