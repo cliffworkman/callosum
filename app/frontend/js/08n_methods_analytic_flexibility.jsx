@@ -59,16 +59,16 @@ function AnalyticFlexibilityPaper({ paperId, onOpenPaper, onFindingsChanged, fin
           </div>}
       {state.status === "running" && <ProgressBar label="Surfacing analytic decision points…" managedBy="tracked-request" />}
       {state.status === "error" && <div className="axis-err">Couldn't surface decision points: {state.error}</div>}
-      {state.status === "done" && state.result && state.result.methods_text_found === false &&
-        <div className="tag-suggest-empty">
-          No methods-section text was found to check — process a PDF first, or this paper's methods section
-          wasn't detected. That is not a claim the design has no analytic flexibility.
-        </div>}
-      {findings.length === 0 && state.status !== "running" &&
-        <div className="tag-suggest-empty">
-          No candidates surfaced yet. An empty list isn't a claim the design had no analytic flexibility — only
-          that nothing was proposed (or everything proposed has since been reviewed away) here.
-        </div>}
+      {state.status === "done" && state.result && state.result.methods_text_found === false
+        ? <div className="tag-suggest-empty">
+            No methods-section text was found to check — process a PDF first, or this paper's methods section
+            wasn't detected. That is not a claim the design has no analytic flexibility.
+          </div>
+        : findings.length === 0 && state.status !== "running" &&
+          <div className="tag-suggest-empty">
+            No candidates surfaced yet. An empty list isn't a claim the design had no analytic flexibility — only
+            that nothing was proposed (or everything proposed has since been reviewed away) here.
+          </div>}
       {findings.map(f => <FindingCard key={f.id} finding={f} onReviewed={load} onOpenPaper={onOpenPaper} />)}
     </div>
   );
