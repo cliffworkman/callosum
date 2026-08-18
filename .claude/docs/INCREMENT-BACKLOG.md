@@ -100,11 +100,16 @@ the Principles + A-A gates before build.)*
   - **Word/Docs P1 parity, in progress (scoping resumed 2026-08-18).** Both adapters store an `items` array
     per citation cluster but only ever populate one (grouped citations/locators not yet wired up — the exact
     LibreOffice-roadmap-doc gap, now confirmed present on both cross-editor adapters too); neither has
-    section-scoped bibliographies yet. Word-on-the-web needs the same authenticated-relay pattern Google Docs
-    already uses (currently desktop-only, a scoped limitation, not an unscoped gap). Google Docs Refresh
-    renumbers in insertion order, not true document order. **Immediate next step, not yet done:** verify the
-    Word add-in against a real Word install (it has never been exercised in real Word — only its pure JS
-    logic is unit-tested) before deciding the next concrete increment.
+    section-scoped bibliographies yet. Google Docs Refresh renumbers in insertion order, not true document
+    order (Word's own Refresh already scans true document order, confirmed — this is Docs-specific).
+  - **Word-on-the-web shipped inc 482 (SP4)** — the same task pane now runs through the existing cloudflared
+    relay Google Docs already uses (a real `AccessControlMiddleware` exemption-list bug was found and fixed
+    in the same increment; see `INCREMENT-482-NOTES.md` + `security-audits/2026-08-18_word-online-relay.md`).
+    **Not yet live-verified** — the maintainer doesn't have desktop Word installed yet; neither the existing
+    desktop SP1-3 flow nor the new SP4 relay flow has ever been exercised in real Word. **Immediate next
+    step, not yet done:** once Word is installed, run both — the desktop regression check first, then the
+    Word-on-the-web relay setup (`adapters/word/README.md`'s "Word on the web" section) — before deciding the
+    next concrete increment (grouped citations/locators is the natural next P1 item once verification lands).
   - AppSource / broader public distribution readiness (design with it in mind; do not build the actual
     submission/review process until there's a real reason to).
 - **#35 My Publications — Layer 4.** Deterministic Layer 4 is complete (`INCREMENT-BACKLOG-DONE.md`). **Still

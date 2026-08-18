@@ -46,6 +46,20 @@ def test_manifest_is_served_and_points_at_the_https_taskpane(client: TestClient)
     assert "ReadWriteDocument" in body
 
 
+def test_manifest_web_is_served_and_points_at_the_tunnel_taskpane(client: TestClient) -> None:
+    r = client.get("/integrations/word/manifest-web.xml")
+    assert r.status_code == 200
+    assert "application/xml" in r.headers["content-type"]
+    body = r.text
+    assert "https://callosum-tunnel.clffwrkmn.net/integrations/word/taskpane.html" in body
+    assert "e0dbec68-063a-49cc-a6c9-07f99850d9f1" in body  # a DIFFERENT GUID from the desktop manifest
+    assert "e0dbec68" not in body.replace("e0dbec68-063a-49cc-a6c9-07f99850d9f1", "")  # sanity: exactly one Id
+    assert "b7e8c1d2-4f3a-4b5c-9d6e-0a1b2c3d4e5f" not in body  # never the desktop manifest's identity
+    # the explanatory XML comment may mention localhost:8443 for contrast; no FUNCTIONAL element may reference it
+    assert 'DefaultValue="https://localhost:8443' not in body
+    assert "<AppDomain>https://localhost:8443</AppDomain>" not in body
+
+
 def test_unknown_file_is_404_not_a_traversal(client: TestClient) -> None:
     # No dynamic {filename} route exists (each file has its own route), so an undefined path is a plain 404 —
     # there is structurally no traversal surface.

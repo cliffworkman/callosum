@@ -116,3 +116,23 @@ test("formatSuggestRows: '[stance] Author Year · match — quote' keyed by pape
   ]);
   assert.deepStrictEqual(core.formatSuggestRows(null), []);
 });
+
+// ---- Word-on-the-web relay (SP4): local vs. tunneled origin + the Bearer token header ----
+test("isLocalOrigin: localhost/127.0.0.1 are local; a tunnel hostname is not", () => {
+  assert.strictEqual(core.isLocalOrigin("localhost"), true);
+  assert.strictEqual(core.isLocalOrigin("127.0.0.1"), true);
+  assert.strictEqual(core.isLocalOrigin("callosum-tunnel.clffwrkmn.net"), false);
+  assert.strictEqual(core.isLocalOrigin(""), false);
+  assert.strictEqual(core.isLocalOrigin(null), false);
+});
+
+test("authHeaders: attaches Bearer only when a token is given; never mutates the input; existing headers survive", () => {
+  const base = { "Content-Type": "application/json" };
+  const withToken = core.authHeaders(base, "secret123");
+  assert.deepStrictEqual(withToken, { "Content-Type": "application/json", Authorization: "Bearer secret123" });
+  assert.deepStrictEqual(base, { "Content-Type": "application/json" }); // input untouched
+
+  assert.deepStrictEqual(core.authHeaders(base, null), { "Content-Type": "application/json" });
+  assert.deepStrictEqual(core.authHeaders(base, ""), { "Content-Type": "application/json" });
+  assert.deepStrictEqual(core.authHeaders(undefined, "tok"), { Authorization: "Bearer tok" });
+});

@@ -12,6 +12,12 @@
 <body>
   <div id="app" style="display:none">
     <h1>Callosum citations</h1>
+    <div id="tunnel" class="tunnel" style="display:none">
+      <label class="field">Access token (Settings → Remote access, on your machine)
+        <input id="tunnelToken" type="password" placeholder="Paste your access token…" autocomplete="off" aria-label="Callosum access token"/>
+      </label>
+      <button id="tunnelSave" type="button" class="secondary">Save token</button>
+    </div>
     <label class="field">Citation style
       <select id="style" aria-label="Citation style"></select>
     </label>

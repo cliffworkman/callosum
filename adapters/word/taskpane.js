@@ -1,8 +1,18 @@
 /*
- * Callosum Word add-in — the thin Office.js glue (inc 166, SP3: parity — suggest / style-switch / flatten).
+ * Callosum Word add-in — the thin Office.js glue (inc 166, SP3: parity — suggest / style-switch / flatten;
+ * SP4: Word-on-the-web relay).
  *
- * Architecture A: this page is served by callosum over HTTPS (https://localhost:8443), so every fetch is a
- * SAME-ORIGIN call to the local API — nothing leaves the machine. The add-in is a thin field-placer:
+ * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
+ * is a SAME-ORIGIN call to the local API — nothing leaves the machine, no token needed.
+ * Architecture B (Word-on-the-web, SP4): Word Online can't reach localhost at all, so this same page is instead
+ * loaded through callosum's existing cloudflared cite-only tunnel (adapters/googledocs/cloudflared-config.yml,
+ * extended to also relay these task-pane files) at a public hostname. Every fetch is still same-origin (relative
+ * paths — no separate "server URL" setting, unlike the Google Docs add-on, which runs in a genuinely different
+ * origin) but now needs the Remote-access Bearer token, since the tunnel forwards to callosum with that gate on.
+ * `CallosumCore.isLocalOrigin(location.hostname)` decides which mode this load is; `authToken()` reads/prompts
+ * for the token only in tunnel mode, and every fetch below is wrapped with `CallosumCore.authHeaders(...)`.
+ *
+ * The add-in is a thin field-placer:
  *   • Insert  — fetch the picked paper's CSL-JSON (/papers/export), wrap a Content Control whose .tag carries it,
  *               at the END of the selection (so Suggest inserts AFTER the sentence), then Refresh.
  *   • Suggest — read the sentence (selection, else the paragraph), POST /citations/suggest → ranked candidates
@@ -20,7 +30,20 @@
 (function () {
   "use strict";
 
+  var TOKEN_KEY = "callosum.accessToken"; // same key name the main app's fetch shim uses (00_lib.jsx) — a
+  // different key per browser origin regardless (localStorage is origin-scoped), so no collision risk; kept
+  // for naming consistency only.
+  var isTunneled = !CallosumCore.isLocalOrigin(window.location.hostname);
+
   function $(id) { return document.getElementById(id); }
+  function authToken() {
+    return isTunneled ? (window.localStorage.getItem(TOKEN_KEY) || "") : "";
+  }
+  // Wraps `fetch` with the Bearer header when this page loaded through the tunnel; a no-op on desktop.
+  function callosumFetch(url, opts) {
+    var o = opts || {};
+    return fetch(url, Object.assign({}, o, { headers: CallosumCore.authHeaders(o.headers, authToken()) }));
+  }
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -49,7 +72,7 @@
 
   async function loadStyles() {
     try {
-      var r = await fetch("/citations/styles");
+      var r = await callosumFetch("/citations/styles");
       if (!r.ok) return;
       var data = await r.json();
       var sel = $("style");
@@ -69,7 +92,7 @@
     var q = $("q").value.trim();
     if (!q) { $("results").innerHTML = ""; return; }
     try {
-      var r = await fetch("/papers?q=" + encodeURIComponent(q) + "&limit=20");
+      var r = await callosumFetch("/papers?q=" + encodeURIComponent(q) + "&limit=20");
       if (!r.ok) throw new Error("search failed (" + r.status + ")");
       renderRows("results", CallosumCore.formatSearchRows(await r.json()), "No matches in your library.");
     } catch (e) {
@@ -92,7 +115,7 @@
         queryText = CallosumCore.pickQueryText(sel.text, para.text);
       });
       if (!queryText) { setStatus("Place your cursor in a sentence first.", true); return; }
-      var r = await fetch("/citations/suggest", {
+      var r = await callosumFetch("/citations/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(CallosumCore.buildSuggestRequest(queryText, 8)),
@@ -111,7 +134,7 @@
   async function insertCitation(paperId) {
     setStatus("Inserting…");
     try {
-      var r = await fetch("/papers/export", {
+      var r = await callosumFetch("/papers/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paper_ids: [paperId], format: "csl-json" }),
@@ -155,7 +178,7 @@
         });
         if (itemsList.length === 0) { setStatus("No Callosum citations in this document yet."); return; }
 
-        var resp = await fetch("/citations/render-document", {
+        var resp = await callosumFetch("/citations/render-document", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(CallosumCore.buildDocumentRequest(itemsList, currentStyle(), "en-US")),
@@ -238,6 +261,20 @@
     if (btn) insertCitation(Number(btn.getAttribute("data-id")));
   }
 
+  // Word-on-the-web only (SP4): show the token field, pre-filled if one is already saved from a prior visit to
+  // this same origin (localStorage is origin-scoped, so a token saved here never reaches the desktop origin
+  // or vice versa). Desktop never shows this section at all — it needs no token.
+  function initTunnelSection() {
+    if (!isTunneled) return;
+    $("tunnel").style.display = "block";
+    $("tunnelToken").value = authToken();
+  }
+  function saveToken() {
+    var val = $("tunnelToken").value.trim();
+    window.localStorage.setItem(TOKEN_KEY, val);
+    setStatus(val ? "Access token saved." : "Access token cleared.");
+  }
+
   function wire() {
     $("q").addEventListener("input", debounce(search, 250));
     $("results").addEventListener("click", onPick);
@@ -246,15 +283,17 @@
     $("refresh").addEventListener("click", function () { refreshDocument(); });
     $("flatten").addEventListener("click", onFlatten);
     $("style").addEventListener("change", onStyleChange);
+    if (isTunneled) $("tunnelSave").addEventListener("click", saveToken);
   }
 
   Office.onReady(function (info) {
     if (info.host === Office.HostType.Word) {
       $("app").style.display = "block";
       wire();
+      initTunnelSection();
       loadStyles();
     } else {
-      $("status").textContent = "Open this add-in in Microsoft Word (desktop).";
+      $("status").textContent = "Open this add-in in Microsoft Word (desktop or Word on the web).";
     }
   });
 })();

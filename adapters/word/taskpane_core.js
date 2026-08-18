@@ -8,6 +8,11 @@
  * SP2 (inc 165): each citation is a Word **Content Control** whose `.tag` carries the cited cluster's CSL-JSON
  * (base64), like the Zotero/LibreOffice embedded-CSL-JSON pattern. A Refresh scans those controls in document
  * order, POSTs them to /citations/render-document, and writes back the position-aware in-text + bibliography.
+ *
+ * SP4: Word-on-the-web relay. Desktop Word loads this page same-origin from callosum (no token needed); Word
+ * Online instead loads it through the existing cloudflared cite-only tunnel (a different origin), which is
+ * gated by callosum's Remote-access bearer token. `isLocalOrigin`/`authHeaders` decide, from `location.hostname`
+ * alone, whether a fetch needs that header -- desktop behavior is unchanged either way.
  */
 (function (root) {
   var CITATION_PREFIX = "CALLOSUM_CITATION"; // content-control tag prefix for a citation cluster
@@ -112,6 +117,21 @@
     }).filter(function (r) { return r.id != null; });
   }
 
+  // ---- Word-on-the-web relay (SP4) ----
+  // The task pane is served same-origin from callosum on desktop (localhost/127.0.0.1) -- no token needed, the
+  // browser/webview never leaves the machine. Word-on-the-web loads the SAME task pane through the cloudflared
+  // relay instead (a different origin entirely), which callosum's existing Remote-access bearer token gates.
+  function isLocalOrigin(hostname) {
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  }
+  // Merges an Authorization: Bearer header into `headers` only when `token` is truthy -- never mutates the
+  // input object (the caller may reuse it), and passes non-tunnel (local, no token) calls through unchanged.
+  function authHeaders(headers, token) {
+    var h = Object.assign({}, headers || {});
+    if (token) h.Authorization = "Bearer " + token;
+    return h;
+  }
+
   var api = {
     CITATION_PREFIX: CITATION_PREFIX,
     BIB_TAG: BIB_TAG,
@@ -127,6 +147,8 @@
     pickQueryText: pickQueryText,
     buildSuggestRequest: buildSuggestRequest,
     formatSuggestRows: formatSuggestRows,
+    isLocalOrigin: isLocalOrigin,
+    authHeaders: authHeaders,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.CallosumCore = api;

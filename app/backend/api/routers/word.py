@@ -5,6 +5,13 @@ local library with **no egress and no CORS change**. Desktop Word only (an Offic
 ``http://localhost`` and Word-on-the-web can't reach localhost at all). The add-in reuses the existing cite
 contracts (``/papers``, ``/citations/render``); these routes only serve the static task-pane files + the manifest.
 
+**SP4 — Word on the web**: since Word-on-the-web genuinely cannot reach ``localhost``, ``manifest-web.xml`` points
+the SAME task-pane files instead at callosum's existing cloudflared cite-only relay (the one the Google Docs
+add-on already uses, ``adapters/googledocs/cloudflared-config.yml``, extended to also forward the 5 task-pane
+GET routes). The task-pane JS (``taskpane.js``) detects which origin it loaded from and, only when tunneled,
+attaches the Remote-access Bearer token to every fetch -- these routes themselves are unchanged either way,
+since they still just serve fixed local files.
+
 Local-only: every route serves a **fixed** bundled file from ``adapters/word/`` via an explicit per-filename route
 (no request-derived path → no traversal). office.js loads from Microsoft's CDN (the Office platform SDK), not from
 callosum — no library egress. **Gate before any hosted deployment** (same posture as the libreoffice/scan routes).
@@ -86,6 +93,16 @@ def word_manifest() -> FileResponse:
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(path, media_type="application/xml", filename="callosum-word-manifest.xml")
+
+
+@router.get("/integrations/word/manifest-web.xml")
+def word_manifest_web() -> FileResponse:
+    # SP4: the Word-on-the-web variant, pointed at the cloudflared relay instead of localhost:8443. Fixed
+    # bundled file, same allowlist-of-one shape as word_manifest above -- no request-derived path.
+    path = WORD_DIR / "manifest.web.xml"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path, media_type="application/xml", filename="callosum-word-manifest-web.xml")
 
 
 class InstallResult(BaseModel):

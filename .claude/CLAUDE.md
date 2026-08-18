@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 481** (see Increment workflow) with **2315 root-suite pytest tests
+It is currently at **Increment 482** (see Increment workflow) with **2320 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -453,17 +453,31 @@ the full per-increment narrative for all other increments now lives in the reloc
   the first Checklists-adjacent surfaces with **no headless host to test against** — only the pure
   request/response logic (`taskpane_core.js` / `gdocs_core.js`) is unit-tested (`node --test`); the in-host
   behavior ships best-effort-correct per each platform's own docs and is explicitly flagged untested until
-  run for real. **Genuinely still open** (mirroring the LibreOffice adapter's own P0→P1 arc): grouped
-  citations/locators (both already store an `items` array per citation cluster but only ever populate one —
-  the same "anticipated but not wired up" gap the LibreOffice roadmap doc found there first), section-scoped
-  bibliographies, Word-on-the-web (needs the same authenticated-relay pattern Google Docs already uses — a
-  desktop-only limitation today, not an unscoped one), and true document-order citation scanning on the
-  Google Docs side (Refresh currently renumbers in insertion order). Security audits:
-  `2026-06-27_word-addin.md`, `2026-06-28_googledocs-tunnel.md`, `2026-06-28_googledocs-addon.md` (all PASS;
-  the tunnel audit is the binding one for `2026-06-27_remote-access-auth.md`'s token-gate reuse). **This paragraph itself closes a
-  real documentation gap** (found 2026-08-18): both adapters shipped fully but were never added here or to
-  `INCREMENT-BACKLOG-DONE.md`, so `INCREMENT-BACKLOG.md`'s #33/#34 entry incorrectly told sessions this work
-  "hadn't started" and "needs its own scoping session" — corrected in the same pass as this paragraph.
+  run for real. **Inc 482 (SP4) closes the desktop-only gap**: the Word add-in's task pane now also runs in
+  **Word on the web**, riding the SAME cloudflared relay Google Docs already uses (`cloudflared-config.yml`
+  extended with one more ingress rule forwarding the 5 task-pane GET files, never the manifest routes — those
+  are downloaded locally, Office never fetches them over the tunnel) rather than a new transport. A second
+  manifest variant (`manifest.web.xml`, its own distinct GUID) points at the tunnel hostname instead of
+  `localhost:8443`; the task-pane JS (`isLocalOrigin`/`authHeaders`, both unit-tested) detects which origin
+  it loaded from and only attaches the Remote-access Bearer token when tunneled — desktop is provably
+  unchanged either way. **A real bug was found and fixed in the same increment, caught by a negative-path
+  test written before the fix, not discovered live**: `AccessControlMiddleware`'s exemption list didn't
+  cover the task-pane's own static files, and Office's fetch of those (a plain resource load, not a
+  header-carrying `fetch()`) can never carry a token — meaning Word-on-the-web could never have loaded the
+  task pane at all until the 5 fixed files joined the exemption list (same "carries no library data"
+  rationale the pre-existing `/` shell exemption already used); every real API endpoint stays fully gated,
+  confirmed by an explicit same-test assertion. **Genuinely still open** (mirroring the LibreOffice
+  adapter's own P0→P1 arc): grouped citations/locators (both already store an `items` array per citation
+  cluster but only ever populate one — the same "anticipated but not wired up" gap the LibreOffice roadmap
+  doc found there first), section-scoped bibliographies, and true document-order citation scanning on the
+  Google Docs side (Refresh currently renumbers in insertion order — Word's own Refresh already scans in
+  true document order, unrelated to SP4, confirmed against `taskpane.js`'s pre-existing SP2 comments).
+  Security audits: `2026-06-27_word-addin.md`, `2026-06-28_googledocs-tunnel.md`,
+  `2026-06-28_googledocs-addon.md`, `2026-08-18_word-online-relay.md` (all PASS; the tunnel audit is the
+  binding one for `2026-06-27_remote-access-auth.md`'s token-gate reuse, and inc 482's own audit for
+  `access_control.py`'s exemption-list fix). **Not yet live-verified in real Word or Word-on-the-web** — the
+  maintainer doesn't have desktop Word installed as of inc 482; see `INCREMENT-482-NOTES.md`'s manual
+  verification script.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,

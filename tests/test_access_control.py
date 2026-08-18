@@ -60,6 +60,24 @@ def test_gate_on_exempts_health_and_shell(temp_db_url: str) -> None:
     assert client.get("/").status_code == 200  # the static shell carries no library data
 
 
+def test_gate_on_exempts_word_taskpane_assets_but_not_the_api(temp_db_url: str) -> None:
+    # SP4: Word-on-the-web loads these 5 files via a plain resource fetch Office itself issues (script src /
+    # link href / the top-level SourceLocation navigation) -- it can never carry a custom Authorization header,
+    # so the task-pane assets must stay reachable even with the gate on (same "no library data" rationale as
+    # the static shell). The cite API these files eventually call from their OWN JS `fetch()` (which DOES attach
+    # the token, see taskpane.js) stays gated -- only the 5 fixed files are exempt, nothing else under the path.
+    _enable_remote()
+    client = TestClient(create_app(db_url=temp_db_url))
+    for name in ("taskpane.html", "taskpane.js", "taskpane_core.js", "taskpane.css", "icon.png"):
+        assert client.get(f"/integrations/word/{name}").status_code == 200, name
+    # the API these assets call is still gated -- exempting the shell doesn't leak into the data surface
+    assert client.get("/papers").status_code == 401
+    # the manifest routes are NOT in this exemption (the user downloads them directly, never through the
+    # tunnel -- see cloudflared-config.yml's own comment) -- confirms the exemption is exactly the 5 files
+    assert client.get("/integrations/word/manifest.xml").status_code == 401
+    assert client.get("/integrations/word/manifest-web.xml").status_code == 401
+
+
 def test_disable_env_hatch_forces_off(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
     _enable_remote()
     monkeypatch.setenv("CALLOSUM_DISABLE_REMOTE_ACCESS", "1")  # local recovery hatch

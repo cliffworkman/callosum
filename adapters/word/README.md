@@ -1,20 +1,23 @@
-# callosum — Microsoft Word add-in (Office.js), SP1
+# callosum — Microsoft Word add-in (Office.js)
 
 Cite while you write in **desktop Microsoft Word** (Windows/Mac), backed by your local callosum library. Like the
 LibreOffice adapter, this is a thin *field-placer* — it never formats citations itself; it searches your library
 and inserts what callosum's citation engine renders. **Everything stays on your machine** (see *How it works*).
 
-> **SP3 (this version)** completes Word parity: **search → insert a live citation**, **Suggest** citations from the
+> **SP3** completed desktop Word parity: **search → insert a live citation**, **Suggest** citations from the
 > sentence you're writing (relevance-from-the-sentence, with stance + a quote), **Refresh** (re-render + renumber
 > every citation in document order + rebuild the bibliography), a **one-click whole-document style switch** (the
 > style dropdown re-renders everything + is remembered per document), and **Flatten** (live → static text). Built
 > on `/papers/export`, `/citations/render-document`, `/citations/suggest`, `/citations/styles` — all local.
+> **SP4** adds **Word on the web** (see below) — the identical task pane, reached through the same relay tunnel
+> the Google Docs add-on already uses, since Word-on-the-web can't reach your machine directly.
 
 ## Why the setup is different from LibreOffice
 A Word add-in is a **web page** that runs inside Word, and Office requires it to be served over **HTTPS** — it
-**cannot reach `http://localhost`**. So callosum serves the add-in over HTTPS *on your machine*, same-origin with
-its API: nothing leaves your computer, but you trust a local certificate once. **Desktop Word only** —
-Word-on-the-web runs in a cloud sandbox that can't reach your local library (that needs the future relay).
+**cannot reach `http://localhost`**. On **desktop**, callosum serves the add-in over HTTPS *on your machine*,
+same-origin with its API: nothing leaves your computer, but you trust a local certificate once. **Word-on-the-web
+runs in Microsoft's cloud and can't reach your machine at all** — that's what the relay in "Word on the web"
+below is for (the same tunnel `adapters/googledocs/` already uses, just relaying more than one add-in's assets).
 
 ## One-time setup
 1. **Trust a local certificate** (so Word accepts `https://localhost`):
@@ -71,10 +74,36 @@ The live-field / embedded-CSL-JSON cite design follows the **Zotero `CSL_CITATIO
 *pattern*, not code). callosum's rendering is built on **citeproc-js** + the **CSL** project — see the project's
 `THIRD-PARTY-NOTICES.md`. **office.js** is Microsoft's Office Add-ins SDK.
 
-## Limitations (SP3)
+## Word on the web (SP4)
+
+Word-on-the-web runs in Microsoft's cloud and can never reach `https://localhost:8443` — the desktop setup above
+doesn't apply. Instead, this same task pane rides the **same cloudflared relay the Google Docs add-on already
+uses** (`adapters/googledocs/`), extended to also forward the task-pane's own static files (Office itself has to
+fetch those from somewhere reachable, since Word-on-the-web can't load them from your machine).
+
+**One-time setup** (skip if you've already done this for Google Docs — it's the same tunnel):
+1. Follow `adapters/googledocs/README.md`'s tunnel setup (the Quick Tunnel mode works too, but the URL changes
+   every restart — a **named tunnel** is worth it if you'll use this regularly). You already need this for the
+   Google Docs add-on to work, so if that's set up, you're done with this step.
+2. **callosum:** Settings → **Remote access** → turn it **ON**, copy the access token.
+3. **Sideload the web manifest:** Settings → Microsoft Word add-in (web) → **Download web manifest**, then in
+   Word on the web: the ribbon's **Add-ins** → **Upload My Add-in** → pick the downloaded
+   `callosum-word-manifest-web.xml`.
+4. **Connect:** open the task pane (**Home → Callosum → Show Citations**) — since it's now loading from the
+   tunnel's own address, a small **Access token** field appears at the top. Paste your token → **Save token**.
+   (Saved per-browser via `localStorage`, scoped to the tunnel's own origin — separate from anything you've
+   entered for the main app or the Google Docs add-on.)
+
+Everything else — search/insert, Suggest, Refresh (true document-order scanning, unchanged from desktop), style
+switch, Flatten — works identically to desktop; every fetch just carries the Bearer token automatically once
+saved. The task-pane files themselves (HTML/JS/CSS/icon) carry no library data, so relaying them through the
+tunnel needs no token — only your `/papers`, `/citations/*` calls do, exactly like the Google Docs add-on.
+
+## Limitations
 One work per citation (no grouped cites / page-locators yet); the bibliography lives at the document end; Suggest
-covers papers **already in your library** (beyond-library discovery is a separate track); **desktop Word only**;
-requires the HTTPS run-mode + the trusted dev cert. Word-on-the-web + Google Docs ride a future authenticated relay.
+covers papers **already in your library** (beyond-library discovery is a separate track); desktop requires the
+HTTPS run-mode + the trusted dev cert. Word-on-the-web needs the relay above; Google Docs has its own adapter
+(`adapters/googledocs/`).
 
 > **Verification note:** there is no headless Word, so the in-Word behavior of the Office.js parts
 > (`taskpane.js`) is **not exercised by an automated test** (nor, currently, by the maintainer — it ships

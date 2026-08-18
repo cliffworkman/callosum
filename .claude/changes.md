@@ -9,6 +9,30 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-18 — Increment 482: Word-on-the-web relay (backlog #33/#34, SP4)
+- **Files:** `adapters/word/taskpane_core.js`, `taskpane.js`, `taskpane.html`, `taskpane.css`,
+  `manifest.web.xml` (new), `taskpane_core.test.js`; `app/backend/api/routers/word.py`;
+  `app/backend/api/access_control.py`; `adapters/googledocs/cloudflared-config.yml`;
+  `app/frontend/js/35_settings.jsx`; `adapters/word/README.md`; `tests/test_word_addin.py`,
+  `tests/test_access_control.py`; `.claude/security-audits/2026-08-18_word-online-relay.md` (new);
+  `.claude/docs/increment-notes/INCREMENT-482-NOTES.md` (new); `.claude/CLAUDE.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`.
+- **What:** the existing Word add-in's task pane (SP1-3, incs 164-166) now also runs in Word on the web, riding
+  the same cloudflared cite-only relay the Google Docs add-on already uses instead of a new transport — a second
+  manifest variant points at the tunnel hostname, and the task-pane JS attaches the Remote-access Bearer token
+  only when it detects it loaded from that (non-local) origin. Found and fixed a real bug in the same increment:
+  `AccessControlMiddleware`'s exemption list didn't cover the task-pane's own static files, which Office fetches
+  as a plain resource load that can never carry a token — Word-on-the-web could never have loaded the task pane
+  at all until the fix (caught by a negative-path test written before the fix, not discovered live). Also
+  corrected an unrelated pre-existing README error (Word's Refresh already scans true document order; the
+  "insertion order" limitation is Google Docs' own, not Word's).
+- **Why:** the maintainer's lab primarily uses Word, and Word is currently only reachable via the web version
+  (desktop install pending) — this closes that gap using already-audited infrastructure rather than building a
+  new one, following the same "reuse the Google Docs relay" design agreed on before implementation.
+- **Revert:** `git revert` the increment; no schema/migration involved. The `_EXEMPT_PATHS` addition in
+  `access_control.py` is the one line worth reviewing carefully on revert, since it's a security boundary — the
+  other 4/5 of this increment is purely additive (new file, new route, new ingress rule).
+
 ## 2026-08-18 — Documentation-drift fix: Word/Google Docs adapters were never marked done
 - **Files:** `.claude/CLAUDE.md`, `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/docs/INCREMENT-BACKLOG-DONE.md`.
 - **What:** during Word/Docs-parity scoping, found both the Microsoft Word add-in (`adapters/word/`, SP1-3,

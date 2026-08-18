@@ -1,9 +1,14 @@
 # Callosum — cloudflared named-tunnel config for callosum-tunnel.clffwrkmn.net (inc 169, Google Docs SP1).
+# SHARED INFRASTRUCTURE (SP4): the same tunnel also relays the Microsoft Word-on-the-web task pane
+# (adapters/word/, manifest.web.xml) — one hostname, two consumers, both bearer-token-gated by callosum itself.
 #
-# CITE-ONLY ingress: forward ONLY the citation endpoints the Google Docs add-on uses to local callosum; everything
-# else → 404. This is the tunnel-side boundary (the bearer token from Settings → Remote access is callosum's
-# boundary). The allowlist is what keeps the app shell, /settings, the scan routes, and /papers/{id} edit/delete
-# UNREACHABLE through the tunnel — even though they exist locally.
+# CITE-ONLY + TASK-PANE-ONLY ingress: forward ONLY the citation endpoints (Google Docs, Word) and the Word
+# task-pane's own static files (Word-on-the-web needs Office itself to fetch these — they carry no library data,
+# just fixed HTML/JS/CSS/icon, matching word.py's own local no-egress posture) to local callosum; everything else
+# → 404. This is the tunnel-side boundary (the bearer token from Settings → Remote access is callosum's own
+# boundary, required on every /papers*, /citations/* request — the task-pane files need no token, they're static
+# assets Office loads before any user interaction). The allowlist is what keeps the app shell, /settings, the
+# scan routes, and /papers/{id} edit/delete UNREACHABLE through the tunnel — even though they exist locally.
 #
 # Fill in <TUNNEL_ID> + the credentials path from `cloudflared tunnel create callosum` (see README.md). On Windows
 # the credentials file is typically C:\Users\<you>\.cloudflared\<TUNNEL_ID>.json.
@@ -16,6 +21,12 @@ ingress:
   # GET /citations/styles. Query strings (e.g. /papers?q=) are not part of the path match.
   - hostname: callosum-tunnel.clffwrkmn.net
     path: ^/(papers|papers/export|citations/render-document|citations/suggest|citations/styles)$
+    service: http://localhost:8080
+  # Word-on-the-web task-pane assets ONLY (never manifest.xml/manifest-web.xml themselves — those are downloaded
+  # directly from the user's own local callosum, never fetched through the tunnel; only Office's own fetch of
+  # the task pane + its JS/CSS/icon needs this).
+  - hostname: callosum-tunnel.clffwrkmn.net
+    path: ^/integrations/word/(taskpane\.html|taskpane\.js|taskpane_core\.js|taskpane\.css|icon\.png)$
     service: http://localhost:8080
   # everything else on the hostname → 404 (the app shell, /settings, scan routes, /papers/{id} edit/delete, …)
   - hostname: callosum-tunnel.clffwrkmn.net

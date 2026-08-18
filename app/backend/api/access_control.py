@@ -1,10 +1,16 @@
 """Remote-access gate (inc 168): a bearer-token requirement + rate-limiting, OFF by default.
 
 When the user enables **Remote access** (Settings) — so callosum can be reached via a cloudflared tunnel for the
-Google Docs add-on — every request must carry a valid ``Authorization: Bearer <token>``, EXCEPT ``GET /health``
-(liveness) and the static app shell (``GET /``, which carries no library data). cloudflared forwards to
-``localhost``, so the app **cannot** tell a tunnel request from the local browser (both are loopback, and the
-``Host`` header is attacker-controllable) — therefore the token is the **only** safe boundary, applied uniformly.
+Google Docs add-on and, since SP4, the Word-on-the-web relay — every request must carry a valid
+``Authorization: Bearer <token>``, EXCEPT ``GET /health`` (liveness), the static app shell (``GET /``, which
+carries no library data), and the 5 fixed Word task-pane asset files (SP4, ``/integrations/word/{taskpane.html,
+taskpane.js, taskpane_core.js, taskpane.css, icon.png}`` — Office issues a PLAIN resource fetch for these
+[the top-level ``SourceLocation`` navigation, then ``<script src>``/``<link href>`` inside that HTML], which can
+never carry a custom header, so they need the same "carries no library data" exemption as the shell; the manifest
+routes are deliberately NOT exempt, since a user downloads those directly from their own local callosum and they
+never need to cross the tunnel). cloudflared forwards to ``localhost``, so the app **cannot** tell a tunnel
+request from the local browser (both are loopback, and the ``Host`` header is attacker-controllable) — therefore
+the token is the **only** safe boundary for everything else, applied uniformly.
 
 When remote access is OFF (the default), the middleware is a pure pass-through: **zero change** for localhost-only
 users (and the whole existing test suite). The flag + token are read fresh per request from ``app_settings`` so the
@@ -30,7 +36,21 @@ from app.backend import app_settings
 # `/oauth/callback` (SP1) is a browser navigation back from the sign-in provider, so it carries no Authorization
 # header (the inc-172 navigation gotcha); it carries only an opaque code+state validated against the stored PKCE
 # verifier (app/backend/api/auth/router.py), so exempting it is safe.
-_EXEMPT_PATHS = frozenset({"/", "/health", "/oauth/callback"})
+# The 5 Word task-pane files (SP4) are fixed, request-input-free static assets (app/backend/api/routers/word.py's
+# own per-filename-route allowlist) Office fetches as a plain resource load, never a header-carrying `fetch()` —
+# same rationale as the shell. Never add a route here that reads request data or the library.
+_EXEMPT_PATHS = frozenset(
+    {
+        "/",
+        "/health",
+        "/oauth/callback",
+        "/integrations/word/taskpane.html",
+        "/integrations/word/taskpane.js",
+        "/integrations/word/taskpane_core.js",
+        "/integrations/word/taskpane.css",
+        "/integrations/word/icon.png",
+    }
+)
 
 # inc 254: the lockout-recovery endpoint is reachable WITHOUT a token (the user is locked out and can't supply
 # one), but — unlike the static-shell exemptions above — it is RATE-LIMITED, and local-machine possession (a

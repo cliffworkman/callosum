@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Callosum — Microsoft Word add-in manifest, Word-on-the-web variant (Office.js, add-in-only XML manifest; SP4).
+  Word Online runs in Microsoft's cloud and cannot reach https://localhost:8443 (the desktop manifest.xml's
+  SourceLocation) at all, so this variant instead points at callosum's existing cloudflared cite-only tunnel
+  (adapters/googledocs/cloudflared-config.yml, extended to also relay the task-pane files — same tunnel the
+  Google Docs add-on already uses). Requires Settings -> Remote access ON + the tunnel running; every task-pane
+  fetch carries the Remote-access Bearer token (see taskpane.js). A DIFFERENT app Id from manifest.xml on
+  purpose, so both can be sideloaded side by side (e.g. testing the tunneled path from desktop Word) without
+  Word treating them as the same add-in. Setup: see adapters/word/README.md's "Word on the web" section.
+
+  <TUNNEL_HOSTNAME> below is a reference value (this maintainer's own Cloudflare hostname, matching the
+  committed adapters/googledocs/cloudflared-config.yml) — replace every occurrence with your own tunnel's
+  hostname if it differs.
+-->
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+  xsi:type="TaskPaneApp">
+  <Id>e0dbec68-063a-49cc-a6c9-07f99850d9f1</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Callosum</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Callosum Citations (web)"/>
+  <Description DefaultValue="Cite while you write in Word on the web, backed by your local Callosum library via the Remote-access relay."/>
+  <IconUrl DefaultValue="https://callosum-tunnel.clffwrkmn.net/integrations/word/icon.png"/>
+  <HighResolutionIconUrl DefaultValue="https://callosum-tunnel.clffwrkmn.net/integrations/word/icon.png"/>
+  <SupportUrl DefaultValue="https://github.com/cliffworkman/callosum"/>
+  <AppDomains>
+    <AppDomain>https://callosum-tunnel.clffwrkmn.net</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Document"/>
+  </Hosts>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://callosum-tunnel.clffwrkmn.net/integrations/word/taskpane.html"/>
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Document">
+        <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="GetStarted.Title"/>
+            <Description resid="GetStarted.Description"/>
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl"/>
+          </GetStarted>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <OfficeTab id="TabHome">
+              <Group id="Callosum.Group">
+                <Label resid="Callosum.Group.Label"/>
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16"/>
+                  <bt:Image size="32" resid="Icon.32"/>
+                  <bt:Image size="80" resid="Icon.80"/>
+                </Icon>
+                <Control xsi:type="Button" id="Callosum.ShowTaskpane">
+                  <Label resid="Callosum.Button.Label"/>
+                  <Supertip>
+                    <Title resid="Callosum.Button.Label"/>
+                    <Description resid="Callosum.Button.Tip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16"/>
+                    <bt:Image size="32" resid="Icon.32"/>
+                    <bt:Image size="80" resid="Icon.80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>Callosum.Taskpane</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url"/>
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.16" DefaultValue="https://callosum-tunnel.clffwrkmn.net/integrations/word/icon.png"/>
+        <bt:Image id="Icon.32" DefaultValue="https://callosum-tunnel.clffwrkmn.net/integrations/word/icon.png"/>
+        <bt:Image id="Icon.80" DefaultValue="https://callosum-tunnel.clffwrkmn.net/integrations/word/icon.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://callosum-tunnel.clffwrkmn.net/integrations/word/taskpane.html"/>
+        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://github.com/cliffworkman/callosum"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GetStarted.Title" DefaultValue="Callosum Citations"/>
+        <bt:String id="Callosum.Group.Label" DefaultValue="Callosum"/>
+        <bt:String id="Callosum.Button.Label" DefaultValue="Show Citations"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="GetStarted.Description" DefaultValue="Search your Callosum library and insert a citation. Requires Remote access (Settings) turned on and your tunnel running."/>
+        <bt:String id="Callosum.Button.Tip" DefaultValue="Search your Callosum library and insert a citation at the cursor."/>
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>
