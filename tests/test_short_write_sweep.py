@@ -21,6 +21,7 @@ ALLOWED_RAW_COMMITS = {
     "summaries.py": 1,  # summary reverify — local retrieval + NLI + quote-location over the library
     "critical_review.py": 1,  # candidate generate — NLI verification of AI drafts (egress-gated)
     "workbench.py": 1,  # propose_row — the LLM assisted-extraction proposal (egress)
+    "analytic_flexibility.py": 1,  # propose_analytic_flexibility — the LLM candidate-proposal call (egress)
     # I/O-mixed — a retry could double-fire an external fetch or a secret write.
     "paper_enrich.py": 2,  # re-resolve + fill-metadata FORCE a fresh Crossref/OpenAlex fetch (double-egress on retry)
     "agent.py": 2,  # agent_save_reference resolves a DOI via Crossref, caching through the request connection

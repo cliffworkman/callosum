@@ -9,6 +9,38 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-17 — Increment 481: analytic-flexibility surfacing (backlog #37)
+- **Files:** `app/backend/pdf_processing/quote_matching.py` (`anchor_quote`, new),
+  `integrations/gemini/analytic_flexibility_assistant.py` (new), `app/backend/citations/section_scope.py`
+  (`paper_methods_text`, new), `app/backend/wip/analytic_flexibility_text.py` (new, `wip_methods_text`),
+  `app/backend/analytic_flexibility.py` (new), `app/backend/api/routers/analytic_flexibility.py` (new),
+  `app/backend/api/routers/wip_checks.py`, `app/backend/api/routers/findings.py` (additive `?source=` param),
+  `app/backend/api/app.py`, `app/backend/persistence/findings_repo.py`, `app/backend/persistence/
+  wip_checks_repo.py`, `app/frontend/js/08n_methods_analytic_flexibility.jsx` (new),
+  `app/frontend/js/10k_wip_checks.jsx`, `app/frontend/js/08x_methods_critical.jsx` (FindingCard anchor-precision
+  fix), `app/frontend/js/04c_status.jsx`, `.claude/qa-routes/route_92_analytic_flexibility.md` (new),
+  `.claude/security-audits/2026-08-17_analytic-flexibility-surfacing.md` (new),
+  `.claude/docs/increment-notes/INCREMENT-481-NOTES.md` (new), `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/INCREMENT-BACKLOG-DONE.md`, plus the corresponding new/updated `tests/test_*.py` files;
+  `tests/test_short_write_sweep.py` (allowlist entry for `analytic_flexibility.py`'s deliberate raw commit) and
+  `demo/wip-state-v1.json` (regenerated snapshot picking up the new WIP tool-registry entry) — both fixed
+  during Task 12's full-suite verification, real regressions this plan's own targeted tests didn't exercise.
+- **What:** the 5th Checklists-family tool (Library Methods → Checklists + the WIP Checks tab) and the first
+  LLM-assisted one: an egress-gated model proposes candidate analytic-flexibility decision points — exclusion
+  criteria, covariate/control choices, test/model selection, outcome/measure choice, other reported branch
+  points, a closed 5-value taxonomy with no coercion — from a paper's or manuscript's methods-section text.
+  Every proposed quote is anchored afterward, deterministically and locally (`anchor_quote`), never by the
+  model; candidates persist as reviewable `kind="candidate"` findings via the existing dual `paper_findings`/
+  `wip_findings` stores. No aggregate, count, index, or "flexibility score" anywhere in either panel. The
+  `FindingCard` fix (`08x_methods_critical.jsx`) makes this feature's own `exact` anchors render as real bbox
+  highlights instead of the previously-hardcoded `"region"`.
+- **Why:** closes backlog #37's analytic-flexibility slice — the design was aligned (decomposed, passage-linked
+  decision points, never an index) and unblocked once inc 479 shipped the GROBID/methods-section-parsing infra
+  this feature's section scoping depends on. #37 itself stays open, narrowed to the still-blocked replication/
+  null-engagement badges (no compatible metadata source exists yet).
+- **Revert:** `git revert` the increment-481 commit(s); no schema/migration involved (reuses the existing
+  `paper_findings`/`wip_findings`/`tool_runs` tables).
+
 ## 2026-08-16 — Increment 480: response-size caps on external HTTP reads (backlog #56)
 - **Files:** `integrations/http_bounds.py` (new), `integrations/grobid/client.py`,
   `integrations/{openalex/adapter,openalex/author,openalex/sources,crossref/adapter,arxiv/adapter,

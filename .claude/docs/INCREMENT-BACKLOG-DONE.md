@@ -637,3 +637,9 @@ appended here.)*
   every call site rather than trusting the item's own description: the three "mirror download" adapters it
   named (AJOL/Retraction Watch/TOP Factor) already had correct per-adapter caps — left untouched; the genuine
   gap was 16 sites across 15 files (15 metadata `httpx.get()` lookups + GROBID's one `httpx.post()`).
+- [x] **#37 Equity & integrity signals — analytic-flexibility surfacing** (inc 481) — the 5th Checklists-family
+  tool and the first LLM-assisted one: an egress-gated LLM proposes closed-taxonomy candidate decision points
+  (exclusion criteria/covariate choice/test selection/outcome choice/other branch point) from a paper's or
+  manuscript's methods-section text; every quote is anchored afterward, deterministically and locally
+  (`anchor_quote`), never by the model. No aggregate/count/index anywhere in either the Library or WIP panel.
+  See `INCREMENT-481-NOTES.md` and `security-audits/2026-08-17_analytic-flexibility-surfacing.md`.

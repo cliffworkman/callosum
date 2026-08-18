@@ -1433,6 +1433,11 @@
             "id": "meta-analysis",
             "kind": "deterministic-local",
             "label": "Meta-analysis reporting"
+          },
+          {
+            "id": "analytic-flexibility",
+            "kind": "provider-ai",
+            "label": "Analytic-flexibility surfacing"
           }
         ]
       },
@@ -2926,6 +2931,11 @@
             "id": "meta-analysis",
             "kind": "deterministic-local",
             "label": "Meta-analysis reporting"
+          },
+          {
+            "id": "analytic-flexibility",
+            "kind": "provider-ai",
+            "label": "Analytic-flexibility surfacing"
           }
         ]
       },

@@ -107,13 +107,10 @@ the Principles + A-A gates before build.)*
   (`INCREMENT-BACKLOG-DONE.md`). **Far future, its own workspace:** screening/PRISMA, double-coding/IRR
   (human-only — the track's no-independent-coder veto holds), RoB instruments, figure extraction (point at
   WebPlotDigitizer, don't build it).
-- **#37 Equity & integrity signals — remaining, narrowed 2026-08-10.** The overlooked-work lens, positive
-  self-correction, and the real field self-citation baseline (= #25) are shipped (`INCREMENT-BACKLOG-DONE.md`).
-  Of the two forensic candidates it also named, stylometric inconsistency is declined (§6); analytic-flexibility
-  surfacing has an aligned design (decomposed, passage-linked decision points, never an index) — its own
-  GROBID/methods-section-parsing infra dependency shipped with backlog #30's section-scoping close (inc 479,
-  `INCREMENT-BACKLOG-DONE.md`), so this is now unblocked and ready for its own build/graduation pass, not
-  attempted here. **Still open, blocked on external data, not a design question:** an evidence-grade
+- **#37 Equity & integrity signals — remaining, narrowed 2026-08-17.** The overlooked-work lens, positive
+  self-correction, the real field self-citation baseline (= #25), and analytic-flexibility surfacing are shipped
+  (`INCREMENT-BACKLOG-DONE.md`). Of the two forensic candidates it also named, stylometric inconsistency is
+  declined (§6). **Still open, blocked on external data, not a design question:** an evidence-grade
   replication badge and a null-engagement badge — neither Crossref's relation vocabulary nor PubMed's publication
   types encode either fact today; an LLM-inferred version would only ever be candidate-class, which can't back
   the deterministic badge the design promised. Revisit only if a real metadata source appears (same disposition

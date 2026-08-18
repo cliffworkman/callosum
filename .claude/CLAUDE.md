@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 480** (see Increment workflow) with **2285 root-suite pytest tests
+It is currently at **Increment 481** (see Increment workflow) with **2315 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -261,6 +261,37 @@ the full per-increment narrative for all other increments now lives in the reloc
   per-author breakdown anywhere. A real performance bug (an absolute log-likelihood convergence criterion that
   never converges for large N) was caught by a stress test before shipping, fixed with a scale-invariant
   parameter-change criterion.
+- **Analytic-flexibility surfacing (backlog #37, inc 481) — LLM-assisted, deliberately NOT in the deterministic/
+  local Methods list above.** The 5th Checklists-family tool (Library Methods → Checklists and the WIP Checks
+  tab both surface it, the same dual-surface seam as statcheck/transparency/LMM/Bayes/meta-analysis), but the
+  first one that calls a model at all: an egress-gated LLM (`integrations/gemini/analytic_flexibility_
+  assistant.py`) proposes candidate analytic-decision points — exclusion criteria, covariate/control choices,
+  statistical test/model selections, outcome/measure choices, and other reported branch points — from a paper's
+  or manuscript's methods-section text (`paper_methods_text`/`wip_methods_text`,
+  `app/backend/citations/section_scope.py` / `app/backend/wip/analytic_flexibility_text.py`, GROBID-preferred
+  with a heuristic fallback on the Library side per inc 479's section-scoping infra). The model's own output is
+  a **closed, five-value taxonomy** plus a verbatim quote, nothing else — no page, no confidence, no location;
+  any category outside the fixed set is silently dropped, never coerced (`parse_proposals`). Every proposed
+  quote is anchored **afterward, deterministically and locally** by a new `anchor_quote`
+  (`app/backend/pdf_processing/quote_matching.py`) — the model never asserts a location, honoring invariant #2
+  structurally. Candidates persist into the existing `paper_findings`/`wip_findings` stores as
+  `kind="candidate"` (AI funnel, human filter, PRINCIPLES.md) via the Library orchestration endpoint
+  (`POST /papers/{paper_id}/analytic-flexibility`, `app/backend/analytic_flexibility.py`) and the WIP
+  orchestration endpoint (`POST /wip/manuscripts/{manuscript_id}/checks/analytic-flexibility`,
+  `routers/wip_checks.py`) — both egress-gated exactly like every other LLM feature, the refusal firing before
+  any paper/manuscript lookup (mirrors `grobid.py`'s ordering, so the 403 wins over even a 404). No aggregate,
+  count, index, or "flexibility score" appears anywhere in either panel, by design — decomposed, passage-linked
+  decision points only. `wip_findings.coordinate_precision`'s CHECK constraint permits only `NULL`/`exact`/
+  `region`; a local `unanchored` anchor (no PDF, or the quote wasn't found in one) maps to `NULL` there, with
+  the fuller `anchor_state` value preserved in `details_json` rather than silently dropped. The WIP side also
+  carries a disclosed, honest scoping asymmetry: non-PDF WIP files have real per-block section headings to
+  classify, but PDF WIP files' text blocks carry no per-block heading text at all (unlike the Library ingest
+  pipeline's stateful `SectionTracker`) — rather than a fragile per-PDF heuristic, `wip_methods_text` degrades
+  to "whole manuscript, capped" and reports `scoped=False` so the UI can disclose the degrade rather than
+  present it as equivalent real scoping. This work also fixed a real, latent bug in the shared `FindingCard`
+  (`app/frontend/js/08x_methods_critical.jsx`): its "show in paper" action had hardcoded `precision: "region"`
+  regardless of a candidate's real anchor — harmless for every prior Checklists tool (none of them ever produced
+  an `exact` anchor), but this feature's own `exact` anchors would otherwise have been silently understated.
 - **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
   bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
   (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):
