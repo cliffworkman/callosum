@@ -643,3 +643,14 @@ appended here.)*
   manuscript's methods-section text; every quote is anchored afterward, deterministically and locally
   (`anchor_quote`), never by the model. No aggregate/count/index anywhere in either the Library or WIP panel.
   See `INCREMENT-481-NOTES.md` and `security-audits/2026-08-17_analytic-flexibility-surfacing.md`.
+- [x] **#33/#34 Word add-in SP1-3** (incs 164-166) — Office.js task pane, same-origin HTTPS-only (a Word add-in
+  cannot reach `http://localhost`), search-and-insert, live Content-Control citations, Suggest-from-the-sentence,
+  Refresh/renumber + bibliography rebuild, one-click document-wide style switch, Flatten-to-static-text. Desktop
+  Windows/Mac only; never marked done here until this entry (2026-08-18) — see `.claude/CLAUDE.md`'s
+  "Cross-editor adapters" paragraph and `security-audits/2026-06-27_word-addin.md`.
+- [x] **#33/#34 Google Docs add-on SP1-3** (incs 169-171, + a Quick Tunnel mode inc 193) — a `cloudflared`
+  outbound-only bridge exposing only the five cite endpoints behind the existing Remote-access bearer token
+  (inc 168, reused unmodified) plus a cite-only ingress allowlist, and an Apps Script add-on with the same
+  search/insert/Suggest/Refresh/style-switch/Flatten arc as the Word add-in. Never marked done here until this
+  entry (2026-08-18) — see `.claude/CLAUDE.md`'s "Cross-editor adapters" paragraph and
+  `security-audits/2026-06-28_googledocs-tunnel.md` / `2026-06-28_googledocs-addon.md`.

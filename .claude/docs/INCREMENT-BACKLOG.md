@@ -89,16 +89,24 @@ the Principles + A-A gates before build.)*
   anchor (R BayesFactor / a validated Rouder-2012 quadrature) turns up **and** a way exists to extract
   sufficient design/cell-size info from papers — a second, separate gap this recheck surfaced.
 - **#33/#34 Citation & bibliography engine + plugins — the LibreOffice adapter's next phase.** The full P0/P1/P2
-  build-out (incs 106-464) is shipped (`INCREMENT-BACKLOG-DONE.md`). **Still genuinely open:**
+  build-out (incs 106-464) is shipped (`INCREMENT-BACKLOG-DONE.md`). **Word and Google Docs parity also
+  already shipped their own SP1-3 arcs (incs 164-166, 169-171) — corrected 2026-08-18, see `.claude/CLAUDE.md`'s
+  "Cross-editor adapters" paragraph; this entry previously and incorrectly said this work "hadn't started."**
+  **Still genuinely open:**
   - Traveling-library portability (named a P1 future track, never scheduled).
   - **#43** a true Google Workspace Marketplace one-click install (its own project — GCP project, OAuth
     verification, a public privacy policy, Google app review; likely overkill for a local-first single-user
     tool — build only if it becomes worth the ongoing maintenance cost).
-  - **Future goal (recorded 2026-07-24): approximate feature parity for Microsoft Word and Google Docs.** A
-    later cross-editor adaptation track, not a requirement to hold the LibreOffice work open; preserve each
-    host's native interaction model rather than requiring pixel-/command-for-command parity. **This is item #5
-    of the confirmed post-P2 backlog sequence** (memory `callosum-next5-backlog-roadmap`) — starts with its own
-    scoping session, no pre-picked slice.
+  - **Word/Docs P1 parity, in progress (scoping resumed 2026-08-18).** Both adapters store an `items` array
+    per citation cluster but only ever populate one (grouped citations/locators not yet wired up — the exact
+    LibreOffice-roadmap-doc gap, now confirmed present on both cross-editor adapters too); neither has
+    section-scoped bibliographies yet. Word-on-the-web needs the same authenticated-relay pattern Google Docs
+    already uses (currently desktop-only, a scoped limitation, not an unscoped gap). Google Docs Refresh
+    renumbers in insertion order, not true document order. **Immediate next step, not yet done:** verify the
+    Word add-in against a real Word install (it has never been exercised in real Word — only its pure JS
+    logic is unit-tested) before deciding the next concrete increment.
+  - AppSource / broader public distribution readiness (design with it in mind; do not build the actual
+    submission/review process until there's a real reason to).
 - **#35 My Publications — Layer 4.** Deterministic Layer 4 is complete (`INCREMENT-BACKLOG-DONE.md`). **Still
   open:** optional LLM narration over the already-grounded data remains deferred — no need to build it unless
   narration becomes useful.

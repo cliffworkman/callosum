@@ -431,6 +431,39 @@ the full per-increment narrative for all other increments now lives in the reloc
   `spike_dialog_accessibility_wiring` (real `AccessibleName` + a real `XKeyListener`); real focus-landing and
   screen-reader announcement need the manual script (real `--headless` soffice grants no window real OS focus
   at all, confirmed empirically, so that half can't be headlessly proven).
+- **Cross-editor adapters — Microsoft Word and Google Docs (`adapters/word/`, `adapters/googledocs/`, incs
+  164-166 and 169-171).** Both ride the same citation engine as the LibreOffice adapter (`render_document`,
+  the CSL style catalog) but reach it over a fundamentally different transport, since neither host runs a
+  local UNO-style macro: a Word add-in is a **web page** Office loads over **HTTPS only** (it cannot reach
+  `http://localhost`), and a Google Docs add-on runs entirely in **Google's cloud**, with no access to the
+  user's machine at all. **Word** (`adapters/word/`, Office.js, desktop Windows/Mac): callosum serves the
+  add-in's task pane over **HTTPS on the same origin as its own API** (`tools/run_https.py`, a trusted local
+  dev cert via `office-addin-dev-certs`), so the add-in's calls stay same-origin, local-only, no egress.
+  **Google Docs** (`adapters/googledocs/`, Apps Script): since a cloud add-on categorically cannot reach
+  `localhost`, a small opt-in bridge exposes **only the five cite endpoints** through a **`cloudflared`
+  tunnel** (outbound-only, no inbound port) at a bearer-token-gated, cite-only ingress — reusing the existing
+  Remote-access token gate (inc 168) unmodified, with a `cloudflared`-level path allowlist as defense in
+  depth (verified via `ingress validate`). A zero-setup **Quick Tunnel** mode (inc 193,
+  `tools/run_tunnel.py --quick`) skips the Cloudflare-account/domain migration for a throwaway session URL,
+  at the cost of losing the ingress allowlist (the bearer token becomes the sole boundary). Both adapters
+  ship the same three-stage arc: **SP1** search-and-insert; **SP2** live Content-Control citations
+  (Zotero's embedded-CSL-JSON-in-field-name pattern, reused as a pattern not code) + Refresh/renumber +
+  bibliography rebuild; **SP3** Suggest-from-the-sentence (the same stance+quote relevance engine as
+  LibreOffice's Suggest-Citation) + one-click document-wide style switch + Flatten-to-static-text. Both are
+  the first Checklists-adjacent surfaces with **no headless host to test against** — only the pure
+  request/response logic (`taskpane_core.js` / `gdocs_core.js`) is unit-tested (`node --test`); the in-host
+  behavior ships best-effort-correct per each platform's own docs and is explicitly flagged untested until
+  run for real. **Genuinely still open** (mirroring the LibreOffice adapter's own P0→P1 arc): grouped
+  citations/locators (both already store an `items` array per citation cluster but only ever populate one —
+  the same "anticipated but not wired up" gap the LibreOffice roadmap doc found there first), section-scoped
+  bibliographies, Word-on-the-web (needs the same authenticated-relay pattern Google Docs already uses — a
+  desktop-only limitation today, not an unscoped one), and true document-order citation scanning on the
+  Google Docs side (Refresh currently renumbers in insertion order). Security audits:
+  `2026-06-27_word-addin.md`, `2026-06-28_googledocs-tunnel.md`, `2026-06-28_googledocs-addon.md` (all PASS;
+  the tunnel audit is the binding one for `2026-06-27_remote-access-auth.md`'s token-gate reuse). **This paragraph itself closes a
+  real documentation gap** (found 2026-08-18): both adapters shipped fully but were never added here or to
+  `INCREMENT-BACKLOG-DONE.md`, so `INCREMENT-BACKLOG.md`'s #33/#34 entry incorrectly told sessions this work
+  "hadn't started" and "needs its own scoping session" — corrected in the same pass as this paragraph.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,

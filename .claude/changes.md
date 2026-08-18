@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-18 — Documentation-drift fix: Word/Google Docs adapters were never marked done
+- **Files:** `.claude/CLAUDE.md`, `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/docs/INCREMENT-BACKLOG-DONE.md`.
+- **What:** during Word/Docs-parity scoping, found both the Microsoft Word add-in (`adapters/word/`, SP1-3,
+  incs 164-166) and the Google Docs add-on (`adapters/googledocs/`, SP1-3 + a Quick Tunnel mode, incs
+  169-171 + 193) had fully shipped, real, security-audited (all PASS) — but neither was ever added to
+  CLAUDE.md's Stack section or `INCREMENT-BACKLOG-DONE.md`. `INCREMENT-BACKLOG.md`'s #33/#34 entry
+  consequently and incorrectly told sessions this work "hadn't started" and needed "its own scoping session."
+  Added a full "Cross-editor adapters" paragraph to CLAUDE.md, corrected the backlog entry to name what's
+  actually still open (grouped citations/locators on both adapters, section bibliographies, Word-on-the-web,
+  true document-order Refresh on Google Docs), and added two `- [x]` closure lines to
+  `INCREMENT-BACKLOG-DONE.md`.
+- **Why:** no code changed; this is a pure institutional-memory correction so future sessions (including this
+  one, mid-scoping-conversation) stop re-discovering already-shipped work as if starting from scratch.
+- **Revert:** trivial — these are additive doc edits with no code/schema impact; `git revert` if ever needed.
+
 ## 2026-08-17 — Increment 481: analytic-flexibility surfacing (backlog #37)
 - **Files:** `app/backend/pdf_processing/quote_matching.py` (`anchor_quote`, new),
   `integrations/gemini/analytic_flexibility_assistant.py` (new), `app/backend/citations/section_scope.py`
