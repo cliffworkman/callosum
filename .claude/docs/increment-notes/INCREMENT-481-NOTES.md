@@ -99,9 +99,9 @@ one) — this is the script a human should run to confirm the built feature end-
    present) and confirm it scrolls to the page with an approximate-location note, drawing no exact rectangle —
    the coordinate-honesty contract holding for both directions.
 5. Switch to a WIP manuscript (Synthesize/Work → WIP) whose registered primary file is a PDF. Open its Checks
-   tab, run "Analytic-flexibility surfacing," and confirm the result shows no PDF-scoping caveat if a real
-   methods section was found via per-block scoping is impossible for PDFs — instead confirm the honest
-   "whole manuscript text was searched" caveat always appears for a PDF-primary manuscript.
+   tab, run "Analytic-flexibility surfacing," and confirm the honest "whole manuscript text was searched"
+   scoping caveat always appears — per-block section scoping is impossible for PDF WIP files, so this caveat
+   must never be silently absent for a PDF-primary manuscript.
 6. Switch to (or register) a WIP manuscript whose primary file is Markdown/DOCX/ODT with a real "Methods"
    heading. Run the same check and confirm the scoping caveat does NOT appear (real section-based scoping was
    used) when a methods heading is present, and that unmapped candidates persist with `coordinate_precision:
