@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from app.backend.api.wip_security import require_local_wip
 from app.backend.funding.run_report import funding_run_summaries
 from app.backend.llm.egress import DataEgressDisabledError
-from app.backend.llm.providers import requires_egress
+from app.backend.llm.providers import ProviderError, requires_egress
 from app.backend.methods.bayes import audit_completeness, run_bayes
 from app.backend.methods.lmm import audit_lmm
 from app.backend.methods.metaanalysis import audit_meta_analysis
@@ -294,6 +294,17 @@ def analytic_flexibility_run(manuscript_id: int, request: Request) -> dict:
             proposals = AnalyticFlexibilityAssistant(config).propose(text=scoping["text"])
         except DataEgressDisabledError as exc:  # defense in depth -- the pre-check above should already catch this
             raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except ProviderError as exc:
+            run_write(
+                request.app.state.engine,
+                lambda conn: add_activity(
+                    conn,
+                    manuscript_id,
+                    "tool-run-failed",
+                    "Analytic-flexibility surfacing could not run -- the AI provider failed",
+                ),
+            )
+            raise HTTPException(status_code=502, detail=f"The AI provider failed: {exc}") from None
         pdf_path = (
             trusted_child(manuscript["root_path"], prepared.relative_path)
             if Path(prepared.relative_path).suffix.casefold() == ".pdf"

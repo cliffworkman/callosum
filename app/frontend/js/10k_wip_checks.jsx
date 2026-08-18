@@ -223,7 +223,7 @@ function WipMetaAnalysisResult({ run, onOpenSource }) {
 function WipAnalyticFlexibilityResult({ run }) {
   const result = run.structured_result_json || {};
   if (!result.methods_text_found) return <div className="statcheck-caveat">
-    No methods-section text was found in the primary manuscript file; nothing to surface.
+    No manuscript text was found; nothing to surface.
   </div>;
   return <div className="wip-analytic-flexibility-result">
     {!result.scoped && <div className="statcheck-caveat">
@@ -231,14 +231,14 @@ function WipAnalyticFlexibilityResult({ run }) {
       just its methods section.
     </div>}
     <div className="statcheck-caveat">
-      Review dispositions for surfaced candidates are available in the WIP Checks tab, below.
+      Review dispositions for surfaced candidates are available in the WIP Checks tab.
     </div>
   </div>;
 }
 
 // Shared self-fetching shell for WIP checklist tools. It reads the same stored run as the manuscript's own Checks
 // tab while keeping Library-wide paper batches and paper-only workflows out of manuscript context.
-function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText, selectText, renderResult }) {
+function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText, selectText, renderResult, progressManagedBy }) {
   const manuscriptId = manuscript ? manuscript.id : null;
   const [checks, setChecks] = useState({ tools: [], runs: [] });
   const [state, setState] = useState({ status: "idle" });
@@ -273,7 +273,7 @@ function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText
         {state.status === "running" ? labels.running : latest ? labels.again : labels.first}
       </button>
     </div>
-    {state.status === "running" && <ProgressBar label={labels.progress} />}
+    {state.status === "running" && <ProgressBar label={labels.progress} managedBy={progressManagedBy} />}
     {state.status === "error" && <div className="axis-err">{labels.error}: {state.error}</div>}
     {!latest && state.status !== "running" && <p className="axis-hint">
       {emptyText}
@@ -336,7 +336,8 @@ function WipAnalyticFlexibilitySection({ manuscript, ctx }) {
       progress: "Surfacing analytic decision points…", error: "Analytic-flexibility surfacing failed" }}
     emptyText="No analytic-flexibility run yet. An empty history is not a claim the design had no flexibility."
     selectText="Select a WIP manuscript to surface its analytic decision points."
-    renderResult={(run, openSource) => <WipAnalyticFlexibilityResult run={run} onOpenSource={openSource} />} />;
+    renderResult={(run, openSource) => <WipAnalyticFlexibilityResult run={run} onOpenSource={openSource} />}
+    progressManagedBy="tracked-request" />;
 }
 
 // inc 402: the Methods panel's "Statistics" section, for a WIP manuscript instead of a Library paper. Self-fetches

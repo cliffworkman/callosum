@@ -18,7 +18,7 @@ from sqlalchemy.exc import NoResultFound
 from app.backend.analytic_flexibility import propose_analytic_flexibility
 from app.backend.api.dependencies import get_connection
 from app.backend.llm.egress import DataEgressDisabledError
-from app.backend.llm.providers import requires_egress
+from app.backend.llm.providers import ProviderError, requires_egress
 from app.backend.persistence.repository import get_paper
 from integrations.gemini.generator import GeminiConfig
 
@@ -42,5 +42,7 @@ def run_analytic_flexibility(paper_id: int, conn: Connection = Depends(get_conne
         result = propose_analytic_flexibility(conn, paper_id, config)
     except DataEgressDisabledError as exc:  # defense in depth -- the pre-check above should already catch this
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail=f"The AI provider failed: {exc}") from None
     conn.commit()
     return result

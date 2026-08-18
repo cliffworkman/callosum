@@ -315,15 +315,12 @@ def store_analytic_flexibility_run(
         summary = "No manuscript text was found; nothing to surface."
         scope = "none"
     elif scoped:
-        summary = (
-            f"{len(candidates)} candidate decision point{'s' if len(candidates) != 1 else ''} surfaced "
-            "from the methods section."
-        )
+        summary = "Candidate decision points surfaced from the methods section."
         scope = "methods-section"
     else:
         summary = (
-            f"{len(candidates)} candidate decision point{'s' if len(candidates) != 1 else ''} surfaced "
-            "from the whole manuscript text (no per-block section scoping available for this file type)."
+            "Candidate decision points surfaced from the whole manuscript text (no per-block section scoping "
+            "available for this file type)."
         )
         scope = "whole-manuscript"
     run_result = conn.execute(

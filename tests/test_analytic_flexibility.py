@@ -10,6 +10,8 @@ from sqlalchemy import create_engine, select
 
 from app.backend.analytic_flexibility import propose_analytic_flexibility
 from app.backend.api import create_app
+from app.backend.llm.providers import ProviderError
+from app.backend.persistence.findings_repo import get_paper_findings
 from app.backend.persistence.repository import create_attachment, create_paper
 from app.backend.persistence.schema import chunks
 from app.backend.persistence.schema_findings import paper_findings
@@ -107,3 +109,60 @@ def test_endpoint_refused_when_egress_not_consented(temp_db_url: str, monkeypatc
     # Paper 1 doesn't exist in this fresh DB either -- the egress refusal must still win over a 404.
     r = c.post("/papers/1/analytic-flexibility")
     assert r.status_code == 403
+
+
+def test_empty_proposals_do_not_supersede_a_prior_finding(temp_db_url: str) -> None:
+    """Final-review Finding 2: upsert_findings' replace-set semantics DELETE every existing finding whose
+    content_key isn't in the new set. parse_proposals never raises on malformed/garbage model output -- it
+    returns [] instead -- so an empty/malformed LLM response must NOT be allowed to wipe prior candidates
+    (including ones a user already reviewed). Seed one real finding, then re-run with a mocked EMPTY proposal
+    list, and confirm the original finding row survives untouched."""
+    eng = create_engine(temp_db_url)
+    with eng.begin() as conn:
+        pid, _aid = _seed_paper_with_methods_chunk(conn)
+        config = GeminiConfig(
+            provider="gemini", model="gemini-2.5-flash-lite", api_key="fake", data_egress_enabled=True
+        )
+        with (
+            patch(
+                "app.backend.analytic_flexibility.AnalyticFlexibilityAssistant.propose",
+                return_value=[{"category": "exclusion-criteria", "quote": "Participants under 18 were excluded."}],
+            ),
+            patch("app.backend.analytic_flexibility.primary_pdf_path", return_value=None),
+        ):
+            first = propose_analytic_flexibility(conn, pid, config)
+        assert first == {"candidates_found": 1, "methods_text_found": True}
+        before = get_paper_findings(conn, pid, source="analytic-flexibility")
+        assert len(before["candidates"]) == 1
+        original_id = before["candidates"][0]["id"]
+
+        # Simulate a malformed/truncated LLM response: parse_proposals returns [] rather than raising.
+        with patch(
+            "app.backend.analytic_flexibility.AnalyticFlexibilityAssistant.propose",
+            return_value=[],
+        ):
+            second = propose_analytic_flexibility(conn, pid, config)
+        after = get_paper_findings(conn, pid, source="analytic-flexibility")
+    eng.dispose()
+    assert second == {"candidates_found": 0, "methods_text_found": True}
+    # The prior candidate must still be present, unchanged -- not superseded into oblivion.
+    assert len(after["candidates"]) == 1
+    assert after["candidates"][0]["id"] == original_id
+    assert after["candidates"][0]["payload"]["category"] == "exclusion-criteria"
+
+
+def test_endpoint_returns_502_when_provider_fails(temp_db_url: str) -> None:
+    """Final-review Finding 3: a ProviderError (bad key, 429, provider 5xx) must surface as a friendly 502,
+    not an unhandled 500 -- mirrors routers/workbench.py's propose_row pattern."""
+    eng = create_engine(temp_db_url)
+    with eng.begin() as conn:
+        pid, _aid = _seed_paper_with_methods_chunk(conn)
+    eng.dispose()
+    c = TestClient(create_app(db_url=temp_db_url))
+    with patch(
+        "app.backend.analytic_flexibility.AnalyticFlexibilityAssistant.propose",
+        side_effect=ProviderError("HTTP 429: rate limited"),
+    ):
+        r = c.post(f"/papers/{pid}/analytic-flexibility")
+    assert r.status_code == 502
+    assert "AI provider failed" in r.json()["detail"]

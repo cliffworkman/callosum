@@ -46,6 +46,12 @@ def propose_analytic_flexibility(conn: Connection, paper_id: int, config: Gemini
         return {"candidates_found": 0, "methods_text_found": False}
 
     proposals = AnalyticFlexibilityAssistant(config).propose(text=text)
+    if not proposals:
+        # A malformed/truncated LLM response parses to zero proposals (parse_proposals never raises). Skipping
+        # upsert_findings here is deliberate: upsert_findings' replace-set semantics would otherwise DELETE every
+        # previously surfaced -- and possibly already-reviewed -- candidate for this paper, indistinguishable from
+        # an honest empty result. Only a non-empty proposal set is allowed to supersede prior findings.
+        return {"candidates_found": 0, "methods_text_found": True}
     pdf_path = primary_pdf_path(conn, paper_id)
     findings = []
     for proposal in proposals:

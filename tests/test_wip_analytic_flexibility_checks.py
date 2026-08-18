@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
+from app.backend.llm.providers import ProviderError
 
 
 def _poll(client: TestClient, job_id: str) -> None:
@@ -122,3 +123,38 @@ def test_analytic_flexibility_route_remains_local_only(temp_db_url: str) -> None
     client = TestClient(create_app(db_url=temp_db_url))
     headers = {"host": "example.com"}
     assert client.post("/wip/manuscripts/1/checks/analytic-flexibility", headers=headers).status_code == 403
+
+
+def test_analytic_flexibility_run_returns_502_and_logs_activity_when_provider_fails(
+    temp_db_url: str, tmp_path: Path
+) -> None:
+    """Final-review Finding 3 (WIP side): a ProviderError must surface as a friendly 502 (not an unhandled 500),
+    mirroring routers/workbench.py's propose_row pattern -- and, unlike that endpoint, must also leave a matching
+    tool-run-failed activity so the earlier dangling tool-run-started entry isn't left orphaned (mirrors the
+    existing ContentIdentityError failure path in this same handler)."""
+    folder = tmp_path / "Draft"
+    folder.mkdir()
+    draft = folder / "draft.md"
+    draft.write_text(
+        "Methods: Participants who failed the attention check were excluded from the primary analysis.",
+        encoding="utf-8",
+    )
+    client = TestClient(create_app(db_url=temp_db_url))
+    _, manuscript_id, _ = _setup(client, folder)
+
+    with patch(
+        "app.backend.api.routers.wip_checks.AnalyticFlexibilityAssistant.propose",
+        side_effect=ProviderError("HTTP 429: rate limited"),
+    ):
+        response = client.post(f"/wip/manuscripts/{manuscript_id}/checks/analytic-flexibility", json={})
+
+    assert response.status_code == 502
+    assert "AI provider failed" in response.json()["detail"]
+
+    activity = client.get(f"/wip/manuscripts/{manuscript_id}/activity").json()
+    failed_events = [event for event in activity if event["event_type"] == "tool-run-failed"]
+    assert len(failed_events) == 1
+    assert "provider failed" in failed_events[0]["summary"].lower()
+    # The started/failed pair must be balanced -- no dangling started-with-no-matching-failed entry.
+    started_events = [event for event in activity if event["event_type"] == "tool-run-started"]
+    assert len(started_events) == len(failed_events) == 1

@@ -311,8 +311,8 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
     assert "Audit Bayesian reporting" in raw
     assert "Audit meta-analysis reporting" in raw
     assert (
-        "function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText, selectText, renderResult })"
-        in raw
+        "function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText, selectText, "
+        "renderResult, progressManagedBy })" in raw
     )
     assert "function WipTransparencySection({ manuscript, ctx })" in raw
     assert "function WipLmmSection({ manuscript, ctx })" in raw
