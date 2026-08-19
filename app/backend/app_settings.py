@@ -467,6 +467,23 @@ def stored_agent_writes() -> bool:
     return bool(load_settings().get("agent_writes_enabled", False))
 
 
+def set_plugins_enabled(enabled: bool) -> None:
+    data = load_settings()
+    data["plugins_enabled"] = bool(enabled)
+    _write(data)
+
+
+def stored_plugins_enabled() -> bool:
+    """backlog #41: the admin-gated plugins foundation. Default OFF. Enabling this currently causes
+    NO other behavior to change anywhere in the app -- no loader is wired to it yet; see
+    .claude/backups/plans/2026-08-19_admin-gated-plugins-design.md for what it's the foundation for.
+    The CALLOSUM_DISABLE_PLUGINS env var force-disables it (a local recovery hatch), mirroring
+    CALLOSUM_DISABLE_AGENT_WRITES."""
+    if os.getenv("CALLOSUM_DISABLE_PLUGINS", "").strip().lower() in {"1", "true", "yes"}:
+        return False
+    return bool(load_settings().get("plugins_enabled", False))
+
+
 def set_usage_events_enabled(enabled: bool) -> None:
     data = load_settings()
     data["usage_events_enabled"] = bool(enabled)

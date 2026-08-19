@@ -62,6 +62,7 @@ class SettingsStatus(BaseModel):
     remote_access_enabled: bool = False  # inc 168: gate callosum behind a bearer token (for the Google Docs tunnel)
     access_token_set: bool = False  # is a remote-access token stored? — NEVER the token value
     agent_writes_enabled: bool = False  # B1 SP2: allow the MCP agent write tools (default off)
+    plugins_enabled: bool = False  # backlog #41: admin-gated plugins foundation (default off, inert)
     usage_events_enabled: bool = True  # backlog #38A: local usage instrumentation (default ON — zero egress)
     # PUBLISHERS "where to submit" (#40 SP1b) — local prefs, never transmitted externally. Both None until the
     # user sets them (the first-use choice gate; no pre-selection); publisher_defaults_set gates the panel's output.
@@ -89,6 +90,7 @@ class SettingsUpdate(BaseModel):
     openurl_resolver_base: str | None = Field(default=None, max_length=RESOLVER_BASE_MAX_LEN)
     remote_access_enabled: bool | None = None
     agent_writes_enabled: bool | None = None  # B1 SP2
+    plugins_enabled: bool | None = None  # backlog #41
     usage_events_enabled: bool | None = None  # backlog #38A
     # PUBLISHERS prefs (#40 SP1b) — each gated by its set_* flag so the first-use gate can persist both together.
     set_publisher_weighting: bool = False
@@ -146,6 +148,7 @@ def _status() -> SettingsStatus:
         remote_access_enabled=app_settings.stored_remote_access(),
         access_token_set=app_settings.stored_access_token() is not None,
         agent_writes_enabled=app_settings.stored_agent_writes(),
+        plugins_enabled=app_settings.stored_plugins_enabled(),
         usage_events_enabled=app_settings.stored_usage_events_enabled(),
         publisher_weighting=publisher_settings.stored_publisher_weighting(),
         publisher_breadth=publisher_settings.stored_publisher_breadth(),
@@ -203,6 +206,8 @@ def put_settings(update: SettingsUpdate) -> SettingsStatus:
         app_settings.set_remote_access_enabled(update.remote_access_enabled)
     if update.agent_writes_enabled is not None:
         app_settings.set_agent_writes_enabled(update.agent_writes_enabled)
+    if update.plugins_enabled is not None:
+        app_settings.set_plugins_enabled(update.plugins_enabled)
     if update.usage_events_enabled is not None:
         app_settings.set_usage_events_enabled(update.usage_events_enabled)
     if update.set_publisher_weighting:

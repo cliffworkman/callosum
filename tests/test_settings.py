@@ -401,3 +401,24 @@ def test_status_reports_keychain_storage(temp_db_url: str, monkeypatch: pytest.M
     monkeypatch.setattr(app_settings, "_keyring", lambda: None)
     body = TestClient(create_app(db_url=temp_db_url)).get("/settings").json()
     assert body["key_storage"] == "file"
+
+
+def test_plugins_enabled_defaults_false_and_round_trips(temp_db_url: str) -> None:
+    # backlog #41: the admin-gated plugins foundation toggle. Default OFF; PUT toggles it. Enabling
+    # it does not cause any other behavior to change -- there is no loader wired to it yet.
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.get("/settings").json()["plugins_enabled"] is False
+    assert client.put("/settings", json={"plugins_enabled": True}).json()["plugins_enabled"] is True
+    assert client.get("/settings").json()["plugins_enabled"] is True
+    client.put("/settings", json={"plugins_enabled": False})
+    assert client.get("/settings").json()["plugins_enabled"] is False
+
+
+def test_plugins_disable_env_hatch_forces_off(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    # The CALLOSUM_DISABLE_PLUGINS recovery hatch, mirroring CALLOSUM_DISABLE_AGENT_WRITES: forces the
+    # stored value to False regardless of what was saved.
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.put("/settings", json={"plugins_enabled": True})
+    assert client.get("/settings").json()["plugins_enabled"] is True
+    monkeypatch.setenv("CALLOSUM_DISABLE_PLUGINS", "1")
+    assert client.get("/settings").json()["plugins_enabled"] is False
