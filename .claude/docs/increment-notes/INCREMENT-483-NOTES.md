@@ -3,7 +3,7 @@
 ## Implemented
 
 A small, deliberately inert foundation for a future third-party plugin system, per a scoping
-conversation with Cliff (design doc: `.claude/backups/plans/2026-08-19_admin-gated-plugins-design.md`).
+conversation with Cliff (design doc: `.claude/docs/specs/2026-08-19-admin-gated-plugins-design.md`).
 
 - `app/backend/app_settings.py` — `set_plugins_enabled`/`stored_plugins_enabled`, mirroring
   `agent_writes_enabled` exactly: default OFF, plus a `CALLOSUM_DISABLE_PLUGINS` env-var recovery
@@ -30,6 +30,9 @@ open, recorded in the design doc for whoever picks this up next, including a con
 for the principle-enforcement question (constrain panel modules to typed fact/candidate data
 rendered by callosum's own trusted UI components, rather than arbitrary rendering).
 
+Note: this increment's addition put `app_settings.py` at 596/600 lines, the closest file to the
+cap in the tree — the next new setting there will likely need a split first.
+
 ## Manual verification script
 
 1. Start the app. Open Settings. Confirm a new "Plugins" card appears (after "Integrations",
@@ -40,6 +43,14 @@ rendered by callosum's own trusted UI components, rather than arbitrary renderin
 3. Confirm no other part of the app changes behavior with it on — this is the whole point of an
    inert foundation.
 4. Toggle it back off.
+
+## Experience pass (rule #11)
+
+The surface is one toggle whose own copy explicitly states it changes nothing yet ("nothing is
+installable yet... enabling this toggle does not change any other behavior"). Given that, a
+persona-grounded experience agent was not dispatched — there is no "intended use" to inhabit
+yet, since the feature has no observable effect. Worth a real pass once an actual plugin-install
+flow exists to evaluate.
 
 ## Pytest
 

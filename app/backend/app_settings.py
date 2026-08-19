@@ -476,7 +476,7 @@ def set_plugins_enabled(enabled: bool) -> None:
 def stored_plugins_enabled() -> bool:
     """backlog #41: the admin-gated plugins foundation. Default OFF. Enabling this currently causes
     NO other behavior to change anywhere in the app -- no loader is wired to it yet; see
-    .claude/backups/plans/2026-08-19_admin-gated-plugins-design.md for what it's the foundation for.
+    .claude/docs/specs/2026-08-19-admin-gated-plugins-design.md for what it's the foundation for.
     The CALLOSUM_DISABLE_PLUGINS env var force-disables it (a local recovery hatch), mirroring
     CALLOSUM_DISABLE_AGENT_WRITES."""
     if os.getenv("CALLOSUM_DISABLE_PLUGINS", "").strip().lower() in {"1", "true", "yes"}:

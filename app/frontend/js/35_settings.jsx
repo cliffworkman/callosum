@@ -300,7 +300,7 @@ function AgentSettings() {
 
 // backlog #41: the admin-gated plugins foundation. Off by default; enabling it does nothing
 // observable yet -- no loader, no data model, no third-party code ever runs. See
-// .claude/backups/plans/2026-08-19_admin-gated-plugins-design.md for the design this is the
+// .claude/docs/specs/2026-08-19-admin-gated-plugins-design.md for the design this is the
 // foundation for (a future curated, review-gated plugin store -- not an open marketplace).
 function PluginsSettings() {
   const [on, setOn] = useState(false);

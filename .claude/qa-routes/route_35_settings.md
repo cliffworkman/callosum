@@ -185,6 +185,12 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    message reports the number of events removed. Toggle **Track local usage** OFF; repeat the same real
    instrumented action; confirm the count does NOT increase. Toggle it back ON. Confirm zero requests to any
    external host anywhere in this flow.
+18. **Plugins (backlog #41, inc 483).** Under the **Plugins** card, confirm the toggle is **OFF** on a clean
+   instance, with copy explaining this is a foundation for a future curated, review-gated plugin store and
+   that nothing is installable yet. Turn it ON; `GET /settings` now reports `plugins_enabled:true`. Confirm no
+   install/download/plugin-list UI appears anywhere in the app as a result — the toggle is deliberately inert;
+   nothing else in the app currently reads this flag. Reload and confirm the toggle stays on (persisted).
+   Toggle it back OFF. No genai/external request from any of this.
 
 ## Pass criteria
 

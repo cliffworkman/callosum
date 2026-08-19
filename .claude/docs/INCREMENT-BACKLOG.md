@@ -144,7 +144,7 @@ the Principles + A-A gates before build.)*
 - **#41 User-authored modules (plugins) — a real design doc now exists (scoping pass 2026-08-19).**
   The admin-gated `plugins_enabled` foundation toggle shipped (inc 483, `INCREMENT-483-NOTES.md`) —
   deliberately inert, controls nothing yet. See
-  `.claude/backups/plans/2026-08-19_admin-gated-plugins-design.md` for the full scoping: a curated
+  `.claude/docs/specs/2026-08-19-admin-gated-plugins-design.md` for the full scoping: a curated
   plugin "store" (not an open marketplace), a panel-modules-vs-source-providers decomposition
   (**source providers are explicitly sequenced AFTER panel modules**, not started), and a concrete
   direction for the principle-enforcement crux (constrain a module to typed fact/candidate output,

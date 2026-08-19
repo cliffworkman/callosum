@@ -20,7 +20,7 @@ are the design diary; this is the chronological "what & why" record.
   at `registerPaneTab` and `build_default_feed_registry` naming them as the intended future
   extension points for panel-module and source-provider plugins respectively. The toggle controls
   nothing else — a deliberately inert foundation, not a feature. Follows a scoping conversation
-  with Cliff recorded in `.claude/backups/plans/2026-08-19_admin-gated-plugins-design.md`, which
+  with Cliff recorded in `.claude/docs/specs/2026-08-19-admin-gated-plugins-design.md`, which
   the stale future-track file now points at.
 - **Why:** backlog #41's original "record-and-mark" task was never completed; this closes that gap
   with a real design doc (curated-store distribution model, panel-modules-vs-source-providers

@@ -599,7 +599,7 @@ the full per-increment narrative for all other increments now lives in the reloc
   (`registerPaneTab`, `build_default_feed_registry`) naming them as candidate future extension
   points for user-authored plugin modules. **Deliberately inert** — the toggle controls nothing
   else in the app; no plugin data model, loader, sandbox, or store exists yet. See the design doc
-  for the vision and its open blocking questions: `.claude/backups/plans/2026-08-19_admin-gated-plugins-design.md`.
+  for the vision and its open blocking questions: `.claude/docs/specs/2026-08-19-admin-gated-plugins-design.md`.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

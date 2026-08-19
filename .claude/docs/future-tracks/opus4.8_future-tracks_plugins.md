@@ -1,5 +1,5 @@
 STATUS (2026-08-19): this file's own "record-and-mark" task was never completed. Superseded by
-the live design doc: .claude/backups/plans/2026-08-19_admin-gated-plugins-design.md, which
+the live design doc: .claude/docs/specs/2026-08-19-admin-gated-plugins-design.md, which
 carries this idea forward with a curated-store distribution model, a panel-modules-vs-source-
 providers decomposition, and a concrete direction for the principle-enforcement open question.
 An admin-gated `plugins_enabled` settings toggle now exists (backlog #41, inc 483) as a small,

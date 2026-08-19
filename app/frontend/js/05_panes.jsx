@@ -31,7 +31,7 @@ function registerPaneSection(section) {
 }
 // backlog #41 (deferred): this registry is the intended future extension point for user-authored
 // THEORY/METHODS panel plugin modules. Plugin loading is DEFERRED pending
-// .claude/backups/plans/2026-08-19_admin-gated-plugins-design.md's open questions (sandboxing,
+// .claude/docs/specs/2026-08-19-admin-gated-plugins-design.md's open questions (sandboxing,
 // whether the module contract can enforce PRINCIPLES.md, trusted-vs-untrusted separation) -- do
 // not add plugin-loading here without resolving them first.
 function registerPaneTab(host, tab) {
