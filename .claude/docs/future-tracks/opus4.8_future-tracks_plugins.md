@@ -1,3 +1,11 @@
+STATUS (2026-08-19): this file's own "record-and-mark" task was never completed. Superseded by
+the live design doc: .claude/backups/plans/2026-08-19_admin-gated-plugins-design.md, which
+carries this idea forward with a curated-store distribution model, a panel-modules-vs-source-
+providers decomposition, and a concrete direction for the principle-enforcement open question.
+An admin-gated `plugins_enabled` settings toggle now exists (backlog #41, inc 483) as a small,
+inert foundation -- see the design doc for what it is and is not the foundation for. Read the
+design doc first; this file is kept for its original framing of the three open questions.
+
 Goal: RECORD the notion of user-authored THEORY/METHODS plugin modules as a DEFERRED future
 feature and mark the intended extension point — WITHOUT implementing any plugin system. Capture
 the idea, its motivation, and the open questions so it is neither lost nor accidentally built

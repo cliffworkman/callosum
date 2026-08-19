@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 482** (see Increment workflow) with **2320 root-suite pytest tests
+It is currently at **Increment 483** (see Increment workflow) with **2322 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -593,6 +593,13 @@ the full per-increment narrative for all other increments now lives in the reloc
   (nothing here ever egresses, unlike every other Settings toggle); the local log is always inspectable,
   exportable, and deletable regardless of the toggle's state. No opaque "flourishing score" — five separately
   labeled counts, never blended (Principles #7).
+- **Admin-gated plugins foundation (backlog #41, inc 483):** a `plugins_enabled` Settings toggle
+  (default OFF, mirroring `agent_writes_enabled`'s pattern exactly, incl. a `CALLOSUM_DISABLE_PLUGINS`
+  recovery hatch) plus marker comments at the two real existing internal registries
+  (`registerPaneTab`, `build_default_feed_registry`) naming them as candidate future extension
+  points for user-authored plugin modules. **Deliberately inert** — the toggle controls nothing
+  else in the app; no plugin data model, loader, sandbox, or store exists yet. See the design doc
+  for the vision and its open blocking questions: `.claude/backups/plans/2026-08-19_admin-gated-plugins-design.md`.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

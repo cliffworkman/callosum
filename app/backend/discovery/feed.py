@@ -94,6 +94,12 @@ class FeedRegistry:
         ]
 
 
+# backlog #41 (deferred): this registry (and the Search SourceRegistry / acquisition-resolver
+# registry it mirrors) is a candidate future extension point for user-authored source-provider
+# plugin modules. Deferred pending
+# .claude/backups/plans/2026-08-19_admin-gated-plugins-design.md's open questions -- source
+# providers are explicitly sequenced AFTER panel modules in that design, not started. Do not add
+# plugin-loading here without resolving the open questions first.
 def build_default_feed_registry(
     *, engine: Engine | None = None, author_client: OpenAlexAuthorClient | None = None
 ) -> FeedRegistry:

@@ -141,8 +141,20 @@ the Principles + A-A gates before build.)*
   registration, live re-checked)/Latindex (confirmed closed); COPE (Cloudflare-bot-blocked)/OASPA (no structured
   members endpoint) membership; user exclusion/filtering (deliberately deferred — the design doc flags it as
   ethically fraught, "the disfavored extreme — it reintroduces the 'these are bad' valence").
-- **#41 User-authored modules (plugins).** [future track — record only] Deferred record of the idea + open
-  questions. Do not build a plugin system until a dedicated design pass.
+- **#41 User-authored modules (plugins) — a real design doc now exists (scoping pass 2026-08-19).**
+  The admin-gated `plugins_enabled` foundation toggle shipped (inc 483, `INCREMENT-483-NOTES.md`) —
+  deliberately inert, controls nothing yet. See
+  `.claude/backups/plans/2026-08-19_admin-gated-plugins-design.md` for the full scoping: a curated
+  plugin "store" (not an open marketplace), a panel-modules-vs-source-providers decomposition
+  (**source providers are explicitly sequenced AFTER panel modules**, not started), and a concrete
+  direction for the principle-enforcement crux (constrain a module to typed fact/candidate output,
+  let callosum's own already-trusted components do the rendering). **Still fully open, not
+  started:** the plugin data model, a loader, sandboxing (browser-side for panel modules; the
+  egress-centric trust problem is unresolved for source providers), and the review/store pipeline.
+  The stale future-track file (`future-tracks/opus4.8_future-tracks_plugins.md`) now points at the
+  design doc as the live reference; the two real existing internal registries
+  (`registerPaneTab`/`build_default_feed_registry`) carry marker comments naming them as candidate
+  extension points, deferred pending the design doc's open questions.
 
 ---
 

@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-19 — Increment 483: admin-gated plugins foundation (backlog #41)
+- **Files:** `app/backend/app_settings.py`, `app/backend/api/routers/settings.py`,
+  `app/frontend/js/35_settings.jsx`, `app/frontend/js/05_panes.jsx`,
+  `app/backend/discovery/feed.py`, `.claude/docs/future-tracks/opus4.8_future-tracks_plugins.md`,
+  `.claude/docs/increment-notes/INCREMENT-483-NOTES.md` (new); `.claude/CLAUDE.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`.
+- **What:** a `plugins_enabled` Settings toggle (default OFF, mirroring `agent_writes_enabled`
+  exactly, with a `CALLOSUM_DISABLE_PLUGINS` recovery hatch), plus registry-seam marker comments
+  at `registerPaneTab` and `build_default_feed_registry` naming them as the intended future
+  extension points for panel-module and source-provider plugins respectively. The toggle controls
+  nothing else — a deliberately inert foundation, not a feature. Follows a scoping conversation
+  with Cliff recorded in `.claude/backups/plans/2026-08-19_admin-gated-plugins-design.md`, which
+  the stale future-track file now points at.
+- **Why:** backlog #41's original "record-and-mark" task was never completed; this closes that gap
+  with a real design doc (curated-store distribution model, panel-modules-vs-source-providers
+  decomposition, a concrete direction for the principle-enforcement open question) and the
+  smallest honest first slice Cliff asked for — a switch that exists but is wired to nothing yet.
+  The actual plugin system (data model, loader, sandbox, review pipeline) stays open.
+- **Revert:** `git revert` the increment; no schema/migration involved — `plugins_enabled` is a
+  plain settings field with no downstream reader.
+
 ## 2026-08-18 — Increment 482: Word-on-the-web relay (backlog #33/#34, SP4)
 - **Files:** `adapters/word/taskpane_core.js`, `taskpane.js`, `taskpane.html`, `taskpane.css`,
   `manifest.web.xml` (new), `taskpane_core.test.js`; `app/backend/api/routers/word.py`;

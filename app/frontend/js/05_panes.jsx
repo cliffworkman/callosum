@@ -29,6 +29,11 @@ function registerPaneSection(section) {
   s.label = section.label; s.paneId = section.paneId; s.order = section.order; s.hideInReadOnly = section.hideInReadOnly; s.demoInspectable = !!section.demoInspectable; s.defined = true;
   _addPaneTab(s, { id: section.id, label: section.tabLabel || section.label, order: 0, render: section.render, hideInReadOnly: section.hideInReadOnly, demoInspectable: !!section.demoInspectable });
 }
+// backlog #41 (deferred): this registry is the intended future extension point for user-authored
+// THEORY/METHODS panel plugin modules. Plugin loading is DEFERRED pending
+// .claude/backups/plans/2026-08-19_admin-gated-plugins-design.md's open questions (sandboxing,
+// whether the module contract can enforce PRINCIPLES.md, trusted-vs-untrusted separation) -- do
+// not add plugin-loading here without resolving them first.
 function registerPaneTab(host, tab) {
   // Adds a tab to a (find-or-create) section. Host metadata seeds a not-yet-`defined` section only. A tab may carry
   // its own `hideInReadOnly` (inc 248) — hidden on a read-only companion even when the section stays visible.
