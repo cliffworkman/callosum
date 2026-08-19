@@ -298,6 +298,39 @@ function AgentSettings() {
   );
 }
 
+// backlog #41: the admin-gated plugins foundation. Off by default; enabling it does nothing
+// observable yet -- no loader, no data model, no third-party code ever runs. See
+// .claude/backups/plans/2026-08-19_admin-gated-plugins-design.md for the design this is the
+// foundation for (a future curated, review-gated plugin store -- not an open marketplace).
+function PluginsSettings() {
+  const [on, setOn] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  useEffect(() => { api("/settings").then(r => { if (r.ok) setOn(!!r.data.plugins_enabled); }); }, []);
+
+  const toggle = async () => {
+    setBusy(true); setMsg("");
+    const r = await apiPut("/settings", { plugins_enabled: !on });
+    setBusy(false);
+    if (r.ok) setOn(!!r.data.plugins_enabled);
+    else setMsg("Couldn't toggle: " + (r.error || "error"));
+  };
+
+  return (
+    <>
+      <div className="settings-row settings-ai-control">
+        <span className="eyebrow settings-ai-control-title">Plugins</span>
+        <button type="button" className={"settings-switch" + (on ? " on" : "")} role="switch" aria-checked={on}
+          aria-label="Enable plugins" disabled={busy} onClick={toggle}><span className="settings-knob" /></button>
+        <span className="settings-sub">
+          <b>Off by default.</b> Foundation for a future curated, review-gated plugin store — user-authored panel modules would need to pass review before being available to install, never an open marketplace. Nothing is installable yet, and enabling this toggle does not change any other behavior — no plugin can run until that store exists.
+        </span>
+      </div>
+      {msg && <div className="settings-note">{msg}</div>}
+    </>
+  );
+}
+
 // Optional account (SP1) — "Sign in with ORCID" via the callosum account platform (OIDC). Opt-in + additive: the app
 // works fully offline with no account. Signing in verifies your identity and populates My Publications; identity
 // only — the library never leaves the machine. The Sign-in button shows only when the account service is configured
@@ -537,6 +570,10 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
             <div className="settings-section"><WordSettings /></div>
             <div className="settings-section"><RemoteAccessSettings /></div>
           </div>
+        </SettingsCard>
+
+        <SettingsCard title="Plugins">
+          <PluginsSettings />
         </SettingsCard>
 
         <SettingsCard title="Your usage">
