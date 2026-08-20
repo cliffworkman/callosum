@@ -54,6 +54,7 @@ from app.backend.api.routers import (
     help,
     library,
     library_enrich,
+    library_zotero,
     libreoffice,
     lmm,
     metaanalysis,
@@ -222,6 +223,7 @@ def create_app(
     api.state.library_import_jobs = JobStore()  # inc 93: citation-file import
     api.state.library_bundle_import_jobs = JobStore()  # B2 SP1 (inc 234): portable library bundle import
     api.state.share_import_jobs = JobStore()  # SP4c (backlog #15): decrypt + import a received share
+    api.state.zotero_import_jobs = JobStore()  # backlog #57 Phase 1: native Zotero library import
     api.state.statcheck_jobs = JobStore()  # inc 97: library-wide statcheck batch
     api.state.pcurve_jobs = JobStore()  # inc 126: collection-level p-curve over a selection
     api.state.zcurve_jobs = JobStore()  # inc 470: collection-level z-curve (EDR/ERR) over a selection
@@ -442,6 +444,7 @@ def create_app(
     api.include_router(saved_searches.router)
     api.include_router(reading_queue.router)  # /reading-queue/* — the to-read Queue tab (inc 219)
     api.include_router(library.router)
+    api.include_router(library_zotero.router)  # /library/zotero/import — native Zotero library import (#57 Phase 1)
     api.include_router(wip.router)  # /wip/* — local-only unpublished manuscript workspaces
     api.include_router(wip_checks.router)
     api.include_router(wip_citation_equity.router)  # backlog #48: WIP citation-concentration

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
@@ -64,6 +64,11 @@ class ZoteroImportResult:
     papers_matched: int
     attachments_created: int
     chunks_created: int
+    created_paper_ids: tuple[int, ...] = ()
+    # A matched (pre-existing) paper can still gain brand-new chunks this run (e.g. a previously broken local
+    # PDF link now resolves) -- that paper needs embed_chunks even though it isn't in created_paper_ids, which
+    # only ever gates embed_papers + the retraction check (a matched paper's own metadata didn't change).
+    chunk_ids_by_paper: dict[int, tuple[int, ...]] = field(default_factory=dict)
 
 
 def import_zotero_library(
@@ -71,6 +76,7 @@ def import_zotero_library(
     zotero_data_dir: str | Path,
     *,
     on_attachment_error: Callable[[ZoteroAttachmentRecord, Exception], None] | None = None,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> ZoteroImportResult:
     snapshot = read_zotero_library_copy(zotero_data_dir)
     collection_id_map = _upsert_collections(conn, snapshot.collections)
@@ -79,8 +85,13 @@ def import_zotero_library(
     papers_matched = 0
     attachments_created = 0
     chunks_created = 0
+    created_paper_ids: list[int] = []
+    chunk_ids_by_paper: dict[int, list[int]] = {}
+    total_items = len(snapshot.items)
 
-    for item in snapshot.items:
+    for index, item in enumerate(snapshot.items, start=1):
+        if on_progress is not None:
+            on_progress(index, total_items)
         canonical = normalize_zotero_item(item)
         existing = find_existing_paper_by_identity(
             conn,
@@ -95,6 +106,7 @@ def import_zotero_library(
         if existing is None:
             paper_id = create_paper(conn, **canonical)
             papers_created += 1
+            created_paper_ids.append(paper_id)
         else:
             paper_id = int(existing[1]["id"])
             papers_matched += 1
@@ -111,13 +123,15 @@ def import_zotero_library(
             attachments_created += int(created)
             if _can_extract_pdf(attachment):
                 try:
-                    created_chunks = _extract_attachment_chunks(conn, paper_id, attachment_id, attachment)
+                    created_ids = _extract_attachment_chunks(conn, paper_id, attachment_id, attachment)
                 except Exception as exc:
                     if on_attachment_error is not None:
                         on_attachment_error(attachment, exc)
-                    created_chunks = 0
-                chunks_created += created_chunks
-                if created_chunks > 0 or _attachment_has_chunks(conn, attachment_id):
+                    created_ids = []
+                if created_ids:
+                    chunk_ids_by_paper.setdefault(paper_id, []).extend(created_ids)
+                chunks_created += len(created_ids)
+                if created_ids or _attachment_has_chunks(conn, attachment_id):
                     paper_fully_chunked = True
 
         if paper_fully_chunked:
@@ -128,6 +142,8 @@ def import_zotero_library(
         papers_matched=papers_matched,
         attachments_created=attachments_created,
         chunks_created=chunks_created,
+        created_paper_ids=tuple(created_paper_ids),
+        chunk_ids_by_paper={pid: tuple(ids) for pid, ids in chunk_ids_by_paper.items()},
     )
 
 
@@ -296,9 +312,9 @@ def _extract_attachment_chunks(
     paper_id: int,
     attachment_id: int,
     attachment: ZoteroAttachmentRecord,
-) -> int:
+) -> list[int]:
     if _attachment_has_chunks(conn, attachment_id):
-        return 0
+        return []
     assert attachment.resolved_path is not None
     checksum = file_sha256(attachment.resolved_path)
     extraction = extract_pdf(attachment.resolved_path)
@@ -307,8 +323,9 @@ def _extract_attachment_chunks(
         source_attachment_checksum=checksum,
         chunking_strategy=DEFAULT_CHUNKING_STRATEGY,
     )
+    created_ids: list[int] = []
     for draft in drafts:
-        create_chunk(
+        chunk_id = create_chunk(
             conn,
             paper_id=paper_id,
             attachment_id=attachment_id,
@@ -326,7 +343,8 @@ def _extract_attachment_chunks(
             char_end=draft.char_end,
             bbox_json=draft.bbox_json,
         )
-    return len(drafts)
+        created_ids.append(chunk_id)
+    return created_ids
 
 
 def _can_extract_pdf(attachment: ZoteroAttachmentRecord) -> bool:
