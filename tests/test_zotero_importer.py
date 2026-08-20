@@ -155,6 +155,64 @@ def test_zotero_importer_edge_cases(tmp_path: Path) -> None:
     assert result.papers_matched == 1  # DOIITEM1
 
 
+def test_zotero_importer_reports_created_paper_ids_and_chunk_ids_by_paper(temp_db_url: str, tmp_path: Path) -> None:
+    zotero_dir = _make_zotero_fixture(tmp_path / "zotero")
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        result = import_zotero_library(conn, zotero_dir)
+
+    assert set(result.created_paper_ids) and len(result.created_paper_ids) == result.papers_created
+
+    # DOIITEM1 is the only fixture item with an immediately-resolvable PDF -- it's the one paper that should
+    # come back with real chunk ids recorded.
+    assert result.chunk_ids_by_paper
+    with engine.begin() as conn:
+        for paper_id, chunk_ids in result.chunk_ids_by_paper.items():
+            assert paper_id in result.created_paper_ids  # first run: every chunked paper here is newly created
+            assert chunk_ids
+            for chunk_id in chunk_ids:
+                row = conn.execute(select(chunks.c.id).where(chunks.c.id == chunk_id)).first()
+                assert row is not None
+
+
+def test_zotero_importer_reports_progress(temp_db_url: str, tmp_path: Path) -> None:
+    zotero_dir = _make_zotero_fixture(tmp_path / "zotero")
+    engine = make_engine(temp_db_url)
+    calls: list[tuple[int, int]] = []
+    with engine.begin() as conn:
+        import_zotero_library(conn, zotero_dir, on_progress=lambda current, total: calls.append((current, total)))
+
+    assert calls
+    totals = {total for _, total in calls}
+    assert len(totals) == 1  # total item count stays constant across the run
+    assert [current for current, _ in calls] == sorted(current for current, _ in calls)  # current is non-decreasing
+
+
+def test_zotero_importer_second_run_populates_chunk_ids_for_previously_missing_pdf(
+    temp_db_url: str, tmp_path: Path
+) -> None:
+    # _make_zotero_fixture's KEYONLY1 item already models this case directly: its MISSLINK attachment points at
+    # a linked-file path ("missing-linked.pdf") that doesn't exist on disk at fixture-build time -- no need for
+    # a bespoke fixture or _make_zotero_edge_case_fixture.
+    zotero_dir = _make_zotero_fixture(tmp_path / "zotero")
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        first = import_zotero_library(conn, zotero_dir)
+        key_only_paper_id = conn.execute(select(papers.c.id).where(papers.c.zotero_item_key == "KEYONLY1")).scalar_one()
+    assert key_only_paper_id not in first.chunk_ids_by_paper
+
+    # Materialize the previously-missing linked PDF at the exact path the fixture's attachment row points at.
+    _make_pdf(zotero_dir / "missing-linked.pdf")
+
+    with engine.begin() as conn:
+        second = import_zotero_library(conn, zotero_dir)
+
+    assert second.papers_created == 0
+    assert second.papers_matched == first.papers_created + first.papers_matched
+    assert key_only_paper_id in second.chunk_ids_by_paper
+    assert second.chunk_ids_by_paper[key_only_paper_id]
+
+
 def _make_zotero_edge_case_fixture(zotero_dir: Path) -> Path:
     zotero_dir.mkdir()
     conn = sqlite3.connect(zotero_dir / "zotero.sqlite")
