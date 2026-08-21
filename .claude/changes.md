@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-21 — Increment 488: foreign Word citation conversion research gate (backlog #57 Phase 5)
+- **Files:** `.claude/docs/research/2026-08-21_word_citation_migration_formats.md` (new),
+  `.claude/docs/increment-notes/INCREMENT-488-NOTES.md` (new), `adapters/word/README.md`, `.claude/CLAUDE.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`.
+- **What:** verifies from current first-party documentation that Mendeley Cite uses Word content controls and
+  EndNote Cite While You Write uses Word fields/`ADDIN EN.CITE` plus a Traveling Library, while recording that
+  neither vendor publishes the complete, versioned payload contract required for a safe converter.
+- **Why:** conflicting third-party reverse engineering and a single sample are not a sound basis for rewriting
+  scholarly manuscripts. This completes the requested research gate without manufacturing implementation
+  confidence; converter implementation stays explicitly open pending stronger evidence.
+- **Boundaries:** no parser, endpoint, ingestion path, dependency, interactive control, QA route, security audit,
+  or Help change. Foreign live fields stay under their originating tool; vendor flattening is static output, not
+  editable citation migration.
+- **Revert:** a plain `git revert`; documentation only.
+
 <!-- HELP-DOCS-SYNCED: 2026-08-21 — Increment 487: Mendeley-via-Zotero bridge -->
 ## 2026-08-21 — Increment 487: Mendeley-via-Zotero bridge confirmed (backlog #57 Phase 3)
 - **Files:** `integrations/mendeley/README.md`, `app/frontend/js/04e_onboarding.jsx`,

@@ -105,6 +105,13 @@ covers papers **already in your library** (beyond-library discovery is a separat
 HTTPS run-mode + the trusted dev cert. Word-on-the-web needs the relay above; Google Docs has its own adapter
 (`adapters/googledocs/`).
 
+Existing **Mendeley Cite** and **EndNote Cite While You Write** fields are not converted. Their vendors document
+the outer Word mechanism (content controls for Mendeley Cite; `ADDIN EN.CITE` fields for EndNote), but not a
+complete, versioned payload contract that Callosum could safely rewrite without risking citation data. Keep those
+live fields under their originating tool. Vendor-supported flatten/remove-field-code workflows create static text
+on a document copy; they are not editable citation migration. The evidence boundary and requirements for revisiting
+it are recorded in `.claude/docs/research/2026-08-21_word_citation_migration_formats.md`.
+
 > **Verification note:** there is no headless Word, so the in-Word behavior of the Office.js parts
 > (`taskpane.js`) is **not exercised by an automated test** (nor, currently, by the maintainer — it ships
 > best-effort-correct per the Office.js docs). The **pure logic** (`taskpane_core.js`: tag encode/decode, the

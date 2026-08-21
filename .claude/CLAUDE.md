@@ -640,6 +640,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   credentials); group libraries, invalid/custom fields, and Mendeley Cite document citations retain documented
   limits. Direct Mendeley database read/decryption remains a hard avoidance boundary. Research:
   `.claude/docs/research/2026-08-21_mendeley_via_zotero_bridge.md`.
+- **Foreign Word citation conversion researched and gated (backlog #57 Phase 5, inc 488):** current first-party
+  documentation confirms Mendeley Cite uses Word content controls and EndNote Cite While You Write uses Word fields
+  (`ADDIN EN.CITE`) with a Traveling Library, but neither vendor publishes the complete, versioned payload contract
+  needed for lossless conversion. No parser may be built from third-party reverse engineering alone: reopen only
+  with a vendor schema/supported API or an explicitly approved multi-version fixture corpus, fail-closed version
+  handling, and byte-preserving fallback. Existing foreign fields remain owned by their source tool; vendor
+  flattening produces static text, not editable migration. Research:
+  `.claude/docs/research/2026-08-21_word_citation_migration_formats.md`.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

@@ -173,10 +173,11 @@ the Principles + A-A gates before build.)*
   - **Phase 4 shipped, inc 485:** Zotero PDF highlight/underline positions are bounded, validated,
     and mapped into callosum's own PDF-space bbox/page coordinates for their owning attachment;
     ambiguous/unsupported geometry retains raw provenance and is not drawn.
-  - Phase 5: word-processor in-document citation migration for Word, extending inc 464's
-    LibreOffice Zotero-conversion pattern — gated on primary-source research into Mendeley Cite's/
-    EndNote's actual field-code formats (neither is verified anywhere in this repo today; mirrors
-    inc 464's own research-first precedent, not reverse-engineering a sample file).
+  - **Phase 5 research gate complete, inc 488; implementation remains open/gated:** first-party sources confirm
+    Mendeley Cite content controls and EndNote `ADDIN EN.CITE` Word fields/Traveling Library, but do not publish
+    either complete, versioned payload contract. No converter was built from conflicting third-party reverse
+    engineering. Reopen only with a vendor schema/supported API or an explicitly approved, multi-version fixture
+    corpus plus fail-closed preservation safeguards.
 
 ---
 
