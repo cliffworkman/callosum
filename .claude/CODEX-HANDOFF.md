@@ -329,4 +329,106 @@ Review `45299b6` first: the coordinate transform, attachment ownership/scoping, 
 audit carry the greatest correctness risk. Next inspect the EndNote/Mendeley guidance for wording and product fit.
 Finally confirm the Phase 5 no-parser decision against the primary-source research note. If time allows, the most
 valuable missing external evidence is one redacted genuine EndNote RIS export; it can close Phase 2 without
+
+---
+
+# Session 2 — 2026-08-21 (continued): hardening + cross-phase coherence pass
+
+Cliff has 24+ hours of runway left before his weekly Claude Code limit resets Sunday and doesn't
+want callosum idling. This session's own summary above was independently spot-checked by Claude
+(file existence, backlog text, diff shape, a targeted 101-test independent re-run, a raw-hex-color
+grep against `.claude/DESIGN.md`) — it holds up. **Good work.** This second session is not "do
+Phases 6+" — there isn't new backlog #57 scope waiting. It's a deliberate step back: harden and
+cross-check what already shipped, the same way a final whole-branch review catches things no
+single task's own review could see.
+
+**Still on `codex/backlog-57-phases-2-5`. Still don't push or merge to `origin/main`.**
+
+## Do NOT do these — read this before anything else
+
+1. **Do not build a Word-citation converter for Phase 5.** Your own research correctly found
+   neither Mendeley Cite nor EndNote publishes a complete, versioned payload contract — that's a
+   real, hard-won finding, not a gap to route around. Building a parser from third-party reverse
+   engineering risks silently corrupting a real user's live manuscript. This stays gated exactly as
+   you left it unless a genuine vendor schema surfaces.
+2. **Do not fabricate or construct a substitute "real" EndNote export for Phase 2.** If you can
+   find a genuinely public, official EndNote-published sample export (e.g., in EndNote's own
+   documentation, a Clarivate support article, or a citable academic methods resource that
+   publishes a real export snippet) — as opposed to a synthetic fixture you build to model a
+   documented tag — use it and note the source. If you can't find one, Phase 2 stays exactly as
+   partial as you already, correctly, left it. Don't let a second session's momentum turn an honest
+   "open" into a false "closed."
+
+## What to actually do
+
+### 1. A full end-user experience pass across the now-5-option import surface (highest priority)
+
+The onboarding wizard's import step (`04e_onboarding.jsx`'s `OnboardingImportChoice`) and the
+Library "+ Add" menu (`10b_libmenus.jsx`'s `AddMenu`) both grew across Phases 1-3: what was
+originally two options (generic file import, bundle import) is now up to five surfaces touching
+Zotero/Mendeley/EndNote guidance in one place. Growing a menu one phase at a time is exactly how
+clutter and inconsistent hierarchy creep in even when every individual addition was done carefully
+— read `.claude/EXPERIENCE-PASS.md` again, then **write out, in full, a persona-grounded
+walkthrough** (its own mechanism, adapted since you have no live Claude session to dispatch a
+sub-agent for it): be a concrete user — pick one of Mendeley, EndNote, or Zotero — landing on the
+onboarding wizard's import step for the first time, or opening the Library "+ Add" menu later.
+Actually read the current copy and button hierarchy in both files as that user would encounter it,
+not from memory of writing it. Report, honestly:
+- Is the right option obvious for *your* chosen persona's actual tool, or does it require reading
+  every option to figure out which applies?
+- Does the button hierarchy (primary vs. ghost styling) still make sense now that there are more
+  options, or does everything visually compete for attention?
+- Is any copy now redundant or contradictory across the five options (e.g., does the Mendeley
+  guidance say something that conflicts with what the generic-import option's copy already implied
+  about Mendeley)?
+- If you find real friction, fix it (tightening copy, reordering, adjusting which option is
+  visually primary) — small, surgical UI/copy edits, not a redesign. If a fix is genuinely out of
+  scope for a copy/ordering tweak, document the friction precisely instead of glossing over it.
+
+### 2. A fresh, cross-phase DESIGN.md coherence re-read
+
+Re-read `.claude/DESIGN.md` in full, then re-read every frontend file this whole arc touched
+(`04e_onboarding.jsx`, `10b_libmenus.jsx`, `27b_zotero_import.jsx`, `30_viewer.jsx`) as one
+connected pass, not per-commit. Look specifically for: any inconsistency in how the five import
+options are visually presented relative to each other (spacing, button style, note/hint styling)
+that a phase-by-phase view wouldn't surface; any place a new string of explanatory copy reads
+differently in tone from its neighbors; any token or recipe used slightly differently across the
+four files. Fix what's cheap and surgical; note anything larger.
+
+### 3. Widen Phase 4's test coverage (the piece your own summary flagged as highest-risk)
+
+You already flagged the coordinate transform as the first thing Sunday's reviewer should look at.
+Reduce that risk now: add test cases for combinations your existing suite may not cover — multiple
+attachments on one paper with annotations on different attachments, a rotated page combined with an
+otherwise-valid rectangle (should still fail closed to raw provenance per your own PASS audit's own
+stated invariant), and an attachment whose owning PDF is swapped/relinked after import (does a
+previously-`exact` annotation ever get silently mis-attributed, or does it correctly stay pinned to
+its original attachment id). If a test reveals a real bug, fix it and say so plainly — that is
+exactly the kind of thing worth surfacing now rather than Sunday.
+
+### 4. A consistency pass across the new documentation
+
+Read `INCREMENT-485-NOTES.md` through `INCREMENT-488-NOTES.md` and the four new `CLAUDE.md` Stack-
+section bullets as one continuous narrative (not four independent entries). Check: do they
+cross-reference each other correctly (e.g., does Phase 5's note about Mendeley Cite/EndNote formats
+correctly point back to Phase 3's Mendeley-bridge work rather than duplicating context)? Does any
+one of them contradict what another says about the current onboarding flow now that item #1 above
+may have changed it? Fix drift; this is cheap now and expensive to catch piecemeal later.
+
+### 5. If time remains after 1-4: re-run the full suite once more and re-verify all gates
+
+`pytest -n auto -q` (or `-n 4`/serial if the environment's known memory-pressure flakiness recurs —
+never report a silently-killed run as a real failure), `ruff format --check .`, `ruff check .`,
+`python -m tach check`, `python tools/check_line_budget.py --list`,
+`python tools/qa/build_surface_map.py check`. Report the real final numbers.
+
+## When you stop again
+
+Append a **"Codex Session 2 Summary"** section (same file, same shape as session 1's): what you
+found in the experience-pass walkthrough (including anything you decided NOT to change and why),
+what you fixed in the DESIGN.md coherence check, what new test cases you added for Phase 4 and
+whether any revealed a real bug, what doc-consistency fixes you made, and the final real
+pytest/ruff/tach numbers. Same rule as before: **never report a number you didn't personally just
+watch a real command produce.** Still don't push or merge — leave the branch for Claude's review
+Sunday.
 expanding the architecture.
