@@ -48,7 +48,7 @@ class ZoteroImportSummary(BaseModel):
     attachments_created: int = 0
     chunks_created: int = 0
     attachment_errors: int = 0
-    attachment_error_details: list[ZoteroAttachmentErrorOut] = []
+    attachment_error_details: list[ZoteroAttachmentErrorOut] = Field(default_factory=list)
 
 
 class ZoteroImportJobResponse(BaseModel):

@@ -90,8 +90,6 @@ def import_zotero_library(
     total_items = len(snapshot.items)
 
     for index, item in enumerate(snapshot.items, start=1):
-        if on_progress is not None:
-            on_progress(index, total_items)
         canonical = normalize_zotero_item(item)
         existing = find_existing_paper_by_identity(
             conn,
@@ -136,6 +134,9 @@ def import_zotero_library(
 
         if paper_fully_chunked:
             conn.execute(update(papers).where(papers.c.id == paper_id).values(processing_tier="fully-chunked"))
+
+        if on_progress is not None:
+            on_progress(index, total_items)
 
     return ZoteroImportResult(
         papers_created=papers_created,

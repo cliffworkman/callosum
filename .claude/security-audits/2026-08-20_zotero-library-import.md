@@ -21,6 +21,12 @@ files (12 touched across the whole plan).
   `27_scan.jsx`'s exact resume-on-remount `localStorage` poll lifecycle. Wired into the Library "+ Add" menu
   (`10b_libmenus.jsx`) and the onboarding wizard's import-choice step (`04e_onboarding.jsx`).
 
+Not a security property, but for completeness across this branch's artifact set: a known, disclosed limitation
+carries over unchanged — imported annotation *positions* stay in raw Zotero-reader-JSON form
+(`integrations/zotero/README.md`), so imported highlights show their quoted text/comment but can't be
+jumped-to or drawn on the PDF yet (backlog #57 Phase 4). This is a pre-existing gap unrelated to this branch's
+threat surface, not fixed by it.
+
 ## Threat review
 
 **File-path safety.** Identical posture to the already-audited `POST /library/scan`

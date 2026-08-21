@@ -39,13 +39,18 @@ against.
 
 - **Console-error budget = 0.** Any console `error` ≥ Medium; any `pageerror` ≥ High.
 - **No uncompletable control.** Any visible control that can't be completed through the UI is a bug.
-- **Zero egress (Critical, invariant #3).** This feature has **no** egress gate to test — it makes no network
-  call of its own at all (confirmed by direct grep of `app/backend/importers/zotero.py` and
-  `integrations/zotero/adapter.py`: zero `httpx`/`requests`/`urllib` matches). The request listener must show
-  **zero** outbound requests to any non-`127.0.0.1`/`localhost` host for the entire duration of an import run,
-  egress setting notwithstanding — this is a stronger bar than the usual "no genai host" check, since there is
-  no legitimate external request of any kind here (unlike, say, `/library/scan`'s own Crossref enrichment call).
-  Flag **any** non-loopback request observed during a run as Critical, not just a genai one.
+- **Zero-egress importer/adapter, ONE already-audited exception (Critical, invariant #3).** The importer/adapter
+  code itself (`app/backend/importers/zotero.py`, `integrations/zotero/adapter.py`) makes **zero** network calls
+  of its own — confirmed by direct grep: zero `httpx`/`requests`/`urllib` matches in either file. But a real
+  import run is **not** zero-egress end to end: the shipped job (`_run_zotero_import_job` in
+  `app/backend/api/routers/library_zotero.py`) calls `auto_check_retractions` for every newly created paper,
+  which — for a paper with a DOI — makes a real Crossref/OpenAlex metadata lookup, exactly like every other
+  library-import path in this app already does (`DEFAULT_RETRACTION_CHECKERS`, wired at `app/backend/api/app.py`).
+  The primary fixture used throughout this route (`_make_zotero_fixture`) contains a DOI'd item, so this egress
+  **will** happen on a real happy-path run — it is disclosed and covered by its own separate audit, not a bug in
+  this feature. **Flag anything ELSE** as Critical: any non-loopback request to a host that isn't Crossref/
+  OpenAlex, and especially any AI/genai provider host — the retraction lookup itself is expected and must NOT be
+  flagged.
 - **Copy-then-read, proven not just observed (Critical).** Before starting a run, record the source
   `zotero.sqlite`'s file size, mtime, and (if you can compute it locally) its SHA-256. After the job reaches
   `done`, re-check all three — they must be **byte-for-byte, timestamp-for-timestamp unchanged**. Also confirm
@@ -82,7 +87,10 @@ against.
   once a run starts) — not two concurrent jobs against the same directory.
 - Navigate away from the Library workspace mid-job (or reload the page entirely) and return → the modal's
   `localStorage`-backed resume (`callosum.zoteroImportJob`) must pick the same job back up on remount and show
-  its current/final state, not silently drop it or restart a duplicate run.
+  its current/final state, not silently drop it or restart a duplicate run. (The modal also persists the
+  last-used folder path in `callosum.zoteroDataDir`, pre-filling the field on next open — `callosum.zoteroImportJob`
+  and `callosum.zoteroDataDir` are the exact two localStorage keys this feature writes; scope test-state
+  cleanup to precisely those two.)
 - Paste a ~50KB string into the directory field → the length cap (`max_length=4096`) rejects it cleanly with a
   422, not a crash or a hung request.
 - Mobile viewport `375x812`, hard refresh → no horizontal overflow in the modal.
@@ -101,7 +109,8 @@ against.
    progress, not an invented percentage; on completion, the summary reads "3 new · 0 already in your library"
    plus non-zero attachment/chunk counts.
 4. Confirm the source `zotero.sqlite`'s size/mtime/hash are unchanged (see Standing assertions), and that the
-   request listener recorded zero non-loopback requests for the whole run.
+   request listener recorded no non-loopback requests other than the expected Crossref/OpenAlex retraction
+   lookup for the newly created DOI'd paper (see the Standing-assertions egress note).
 5. Open the newly-imported DOI'd paper. Confirm its PDF is full-text searchable (the extracted chunk's content
    is findable) and its tags (`important`/`review`) and collection membership carried over.
 6. Re-run the import against the **same** fixture directory. Confirm the idempotent-re-run assertion above (0
@@ -131,7 +140,9 @@ against.
   `ZoteroImportModalBody` and complete a real import through UI polling.
 - The source Zotero data directory is provably untouched (size/mtime/hash) after every run, including a failed
   one.
-- Zero non-loopback network requests observed at any point, regardless of egress setting.
+- No non-loopback network requests observed other than the expected Crossref/OpenAlex retraction-check lookup
+  for a newly created DOI'd paper (the same already-audited lookup every other import path makes); any other
+  non-loopback host, especially an AI/genai provider, is Critical.
 - A non-Zotero directory fails with an honest, traceback-free message; an empty-but-valid one succeeds with an
   all-zero summary; a re-run against the same directory is a true no-op.
 - Status findability and nav-click-through hold; the coordinate-honesty disclosure copy is present and readable

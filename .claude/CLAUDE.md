@@ -612,7 +612,9 @@ the full per-increment narrative for all other increments now lives in the reloc
   (`ZoteroImportResult.created_paper_ids`/`chunk_ids_by_paper`) so its caller can embed +
   retraction-check newly-created papers — and, a real subtlety, embed newly-created chunks on a
   *matched* (pre-existing) paper too, since a re-run can discover a PDF that wasn't locally
-  resolvable before. Zero egress (confirmed by direct grep of both touched files); same
+  resolvable before. The importer/adapter code itself is zero egress (confirmed by direct grep of both
+  touched files); the only non-loopback traffic the job can produce is the same already-audited
+  retraction-check metadata lookup every other import path already makes. Same
   local-single-user file-read posture as the already-audited `/library/scan`. A known, disclosed
   limitation carries over unchanged: imported annotation *positions* stay in raw Zotero-reader-JSON
   form, not yet mapped to callosum's own PDF-space bbox/page coordinates (backlog #57 Phase 4).
