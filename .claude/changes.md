@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-21 — Increment 485: Zotero annotation-position fidelity -->
+<!-- HELP-DOCS-SYNCED: 2026-08-21 — Increment 486: EndNote generic-import handoff -->
+## 2026-08-21 — Increment 486: EndNote generic-import handoff, partial (backlog #57 Phase 2)
+- **Files:** `app/backend/metadata/citation_import.py`, `tests/test_citation_import.py`,
+  `app/backend/help/help_content.md`, `.claude/qa-routes/route_27_scan_import.md`,
+  `.claude/docs/research/2026-08-21_endnote_generic_import.md` (new),
+  `.claude/docs/increment-notes/INCREMENT-486-NOTES.md` (new), `.claude/CLAUDE.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`, `www/showcase-coverage.json`.
+- **What:** verifies from current EndNote/Clarivate documentation that RefMan (RIS) Export is the supported
+  low-friction path into Callosum's existing citation importer, documents the exact EndNote → Callosum steps,
+  and fills the parser's genuine gap for Clarivate's accepted `CPAPER`, `A4`, alternate title/journal/year RIS
+  tags. The regression fixture is labeled and documented as a synthetic contract stand-in.
+- **Why:** EndNote users already had the correct backend/UI path, but no grounded instructions and incomplete
+  coverage of Clarivate's own RIS alias vocabulary. A suspected parenthesized-BibTeX convention was not verified
+  by current primary sources and therefore was not implemented from hearsay.
+- **Partial boundary:** no genuine EndNote-created export exists in this repository. The backlog's real-file
+  verification requirement remains open; this increment deliberately does not convert a synthetic pass into a
+  “shipped” claim.
+- **Revert:** a plain `git revert`; no endpoint/schema/dependency involved.
+
 ## 2026-08-21 — Increment 485: Zotero annotation-position fidelity (backlog #57 Phase 4)
 - **Files:** `app/backend/importers/zotero_annotation_position.py` (new),
   `app/backend/importers/zotero.py`, `integrations/zotero/adapter.py`,

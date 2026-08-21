@@ -92,6 +92,18 @@ PY  - 2019
 ER  -
 """
 
+# Synthetic stand-in, not a claim of real-file EndNote verification. These aliases are the current Clarivate
+# RIS acceptance contract, including EndNote Online's export family:
+# https://webofscience.help.clarivate.com/en-us/Content/wos-researcher-profile-adding-removing-publications.html
+_CLARIVATE_RIS_ALIASES = """TY  - CPAPER
+A4  - Curator, Casey
+BT  - Conference Paper from an EndNote-Compatible RIS File
+J1  - Proceedings of the Example Society
+Y2  - 2025/06/04
+DO  - 10.5555/endnote-standin
+ER  -
+"""
+
 _CSL_JSON = """[
   {"type": "article-journal", "title": "A Grand Study", "DOI": "10.1/abc",
    "author": [{"family": "Doe", "given": "Jane"}], "issued": {"date-parts": [[2020]]}},
@@ -124,6 +136,21 @@ def test_parse_ris():
     assert first["issued"] == {"date-parts": [[2020]]} and first["page"] == "100-120"
     assert first["DOI"] == "10.1/abc"
     assert recs[1]["type"] == "book" and recs[1]["title"] == "Big Report"
+
+
+def test_parse_clarivate_ris_aliases_used_by_endnote_export_family():
+    recs, skipped = parse_ris(_CLARIVATE_RIS_ALIASES)
+    assert skipped == 0
+    assert recs == [
+        {
+            "type": "paper-conference",
+            "author": [{"family": "Curator", "given": "Casey"}],
+            "title": "Conference Paper from an EndNote-Compatible RIS File",
+            "container-title": "Proceedings of the Example Society",
+            "issued": {"date-parts": [[2025]]},
+            "DOI": "10.5555/endnote-standin",
+        }
+    ]
 
 
 def test_credit_status_reports_existing_dois_by_identity(temp_db_url):

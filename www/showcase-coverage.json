@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-21",
-    "reviewed_rev": "463d5e6",
-    "source_fingerprint": "11dc27befb6dd457eb66ee7a19492bbc4847c87622252e3c7b90dd24862f8341",
-    "note": "Reviewed Zotero import/annotation placement against #cap-import and existing highlight/coordinate claims; those claims remain accurate and current figures do not depict the changed import modal. Also mapped the previously-unregistered analytic-flexibility route to the existing transparency capability."
+    "reviewed_rev": "45299b6",
+    "source_fingerprint": "119acf313bc7605a6b3bdf8d8e0503b59cb8737eb9b8ea11f9fdb1f5ff2145a1",
+    "note": "Reviewed the EndNote RefMan-RIS help guidance and generic-import parser aliases against #cap-import. Existing public import and metadata-only claims remain accurate; no current website figure depicts citation-file export instructions."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

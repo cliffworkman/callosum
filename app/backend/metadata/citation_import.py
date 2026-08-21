@@ -39,6 +39,7 @@ _BIBTEX_TO_CSL_TYPE = {
 _RIS_TO_CSL_TYPE = {
     "JOUR": "article-journal",
     "CONF": "paper-conference",
+    "CPAPER": "paper-conference",
     "BOOK": "book",
     "CHAP": "chapter",
     "THES": "thesis",
@@ -239,13 +240,15 @@ def _ris_entry_to_csl(ty: str, authors: list[str], fields: dict[str, str]) -> di
     rec: dict[str, Any] = {"type": _RIS_TO_CSL_TYPE.get(ty.upper(), "document")}
     if authors:
         rec["author"] = [_parse_name(a) for a in authors]
-    title = fields.get("TI") or fields.get("T1")
+    # Clarivate's current RIS upload contract accepts these aliases; EndNote
+    # desktop itself recommends its RefMan (RIS) Export transfer style.
+    title = next((fields.get(tag) for tag in ("TI", "T1", "BT", "CT", "T3", "TT", "ST") if fields.get(tag)), None)
     if title:
         rec["title"] = title
-    journal = fields.get("T2") or fields.get("JO") or fields.get("JF") or fields.get("J2")
+    journal = next((fields.get(tag) for tag in ("T2", "JO", "JF", "J1", "J2") if fields.get(tag)), None)
     if journal:
         rec["container-title"] = journal
-    issued = _issued(_year_int(fields.get("PY") or fields.get("Y1") or fields.get("DA")))
+    issued = _issued(_year_int(fields.get("PY") or fields.get("Y1") or fields.get("Y2") or fields.get("DA")))
     if issued:
         rec["issued"] = issued
     for src, dst in (
@@ -290,7 +293,7 @@ def parse_ris(text: str) -> tuple[list[dict], int]:
                     skipped += 1
             ty, authors, fields = None, [], {}
         elif ty is not None:
-            if tag in ("AU", "A1", "A2", "A3"):
+            if tag in ("AU", "A1", "A2", "A3", "A4"):
                 authors.append(value)
             else:
                 fields[tag] = value

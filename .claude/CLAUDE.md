@@ -624,6 +624,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   missing PDFs, and rotated pages retain raw Zotero provenance but receive no guessed bbox. Audits
   `2026-08-20_zotero-library-import.md` and
   `2026-08-21_zotero-annotation-position-fidelity.md` PASS.
+- **EndNote whole-library handoff partially verified (backlog #57 Phase 2, inc 486):** current EndNote 2025
+  documentation recommends **RefMan (RIS) Export** for transfer to another program; Callosum's existing local,
+  metadata-only `POST /library/import` route already accepts `.ris` and EndNote's possible `.txt` extension.
+  The RIS parser now covers Clarivate's documented `CPAPER`, `A4`, alternate title/journal/year aliases, and Help
+  gives the two-step EndNote export/import path. No current primary source verified a suspected parenthesized-
+  BibTeX EndNote convention, so the parser does not guess at it. The backlog phase remains explicitly partial
+  until the same path is exercised against a genuine EndNote-created file; the checked-in alias fixture is only
+  a contract stand-in. Research: `.claude/docs/research/2026-08-21_endnote_generic_import.md`.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

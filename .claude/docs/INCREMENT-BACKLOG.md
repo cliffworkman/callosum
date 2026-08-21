@@ -162,8 +162,10 @@ the Principles + A-A gates before build.)*
   - **Phase 1 shipped, inc 484:** the already-built native Zotero importer
     (`app/backend/importers/zotero.py`) — `POST /library/zotero/import`, a Library "+ Add" entry,
     and an onboarding-wizard option.
-  - Phase 2: EndNote via the existing generic BibTeX/RIS/CSL-JSON importer, verified against a
-    real EndNote export sample (not just a hand-built fixture).
+  - **Phase 2 partial, inc 486:** EndNote's documented RefMan (RIS) transfer path is covered by the
+    existing generic importer; current Clarivate RIS aliases are parser-tested and Help gives the
+    shortest export/import route. **Still open:** verify end to end against a real EndNote-created
+    export—the checked-in contract fixture is explicitly only a synthetic stand-in.
   - Phase 3: feasibility spike for a Mendeley-via-Zotero-bridge import path (Mendeley's modern
     export reportedly encrypts citation data, blocking a direct clean export; Zotero's own
     import-from-Mendeley may be the practical bridge).

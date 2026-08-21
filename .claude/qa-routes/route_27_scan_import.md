@@ -35,8 +35,15 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 3. Submit an empty path, whitespace path, and forbidden/outside path. Confirm clean validation and no server traceback.
 4. Open watched folders. Confirm list loads (`GET /library/watched`) and **always includes the pinned library-folder default** (inc 160): an `is_default` row shown as "default · always watched" with **no remove button**; `DELETE /library/watched/0` must be refused (**422**). Run rescan (`POST /library/watched/rescan`, `GET /library/watched/rescan/{job_id}`), rapid-click rescan/scan and confirm a second request reuses the active job instead of spawning another writer, and delete a disposable *user-added* watched folder (`DELETE /library/watched/{folder_id}`) — the default remains.
 5. Put a byte-identical PDF under a different name/path from a non-scan provenance fixture. Confirm scan reports it unchanged by content and does not create another paper.
-6. Open Add -> Import (`28_import.jsx`). Import a valid fixture PDF (`POST /library/import`) and poll (`GET /library/import/{job_id}`).
-7. Import a garbage/non-PDF fixture and a duplicate file. Confirm explicit failure/duplicate messaging, not a crash.
+6. Open Add -> Import (`28_import.jsx`). Import valid BibTeX, RIS, and CSL-JSON citation fixtures (`POST
+   /library/import`) and poll (`GET /library/import/{job_id}`). Confirm each creates metadata-only papers and a
+   second import reports duplicates rather than copies.
+7. Import a `.txt` RIS stand-in using Clarivate's documented alternate tags (`CPAPER`, `A4`, `BT`, `J1`, `Y2`),
+   matching the EndNote/RefMan export guidance in Help. Confirm auto-detection, conference-paper type, author,
+   title, container, year, and DOI. This synthetic contract fixture does not substitute for the backlog's pending
+   verification with a real EndNote-created export.
+8. Import garbage content and malformed/truncated entries. Confirm explicit unrecognized/skipped messaging, not
+   a crash; submit an over-5MB file directly and confirm the resource cap returns a readable error.
 
 ## Pass criteria
 
