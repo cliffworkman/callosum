@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-20 — Increment 484: native Zotero library import, shipped (backlog #57 Phase 1)
+- **Files:** `app/backend/importers/zotero.py`, `app/backend/api/routers/library_zotero.py` (new),
+  `app/backend/api/app.py`, `app/backend/api/routers/status.py`, `tests/test_zotero_importer.py`,
+  `tests/test_library_zotero_import.py` (new), `app/frontend/js/27b_zotero_import.jsx` (new),
+  `app/frontend/js/10b_libmenus.jsx`, `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/js/40_app.jsx`,
+  `app/frontend/js/04e_onboarding.jsx`, `callosum-app.html`;
+  `.claude/security-audits/2026-08-20_zotero-library-import.md` (new),
+  `.claude/qa-routes/route_93_zotero_library_import.md` (new),
+  `.claude/docs/increment-notes/INCREMENT-484-NOTES.md` (new); `.claude/CLAUDE.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`.
+- **What:** ships a real entry point — `POST /library/zotero/import` (an async job), a Library "+ Add" →
+  "Read Zotero library…" action, and a third onboarding-wizard import choice — for the already-built,
+  full-fidelity Zotero importer (`app/backend/importers/zotero.py`, copy-then-read `zotero.sqlite`, never the
+  live file). Unlike the generic BibTeX/RIS/CSL-JSON path, this reads collections/tags/notes/annotations and
+  extracts + chunks any locally-resolvable PDF. The importer gained two small additive fields
+  (`created_paper_ids`/`chunk_ids_by_paper`) so the new router can embed + retraction-check newly created papers,
+  and separately embed newly created chunks on a *matched* (pre-existing) paper too, since a re-run can discover
+  a PDF that wasn't locally resolvable before.
+- **Why:** the importer existed and worked but had no shipped entry point.
+- **Revert:** a plain `git revert`; no schema/migration involved.
+
 ## 2026-08-19 — Increment 483: admin-gated plugins foundation (backlog #41)
 - **Files:** `app/backend/app_settings.py`, `app/backend/api/routers/settings.py`,
   `app/frontend/js/35_settings.jsx`, `app/frontend/js/05_panes.jsx`,

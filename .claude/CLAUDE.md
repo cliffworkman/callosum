@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 483** (see Increment workflow) with **2322 root-suite pytest tests
+It is currently at **Increment 484** (see Increment workflow) with **2331 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -600,6 +600,23 @@ the full per-increment narrative for all other increments now lives in the reloc
   points for user-authored plugin modules. **Deliberately inert** — the toggle controls nothing
   else in the app; no plugin data model, loader, sandbox, or store exists yet. See the design doc
   for the vision and its open blocking questions: `.claude/docs/specs/2026-08-19-admin-gated-plugins-design.md`.
+- **Native Zotero library import shipped (backlog #57 Phase 1, inc 484):** the already-built,
+  full-fidelity Zotero importer (`app/backend/importers/zotero.py` — copy-then-read `zotero.sqlite`,
+  never the live file, `integrations/zotero/adapter.py`) previously had no entry point beyond the
+  dev validation harness and tests. A new sibling router (`app/backend/api/routers/
+  library_zotero.py` — `library.py` was already at the 600-line cap) adds `POST
+  /library/zotero/import` (async job, the `library_import_jobs` pattern) plus a Library "+ Add"
+  entry and a third onboarding-wizard option. Unlike the generic BibTeX/RIS/CSL-JSON path
+  (metadata-only), this reads collections/tags/notes/annotations and extracts + chunks any
+  locally-resolvable PDF. The importer itself gained two small additive fields
+  (`ZoteroImportResult.created_paper_ids`/`chunk_ids_by_paper`) so its caller can embed +
+  retraction-check newly-created papers — and, a real subtlety, embed newly-created chunks on a
+  *matched* (pre-existing) paper too, since a re-run can discover a PDF that wasn't locally
+  resolvable before. Zero egress (confirmed by direct grep of both touched files); same
+  local-single-user file-read posture as the already-audited `/library/scan`. A known, disclosed
+  limitation carries over unchanged: imported annotation *positions* stay in raw Zotero-reader-JSON
+  form, not yet mapped to callosum's own PDF-space bbox/page coordinates (backlog #57 Phase 4).
+  Audit `2026-08-20_zotero-library-import.md` PASS.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**
@@ -1090,7 +1107,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 478). Each increment of real work
+callosum is built in **numbered increments** (currently at 484). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

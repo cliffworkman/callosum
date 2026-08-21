@@ -155,6 +155,25 @@ the Principles + A-A gates before build.)*
   design doc as the live reference; the two real existing internal registries
   (`registerPaneTab`/`build_default_feed_registry`) carry marker comments naming them as candidate
   extension points, deferred pending the design doc's open questions.
+- **#57 Whole-library migration (Zotero/Mendeley/EndNote).** A user's *entire* existing
+  reference-manager library moving into callosum, distinct from the #33/#34 "Traveling-library
+  portability" line above (that one is about a single document's own in-document citations, not a
+  whole library).
+  - **Phase 1 shipped, inc 484:** the already-built native Zotero importer
+    (`app/backend/importers/zotero.py`) — `POST /library/zotero/import`, a Library "+ Add" entry,
+    and an onboarding-wizard option.
+  - Phase 2: EndNote via the existing generic BibTeX/RIS/CSL-JSON importer, verified against a
+    real EndNote export sample (not just a hand-built fixture).
+  - Phase 3: feasibility spike for a Mendeley-via-Zotero-bridge import path (Mendeley's modern
+    export reportedly encrypts citation data, blocking a direct clean export; Zotero's own
+    import-from-Mendeley may be the practical bridge).
+  - Phase 4: Zotero annotation-position fidelity — map Zotero-reader-JSON highlight positions into
+    callosum's own PDF-space bbox/page coordinates (closes the disclosed gap in
+    `integrations/zotero/README.md`).
+  - Phase 5: word-processor in-document citation migration for Word, extending inc 464's
+    LibreOffice Zotero-conversion pattern — gated on primary-source research into Mendeley Cite's/
+    EndNote's actual field-code formats (neither is verified anywhere in this repo today; mirrors
+    inc 464's own research-first precedent, not reverse-engineering a sample file).
 
 ---
 
