@@ -27,9 +27,12 @@ function AddMenu({ onScan, onImport, onImportZotero, onImportBundle, onExportBun
           <button onClick={() => pick(onScan)} title="Add &amp; watch folders of PDFs — new files are picked up automatically">Watched folders…</button>
           {onImportZotero && <button onClick={() => pick(onImportZotero)}
             title="Read Zotero directly — including a Mendeley library first imported into Zotero">
-            Read Zotero library…
+            Read Zotero library… (Mendeley bridge)
           </button>}
-          <button onClick={() => pick(onImport)} title="Import a BibTeX, RIS, or CSL-JSON citation file">Import file…</button>
+          <button onClick={() => pick(onImport)}
+            title="Import BibTeX, RIS (including EndNote RefMan RIS), or CSL-JSON metadata">
+            Import citations file… (EndNote RIS)
+          </button>
           {onImportBundle && <button onClick={() => pick(onImportBundle)} title="Import a callosum library bundle (.json) — metadata + tags + annotations + axes, no PDFs">Import bundle…</button>}
           {onSharedWithMe && <button onClick={() => pick(onSharedWithMe)} title="Papers a collaborator end-to-end encrypted and sent you — no PDFs, decrypted only with your own sync passphrase">Shared with me…</button>}
           {onExportBundle && <button onClick={() => pick(onExportBundle)} title="Export your whole library as a portable bundle (.json) — metadata + tags + annotations + axes, no PDFs">Export library bundle…</button>}

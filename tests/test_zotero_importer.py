@@ -243,6 +243,113 @@ def test_zotero_position_translation_fails_closed_without_false_exact_geometry(t
     assert rotated.coordinate_system == "zotero-reader-json"
 
 
+def test_zotero_importer_scopes_sibling_pdf_annotations_to_their_own_attachments(
+    temp_db_url: str, tmp_path: Path
+) -> None:
+    zotero_dir = _make_zotero_fixture(tmp_path / "zotero")
+    sibling_dir = zotero_dir / "storage" / "ATTACH02"
+    sibling_dir.mkdir()
+    _make_pdf(sibling_dir / "sibling.pdf", first_line="A different sibling PDF passage.")
+    with sqlite3.connect(zotero_dir / "zotero.sqlite") as source:
+        source.executemany(
+            "INSERT INTO items (itemID, itemTypeID, key, libraryID) VALUES (?, ?, ?, ?)",
+            [(13, 2, "ATTACH02", 1), (31, 4, "ANNOT002", 1)],
+        )
+        source.execute(
+            """
+            INSERT INTO itemAttachments (itemID, parentItemID, linkMode, contentType, path)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (13, 1, 0, "application/pdf", "storage:sibling.pdf"),
+        )
+        source.execute(
+            """
+            INSERT INTO itemAnnotations (itemID, parentItemID, type, text, comment, color, position)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                31,
+                13,
+                1,
+                "A different sibling PDF passage.",
+                "Sibling annotation comment",
+                "#7bc67e",
+                '{"pageIndex":0,"rects":[[40,300,250,325]]}',
+            ),
+        )
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        import_zotero_library(conn, zotero_dir)
+        paper_id = conn.execute(select(papers.c.id).where(papers.c.zotero_item_key == "DOIITEM1")).scalar_one()
+        attachment_rows = list(conn.execute(select(attachments).where(attachments.c.paper_id == paper_id)).mappings())
+        annotation_rows = list(conn.execute(select(annotations).where(annotations.c.paper_id == paper_id)).mappings())
+
+    attachment_by_path = {row["original_path"]: row["id"] for row in attachment_rows}
+    annotation_by_external_id = {row["external_id"]: row for row in annotation_rows}
+    assert annotation_by_external_id["1:ANNOT001"]["attachment_id"] == attachment_by_path["storage:stored.pdf"]
+    assert annotation_by_external_id["1:ANNOT002"]["attachment_id"] == attachment_by_path["storage:sibling.pdf"]
+    assert (
+        annotation_by_external_id["1:ANNOT001"]["attachment_id"]
+        != annotation_by_external_id["1:ANNOT002"]["attachment_id"]
+    )
+    assert all(row["coordinate_system"] == "pdf-points-top-left" for row in annotation_rows)
+    assert all(row["bboxes_json"] for row in annotation_rows)
+
+
+def test_zotero_importer_persists_rotated_page_position_as_raw_only(temp_db_url: str, tmp_path: Path) -> None:
+    zotero_dir = _make_zotero_fixture(tmp_path / "zotero")
+    pdf_path = zotero_dir / "storage" / "ATTACHPDF" / "stored.pdf"
+    with fitz.open(pdf_path) as document:
+        document[0].set_rotation(90)
+        document.saveIncr()
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        import_zotero_library(conn, zotero_dir)
+        annotation = conn.execute(select(annotations).where(annotations.c.external_id == "1:ANNOT001")).mappings().one()
+
+    assert annotation["attachment_id"] is not None
+    assert annotation["page"] == 1
+    assert annotation["coordinate_system"] == "zotero-reader-json"
+    assert annotation["bboxes_json"] is None
+    assert annotation["position_json"] == {"raw": '{"pageIndex":0,"rects":[[45,340,260,365]]}'}
+
+
+def test_zotero_reimport_keeps_exact_annotation_pinned_when_attachment_is_relinked(
+    temp_db_url: str, tmp_path: Path
+) -> None:
+    zotero_dir = _make_zotero_fixture(tmp_path / "zotero")
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        import_zotero_library(conn, zotero_dir)
+        original = conn.execute(select(annotations).where(annotations.c.external_id == "1:ANNOT001")).mappings().one()
+        original_attachment_id = int(original["attachment_id"])
+        original_bboxes = original["bboxes_json"]
+
+    # Keep the same Zotero attachment/annotation identities but point them at a different, geometrically valid
+    # PDF. Bounds alone cannot prove that an old exact mark belongs on these different bytes/text.
+    replacement = zotero_dir / "storage" / "ATTACHPDF" / "replacement.pdf"
+    _make_pdf(replacement, first_line="Replacement PDF with unrelated content.")
+    with sqlite3.connect(zotero_dir / "zotero.sqlite") as source:
+        source.execute(
+            "UPDATE itemAttachments SET path = ? WHERE itemID = ?",
+            ("storage:replacement.pdf", 10),
+        )
+
+    with engine.begin() as conn:
+        import_zotero_library(conn, zotero_dir)
+        after = conn.execute(select(annotations).where(annotations.c.external_id == "1:ANNOT001")).mappings().one()
+        attachment_rows = list(
+            conn.execute(select(attachments).where(attachments.c.paper_id == after["paper_id"])).mappings()
+        )
+
+    assert len([row for row in attachment_rows if row["content_type"] == "application/pdf"]) == 2
+    assert after["attachment_id"] == original_attachment_id
+    assert after["coordinate_system"] == "pdf-points-top-left"
+    assert after["bboxes_json"] == original_bboxes
+
+
 def test_zotero_importer_second_run_populates_chunk_ids_for_previously_missing_pdf(
     temp_db_url: str, tmp_path: Path
 ) -> None:
@@ -480,10 +587,10 @@ def _insert_fixture_rows(conn: sqlite3.Connection, zotero_dir: Path) -> None:
     )
 
 
-def _make_pdf(path: Path) -> None:
+def _make_pdf(path: Path, *, first_line: str = "Stored Zotero PDF quote appears here.") -> None:
     document = fitz.open()
     page = document.new_page(width=420, height=420)
-    page.insert_text((50, 70), "Stored Zotero PDF quote appears here.", fontsize=12)
+    page.insert_text((50, 70), first_line, fontsize=12)
     page.insert_text((50, 105), "Additional paragraph text for chunk extraction.", fontsize=12)
     document.save(path)
     document.close()

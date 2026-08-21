@@ -580,12 +580,23 @@ def test_cite_suggestions_open_the_matched_pdf_and_viewer_names_the_active_file(
     assert "annotations?attachment_id=${state.attachmentId}" in raw
     assert "attachment_id: state.attachmentId" in raw
 
+    note_create = raw[
+        raw.index("const createHighlightWithNote") : raw.index(
+            "// Plain click", raw.index("const createHighlightWithNote")
+        )
+    ]
+    assert "attachment_id: state.attachmentId" in note_create
+
 
 def test_mendeley_bridge_guidance_points_to_zoteros_documented_online_import():
     raw = assemble_jsx()
     assert "Mendeley Reference Manager (online import)" in raw
     assert "Callosum never receives your Mendeley credentials" in raw
     assert "including a Mendeley library first imported into Zotero" in raw
+    assert "Read Zotero / migrated Mendeley library…" in raw
+    assert "Import EndNote RIS / citations file…" in raw
+    assert "Read Zotero library… (Mendeley bridge)" in raw
+    assert "Import citations file… (EndNote RIS)" in raw
 
 
 def test_synthesis_section_filter_is_retrieval_only_control():
@@ -1397,7 +1408,7 @@ def test_static_demo_exposes_library_scope_and_locks_personal_reader_mutations_p
     raw = assemble_jsx()
     runtime = (PROJECT_ROOT / "demo/demo-runtime.js").read_text(encoding="utf-8")
     assert "const libraryActionsVisible = !readOnly || demoMode;" in raw
-    for label in ("Watched folders", "Import file", "Duplicates", "Text Health", "Trash"):
+    for label in ("Watched folders", "Import citations file", "Duplicates", "Text Health", "Trash"):
         assert label in raw
     assert "The saved searches below can be recalled in the demo" in raw
     assert "The curated three-paper demo has no duplicate candidate to fabricate" in raw

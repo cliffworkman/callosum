@@ -46,7 +46,8 @@ Match your expectations to the seed; over-assuming its contents produces false-p
 - **1 axis** "Facial Anomalies" with one cluster (the facial paper assigned, confidence 0.91).
 - **1 tag** `social-perception` (on the renderable paper) — so the Tags panel/filter is non-empty.
 - **No** summaries, duplicates-dismissals, wanted items, watched folders, My-Publications profile, or statcheck
-  signals unless this route creates them. The "+ Add ▾" menu has **Watched folders…** + **Import file…** (no
+  signals unless this route creates them. The "+ Add ▾" menu has **Watched folders…** +
+  **Import citations file… (EndNote RIS)** (no
   top-level "Scan folder").
 
 ## Reporting format (every issue)

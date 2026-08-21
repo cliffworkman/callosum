@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.backend.importers.zotero_annotation_position import translate_zotero_position
 from app.backend.pdf_processing.extraction import (
+    COORDINATE_SYSTEM,
     DEFAULT_CHUNKING_STRATEGY,
     extract_pdf,
     file_sha256,
@@ -494,8 +495,19 @@ def _upsert_annotations(
         }
         if existing is not None:
             # Re-import upgrades legacy raw-only rows once their PDF is available.
-            # A later missing/unreadable PDF never erases geometry already proven exact.
-            updates = {key: value for key, value in location_values.items() if value is not None}
+            # Once geometry is exact, its attachment identity is part of that proof: a Zotero relink may point
+            # the same annotation key at different PDF bytes whose page bounds happen to accept the old rect.
+            # Keep that proven location pinned. Raw-only legacy rows can still gain their first exact location.
+            has_exact_location = (
+                existing["attachment_id"] is not None
+                and existing["bboxes_json"] is not None
+                and existing["coordinate_system"] == COORDINATE_SYSTEM
+            )
+            updates = (
+                {}
+                if has_exact_location
+                else {key: value for key, value in location_values.items() if value is not None}
+            )
             if existing["anchor_text"] is None and annotation.text:
                 updates["anchor_text"] = annotation.text
             if existing["note"] is None and annotation.comment:

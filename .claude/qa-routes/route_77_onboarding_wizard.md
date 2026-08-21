@@ -43,7 +43,7 @@ Publications profile via `PUT /my-publications/profile {"display_name": "Ada Lov
   the saved result still matches the original data, not blanks
 - click "Skip setup" on the very first step (identity) — confirm the wizard closes immediately and does not
   reappear on reload
-- on the import step, pick "Import citations file…", then click Back — confirm the choice screen reappears
+- on the import step, pick "Import EndNote RIS / citations file…", then click Back — confirm the choice screen reappears
   cleanly (no stuck state)
 - resize to `375x812` — the wizard card fits without horizontal overflow, and its internal step body scrolls if
   tall content (e.g. a populated watched-folder list) exceeds the card height
@@ -57,7 +57,7 @@ Publications profile via `PUT /my-publications/profile {"display_name": "Ada Lov
 4. Step through library folder: confirm it shows the default watched library folder; click "Add + scan" with a
    folder path, confirm progress appears (and, separately, appears in the Status popover); click Next (or use
    the step's own "×"/"Close", confirming both reach the same next step).
-5. Step through import: choose "Import citations file…", pick a small BibTeX file, confirm the import summary,
+5. Step through import: choose "Import EndNote RIS / citations file…", pick a small BibTeX file, confirm the import summary,
    click Next.
 6. Step through axis: choose "Create one manually…", name an axis, confirm it saves, reaches the final screen.
 7. Confirm the "You're all set" screen, click Finish. Confirm the wizard is gone and `GET /health` now reports

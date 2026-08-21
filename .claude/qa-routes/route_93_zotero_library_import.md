@@ -7,7 +7,8 @@ fe: 27b_zotero_import.jsx, 10b_libmenus.jsx, 04e_onboarding.jsx, 30_viewer.jsx
 
 **Tier:** 1 local-stateful
 **Goal:** Exhaust the shipped entry point for the already-built, full-fidelity Zotero importer — the Library
-"+ Add" → "Read Zotero library…" modal and the onboarding wizard's own "Read my Zotero library…" choice — both
+"+ Add" → "Read Zotero library… (Mendeley bridge)" modal and the onboarding wizard's own
+"Read Zotero / migrated Mendeley library…" choice — both
 riding `ZoteroImportModalBody` (`27b_zotero_import.jsx`) unchanged. The sharpest checks: the source
 `zotero.sqlite` (and the whole Zotero data directory) is provably untouched by the run, the whole operation is
 zero-egress, an unreadable directory produces an honest job error rather than a raw traceback, a re-run against
@@ -66,7 +67,7 @@ against.
   summary line and a follow-up `GET /papers` count.
 - **Status findability (invariant #5).** While a run is in progress, the global Status popover must show a row
   for it (`zotero_import_jobs`, labeled "Zotero library import") with real, non-invented progress. Clicking that
-  row must land back on the Library workspace with the "Read my Zotero library…" modal reopened — not a bare
+  row must land back on the Library workspace with the "Read my Zotero library" modal reopened — not a bare
   Library landing with the modal closed.
 - **Exact only, attachment-owned (High, invariants #2/#4).** Open the fixture paper's stored PDF: its imported
   highlight must cover the fixture passage, use Zotero's color, and expose its comment through the normal
@@ -102,8 +103,9 @@ against.
 
 ### Library "+ Add" menu
 
-1. Baseline screenshot: Library → "+ Add" ▾ menu → confirm "Read Zotero library…" appears above "Import file…"
-   with its own explanatory tooltip.
+1. Baseline screenshot: Library → "+ Add" ▾ menu → confirm "Read Zotero library… (Mendeley bridge)" appears
+   above "Import citations file… (EndNote RIS)"; each label identifies the source manager without relying on a
+   hover tooltip.
 2. Open it. Confirm the modal's copy names the Zotero data directory (where `zotero.sqlite` lives), explains the
    copy-before-read safety property in the modal body itself, and explains that exact supported marks are placed
    while unsupported/ambiguous locations remain preserved but undrawn (see Standing assertions).
@@ -130,9 +132,10 @@ against.
 ### Onboarding wizard
 
 10. Force the first-run wizard to reappear (`route_77_onboarding_wizard.md`'s own Environment note — clear
-    `onboarding_completed`). Step to the **Import** step. Confirm the choice screen now offers **"Read my Zotero
-    library…"** as the leading option, above "Import citations file…" and "Import a callosum bundle…", and that
-    its explanatory copy mentions full fidelity (PDFs, notes, tags, collections).
+    `onboarding_completed`). Step to the **Import** step. Confirm the choice screen offers **"Read Zotero /
+    migrated Mendeley library…"** as the leading option, above "Import EndNote RIS / citations file…" and
+    "Import a callosum bundle…", and that its explanatory copy mentions full fidelity (PDFs, notes, tags,
+    collections).
 11. Pick it. Confirm the same `ZoteroImportModalBody` renders inline in the wizard card (identical behavior to
     the standalone modal — reuse, not a re-implementation). Run a small import against the primary fixture;
     confirm it completes and the wizard's "Next →" (or the modal's own close) advances to the axis step.
@@ -143,7 +146,7 @@ against.
 
 13. On the onboarding Import step, confirm a Mendeley migrator can discover the bridge without already knowing
     it exists: the copy names Zotero's **Mendeley Reference Manager (online import)** and then points to the
-    existing **Read my Zotero library…** action.
+    existing **Read Zotero / migrated Mendeley library…** action.
 14. Open that Zotero body. Confirm it says the upstream bridge needs Mendeley data/files online, credentials are
     handled by Zotero rather than Callosum, and the next step is to enter the resulting Zotero data directory.
     Cross-check Help for the personal-library/group-library and Mendeley Cite document boundaries.

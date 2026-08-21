@@ -367,6 +367,7 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
       anchor_text: picker.anchorText,
       prefix: picker.prefix || null,
       suffix: picker.suffix || null,
+      attachment_id: state.attachmentId,
     };
     setPicker(null);
     const sel = window.getSelection();
@@ -378,7 +379,7 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
     } else {
       flashNotice("Couldn't save highlight — " + (r.error || "unknown error"));
     }
-  }, [picker, paperId, openEditor, flashNotice]);
+  }, [picker, paperId, state.attachmentId, openEditor, flashNotice]);
 
   // Plain click (not a selection drag) inside a highlight → open its note/color editor.
   const onPagesClick = useCallback((e) => {

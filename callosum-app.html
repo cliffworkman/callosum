@@ -5297,7 +5297,7 @@
     done: "All set"
   };
   function OnboardingImportChoice({ onPick, onSkip }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Bring in papers you already have. Read your ", /* @__PURE__ */ React.createElement("b", null, "Zotero"), " library directly for full fidelity \u2014 PDFs, notes, tags, and collections \u2014 or import a BibTeX/RIS/CSL-JSON file (e.g. exported from Zotero, Mendeley, or EndNote) or a callosum library bundle. Coming from Mendeley with PDFs and folders? First use Zotero's", /* @__PURE__ */ React.createElement("b", null, " Mendeley Reference Manager (online import)"), ", then choose ", /* @__PURE__ */ React.createElement("b", null, "Read my Zotero library\u2026"), " here. Or skip this and add papers later."), /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-btn", onClick: () => onPick("zotero") }, "Read my Zotero library\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => onPick("file") }, "Import citations file\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => onPick("bundle") }, "Import a callosum bundle\u2026"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onSkip }, "Skip this step \u2192")));
+    return /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Bring in papers you already have. ", /* @__PURE__ */ React.createElement("b", null, "Zotero:"), " read the library directly for PDFs, notes, tags, and collections. ", /* @__PURE__ */ React.createElement("b", null, "Mendeley:"), " first use Zotero's ", /* @__PURE__ */ React.createElement("b", null, "Mendeley Reference Manager (online import)"), ", then read that Zotero library here. ", /* @__PURE__ */ React.createElement("b", null, "EndNote:"), " export with ", /* @__PURE__ */ React.createElement("b", null, "RefMan (RIS) Export"), ", then import the citations file. A Callosum bundle restores portable library data without PDFs. Or skip this and add papers later."), /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-btn", onClick: () => onPick("zotero") }, "Read Zotero / migrated Mendeley library\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => onPick("file") }, "Import EndNote RIS / citations file\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => onPick("bundle") }, "Import a callosum bundle\u2026"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onSkip }, "Skip this step \u2192")));
   }
   function OnboardingAxisChoice({ onPick, onSkip }) {
     return /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "An axis is a lens for organizing your library along a theme you define \u2014 Callosum can suggest some from your library's own content, or you can name your first one by hand. Either way, you can add more anytime."), /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-btn", onClick: () => onPick("suggest") }, "Suggest axes from my library\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => onPick("manual") }, "Create one manually\u2026"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onSkip }, "Skip this step \u2192")));
@@ -10309,8 +10309,15 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onClick: () => pick(onImportZotero),
         title: "Read Zotero directly \u2014 including a Mendeley library first imported into Zotero"
       },
-      "Read Zotero library\u2026"
-    ), /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImport), title: "Import a BibTeX, RIS, or CSL-JSON citation file" }, "Import file\u2026"), onImportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImportBundle), title: "Import a callosum library bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Import bundle\u2026"), onSharedWithMe && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onSharedWithMe), title: "Papers a collaborator end-to-end encrypted and sent you \u2014 no PDFs, decrypted only with your own sync passphrase" }, "Shared with me\u2026"), onExportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onExportBundle), title: "Export your whole library as a portable bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Export library bundle\u2026")));
+      "Read Zotero library\u2026 (Mendeley bridge)"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => pick(onImport),
+        title: "Import BibTeX, RIS (including EndNote RefMan RIS), or CSL-JSON metadata"
+      },
+      "Import citations file\u2026 (EndNote RIS)"
+    ), onImportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImportBundle), title: "Import a callosum library bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Import bundle\u2026"), onSharedWithMe && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onSharedWithMe), title: "Papers a collaborator end-to-end encrypted and sent you \u2014 no PDFs, decrypted only with your own sync passphrase" }, "Shared with me\u2026"), onExportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onExportBundle), title: "Export your whole library as a portable bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Export library bundle\u2026")));
   }
   function CitationCountsButton({ asOf, onRefreshed }) {
     const [busy, setBusy] = useState(false);
@@ -16425,7 +16432,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         bboxes: picker.bboxes,
         anchor_text: picker.anchorText,
         prefix: picker.prefix || null,
-        suffix: picker.suffix || null
+        suffix: picker.suffix || null,
+        attachment_id: state.attachmentId
       };
       setPicker(null);
       const sel = window.getSelection();
@@ -16437,7 +16445,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       } else {
         flashNotice("Couldn't save highlight \u2014 " + (r.error || "unknown error"));
       }
-    }, [picker, paperId, openEditor, flashNotice]);
+    }, [picker, paperId, state.attachmentId, openEditor, flashNotice]);
     const onPagesClick = useCallback((e) => {
       const sel = window.getSelection();
       if (sel && !sel.isCollapsed) return;

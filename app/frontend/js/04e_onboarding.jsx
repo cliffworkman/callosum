@@ -22,15 +22,15 @@ function OnboardingImportChoice({ onPick, onSkip }) {
   return (
     <div className="onboarding-choice">
       <div className="axis-modal-note">
-        Bring in papers you already have. Read your <b>Zotero</b> library directly for full fidelity — PDFs,
-        notes, tags, and collections — or import a BibTeX/RIS/CSL-JSON file (e.g. exported from Zotero, Mendeley,
-        or EndNote) or a callosum library bundle. Coming from Mendeley with PDFs and folders? First use Zotero's
-        <b> Mendeley Reference Manager (online import)</b>, then choose <b>Read my Zotero library…</b> here. Or
-        skip this and add papers later.
+        Bring in papers you already have. <b>Zotero:</b> read the library directly for PDFs, notes, tags, and
+        collections. <b>Mendeley:</b> first use Zotero's <b>Mendeley Reference Manager (online import)</b>, then
+        read that Zotero library here. <b>EndNote:</b> export with <b>RefMan (RIS) Export</b>, then import the
+        citations file. A Callosum bundle restores portable library data without PDFs. Or skip this and add
+        papers later.
       </div>
       <div className="onboarding-choice-actions">
-        <button className="axis-btn" onClick={() => onPick("zotero")}>Read my Zotero library…</button>
-        <button className="btn btn-ghost" onClick={() => onPick("file")}>Import citations file…</button>
+        <button className="axis-btn" onClick={() => onPick("zotero")}>Read Zotero / migrated Mendeley library…</button>
+        <button className="btn btn-ghost" onClick={() => onPick("file")}>Import EndNote RIS / citations file…</button>
         <button className="btn btn-ghost" onClick={() => onPick("bundle")}>Import a callosum bundle…</button>
         <button className="axis-link" onClick={onSkip}>Skip this step →</button>
       </div>

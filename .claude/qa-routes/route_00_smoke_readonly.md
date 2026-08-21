@@ -31,7 +31,8 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
 1. Load `/`. Wait for `#root` to populate. Baseline screenshot. Assert the brand wordmark "Callosum" rendered.
 2. **Library shell** (`10_pdf_layer.jsx` + `10d_papercard.jsx`): the seeded papers list; the search box; the search-scope dropdown;
    the Sort dropdown; the Type filter dropdown; the "+ Add ▾" menu (open it — the entries are **Watched
-   folders…** and **Import file…** [scanning is reached *via* Watched folders, not a top-level entry], then
+   folders…**, **Read Zotero library… (Mendeley bridge)**, and **Import citations file… (EndNote RIS)**
+   [scanning is reached *via* Watched folders, not a top-level entry], then
    close); the Unsorted toggle; the Duplicates button (**Wanted moved to Discover → Search** in the inc-280
    workspace IA — it is no longer a Library-header button); pagination if present; the per-card
    copy-BibTeX button + checkbox; single-click selection; double-click/open behavior; paper citation-count button
