@@ -67,7 +67,10 @@ function ZoteroImportModalBody({ onClose, onImported }) {
         this is safe to run while Zotero itself is open. Full fidelity: local PDFs are extracted and chunked,
         collections, tags, and notes carry over. Zotero PDF highlights and underlines are also placed on the
         matching local PDF when their stored position can be translated exactly; unsupported or ambiguous
-        positions stay unmarked rather than being drawn at a guessed location.
+        positions stay unmarked rather than being drawn at a guessed location. <b>Moving from Mendeley?</b> In
+        current Zotero Desktop, first choose <b>File → Import → Mendeley Reference Manager (online import)</b> and
+        let it finish, then enter that Zotero data directory here. That bridge requires your Mendeley data/files
+        online and signs in through Zotero; Callosum never receives your Mendeley credentials.
       </div>
       <div className="scan-row">
         <input className="wanted-add" placeholder="/path/to/Zotero" value={dir}

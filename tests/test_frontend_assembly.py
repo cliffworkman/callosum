@@ -581,6 +581,13 @@ def test_cite_suggestions_open_the_matched_pdf_and_viewer_names_the_active_file(
     assert "attachment_id: state.attachmentId" in raw
 
 
+def test_mendeley_bridge_guidance_points_to_zoteros_documented_online_import():
+    raw = assemble_jsx()
+    assert "Mendeley Reference Manager (online import)" in raw
+    assert "Callosum never receives your Mendeley credentials" in raw
+    assert "including a Mendeley library first imported into Zotero" in raw
+
+
 def test_synthesis_section_filter_is_retrieval_only_control():
     raw = assemble_jsx()
     css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")

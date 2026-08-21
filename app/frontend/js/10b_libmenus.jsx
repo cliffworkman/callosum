@@ -26,7 +26,7 @@ function AddMenu({ onScan, onImport, onImportZotero, onImportBundle, onExportBun
         <div className="add-menu-pop">
           <button onClick={() => pick(onScan)} title="Add &amp; watch folders of PDFs — new files are picked up automatically">Watched folders…</button>
           {onImportZotero && <button onClick={() => pick(onImportZotero)}
-            title="Read your Zotero data directory directly — full fidelity: PDFs, notes, tags, collections">
+            title="Read Zotero directly — including a Mendeley library first imported into Zotero">
             Read Zotero library…
           </button>}
           <button onClick={() => pick(onImport)} title="Import a BibTeX, RIS, or CSL-JSON citation file">Import file…</button>

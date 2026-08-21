@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-21",
-    "reviewed_rev": "45299b6",
-    "source_fingerprint": "119acf313bc7605a6b3bdf8d8e0503b59cb8737eb9b8ea11f9fdb1f5ff2145a1",
-    "note": "Reviewed the EndNote RefMan-RIS help guidance and generic-import parser aliases against #cap-import. Existing public import and metadata-only claims remain accurate; no current website figure depicts citation-file export instructions."
+    "reviewed_rev": "d7c38da",
+    "source_fingerprint": "41396b5cd1b0c5a48ffcc478f18b910a93a00c6c50e0e5bcecb695b4de8a4fbf",
+    "note": "Reviewed the Mendeley-via-Zotero guidance against #cap-import and onboarding. Existing public Zotero/import claims remain accurate; no current website figure depicts the changed onboarding or import-modal copy."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

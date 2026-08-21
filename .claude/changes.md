@@ -9,7 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-21 — Increment 486: EndNote generic-import handoff -->
+<!-- HELP-DOCS-SYNCED: 2026-08-21 — Increment 487: Mendeley-via-Zotero bridge -->
+## 2026-08-21 — Increment 487: Mendeley-via-Zotero bridge confirmed (backlog #57 Phase 3)
+- **Files:** `integrations/mendeley/README.md`, `app/frontend/js/04e_onboarding.jsx`,
+  `app/frontend/js/10b_libmenus.jsx`, `app/frontend/js/27b_zotero_import.jsx`,
+  `app/backend/help/help_content.md`, `tests/test_frontend_assembly.py`, `callosum-app.html`,
+  `.claude/qa-routes/route_93_zotero_library_import.md`,
+  `.claude/docs/research/2026-08-21_mendeley_via_zotero_bridge.md` (new),
+  `.claude/docs/increment-notes/INCREMENT-487-NOTES.md` (new), `.claude/CLAUDE.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`, `www/showcase-coverage.json`.
+- **What:** confirms from current Zotero documentation that its **Mendeley Reference Manager (online import)**
+  is a real fuller-library bridge, then makes the unavoidable handoff discoverable in onboarding, the Zotero
+  import modal, + Add, and Help. The user runs Zotero's import once and points Callosum's existing native Zotero
+  reader at the result; no new backend or credential surface exists.
+- **Why:** a Mendeley user otherwise sees only a metadata-only file import or a Zotero-labeled action and has to
+  discover the higher-fidelity bridge independently. The guidance preserves the hard refusal to read/decrypt
+  Mendeley's protected store while exposing the lowest-effort documented route.
+- **Boundaries:** the upstream Zotero step requires Mendeley data/files online and login inside Zotero; direct
+  group-library import and Mendeley Cite document conversion are unavailable; arbitrary fields may normalize to
+  Zotero Extra. The copy does not imply Callosum erases those upstream limits.
+- **Revert:** a plain `git revert`; no endpoint/schema/dependency involved.
+
 ## 2026-08-21 — Increment 486: EndNote generic-import handoff, partial (backlog #57 Phase 2)
 - **Files:** `app/backend/metadata/citation_import.py`, `tests/test_citation_import.py`,
   `app/backend/help/help_content.md`, `.claude/qa-routes/route_27_scan_import.md`,

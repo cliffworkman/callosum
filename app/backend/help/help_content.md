@@ -58,6 +58,16 @@ Gotchas:
 - Imported PDF text quality depends on the PDF. Scanned image-only pages may not produce useful selectable text or exact citation coordinates.
 - Imported highlights need the same local PDF they were created against. Unsupported annotation types, malformed locations, and rotated pages remain preserved as records but are not drawn at an invented position.
 
+### Moving a Mendeley library through Zotero
+
+For a fuller Mendeley migration than a metadata-only BibTeX/RIS file, use Zotero's documented bridge first:
+
+1. Make sure your personal Mendeley library and files are fully synced online.
+2. In the latest Zotero Desktop, choose **File → Import → Mendeley Reference Manager (online import)** and sign in there. Zotero—not Callosum—handles that login; Callosum never receives your Mendeley credentials.
+3. Let Zotero finish importing, then in Callosum choose **+ Add → Read Zotero library…** and enter Zotero's data directory.
+
+Zotero documents that this carries the personal library's data, files, and folder structure into Zotero. It cannot directly import Mendeley group libraries; copy those items into a collection in your personal Mendeley library first. This route also does not convert citations already embedded by **Mendeley Cite** in Word documents. Callosum does not read or decrypt Mendeley's protected local database.
+
 <!-- section: scanning-a-folder -->
 ## Watched folders (scanning for PDFs)
 Your **library folder is watched by default** — it's pinned at the top of the **+ Add → Watched folders…** dialog as the "always watched" default (you can't remove it). Drop a PDF into it and Callosum picks it up on its own (see below). To watch additional folders, open that dialog, enter a folder's path on this computer, and click **Add + scan**. (The library folder is where Callosum keeps acquired PDFs; set a custom location with the `CALLOSUM_LIBRARY_DIR` environment variable.)

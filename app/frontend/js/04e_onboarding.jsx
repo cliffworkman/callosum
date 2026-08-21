@@ -24,7 +24,9 @@ function OnboardingImportChoice({ onPick, onSkip }) {
       <div className="axis-modal-note">
         Bring in papers you already have. Read your <b>Zotero</b> library directly for full fidelity — PDFs,
         notes, tags, and collections — or import a BibTeX/RIS/CSL-JSON file (e.g. exported from Zotero, Mendeley,
-        or EndNote) or a callosum library bundle. Or skip this and add papers later.
+        or EndNote) or a callosum library bundle. Coming from Mendeley with PDFs and folders? First use Zotero's
+        <b> Mendeley Reference Manager (online import)</b>, then choose <b>Read my Zotero library…</b> here. Or
+        skip this and add papers later.
       </div>
       <div className="onboarding-choice-actions">
         <button className="axis-btn" onClick={() => onPick("zotero")}>Read my Zotero library…</button>

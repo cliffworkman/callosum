@@ -632,6 +632,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   BibTeX EndNote convention, so the parser does not guess at it. The backlog phase remains explicitly partial
   until the same path is exercised against a genuine EndNote-created file; the checked-in alias fixture is only
   a contract stand-in. Research: `.claude/docs/research/2026-08-21_endnote_generic_import.md`.
+- **Mendeley-via-Zotero feasibility confirmed (backlog #57 Phase 3, inc 487):** Zotero currently documents a
+  desktop **File → Import → Mendeley Reference Manager (online import)** path that brings a personal Mendeley
+  library's data, files, and folder structure into an ordinary Zotero library; Callosum then uses its unchanged
+  copy-then-read Zotero importer. Onboarding, the Zotero modal, + Add tooltip, and Help surface that handoff. The
+  upstream step requires Mendeley data/files online and authenticates inside Zotero (Callosum never receives the
+  credentials); group libraries, invalid/custom fields, and Mendeley Cite document citations retain documented
+  limits. Direct Mendeley database read/decryption remains a hard avoidance boundary. Research:
+  `.claude/docs/research/2026-08-21_mendeley_via_zotero_bridge.md`.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

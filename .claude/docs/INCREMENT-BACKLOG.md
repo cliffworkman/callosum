@@ -166,9 +166,10 @@ the Principles + A-A gates before build.)*
     existing generic importer; current Clarivate RIS aliases are parser-tested and Help gives the
     shortest export/import route. **Still open:** verify end to end against a real EndNote-created
     export—the checked-in contract fixture is explicitly only a synthetic stand-in.
-  - Phase 3: feasibility spike for a Mendeley-via-Zotero-bridge import path (Mendeley's modern
-    export reportedly encrypts citation data, blocking a direct clean export; Zotero's own
-    import-from-Mendeley may be the practical bridge).
+  - **Phase 3 feasibility spike complete, inc 487:** Zotero's documented **Mendeley Reference
+    Manager (online import)** is the practical fuller-library bridge; Callosum guides the user to
+    run it once, then uses the shipped native Zotero importer. Online-sync/auth, personal-library,
+    custom-field, and Mendeley Cite document boundaries are explicit; no protected-store reader.
   - **Phase 4 shipped, inc 485:** Zotero PDF highlight/underline positions are bounded, validated,
     and mapped into callosum's own PDF-space bbox/page coordinates for their owning attachment;
     ambiguous/unsupported geometry retains raw provenance and is not drawn.
