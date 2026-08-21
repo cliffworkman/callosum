@@ -1,0 +1,271 @@
+# Codex handoff — 2026-08-21: backlog #57, ref-manager migration (Phases 2-5)
+
+You (Codex) are picking up callosum **unsupervised** this weekend — Cliff is at his weekly usage
+limit for Claude Code until it resets Sunday, and won't be actively reviewing as you go. A
+different AI (Claude) will review everything you produce once Cliff is back. That changes how you
+should operate: **prefer stopping and documenting a genuine blocker over guessing past it.** A
+clearly-flagged "I got this far, here's why I stopped" is far more useful to Sunday's reviewer than
+a guess that ships wrong and has to be unwound.
+
+**Read `.claude/CLAUDE.md` in full first.** Every rule below assumes you have. It is long on
+purpose — this project has real invariants (an honesty contract around citation evidence, an
+egress-off-by-default posture, a 600-line file cap) that are cheap to honor from the start and
+expensive to unwind later.
+
+**Base state (2026-08-21):** `main` at increment 484, 2331 root-suite pytest tests passing. Backlog
+#57 Phase 1 (the native Zotero library importer) is shipped — read `INCREMENT-484-NOTES.md` and
+`.claude/security-audits/2026-08-20_zotero-library-import.md` for exactly what that established,
+since Phases 2-5 build on its patterns (the async-job route shape, the `find_existing_paper_by_
+identity`/`create_paper` dedup primitives, the onboarding-wizard extension point).
+
+---
+
+## Before you touch anything user-facing: aesthetic coherence is not optional polish
+
+Cliff's own words, directly: Codex "always messes up on aesthetics, deviating in places its
+additions to callosum from its carefully curated appearance and structure." This is the single
+thing this handoff most wants you to get right.
+
+1. **Read `.claude/DESIGN.md` in full before writing a single line of CSS or JSX markup.** It is
+   the design dictionary: a tokens table (`--bg`/`--panel`/`--ink`/`--accent`, the semantic color
+   pairs `--verified`/`--flag`/`--danger`/`--wip`, the radius scale, three type roles), per-element
+   recipes, and fixed color semantics — indigo means provenance/verification, green means verified,
+   amber means unresolved/uncertain, red means destructive, and **no other meaning ever borrows
+   these colors.** New UI conforms to an existing recipe and references a token. It does not invent
+   a new color, a new radius, or a new spacing value because the existing ones didn't quite fit —
+   if nothing fits, that itself is worth flagging in your session summary rather than working
+   around silently.
+2. **Never re-type a raw hex a token already names.** If you catch yourself writing `#4b3f72` or
+   similar, stop — there is almost certainly a `var(--...)` for it already.
+3. **Reuse existing component shapes.** This codebase has an established, load-bearing pattern for
+   almost everything you'll need: async-job modals with a resume-on-remount `localStorage` poll
+   loop (`app/frontend/js/27_scan.jsx`'s `ScanModalBody`, and Phase 1's own
+   `27b_zotero_import.jsx`), the `axis-modal`/`axis-modal-overlay`/`axis-form-actions` chrome family,
+   the Library "+ Add" menu (`10b_libmenus.jsx`'s `AddMenu`), and the onboarding wizard's
+   choice-then-body pattern (`04e_onboarding.jsx`). Read the closest existing analog before writing
+   a new component, and match its shape — don't design a new pattern for something this project
+   already has three working examples of.
+4. **Before calling any user-facing change "done," run the end-user experience pass**
+   (`.claude/EXPERIENCE-PASS.md`, CLAUDE.md rule #11). It asks two questions beyond "does it work":
+   (1) **reception** — is the new thing discoverable, is the next step obvious, does a user land on
+   it without hunting; (2) **intended use** — what does a real user reach for next, does what you
+   built support that or dead-end them. You won't have a live Claude session to dispatch the
+   persona-agent mechanism the doc describes — instead, literally write out (in your own session
+   summary) a one-paragraph walkthrough as a concrete user: someone mid-migration from Mendeley/
+   EndNote/Zotero, trying to get their library into callosum with as few clicks as possible (that's
+   the actual persona this whole backlog item exists to serve — Cliff's own words: "ensure such
+   prospective users are able to essentially move their library into callosum with as few clicks
+   and as little individual effort as possible"). If that walkthrough reveals friction, fix it or
+   flag it — don't ship past a dead end because the code technically works.
+5. **Match the codebase's actual voice in every doc you write** — increment notes, `CLAUDE.md`
+   bullets, code comments. Read 2-3 neighboring entries before writing a new one (the most recent
+   few `INCREMENT-NNN-NOTES.md` files and the newest few Stack-section bullets in `CLAUDE.md` are
+   the fastest way to calibrate). This project's documentation is dense, specific, and
+   self-referential — not generic AI-written prose. A reviewer can tell the difference immediately,
+   and it's one of the fastest ways trust erodes.
+
+---
+
+## The task: backlog #57, Phases 2-5, as far as you can get by Sunday
+
+Full current text of the backlog entry (`.claude/docs/INCREMENT-BACKLOG.md`):
+
+> **#57 Whole-library migration (Zotero/Mendeley/EndNote).** A user's *entire* existing
+> reference-manager library moving into callosum, distinct from the #33/#34 "Traveling-library
+> portability" line above (that one is about a single document's own in-document citations, not a
+> whole library).
+> - **Phase 1 shipped, inc 484:** the already-built native Zotero importer
+>   (`app/backend/importers/zotero.py`) — `POST /library/zotero/import`, a Library "+ Add" entry,
+>   and an onboarding-wizard option.
+> - Phase 2: EndNote via the existing generic BibTeX/RIS/CSL-JSON importer, verified against a
+>   real EndNote export sample (not just a hand-built fixture).
+> - Phase 3: feasibility spike for a Mendeley-via-Zotero-bridge import path (Mendeley's modern
+>   export reportedly encrypts citation data, blocking a direct clean export; Zotero's own
+>   import-from-Mendeley may be the practical bridge).
+> - Phase 4: Zotero annotation-position fidelity — map Zotero-reader-JSON highlight positions into
+>   callosum's own PDF-space bbox/page coordinates (closes the disclosed gap in
+>   `integrations/zotero/README.md`).
+> - Phase 5: word-processor in-document citation migration for Word, extending inc 464's
+>   LibreOffice Zotero-conversion pattern — gated on primary-source research into Mendeley Cite's/
+>   EndNote's actual field-code formats (neither is verified anywhere in this repo today; mirrors
+>   inc 464's own research-first precedent, not reverse-engineering a sample file).
+
+**Work them in this order — each is a genuinely separate, independently-committable slice. Stop
+after any phase and move to the next; don't let a stuck phase block the ones after it.**
+
+### Phase 4 first (recommended starting point — most bounded, least research risk)
+
+Zotero annotation-position fidelity. The gap is precisely documented in
+`integrations/zotero/README.md`: imported annotations carry `position_json`/
+`coordinate_system="zotero-reader-json"` (raw, untranslated Zotero Reader coordinates) but never
+populate `page`/`bboxes_json` — the columns callosum's own PDF viewer overlay actually reads
+(`app/frontend/js/30_viewer.jsx`, `10_pdf_layer.jsx`). Zotero's own annotation-position JSON shape
+is publicly documented (its own API/plugin docs describe the `position` object's `pageIndex` +
+`rects` array in PDF-page-space) — this is a coordinate-transform problem, not a reverse-engineering
+one. Read `app/backend/pdf_processing/extraction.py`'s `COORDINATE_SYSTEM` constant and the
+existing bbox/page storage shape on `annotations` (`app/backend/persistence/schema.py`) before
+designing the translation. **Honor invariant #2 (the coordinate honesty contract) exactly**: a
+successfully-translated position is `exact`; anything you can't confidently translate must stay
+`null`/region-level, never guessed into a false `exact`. Wire this into `app/backend/importers/
+zotero.py`'s `_upsert_annotations` (additive — don't change the function's existing contract for
+callers that don't need this). New endpoint/UI surface here is unlikely to be needed (this is a
+backend data-fidelity fix, surfaced automatically once the frontend's existing overlay renderer
+gets real bbox data) — but if you do add any UI, Phase 4 doesn't skip the aesthetic-coherence
+section above.
+
+### Phase 2 next — EndNote via the generic importer
+
+**A real constraint, not a guess:** no genuine EndNote export sample exists anywhere in this repo
+(confirmed by a fresh search this session — `integrations/` has no `endnote/` sibling to `zotero`/
+`mendeley`, and nothing under `tests/fixtures/`). `.claude/docs/research/
+opus4.8_deepresearch_refmanagercomparison.md` has real competitive research on EndNote's export
+formats (it favorably notes clean "EndNote-XML, RIS, BibTeX export" unlike Mendeley's broken story)
+but is market research, not a sample file. The existing generic importer
+(`app/backend/metadata/citation_import.py`, `POST /library/import`) already parses BibTeX/RIS/
+CSL-JSON — read it in full, including its documented v1 limitations (brace-delimited BibTeX entries
+only, no `@string`/`#`-concat expansion) before assuming it needs new code at all.
+
+Since you have no live human to hand a real EndNote export to this weekend, do the best-effort,
+honest version of this phase:
+1. Research EndNote's actual RIS/BibTeX export conventions from EndNote's own current
+   documentation (not memory/assumption) — does it use any RIS tags or BibTeX entry shapes the
+   existing parser's documented limitations would mishandle? (e.g., EndNote is known to sometimes
+   emit `@ARTICLE(...)`-parenthesis-form BibTeX rather than brace-form — verify this against real
+   EndNote docs, don't assume.)
+2. If you find a genuine, well-sourced gap, fix it narrowly (minimal diff, rule #7) and add a
+   test fixture that reproduces the *real* documented EndNote quirk, with a comment citing where
+   you confirmed it (a doc URL, a spec reference) — not a fixture that only proves your own fix
+   passes your own assumption.
+3. **Be explicit in your session summary that this phase's fixture-based testing is a stand-in for
+   real-file verification, not a substitute for it.** The backlog item's own text says "verified
+   against a real EndNote export sample" — you cannot close that literal requirement without one.
+   Leave the backlog line open/partial rather than marking it done on synthetic-fixture testing
+   alone; that's Cliff's own call to make with a real export file in hand.
+4. If EndNote's onboarding-wizard/import-modal copy (`04e_onboarding.jsx`'s
+   `OnboardingImportChoice`, already says "exported from Zotero, Mendeley, or EndNote") needs no
+   change, don't touch it — it already covers this path.
+
+### Phase 3 — Mendeley-via-Zotero-bridge feasibility spike
+
+This is explicitly a **spike**, not a build task — its job is to produce an honest answer, not
+code you necessarily keep. `integrations/mendeley/README.md`'s existing text already concludes
+direct Mendeley-database reads aren't viable (modern Mendeley encrypts citation data) and
+speculates Zotero's own "import from Mendeley" feature might be a workable bridge. **Confirm or
+refute that speculation with real research** (Zotero's own documentation/source on whether/how it
+imports a Mendeley library, and what format the result takes) before writing any code. Three
+honest outcomes are all acceptable, in order of preference:
+1. **The bridge is real and documented** → design (don't necessarily fully build, if time is
+   short) a path: guide the user to run Zotero's own Mendeley import once, then point callosum's
+   already-shipped Zotero importer (Phase 1) at the resulting Zotero library. This might need zero
+   new backend code — possibly just onboarding-copy/documentation work pointing users at the right
+   sequence.
+2. **The bridge is real but has real gaps** (partial metadata, no PDFs, etc.) → document exactly
+   what transfers and what doesn't, update `integrations/mendeley/README.md` with the confirmed
+   findings, and leave a clear "here's what a Mendeley user should expect" note for the onboarding
+   copy — don't build a false-confidence import flow.
+3. **The bridge doesn't hold up** → this is a legitimate, valuable finding. This project has
+   precedent for declining a feature as a documented finding rather than forcing a bad
+   implementation (e.g. backlog #24's salami-slicing detection, declined outright after research).
+   Write up why, update `integrations/mendeley/README.md`, and move on — don't force code to exist
+   just because time was spent on it.
+
+### Phase 5 — likely out of scope for a solo weekend; treat as research-only if you get here
+
+This phase depends on primary-source research into Mendeley Cite's and EndNote's actual
+document-embedded citation field formats — **neither is verified anywhere in this repo**, and this
+project has an explicit, hard-won precedent (inc 464's Zotero-citation-conversion work) of
+verifying a citation format against the *tool's own source/documentation* before writing a parser
+for it, specifically because guessing at an undocumented format is how silent data corruption
+happens in a feature that touches a user's live manuscript. If you reach this phase with time
+left, **do the research and write up findings — do not attempt to build a parser for either format
+without first confirming its real shape against a primary source** (Mendeley Cite's actual Word
+Content-Control/XML-part structure; EndNote's actual `{ADDIN EN.CITE ...}` field-code schema). A
+solid research writeup here (even with zero code) is more valuable than a guessed-at parser that
+could corrupt a real Word document.
+
+---
+
+## Hard rules for this session
+
+1. **Work in an isolated branch, never on `main` directly.** Create a dedicated branch —
+   `git checkout -b codex/backlog-57-phases-2-5` (or, if you prefer the isolation this project's
+   own Claude Code sessions use, a separate worktree: `git worktree add
+   .claude/worktrees/codex-backlog-57 -b codex/backlog-57-phases-2-5`). **Do not push or merge to
+   `origin/main`.** Cliff will review and merge (or ask for revisions) once he's back Sunday —
+   leaving your work as an unmerged, reviewable branch is the whole point of this handoff.
+2. **Commit incrementally, with real messages**, one logical change per commit — this project's
+   own convention (check `git log --oneline -20` for tone/format before your first commit).
+3. **Verification protocol** (CLAUDE.md's own, don't skip steps): while developing, run only the
+   targeted test file(s) for what you're touching (`pytest tests/test_<area>.py -q`) — the full
+   suite is slow (~25-45 min on this machine, and this machine has a **known, real** pattern of
+   killing pytest workers under memory pressure with no actual test failure — if a run gets
+   silently killed with no FAILED output, that's an environment issue, retry with fewer workers or
+   serially, never report it as a code regression). Before considering any phase "done," run the
+   full suite once (`pytest -n auto -q`, or `-n 4`/serial if you hit the memory issue) and report
+   the **actual observed pass count** — never state a test count you didn't personally just see in
+   real output.
+4. **The four alignment gates, all binding, all in `.claude/`:**
+   - **Rule #8 / `DESIGN.md`** — covered at length above; the one this handoff most wants you to
+     honor.
+   - **Rule #9 / `PRINCIPLES.md`** — before adding or removing anything that produces a
+     claim/signal/judgment about the literature, or changes provenance/egress posture, name the
+     principle it touches and the worked example it resembles. This backlog item is mostly
+     plumbing (moving records between systems), so it may not trigger this gate at all for most of
+     Phases 2-4 — but Phase 3's Mendeley bridge and Phase 5's citation-format work both touch
+     provenance (`imported_source` tagging) and are worth a quick read of `PRINCIPLES.md`'s
+     relevant commitments before building.
+   - **Rule #10 / `QA-POLICY.md`** — any new API endpoint, changed request/response contract, new
+     interactive control, or new async job needs a QA route added in `.claude/qa-routes/` in the
+     same increment (the next free number is **94** as of this writing — verify against
+     `ls .claude/qa-routes/` before naming a new one, since more may land before you start). Phase
+     1's own `route_93_zotero_library_import.md` is the closest template.
+   - **Rule #11 / `EXPERIENCE-PASS.md`** — covered above.
+5. **Security-audit gate** (CLAUDE.md's own list — a new API endpoint, a new external fetch, a new
+   file-ingestion path, or 300+ added LOC all trigger it): open a
+   `.claude/security-audits/YYYY-MM-DD_<feature>.md` stub at task start, fill it as you go
+   (input validation, egress, secret handling, resource caps, negative-path checks actually run
+   and recorded), end with **PASS** or an honestly-flagged open risk. Phase 1's
+   `2026-08-20_zotero-library-import.md` is the direct template.
+6. **600-line file cap** (rule #1) — `python tools/check_line_budget.py --list` after touching any
+   `app/`/`integrations/` file; split into a sibling file before crossing 600, following this
+   project's own established split pattern (a new `<name>_<concern>.py`/`.jsx` file, re-exported
+   where needed — check any recent `INCREMENT-NNN-NOTES.md` for a worked example).
+7. **`ruff format .` + `ruff check .` + `python -m tach check`** before any commit you consider
+   part of a finished slice — CI runs all three; a red CI on Sunday costs more time than running
+   these now.
+8. **Never over-claim.** This is the single most important rule in this whole document, because
+   nobody will be watching in real time to catch it. Report exactly what you ran and what it
+   showed — a real command's real output, not a paraphrase of what you expect it would show. If
+   something is untested, partially done, or genuinely uncertain, say so plainly in your session
+   summary. A phase marked "done" that isn't will cost far more of Cliff's and Claude's time on
+   Sunday untangling it than an honestly-reported partial phase would.
+9. **Update `.claude/CLAUDE.md` in the same session as any change that affects architecture,
+   conventions, or the design invariants** (rule #6) — this file is the project's living memory;
+   drift here is exactly how institutional knowledge rots. Write increment notes
+   (`.claude/docs/increment-notes/INCREMENT-485-NOTES.md` — the next free number as of this
+   writing, verify it's still free — through however many increments you complete) in the
+   established Implemented/Key technical detail/Manual verification script/Pytest shape, and a
+   dated entry in `.claude/changes.md` for each.
+10. **Trim `.claude/docs/INCREMENT-BACKLOG.md`'s `#57` entry as phases genuinely close** (per this
+    project's own backlog-closure discipline — mark a phase's bullet done in place, or move fully
+    closed detail to `INCREMENT-BACKLOG-DONE.md` only once the WHOLE #57 item closes, not
+    per-phase). Don't mark Phase 2 "done" if the real-EndNote-sample verification is still
+    outstanding — see Phase 2's own guidance above.
+
+---
+
+## When you stop (end of session, or Sunday, whichever comes first)
+
+Append a **"Codex Session Summary"** section to the bottom of this same file
+(`.claude/CODEX-HANDOFF.md`) — mirroring this project's own prior convention — covering:
+- What actually shipped (phase-by-phase, with commit hashes on your working branch).
+- The **real** final pytest count from an actual run you watched complete (not a target, not an
+  estimate).
+- Both `ruff format --check`/`ruff check` results and the `tach check` result.
+- Anything partial, unverified, or where you made a judgment call the backlog text didn't
+  resolve — flag it explicitly, don't bury it in a commit message.
+- Which security audits and QA routes you opened, and their current status.
+- Your honest recommendation for what Claude/Cliff should look at first on Sunday.
+
+Then stop — don't push to `origin/main`, don't merge, leave the branch exactly as it is. Claude
+will review it fresh against this handoff once Cliff's limit resets Sunday.
