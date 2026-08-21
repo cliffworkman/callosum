@@ -40,7 +40,9 @@ entirely), this closes both the reported bypass and the related no-BOM variant f
 
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
+# `_decode_and_reject_doctype` admits only strict UTF-8 text with no NUL or DOCTYPE before this parser sees it;
+# Bandit cannot follow that guard, so these two rule-specific annotations record the reviewed boundary.
+import xml.etree.ElementTree as ET  # nosec B405
 from dataclasses import dataclass, field
 
 _TEI_NS = {"tei": "http://www.tei-c.org/ns/1.0"}
@@ -102,7 +104,8 @@ def parse_tei(tei_xml: bytes) -> list[SectionSpan]:
     span would look like a real (but empty) location result rather than an absence."""
     text = _decode_and_reject_doctype(tei_xml)
     try:
-        root = ET.fromstring(text)
+        # Guarded decoded text only; the module docstring documents the complete boundary.
+        root = ET.fromstring(text)  # nosec B314
     except ET.ParseError as exc:
         raise GrobidParseError(f"malformed TEI-XML: {exc}") from exc
 
