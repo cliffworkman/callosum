@@ -1,9 +1,9 @@
 <!-- qa-coverage
-api: /library/zotero/*
-fe: 27b_zotero_import.jsx, 10b_libmenus.jsx, 04e_onboarding.jsx
+api: /library/zotero/*, /papers/{paper_id}/pdf, /papers/{paper_id}/annotations
+fe: 27b_zotero_import.jsx, 10b_libmenus.jsx, 04e_onboarding.jsx, 30_viewer.jsx
 -->
 
-# ROUTE 93 — Native Zotero library import (backlog #57 Phase 1)
+# ROUTE 93 — Native Zotero library import + exact annotation positions (backlog #57 Phases 1/4)
 
 **Tier:** 1 local-stateful
 **Goal:** Exhaust the shipped entry point for the already-built, full-fidelity Zotero importer — the Library
@@ -11,8 +11,8 @@ fe: 27b_zotero_import.jsx, 10b_libmenus.jsx, 04e_onboarding.jsx
 riding `ZoteroImportModalBody` (`27b_zotero_import.jsx`) unchanged. The sharpest checks: the source
 `zotero.sqlite` (and the whole Zotero data directory) is provably untouched by the run, the whole operation is
 zero-egress, an unreadable directory produces an honest job error rather than a raw traceback, a re-run against
-the same directory is a true no-op, and the modal's own coordinate-honesty disclosure about imported annotation
-positions actually renders.
+the same directory is a true no-op, and a supported Zotero highlight is drawn exactly on its owning PDF without
+leaking to a sibling attachment or turning unsupported geometry into an invented overlay.
 
 ## Environment
 
@@ -25,7 +25,7 @@ Clean seeded instance (`_TEMPLATE.md` → Environment). **Egress UNSET.** Regist
   stored PDF at `storage/ATTACHPDF/stored.pdf`, one key-only article with a *linked* PDF path that does **not**
   exist on disk at fixture-build time, one URL-only attachment), one collection, two tags
   (`important`/`review`), and one note. Use this as the **primary** fixture for the happy-path/idempotence/
-  coordinate-honesty steps below.
+  annotation-position steps below. Its stored PDF has one real highlight with text, comment, color, and position.
 - `tests.test_library_zotero_import._make_empty_zotero_fixture(path)` — a syntactically valid, zero-item Zotero
   schema (no rows). Use this for the "empty-but-valid" step.
 - A plain empty directory (no `zotero.sqlite` at all) for the "not a Zotero directory" negative-path step.
@@ -68,11 +68,11 @@ against.
   for it (`zotero_import_jobs`, labeled "Zotero library import") with real, non-invented progress. Clicking that
   row must land back on the Library workspace with the "Read my Zotero library…" modal reopened — not a bare
   Library landing with the modal closed.
-- **Coordinate-honesty disclosure actually renders (Medium+, invariant #2 in spirit).** The modal's own
-  explanatory copy must state, in the modal body itself (not just in code comments), that imported highlight
-  *positions* aren't yet mappable to callosum's PDF-space coordinates — confirm the live wording rather than
-  assuming it matches this description verbatim; the substantive claim to verify is that it discloses "can't
-  yet be jumped-to or drawn on the PDF," not a specific sentence.
+- **Exact only, attachment-owned (High, invariants #2/#4).** Open the fixture paper's stored PDF: its imported
+  highlight must cover the fixture passage, use Zotero's color, and expose its comment through the normal
+  annotation editor. `GET /papers/{paper_id}/pdf` must identify that attachment and the viewer's annotation
+  request must carry the same id. Requesting a sibling/fabricated attachment id must not return the imported
+  mark. Raw-only, unsupported, out-of-page, or rotated-page positions must not render anywhere.
 - **Signal not verdict.** The completion summary is plain counts (new/matched/attachments/chunks/errors) —
   never a quality judgment about the imported library.
 
@@ -102,8 +102,8 @@ against.
 1. Baseline screenshot: Library → "+ Add" ▾ menu → confirm "Read Zotero library…" appears above "Import file…"
    with its own explanatory tooltip.
 2. Open it. Confirm the modal's copy names the Zotero data directory (where `zotero.sqlite` lives), explains the
-   copy-before-read safety property in the modal body itself, and includes the coordinate-honesty disclosure
-   (see Standing assertions).
+   copy-before-read safety property in the modal body itself, and explains that exact supported marks are placed
+   while unsupported/ambiguous locations remain preserved but undrawn (see Standing assertions).
 3. Point it at the primary 3-item fixture (`_make_zotero_fixture`). Click **Read library**. Confirm: a Status
    popover entry appears and clicks back correctly (see Standing assertions); the `ProgressBar` shows real
    progress, not an invented percentage; on completion, the summary reads "3 new · 0 already in your library"
@@ -112,7 +112,9 @@ against.
    request listener recorded no non-loopback requests other than the expected Crossref/OpenAlex retraction
    lookup for the newly created DOI'd paper (see the Standing-assertions egress note).
 5. Open the newly-imported DOI'd paper. Confirm its PDF is full-text searchable (the extracted chunk's content
-   is findable) and its tags (`important`/`review`) and collection membership carried over.
+   is findable), its tags (`important`/`review`) and collection membership carried over, and the fixture Zotero
+   highlight sits over the matching passage with its original color/comment. Confirm switching to any sibling
+   PDF does not show that highlight.
 6. Re-run the import against the **same** fixture directory. Confirm the idempotent-re-run assertion above (0
    new papers, library count unchanged).
 7. Point the modal at the empty-but-valid fixture (`_make_empty_zotero_fixture`). Confirm a clean "done" summary
@@ -145,8 +147,8 @@ against.
   non-loopback host, especially an AI/genai provider, is Critical.
 - A non-Zotero directory fails with an honest, traceback-free message; an empty-but-valid one succeeds with an
   all-zero summary; a re-run against the same directory is a true no-op.
-- Status findability and nav-click-through hold; the coordinate-honesty disclosure copy is present and readable
-  in the modal itself.
+- Status findability and nav-click-through hold; the modal accurately explains exact-vs-preserved annotation
+  placement, and the supported fixture mark appears only on its owning PDF.
 - 0 console/page errors; mobile viewport has no horizontal overflow.
 
 ## Deposit

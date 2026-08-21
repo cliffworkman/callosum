@@ -576,6 +576,9 @@ def test_cite_suggestions_open_the_matched_pdf_and_viewer_names_the_active_file(
     assert 'className="pdf-filename"' in raw
     assert ".pdf-source-title" in css and ".pdf-filename" in css
     assert ".app.mobile .pdf-source-title { flex: 1 0 100%; width: 100%; }" in css
+    assert 'res.headers.get("x-callosum-attachment-id")' in raw
+    assert "annotations?attachment_id=${state.attachmentId}" in raw
+    assert "attachment_id: state.attachmentId" in raw
 
 
 def test_synthesis_section_filter_is_retrieval_only_control():

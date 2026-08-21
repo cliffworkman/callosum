@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi import status as http_status
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection, Engine
@@ -82,12 +82,18 @@ class AnnotationResponse(BaseModel):
 
 
 @router.get("/papers/{paper_id}/annotations", response_model=list[AnnotationResponse])
-def paper_annotations(paper_id: int, conn: Connection = Depends(get_connection)) -> list[AnnotationResponse]:
+def paper_annotations(
+    paper_id: int,
+    attachment_id: int | None = Query(default=None),
+    conn: Connection = Depends(get_connection),
+) -> list[AnnotationResponse]:
     try:
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    return [_annotation_response(row) for row in list_annotations_for_paper(conn, paper_id)]
+    return [
+        _annotation_response(row) for row in list_annotations_for_paper(conn, paper_id, attachment_id=attachment_id)
+    ]
 
 
 @router.post(
@@ -200,7 +206,7 @@ def _annotation_response(row: Any) -> AnnotationResponse:
         anchor_text=row["anchor_text"],
         prefix=row["prefix"],
         suffix=row["suffix"],
-        source=row["source"],
+        source=row["source"] or (row["import_source"] if row["bboxes_json"] is not None else None),
         note=row["note"],
         created_at=str(row["created_at"]) if row["created_at"] is not None else None,
         updated_at=str(row["updated_at"]) if row["updated_at"] is not None else None,

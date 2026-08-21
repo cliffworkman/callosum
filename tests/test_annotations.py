@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 
 from app.backend.api import create_app
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.schema import (
     annotations,
+    attachments,
 )
 from tests.api_helpers import (
     _annotation_body,
@@ -65,6 +66,69 @@ def test_annotation_list_excludes_imported_rows(temp_db_url: str) -> None:
     # The native (user) row is listed; the imported (source NULL) row is not.
     assert [row["source"] for row in rows] == ["user"]
     assert [row["id"] for row in rows] == [created.json()["id"]]
+
+
+def test_annotation_list_includes_exact_zotero_row_only_for_owning_attachment(temp_db_url: str) -> None:
+    seeded = _seed_library(temp_db_url)
+    paper_id = seeded["facial_paper_id"]
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        attachment_id = conn.execute(
+            select(attachments.c.id).where(attachments.c.paper_id == paper_id).order_by(attachments.c.id).limit(1)
+        ).scalar_one()
+        imported_id = conn.execute(
+            insert(annotations).values(
+                paper_id=paper_id,
+                attachment_id=attachment_id,
+                page=1,
+                annotation_type="highlight",
+                body="Imported Zotero highlight",
+                coordinate_system="pdf-points-top-left",
+                bboxes_json=[{"page": 1, "x0": 10.0, "y0": 20.0, "x1": 30.0, "y1": 40.0}],
+                anchor_text="Imported Zotero highlight",
+                note="Imported comment",
+                color="#ffd400",
+                import_source="zotero",
+                external_id="1:ANNOT001",
+            )
+        ).inserted_primary_key[0]
+    engine.dispose()
+
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.get(f"/papers/{paper_id}/annotations").json() == []
+    assert client.get(f"/papers/{paper_id}/annotations", params={"attachment_id": 999999}).json() == []
+
+    rows = client.get(f"/papers/{paper_id}/annotations", params={"attachment_id": attachment_id}).json()
+    assert [row["id"] for row in rows] == [imported_id]
+    assert rows[0]["source"] == "zotero"
+    assert rows[0]["anchor_text"] == "Imported Zotero highlight"
+    assert rows[0]["note"] == "Imported comment"
+
+
+def test_annotation_list_scopes_new_native_rows_to_their_attachment(temp_db_url: str) -> None:
+    paper_id = _seed_library(temp_db_url)["facial_paper_id"]
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        attachment_id = conn.execute(
+            select(attachments.c.id).where(attachments.c.paper_id == paper_id).order_by(attachments.c.id).limit(1)
+        ).scalar_one()
+    engine.dispose()
+
+    client = TestClient(create_app(db_url=temp_db_url))
+    created = client.post(
+        f"/papers/{paper_id}/annotations",
+        json=_annotation_body(attachment_id=attachment_id),
+    )
+    assert created.status_code == 201
+    assert [row["id"] for row in client.get(f"/papers/{paper_id}/annotations").json()] == [created.json()["id"]]
+    assert [
+        row["id"]
+        for row in client.get(
+            f"/papers/{paper_id}/annotations",
+            params={"attachment_id": attachment_id},
+        ).json()
+    ] == [created.json()["id"]]
+    assert client.get(f"/papers/{paper_id}/annotations", params={"attachment_id": 999999}).json() == []
 
 
 def test_annotation_create_and_list_unknown_paper_404(temp_db_url: str) -> None:

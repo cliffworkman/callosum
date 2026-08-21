@@ -45,7 +45,8 @@ During import, Callosum:
 - Records Zotero metadata such as title, authors, year, venue, DOI, citation key, and item type.
 - Tracks local PDF attachments when available.
 - Extracts PDF text into chunks with page information and bounding boxes.
-- Preserves enough source-location information for later citation jumping and verification.
+- Places supported Zotero PDF highlights and underlines over the matching local PDF, with their quoted text, color, and comment intact.
+- Preserves Zotero's raw annotation location when a position cannot be translated exactly; Callosum leaves those marks undrawn instead of guessing.
 - Keeps URL-only or missing attachments as honest metadata entries rather than pretending the PDF is local.
 
 Import does not make Gemini calls. Text extraction and local processing stay on your machine.
@@ -55,6 +56,7 @@ Gotchas:
 - If a paper says **PDF not available locally**, the imported record may be URL-only, metadata-only, or pointed at a file that is no longer available on disk.
 - A paper with **metadata not yet resolved** or **needs DOI** usually came from a raw or sparse record. Add or fix the DOI in Detail, then use the `🔎` button to re-resolve it from Crossref.
 - Imported PDF text quality depends on the PDF. Scanned image-only pages may not produce useful selectable text or exact citation coordinates.
+- Imported highlights need the same local PDF they were created against. Unsupported annotation types, malformed locations, and rotated pages remain preserved as records but are not drawn at an invented position.
 
 <!-- section: scanning-a-folder -->
 ## Watched folders (scanning for PDFs)

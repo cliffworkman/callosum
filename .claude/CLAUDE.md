@@ -615,10 +615,15 @@ the full per-increment narrative for all other increments now lives in the reloc
   resolvable before. The importer/adapter code itself is zero egress (confirmed by direct grep of both
   touched files); the only non-loopback traffic the job can produce is the same already-audited
   retraction-check metadata lookup every other import path already makes. Same
-  local-single-user file-read posture as the already-audited `/library/scan`. A known, disclosed
-  limitation carries over unchanged: imported annotation *positions* stay in raw Zotero-reader-JSON
-  form, not yet mapped to callosum's own PDF-space bbox/page coordinates (backlog #57 Phase 4).
-  Audit `2026-08-20_zotero-library-import.md` PASS.
+  local-single-user file-read posture as the already-audited `/library/scan`. **Zotero annotation
+  position fidelity shipped in inc 485 (backlog #57 Phase 4):** attachment-owned PDF highlight/
+  underline rectangles are bounded and transformed from standard PDF bottom-left coordinates into
+  the viewer's `pdf-points-top-left` basis through the owning PDF's PyMuPDF page transform. The PDF
+  response identifies the attachment and the viewer requests attachment-scoped annotations, so an
+  exact imported overlay cannot cross onto a sibling PDF. Unsupported/malformed/out-of-page input,
+  missing PDFs, and rotated pages retain raw Zotero provenance but receive no guessed bbox. Audits
+  `2026-08-20_zotero-library-import.md` and
+  `2026-08-21_zotero-annotation-position-fidelity.md` PASS.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

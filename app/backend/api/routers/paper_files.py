@@ -43,7 +43,8 @@ def paper_pdf(
         if path is None:
             raise HTTPException(status_code=404, detail="PDF not available locally for this attachment")
     else:
-        path = _local_attachment_path(_select_primary_pdf_attachment(attachment_rows))
+        chosen = _select_primary_pdf_attachment(attachment_rows)
+        path = _local_attachment_path(chosen)
         if path is None:
             raise HTTPException(status_code=404, detail="PDF not available locally for this paper")
     return FileResponse(
@@ -51,6 +52,7 @@ def paper_pdf(
         media_type="application/pdf",
         content_disposition_type="inline",
         filename=path.name,
+        headers={"X-Callosum-Attachment-Id": str(chosen["id"])},
     )
 
 

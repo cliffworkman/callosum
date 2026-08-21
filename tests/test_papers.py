@@ -442,7 +442,7 @@ def test_paper_pdf_streams_inline_pdf_for_present_local_attachment(temp_db_url: 
             csl_json={"type": "article-journal", "title": "Paper With Local PDF"},
             processing_tier="fully-chunked",
         )
-        create_attachment(
+        attachment_id = create_attachment(
             conn,
             paper_id=paper_id,
             storage_mode="linked",
@@ -461,6 +461,7 @@ def test_paper_pdf_streams_inline_pdf_for_present_local_attachment(temp_db_url: 
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
     assert response.headers["content-disposition"].startswith("inline")
+    assert response.headers["x-callosum-attachment-id"] == str(attachment_id)
     assert response.content == pdf_bytes
 
 
@@ -615,6 +616,7 @@ def test_paper_pdf_attachment_id_serves_the_chosen_non_primary_attachment(temp_d
     response = client.get(f"/papers/{paper_id}/pdf", params={"attachment_id": other_id})
 
     assert response.status_code == 200
+    assert response.headers["x-callosum-attachment-id"] == str(other_id)
     assert response.content == other_bytes
 
 

@@ -64,9 +64,10 @@ class ZoteroAnnotationRecord:
     key: str
     parent_item_id: int
     library_id: str
-    annotation_type: str | None
+    annotation_type: str | int | None
     text: str | None
     comment: str | None
+    color: str | None
     position_json: dict[str, Any] | None
 
 
@@ -132,6 +133,7 @@ def _read_snapshot(conn: sqlite3.Connection, data_dir: Path) -> ZoteroLibrarySna
 
     for row in item_rows:
         item_id = int(row["itemID"])
+        item_attachments = tuple(attachments_by_parent.get(item_id, []))
         items.append(
             ZoteroItemRecord(
                 item_id=item_id,
@@ -142,9 +144,16 @@ def _read_snapshot(conn: sqlite3.Connection, data_dir: Path) -> ZoteroLibrarySna
                 creators=tuple(creators_by_item.get(item_id, [])),
                 tags=tuple(tags_by_item.get(item_id, [])),
                 collection_ids=tuple(collection_ids_by_item.get(item_id, [])),
-                attachments=tuple(attachments_by_parent.get(item_id, [])),
+                attachments=item_attachments,
                 notes=tuple(notes_by_parent.get(item_id, [])),
-                annotations=tuple(annotations_by_parent.get(item_id, [])),
+                # itemAnnotations.parentItemID points to the PDF attachment item,
+                # not the top-level bibliographic item. Flatten each attachment's
+                # children here so the importer receives the paper's annotations.
+                annotations=tuple(
+                    annotation
+                    for attachment in item_attachments
+                    for annotation in annotations_by_parent.get(attachment.item_id, [])
+                ),
             )
         )
 
@@ -340,7 +349,7 @@ def _read_annotations(conn: sqlite3.Connection) -> dict[int, list[ZoteroAnnotati
         return {}
     rows = conn.execute(
         """
-        SELECT a.itemID, a.parentItemID, a.type, a.text, a.comment, a.position,
+        SELECT a.itemID, a.parentItemID, a.type, a.text, a.comment, a.color, a.position,
                i.key, COALESCE(CAST(i.libraryID AS TEXT), 'local') AS libraryID
         FROM itemAnnotations a
         JOIN items i ON i.itemID = a.itemID
@@ -359,6 +368,7 @@ def _read_annotations(conn: sqlite3.Connection) -> dict[int, list[ZoteroAnnotati
             annotation_type=row["type"],
             text=row["text"],
             comment=row["comment"],
+            color=row["color"],
             position_json={"raw": position} if position else None,
         )
         annotations_by_parent.setdefault(record.parent_item_id, []).append(record)

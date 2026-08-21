@@ -17,7 +17,8 @@ Zotero is the first import target because it has a local SQLite database and fil
 ## Zotero-Specific Notes
 
 - `itemAttachments.linkMode` distinguishes imported stored files, linked files, and linked URLs. Import logic must branch on this field because linked files may not exist on the current machine.
-- Zotero annotations live in the database, but annotation position data is Zotero-specific JSON keyed to Zotero Reader coordinates. Imported annotation locations need a translation layer before they can be mixed with Callosum's own PDF-space bounding boxes.
+- Zotero annotations live under their PDF attachment item, not directly under the bibliographic item. The adapter flattens that ownership while retaining the attachment identity.
+- Highlight/underline rectangles use standard PDF bottom-left coordinates. The importer validates and translates them through the owning PDF's PyMuPDF page transform before storing Callosum's `pdf-points-top-left` boxes. Unsupported types, malformed/out-of-page rectangles, missing PDFs, and rotated pages keep raw Zotero position JSON but never receive a guessed exact overlay.
 - Zotero attachments should feed Callosum's V1 default of copying available PDFs into the managed store. Link-in-place should remain explicit.
 
 ## Risks

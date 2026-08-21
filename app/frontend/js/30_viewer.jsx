@@ -90,25 +90,35 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
           baseWidthRef.current = (await doc.getPage(1)).getViewport({ scale: 1 }).width;
         } catch (e) { baseWidthRef.current = 0; }
         if (cancelled || token !== tokenRef.current) return;
-        setState({ status: "ready", numPages: doc.numPages, filename: responseFilename(res) });
+        setState({
+          status: "ready",
+          numPages: doc.numPages,
+          filename: responseFilename(res),
+          attachmentId: Number(res.headers.get("x-callosum-attachment-id")) || target?.attachmentId || null,
+        });
       } catch (e) {
         if (!cancelled && token === tokenRef.current) setState({ status: "error", error: "This file could not be rendered as a PDF." });
       }
     })();
     return () => { cancelled = true; };
   }, [paperId, target?.attachmentId]);
-  // Load this paper's user highlights once per paper. Reset any transient UI.
+  // Reset annotations/transient UI when the active paper or PDF attachment changes.
   useEffect(() => {
-    let cancelled = false;
     setAnnotations([]);
     setPicker(null);
     setEditor(null);
+  }, [paperId, target?.attachmentId]);
+
+  // Load native highlights plus any exact Zotero positions belonging to this PDF.
+  useEffect(() => {
+    if (state.status !== "ready" || state.attachmentId == null) return;
+    let cancelled = false;
     (async () => {
-      const r = await api(`/papers/${paperId}/annotations`);
+      const r = await api(`/papers/${paperId}/annotations?attachment_id=${state.attachmentId}`);
       if (!cancelled && r.ok && Array.isArray(r.data)) setAnnotations(r.data);
     })();
     return () => { cancelled = true; };
-  }, [paperId]);
+  }, [paperId, state.status, state.attachmentId]);
 
   // Refetch when an external action (e.g. saving a highlight from the synthesis pane)
   // bumps annoRefresh, so an already-open viewer shows the new highlight without a reload.
@@ -117,13 +127,14 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
   const annoRefreshMounted = useRef(false);
   useEffect(() => {
     if (!annoRefreshMounted.current) { annoRefreshMounted.current = true; return; }
+    if (state.status !== "ready" || state.attachmentId == null) return;
     let cancelled = false;
     (async () => {
-      const r = await api(`/papers/${paperId}/annotations`);
+      const r = await api(`/papers/${paperId}/annotations?attachment_id=${state.attachmentId}`);
       if (!cancelled && r.ok && Array.isArray(r.data)) setAnnotations(r.data);
     })();
     return () => { cancelled = true; };
-  }, [annoRefresh]);
+  }, [annoRefresh, paperId, state.status, state.attachmentId]);
 
   // Keep the imperative-DOM handlers' view of annotations fresh, and (re)draw the
   // overlays whenever the set changes or pages re-render (zoom).
@@ -314,6 +325,7 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
       anchor_text: picker.anchorText,
       prefix: picker.prefix || null,
       suffix: picker.suffix || null,
+      attachment_id: state.attachmentId,
     };
     setPicker(null);
     const sel = window.getSelection();
@@ -321,7 +333,7 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
     const r = await apiPost(`/papers/${paperId}/annotations`, body);
     if (r.ok && r.data) setAnnotations(prev => [...prev, r.data]);
     else flashNotice("Couldn't save highlight — " + (r.error || "unknown error"));
-  }, [picker, paperId, flashNotice]);
+  }, [picker, paperId, state.attachmentId, flashNotice]);
 
   // Open the note/color editor for an annotation, anchored near (x, y).
   const openEditor = useCallback((ann, x, y) => {

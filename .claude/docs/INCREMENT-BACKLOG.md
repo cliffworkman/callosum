@@ -167,9 +167,9 @@ the Principles + A-A gates before build.)*
   - Phase 3: feasibility spike for a Mendeley-via-Zotero-bridge import path (Mendeley's modern
     export reportedly encrypts citation data, blocking a direct clean export; Zotero's own
     import-from-Mendeley may be the practical bridge).
-  - Phase 4: Zotero annotation-position fidelity — map Zotero-reader-JSON highlight positions into
-    callosum's own PDF-space bbox/page coordinates (closes the disclosed gap in
-    `integrations/zotero/README.md`).
+  - **Phase 4 shipped, inc 485:** Zotero PDF highlight/underline positions are bounded, validated,
+    and mapped into callosum's own PDF-space bbox/page coordinates for their owning attachment;
+    ambiguous/unsupported geometry retains raw provenance and is not drawn.
   - Phase 5: word-processor in-document citation migration for Word, extending inc 464's
     LibreOffice Zotero-conversion pattern — gated on primary-source research into Mendeley Cite's/
     EndNote's actual field-code formats (neither is verified anywhere in this repo today; mirrors

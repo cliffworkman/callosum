@@ -1,8 +1,8 @@
 // Native Zotero library importer (backlog #57 Phase 1). Reads Zotero's own zotero.sqlite directly (copied,
 // never the live file — integrations/zotero/adapter.py): full fidelity vs. the generic BibTeX/RIS/CSL-JSON
 // path (28_import.jsx, metadata-only) — PDFs are extracted + chunked, collections/tags/notes/annotations carry
-// over. Known, disclosed gap: imported highlight POSITIONS stay in raw Zotero-reader-JSON form (unfixed by
-// this increment) — they show their quoted text/comment but can't be jumped-to or drawn on the PDF yet.
+// over. Supported Zotero PDF highlight/underline positions are translated locally into Callosum's exact
+// PDF-space coordinates; raw Zotero position JSON remains preserved for unsupported/ambiguous cases.
 // Mirrors ScanModalBody's exact resume-on-remount poll lifecycle (27_scan.jsx).
 
 const ZOTERO_IMPORT_JOB_KEY = "callosum.zoteroImportJob";
@@ -65,8 +65,9 @@ function ZoteroImportModalBody({ onClose, onImported }) {
         (commonly <code>~/Zotero</code> on Mac/Linux, or under <code>Documents\Zotero</code> on Windows).
         Callosum copies that file before reading it — your live Zotero database is never opened or modified, so
         this is safe to run while Zotero itself is open. Full fidelity: local PDFs are extracted and chunked,
-        collections, tags, and notes carry over. One known gap: imported highlight positions can't yet be
-        jumped-to or drawn on the PDF (they still show their quoted text and any comment).
+        collections, tags, and notes carry over. Zotero PDF highlights and underlines are also placed on the
+        matching local PDF when their stored position can be translated exactly; unsupported or ambiguous
+        positions stay unmarked rather than being drawn at a guessed location.
       </div>
       <div className="scan-row">
         <input className="wanted-add" placeholder="/path/to/Zotero" value={dir}

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import Connection, RowMapping, delete, func, insert, select, update
+from sqlalchemy import Connection, RowMapping, and_, delete, func, insert, or_, select, update
 
 from app.backend.persistence.schema import annotations
 
@@ -58,12 +58,40 @@ def get_annotation(conn: Connection, annotation_id: int) -> RowMapping | None:
     return conn.execute(select(annotations).where(annotations.c.id == annotation_id)).mappings().one_or_none()
 
 
-def list_annotations_for_paper(conn: Connection, paper_id: int) -> list[RowMapping]:
+def list_annotations_for_paper(
+    conn: Connection,
+    paper_id: int,
+    *,
+    attachment_id: int | None = None,
+) -> list[RowMapping]:
+    native_visible = annotations.c.source.in_(NATIVE_ANNOTATION_SOURCES)
+    if attachment_id is not None:
+        # Legacy native rows were not attachment-scoped. Keep them visible, but
+        # do not leak newly scoped native marks across sibling PDFs.
+        native_visible = and_(
+            native_visible,
+            or_(
+                annotations.c.attachment_id.is_(None),
+                annotations.c.attachment_id == attachment_id,
+            ),
+        )
+        # Imported Zotero rows join the viewer only after their geometry was
+        # translated exactly and only for the PDF attachment that owns them.
+        visible = or_(
+            native_visible,
+            and_(
+                annotations.c.import_source == "zotero",
+                annotations.c.attachment_id == attachment_id,
+                annotations.c.bboxes_json.is_not(None),
+            ),
+        )
+    else:
+        visible = native_visible
     stmt = (
         select(annotations)
         .where(
             annotations.c.paper_id == paper_id,
-            annotations.c.source.in_(NATIVE_ANNOTATION_SOURCES),
+            visible,
         )
         .order_by(annotations.c.page, annotations.c.id)
     )

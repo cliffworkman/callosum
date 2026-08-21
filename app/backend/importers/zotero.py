@@ -11,6 +11,7 @@ from typing import Any, Callable
 from sqlalchemy import Connection, and_, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
+from app.backend.importers.zotero_annotation_position import translate_zotero_position
 from app.backend.pdf_processing.extraction import (
     DEFAULT_CHUNKING_STRATEGY,
     extract_pdf,
@@ -113,11 +114,11 @@ def import_zotero_library(
         _upsert_collection_memberships(conn, paper_id, item.collection_ids, collection_id_map)
         _upsert_tags(conn, paper_id, item.tags)
         _upsert_notes(conn, paper_id, item)
-        _upsert_annotations(conn, paper_id, item)
-
         paper_fully_chunked = False
+        attachment_ids_by_zotero_item: dict[int, int] = {}
         for attachment in item.attachments:
             attachment_id, created = _upsert_attachment(conn, paper_id, attachment)
+            attachment_ids_by_zotero_item[attachment.item_id] = attachment_id
             attachments_created += int(created)
             if _can_extract_pdf(attachment):
                 try:
@@ -131,6 +132,13 @@ def import_zotero_library(
                 chunks_created += len(created_ids)
                 if created_ids or _attachment_has_chunks(conn, attachment_id):
                     paper_fully_chunked = True
+
+        _upsert_annotations(
+            conn,
+            paper_id,
+            item,
+            attachment_ids_by_zotero_item=attachment_ids_by_zotero_item,
+        )
 
         if paper_fully_chunked:
             conn.execute(update(papers).where(papers.c.id == paper_id).values(processing_tier="fully-chunked"))
@@ -448,15 +456,54 @@ def _upsert_notes(conn: Connection, paper_id: int, item: ZoteroItemRecord) -> No
         )
 
 
-def _upsert_annotations(conn: Connection, paper_id: int, item: ZoteroItemRecord) -> None:
+def _upsert_annotations(
+    conn: Connection,
+    paper_id: int,
+    item: ZoteroItemRecord,
+    *,
+    attachment_ids_by_zotero_item: dict[int, int] | None = None,
+) -> None:
+    callosum_attachment_ids = attachment_ids_by_zotero_item or {}
+    zotero_attachments = {attachment.item_id: attachment for attachment in item.attachments}
     for annotation in item.annotations:
         external_id = f"{annotation.library_id}:{annotation.key}"
-        exists = conn.execute(
-            select(annotations.c.id).where(
-                and_(annotations.c.import_source == ZOTERO_IMPORT_SOURCE, annotations.c.external_id == external_id)
+        existing = (
+            conn.execute(
+                select(annotations).where(
+                    and_(
+                        annotations.c.import_source == ZOTERO_IMPORT_SOURCE,
+                        annotations.c.external_id == external_id,
+                    )
+                )
             )
-        ).first()
-        if exists:
+            .mappings()
+            .first()
+        )
+        zotero_attachment = zotero_attachments.get(annotation.parent_item_id)
+        attachment_id = callosum_attachment_ids.get(annotation.parent_item_id)
+        translated = translate_zotero_position(
+            annotation.position_json,
+            annotation_type=annotation.annotation_type,
+            pdf_path=zotero_attachment.resolved_path if zotero_attachment is not None else None,
+        )
+        location_values = {
+            "attachment_id": attachment_id,
+            "page": translated.page,
+            "bboxes_json": translated.bboxes_json,
+            "coordinate_system": translated.coordinate_system,
+        }
+        if existing is not None:
+            # Re-import upgrades legacy raw-only rows once their PDF is available.
+            # A later missing/unreadable PDF never erases geometry already proven exact.
+            updates = {key: value for key, value in location_values.items() if value is not None}
+            if existing["anchor_text"] is None and annotation.text:
+                updates["anchor_text"] = annotation.text
+            if existing["note"] is None and annotation.comment:
+                updates["note"] = annotation.comment
+            if existing["color"] is None and annotation.color:
+                updates["color"] = annotation.color
+            if updates:
+                conn.execute(update(annotations).where(annotations.c.id == existing["id"]).values(**updates))
             continue
         conn.execute(
             insert(annotations).values(
@@ -464,9 +511,12 @@ def _upsert_annotations(conn: Connection, paper_id: int, item: ZoteroItemRecord)
                 annotation_type=annotation.annotation_type,
                 body=annotation.comment or annotation.text,
                 position_json=annotation.position_json,
-                coordinate_system="zotero-reader-json" if annotation.position_json else None,
                 import_source=ZOTERO_IMPORT_SOURCE,
                 external_id=external_id,
+                color=annotation.color,
+                anchor_text=annotation.text,
+                note=annotation.comment,
+                **location_values,
             )
         )
 

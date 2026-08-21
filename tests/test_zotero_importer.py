@@ -9,11 +9,12 @@ from sqlalchemy import func, select
 from alembic import command
 from alembic.config import Config
 from app.backend.importers.zotero import import_zotero_library
+from app.backend.importers.zotero_annotation_position import translate_zotero_position
 from app.backend.pdf_processing.extraction import file_sha256
 from app.backend.pdf_processing.location import locate_quote_for_attachment
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_paper
-from app.backend.persistence.schema import attachments, chunks, collection_papers, notes, papers, tags
+from app.backend.persistence.schema import annotations, attachments, chunks, collection_papers, notes, papers, tags
 
 
 def test_zotero_importer_maps_metadata_attachments_chunks_and_is_idempotent(tmp_path: Path) -> None:
@@ -67,6 +68,7 @@ def test_zotero_importer_maps_metadata_attachments_chunks_and_is_idempotent(tmp_
         tag_rows = list(conn.execute(select(tags)).mappings())
         tag_names = {row["name"] for row in tag_rows}
         note_count = conn.execute(select(func.count()).select_from(notes)).scalar_one()
+        annotation = conn.execute(select(annotations)).mappings().one()
         collection_membership_count = conn.execute(select(func.count()).select_from(collection_papers)).scalar_one()
 
     assert first_result.papers_created == 3
@@ -103,6 +105,14 @@ def test_zotero_importer_maps_metadata_attachments_chunks_and_is_idempotent(tmp_
     # for the paper/attachment/collection/note rows above.
     assert all(row["import_source"] == "import:zotero" for row in tag_rows)
     assert note_count == 1
+    assert annotation["attachment_id"] == stored_attachment["id"]
+    assert annotation["page"] == 1
+    assert annotation["coordinate_system"] == "pdf-points-top-left"
+    assert annotation["bboxes_json"] == [{"page": 1, "x0": 45.0, "y0": 55.0, "x1": 260.0, "y1": 80.0}]
+    assert annotation["anchor_text"] == "Stored Zotero PDF quote appears here."
+    assert annotation["note"] == "Fixture annotation comment"
+    assert annotation["color"] == "#ffd400"
+    assert annotation["position_json"] == {"raw": '{"pageIndex":0,"rects":[[45,340,260,365]]}'}
     assert collection_membership_count == 1
     assert file_sha256(source_db) == source_checksum_before
     assert _tree_hashes(zotero_dir) == source_tree_before
@@ -186,6 +196,51 @@ def test_zotero_importer_reports_progress(temp_db_url: str, tmp_path: Path) -> N
     totals = {total for _, total in calls}
     assert len(totals) == 1  # total item count stays constant across the run
     assert [current for current, _ in calls] == sorted(current for current, _ in calls)  # current is non-decreasing
+
+
+def test_zotero_position_translation_fails_closed_without_false_exact_geometry(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "position.pdf"
+    _make_pdf(pdf_path)
+
+    malformed = translate_zotero_position({"raw": "not json"}, annotation_type=1, pdf_path=pdf_path)
+    assert malformed.page is None and malformed.bboxes_json is None
+
+    oversized = translate_zotero_position({"raw": "x" * 65_001}, annotation_type=1, pdf_path=pdf_path)
+    assert oversized.page is None and oversized.bboxes_json is None
+
+    out_of_bounds = translate_zotero_position(
+        {"raw": '{"pageIndex":0,"rects":[[-1,340,260,365]]}'},
+        annotation_type=1,
+        pdf_path=pdf_path,
+    )
+    assert out_of_bounds.page == 1 and out_of_bounds.bboxes_json is None
+
+    non_finite = translate_zotero_position(
+        {"pageIndex": 0, "rects": [[45, 340, float("nan"), 365]]},
+        annotation_type=1,
+        pdf_path=pdf_path,
+    )
+    assert non_finite.page == 1 and non_finite.bboxes_json is None
+
+    unsupported = translate_zotero_position(
+        {"raw": '{"pageIndex":0,"rects":[[45,340,260,365]]}'},
+        annotation_type=3,
+        pdf_path=pdf_path,
+    )
+    assert unsupported.page == 1 and unsupported.bboxes_json is None
+
+    rotated_path = tmp_path / "rotated.pdf"
+    document = fitz.open(pdf_path)
+    document[0].set_rotation(90)
+    document.save(rotated_path)
+    document.close()
+    rotated = translate_zotero_position(
+        {"raw": '{"pageIndex":0,"rects":[[45,340,260,365]]}'},
+        annotation_type=1,
+        pdf_path=rotated_path,
+    )
+    assert rotated.page == 1 and rotated.bboxes_json is None
+    assert rotated.coordinate_system == "zotero-reader-json"
 
 
 def test_zotero_importer_second_run_populates_chunk_ids_for_previously_missing_pdf(
@@ -306,6 +361,15 @@ def _create_zotero_schema(conn: sqlite3.Connection) -> None:
         CREATE TABLE tags (tagID INTEGER PRIMARY KEY, name TEXT NOT NULL);
         CREATE TABLE itemTags (itemID INTEGER NOT NULL, tagID INTEGER NOT NULL);
         CREATE TABLE itemNotes (itemID INTEGER PRIMARY KEY, parentItemID INTEGER, note TEXT);
+        CREATE TABLE itemAnnotations (
+            itemID INTEGER PRIMARY KEY,
+            parentItemID INTEGER NOT NULL,
+            type INTEGER NOT NULL,
+            text TEXT,
+            comment TEXT,
+            color TEXT,
+            position TEXT
+        );
         """
     )
 
@@ -317,6 +381,7 @@ def _insert_fixture_rows(conn: sqlite3.Connection, zotero_dir: Path) -> None:
             (1, "journalArticle"),
             (2, "attachment"),
             (3, "note"),
+            (4, "annotation"),
         ],
     )
     fields = [
@@ -351,6 +416,7 @@ def _insert_fixture_rows(conn: sqlite3.Connection, zotero_dir: Path) -> None:
             (11, 2, "MISSLINK", 1),
             (12, 2, "URLLINK", 1),
             (20, 3, "NOTE0001", 1),
+            (30, 4, "ANNOT001", 1),
         ],
     )
     item_data = [
@@ -396,6 +462,21 @@ def _insert_fixture_rows(conn: sqlite3.Connection, zotero_dir: Path) -> None:
     conn.execute(
         "INSERT INTO itemNotes (itemID, parentItemID, note) VALUES (?, ?, ?)",
         (20, 1, "<p>Fixture note body</p>"),
+    )
+    conn.execute(
+        """
+        INSERT INTO itemAnnotations (itemID, parentItemID, type, text, comment, color, position)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            30,
+            10,
+            1,
+            "Stored Zotero PDF quote appears here.",
+            "Fixture annotation comment",
+            "#ffd400",
+            '{"pageIndex":0,"rects":[[45,340,260,365]]}',
+        ),
     )
 
 

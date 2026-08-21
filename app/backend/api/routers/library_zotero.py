@@ -1,10 +1,10 @@
 """Native Zotero library import (backlog #57 Phase 1) — reads Zotero's own zotero.sqlite directly
 (copy-then-read, integrations/zotero/adapter.py; app/backend/importers/zotero.py) for full fidelity:
 PDFs extracted + chunked, collections/tags/notes/annotations carried over — vs. the generic
-BibTeX/RIS/CSL-JSON path in library.py (metadata-only). A known, disclosed limitation (unchanged by
-this increment, integrations/zotero/README.md): imported annotation POSITIONS stay in raw
-Zotero-reader-JSON form, so imported highlights show their quoted text/comment but can't be
-jumped-to or drawn on the PDF yet (backlog #57 Phase 4).
+BibTeX/RIS/CSL-JSON path in library.py (metadata-only). Supported PDF highlight/underline
+positions are translated into Callosum's exact PDF coordinates; unsupported or ambiguous
+positions retain their raw Zotero JSON without becoming guessed overlays (backlog #57 Phase 4,
+inc 485).
 
 Split into its own sibling router (rule #1) — library.py is already at the 600-line cap.
 """

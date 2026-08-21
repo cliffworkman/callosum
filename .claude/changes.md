@@ -9,6 +9,30 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-08-21 — Increment 485: Zotero annotation-position fidelity -->
+## 2026-08-21 — Increment 485: Zotero annotation-position fidelity (backlog #57 Phase 4)
+- **Files:** `app/backend/importers/zotero_annotation_position.py` (new),
+  `app/backend/importers/zotero.py`, `integrations/zotero/adapter.py`,
+  `app/backend/persistence/annotations_repo.py`, `app/backend/api/routers/annotations.py`,
+  `app/backend/api/routers/paper_files.py`, `app/frontend/js/30_viewer.jsx`,
+  `app/frontend/js/27b_zotero_import.jsx`, `app/backend/help/help_content.md`,
+  `integrations/zotero/README.md`, `tests/test_zotero_importer.py`, `tests/test_annotations.py`,
+  `tests/test_papers.py`, `tests/test_frontend_assembly.py`, `callosum-app.html`,
+  `.claude/security-audits/2026-08-21_zotero-annotation-position-fidelity.md` (new),
+  `.claude/qa-routes/route_93_zotero_library_import.md`, `www/showcase-coverage.json`,
+  `.claude/docs/increment-notes/INCREMENT-485-NOTES.md` (new), `.claude/CLAUDE.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`.
+- **What:** translates bounded, validated Zotero highlight/underline rectangles through the owning PDF's
+  PyMuPDF page transform into Callosum's exact overlay coordinates, retaining raw provenance without a bbox for
+  every unsupported or ambiguous case. Fixes the adapter's attachment-child ownership join, links imported
+  marks to canonical attachments, carries text/comment/color, and makes the viewer's annotation request follow
+  the attachment id reported by the PDF it actually loaded. Re-import upgrades legacy raw-only rows when their
+  PDF becomes available; it never erases already-proven geometry.
+- **Why:** Phase 1 preserved Zotero annotation JSON but could neither reach the rows through its real ownership
+  edge nor draw their locations. A migrated library should preserve close-reading work without manufacturing
+  precision or painting a mark onto the wrong PDF.
+- **Revert:** a plain `git revert`; no schema/migration/dependency involved.
+
 ## 2026-08-20 — Increment 484: native Zotero library import, shipped (backlog #57 Phase 1)
 - **Files:** `app/backend/importers/zotero.py`, `app/backend/api/routers/library_zotero.py` (new),
   `app/backend/api/app.py`, `app/backend/api/routers/status.py`, `tests/test_zotero_importer.py`,
