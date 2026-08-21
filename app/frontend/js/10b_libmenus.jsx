@@ -9,7 +9,7 @@ function DemoLockedLibraryButton({ label, title, message, path, className }) {
     onClick={() => explainDemoLock(message, path)}>{label}</button>;
 }
 
-function AddMenu({ onScan, onImport, onImportBundle, onExportBundle, onSharedWithMe }) {
+function AddMenu({ onScan, onImport, onImportZotero, onImportBundle, onExportBundle, onSharedWithMe }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -25,6 +25,10 @@ function AddMenu({ onScan, onImport, onImportBundle, onExportBundle, onSharedWit
       {open &&
         <div className="add-menu-pop">
           <button onClick={() => pick(onScan)} title="Add &amp; watch folders of PDFs — new files are picked up automatically">Watched folders…</button>
+          {onImportZotero && <button onClick={() => pick(onImportZotero)}
+            title="Read your Zotero data directory directly — full fidelity: PDFs, notes, tags, collections">
+            Read Zotero library…
+          </button>}
           <button onClick={() => pick(onImport)} title="Import a BibTeX, RIS, or CSL-JSON citation file">Import file…</button>
           {onImportBundle && <button onClick={() => pick(onImportBundle)} title="Import a callosum library bundle (.json) — metadata + tags + annotations + axes, no PDFs">Import bundle…</button>}
           {onSharedWithMe && <button onClick={() => pick(onSharedWithMe)} title="Papers a collaborator end-to-end encrypted and sent you — no PDFs, decrypted only with your own sync passphrase">Shared with me…</button>}

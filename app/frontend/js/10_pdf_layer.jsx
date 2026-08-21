@@ -196,7 +196,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
                     openDataDetected, onShowTransparencyReview, lmmFlagged, onShowLmmFlagged, metaFlagged, onShowMetaFlagged, bayesFlagged, onShowBayesFlagged,
                     findingsToReview, onShowFindingsToReview, findingsByPaper, referenceWarningsByPaper,
-                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenScan, onOpenImport, onOpenImportBundle, onOpenSharedWithMe, onExportBundle,
+                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenScan, onOpenImport, onOpenImportZotero, onOpenImportBundle, onOpenSharedWithMe, onExportBundle,
                     onCitationsRefreshed, onEnriched, onRetractionRan, onOpenTextHealth, onOpenReferenceWarnings,
                     savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch, readOnly, onReadingChanged,
                     libraryMissingPdf, onToggleMissingPdf }) {
@@ -246,6 +246,9 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             {!trashView && <AddMenu
               onScan={demoMode ? () => explainDemoLock("Watched folders read local directories and persist their paths. The static browser demo has no filesystem or backend; use local Callosum to add and watch PDF folders.", "/library/scan") : onOpenScan}
               onImport={demoMode ? () => explainDemoLock("Citation import creates persistent library records. The static demo keeps its curated three-paper library immutable; use local Callosum to import BibTeX, RIS, or CSL-JSON.", "/papers/import") : onOpenImport}
+              onImportZotero={demoMode
+                ? () => explainDemoLock("Reading a Zotero library copies a local zotero.sqlite file and creates persistent library records — full fidelity (PDFs, notes, tags, collections). The static browser demo has no filesystem or backend; use local Callosum to read your Zotero library.", "/library/zotero/import")
+                : onOpenImportZotero}
               onImportBundle={demoMode ? () => explainDemoLock("Importing a Callosum bundle changes the persistent library. The static demo has no database; use local Callosum to merge a portable bundle.", "/library/bundle/import") : onOpenImportBundle}
               onSharedWithMe={demoMode ? () => explainDemoLock("Receiving a shared library requires a local encrypted-sync identity and persistent library. No account or sync endpoint exists in the static demo.", "/sync/shares") : onOpenSharedWithMe}
               onExportBundle={demoMode ? () => explainDemoLock("Library-bundle export is produced by the local backend from your records, tags, axes, and annotations. The public presentation snapshot is not exported as a personal library bundle.", "/library/bundle/export") : onExportBundle} />}

@@ -22,11 +22,13 @@ function OnboardingImportChoice({ onPick, onSkip }) {
   return (
     <div className="onboarding-choice">
       <div className="axis-modal-note">
-        Bring in papers you already have citations for — a BibTeX/RIS/CSL-JSON file (e.g. exported from Zotero,
-        Mendeley, or EndNote) or a callosum library bundle. Or skip this and add papers later.
+        Bring in papers you already have. Read your <b>Zotero</b> library directly for full fidelity — PDFs,
+        notes, tags, and collections — or import a BibTeX/RIS/CSL-JSON file (e.g. exported from Zotero, Mendeley,
+        or EndNote) or a callosum library bundle. Or skip this and add papers later.
       </div>
       <div className="onboarding-choice-actions">
-        <button className="axis-btn" onClick={() => onPick("file")}>Import citations file…</button>
+        <button className="axis-btn" onClick={() => onPick("zotero")}>Read my Zotero library…</button>
+        <button className="btn btn-ghost" onClick={() => onPick("file")}>Import citations file…</button>
         <button className="btn btn-ghost" onClick={() => onPick("bundle")}>Import a callosum bundle…</button>
         <button className="axis-link" onClick={onSkip}>Skip this step →</button>
       </div>
@@ -50,9 +52,9 @@ function OnboardingAxisChoice({ onPick, onSkip }) {
   );
 }
 
-function OnboardingWizard({ onDone, onMyPubsRefreshed, onScanned, onImported, onImportedBundle, onAxisSaved }) {
+function OnboardingWizard({ onDone, onMyPubsRefreshed, onScanned, onImported, onImportedZotero, onImportedBundle, onAxisSaved }) {
   const [step, setStep] = useState(0);
-  const [importMode, setImportMode] = useState(null);  // null | "file" | "bundle"
+  const [importMode, setImportMode] = useState(null);  // null | "file" | "bundle" | "zotero"
   const [axisMode, setAxisMode] = useState(null);       // null | "suggest" | "manual"
   const [busy, setBusy] = useState(false);
   const stepId = ONBOARDING_STEPS[step];
@@ -89,7 +91,9 @@ function OnboardingWizard({ onDone, onMyPubsRefreshed, onScanned, onImported, on
       ? <OnboardingImportChoice onPick={setImportMode} onSkip={goNext} />
       : importMode === "bundle"
         ? <BundleImportModalBody onClose={goNext} onImported={onImportedBundle} />
-        : <ImportModalBody onClose={goNext} onImported={onImported} />;
+        : importMode === "zotero"
+          ? <ZoteroImportModalBody onClose={goNext} onImported={onImportedZotero} />
+          : <ImportModalBody onClose={goNext} onImported={onImported} />;
   } else if (stepId === "axis") {
     body = axisMode == null
       ? <OnboardingAxisChoice onPick={setAxisMode} onSkip={goNext} />

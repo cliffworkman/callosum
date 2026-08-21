@@ -5297,12 +5297,12 @@
     done: "All set"
   };
   function OnboardingImportChoice({ onPick, onSkip }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Bring in papers you already have citations for \u2014 a BibTeX/RIS/CSL-JSON file (e.g. exported from Zotero, Mendeley, or EndNote) or a callosum library bundle. Or skip this and add papers later."), /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-btn", onClick: () => onPick("file") }, "Import citations file\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => onPick("bundle") }, "Import a callosum bundle\u2026"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onSkip }, "Skip this step \u2192")));
+    return /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Bring in papers you already have. Read your ", /* @__PURE__ */ React.createElement("b", null, "Zotero"), " library directly for full fidelity \u2014 PDFs, notes, tags, and collections \u2014 or import a BibTeX/RIS/CSL-JSON file (e.g. exported from Zotero, Mendeley, or EndNote) or a callosum library bundle. Or skip this and add papers later."), /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-btn", onClick: () => onPick("zotero") }, "Read my Zotero library\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => onPick("file") }, "Import citations file\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => onPick("bundle") }, "Import a callosum bundle\u2026"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onSkip }, "Skip this step \u2192")));
   }
   function OnboardingAxisChoice({ onPick, onSkip }) {
     return /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "An axis is a lens for organizing your library along a theme you define \u2014 Callosum can suggest some from your library's own content, or you can name your first one by hand. Either way, you can add more anytime."), /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-btn", onClick: () => onPick("suggest") }, "Suggest axes from my library\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => onPick("manual") }, "Create one manually\u2026"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onSkip }, "Skip this step \u2192")));
   }
-  function OnboardingWizard({ onDone, onMyPubsRefreshed, onScanned, onImported, onImportedBundle, onAxisSaved }) {
+  function OnboardingWizard({ onDone, onMyPubsRefreshed, onScanned, onImported, onImportedZotero, onImportedBundle, onAxisSaved }) {
     const [step, setStep] = useState(0);
     const [importMode, setImportMode] = useState(null);
     const [axisMode, setAxisMode] = useState(null);
@@ -5328,7 +5328,7 @@
     } else if (stepId === "library") {
       body = /* @__PURE__ */ React.createElement(ScanModalBody, { onClose: goNext, onScanned });
     } else if (stepId === "import") {
-      body = importMode == null ? /* @__PURE__ */ React.createElement(OnboardingImportChoice, { onPick: setImportMode, onSkip: goNext }) : importMode === "bundle" ? /* @__PURE__ */ React.createElement(BundleImportModalBody, { onClose: goNext, onImported: onImportedBundle }) : /* @__PURE__ */ React.createElement(ImportModalBody, { onClose: goNext, onImported });
+      body = importMode == null ? /* @__PURE__ */ React.createElement(OnboardingImportChoice, { onPick: setImportMode, onSkip: goNext }) : importMode === "bundle" ? /* @__PURE__ */ React.createElement(BundleImportModalBody, { onClose: goNext, onImported: onImportedBundle }) : importMode === "zotero" ? /* @__PURE__ */ React.createElement(ZoteroImportModalBody, { onClose: goNext, onImported: onImportedZotero }) : /* @__PURE__ */ React.createElement(ImportModalBody, { onClose: goNext, onImported });
     } else if (stepId === "axis") {
       body = axisMode == null ? /* @__PURE__ */ React.createElement(OnboardingAxisChoice, { onPick: setAxisMode, onSkip: goNext }) : axisMode === "suggest" ? /* @__PURE__ */ React.createElement(SuggestAxesModalBody, { onClose: goNext }) : /* @__PURE__ */ React.createElement(
         AxisEditModalBody,
@@ -9938,6 +9938,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     onFindDuplicates,
     onOpenScan,
     onOpenImport,
+    onOpenImportZotero,
     onOpenImportBundle,
     onOpenSharedWithMe,
     onExportBundle,
@@ -9987,6 +9988,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       {
         onScan: demoMode ? () => explainDemoLock("Watched folders read local directories and persist their paths. The static browser demo has no filesystem or backend; use local Callosum to add and watch PDF folders.", "/library/scan") : onOpenScan,
         onImport: demoMode ? () => explainDemoLock("Citation import creates persistent library records. The static demo keeps its curated three-paper library immutable; use local Callosum to import BibTeX, RIS, or CSL-JSON.", "/papers/import") : onOpenImport,
+        onImportZotero: demoMode ? () => explainDemoLock("Reading a Zotero library copies a local zotero.sqlite file and creates persistent library records \u2014 full fidelity (PDFs, notes, tags, collections). The static browser demo has no filesystem or backend; use local Callosum to read your Zotero library.", "/library/zotero/import") : onOpenImportZotero,
         onImportBundle: demoMode ? () => explainDemoLock("Importing a Callosum bundle changes the persistent library. The static demo has no database; use local Callosum to merge a portable bundle.", "/library/bundle/import") : onOpenImportBundle,
         onSharedWithMe: demoMode ? () => explainDemoLock("Receiving a shared library requires a local encrypted-sync identity and persistent library. No account or sync endpoint exists in the static demo.", "/sync/shares") : onOpenSharedWithMe,
         onExportBundle: demoMode ? () => explainDemoLock("Library-bundle export is produced by the local backend from your records, tags, axes, and annotations. The public presentation snapshot is not exported as a personal library bundle.", "/library/bundle/export") : onExportBundle
@@ -10286,7 +10288,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       label
     );
   }
-  function AddMenu({ onScan, onImport, onImportBundle, onExportBundle, onSharedWithMe }) {
+  function AddMenu({ onScan, onImport, onImportZotero, onImportBundle, onExportBundle, onSharedWithMe }) {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
     useEffect(() => {
@@ -10301,7 +10303,14 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       setOpen(false);
       fn();
     };
-    return /* @__PURE__ */ React.createElement("span", { className: "add-menu", ref }, /* @__PURE__ */ React.createElement("button", { className: "trash-toggle add", onClick: () => setOpen((o) => !o), title: "Add papers to the library" }, "+ Add \u25BE"), open && /* @__PURE__ */ React.createElement("div", { className: "add-menu-pop" }, /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onScan), title: "Add & watch folders of PDFs \u2014 new files are picked up automatically" }, "Watched folders\u2026"), /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImport), title: "Import a BibTeX, RIS, or CSL-JSON citation file" }, "Import file\u2026"), onImportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImportBundle), title: "Import a callosum library bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Import bundle\u2026"), onSharedWithMe && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onSharedWithMe), title: "Papers a collaborator end-to-end encrypted and sent you \u2014 no PDFs, decrypted only with your own sync passphrase" }, "Shared with me\u2026"), onExportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onExportBundle), title: "Export your whole library as a portable bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Export library bundle\u2026")));
+    return /* @__PURE__ */ React.createElement("span", { className: "add-menu", ref }, /* @__PURE__ */ React.createElement("button", { className: "trash-toggle add", onClick: () => setOpen((o) => !o), title: "Add papers to the library" }, "+ Add \u25BE"), open && /* @__PURE__ */ React.createElement("div", { className: "add-menu-pop" }, /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onScan), title: "Add & watch folders of PDFs \u2014 new files are picked up automatically" }, "Watched folders\u2026"), onImportZotero && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => pick(onImportZotero),
+        title: "Read your Zotero data directory directly \u2014 full fidelity: PDFs, notes, tags, collections"
+      },
+      "Read Zotero library\u2026"
+    ), /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImport), title: "Import a BibTeX, RIS, or CSL-JSON citation file" }, "Import file\u2026"), onImportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImportBundle), title: "Import a callosum library bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Import bundle\u2026"), onSharedWithMe && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onSharedWithMe), title: "Papers a collaborator end-to-end encrypted and sent you \u2014 no PDFs, decrypted only with your own sync passphrase" }, "Shared with me\u2026"), onExportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onExportBundle), title: "Export your whole library as a portable bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Export library bundle\u2026")));
   }
   function CitationCountsButton({ asOf, onRefreshed }) {
     const [busy, setBusy] = useState(false);
@@ -15600,6 +15609,91 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       onShowUnsorted();
       onClose();
     } }, "Review unsorted \u2192")))), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")));
+  }
+  const ZOTERO_IMPORT_JOB_KEY = "callosum.zoteroImportJob";
+  function ZoteroImportModal({ onClose, onImported }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(ZoteroImportModalBody, { onClose, onImported })));
+  }
+  function ZoteroImportModalBody({ onClose, onImported }) {
+    const [dir, setDir] = useState(() => {
+      try {
+        return localStorage.getItem("callosum.zoteroDataDir") || "";
+      } catch (e) {
+        return "";
+      }
+    });
+    const [imp, setImp] = useState({ status: "idle" });
+    const _clearJob = () => {
+      try {
+        localStorage.removeItem(ZOTERO_IMPORT_JOB_KEY);
+      } catch (e) {
+      }
+    };
+    const poll = (jobId) => {
+      api(`/library/zotero/import/${jobId}`).then((r) => {
+        if (!r.ok) {
+          setImp({ status: "error", error: r.error });
+          _clearJob();
+          return;
+        }
+        const d = r.data;
+        if (d.status === "done") {
+          setImp({ status: "done", summary: d.summary });
+          _clearJob();
+          if (onImported) onImported();
+        } else if (d.status === "error") {
+          setImp({ status: "error", error: d.detail || "Zotero import failed." });
+          _clearJob();
+        } else {
+          setImp({ status: "running", progress: d.progress });
+          setTimeout(() => poll(jobId), 1500);
+        }
+      });
+    };
+    useEffect(() => {
+      let job = null;
+      try {
+        job = JSON.parse(localStorage.getItem(ZOTERO_IMPORT_JOB_KEY) || "null");
+      } catch (e) {
+      }
+      if (job && job.jobId) {
+        setImp({ status: "running" });
+        poll(job.jobId);
+      }
+    }, []);
+    const run = () => {
+      const path = dir.trim();
+      if (!path) return;
+      try {
+        localStorage.setItem("callosum.zoteroDataDir", path);
+      } catch (e) {
+      }
+      setImp({ status: "running" });
+      apiPost("/library/zotero/import", { zotero_data_dir: path }).then((r) => {
+        if (!r.ok) {
+          setImp({ status: "error", error: r.error });
+          return;
+        }
+        try {
+          localStorage.setItem(ZOTERO_IMPORT_JOB_KEY, JSON.stringify({ jobId: r.data.job_id }));
+        } catch (e) {
+        }
+        poll(r.data.job_id);
+      });
+    };
+    const s = imp.summary;
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Read my Zotero library"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Point this at your ", /* @__PURE__ */ React.createElement("b", null, "Zotero data directory"), " \u2014 the folder containing ", /* @__PURE__ */ React.createElement("code", null, "zotero.sqlite"), "(commonly ", /* @__PURE__ */ React.createElement("code", null, "~/Zotero"), " on Mac/Linux, or under ", /* @__PURE__ */ React.createElement("code", null, "Documents\\Zotero"), " on Windows). Callosum copies that file before reading it \u2014 your live Zotero database is never opened or modified, so this is safe to run while Zotero itself is open. Full fidelity: local PDFs are extracted and chunked, collections, tags, and notes carry over. One known gap: imported highlight positions can't yet be jumped-to or drawn on the PDF (they still show their quoted text and any comment)."), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "wanted-add",
+        placeholder: "/path/to/Zotero",
+        value: dir,
+        onChange: (e) => setDir(e.target.value),
+        onKeyDown: (e) => {
+          if (e.key === "Enter") run();
+        }
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: imp.status === "running" || !dir.trim(), onClick: run }, imp.status === "running" ? "Importing\u2026" : "Read library")), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Reading your Zotero library\u2026", progress: imp.progress, managedBy: "backend-job" }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Import failed: ", imp.error), imp.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.papers_created), " new \xB7 ", s.papers_matched, " already in your library", s.attachments_created ? ` \xB7 ${s.attachments_created} attachment${s.attachments_created === 1 ? "" : "s"}` : "", s.chunks_created ? ` \xB7 ${s.chunks_created} chunk${s.chunks_created === 1 ? "" : "s"} extracted` : "", s.attachment_errors ? ` \xB7 ${s.attachment_errors} attachment${s.attachment_errors === 1 ? "" : "s"} couldn't be read` : "", s.papers_created > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "New papers are in your library \u2014 full fidelity wherever a local PDF was found.")), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")));
   }
   function ImportModal({ onClose, onImported }) {
     return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(ImportModalBody, { onClose, onImported })));
@@ -21575,6 +21669,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [beyondSavedOpen, setBeyondSavedOpen] = useState(false);
     const [scanOpen, setScanOpen] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
+    const [zoteroImportOpen, setZoteroImportOpen] = useState(false);
     const [bundleImportOpen, setBundleImportOpen] = useState(false);
     const [sharedWithMeOpen, setSharedWithMeOpen] = useState(false);
     const cancelFocusRef = useRef(() => {
@@ -21766,6 +21861,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       if (nav.modal === "overlooked") setOverlookedOpen(true);
       if (nav.modal === "scan") setScanOpen(true);
       if (nav.modal === "import") setImportOpen(true);
+      if (nav.modal === "zotero-import") setZoteroImportOpen(true);
       if (nav.modal === "bundle-import") setBundleImportOpen(true);
       if (nav.modal === "feedback") window.dispatchEvent(new Event("callosum:open-feedback"));
     }, [gotoLibrary, libraryBits, mobile, openSynthesisSummary, openWip, requestWorkspaceTab, selectWorkspace, setMethodsOpen, setMobilePane, setTheoryOpen, wip.manuscripts]);
@@ -21844,7 +21940,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setHealthLoaded(true);
       });
     }, []);
-    const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || bundleImportOpen || sharedWithMeOpen || !!pcurvePapers || !!zcurvePapers;
+    const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || zoteroImportOpen || bundleImportOpen || sharedWithMeOpen || !!pcurvePapers || !!zcurvePapers;
     useEffect(() => {
       if (!readingMode) return;
       const onKey = (e) => {
@@ -21983,6 +22079,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           onOpenReferenceWarnings: openReferenceWarnings,
           onOpenScan: () => setScanOpen(true),
           onOpenImport: () => setImportOpen(true),
+          onOpenImportZotero: () => setZoteroImportOpen(true),
           onOpenImportBundle: () => setBundleImportOpen(true),
           onOpenSharedWithMe: () => setSharedWithMeOpen(true),
           onExportBundle: () => downloadBundle("library")
@@ -22084,6 +22181,15 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           libraryBits.onPage(0);
         }
       }
+    ), zoteroImportOpen && /* @__PURE__ */ React.createElement(
+      ZoteroImportModal,
+      {
+        onClose: () => setZoteroImportOpen(false),
+        onImported: () => {
+          setLibRefresh((n) => n + 1);
+          libraryBits.onPage(0);
+        }
+      }
     ), bundleImportOpen && /* @__PURE__ */ React.createElement(
       BundleImportModal,
       {
@@ -22118,6 +22224,10 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           libraryBits.onPage(0);
         },
         onImported: () => {
+          setLibRefresh((n) => n + 1);
+          libraryBits.onPage(0);
+        },
+        onImportedZotero: () => {
           setLibRefresh((n) => n + 1);
           libraryBits.onPage(0);
         },

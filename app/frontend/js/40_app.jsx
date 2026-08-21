@@ -78,6 +78,7 @@ function App() {
   const [beyondSavedOpen, setBeyondSavedOpen] = useState(false); // #30 persistent beyond-library saved queue (inc 465)
   const [scanOpen, setScanOpen] = useState(false);              // inc-87 scan-a-folder modal
   const [importOpen, setImportOpen] = useState(false);          // inc-93 import-citations modal
+  const [zoteroImportOpen, setZoteroImportOpen] = useState(false); // backlog #57 Phase 1 Zotero import modal
   const [bundleImportOpen, setBundleImportOpen] = useState(false); // B2 SP1 import-library-bundle modal
   const [sharedWithMeOpen, setSharedWithMeOpen] = useState(false); // SP4c (backlog #15) — receive a live share
   const cancelFocusRef = useRef(() => {});
@@ -227,6 +228,7 @@ function App() {
     if (nav.modal === "overlooked") setOverlookedOpen(true);
     if (nav.modal === "scan") setScanOpen(true);
     if (nav.modal === "import") setImportOpen(true);
+    if (nav.modal === "zotero-import") setZoteroImportOpen(true);
     if (nav.modal === "bundle-import") setBundleImportOpen(true);
     if (nav.modal === "feedback") window.dispatchEvent(new Event("callosum:open-feedback"));
   }, [gotoLibrary, libraryBits, mobile, openSynthesisSummary, openWip, requestWorkspaceTab, selectWorkspace, setMethodsOpen, setMobilePane, setTheoryOpen, wip.manuscripts]);
@@ -313,7 +315,7 @@ function App() {
   }, []);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
-  const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || bundleImportOpen || sharedWithMeOpen || !!pcurvePapers || !!zcurvePapers;
+  const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || zoteroImportOpen || bundleImportOpen || sharedWithMeOpen || !!pcurvePapers || !!zcurvePapers;
   useEffect(() => {
     if (!readingMode) return;
     const onKey = (e) => { if (e.key === "Escape" && !anyModalOpen) toggleReading(); };
@@ -425,6 +427,7 @@ function App() {
             onOpenTextHealth: () => openTextHealth(),
             onOpenReferenceWarnings: openReferenceWarnings,
             onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
+            onOpenImportZotero: () => setZoteroImportOpen(true),
             onOpenImportBundle: () => setBundleImportOpen(true), onOpenSharedWithMe: () => setSharedWithMeOpen(true),
             onExportBundle: () => downloadBundle("library"),
           }}
@@ -504,6 +507,9 @@ function App() {
       {importOpen &&
         <ImportModal onClose={() => setImportOpen(false)}
           onImported={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }} />}
+      {zoteroImportOpen &&
+        <ZoteroImportModal onClose={() => setZoteroImportOpen(false)}
+          onImported={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }} />}
       {bundleImportOpen &&
         <BundleImportModal onClose={() => setBundleImportOpen(false)}
           onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }} />}
@@ -516,6 +522,7 @@ function App() {
           onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)}
           onScanned={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }}
           onImported={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }}
+          onImportedZotero={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }}
           onImportedBundle={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }}
           onAxisSaved={() => setAxisRefresh(n => n + 1)} />}
       {authLocked && <AccessLockOverlay />}
