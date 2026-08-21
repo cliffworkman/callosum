@@ -21,9 +21,10 @@ at the design boundary: it does not exist yet.
 ## Experience pass
 
 Withholding an attractive but ungrounded converter is the user-facing result. A researcher can migrate their
-library and create new Callosum citations, but the product will not silently reinterpret or damage live citation
-fields in an existing manuscript. The adapter documentation points existing fields back to their owning tool and
-does not confuse flattening with editable citation migration.
+library through inc 486's EndNote RIS handoff or inc 487's Mendeley-via-Zotero bridge and create new Callosum
+citations, but the product will not silently reinterpret or damage live citation fields in an existing manuscript.
+The adapter documentation points existing fields back to their owning tool and does not confuse flattening with
+editable citation migration.
 
 ## Manual verification script
 

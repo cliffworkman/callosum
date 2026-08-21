@@ -329,6 +329,7 @@ Review `45299b6` first: the coordinate transform, attachment ownership/scoping, 
 audit carry the greatest correctness risk. Next inspect the EndNote/Mendeley guidance for wording and product fit.
 Finally confirm the Phase 5 no-parser decision against the primary-source research note. If time allows, the most
 valuable missing external evidence is one redacted genuine EndNote RIS export; it can close Phase 2 without
+expanding the architecture.
 
 ---
 
@@ -431,4 +432,58 @@ whether any revealed a real bug, what doc-consistency fixes you made, and the fi
 pytest/ruff/tach numbers. Same rule as before: **never report a number you didn't personally just
 watch a real command produce.** Still don't push or merge — leave the branch for Claude's review
 Sunday.
-expanding the architecture.
+
+---
+
+## Codex Session 2 Summary
+
+### Experience and DESIGN coherence pass
+
+- Re-read `.claude/EXPERIENCE-PASS.md` and `.claude/DESIGN.md` in full, then reviewed
+  `04e_onboarding.jsx`, `10b_libmenus.jsx`, `27b_zotero_import.jsx`, and `30_viewer.jsx` as one connected flow.
+- Walked the flow as both an established EndNote user with a RefMan RIS export and a day-one Mendeley migrant.
+  The real friction was discoverability: the correct routes were hidden behind generic labels or a hover tooltip.
+  Onboarding now visibly names **Read Zotero / migrated Mendeley library…** and **Import EndNote RIS / citations
+  file…**; + Add names **Read Zotero library… (Mendeley bridge)** and **Import citations file… (EndNote RIS)**.
+- Kept the existing visual hierarchy deliberately. The Zotero/composed-Mendeley route remains the sole primary
+  onboarding action because it can preserve PDFs and organization; metadata-only citations and bundle restore
+  remain ghost actions. The vertical action stack and plain menu rows already match the design recipes, so no
+  CSS, token, spacing, radius, or new component pattern was warranted.
+
+### Phase 4 hardening
+
+- Added importer coverage for two annotated sibling PDFs on one paper, a rotated page with an otherwise-valid
+  rectangle, and a bounds-valid replacement-PDF relink. Added frontend coverage for the native “highlight +
+  note” creation path.
+- The red run found **two real bugs**: an exact imported row could move to a relinked/replacement attachment if
+  its old rectangle still fit, and “highlight + note” omitted the active `attachment_id`. Exact imported location
+  identity is now pinned as one proven unit; raw-only rows can still gain their first exact location. Both native
+  viewer creation paths now carry attachment identity.
+- Initial combined proof was **2 failed, 75 passed**. After the fixes, the focused importer/annotation/paper/
+  frontend/TEI run was **170 passed**; Zotero importer was **9 passed**, frontend assembly **68 passed**, and TEI
+  parser **11 passed** when rerun per file.
+
+### Documentation and CI coherence
+
+- Reconciled increments 485–488, the Stack bullets in `CLAUDE.md`, backlog #57, the Phase 4 PASS audit, Help,
+  Mendeley scope, QA template, Routes 00/27/77/93, the assembled frontend, changes log, and website coverage
+  receipt. Phase 5 points back to the Phase 2/3 migration routes and remains gated; no converter was introduced.
+- Investigated the current failing GitHub CI run. The same Bandit B405/B314 failure already existed on `main` in
+  guarded `integrations/grobid/tei_parse.py`. The parser strictly decodes UTF-8 and rejects NUL/DOCTYPE before
+  stdlib parsing, with adversarial tests already covering bypass forms; narrow rule-specific `nosec` annotations
+  now document that reviewed boundary. No parser behavior or dependency changed. Local `run_bandit.py` exits 0.
+
+### Final verification and handoff
+
+- `pytest -n auto -q` → **2341 passed, 3 skipped in 932.07s (0:15:32)**.
+- `ruff check .` → **All checks passed**; `ruff format --check .` → **784 files already formatted**;
+  `python -m tach check` → **All modules validated**.
+- Line budget → all **553** application-source files ≤ 600; surface map → **428/428 API** and **1767/1767
+  frontend** surfaces covered; website and all **121** demo-surface checks passed; Help → **14 passed**; Bandit
+  exited 0 with no findings.
+- Implementation commits: `8b61cd1 fix: harden reference-manager migration coherence` and
+  `74b4138 fix: restore Bandit CI gate for guarded TEI parsing`. The documentation receipt is a separate final
+  commit. Nothing was pushed or merged, and the three untracked discovery screenshots were left untouched.
+- Honest open boundaries remain unchanged: no genuine EndNote-created export was available; the Mendeley/Zotero
+  account handoff was not driven live; rotated/invalid annotation positions stay raw-only; and Phase 5 remains
+  gated on a complete vendor-published payload contract.

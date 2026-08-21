@@ -172,7 +172,8 @@ the Principles + A-A gates before build.)*
     custom-field, and Mendeley Cite document boundaries are explicit; no protected-store reader.
   - **Phase 4 shipped, inc 485:** Zotero PDF highlight/underline positions are bounded, validated,
     and mapped into callosum's own PDF-space bbox/page coordinates for their owning attachment;
-    ambiguous/unsupported geometry retains raw provenance and is not drawn.
+    ambiguous/unsupported geometry retains raw provenance and is not drawn. Inc 489 hardening pins an already-
+    exact row to its proven attachment across a later Zotero relink and covers sibling PDFs/rotated pages.
   - **Phase 5 research gate complete, inc 488; implementation remains open/gated:** first-party sources confirm
     Mendeley Cite content controls and EndNote `ADDIN EN.CITE` Word fields/Traveling Library, but do not publish
     either complete, versioned payload contract. No converter was built from conflicting third-party reverse

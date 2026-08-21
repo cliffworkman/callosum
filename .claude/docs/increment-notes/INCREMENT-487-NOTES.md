@@ -7,9 +7,10 @@
   **Read Zotero library…** action. Zotero performs Mendeley auth/network work and materializes the ordinary local
   Zotero library; Callosum receives neither credentials nor a Mendeley API integration.
 - `app/frontend/js/04e_onboarding.jsx` names the bridge at the migration decision point rather than assuming a
-  Mendeley user will interpret a Zotero-labeled button. `10b_libmenus.jsx` makes the + Add tooltip findable for an
-  established user, and `27b_zotero_import.jsx` states the exact upstream action/online/auth boundary next to the
-  Zotero directory field.
+  Mendeley user will interpret a Zotero-labeled button. Inc 489's combined experience pass promotes that identity
+  into both visible action labels—**Read Zotero / migrated Mendeley library…** in onboarding and **Read Zotero
+  library… (Mendeley bridge)** in + Add—while `27b_zotero_import.jsx` states the exact upstream action/online/auth
+  boundary next to the Zotero directory field.
 - Served Help provides the three-step handoff and keeps upstream limitations attached: personal-library only
   unless group items are copied first, Mendeley data/files must be online, Mendeley Cite document fields are not
   converted, and Callosum does not read/decrypt the protected local store.
@@ -27,9 +28,10 @@ trust surface: Mendeley → user-authorized Zotero import → local Zotero datab
 
 ## Experience pass
 
-**Mendeley migrator, code/help-grounded walkthrough:** at onboarding I no longer have to guess whether “Read my
-Zotero library” is irrelevant to me—the copy names the Mendeley online-import bridge and tells me to return to
-that same button. The modal repeats the exact Zotero menu command, prerequisite, and credential boundary at the
+**Mendeley migrator, code/help-grounded walkthrough:** at onboarding I no longer have to guess whether a Zotero
+action is irrelevant to me—the button itself names a migrated Mendeley library, and the copy names the online-
+import bridge. The established-library + Add menu keeps the bridge visible without a hover. The modal repeats the
+exact Zotero menu command, prerequisite, and credential boundary at the
 moment I need them. After the external Zotero import completes, Callosum's existing single directory field and
 job receipt take over. The unavoidable friction is installing/running Zotero and syncing Mendeley online; the
 product cannot safely remove that hop, so it explains it rather than dead-ending or offering a fake direct path.
@@ -40,8 +42,8 @@ product cannot safely remove that hop, so it explains it rather than dead-ending
    **File → Import → Mendeley Reference Manager (online import)** and authenticate in Zotero.
 2. Confirm the Zotero result contains representative metadata, folder hierarchy, and locally available PDFs.
    Record any normalization to Extra; test group-library items only after copying them to a personal collection.
-3. In Callosum onboarding, confirm the bridge is discoverable before choosing **Read my Zotero library…**; in an
-   established library, confirm the + Add tooltip and Zotero modal convey the same path.
+3. In Callosum onboarding, confirm the bridge is discoverable before choosing **Read Zotero / migrated Mendeley
+   library…**; in an established library, confirm the visible + Add label and Zotero modal convey the same path.
 4. Point Callosum at the resulting Zotero data directory. Confirm metadata, collections, tags/notes, PDFs, and
    honest attachment errors against what Zotero actually materialized—do not compare against an unsupported
    promise of every original Mendeley field/annotation.

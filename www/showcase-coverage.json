@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-21",
-    "reviewed_rev": "f57eac1",
-    "source_fingerprint": "94766b60302f7c1351a494d2bdb44b4389e48024703e45437985396bd8faab80",
-    "note": "Reviewed inc 488 Word adapter documentation boundary; no public website claim, UI, or screenshot changed."
+    "reviewed_rev": "74b4138",
+    "source_fingerprint": "e57c0fc8a3ce778620fd2db47782079a1448af3d5ec64ac1b5e16a23899ef106",
+    "note": "Reviewed inc 489 visible import labels against #cap-import and onboarding; public import claims remain accurate, and no current figure depicts the changed menu/onboarding copy."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

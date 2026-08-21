@@ -14,7 +14,9 @@
 - `app/backend/importers/zotero.py` — annotation upsert now runs after attachment upsert, links each mark to its
   canonical attachment, stores exact page/bboxes/coordinate system plus anchor/note/color, and upgrades a legacy
   raw-only annotation on re-import when its PDF becomes available. A later missing/unreadable PDF never erases
-  geometry already proven exact.
+  geometry already proven exact. **Inc 489 hardening:** an already-exact row is now also pinned to that proven
+  attachment when Zotero later relinks the same annotation key to different PDF bytes; bounds-valid replacement
+  geometry cannot silently move the mark.
 - `app/backend/persistence/annotations_repo.py` / `app/backend/api/routers/annotations.py` — the existing paper-
   annotation GET accepts an optional `attachment_id`. Its backward-compatible unscoped response stays native-
   only; an attachment-scoped request additionally exposes only exact Zotero rows owned by that attachment.
@@ -22,8 +24,8 @@
   attachment remain visible.
 - `app/backend/api/routers/paper_files.py` / `app/frontend/js/30_viewer.jsx` — the streamed PDF identifies the
   attachment actually chosen in `X-Callosum-Attachment-Id`; the viewer uses that identity for annotation reads
-  and new native highlights. Imported geometry therefore cannot appear on a sibling PDF merely because both
-  attachments belong to one paper.
+  and both new-native-highlight paths (including “highlight + note”). Imported geometry therefore cannot appear
+  on a sibling PDF merely because both attachments belong to one paper.
 - `app/frontend/js/27b_zotero_import.jsx`, served Help, the Zotero integration README, and Route 93 now state and
   test the exact posture: supported marks are placed on the matching PDF; anything ambiguous stays preserved and
   undrawn. `callosum-app.html` was rebuilt. The website review maps Route 93 to `#cap-import`; the existing public
@@ -93,3 +95,6 @@ bounded position-fidelity promise.
 - `python tools/qa/check_website_coverage.py` after reviewed refresh → **70 routes mapped, 1 excluded, 20
   current figures**.
 - Full suite, foreground: `pytest -n auto -q` → **2336 passed, 3 skipped in 1208.00s (0:20:07)**.
+- Inc 489 focused hardening: `pytest tests/test_zotero_importer.py -q` → **9 passed**; sibling-attachment,
+  importer-level rotated-page, and replacement-PDF relink cases now travel with the suite. Frontend assembly
+  remains **68 passed** and pins attachment identity on the “highlight + note” payload too.

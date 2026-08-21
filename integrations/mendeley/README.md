@@ -6,8 +6,9 @@ Mendeley support is deliberately a migration handoff, not a direct database read
 
 1. **Fuller library bridge:** in current Zotero Desktop, use **File → Import → Mendeley Reference Manager
    (online import)**. After Zotero finishes, point Callosum's native Zotero importer at that ordinary Zotero data
-   directory. Zotero documents that its bridge imports the personal library's data, files, and folder structure.
-2. **Metadata-only:** export BibTeX/RIS from Mendeley and use Callosum's generic citation-file importer.
+   directory through **+ Add → Read Zotero library… (Mendeley bridge)**. Zotero documents that its bridge imports
+   the personal library's data, files, and folder structure.
+2. **Metadata-only:** export BibTeX/RIS from Mendeley and use **+ Add → Import citations file… (EndNote RIS)**.
 
 The bridge requires the Mendeley library and files to be synced to Mendeley/Elsevier's servers and asks the user
 to authenticate inside Zotero; Callosum never sees those credentials. Zotero cannot directly import Mendeley

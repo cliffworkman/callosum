@@ -74,6 +74,9 @@ against.
   annotation editor. `GET /papers/{paper_id}/pdf` must identify that attachment and the viewer's annotation
   request must carry the same id. Requesting a sibling/fabricated attachment id must not return the imported
   mark. Raw-only, unsupported, out-of-page, or rotated-page positions must not render anywhere.
+- **Exact identity survives re-import (High, invariant #2).** Once a row is exact, changing the same Zotero
+  attachment item to a replacement PDF path must not move the row to the replacement merely because its old
+  rectangle remains within the new page bounds. It stays pinned to the attachment against which it was proven.
 - **Signal not verdict.** The completion summary is plain counts (new/matched/attachments/chunks/errors) —
   never a quality judgment about the imported library.
 - **Mendeley bridge honesty.** The onboarding choice and Zotero modal name Zotero's exact
@@ -122,6 +125,9 @@ against.
    PDF does not show that highlight.
 6. Re-run the import against the **same** fixture directory. Confirm the idempotent-re-run assertion above (0
    new papers, library count unchanged).
+   Then relink fixture attachment item 10 to a different, valid one-page PDF containing unrelated text and
+   re-run: the original exact annotation must remain owned by the original attachment id and must not appear on
+   the replacement PDF.
 7. Point the modal at the empty-but-valid fixture (`_make_empty_zotero_fixture`). Confirm a clean "done" summary
    with every count at 0 — not an error state.
 8. Point the modal at a plain empty directory with no `zotero.sqlite`. Confirm the honest job error naming

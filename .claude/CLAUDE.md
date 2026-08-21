@@ -621,21 +621,28 @@ the full per-increment narrative for all other increments now lives in the reloc
   the viewer's `pdf-points-top-left` basis through the owning PDF's PyMuPDF page transform. The PDF
   response identifies the attachment and the viewer requests attachment-scoped annotations, so an
   exact imported overlay cannot cross onto a sibling PDF. Unsupported/malformed/out-of-page input,
-  missing PDFs, and rotated pages retain raw Zotero provenance but receive no guessed bbox. Audits
+  missing PDFs, and rotated pages retain raw Zotero provenance but receive no guessed bbox. **Inc 489
+  hardening:** once an imported row is exact, re-import cannot move it to a relinked/replacement PDF merely
+  because the old rectangle still fits; exact attachment identity stays pinned, while raw-only rows can still
+  gain their first proven location. Both native create flows, including “highlight + note,” carry the active
+  attachment id. Audits
   `2026-08-20_zotero-library-import.md` and
   `2026-08-21_zotero-annotation-position-fidelity.md` PASS.
 - **EndNote whole-library handoff partially verified (backlog #57 Phase 2, inc 486):** current EndNote 2025
   documentation recommends **RefMan (RIS) Export** for transfer to another program; Callosum's existing local,
   metadata-only `POST /library/import` route already accepts `.ris` and EndNote's possible `.txt` extension.
   The RIS parser now covers Clarivate's documented `CPAPER`, `A4`, alternate title/journal/year aliases, and Help
-  gives the two-step EndNote export/import path. No current primary source verified a suspected parenthesized-
+  gives the two-step EndNote export/import path; inc 489 also names **EndNote RIS** on the visible onboarding and
+  + Add actions rather than requiring format knowledge or a hover tooltip. No current primary source verified a
+  suspected parenthesized-
   BibTeX EndNote convention, so the parser does not guess at it. The backlog phase remains explicitly partial
   until the same path is exercised against a genuine EndNote-created file; the checked-in alias fixture is only
   a contract stand-in. Research: `.claude/docs/research/2026-08-21_endnote_generic_import.md`.
 - **Mendeley-via-Zotero feasibility confirmed (backlog #57 Phase 3, inc 487):** Zotero currently documents a
   desktop **File → Import → Mendeley Reference Manager (online import)** path that brings a personal Mendeley
   library's data, files, and folder structure into an ordinary Zotero library; Callosum then uses its unchanged
-  copy-then-read Zotero importer. Onboarding, the Zotero modal, + Add tooltip, and Help surface that handoff. The
+  copy-then-read Zotero importer. Onboarding, the Zotero modal, + Add, and Help surface that handoff; inc 489
+  names the Mendeley bridge on both visible entry-point labels rather than only in explanatory copy/tooltips. The
   upstream step requires Mendeley data/files online and authenticates inside Zotero (Callosum never receives the
   credentials); group libraries, invalid/custom fields, and Mendeley Cite document citations retain documented
   limits. Direct Mendeley database read/decryption remains a hard avoidance boundary. Research:

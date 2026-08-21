@@ -15,6 +15,9 @@
 - Served Help gives the exact desktop path, says `.txt` needs no rename, and repeats the honest metadata-only/no-
   PDF boundary. Route 27 now exercises actual citation files rather than incorrectly calling `/library/import` a
   PDF importer, and names the real-file verification gap.
+- Inc 489's combined import-surface pass makes that path visible at both decision points as **Import EndNote RIS /
+  citations file…** (onboarding) and **Import citations file… (EndNote RIS)** (+ Add); an EndNote user no longer
+  has to know that “Import file” means their export or discover the mapping in Help first.
 - `.claude/docs/research/2026-08-21_endnote_generic_import.md` records sources, parser comparison, and the decision
   not to add parenthesis-delimited BibTeX support without current primary-source evidence that EndNote emits it.
 
@@ -30,7 +33,8 @@ BibTeX parser around an unverified rumor.
 ## Experience pass
 
 **EndNote migrator, code/help-grounded walkthrough:** I select All References in EndNote, export once with the
-named RefMan (RIS) style, then choose that file under Callosum's existing + Add → Import file action. If EndNote
+named RefMan (RIS) style, then choose that file under Callosum's + Add → Import citations file… (EndNote RIS)
+action. If EndNote
 named it `.txt`, the picker accepts it without a rename. The completion receipt tells me imported/duplicate/
 failed/skipped counts and the Help text makes clear that this moved metadata, not PDFs, so I am not surprised by
 missing attachments. The remaining trust gap is unavoidable in this repository: nobody has run the path with an
@@ -43,7 +47,7 @@ synthetic contract test.
    non-ASCII author/title), then **File → Export**, plain text, **RefMan (RIS) Export**.
 2. Preserve the original file unchanged as a non-secret test fixture after checking it contains no private notes
    or identifiers. Record the EndNote version/platform and export-style name/date.
-3. In Callosum, choose **+ Add → Import file…**, select the `.ris`/`.txt`, and confirm the job receipt plus title,
+3. In Callosum, choose **+ Add → Import citations file… (EndNote RIS)**, select the `.ris`/`.txt`, and confirm the job receipt plus title,
    creators, year, type, venue, DOI, and Unicode values against EndNote.
 4. Re-import the same file and confirm every record reports duplicate rather than creating copies.
 5. Add the redacted genuine fixture and assertions to `tests/test_citation_import.py`; only then mark Phase 2

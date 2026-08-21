@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-08-21 — Increment 489: backlog #57 hardening + coherence -->
+## 2026-08-21 — Increment 489: backlog #57 hardening + cross-phase coherence
+- **Files:** `app/backend/importers/zotero.py`, `app/frontend/js/04e_onboarding.jsx`,
+  `app/frontend/js/10b_libmenus.jsx`, `app/frontend/js/30_viewer.jsx`, `app/backend/help/help_content.md`,
+  `integrations/grobid/tei_parse.py`, `tests/test_zotero_importer.py`, `tests/test_frontend_assembly.py`,
+  `integrations/mendeley/README.md`, `callosum-app.html`, `.claude/qa-routes/_TEMPLATE.md`, Routes 00/27/77/93,
+  `.claude/security-audits/2026-08-21_zotero-annotation-position-fidelity.md`, increments 485–489,
+  `.claude/CLAUDE.md`, `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/CODEX-HANDOFF.md`,
+  `www/showcase-coverage.json`.
+- **What:** makes EndNote RIS and the Mendeley-via-Zotero bridge visible on both import entry points; pins
+  already-exact Zotero marks to their proven attachment across replacement-PDF relinks; scopes “highlight +
+  note” creation to the active PDF; adds sibling/rotation/relink coverage; and restores the GitHub Bandit gate's
+  recognition of the GROBID parser's existing UTF-8/NUL/DOCTYPE guard.
+- **Why:** the combined experience pass found source-manager paths hidden behind generic labels/tooltips, while
+  the adversarial Phase 4 tests exposed two real attachment-identity regressions. GitHub CI was independently
+  red before this branch because Bandit could not follow an already-tested pre-parse XML guard.
+- **Boundaries:** no new CSS, endpoint, schema, dependency, egress, parser behavior, migration format, or Word-
+  citation conversion. EndNote real-file verification and live Mendeley/Zotero account verification remain open.
+- **Revert:** commits `8b61cd1` and `74b4138` are independent; the documentation receipt is separately revertible.
+
 ## 2026-08-21 — Increment 488: foreign Word citation conversion research gate (backlog #57 Phase 5)
 - **Files:** `.claude/docs/research/2026-08-21_word_citation_migration_formats.md` (new),
   `.claude/docs/increment-notes/INCREMENT-488-NOTES.md` (new), `adapters/word/README.md`, `.claude/CLAUDE.md`,
@@ -24,7 +44,6 @@ are the design diary; this is the chronological "what & why" record.
   editable citation migration.
 - **Revert:** a plain `git revert`; documentation only.
 
-<!-- HELP-DOCS-SYNCED: 2026-08-21 — Increment 487: Mendeley-via-Zotero bridge -->
 ## 2026-08-21 — Increment 487: Mendeley-via-Zotero bridge confirmed (backlog #57 Phase 3)
 - **Files:** `integrations/mendeley/README.md`, `app/frontend/js/04e_onboarding.jsx`,
   `app/frontend/js/10b_libmenus.jsx`, `app/frontend/js/27b_zotero_import.jsx`,

@@ -64,7 +64,7 @@ For a fuller Mendeley migration than a metadata-only BibTeX/RIS file, use Zotero
 
 1. Make sure your personal Mendeley library and files are fully synced online.
 2. In the latest Zotero Desktop, choose **File → Import → Mendeley Reference Manager (online import)** and sign in there. Zotero—not Callosum—handles that login; Callosum never receives your Mendeley credentials.
-3. Let Zotero finish importing, then in Callosum choose **+ Add → Read Zotero library…** and enter Zotero's data directory.
+3. Let Zotero finish importing, then in Callosum choose **+ Add → Read Zotero library… (Mendeley bridge)** and enter Zotero's data directory.
 
 Zotero documents that this carries the personal library's data, files, and folder structure into Zotero. It cannot directly import Mendeley group libraries; copy those items into a collection in your personal Mendeley library first. This route also does not convert citations already embedded by **Mendeley Cite** in Word documents. Callosum does not read or decrypt Mendeley's protected local database.
 
@@ -92,7 +92,7 @@ This needs the free **Tesseract** OCR engine installed on your computer (a one-t
 
 <!-- section: importing-citations -->
 ## Importing a citation file (BibTeX, RIS, CSL-JSON)
-To bring in references from another reference manager, open **+ Add → Import file…** at the top of the Library and choose a **BibTeX** (`.bib`), **RIS** (`.ris`), or **CSL-JSON** (`.json`) file. Zotero, Mendeley, EndNote, and Callosum itself can all export one of these formats. This is the mirror image of **Exporting citations** — what you export, you can re-import.
+To bring in references from another reference manager, open **+ Add → Import citations file… (EndNote RIS)** at the top of the Library and choose a **BibTeX** (`.bib`), **RIS** (`.ris`), or **CSL-JSON** (`.json`) file. Zotero, Mendeley, EndNote, and Callosum itself can all export one of these formats. This is the mirror image of **Exporting citations** — what you export, you can re-import.
 
 **From EndNote:** select the references you want (or **All References**), choose **File → Export**, use a plain-text file, and select the **RefMan (RIS) Export** output style. EndNote's own documentation recommends this transfer style when the destination format is uncertain. EndNote may give the RIS export a `.txt` name; Callosum accepts `.txt` directly and detects the RIS tags, so you do not need to rename it. This route transfers citation metadata only — EndNote's export does not include PDFs or images.
 
