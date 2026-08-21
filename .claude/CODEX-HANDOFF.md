@@ -269,3 +269,64 @@ Append a **"Codex Session Summary"** section to the bottom of this same file
 
 Then stop — don't push to `origin/main`, don't merge, leave the branch exactly as it is. Claude
 will review it fresh against this handoff once Cliff's limit resets Sunday.
+
+---
+
+## Codex Session Summary
+
+**Branch:** `codex/backlog-57-phases-2-5` — not pushed or merged. Cliff's three untracked Discover screenshots
+under `.claude/` were left untouched.
+
+### What shipped
+
+- **Phase 4 — shipped, `45299b6`:** preserves exact Zotero highlight/underline rectangles only when bounded,
+  unrotated PDF geometry can be proven; fixes attachment-child annotation ownership, scopes overlays to the PDF
+  actually loaded, and retains raw provenance without drawing for every unsupported/ambiguous case. Re-import can
+  upgrade legacy raw-only rows when the owning PDF becomes available.
+- **Phase 2 — partial, `d7c38da`:** documents EndNote's current RefMan (RIS) export handoff and expands the RIS
+  parser/test contract for Clarivate's `CPAPER`, `A4`, alternate title/journal/year tags. This remains **open**
+  until a genuine, redacted EndNote-created export is exercised end to end; the checked-in fixture is explicitly
+  synthetic.
+- **Phase 3 — feasibility spike complete, `ff6502b`:** surfaces Zotero's documented Mendeley Reference Manager
+  online-import bridge in onboarding, + Add, the Zotero modal, Help, integration docs, and QA guidance. Callosum
+  receives no Mendeley credential and does not read/decrypt Mendeley's protected store.
+- **Phase 5 — research gate complete, implementation open, `f57eac1`:** first-party sources confirm Mendeley Cite
+  content controls and EndNote `ADDIN EN.CITE` fields/Traveling Library, but do not publish either complete,
+  versioned payload contract. No converter was built from conflicting third-party reverse engineering. The
+  research note defines evidence and preservation requirements for reopening implementation.
+
+### Final observed verification
+
+- `pytest -n auto -q` → **2338 passed, 3 skipped in 1315.42s (0:21:55)**.
+- `ruff format --check .` → **784 files already formatted**.
+- `ruff check .` → **All checks passed**.
+- `python -m tach check` → **All modules validated**.
+- `python tools/check_line_budget.py --list` → **all 553 application-source files ≤ 600**.
+- `python tools/qa/build_surface_map.py check` → **428/428 API and 1767/1767 frontend surfaces covered**.
+- `python tools/qa/check_website_coverage.py` → **70 QA routes (1 excluded), 6 external surfaces, 20 current
+  figures** after reviewed receipt refresh.
+- `python tools/qa/check_demo_experience_coverage.py` passed with all **121** surfaces categorized.
+
+### Audits, QA, and honest boundaries
+
+- Security audit `.claude/security-audits/2026-08-21_zotero-annotation-position-fidelity.md` is **PASS**.
+  Phases 2, 3, and 5 added no endpoint, external fetch, new ingestion route, secret surface, or 300+ LOC feature
+  requiring another audit.
+- QA route 93 was extended for Zotero annotation fidelity and the Mendeley bridge; route 27 was corrected and
+  extended for the EndNote citation-file path. Phase 5 is documentation-only and added no interactive surface.
+- No real EndNote-created export was available, so Phase 2 is not complete. The manual verification script is in
+  `INCREMENT-486-NOTES.md`.
+- No vendor-published Mendeley Cite or EndNote payload schema/supported conversion API was found, so Phase 5
+  converter implementation remains gated. Do not infer a stable schema from community samples.
+- Phase 3's documented bridge was not driven through live Mendeley/Zotero accounts in this session; its manual
+  credential/library verification matrix is in `INCREMENT-487-NOTES.md`.
+- Phase 4 deliberately does not claim exact overlays for rotated pages or invalid/out-of-page rectangles; those
+  rows preserve raw Zotero provenance and remain undrawn.
+
+### Sunday review recommendation
+
+Review `45299b6` first: the coordinate transform, attachment ownership/scoping, fail-closed cases, and security
+audit carry the greatest correctness risk. Next inspect the EndNote/Mendeley guidance for wording and product fit.
+Finally confirm the Phase 5 no-parser decision against the primary-source research note. If time allows, the most
+valuable missing external evidence is one redacted genuine EndNote RIS export; it can close Phase 2 without
+expanding the architecture.

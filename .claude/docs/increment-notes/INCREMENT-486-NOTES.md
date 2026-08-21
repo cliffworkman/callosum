@@ -52,7 +52,10 @@ synthetic contract test.
 ## Verification
 
 - `pytest tests/test_citation_import.py -q` → **13 passed**.
-- Remaining gates/full suite: pending final slice verification.
+- Final whole-branch suite: `pytest -n auto -q` → **2338 passed, 3 skipped in 1315.42s (0:21:55)**.
+- Final gates: `ruff format --check .` → **784 files already formatted**; `ruff check .` → **All checks
+  passed**; `python -m tach check` → **All modules validated**. Line budget, QA surface map, reviewed website
+  coverage, and demo-experience coverage all pass.
 
 ## Honest completion boundary
 

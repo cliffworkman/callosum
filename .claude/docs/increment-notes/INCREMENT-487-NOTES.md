@@ -55,7 +55,7 @@ product cannot safely remove that hop, so it explains it rather than dead-ending
 - `ruff format --check .` → **784 files already formatted**; `ruff check .` → **All checks passed**.
 - `python -m tach check` → **All modules validated**; line-budget, QA surface map, and reviewed website coverage
   checks pass (553 source files within cap; 428/428 API + 1767/1767 frontend surfaces; 70 public routes mapped).
-- Remaining gates/full suite: pending final slice verification.
+- Final whole-branch suite: `pytest -n auto -q` → **2338 passed, 3 skipped in 1315.42s (0:21:55)**.
 
 ## Primary source
 

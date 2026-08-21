@@ -12,7 +12,7 @@ are the design diary; this is the chronological "what & why" record.
 ## 2026-08-21 — Increment 488: foreign Word citation conversion research gate (backlog #57 Phase 5)
 - **Files:** `.claude/docs/research/2026-08-21_word_citation_migration_formats.md` (new),
   `.claude/docs/increment-notes/INCREMENT-488-NOTES.md` (new), `adapters/word/README.md`, `.claude/CLAUDE.md`,
-  `.claude/docs/INCREMENT-BACKLOG.md`.
+  `.claude/docs/INCREMENT-BACKLOG.md`, `www/showcase-coverage.json`.
 - **What:** verifies from current first-party documentation that Mendeley Cite uses Word content controls and
   EndNote Cite While You Write uses Word fields/`ADDIN EN.CITE` plus a Traveling Library, while recording that
   neither vendor publishes the complete, versioned payload contract required for a safe converter.

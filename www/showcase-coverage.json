@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-21",
-    "reviewed_rev": "d7c38da",
-    "source_fingerprint": "41396b5cd1b0c5a48ffcc478f18b910a93a00c6c50e0e5bcecb695b4de8a4fbf",
-    "note": "Reviewed the Mendeley-via-Zotero guidance against #cap-import and onboarding. Existing public Zotero/import claims remain accurate; no current website figure depicts the changed onboarding or import-modal copy."
+    "reviewed_rev": "f57eac1",
+    "source_fingerprint": "94766b60302f7c1351a494d2bdb44b4389e48024703e45437985396bd8faab80",
+    "note": "Reviewed inc 488 Word adapter documentation boundary; no public website claim, UI, or screenshot changed."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

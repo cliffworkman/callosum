@@ -38,7 +38,14 @@ does not confuse flattening with editable citation migration.
 
 ## Verification
 
-- Documentation-only slice; final repository gates and full suite recorded in the session handoff.
+- Final whole-branch suite: `pytest -n auto -q` → **2338 passed, 3 skipped in 1315.42s (0:21:55)**.
+- `ruff format --check .` → **784 files already formatted**; `ruff check .` → **All checks passed**.
+- `python -m tach check` → **All modules validated**.
+- Line budget → **all 553 application-source files ≤ 600**.
+- QA surface map → **428/428 API and 1767/1767 frontend surfaces covered**.
+- Website coverage after reviewed receipt refresh → **70 QA routes (1 excluded), 6 external surfaces, 20 current
+  figures**; the adapter-documentation change affects no public claim, UI, or screenshot.
+- Demo-experience coverage check passed for all **121** categorized routes/surfaces.
 
 ## Honest completion boundary
 
