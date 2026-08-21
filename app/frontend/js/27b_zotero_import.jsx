@@ -61,7 +61,7 @@ function ZoteroImportModalBody({ onClose, onImported }) {
         <button className="axis-link" onClick={onClose}>×</button>
       </div>
       <div className="axis-modal-note">
-        Point this at your <b>Zotero data directory</b> — the folder containing <code>zotero.sqlite</code>
+        Point this at your <b>Zotero data directory</b> — the folder containing <code>zotero.sqlite</code>{" "}
         (commonly <code>~/Zotero</code> on Mac/Linux, or under <code>Documents\Zotero</code> on Windows).
         Callosum copies that file before reading it — your live Zotero database is never opened or modified, so
         this is safe to run while Zotero itself is open. Full fidelity: local PDFs are extracted and chunked,
