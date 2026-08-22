@@ -33,8 +33,10 @@ class _FakeEmbedModel:
         self.fail = fail
         self.on_encode = on_encode
         self.encoded: list[str] = []
+        self.calls: list[list[str]] = []
 
     def encode_texts(self, texts: list[str]) -> list[list[float]]:
+        self.calls.append(list(texts))
         self.encoded.extend(texts)
         if self.on_encode is not None:
             self.on_encode()
@@ -63,11 +65,16 @@ class _FakeStanceScorer:
 
     def __init__(self, *, unavailable: bool = False) -> None:
         self.unavailable = unavailable
+        self.batch_calls: list[list[tuple[str, str]]] = []
 
     def classify_stance(self, *, sentence: str, passage: str) -> Stance | None:
         if self.unavailable:
             return None
         return Stance("contrast", 0.83, {"support": 0.05, "contrast": 0.83, "mention": 0.12})
+
+    def classify_stances(self, pairs: list[tuple[str, str]]) -> list[Stance | None]:
+        self.batch_calls.append(list(pairs))
+        return [self.classify_stance(sentence=sentence, passage=passage) for sentence, passage in pairs]
 
 
 def _poll_scan(client: TestClient, job_id: str) -> None:
@@ -160,10 +167,11 @@ def test_wip_critical_read_persists_grounded_exact_snapshot_receipt_without_embe
     paper_id, attachment_id, embedding_id = _library_embedding(temp_db_url)
     embed_model = _FakeEmbedModel()
     vector_store = _FakeVectorStore(embedding_id)
+    stance_scorer = _FakeStanceScorer()
     app.state.wip_critical_review_deps = {
         "embed_model": embed_model,
         "vector_store": vector_store,
-        "stance_scorer": _FakeStanceScorer(),
+        "stance_scorer": stance_scorer,
     }
     with make_engine(temp_db_url).connect() as conn:
         embeddings_before = conn.scalar(select(func.count()).select_from(schema.embeddings))
@@ -200,6 +208,8 @@ def test_wip_critical_read_persists_grounded_exact_snapshot_receipt_without_embe
     assert run["parameters_json"]["embedding_model"] == "fake-wip"
     assert run["parameters_json"]["stance_model"] == "fake-local-nli"
     assert embed_model.encoded == [claim["text"] for claim in result["claims"]]
+    assert embed_model.calls == [[claim["text"] for claim in result["claims"]]]
+    assert len(stance_scorer.batch_calls) == 1 and len(stance_scorer.batch_calls[0]) == 2
     assert all(search == {embedding_id} for search in vector_store.searches)
     with make_engine(temp_db_url).connect() as conn:
         assert conn.scalar(select(func.count()).select_from(schema.embeddings)) == embeddings_before

@@ -20,6 +20,7 @@ from app.backend.methods.critical_review import (
     find_contested_claims,
     make_chunk_resolver,
     other_paper_chunk_embedding_ids,
+    search_contested_claims,
 )
 from app.backend.persistence import critical_review_repo as repo
 from app.backend.persistence import findings_repo, schema, signals_repo
@@ -150,6 +151,135 @@ def test_find_contested_claims_respects_threshold() -> None:
         other_chunk_ids={501},
     )
     assert contested == []
+
+
+class _RecordingBatchEmbed:
+    name = version = "fake-batch"
+    dimension = 1
+    normalization = "none"
+
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+
+    def encode_texts(self, texts: list[str]) -> list[list[float]]:
+        self.calls.append(list(texts))
+        return [[float(index)] for index in range(1, len(texts) + 1)]
+
+
+class _VectorMappedStore:
+    def __init__(self, hits_by_vector: dict[int, list[int]]) -> None:
+        self.hits_by_vector = hits_by_vector
+        self.vectors: list[int] = []
+
+    def search(self, conn, *, vector, top_k, candidate_embedding_ids=None):
+        key = int(vector[0])
+        self.vectors.append(key)
+        return [VectorHit(embedding_id=item, distance=0.1) for item in self.hits_by_vector.get(key, [])][:top_k]
+
+
+class _RecordingBatchStance:
+    def __init__(self, confidence_by_passage: dict[str, tuple[str, float]]) -> None:
+        self.confidence_by_passage = confidence_by_passage
+        self.calls: list[list[tuple[str, str]]] = []
+
+    def classify_stances(self, pairs: list[tuple[str, str]]) -> list[Stance]:
+        self.calls.append(list(pairs))
+        out: list[Stance] = []
+        for _, passage in pairs:
+            label, confidence = self.confidence_by_passage[passage]
+            probs = {"support": 0.1, "contrast": 0.1, "mention": 0.1, label: confidence}
+            out.append(Stance(label, confidence, probs))
+        return out
+
+
+def test_search_contested_claims_batches_and_preserves_claim_hit_mapping() -> None:
+    claims = ["Repeated claim.", "Second claim.", "Repeated claim."]
+    passages = {
+        101: ChunkInfo(41, "related mention", 1),
+        102: ChunkInfo(42, "repeated passage", 2),
+        104: ChunkInfo(43, "stronger contrast", 3),
+        105: ChunkInfo(44, "repeated passage", 4),
+    }
+    embed = _RecordingBatchEmbed()
+    store = _VectorMappedStore({1: [101, 102, 999], 2: [103, 104], 3: [105]})
+    scorer = _RecordingBatchStance(
+        {
+            "related mention": ("mention", 0.9),
+            "repeated passage": ("contrast", 0.61),
+            "stronger contrast": ("contrast", 0.81),
+        }
+    )
+    progress: list[tuple[int, int]] = []
+
+    report = search_contested_claims(
+        None,
+        7,
+        embed_model=embed,
+        vector_store=store,
+        stance_scorer=scorer,
+        resolve_chunk=lambda hit: passages.get(hit.embedding_id),
+        claim_sentences=claims,
+        other_chunk_ids={101, 102, 103, 104, 105},
+        on_progress=lambda current, total: progress.append((current, total)),
+    )
+
+    assert embed.calls == [claims]
+    assert store.vectors == [1, 2, 3]
+    assert scorer.calls == [
+        [
+            ("Repeated claim.", "related mention"),
+            ("Repeated claim.", "repeated passage"),
+            ("Second claim.", "stronger contrast"),
+            ("Repeated claim.", "repeated passage"),
+        ]
+    ]
+    assert [(item.claim, item.passage, item.other_paper_id, item.confidence) for item in report.contested_claims] == [
+        ("Repeated claim.", "repeated passage", 42, 0.61),
+        ("Second claim.", "stronger contrast", 43, 0.81),
+        ("Repeated claim.", "repeated passage", 44, 0.61),
+    ]
+    assert report.retrieved_passages == report.classified_passages == 4
+    assert progress == [(3, 3)]
+
+
+def test_search_contested_claims_batches_maximum_normal_claim_count() -> None:
+    claims = ["Same bounded claim."] * 12
+    embed = _RecordingBatchEmbed()
+    store = _VectorMappedStore({index: [501] for index in range(1, 13)})
+    scorer = _RecordingBatchStance({"Same passage.": ("contrast", 0.75)})
+
+    report = search_contested_claims(
+        None,
+        7,
+        embed_model=embed,
+        vector_store=store,
+        stance_scorer=scorer,
+        resolve_chunk=lambda hit: ChunkInfo(42, "Same passage.", 3),
+        claim_sentences=claims + ["Beyond the cap."],
+        other_chunk_ids={501},
+    )
+
+    assert len(embed.calls) == 1 and len(embed.calls[0]) == 12
+    assert len(scorer.calls) == 1 and len(scorer.calls[0]) == 12
+    assert report.claims_considered == 12 and len(report.contested_claims) == 12
+
+
+def test_search_contested_claims_zero_claims_skips_both_models() -> None:
+    embed = _RecordingBatchEmbed()
+    scorer = _RecordingBatchStance({})
+    report = search_contested_claims(
+        None,
+        7,
+        embed_model=embed,
+        vector_store=_VectorMappedStore({}),
+        stance_scorer=scorer,
+        resolve_chunk=lambda hit: None,
+        claim_sentences=[],
+        other_chunk_ids={501},
+    )
+
+    assert report.retrieval_status == "no-claims"
+    assert embed.calls == [] and scorer.calls == []
 
 
 # --- Task 3: tier-1 scrutiny backbone + real DB-backed retrieval helpers (real temp SQLite, no model loads) ---
@@ -436,6 +566,43 @@ def test_verify_candidates_keeps_only_grounded_and_skips_rejected():
     assert (
         verify_candidates(drafts, paper_id=1, paper_text=text, stance_scorer=_Stance(), rejected_signatures={sig}) == []
     )
+
+
+def test_verify_candidates_batches_only_grounded_unique_pairs_in_order() -> None:
+    from types import SimpleNamespace
+
+    from integrations.gemini.critical_review import CandidateDraft, verify_candidates
+
+    class _BatchStance:
+        def __init__(self) -> None:
+            self.calls: list[list[tuple[str, str]]] = []
+
+        def classify_stances(self, pairs):
+            self.calls.append(list(pairs))
+            return [
+                SimpleNamespace(label="contrast", confidence=0.71),
+                SimpleNamespace(label="mention", confidence=0.62),
+            ]
+
+    scorer = _BatchStance()
+    drafts = [
+        CandidateDraft("Concern A", "Grounded quote A."),
+        CandidateDraft("Ungrounded", "Absent quote."),
+        CandidateDraft("Concern B", "Grounded quote B."),
+        CandidateDraft("Concern A", "Grounded quote A."),
+    ]
+    out = verify_candidates(
+        drafts,
+        paper_id=1,
+        paper_text="Grounded quote A. Grounded quote B.",
+        stance_scorer=scorer,
+    )
+
+    assert scorer.calls == [[("Concern A", "Grounded quote A."), ("Concern B", "Grounded quote B.")]]
+    assert [(item["concern"], item["stance"], item["confidence"]) for item in out] == [
+        ("Concern A", "contrast", 0.71),
+        ("Concern B", "mention", 0.62),
+    ]
 
 
 def test_generate_candidates_endpoint_verifies_and_egress_gates(temp_db_url, monkeypatch):

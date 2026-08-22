@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 484** (see Increment workflow) with **2331 root-suite pytest tests
+It is currently at **Increment 490** (see Increment workflow) with **2349 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -172,6 +172,12 @@ the full per-increment narrative for all other increments now lives in the reloc
   verbatim draft/Library evidence with paper, attachment, page, confidence, and model provenance. It never persists
   a draft embedding, borrows stale receipts, creates a defect finding, invents a `papers` row, auto-runs, scores, or
   calls a provider. Status labels it Local AI and receives only a typed manuscript id, never the result passages.
+  **Inc 490** preserves that evidence contract while batching its local inference shape: single-paper, set, and WIP
+  Critical Read encode every bounded claim collection once, retain per-claim retrieval and explicit positional
+  claim/hit metadata, then classify every resolved claim/passage pair in one ordered NLI call. The same batch seam
+  verifies grounded Tier-2 critique candidates. Thresholds, labels, top-k, source scopes, evidence order, persistence,
+  and API/UI contracts are unchanged; WIP progress now honestly advances from preparation to batch completion rather
+  than implying model-visible per-claim progress.
   **Inc 447 completes backlog #48** by bringing reference-integrity and citation-concentration to WIP under
   Work → Meta-Reference, reusing both Library-paper pure detectors (`inspect_reference`/`audit_reference_list`)
   completely unmodified against the manuscript's own "cited" `wip_references`-linked Library papers instead of a

@@ -14,6 +14,7 @@ from typing import Any
 
 from app.backend.llm.providers import complete
 from app.backend.pdf_processing.extraction import canonical_text_contains
+from app.backend.summarization.verification import classify_stances
 from integrations.gemini.critical_review import candidate_signature
 
 _MAX_DRAFTS = 8
@@ -52,7 +53,7 @@ def verify_set_candidates(
     (minus the anchor) — the model's framing, not a verified link. ``set_papers`` items: {index, paper_id, text}."""
     index_to_id = {int(p["index"]): int(p["paper_id"]) for p in set_papers}
     set_ids = set(index_to_id.values())
-    out: list[dict] = []
+    eligible: list[tuple[str, str, int, str, list[int] | None]] = []
     seen: set[str] = set()
     for draft in drafts:
         concern = (draft.concern or "").strip()
@@ -71,7 +72,11 @@ def verify_set_candidates(
             {index_to_id[i] for i in draft.related_indices if i in index_to_id and index_to_id[i] != anchor_id}
             & set_ids
         )
-        stance = stance_scorer.classify_stance(sentence=concern, passage=quote)
+        eligible.append((concern, quote, anchor_id, signature, related or None))
+
+    stances = classify_stances(stance_scorer, [(concern, quote) for concern, quote, *_ in eligible])
+    out: list[dict] = []
+    for (concern, quote, anchor_id, signature, related), stance in zip(eligible, stances, strict=True):
         out.append(
             {
                 "paper_id": anchor_id,

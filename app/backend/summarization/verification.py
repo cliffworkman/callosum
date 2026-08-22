@@ -154,6 +154,9 @@ class StanceScorer(Protocol):
     def classify_stance(self, *, sentence: str, passage: str) -> Stance | None:
         """Local NLI stance of `passage` toward `sentence`, or None if unavailable (never a guessed verdict)."""
 
+    def classify_stances(self, pairs: list[tuple[str, str]]) -> list[Stance | None]:
+        """Batch ``(sentence, passage)`` pairs while preserving their positional order."""
+
 
 @dataclass
 class NLIStanceScorer:
@@ -170,12 +173,18 @@ class NLIStanceScorer:
     _loader: Callable[[], object] | None = field(default=None, repr=False)
 
     def classify_stance(self, *, sentence: str, passage: str) -> Stance | None:
+        return self.classify_stances([(sentence, passage)])[0]
+
+    def classify_stances(self, pairs: list[tuple[str, str]]) -> list[Stance | None]:
+        """Classify every pair in one CrossEncoder call; any model failure remains an unavailable stance."""
+        if not pairs:
+            return []
         try:
             model = self._load_model()
-            scores = model.predict([(passage, sentence)], apply_softmax=True)  # type: ignore[attr-defined]
-            return _stance_from_scores(scores, model=model)
+            scores = model.predict([(passage, sentence) for sentence, passage in pairs], apply_softmax=True)  # type: ignore[attr-defined]
+            return [_stance_from_row(row, model=model) for row in scores]
         except Exception:
-            return None
+            return [None] * len(pairs)
 
     def _load_model(self) -> object:
         if self._model is None:
@@ -190,6 +199,16 @@ class NLIStanceScorer:
 
 def default_stance_scorer() -> StanceScorer:
     return NLIStanceScorer()
+
+
+def classify_stances(scorer: StanceScorer, pairs: list[tuple[str, str]]) -> list[Stance | None]:
+    """Use a scorer's batch seam when available, retaining compatibility with single-pair test/custom scorers."""
+    if not pairs:
+        return []
+    many = getattr(scorer, "classify_stances", None)
+    if callable(many):
+        return many(pairs)
+    return [scorer.classify_stance(sentence=sentence, passage=passage) for sentence, passage in pairs]
 
 
 class LocalCitationVerifier:
@@ -509,6 +528,10 @@ def _contradiction_index(*, model: object, count: int) -> int:
 
 def _stance_from_scores(scores, *, model: object) -> Stance:  # type: ignore[no-untyped-def]
     row = scores[0] if hasattr(scores, "__len__") and len(scores) else scores
+    return _stance_from_row(row, model=model)
+
+
+def _stance_from_row(row, *, model: object) -> Stance:  # type: ignore[no-untyped-def]
     values = [float(value) for value in row]
     count = len(values)
     probs: dict[str, float] = {}

@@ -18,6 +18,7 @@ from typing import Any, Protocol
 
 from app.backend.llm.providers import complete
 from app.backend.pdf_processing.extraction import canonical_text_contains
+from app.backend.summarization.verification import classify_stances
 
 _MAX_DRAFTS = 8
 _MAX_CONCERN = 400
@@ -56,7 +57,7 @@ def verify_candidates(
     local NLI stance + confidence + signature; DROP an ungrounded draft (honest shortfall) or a previously-rejected
     (or duplicate) signature. Returns repo-shaped dicts (concern, anchor_quote, page, stance, confidence, signature).
     """
-    out: list[dict] = []
+    eligible: list[tuple[str, str, str]] = []
     seen: set[str] = set()
     for draft in drafts:
         concern = (draft.concern or "").strip()
@@ -69,7 +70,11 @@ def verify_candidates(
         if signature in rejected_signatures or signature in seen:
             continue
         seen.add(signature)
-        stance = stance_scorer.classify_stance(sentence=concern, passage=quote)
+        eligible.append((concern, quote, signature))
+
+    stances = classify_stances(stance_scorer, [(concern, quote) for concern, quote, _ in eligible])
+    out: list[dict] = []
+    for (concern, quote, signature), stance in zip(eligible, stances, strict=True):
         out.append(
             {
                 "concern": concern[:_MAX_CONCERN],

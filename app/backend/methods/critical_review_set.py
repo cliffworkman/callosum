@@ -11,10 +11,11 @@ from sqlalchemy import Connection, select
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import VectorStore
 from app.backend.methods.critical_review import (
+    ContestedSearchScope,
     _stored_method_signals,
     extract_claim_sentences,
-    find_contested_claims,
     make_chunk_resolver,
+    search_contested_claim_scopes,
 )
 from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
 from app.backend.persistence.repository import get_paper
@@ -58,19 +59,24 @@ def set_contested_claims(
     each row carries the verbatim contradicting passage + both paper ids + page + stance + confidence."""
     resolve = make_chunk_resolver(conn)
     out: list[dict] = []
-    for paper_id in set_ids:
-        others = set_chunk_embedding_ids(conn, set_ids, paper_id)
-        contested = find_contested_claims(
-            conn,
-            paper_id,
-            embed_model=embed_model,
-            vector_store=vector_store,
-            stance_scorer=stance_scorer,
-            resolve_chunk=resolve,
+    scopes = [
+        ContestedSearchScope(
+            paper_id=paper_id,
             claim_sentences=extract_claim_sentences(conn, paper_id),
-            other_chunk_ids=others,
+            other_chunk_ids=set_chunk_embedding_ids(conn, set_ids, paper_id),
         )
-        for c in contested:
+        for paper_id in set_ids
+    ]
+    reports = search_contested_claim_scopes(
+        conn,
+        scopes=scopes,
+        embed_model=embed_model,
+        vector_store=vector_store,
+        stance_scorer=stance_scorer,
+        resolve_chunk=resolve,
+    )
+    for paper_id, report in zip(set_ids, reports, strict=True):
+        for c in report.contested_claims:
             out.append(
                 {
                     "claim": c.claim,

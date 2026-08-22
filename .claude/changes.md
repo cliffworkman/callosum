@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-21 — Increment 490: batch Critical Read local inference
+- **Files:** `app/backend/methods/critical_review.py`, `app/backend/methods/critical_review_set.py`,
+  `app/backend/summarization/verification.py`, `integrations/gemini/critical_review.py`,
+  `integrations/gemini/critical_review_set.py`, Critical Read/WIP/stance tests, `.claude/CLAUDE.md`, and
+  `.claude/docs/increment-notes/INCREMENT-490-NOTES.md`.
+- **What:** replaces repeated one-claim embedding and one-pair NLI calls with ordered batch inference across
+  single-paper, set, WIP, and grounded Tier-2 candidate verification paths. Retrieval remains per claim and every
+  NLI output returns through explicit scope/claim/hit positions.
+- **Why:** a warm 12-claim/60-pair counterfactual remeasurement reduced embedding inference 0.236→0.0566 seconds
+  and NLI 3.322→1.604 seconds with zero classification changes and maximum probability drift `9.54e-7`.
+- **Boundaries:** no model-lifetime, provider-client, synthesis-overview, token-limit, routing, cache, threshold,
+  model, retrieval, persistence, API, or frontend change.
+- **Revert:** revert this increment; no schema migration or stored-data repair is involved.
+
 <!-- HELP-DOCS-SYNCED: 2026-08-21 — Increment 489: backlog #57 hardening + coherence -->
 ## 2026-08-21 — Increment 489: backlog #57 hardening + cross-phase coherence
 - **Files:** `app/backend/importers/zotero.py`, `app/frontend/js/04e_onboarding.jsx`,

@@ -30,7 +30,7 @@ from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attac
 from app.backend.persistence.findings_repo import get_paper_findings
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper
 from app.backend.persistence.schema import attachments, chunks, embeddings, open_science_signals, papers
-from app.backend.summarization.verification import StanceScorer
+from app.backend.summarization.verification import Stance, StanceScorer, classify_stances
 
 CRITICAL_REVIEW_VERSION = "1"
 MAX_CRITIQUE_CLAIMS = 12
@@ -76,6 +76,24 @@ class ContestedSearchReport:
     retrieved_passages: int
     classified_passages: int
     retrieval_status: str
+
+
+@dataclass(frozen=True)
+class ContestedSearchScope:
+    """One independently scoped Critical Read retrieval request within a shared inference batch."""
+
+    paper_id: int | None
+    claim_sentences: list[str]
+    other_chunk_ids: set[int]
+
+
+@dataclass(frozen=True)
+class _RetrievedClaimPair:
+    scope_index: int
+    claim_index: int
+    hit_index: int
+    claim: str
+    chunk: ChunkInfo
 
 
 def find_contested_claims(
@@ -137,67 +155,125 @@ def search_contested_claims(
     transient: this function only calls ``encode_texts`` and ``search``; it never adds an embedding.
     ``paper_id`` may be ``None`` for an unpublished WIP because the eligible-id set already defines the corpus.
     """
-    bounded_claims = claim_sentences[:max_claims]
-    if not bounded_claims:
-        return ContestedSearchReport([], 0, len(other_chunk_ids), 0, 0, "no-claims")
-    if not other_chunk_ids:
-        return ContestedSearchReport([], len(bounded_claims), 0, 0, 0, "empty-library-corpus")
+    [report] = search_contested_claim_scopes(
+        conn,
+        scopes=[ContestedSearchScope(paper_id, claim_sentences, other_chunk_ids)],
+        embed_model=embed_model,
+        vector_store=vector_store,
+        stance_scorer=stance_scorer,
+        resolve_chunk=resolve_chunk,
+        contradiction_threshold=contradiction_threshold,
+        top_k=top_k,
+        max_claims=max_claims,
+    )
+    # Batched inference has no truthful per-claim completion signal. Report the completed stage once instead of
+    # replaying synthetic item progress after the model call.
+    if on_progress is not None and report.claims_considered and report.eligible_chunk_embeddings:
+        on_progress(report.claims_considered, report.claims_considered)
+    return report
 
-    contested: list[ContestedClaim] = []
-    retrieved_passages = 0
-    classified_passages = 0
-    for claim_index, claim in enumerate(bounded_claims, start=1):
-        vector = embed_model.encode_texts([claim])[0]
+
+def search_contested_claim_scopes(
+    conn,
+    *,
+    scopes: list[ContestedSearchScope],
+    embed_model: EmbeddingModel,
+    vector_store: VectorStore,
+    stance_scorer: StanceScorer,
+    resolve_chunk: Callable[[VectorHit], ChunkInfo | None],
+    contradiction_threshold: float = CRITIQUE_CONTRADICTION_THRESHOLD,
+    top_k: int = CRITIQUE_TOP_K,
+    max_claims: int = MAX_CRITIQUE_CLAIMS,
+) -> list[ContestedSearchReport]:
+    """Search one or more scopes with one ordered embedding batch and one ordered NLI batch.
+
+    Retrieval remains per claim because each query has its own candidate-id scope and ``top_k`` result. Explicit
+    scope/claim/hit indices carry every NLI result back to the same evidence item the sequential implementation
+    evaluated; no deduplication or unordered mapping occurs.
+    """
+    bounded_claims = [scope.claim_sentences[:max_claims] for scope in scopes]
+    active_claims = [
+        (scope_index, claim_index, claim)
+        for scope_index, (scope, claims) in enumerate(zip(scopes, bounded_claims, strict=True))
+        if scope.other_chunk_ids
+        for claim_index, claim in enumerate(claims)
+    ]
+    vectors = embed_model.encode_texts([claim for _, _, claim in active_claims]) if active_claims else []
+
+    retrieved_counts = [0] * len(scopes)
+    pairs: list[_RetrievedClaimPair] = []
+    for (scope_index, claim_index, claim), vector in zip(active_claims, vectors, strict=True):
+        scope = scopes[scope_index]
         hits = vector_store.search(
             conn,
             vector=vector,
             top_k=top_k,
-            candidate_embedding_ids=other_chunk_ids,
+            candidate_embedding_ids=scope.other_chunk_ids,
         )
-        best: ContestedClaim | None = None
-        for hit in hits:
-            # Treat the SQL-selected eligible set as the authority even if a vector backend is buggy or replaced.
-            # A returned id outside it must never widen WIP comparison into supplements, registrations, or stale
-            # model spaces.
-            if hit.embedding_id not in other_chunk_ids:
+        for hit_index, hit in enumerate(hits):
+            # The SQL-selected eligible set remains authoritative even if a vector backend returns an invalid id.
+            if hit.embedding_id not in scope.other_chunk_ids:
                 continue
             chunk = resolve_chunk(hit)
             if chunk is None:
                 continue
-            retrieved_passages += 1
-            stance = stance_scorer.classify_stance(sentence=claim, passage=chunk.text)
-            if stance is None:
-                continue
-            classified_passages += 1
-            if stance.label != "contrast":
-                continue
-            if stance.confidence < contradiction_threshold:
-                continue
-            if best is None or stance.confidence > best.confidence:
-                best = ContestedClaim(
-                    claim=claim,
-                    passage=chunk.text,
-                    other_paper_id=chunk.paper_id,
-                    page=chunk.page,
-                    stance="contrast",
-                    confidence=stance.confidence,
-                    other_paper_title=chunk.title,
-                    attachment_id=chunk.attachment_id,
-                )
-        if best is not None:
-            contested.append(best)
-        if on_progress is not None:
-            on_progress(claim_index, len(bounded_claims))
-    status = (
-        "complete" if classified_passages else "nli-unavailable" if retrieved_passages else "no-retrievable-passages"
-    )
-    return ContestedSearchReport(
-        contested,
-        len(bounded_claims),
-        len(other_chunk_ids),
-        retrieved_passages,
-        classified_passages,
-        status,
+            retrieved_counts[scope_index] += 1
+            pairs.append(_RetrievedClaimPair(scope_index, claim_index, hit_index, claim, chunk))
+
+    stances = classify_stances(stance_scorer, [(pair.claim, pair.chunk.text) for pair in pairs])
+    classified_counts = [0] * len(scopes)
+    best_by_claim: list[list[ContestedClaim | None]] = [[None] * len(claims) for claims in bounded_claims]
+    for pair, stance in zip(pairs, stances, strict=True):
+        if stance is None:
+            continue
+        classified_counts[pair.scope_index] += 1
+        candidate = _contested_candidate(pair, stance, contradiction_threshold)
+        current = best_by_claim[pair.scope_index][pair.claim_index]
+        if candidate is not None and (current is None or candidate.confidence > current.confidence):
+            best_by_claim[pair.scope_index][pair.claim_index] = candidate
+
+    reports: list[ContestedSearchReport] = []
+    for scope_index, (scope, claims) in enumerate(zip(scopes, bounded_claims, strict=True)):
+        retrieved = retrieved_counts[scope_index]
+        classified = classified_counts[scope_index]
+        status = (
+            "no-claims"
+            if not claims
+            else "empty-library-corpus"
+            if not scope.other_chunk_ids
+            else "complete"
+            if classified
+            else "nli-unavailable"
+            if retrieved
+            else "no-retrievable-passages"
+        )
+        reports.append(
+            ContestedSearchReport(
+                [candidate for candidate in best_by_claim[scope_index] if candidate is not None],
+                len(claims),
+                len(scope.other_chunk_ids),
+                retrieved,
+                classified,
+                status,
+            )
+        )
+    return reports
+
+
+def _contested_candidate(
+    pair: _RetrievedClaimPair, stance: Stance, contradiction_threshold: float
+) -> ContestedClaim | None:
+    if stance.label != "contrast" or stance.confidence < contradiction_threshold:
+        return None
+    return ContestedClaim(
+        claim=pair.claim,
+        passage=pair.chunk.text,
+        other_paper_id=pair.chunk.paper_id,
+        page=pair.chunk.page,
+        stance="contrast",
+        confidence=stance.confidence,
+        other_paper_title=pair.chunk.title,
+        attachment_id=pair.chunk.attachment_id,
     )
 
 

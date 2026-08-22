@@ -487,3 +487,39 @@ Sunday.
 - Honest open boundaries remain unchanged: no genuine EndNote-created export was available; the Mendeley/Zotero
   account handoff was not driven live; rotated/invalid annotation positions stay raw-only; and Phase 5 remains
   gated on a complete vendor-published payload contract.
+
+---
+
+# Codex Session 3 Summary — 2026-08-21: Critical Read local-inference batching
+
+### What changed
+
+- Single-paper and WIP Critical Read now encode all bounded claims once, retain the unchanged per-claim/top-k
+  retrieval, record explicit scope/claim/hit positions, and classify all usable claim/passage pairs once through
+  `NLIStanceScorer.classify_stances`.
+- Set Critical Read builds every paper scope before inference, collapsing the entire 2–12-paper run to one claim-
+  embedding call and one NLI call. Grounded Tier-2 single/set critique candidates use the same ordered batch seam.
+- Existing single-pair scorer interfaces remain compatible through a duck-typed dispatcher. No model, threshold,
+  top-k, scope, output, persistence, API, frontend, concurrency, model-lifetime, provider, overview, token, routing,
+  or cache behavior changed. WIP progress is now honest stage-level progress because one batch has no truthful
+  per-pair completion signal.
+
+### Measured proof
+
+- Warm CPU, cached local models, exact 12-claim/60-pair inputs: sequential embeddings median **0.2363 s** vs batch
+  **0.0566 s** (4.18×); sequential NLI **3.3223 s** vs batch **1.6041 s** (2.07×). Maximum vector difference
+  `9.01e-8`, maximum stance-probability difference `9.54e-7`, zero label changes.
+- Current batched local search median across five warm trials: **1.7005 s** total, **0.0716 s** embedding,
+  **1.6250 s** NLI, exactly one embedding and one NLI call.
+- Set medians, each still one embedding + one NLI call: 2 papers/24 pairs **0.909 s**; 4/144 **4.444 s**;
+  8/480 **14.543 s**; 12/720 **21.681 s**. The prior audit's 12-paper reference was **49.686 s**.
+
+### Verification and boundaries
+
+- Focused Critical Read/WIP/candidate/stance suite: **65 passed**; broader summarization/NLI/citation suite:
+  **38 passed**; final full suite: **2349 passed, 3 skipped in 1261.98 s (0:21:01)**.
+- `ruff format .` left all 784 files unchanged; `ruff format --check .`, `ruff check .`, Tach, Bandit, and the
+  553-file line budget passed. QA surface map remains 428/428 API and 1767/1767 frontend.
+- Temporary benchmark code under `.claude/` was deleted; no provider/network call or persistent user-data write
+  occurred. The three pre-existing untracked Discover screenshots remain untouched. Nothing was pushed or merged.
+- Full implementation narrative: `.claude/docs/increment-notes/INCREMENT-490-NOTES.md`.

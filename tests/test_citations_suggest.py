@@ -386,6 +386,50 @@ def test_nli_stance_scorer_classifies_via_loader() -> None:
     assert stance is not None and stance.label == "support"
 
 
+def test_nli_stance_batch_matches_sequential_probabilities_and_order() -> None:
+    rows = {
+        ("passage-a", "claim-a"): [0.7000001, 0.1999998, 0.1000001],
+        ("passage-b", "claim-b"): [0.1000001, 0.7999998, 0.1000001],
+        ("passage-a", "claim-a-duplicate"): [0.1000001, 0.1999998, 0.7000001],
+    }
+
+    class _PairAwareNLIModel(_FakeNLIModel):
+        def __init__(self) -> None:
+            super().__init__([0.0, 0.0, 0.0])
+            self.calls: list[list[tuple[str, str]]] = []
+
+        def predict(self, pairs, apply_softmax=True):  # noqa: ANN001
+            self.calls.append(list(pairs))
+            return [rows[tuple(pair)] for pair in pairs]
+
+    pairs = [("claim-a", "passage-a"), ("claim-b", "passage-b"), ("claim-a-duplicate", "passage-a")]
+    batch_model = _PairAwareNLIModel()
+    batch = NLIStanceScorer(_loader=lambda: batch_model).classify_stances(pairs)
+    sequential_model = _PairAwareNLIModel()
+    sequential_scorer = NLIStanceScorer(_loader=lambda: sequential_model)
+    sequential = [sequential_scorer.classify_stance(sentence=claim, passage=passage) for claim, passage in pairs]
+
+    assert len(batch_model.calls) == 1 and batch_model.calls[0] == [
+        ("passage-a", "claim-a"),
+        ("passage-b", "claim-b"),
+        ("passage-a", "claim-a-duplicate"),
+    ]
+    assert len(sequential_model.calls) == 3
+    assert [stance.label for stance in batch if stance] == ["contrast", "support", "mention"]
+    max_difference = max(
+        abs(batch_stance.probs[label] - sequential_stance.probs[label])
+        for batch_stance, sequential_stance in zip(batch, sequential, strict=True)
+        if batch_stance is not None and sequential_stance is not None
+        for label in batch_stance.probs
+    )
+    assert max_difference <= 1e-5
+
+
+def test_nli_stance_batch_preserves_unavailable_failure_shape() -> None:
+    scorer = NLIStanceScorer(_loader=lambda: (_ for _ in ()).throw(RuntimeError("offline")))
+    assert scorer.classify_stances([("a", "b"), ("c", "d")]) == [None, None]
+
+
 # ── endpoint ──────────────────────────────────────────────────────────────────────────────────────────────
 
 

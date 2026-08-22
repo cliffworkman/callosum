@@ -81,7 +81,11 @@ class _FakeEmbed:
     dimension = 3
     normalization = "none"
 
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+
     def encode_texts(self, texts):
+        self.calls.append(list(texts))
         return [[0.1, 0.2, 0.3] for _ in texts]
 
 
@@ -97,8 +101,15 @@ class _CandidateRespectingVectorStore:
 
 
 class _ContrastStance:
+    def __init__(self) -> None:
+        self.batch_calls: list[list[tuple[str, str]]] = []
+
     def classify_stance(self, *, sentence, passage):
         return Stance("contrast", 0.8, {"support": 0.1, "contrast": 0.8, "mention": 0.1})
+
+    def classify_stances(self, pairs):
+        self.batch_calls.append(list(pairs))
+        return [self.classify_stance(sentence=sentence, passage=passage) for sentence, passage in pairs]
 
 
 def test_related_paper_ids_roundtrips(temp_db_url):
@@ -159,6 +170,43 @@ def test_set_contested_only_surfaces_intra_set():
     assert rows[0]["stance"] == "contrast"
 
 
+def test_set_contested_claims_batches_across_all_papers() -> None:
+    eng = _fresh_db()
+    embed, stance = _FakeEmbed(), _ContrastStance()
+    with eng.begin() as c:
+        a, aa = _paper_with_attachment(c, "A")
+        b, ab = _paper_with_attachment(c, "B")
+        c.execute(update(schema.papers).where(schema.papers.c.id == a).values(abstract="A one. A two."))
+        c.execute(update(schema.papers).where(schema.papers.c.id == b).values(abstract="B one. B two."))
+        _, a_emb = _chunk_with_embedding(c, a, aa, text="Passage A", page=1)
+        _, b_emb = _chunk_with_embedding(c, b, ab, text="Passage B", page=2)
+
+        rows = set_contested_claims(
+            c,
+            [a, b],
+            embed_model=embed,
+            vector_store=_CandidateRespectingVectorStore({a_emb, b_emb}),
+            stance_scorer=stance,
+        )
+    eng.dispose()
+
+    assert embed.calls == [["A one.", "A two.", "B one.", "B two."]]
+    assert stance.batch_calls == [
+        [
+            ("A one.", "Passage B"),
+            ("A two.", "Passage B"),
+            ("B one.", "Passage A"),
+            ("B two.", "Passage A"),
+        ]
+    ]
+    assert [(row["claim_paper_id"], row["claim"], row["other_paper_id"]) for row in rows] == [
+        (a, "A one.", b),
+        (a, "A two.", b),
+        (b, "B one.", a),
+        (b, "B two.", a),
+    ]
+
+
 def test_set_aggregate_is_a_fact_matrix_not_a_score():
     eng = _fresh_db()
     with eng.begin() as c:
@@ -203,6 +251,26 @@ def test_verify_set_candidates_grounds_anchor_and_relates():
     assert out[0]["related_paper_ids"] == [102]  # index 2 -> 102; index 1 is the anchor; 99 invalid -> dropped
     assert out[0]["stance"] == "contrast"
     assert out[0]["anchor_quote"] == "The sample was n = 12 participants."
+
+
+def test_verify_set_candidates_batches_grounded_pairs_without_reordering() -> None:
+    scorer = _ContrastStance()
+    drafts = [
+        SetCandidateDraft("Small sample.", "The sample was n = 12 participants.", [1, 2]),
+        SetCandidateDraft("Repeated design.", "We used a within-subjects design.", [2, 1]),
+    ]
+    out = verify_set_candidates(drafts, set_papers=_set_papers(), stance_scorer=scorer)
+
+    assert scorer.batch_calls == [
+        [
+            ("Small sample.", "The sample was n = 12 participants."),
+            ("Repeated design.", "We used a within-subjects design."),
+        ]
+    ]
+    assert [(item["paper_id"], item["concern"]) for item in out] == [
+        (101, "Small sample."),
+        (102, "Repeated design."),
+    ]
 
 
 def test_verify_set_candidates_drops_ungrounded_and_rejected():
