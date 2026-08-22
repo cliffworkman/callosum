@@ -122,6 +122,7 @@ from app.backend.methods.retraction import DEFAULT_CHECKERS as DEFAULT_RETRACTIO
 from app.backend.model_runtime import ModelRuntimeRegistry
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.followed_author_repo import backfill_feed_subscriptions
+from app.backend.provider_runtime import ProviderClientRuntime
 from app.backend.registration_acquisition.domain import RegistrationAcquisitionRegistry
 from app.backend.registration_discovery.domain import RegistrationDiscoveryRegistry
 from app.backend.summarization.generators import SummaryGenerator
@@ -180,11 +181,13 @@ def create_app(
     sync_transport: object | None = None,
     feedback_relay_client: FeedbackRelayClient | None = None,
     model_runtime_registry: ModelRuntimeRegistry | None = None,
+    provider_client_runtime: ProviderClientRuntime | None = None,
 ) -> FastAPI:
     resolved_db_url = db_url or os.environ.get("CALLOSUM_DB_URL", DEFAULT_DB_URL)
     resolved_frontend_path = _resolve_frontend_path(frontend_path)
     engine = make_engine(resolved_db_url)
     runtime_registry = model_runtime_registry or ModelRuntimeRegistry()
+    client_runtime = provider_client_runtime or ProviderClientRuntime()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -198,8 +201,13 @@ def create_app(
         try:
             yield
         finally:
-            runtime_registry.close()
-            engine.dispose()
+            try:
+                client_runtime.close()
+            finally:
+                try:
+                    runtime_registry.close()
+                finally:
+                    engine.dispose()
 
     api = FastAPI(title="Callosum Local API", version="0.1.0", lifespan=lifespan)
     api.state.engine = engine
@@ -287,6 +295,7 @@ def create_app(
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator
     api.state.model_runtime_registry = runtime_registry
+    api.state.provider_client_runtime = client_runtime
     api.state.embedding_model = embedding_model
     api.state.vector_store = vector_store
     api.state.support_scorer = support_scorer

@@ -560,3 +560,44 @@ Sunday.
   Bandit result is claimed. No security-audit trigger was introduced.
 - Full narrative: `.claude/docs/increment-notes/INCREMENT-491-NOTES.md`. The three pre-existing untracked Discover
   screenshots remain untouched. Nothing was pushed or merged.
+
+---
+
+# Codex Session 5 Summary — 2026-08-22: app-scoped LLM provider-client reuse
+
+### What changed
+
+- Added `app/backend/provider_runtime.py`: each `create_app()` instance owns one lazy provider-client manager.
+  Compatible raw HTTP completions share a persistent HTTPX connection pool; compatible Gemini completions share
+  one Google GenAI client. Per-identity load locks prevent duplicate construction and allow retry after failure.
+- Raw HTTP identity fingerprints endpoint plus timeout/TLS/proxy/certificate environment. API keys remain
+  request-scoped headers, so rotation safely reuses the pool while sending only the new key. Gemini identity
+  fingerprints credential plus SDK environment, so a changed key gets a distinct client. Raw keys/URLs are not
+  exposed by runtime identity diagnostics.
+- All production LLM feature routes resolve current settings through `api/dependencies.py::resolve_llm_config`.
+  Explicit `complete(..., http_client=...)` injection still wins without touching the runtime. Lifespan shutdown
+  closes all constructed HTTPX and Gemini clients idempotently. No new call concurrency or serialization was
+  introduced; installed HTTPX/Google SDK evidence supports shared synchronous clients.
+
+### Measured proof
+
+- Local HTTP/1.1 server, 5×20 production completions: reference later-request median **0.3856 s**, p90
+  **0.4383 s**, median round **7.9557 s**, 20 constructors/connections per round. Managed later-request median
+  **0.001375 s**, p90 **0.001705 s**, median round **0.4166 s**, one constructor/connection per round. This proves
+  local construction/pool reuse, not real-provider network latency.
+- Actual offline Google client construction, fake invalid keys/no request: reference 20 constructions took
+  **22.8622 s**; managed 20 acquisitions took **1.1137 s**, with one construction and later median lookup
+  **13.8 µs**. Ten acquisitions before and after credential rotation yielded exactly two distinct clients.
+
+### Verification and handoff
+
+- Provider-runtime suite: **16 passed**; affected provider/LLM/router/model-runtime/Critical Read suite:
+  **358 passed**; full suite: **2375 passed, 3 skipped in 1724.97 s (0:28:44)**.
+- Ruff format/check, Tach, and the 555-file line budget passed. Bandit remains unavailable in this environment;
+  no result is claimed. No security-audit trigger, dependency, endpoint, provider/destination, or egress boundary
+  was introduced.
+- Critical Read batching and the app-scoped local-model registry remain unchanged and green. No request payload,
+  URL, headers, timeout, parsing, error, prompt, retry, async/streaming, routing, caching, scientific output,
+  API/frontend, or schema behavior changed. Full narrative:
+  `.claude/docs/increment-notes/INCREMENT-492-NOTES.md`. The three pre-existing Discover screenshots remain
+  untouched. Nothing was pushed or merged.

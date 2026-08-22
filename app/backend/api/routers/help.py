@@ -17,10 +17,11 @@ from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi import status as http_status
 from pydantic import BaseModel, Field
 
+from app.backend.api.dependencies import resolve_llm_config
 from app.backend.help.assistant import HelpAssistant, HelpTurn
 from app.backend.help.corpus import load_help_corpus
 from app.backend.llm.egress import EgressGatedHelpAssistant, HelpAssistantDisabledError
-from integrations.gemini import GeminiConfig, GeminiHelpAssistant
+from integrations.gemini import GeminiHelpAssistant
 
 router = APIRouter()
 
@@ -95,12 +96,13 @@ def help_ask(payload: HelpAskRequest, request: Request) -> HelpAskResponse:
 
 
 def _help_assistant(app: FastAPI) -> HelpAssistant:
+    config = resolve_llm_config(app)
     inner = app.state.help_assistant
     if inner is None:
-        inner = GeminiHelpAssistant(config=GeminiConfig.from_environment())
+        inner = GeminiHelpAssistant(config=config)
     # Authoritative gate at the seam — covers the injected assistant AND the default. Keyed on the help
     # assistant's OWN toggle, independent of the library data-egress gate.
     return EgressGatedHelpAssistant(
         inner=inner,
-        help_assistant_enabled=GeminiConfig.from_environment().help_assistant_enabled,
+        help_assistant_enabled=config.help_assistant_enabled,
     )

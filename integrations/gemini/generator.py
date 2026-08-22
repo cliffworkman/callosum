@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from app.backend.llm.egress import DataEgressDisabledError
@@ -13,6 +13,8 @@ from app.backend.summarization.generators import CandidateCitation, CandidateSum
 
 if TYPE_CHECKING:
     from sqlalchemy import Connection
+
+    from app.backend.provider_runtime import ProviderClientRuntime
 
 # Bumped whenever ``_prompt`` OR the default model changes — it's part of the summary cache key
 # (app/backend/llm/cache.py via ``cache_signature``), so editing the prompt can never serve a cached
@@ -41,9 +43,10 @@ class LLMConfig:
     base_url: str | None = None  # the provider's endpoint host (None for the gemini SDK)
     data_egress_enabled: bool = False
     help_assistant_enabled: bool = False
+    provider_runtime: ProviderClientRuntime | None = field(default=None, repr=False, compare=False)
 
     @classmethod
-    def from_environment(cls) -> "LLMConfig":
+    def from_environment(cls, *, provider_runtime: ProviderClientRuntime | None = None) -> "LLMConfig":
         # BYOK (inc 146/149/256): the Settings UI stores the active provider id + per-provider key + egress
         # consent; the provider roster (base_url/wire_format/model) is resolved via ``providers_store``. Stored
         # values OVERLAY the env defaults (env stays the fallback). Lazy imports keep integrations/ loosely coupled.
@@ -70,6 +73,7 @@ class LLMConfig:
             base_url=record["base_url"],
             data_egress_enabled=enabled,
             help_assistant_enabled=help_enabled,
+            provider_runtime=provider_runtime,
         )
 
     def resolved_api_key(self) -> str | None:

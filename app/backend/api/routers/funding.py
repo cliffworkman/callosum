@@ -11,6 +11,7 @@ from fastapi import status as http_status
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
+from app.backend.api.dependencies import resolve_llm_config
 from app.backend.api.job_store import JobStore
 from app.backend.funding.engine import LatentFundingFitEngine
 from app.backend.funding.export import export_run_rows
@@ -356,10 +357,9 @@ def _run_funding_job(app: FastAPI, job_id: str, body: FundingRunRequest) -> None
 
 def _run_llm_triage(app: FastAPI, report: dict[str, Any], research_context: str) -> dict[str, Any]:
     from app.backend.llm.providers import requires_egress
-    from integrations.gemini import GeminiConfig
 
     try:
-        config = GeminiConfig.from_environment()
+        config = resolve_llm_config(app)
         if requires_egress(config) and not config.data_egress_enabled:
             return {
                 "provider_id": "configured-llm",

@@ -22,7 +22,11 @@ This module imports neither ``app.backend.llm.egress`` nor ``integrations.gemini
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
+
+if TYPE_CHECKING:
+    from app.backend.provider_runtime import ProviderClientRuntime
 
 CLOUD_PROVIDERS = ("gemini", "openai", "anthropic")
 ALL_PROVIDERS = (*CLOUD_PROVIDERS, "local")
@@ -95,13 +99,22 @@ def is_loopback_url(url: str | None) -> bool:
     return parsed.scheme in {"http", "https"} and (parsed.hostname or "") in _LOOPBACK_HOSTS
 
 
-def complete(config, prompt: str, *, http_client=None) -> CompletionResult:
+def complete(
+    config,
+    prompt: str,
+    *,
+    http_client=None,
+    provider_runtime: ProviderClientRuntime | None = None,
+) -> CompletionResult:
     """Send ``prompt`` to ``config``'s provider and return the text + usage. Raises ``ProviderError`` on failure.
 
     Dispatches on the config's wire format (``gemini`` / ``messages`` / ``chat_completions`` / ``responses``).
-    ``http_client`` (an httpx.Client) is injectable so tests run with no network.
+    ``http_client`` (an httpx.Client) is injectable so tests run with no network and always takes precedence over
+    the app-scoped runtime. A config created by the FastAPI dependency resolver carries that runtime for normal
+    production calls; directly constructed configs retain the legacy fallback.
     """
     provider = getattr(config, "provider", "gemini") or "gemini"
+    runtime = provider_runtime or getattr(config, "provider_runtime", None)
     wire = _wire_of(config)
     model = config.model
     key = config.resolved_api_key()
@@ -113,7 +126,7 @@ def complete(config, prompt: str, *, http_client=None) -> CompletionResult:
         # A loopback/local provider legitimately needs no key, so requires_egress correctly exempts it.
         raise ProviderError(f"No API key is set for the '{provider}' provider. Add one in Settings and Save.")
     if wire == "gemini":
-        return _complete_gemini(model, key, prompt)
+        return _complete_gemini(model, key, prompt, runtime)
     base = getattr(config, "base_url", None)
     # The builtin ``local`` preset promises no data leaves → its endpoint MUST be loopback (custom providers are
     # egress-gated instead of loopback-restricted, so an arbitrary custom URL is allowed but gated).
@@ -125,21 +138,35 @@ def complete(config, prompt: str, *, http_client=None) -> CompletionResult:
     base = (base or _DEFAULT_BASE.get(wire) or "").rstrip("/")
     if not base:
         raise ProviderError(f"No base URL configured for provider {provider!r} (wire format {wire!r}).")
+    active_http_client = http_client
+    if active_http_client is None and runtime is not None:
+        active_http_client = runtime.get_http_client(base_url=base, timeout=_HTTP_TIMEOUT)
     if wire == "messages":
-        return _complete_anthropic(base, model, key, prompt, http_client)
+        return _complete_anthropic(base, model, key, prompt, active_http_client)
     if wire == "responses":
-        return _complete_responses(base, model, key, prompt, http_client)
+        return _complete_responses(base, model, key, prompt, active_http_client)
     if wire == "chat_completions":
-        return _complete_openai_compatible(base, model, key, prompt, http_client)
+        return _complete_openai_compatible(base, model, key, prompt, active_http_client)
     raise ProviderError(f"Unknown wire format: {wire!r}")
 
 
-def _complete_gemini(model: str, api_key: str | None, prompt: str) -> CompletionResult:
+def _complete_gemini(
+    model: str,
+    api_key: str | None,
+    prompt: str,
+    provider_runtime: ProviderClientRuntime | None,
+) -> CompletionResult:
     try:
-        from google import genai
 
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(model=model, contents=prompt)
+        def generate(client):  # type: ignore[no-untyped-def]
+            return client.models.generate_content(model=model, contents=prompt)
+
+        if provider_runtime is not None:
+            response = provider_runtime.run_gemini(api_key=api_key, operation=generate)
+        else:
+            from google import genai
+
+            response = generate(genai.Client(api_key=api_key))
     except Exception as exc:  # noqa: BLE001
         raise ProviderError(_redact(str(exc), api_key)) from exc
     return CompletionResult(

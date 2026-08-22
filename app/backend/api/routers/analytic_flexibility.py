@@ -11,16 +11,15 @@ call.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import Connection
 from sqlalchemy.exc import NoResultFound
 
 from app.backend.analytic_flexibility import propose_analytic_flexibility
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, resolve_llm_config
 from app.backend.llm.egress import DataEgressDisabledError
 from app.backend.llm.providers import ProviderError, requires_egress
 from app.backend.persistence.repository import get_paper
-from integrations.gemini.generator import GeminiConfig
 
 router = APIRouter()
 
@@ -30,8 +29,8 @@ _EGRESS_REFUSED_DETAIL = (
 
 
 @router.post("/papers/{paper_id}/analytic-flexibility")
-def run_analytic_flexibility(paper_id: int, conn: Connection = Depends(get_connection)) -> dict:
-    config = GeminiConfig.from_environment()
+def run_analytic_flexibility(paper_id: int, request: Request, conn: Connection = Depends(get_connection)) -> dict:
+    config = resolve_llm_config(request.app)
     if requires_egress(config) and not config.data_egress_enabled:
         raise HTTPException(status_code=403, detail=_EGRESS_REFUSED_DETAIL)
     try:

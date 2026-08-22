@@ -25,7 +25,7 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, Engine, update
 from sqlalchemy.exc import NoResultFound
 
-from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model
+from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model, resolve_llm_config
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers.axes_models import (
     DEFAULT_AXIS_CUTOFF,
@@ -86,7 +86,6 @@ from integrations.gemini import (
     DataEgressDisabledError,
     GeminiAxisClusterLabeler,
     GeminiAxisTermSuggester,
-    GeminiConfig,
 )
 
 router = APIRouter()
@@ -470,7 +469,7 @@ def _vector_store(app: FastAPI) -> VectorStore:
 
 
 def _axis_term_suggester(app: FastAPI) -> AxisTermSuggester:
-    config = GeminiConfig.from_environment()
+    config = resolve_llm_config(app)
     inner = app.state.axis_term_suggester
     if inner is None:
         inner = GeminiAxisTermSuggester(config=config)
@@ -486,7 +485,7 @@ def _axis_term_suggester(app: FastAPI) -> AxisTermSuggester:
 
 
 def _axis_cluster_labeler(app: FastAPI) -> AxisClusterLabeler:
-    config = GeminiConfig.from_environment()
+    config = resolve_llm_config(app)
     inner = app.state.axis_cluster_labeler
     if inner is None:
         inner = GeminiAxisClusterLabeler(config=config)

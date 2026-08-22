@@ -690,6 +690,11 @@ the full per-increment narrative for all other increments now lives in the reloc
   call actually happens: `_post()` now classifies 401/403 ("check the saved API key"), 429 ("rate limited"),
   and 5xx ("temporarily unavailable") with a friendly lead-in, always keeping the raw `HTTP {code}: {body}`
   detail appended rather than hidden (invariant #4); an unclassified status keeps the original plain format.
+  **Inc 492** gives each FastAPI app one `ProviderClientRuntime`: compatible raw HTTP calls share a lazy persistent
+  HTTPX pool and compatible Gemini calls share a lazy SDK client. Endpoint and credential identities are
+  non-reversible fingerprints; config rotation cannot reuse stale Gemini credentials, explicit injected clients
+  still win, and lifespan shutdown closes app-owned clients. Per-identity construction is race-guarded and
+  retryable, while ordinary provider calls are not serialized or otherwise made concurrent by this change.
 - **Frontend:** modular source under `app/frontend/` (`index.html` shell + `styles.css` +
   ordered `js/*.jsx` React chunks, React/ReactDOM + pdf.js via CDN), assembled by
   `app/backend/api/frontend.py`: the JSX chunks are concatenated and **precompiled to plain JS by

@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Connection, Engine
 
 from app.backend import workbench_assist as wa
-from app.backend.api.dependencies import get_connection, get_engine
+from app.backend.api.dependencies import get_connection, get_engine, resolve_llm_config
 from app.backend.api.routers.library import _embedding_model, _vector_store
 from app.backend.llm.egress import DataEgressDisabledError, EgressGatedExtractionAssistant
 from app.backend.llm.providers import ProviderError
@@ -33,7 +33,6 @@ from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import get_chunks_for_paper
 from app.backend.persistence.sqlite_retry import run_write
 from integrations.gemini.extraction_assistant import GeminiExtractionAssistant
-from integrations.gemini.generator import GeminiConfig
 
 router = APIRouter()
 
@@ -133,7 +132,7 @@ def _row_or_404(conn: Connection, row_id: int) -> dict:
 def _extraction_assistant(app: FastAPI) -> EgressGatedExtractionAssistant:
     """Build the gated funnel assistant from the active provider (a test injects app.state.extraction_assistant).
     The gate raises DataEgressDisabledError on a non-loopback provider without consent — mirrors _summary_generator."""
-    config = GeminiConfig.from_environment()
+    config = resolve_llm_config(app)
     inner = app.state.extraction_assistant or GeminiExtractionAssistant(config=config)
     return EgressGatedExtractionAssistant(
         inner=inner,

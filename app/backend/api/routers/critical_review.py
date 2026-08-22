@@ -19,7 +19,13 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, Engine
 from sqlalchemy.exc import NoResultFound
 
-from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model, resolve_stance_scorer
+from app.backend.api.dependencies import (
+    get_connection,
+    get_engine,
+    resolve_embedding_model,
+    resolve_llm_config,
+    resolve_stance_scorer,
+)
 from app.backend.api.job_store import JobStore
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore
 from app.backend.methods.critical_review import (
@@ -203,7 +209,6 @@ def generate_candidates(
     # as a pending CANDIDATE the human accepts/rejects. A fake generator (test seam) still honors the egress gate.
     from app.backend.llm.providers import requires_egress
     from app.backend.methods.critical_review import paper_full_text
-    from integrations.gemini import GeminiConfig
     from integrations.gemini.critical_review import GeminiCriticalReviewGenerator, verify_candidates
 
     try:
@@ -211,7 +216,7 @@ def generate_candidates(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
 
-    config = GeminiConfig.from_environment()
+    config = resolve_llm_config(request.app)
     if requires_egress(config) and not config.data_egress_enabled:
         raise HTTPException(status_code=422, detail="AI critique requires data-egress consent (Settings → AI features)")
     generator = getattr(request.app.state, "critical_review_generator", None)
@@ -339,10 +344,9 @@ def _run_set_tier2(app: FastAPI, set_ids: list[int], stance_scorer) -> tuple[dic
     # and persisted as a pending CANDIDATE the human accepts/rejects. A fake generator (test seam) still honors the gate.
     from app.backend.llm.providers import requires_egress
     from app.backend.methods.critical_review import paper_full_text
-    from integrations.gemini import GeminiConfig
     from integrations.gemini.critical_review_set import GeminiSetCriticalReviewGenerator, verify_set_candidates
 
-    config = GeminiConfig.from_environment()
+    config = resolve_llm_config(app)
     if requires_egress(config) and not config.data_egress_enabled:
         return {
             "status": "unavailable",

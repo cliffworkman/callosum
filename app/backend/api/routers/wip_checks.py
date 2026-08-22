@@ -8,6 +8,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from app.backend.api.dependencies import resolve_llm_config
 from app.backend.api.wip_security import require_local_wip
 from app.backend.funding.run_report import funding_run_summaries
 from app.backend.llm.egress import DataEgressDisabledError
@@ -36,7 +37,6 @@ from app.backend.wip.analytic_flexibility_text import wip_methods_text
 from app.backend.wip.content import ContentIdentityError
 from app.backend.wip.paths import trusted_child
 from integrations.gemini.analytic_flexibility_assistant import AnalyticFlexibilityAssistant
-from integrations.gemini.generator import GeminiConfig
 
 router = APIRouter(prefix="/wip", dependencies=[Depends(require_local_wip)])
 
@@ -257,7 +257,7 @@ def meta_analysis_run(manuscript_id: int, request: Request) -> dict:
 def analytic_flexibility_run(manuscript_id: int, request: Request) -> dict:
     # Egress consent is checked BEFORE any manuscript lookup or DB work (mirrors routers/grobid.py and the
     # Library-side routers/analytic_flexibility.py -- the consent gate wins even over a 404).
-    config = GeminiConfig.from_environment()
+    config = resolve_llm_config(request.app)
     if requires_egress(config) and not config.data_egress_enabled:
         raise HTTPException(status_code=403, detail=_EGRESS_REFUSED_DETAIL)
     with request.app.state.engine.connect() as conn:

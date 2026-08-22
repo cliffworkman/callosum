@@ -11,17 +11,16 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection, Engine
 
 from app.backend import app_settings, providers_store, publisher_settings
 from app.backend.acquisition.openurl import RESOLVER_BASE_MAX_LEN, resolver_base_valid
-from app.backend.api.dependencies import get_engine
+from app.backend.api.dependencies import get_engine, resolve_llm_config
 from app.backend.llm.cache import repair_summary_cache
 from app.backend.llm.providers import is_loopback_url, requires_egress
 from app.backend.persistence.sqlite_retry import run_write
-from integrations.gemini.generator import GeminiConfig
 
 router = APIRouter()
 
@@ -249,12 +248,12 @@ class RepairSummaryCacheResult(BaseModel):
 
 
 @router.post("/settings/test-key", response_model=KeyTestResult)
-def test_key() -> KeyTestResult:
+def test_key(request: Request) -> KeyTestResult:
     """Validate the ACTIVE provider with a tiny non-library ping. Cloud providers are gated on egress ON (off ⟹
     no outbound call — the toggle's promise); a loopback local provider runs regardless. Always HTTP 200."""
     from app.backend.llm import providers  # late import so tests can monkeypatch providers.complete
 
-    cfg = GeminiConfig.from_environment()
+    cfg = resolve_llm_config(request.app)
     if requires_egress(cfg) and not cfg.data_egress_enabled:
         return KeyTestResult(
             ok=False, detail="Turn on “Allow AI features” first — Callosum won’t contact a provider while it’s off."

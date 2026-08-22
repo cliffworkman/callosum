@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import FastAPI, HTTPException, Request
 from sqlalchemy import Engine
 
@@ -12,6 +14,9 @@ from app.backend.embeddings.models import (
     EmbeddingModel,
 )
 from app.backend.summarization.verification import DEFAULT_NLI_MODEL, StanceScorer, SupportScorer
+
+if TYPE_CHECKING:
+    from integrations.gemini.generator import LLMConfig
 
 
 def get_connection(request: Request):
@@ -24,6 +29,13 @@ def get_engine(request: Request) -> Engine:
     """The app engine, for short mutating handlers that wrap their read+write unit in ``run_write`` (transaction-level
     retry on a transient SQLite writer lock) instead of taking a single ``get_connection`` connection."""
     return request.app.state.engine
+
+
+def resolve_llm_config(app: FastAPI) -> LLMConfig:
+    """Resolve current provider settings with this app's reusable client runtime attached."""
+    from integrations.gemini.generator import LLMConfig
+
+    return LLMConfig.from_environment(provider_runtime=app.state.provider_client_runtime)
 
 
 def resolve_embedding_model(

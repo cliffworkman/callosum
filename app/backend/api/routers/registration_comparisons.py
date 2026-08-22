@@ -9,7 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException,
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection, Engine, select
 
-from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model
+from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model, resolve_llm_config
 from app.backend.api.job_store import JobStore
 from app.backend.persistence.document_roles import (
     ARTICLE_DOCUMENT_ROLES,
@@ -448,10 +448,9 @@ def _stale_reasons(engine: Engine, run) -> list[str]:
 
 def _run_registration_comparison_triage(app: FastAPI, rows: list[dict[str, Any]]) -> dict[str, Any]:
     from app.backend.llm.providers import requires_egress
-    from integrations.gemini import GeminiConfig
 
     try:
-        config = GeminiConfig.from_environment()
+        config = resolve_llm_config(app)
         if requires_egress(config) and not config.data_egress_enabled:
             return {
                 "status": {

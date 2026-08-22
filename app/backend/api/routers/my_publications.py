@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, Engine, delete
 from sqlalchemy.exc import NoResultFound
 
-from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model
+from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model, resolve_llm_config
 from app.backend.api.job_store import JobStore
 from app.backend.clustering.axis_assignments import add_manual_assignment, remove_assignment
 from app.backend.clustering.my_publications import (
@@ -46,7 +46,7 @@ from app.backend.persistence.profile_repo import (
 from app.backend.persistence.repository import find_existing_paper_by_identity, get_paper
 from app.backend.persistence.schema import axes
 from app.backend.persistence.sqlite_retry import run_write
-from integrations.gemini import GeminiConfig, GeminiResearchSummaryGenerator, ResearchSummaryGenerator
+from integrations.gemini import GeminiResearchSummaryGenerator, ResearchSummaryGenerator
 from integrations.openalex import OpenAlexAuthorClient
 
 router = APIRouter()
@@ -483,7 +483,7 @@ def _author_client(app: FastAPI) -> OpenAlexAuthorClient:
 
 
 def _research_summary_generator(app: FastAPI) -> ResearchSummaryGenerator:
-    config = GeminiConfig.from_environment()
+    config = resolve_llm_config(app)
     inner = app.state.research_summary_generator
     if inner is None:
         inner = GeminiResearchSummaryGenerator(config=config)

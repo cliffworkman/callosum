@@ -10,6 +10,10 @@ Callosum is a working local-first MVP at Increment 73. It runs as a localhost Fa
 - Local model lifetime: each FastAPI app owns a `ModelRuntimeRegistry` (`app/backend/model_runtime.py`). Compatible
   embedding and NLI feature wrappers share one lazy runtime per model name/revision/device/offline/backend identity;
   first load and inference use separate per-identity locks, and explicit injected test/custom dependencies win.
+- LLM provider-client lifetime: each FastAPI app owns a `ProviderClientRuntime`
+  (`app/backend/provider_runtime.py`). Compatible raw HTTP requests share one lazy HTTPX connection pool and
+  compatible Gemini requests share one lazy SDK client; non-reversible endpoint/credential identities prevent
+  stale configuration reuse, explicit client injection wins, and lifespan shutdown closes owned resources.
 - PDF extraction: PyMuPDF (`fitz`) extracts text spans and `pdf-points-top-left` bounding boxes.
 - Retrieval and clustering: local embedding retrieval plus scikit-learn agglomerative clustering, axis scoring, duplicate detection, and c-TF-IDF tag/axis suggestions.
 - Summarization: Gemini `gemini-2.5-flash-lite` is optional, off by default, and used only to propose summary sentences/candidate citations. Local verification is authoritative.
@@ -30,6 +34,8 @@ Callosum is a working local-first MVP at Increment 73. It runs as a localhost Fa
 - `app/backend/embeddings/`: embedding model wrappers, embedding pipeline, `sqlite-vec` vector store, and retrieval.
 - `app/backend/model_runtime.py`: app-scoped ownership, identity resolution, lazy loading, and conservative
   per-runtime inference serialization for SentenceTransformer and CrossEncoder objects.
+- `app/backend/provider_runtime.py`: app-scoped lazy ownership, configuration identity, connection-pool / Gemini
+  client reuse, first-construction race protection, and provider-client shutdown cleanup.
 - `app/backend/clustering/`: abstract clustering, user-defined axes, manual assignments, axis operations, optimal-axis suggestion, duplicate detection, and tag suggestion.
 - `app/backend/summarization/`: summary orchestration, generator protocols, and local citation verification.
 - `app/backend/llm/`: provider-neutral egress gates, content-addressed summary cache, and token usage logging.

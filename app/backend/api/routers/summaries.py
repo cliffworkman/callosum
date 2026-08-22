@@ -29,6 +29,7 @@ from app.backend.api.dependencies import (
     get_connection,
     get_engine,
     resolve_embedding_model,
+    resolve_llm_config,
     resolve_support_scorer,
 )
 from app.backend.api.job_store import JobStore
@@ -50,7 +51,7 @@ from app.backend.persistence.sqlite_retry import run_write
 from app.backend.summarization.generators import SummaryGenerator
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
 from app.backend.summarization.reverify import NotImportedError, reverify_imported_summary
-from integrations.gemini import GeminiConfig, GeminiSummaryGenerator
+from integrations.gemini import GeminiSummaryGenerator
 
 router = APIRouter()
 
@@ -300,7 +301,7 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
 def _summary_generator(api: FastAPI) -> SummaryGenerator:
     from app.backend.llm.providers import requires_egress
 
-    config = GeminiConfig.from_environment()
+    config = resolve_llm_config(api)
     inner = api.state.summary_generator
     if inner is None:
         # A loopback provider (builtin `local` or a localhost custom) needs neither egress consent nor a key.
@@ -326,7 +327,7 @@ def _overview_generator(api: FastAPI):
     from app.backend.llm.providers import requires_egress
     from integrations.gemini.overview import GeminiOverviewGenerator
 
-    config = GeminiConfig.from_environment()
+    config = resolve_llm_config(api)
     inner = api.state.overview_generator
     if inner is None:
         # For a cloud provider, no overview without egress + a key (the verified claims stand alone); a loopback

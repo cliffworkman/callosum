@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-22 — Increment 492: app-scoped LLM provider-client reuse
+- **Files:** `app/backend/provider_runtime.py`, FastAPI lifecycle/dependency wiring, the shared LLM provider seam,
+  LLM-consuming routers, `integrations/gemini/generator.py`, `tests/test_provider_runtime.py`, and architecture /
+  handoff notes.
+- **What:** adds one provider-client manager per app. Compatible raw HTTP completions share a persistent HTTPX
+  pool; compatible Gemini completions share one SDK client. Non-reversible config identities handle endpoint /
+  credential rotation, explicit injected clients still win, and lifespan shutdown closes owned resources.
+- **Why:** five local 20-request rounds reduced later-request median 0.3856→0.001375 seconds and median round total
+  7.956→0.417 seconds. Twenty real offline Gemini client acquisitions reduced 20 constructors / 22.862 seconds to
+  one constructor / 1.114 seconds; key rotation produced exactly one additional client.
+- **Boundaries:** request payloads, headers, URLs, 60-second timeout, parsing, errors, prompts, retries, async /
+  streaming, routing, local models, Critical Read batching, scientific output, API/frontend contracts, and schemas
+  are unchanged. Help did not need an update because this is invisible runtime ownership.
+- **Revert:** revert this increment; there is no schema migration or stored-data repair.
+
 ## 2026-08-22 — Increment 491: app-scoped local model runtime reuse
 - **Files:** `app/backend/model_runtime.py`, the FastAPI app/dependency wiring, embedding/NLI wrappers, routers that
   consume local embeddings or NLI, `tests/test_model_runtime.py`, architecture/handoff docs, and increment notes.
