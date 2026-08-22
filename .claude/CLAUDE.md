@@ -739,6 +739,13 @@ the full per-increment narrative for all other increments now lives in the reloc
   alone. GPU is not used anywhere; nothing constructs a model with an explicit `device=`, so sentence-transformers'
   own cuda→mps→cpu auto-detection already applies for free to anyone running the dev server on a GPU-equipped
   machine — only the packaged desktop installer forces CPU-only torch (bundle-size, not a code constraint).
+- **Local model lifetime (inc 491):** `api/app.py` owns one `ModelRuntimeRegistry` per FastAPI app instance and
+  `api/dependencies.py` is the centralized resolver. Compatible feature wrappers share lazy SentenceTransformer
+  and CrossEncoder runtimes by model name/revision/device/local-files-only/backend identity; support and stance
+  scorers retain their separate probability/threshold semantics above the shared NLI weights. Per-identity load
+  locks prevent duplicate first construction and leave failures retryable. Separate per-identity inference locks
+  conservatively serialize access to a shared runtime without locking DB/retrieval/provider work or unrelated
+  identities. Explicit injected models/scorers always win, and lifespan shutdown releases app-owned references.
 - **Desktop packaging (backlog #21, incs 394-395):** `app/desktop-shell/` — a Tauri v2 shell that
   spawns callosum's own FastAPI/uvicorn backend as a child process (a bundled portable CPython + this
   project's real dependencies via `bundle.resources`, CPU-only torch, not PyInstaller/Nuitka freezing)

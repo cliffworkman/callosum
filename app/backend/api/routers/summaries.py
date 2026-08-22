@@ -25,10 +25,15 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Connection, Engine, select
 from sqlalchemy.exc import NoResultFound
 
-from app.backend.api.dependencies import get_connection, get_engine
+from app.backend.api.dependencies import (
+    get_connection,
+    get_engine,
+    resolve_embedding_model,
+    resolve_support_scorer,
+)
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers.paper_files import _is_pdf_attachment
-from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
+from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.llm.cache import CachedSummaryGenerator
 from app.backend.llm.egress import EgressGatedSummaryGenerator
@@ -208,12 +213,13 @@ def summary_reverify(
         raise HTTPException(status_code=404, detail="Summary not found") from None
     api = request.app
     try:
+        model = _embedding_model(api)
         reverify_imported_summary(
             conn,
             summary_id,
-            model=_embedding_model(api),
+            model=model,
             vector_store=_vector_store(api),
-            support_scorer=api.state.support_scorer,
+            support_scorer=resolve_support_scorer(api, embedding_model=model),
         )
     except NotImportedError:
         raise HTTPException(status_code=422, detail="Only an imported synthesis can be re-verified.") from None
@@ -267,7 +273,7 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
         generator = _summary_generator(api)
         model = _embedding_model(api)
         store = _vector_store(api)
-        support_scorer = api.state.support_scorer
+        support_scorer = resolve_support_scorer(api, embedding_model=model)
         config = api.state.verifier_config
         engine: Engine = api.state.engine
         with engine.begin() as conn:
@@ -338,10 +344,7 @@ def _overview_generator(api: FastAPI):
 
 
 def _embedding_model(api: FastAPI) -> EmbeddingModel:
-    injected = api.state.embedding_model
-    if injected is not None:
-        return injected
-    return SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL)
+    return resolve_embedding_model(api)
 
 
 def _vector_store(api: FastAPI) -> VectorStore:

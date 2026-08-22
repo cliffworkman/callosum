@@ -9,9 +9,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException,
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection, Engine, select
 
-from app.backend.api.dependencies import get_connection, get_engine
+from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model
 from app.backend.api.job_store import JobStore
-from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, SentenceTransformerEmbeddingModel
 from app.backend.persistence.document_roles import (
     ARTICLE_DOCUMENT_ROLES,
     PREREGISTRATION,
@@ -311,11 +310,7 @@ def _run_comparison_job(app: FastAPI, job_id: str, paper_id: int, configuration:
                 int(row["id"]): row["checksum"]
                 for row in conn.execute(select(attachments).where(attachments.c.id.in_(attachment_ids))).mappings()
             }
-        model = app.state.embedding_model or SentenceTransformerEmbeddingModel(
-            name=DEFAULT_EMBEDDING_MODEL,
-            version=DEFAULT_EMBEDDING_MODEL,
-            local_files_only=True,
-        )
+        model = resolve_embedding_model(app, local_files_only=True)
         retrievals = retrieve_publication_evidence(
             commitments,
             article_chunks,

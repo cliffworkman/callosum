@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, resolve_embedding_model, resolve_stance_scorer
 from app.backend.citations.beyond_library import (
     MAX_BEYOND_RESULTS,
     BeyondLibrarySuggestion,
@@ -27,9 +27,9 @@ from app.backend.citations.beyond_library import (
     suggest_beyond_library,
 )
 from app.backend.citations.suggest import MAX_TEXT_LEN, Suggestion, suggest_citations
-from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
+from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
-from app.backend.summarization.verification import StanceScorer, default_stance_scorer
+from app.backend.summarization.verification import StanceScorer
 
 router = APIRouter(tags=["citations"])
 
@@ -178,18 +178,10 @@ def _beyond_response(item: BeyondLibrarySuggestion) -> BeyondSuggestionResponse:
     return BeyondSuggestionResponse(**data)
 
 
-# The embedding + NLI models are heavy to load, so cache the defaults on app.state (a synchronous endpoint must
-# not reload them per request). An injected model/store/scorer (tests) always wins. The embedding model mirrors
-# summaries.py exactly so it matches the model the library was embedded with.
+# The app-scoped registry owns heavy embedding/NLI runtimes; injected model/store/scorer test seams still win.
+# This default mirrors summaries.py exactly so it matches the model the library was embedded with.
 def _suggest_model(request: Request) -> EmbeddingModel:
-    injected = request.app.state.embedding_model
-    if injected is not None:
-        return injected
-    cached = getattr(request.app.state, "_suggest_model", None)
-    if cached is None:
-        cached = SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL)
-        request.app.state._suggest_model = cached
-    return cached
+    return resolve_embedding_model(request.app)
 
 
 def _suggest_vector_store(request: Request) -> VectorStore:
@@ -198,11 +190,4 @@ def _suggest_vector_store(request: Request) -> VectorStore:
 
 
 def _suggest_stance_scorer(request: Request) -> StanceScorer:
-    injected = getattr(request.app.state, "stance_scorer", None)
-    if injected is not None:
-        return injected
-    cached = getattr(request.app.state, "_suggest_stance_scorer", None)
-    if cached is None:
-        cached = default_stance_scorer()
-        request.app.state._suggest_stance_scorer = cached
-    return cached
+    return resolve_stance_scorer(request.app)

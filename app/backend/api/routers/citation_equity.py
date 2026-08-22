@@ -23,9 +23,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.backend.acquisition.registry import PaperRef
+from app.backend.api.dependencies import resolve_embedding_model
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers.papers import _authors_from_csl
-from app.backend.embeddings.models import SentenceTransformerEmbeddingModel
 from app.backend.methods.citation_equity import audit_reference_list
 from app.backend.methods.overlooked_work import rank_overlooked
 from app.backend.persistence.repository import find_existing_paper_by_identity
@@ -297,16 +297,8 @@ class OverlookedResponse(BaseModel):
 
 
 def _overlooked_model(app: FastAPI):
-    """The scientific-paper embedding model (inc 228) — injected `app.state.embedding_model` wins (tests); else a
-    lazily-built + cached SPECTER model (mirror discovery.py::_discovery_model)."""
-    injected = app.state.embedding_model
-    if injected is not None:
-        return injected
-    cached = getattr(app.state, "_overlooked_model", None)
-    if cached is None:
-        cached = SentenceTransformerEmbeddingModel(name=OVERLOOKED_EMBED_MODEL, version=OVERLOOKED_EMBED_MODEL)
-        app.state._overlooked_model = cached
-    return cached
+    """The scientific-paper embedding model; injection wins, else the app registry resolves SPECTER."""
+    return resolve_embedding_model(app, name=OVERLOOKED_EMBED_MODEL, version=OVERLOOKED_EMBED_MODEL)
 
 
 @router.post(

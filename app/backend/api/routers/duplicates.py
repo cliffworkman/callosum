@@ -18,10 +18,10 @@ from fastapi import status as http_status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Connection, Engine, select
 
-from app.backend.api.dependencies import get_connection, get_engine
+from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model
 from app.backend.api.job_store import JobStore
 from app.backend.clustering.duplicate_detection import find_duplicate_groups
-from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
+from app.backend.embeddings.models import EmbeddingModel
 from app.backend.metadata.paper_merge import MergeConflictError, MergeValidationError, merge_papers
 from app.backend.metadata.paper_unmerge import UnmergeError, merge_origin, unmerge
 from app.backend.persistence.dedup_repo import (
@@ -255,10 +255,7 @@ def merge_origin_endpoint(paper_id: int, conn: Connection = Depends(get_connecti
 
 
 def _embedding_model(app: FastAPI) -> EmbeddingModel:
-    injected = app.state.embedding_model
-    if injected is not None:
-        return injected
-    return SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL)
+    return resolve_embedding_model(app)
 
 
 def _run_dedup_job(app: FastAPI, job_id: str) -> None:

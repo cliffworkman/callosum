@@ -19,11 +19,12 @@ from fastapi import status as http_status
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from app.backend.api.dependencies import resolve_stance_scorer
 from app.backend.api.job_store import JobStore
 from app.backend.metadata.abstract_display import abstract_plain_text
 from app.backend.methods.citation_context import classify_citation_contexts
 from app.backend.persistence.schema import papers
-from app.backend.summarization.verification import StanceScorer, default_stance_scorer
+from app.backend.summarization.verification import StanceScorer
 from integrations.semantic_scholar.adapter import SemanticScholarClient
 
 router = APIRouter(tags=["citation-context"])
@@ -70,16 +71,8 @@ class CitationContextRequest(BaseModel):
 
 
 def _stance_scorer(app: FastAPI) -> StanceScorer:
-    """Injected ``app.state.stance_scorer`` wins (tests); else a lazily-built + cached local NLI scorer (the
-    citations.py::_suggest_stance_scorer pattern)."""
-    injected = getattr(app.state, "stance_scorer", None)
-    if injected is not None:
-        return injected
-    cached = getattr(app.state, "_citation_context_scorer", None)
-    if cached is None:
-        cached = default_stance_scorer()
-        app.state._citation_context_scorer = cached
-    return cached
+    """Injected ``app.state.stance_scorer`` wins; otherwise use the app-owned shared NLI runtime."""
+    return resolve_stance_scorer(app)
 
 
 @router.post(

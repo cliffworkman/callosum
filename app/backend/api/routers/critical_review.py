@@ -19,9 +19,8 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, Engine
 from sqlalchemy.exc import NoResultFound
 
-from app.backend.api.dependencies import get_connection, get_engine
+from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model, resolve_stance_scorer
 from app.backend.api.job_store import JobStore
-from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, SentenceTransformerEmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore
 from app.backend.methods.critical_review import (
     build_scrutiny_backbone,
@@ -33,7 +32,6 @@ from app.backend.methods.critical_review import (
 from app.backend.persistence import critical_review_repo as repo
 from app.backend.persistence.repository import get_paper
 from app.backend.persistence.sqlite_retry import run_write
-from app.backend.summarization.verification import default_stance_scorer
 
 router = APIRouter()
 
@@ -98,11 +96,9 @@ def _cr_deps(app: FastAPI):
     seam = getattr(app.state, "critical_review_deps", None)
     if seam is not None:
         return seam["embed_model"], seam["vector_store"], seam["stance_scorer"]
-    embed = app.state.embedding_model or SentenceTransformerEmbeddingModel(
-        name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL
-    )
+    embed = resolve_embedding_model(app)
     store = app.state.vector_store or SQLiteVecVectorStore()
-    return embed, store, default_stance_scorer()
+    return embed, store, resolve_stance_scorer(app)
 
 
 @router.post(

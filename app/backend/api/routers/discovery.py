@@ -13,10 +13,10 @@ from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException,
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection, Engine
 
-from app.backend.api.dependencies import get_connection, get_engine
+from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model
 from app.backend.discovery.relevance import score_axis_relevance
 from app.backend.discovery.search import run_search, save_item
-from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
+from app.backend.embeddings.models import EmbeddingModel
 from app.backend.metadata import enrich_paper_metadata_multi
 from app.backend.metadata.enrich_sources import build_default_enrich_registry
 from app.backend.persistence.sqlite_retry import run_write
@@ -42,14 +42,7 @@ def _enrich_saved_paper_bg(app: FastAPI, paper_id: int) -> None:
 # request). An injected model (tests) always wins. Mirrors citations.py / summaries.py so the vectors match the
 # model the library + axes were embedded with — and so the relevance "match" agrees with the axis-card confidence.
 def _discovery_model(request: Request) -> EmbeddingModel:
-    injected = request.app.state.embedding_model
-    if injected is not None:
-        return injected
-    cached = getattr(request.app.state, "_discovery_model", None)
-    if cached is None:
-        cached = SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL)
-        request.app.state._discovery_model = cached
-    return cached
+    return resolve_embedding_model(request.app)
 
 
 class RelevanceItem(BaseModel):

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
+
+from app.backend.model_runtime import ManagedModelRuntime
 
 DEFAULT_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 DEFAULT_NORMALIZATION = "whitespace-lower-v1"
@@ -53,6 +55,10 @@ class SentenceTransformerEmbeddingModel:
     normalization: str = DEFAULT_NORMALIZATION
     batch_size: int = 32
     local_files_only: bool = False
+    revision: str | None = None
+    device: str | None = None
+    backend: str = "torch"
+    _runtime: ManagedModelRuntime | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         self._model = None
@@ -61,26 +67,40 @@ class SentenceTransformerEmbeddingModel:
 
     @property
     def dimension(self) -> int:
-        model = self._load_model()
-        if hasattr(model, "get_embedding_dimension"):
-            return int(model.get_embedding_dimension())
-        return int(model.get_sentence_embedding_dimension())
+        def get_dimension(model: object) -> int:
+            if hasattr(model, "get_embedding_dimension"):
+                return int(model.get_embedding_dimension())  # type: ignore[attr-defined]
+            return int(model.get_sentence_embedding_dimension())  # type: ignore[attr-defined]
+
+        if self._runtime is not None:
+            return self._runtime.run(get_dimension)
+        return get_dimension(self._load_model())
 
     def encode_texts(self, texts: list[str]) -> list[list[float]]:
         normalized = [normalize_text(text, self.normalization) for text in texts]
-        embeddings = self._load_model().encode(
-            normalized,
-            batch_size=self.batch_size,
-            normalize_embeddings=True,
-            convert_to_numpy=True,
-        )
+
+        def encode(model: object):  # type: ignore[no-untyped-def]
+            return model.encode(  # type: ignore[attr-defined]
+                normalized,
+                batch_size=self.batch_size,
+                normalize_embeddings=True,
+                convert_to_numpy=True,
+            )
+
+        embeddings = self._runtime.run(encode) if self._runtime is not None else encode(self._load_model())
         return [_to_float_list(vector) for vector in embeddings]
 
     def _load_model(self):  # type: ignore[no-untyped-def]
         if self._model is None:
             from sentence_transformers import SentenceTransformer
 
-            self._model = SentenceTransformer(self.name, local_files_only=self.local_files_only)
+            self._model = SentenceTransformer(
+                self.name,
+                revision=self.revision,
+                device=self.device,
+                local_files_only=self.local_files_only,
+                backend=self.backend,
+            )
         return self._model
 
 

@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-22 — Increment 491: app-scoped local model runtime reuse
+- **Files:** `app/backend/model_runtime.py`, the FastAPI app/dependency wiring, embedding/NLI wrappers, routers that
+  consume local embeddings or NLI, `tests/test_model_runtime.py`, architecture/handoff docs, and increment notes.
+- **What:** adds one registry per FastAPI app instance. Compatible feature wrappers now share lazily loaded
+  SentenceTransformer/CrossEncoder runtimes by explicit identity, with per-identity first-load and conservative
+  inference locks. Explicit injected models/scorers still win, and app shutdown releases registry ownership.
+- **Why:** three same-process real-model syntheses loaded each runtime only on run 1 (2.558 s cold, then 0.062 and
+  0.059 s warm); a 12-claim/60-pair Critical Read likewise loaded only on run 1 (3.497 s cold, then 1.282 and
+  1.314 s warm). A second compatible NLI feature added no new model and no measurable RSS.
+- **Boundaries:** model names, normalization, thresholds, probabilities, batching, retrieval, provenance,
+  persistence, API/frontend contracts, provider clients, overview behavior, output caps, routing, and caches are
+  unchanged. Help did not need an update because this is invisible runtime ownership, not user-facing behavior.
+- **Revert:** revert this increment; there is no schema migration or stored-data repair.
+
 ## 2026-08-21 — Increment 490: batch Critical Read local inference
 - **Files:** `app/backend/methods/critical_review.py`, `app/backend/methods/critical_review_set.py`,
   `app/backend/summarization/verification.py`, `integrations/gemini/critical_review.py`,

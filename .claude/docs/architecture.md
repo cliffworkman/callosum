@@ -7,6 +7,9 @@ Callosum is a working local-first MVP at Increment 73. It runs as a localhost Fa
 - Backend: Python 3.11+, FastAPI, Uvicorn (`app/backend/api/app.py`).
 - Persistence: SQLite through SQLAlchemy Core 2.0 (`app/backend/persistence/schema.py`) with Alembic auto-migration on startup (`app/backend/api/startup.py`). Current head is `0006_dismissed_duplicate_pairs`.
 - Vectors: `sqlite-vec` in-process, with sentence-transformers embeddings. Default model is `all-MiniLM-L6-v2`; `bge-base-en-v1.5` is also supported.
+- Local model lifetime: each FastAPI app owns a `ModelRuntimeRegistry` (`app/backend/model_runtime.py`). Compatible
+  embedding and NLI feature wrappers share one lazy runtime per model name/revision/device/offline/backend identity;
+  first load and inference use separate per-identity locks, and explicit injected test/custom dependencies win.
 - PDF extraction: PyMuPDF (`fitz`) extracts text spans and `pdf-points-top-left` bounding boxes.
 - Retrieval and clustering: local embedding retrieval plus scikit-learn agglomerative clustering, axis scoring, duplicate detection, and c-TF-IDF tag/axis suggestions.
 - Summarization: Gemini `gemini-2.5-flash-lite` is optional, off by default, and used only to propose summary sentences/candidate citations. Local verification is authoritative.
@@ -25,6 +28,8 @@ Callosum is a working local-first MVP at Increment 73. It runs as a localhost Fa
 - `app/backend/persistence/`: SQLAlchemy schema, database wiring, repository functions, duplicate-dismissal data access, and tag data access.
 - `app/backend/pdf_processing/`: PDF ingest, PyMuPDF extraction, quote matching, citation-location lookup, and CLI helpers.
 - `app/backend/embeddings/`: embedding model wrappers, embedding pipeline, `sqlite-vec` vector store, and retrieval.
+- `app/backend/model_runtime.py`: app-scoped ownership, identity resolution, lazy loading, and conservative
+  per-runtime inference serialization for SentenceTransformer and CrossEncoder objects.
 - `app/backend/clustering/`: abstract clustering, user-defined axes, manual assignments, axis operations, optimal-axis suggestion, duplicate detection, and tag suggestion.
 - `app/backend/summarization/`: summary orchestration, generator protocols, and local citation verification.
 - `app/backend/llm/`: provider-neutral egress gates, content-addressed summary cache, and token usage logging.

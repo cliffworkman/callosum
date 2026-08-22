@@ -8,8 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection
 
-from app.backend.api.dependencies import get_connection
-from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, SentenceTransformerEmbeddingModel
+from app.backend.api.dependencies import get_connection, resolve_embedding_model
 from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, SUPPLEMENT
 from app.backend.persistence.registration_commitments_repo import (
     get_registration_version,
@@ -91,13 +90,7 @@ def retrieve_registration_publication_evidence(
     supplement_chunks = (
         get_chunks_for_paper(conn, paper_id, document_roles=(SUPPLEMENT,)) if payload.include_supplements else []
     )
-    model = request.app.state.embedding_model
-    if model is None:
-        model = SentenceTransformerEmbeddingModel(
-            name=DEFAULT_EMBEDDING_MODEL,
-            version=DEFAULT_EMBEDDING_MODEL,
-            local_files_only=True,
-        )
+    model = resolve_embedding_model(request.app, local_files_only=True)
     retrievals = retrieve_publication_evidence(
         commitments,
         article_chunks,

@@ -18,8 +18,9 @@ from fastapi import status as http_status
 from pydantic import BaseModel, Field
 
 from app.backend.acquisition.fetch import library_dir
+from app.backend.api.dependencies import resolve_embedding_model
 from app.backend.api.job_store import JobStore
-from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
+from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.pipeline import embed_chunks, embed_papers
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.metadata.citation_import import MAX_IMPORT_BYTES, import_citations
@@ -453,10 +454,7 @@ def _run_import_job(app: FastAPI, job_id: str, content: str, fmt: str | None) ->
 
 
 def _embedding_model(app: FastAPI) -> EmbeddingModel:
-    injected = app.state.embedding_model
-    if injected is not None:
-        return injected
-    return SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL)
+    return resolve_embedding_model(app)
 
 
 def _vector_store(app: FastAPI) -> VectorStore:

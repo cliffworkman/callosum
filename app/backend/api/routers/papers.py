@@ -11,7 +11,7 @@ from sqlalchemy import Connection, Engine
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from app.backend.acquisition.fetch import library_dir
-from app.backend.api.dependencies import get_connection, get_engine
+from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model
 from app.backend.api.routers.paper_edit_input import edits_from_request
 from app.backend.api.routers.paper_files import _local_attachment_path, _select_primary_pdf_attachment
 from app.backend.api.routers.paper_models import (
@@ -30,7 +30,7 @@ from app.backend.api.routers.paper_models import (
     ReadStateRequest,
     ReprocessPdfResponse,
 )
-from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
+from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.metadata.abstract_display import abstract_plain_text, clean_abstract_for_display
 from app.backend.metadata.citation_export import render_citations
@@ -365,10 +365,7 @@ def _vector_store(api: FastAPI) -> VectorStore:
 
 
 def _embedding_model(api: FastAPI) -> EmbeddingModel:
-    injected = api.state.embedding_model
-    if injected is not None:
-        return injected
-    return SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL)
+    return resolve_embedding_model(api)
 
 
 def _detail_for(conn: Connection, paper_id: int) -> PaperDetailResponse:

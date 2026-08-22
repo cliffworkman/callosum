@@ -25,7 +25,7 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, Engine, update
 from sqlalchemy.exc import NoResultFound
 
-from app.backend.api.dependencies import get_connection, get_engine
+from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers.axes_models import (
     DEFAULT_AXIS_CUTOFF,
@@ -67,7 +67,7 @@ from app.backend.clustering.axis_scoring import (
     update_axis,
 )
 from app.backend.clustering.axis_suggestion import apply_labels, suggest_axes
-from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
+from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.llm.egress import EgressGatedAxisClusterLabeler, EgressGatedAxisTermSuggester
 from app.backend.persistence.profile_repo import get_profile
@@ -459,10 +459,7 @@ def _run_axis_suggest_job(app: FastAPI, job_id: str) -> None:
 
 
 def _embedding_model(app: FastAPI) -> EmbeddingModel:
-    injected = app.state.embedding_model
-    if injected is not None:
-        return injected
-    return SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL)
+    return resolve_embedding_model(app)
 
 
 def _vector_store(app: FastAPI) -> VectorStore:

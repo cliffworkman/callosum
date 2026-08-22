@@ -13,6 +13,7 @@ from sqlalchemy import Connection, and_, select
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.pipeline import embed_chunks
 from app.backend.embeddings.vector_store import VectorStore
+from app.backend.model_runtime import ManagedModelRuntime
 from app.backend.pdf_processing.extraction import canonical_text_contains
 from app.backend.pdf_processing.location import locate_quote_for_attachment
 from app.backend.persistence.schema import chunks, embeddings
@@ -20,6 +21,7 @@ from app.backend.summarization.generators import CandidateCitation, SourceChunk
 
 VERIFICATION_VERSION = "local-verifier-v1"
 DEFAULT_SUPPORT_THRESHOLD = 0.55
+DEFAULT_NLI_MODEL = "cross-encoder/nli-MiniLM2-L6-H768"
 
 
 @dataclass(frozen=True)
@@ -93,11 +95,15 @@ class NLISupportScorer:
     The returned confidence is the model's entailment probability.
     """
 
-    model_name: str = "cross-encoder/nli-MiniLM2-L6-H768"
+    model_name: str = DEFAULT_NLI_MODEL
     local_files_only: bool = False
+    revision: str | None = None
+    device: str | None = None
+    backend: str = "torch"
     fallback_scorer: SupportScorer | None = None
     _model: object | None = field(default=None, init=False, repr=False)
     _loader: Callable[[], object] | None = field(default=None, repr=False)
+    _runtime: ManagedModelRuntime | None = field(default=None, repr=False)
 
     def score(self, *, sentence: str, passage: str) -> float:
         return self.support_and_contradiction(sentence=sentence, passage=passage)[0]
@@ -116,9 +122,12 @@ class NLISupportScorer:
         if not pairs:
             return []
         try:
-            model = self._load_model()
-            scores = model.predict(list(pairs), apply_softmax=True)  # type: ignore[attr-defined]
-            return [_values_from_row(row, model=model) for row in scores]
+
+            def predict(model: object):  # type: ignore[no-untyped-def]
+                scores = model.predict(list(pairs), apply_softmax=True)  # type: ignore[attr-defined]
+                return [_values_from_row(row, model=model) for row in scores]
+
+            return self._runtime.run(predict) if self._runtime is not None else predict(self._load_model())
         except Exception:
             if self.fallback_scorer is None:
                 raise
@@ -133,7 +142,13 @@ class NLISupportScorer:
             else:
                 from sentence_transformers import CrossEncoder
 
-                self._model = CrossEncoder(self.model_name, local_files_only=self.local_files_only)
+                self._model = CrossEncoder(
+                    self.model_name,
+                    revision=self.revision,
+                    device=self.device,
+                    local_files_only=self.local_files_only,
+                    backend=self.backend,
+                )
         return self._model
 
 
@@ -167,10 +182,14 @@ class NLIStanceScorer:
     shows no stance rather than a guessed verdict ("silence is not a certificate").
     """
 
-    model_name: str = "cross-encoder/nli-MiniLM2-L6-H768"
+    model_name: str = DEFAULT_NLI_MODEL
     local_files_only: bool = False
+    revision: str | None = None
+    device: str | None = None
+    backend: str = "torch"
     _model: object | None = field(default=None, init=False, repr=False)
     _loader: Callable[[], object] | None = field(default=None, repr=False)
+    _runtime: ManagedModelRuntime | None = field(default=None, repr=False)
 
     def classify_stance(self, *, sentence: str, passage: str) -> Stance | None:
         return self.classify_stances([(sentence, passage)])[0]
@@ -180,9 +199,14 @@ class NLIStanceScorer:
         if not pairs:
             return []
         try:
-            model = self._load_model()
-            scores = model.predict([(passage, sentence) for sentence, passage in pairs], apply_softmax=True)  # type: ignore[attr-defined]
-            return [_stance_from_row(row, model=model) for row in scores]
+
+            def predict(model: object):  # type: ignore[no-untyped-def]
+                scores = model.predict(  # type: ignore[attr-defined]
+                    [(passage, sentence) for sentence, passage in pairs], apply_softmax=True
+                )
+                return [_stance_from_row(row, model=model) for row in scores]
+
+            return self._runtime.run(predict) if self._runtime is not None else predict(self._load_model())
         except Exception:
             return [None] * len(pairs)
 
@@ -193,7 +217,13 @@ class NLIStanceScorer:
             else:
                 from sentence_transformers import CrossEncoder
 
-                self._model = CrossEncoder(self.model_name, local_files_only=self.local_files_only)
+                self._model = CrossEncoder(
+                    self.model_name,
+                    revision=self.revision,
+                    device=self.device,
+                    local_files_only=self.local_files_only,
+                    backend=self.backend,
+                )
         return self._model
 
 

@@ -119,6 +119,7 @@ from app.backend.embeddings.vector_store import VectorStore
 from app.backend.feedback.relay_client import FeedbackRelayClient, HttpFeedbackRelayClient
 from app.backend.help.assistant import HelpAssistant
 from app.backend.methods.retraction import DEFAULT_CHECKERS as DEFAULT_RETRACTION_CHECKERS
+from app.backend.model_runtime import ModelRuntimeRegistry
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.followed_author_repo import backfill_feed_subscriptions
 from app.backend.registration_acquisition.domain import RegistrationAcquisitionRegistry
@@ -178,10 +179,12 @@ def create_app(
     oidc_client: OidcClient | None = None,
     sync_transport: object | None = None,
     feedback_relay_client: FeedbackRelayClient | None = None,
+    model_runtime_registry: ModelRuntimeRegistry | None = None,
 ) -> FastAPI:
     resolved_db_url = db_url or os.environ.get("CALLOSUM_DB_URL", DEFAULT_DB_URL)
     resolved_frontend_path = _resolve_frontend_path(frontend_path)
     engine = make_engine(resolved_db_url)
+    runtime_registry = model_runtime_registry or ModelRuntimeRegistry()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -195,6 +198,7 @@ def create_app(
         try:
             yield
         finally:
+            runtime_registry.close()
             engine.dispose()
 
     api = FastAPI(title="Callosum Local API", version="0.1.0", lifespan=lifespan)
@@ -282,6 +286,7 @@ def create_app(
     api.state.feed_jobs = JobStore()  # inc 187: async Feed refresh (poll subscriptions)
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator
+    api.state.model_runtime_registry = runtime_registry
     api.state.embedding_model = embedding_model
     api.state.vector_store = vector_store
     api.state.support_scorer = support_scorer

@@ -14,9 +14,10 @@ from fastapi import status as http_status
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection, and_, case, func, select
 
+from app.backend.api.dependencies import resolve_embedding_model
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers.paper_files import _local_attachment_path, _select_primary_pdf_attachment
-from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
+from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.pdf_processing.extraction import DEFAULT_CHUNKING_STRATEGY, EXTRACTION_TOOL
 from app.backend.pdf_processing.ingest import PdfReprocessEmptyExtraction, reprocess_pdf_attachment
@@ -297,7 +298,4 @@ def _vector_store(api: FastAPI) -> VectorStore:
 
 
 def _embedding_model(api: FastAPI) -> EmbeddingModel:
-    injected = api.state.embedding_model
-    if injected is not None:
-        return injected
-    return SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL)
+    return resolve_embedding_model(api)

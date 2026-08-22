@@ -22,8 +22,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.backend.acquisition.registry import PaperRef
+from app.backend.api.dependencies import resolve_embedding_model
 from app.backend.api.job_store import JobStore
-from app.backend.embeddings.models import SentenceTransformerEmbeddingModel
 from app.backend.metadata.abstract_display import abstract_plain_text
 from app.backend.methods.publishers import MAX_PROFILES, build_profiles
 from app.backend.persistence.ajol_repo import ajol_db_status, lookup_ajol_record
@@ -189,16 +189,8 @@ def publishers_status(job_id: str, request: Request) -> PublishersResponse:
 
 
 def _publishers_model(app: FastAPI):
-    """Injected `app.state.embedding_model` wins (tests); else a lazily-built + cached SPECTER model (mirror
-    citation_equity.py::_overlooked_model)."""
-    injected = app.state.embedding_model
-    if injected is not None:
-        return injected
-    cached = getattr(app.state, "_publishers_model", None)
-    if cached is None:
-        cached = SentenceTransformerEmbeddingModel(name=PUBLISHERS_EMBED_MODEL, version=PUBLISHERS_EMBED_MODEL)
-        app.state._publishers_model = cached
-    return cached
+    """Injected embedding wins; otherwise the app registry resolves the compatible SPECTER runtime."""
+    return resolve_embedding_model(app, name=PUBLISHERS_EMBED_MODEL, version=PUBLISHERS_EMBED_MODEL)
 
 
 def _run_publishers_job(app: FastAPI, job_id: str, body: PublishersRequest) -> None:

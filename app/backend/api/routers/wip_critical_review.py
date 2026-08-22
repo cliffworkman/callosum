@@ -11,9 +11,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException,
 from fastapi import status as http_status
 from pydantic import BaseModel
 
+from app.backend.api.dependencies import resolve_embedding_model, resolve_stance_scorer
 from app.backend.api.job_store import JobProgress, JobStore
 from app.backend.api.wip_security import require_local_wip
-from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, SentenceTransformerEmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore
 from app.backend.methods.critical_review import (
     ContestedSearchReport,
@@ -26,7 +26,6 @@ from app.backend.persistence.sqlite_retry import run_write
 from app.backend.persistence.wip_critical_review_repo import store_critical_review_run
 from app.backend.persistence.wip_provenance_repo import PreparedSnapshot, prepare_snapshot, record_snapshot
 from app.backend.persistence.wip_repo import add_activity, get_manuscript
-from app.backend.summarization.verification import NLIStanceScorer
 from app.backend.wip.content import ContentIdentityError
 
 router = APIRouter(prefix="/wip", dependencies=[Depends(require_local_wip)])
@@ -48,13 +47,9 @@ def _wip_critical_deps(app: FastAPI):
     seam = getattr(app.state, "wip_critical_review_deps", None)
     if seam is not None:
         return seam["embed_model"], seam["vector_store"], seam["stance_scorer"]
-    embed = app.state.embedding_model or SentenceTransformerEmbeddingModel(
-        name=DEFAULT_EMBEDDING_MODEL,
-        version=DEFAULT_EMBEDDING_MODEL,
-        local_files_only=True,
-    )
+    embed = resolve_embedding_model(app, local_files_only=True)
     store = app.state.vector_store or SQLiteVecVectorStore()
-    stance = app.state.stance_scorer or NLIStanceScorer(local_files_only=True)
+    stance = resolve_stance_scorer(app, local_files_only=True)
     return embed, store, stance
 
 

@@ -523,3 +523,40 @@ Sunday.
 - Temporary benchmark code under `.claude/` was deleted; no provider/network call or persistent user-data write
   occurred. The three pre-existing untracked Discover screenshots remain untouched. Nothing was pushed or merged.
 - Full implementation narrative: `.claude/docs/increment-notes/INCREMENT-490-NOTES.md`.
+
+---
+
+# Codex Session 4 Summary — 2026-08-22: app-scoped local model runtime reuse
+
+### What changed
+
+- Added `app/backend/model_runtime.py`: each `create_app()` instance owns a registry that resolves lazy local model
+  runtimes by family/name/revision/device/local-files-only/backend identity. It uses separate per-identity load and
+  inference locks; construction failures remain retryable, unrelated identities do not block, and shutdown clears
+  app-owned references.
+- Centralized embedding/support/stance resolution in `api/dependencies.py`. Explicit injected dependencies still
+  win. Synthesis, Critical Read, WIP, citation context/suggestion, and every router embedding fallback now use the
+  app registry. Support and stance scorers keep separate semantics while sharing compatible CrossEncoder weights.
+- Preserved inc 490 batching: representative single Critical Read remains one 12-item embedding call and one
+  60-pair NLI call; set and WIP batch tests remain green. No model, threshold, retrieval, persistence, provenance,
+  API/frontend, provider, overview, output-cap, routing, or cache behavior changed.
+
+### Measured proof
+
+- Three full temporary-DB, fake-provider syntheses in one process: **2.558 s**, **0.0625 s**, **0.0595 s**. The
+  embedding (**1.872 s**) and NLI (**0.571 s**) runtimes loaded only on run 1; object ids remained unchanged.
+- Real 12-claim/60-pair Critical Read: **3.497 s** cold, **1.282 s** warm, **1.314 s** repeated same input. Model
+  loads occurred only on run 1 (embedding **1.601 s**, NLI **0.681 s**); all runs made one embedding and one NLI
+  inference call.
+- RSS: first embedding feature reached **560,410,624 B**; a second compatible feature reached **560,431,104 B**
+  (+20,480 B, no load). First NLI use reached **750,473,216 B**; another compatible NLI feature remained exactly
+  **750,473,216 B** (+0 B, no load).
+
+### Verification and handoff
+
+- Registry tests: **10 passed**; focused synthesis/Critical Read/WIP/citation: **103 passed**; touched routers:
+  **261 passed**; full suite: **2359 passed, 3 skipped in 2861.85 s (0:47:41)**.
+- Ruff format/check, Tach, and the 554-file line budget passed. Bandit is not installed in this environment, so no
+  Bandit result is claimed. No security-audit trigger was introduced.
+- Full narrative: `.claude/docs/increment-notes/INCREMENT-491-NOTES.md`. The three pre-existing untracked Discover
+  screenshots remain untouched. Nothing was pushed or merged.
