@@ -343,12 +343,14 @@ Transaction boundaries must be considered explicitly.
 
 Any change to commit order, durability, or state transitions requires correctness testing before performance benefit is considered.
 
-Current live boundary: the whole synthesis pipeline invoked by `_run_summarize_job()` runs inside one
-`engine.begin()` scope: source retrieval/embedding work, generation-cache access, remote summary generation on a miss,
-local verification, persistence, response construction, and optional overview generation. Verified rows have been
-created when overview generation starts, but they are not committed and the background job is not marked done until
-overview generation returns (or fails open). Callosum has not yet implemented "return the verified synthesis before
-overview"; do not document or test the system as though it has.
+Current live synthesis boundary: Phase A keeps retrieval, generation-cache access/remote summary generation,
+verification, and the complete evidence graph in one primary transaction. Only after that transaction commits does
+`_run_summarize_job()` reread authoritative state and mark the primary job done. Phase B then acquires persisted
+overview work, closes its database context, calls the overview provider with no transaction/connection held, and uses
+a short transaction to persist the result. Overview lifecycle is explicit (`not_requested`, `pending`, `running`,
+`complete`, `failed`); a five-minute stale `running` attempt is manually retryable, completed content is immutable
+under ordinary retry, and no startup/reload path automatically emits provider traffic. Persisted summary state remains
+authoritative; the frontend renders committed claims immediately and performs only a bounded supplementary refetch.
 
 Critical Read Tier-2 paths also retain remote proposal calls inside transaction/connection scope: the single-paper
 endpoint commits after proposal, grounding, and insertion, while Set Critical Read keeps proposal, verification, and
@@ -665,6 +667,11 @@ Unless deliberately changed and revalidated, Callosum currently relies on these 
 - Long-poll correctness tests do not use microbenchmark detection latency as a functional invariant.
 - Synthesis generation-cache hits require the versioned provider/model/wire/endpoint/credential/request-semantics
   identity plus the exact ordered prompt inputs; legacy under-specified rows cannot satisfy the current key.
+- A synthesis job becomes done only after its summary row, ordered sentences, citation mappings, evidence quotes,
+  verification/provenance state, and derived status commit successfully. Optional overview work starts afterward,
+  holds no database transaction during provider latency, and cannot roll back or fail the primary job.
+- Persisted overview lifecycle state is authoritative. Retry reuses the same summary id, uses guarded acquisition,
+  permits manual reclamation of stale work, and never overwrites a completed overview.
 
 Any modification that affects these properties requires explicit review.
 
@@ -679,7 +686,8 @@ Any modification that affects these properties requires explicit review.
 | Default model/scorer dependency resolution | `app/backend/api/dependencies.py` |
 | Critical Read batching and positional pair mapping | `app/backend/methods/critical_review.py` |
 | Critical Read tokenizer-length planning and reconstruction | `app/backend/summarization/stance.py` |
-| Synthesis citation batching and overview placement | `app/backend/summarization/pipeline.py` |
+| Synthesis citation batching and primary persistence | `app/backend/summarization/pipeline.py` |
+| Supplementary overview lifecycle/CAS/provider boundary | `app/backend/summarization/overview_lifecycle.py`, `app/backend/api/routers/summary_overview.py` |
 | Synthesis generation-cache identity and source hashing | `app/backend/llm/cache.py`, `integrations/gemini/generator.py` |
 | Provider pool/client identity and cleanup | `app/backend/provider_runtime.py` |
 | Provider dispatch and explicit-client precedence | `app/backend/llm/providers.py` |
@@ -689,8 +697,8 @@ Any modification that affects these properties requires explicit review.
 
 Known current boundaries—not completed optimizations—include:
 
-- the full synthesis pipeline, including remote generation and optional overview, remains inside one transaction;
-  overview remains on the completion critical path
+- synthesis Phase A still includes remote primary generation and local verification in its primary transaction;
+  only the supplementary overview has moved outside that transaction/critical path
 - Critical Read Tier-2 proposal calls remain inside their request transaction/connection scope
 - numerous non-synthesis/non-Critical-Read background workflows still use fixed polling
 - feature-specific output caps have not been implemented across provider paths

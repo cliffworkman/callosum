@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
-from sqlalchemy import Connection, insert, select, update
+from sqlalchemy import Connection, func, insert, select
 
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.pipeline import embed_chunks
@@ -24,7 +24,6 @@ from app.backend.persistence.schema import (
 )
 from app.backend.summarization.chunk_filtering import is_front_matter_chunk
 from app.backend.summarization.generators import CandidateCitation, SourceChunk, SummaryGenerator
-from app.backend.summarization.overview import OverviewGenerator
 from app.backend.summarization.verification import (
     LocalCitationVerifier,
     SupportScorer,
@@ -96,7 +95,7 @@ def summarize_scope(
     top_k: int = 8,
     verifier_config: VerificationConfig | None = None,
     support_scorer: SupportScorer | None = None,
-    overview_generator: OverviewGenerator | None = None,
+    overview_requested: bool = False,
     on_progress: Callable[[int, int, str], None] | None = None,
 ) -> SummaryPersistenceResult:
     source_chunks = _source_chunks_for_scope(conn, scope=scope, model=model, vector_store=vector_store, top_k=top_k)
@@ -133,6 +132,11 @@ def summarize_scope(
     summary_status = (
         "verified" if all(all(item.verified for item in row) and row for row in verification_rows) else "flagged"
     )
+    overview_status = (
+        "pending"
+        if overview_requested and any(row and all(item.verified for item in row) for row in verification_rows)
+        else "not_requested"
+    )
     summary_id = _insert_summary(
         conn,
         scope=scope,
@@ -141,6 +145,7 @@ def summarize_scope(
         verifications=[item for row in verification_rows for item in row],
         source_chunk_count=len(source_chunks),
         status=summary_status,
+        overview_status=overview_status,
     )
     sentence_results = []
     for ordinal, (candidate, verifications) in enumerate(zip(candidates, verification_rows, strict=False)):
@@ -160,13 +165,6 @@ def summarize_scope(
                 citations=citation_results,
             )
         )
-    _maybe_store_overview(
-        conn,
-        summary_id=summary_id,
-        sentence_results=sentence_results,
-        scope=scope,
-        overview_generator=overview_generator,
-    )
     return SummaryPersistenceResult(
         summary_id=summary_id,
         status=summary_status,
@@ -174,37 +172,6 @@ def summarize_scope(
         source_chunk_count=len(source_chunks),
         section_filter=scope.sections or [],
     )
-
-
-def _maybe_store_overview(
-    conn: Connection,
-    *,
-    summary_id: int,
-    sentence_results: list[SummarySentencePersistenceResult],
-    scope: SummaryScope,
-    overview_generator: OverviewGenerator | None,
-) -> None:
-    """Second pass: narrativize ONLY the verified claims into a per-sentence traceable Overview. Each Overview
-    sentence's claim_indices (into the ordered verified claims) are validated and mapped to those claims'
-    ordinals, then stored on summaries.overview_json. 0 verified claims → no overview; any error (egress-off
-    included) → no overview (never fails the synthesis; the verified claims stand alone)."""
-    if overview_generator is None:
-        return
-    verified = [sentence for sentence in sentence_results if not sentence.flagged]
-    if not verified:
-        return
-    claims = [sentence.text for sentence in verified]
-    try:
-        produced = overview_generator.generate(verified_claims=claims, scope_ref=scope.to_ref())
-    except Exception:
-        return
-    items: list[dict[str, object]] = []
-    for sentence in produced:
-        ordinals = sorted({verified[i].ordinal for i in sentence.claim_indices if 0 <= i < len(verified)})
-        if sentence.text.strip() and ordinals:
-            items.append({"text": sentence.text.strip(), "claim_ordinals": ordinals})
-    if items:
-        conn.execute(update(summaries).where(summaries.c.id == summary_id).values(overview_json=items))
 
 
 def _source_chunks_for_scope(
@@ -350,6 +317,7 @@ def _insert_summary(
     verifications: list[VerificationResult],
     source_chunk_count: int,
     status: str,
+    overview_status: str,
 ) -> int:
     scope_ref = scope.to_ref()
     scope_ref["source_chunk_count"] = source_chunk_count
@@ -363,6 +331,8 @@ def _insert_summary(
             embedding_version_verified_against=_combined_embedding_version(verifications),
             verification_version="local-verifier-v1",
             status=status,
+            overview_status=overview_status,
+            overview_updated_at=func.current_timestamp(),
         )
     )
     return int(result.inserted_primary_key[0])

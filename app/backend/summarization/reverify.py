@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 
-from sqlalchemy import Connection, delete, insert, select, update
+from sqlalchemy import Connection, delete, func, insert, select, update
 
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.retrieval import search_similar
@@ -157,6 +157,8 @@ def reverify_imported_summary(
         .values(
             imported_json=None,
             overview_json=None,  # the sender's overview traced their verified set — dropped (not re-narrated; no LLM)
+            overview_status="not_requested",
+            overview_updated_at=func.current_timestamp(),
             status=status,
             generated_by=REVERIFIED_SOURCE,
             chunk_version_verified_against=_combined_chunk_version(all_results) if all_results else "reverify",

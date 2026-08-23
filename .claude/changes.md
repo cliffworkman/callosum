@@ -9,6 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-08-23 — Increment 494: synthesis primary/Overview transaction split -->
+## 2026-08-23 — Increment 494: durable primary synthesis before supplementary Overview
+- **Files:** `app/backend/api/routers/{summaries,summary_overview}.py`,
+  `app/backend/summarization/{pipeline,overview_lifecycle,reverify}.py`,
+  `app/backend/persistence/schema_summaries.py`, `alembic/versions/0075_summary_overview_lifecycle.py`,
+  `app/frontend/js/{19b_synthesis_overview,20_synthesis}.jsx`, `callosum-app.html`, synthesis/overview/frontend/
+  migration tests, `app/backend/help/help_content.md`, `.claude/{LATENCY,CLAUDE,changes}.md`, and
+  `.claude/docs/increment-notes/INCREMENT-494-NOTES.md`.
+- **What:** splits synthesis into a committed primary trust-spine phase and a supplementary Overview phase. Explicit
+  persisted lifecycle state, guarded retry/stale reclamation, and first-success-wins persistence keep provider work
+  outside database transactions; the frontend renders claims immediately and boundedly rereads Overview state.
+- **Why:** optional remote Overview latency delayed primary visibility, held SQLite writer access, and could roll back
+  an otherwise valid verified synthesis. Injected 0.46/1/3/5-second delays now leave primary completion at roughly
+  17–21 ms and competing-writer waits at 13–15 ms instead of scaling with provider delay.
+- **Boundaries:** generation, cache-v2 identity, prompts, verification, evidence/provenance, provider/runtime reuse,
+  API claim fields, and primary long-poll semantics are unchanged. Overview output structure/parser/reference
+  filtering are unchanged; only lifecycle, durability, retry, and timing changed.
+- **Verification:** 192 affected synthesis/cache/long-poll/runtime/frontend/migration tests passed; final parallel
+  root suite **2427 passed, 3 skipped**. Ruff format/check, Bandit, Tach, the 560-file line budget, generated-frontend
+  equality, migration drift, and `git diff --check` passed.
+- **Revert:** revert this increment, including migration 0075 and the generated frontend artifact. Existing nullable
+  lifecycle columns are additive; do not destructively rewrite `overview_json`.
+
 ## 2026-08-23 — Increment 493: synthesis generation-cache identity hardening
 - **Files:** `app/backend/llm/cache.py`, `app/backend/llm/providers.py`, `integrations/gemini/generator.py`,
   `app/backend/persistence/schema.py`, `tests/test_llm_cache.py`, `.claude/LATENCY.md`, `.claude/CLAUDE.md`, and

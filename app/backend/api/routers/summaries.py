@@ -6,6 +6,7 @@ verified result is read back here with per-sentence flag status and per-citation
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal
 
 from fastapi import (
@@ -34,6 +35,8 @@ from app.backend.api.dependencies import (
 )
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers.paper_files import _is_pdf_attachment
+from app.backend.api.routers.summary_overview import resolve_overview_generator
+from app.backend.api.routers.summary_overview import router as overview_router
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.llm.cache import CachedSummaryGenerator
@@ -49,11 +52,17 @@ from app.backend.persistence.schema import (
 )
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.summarization.generators import SummaryGenerator
+from app.backend.summarization.overview_lifecycle import (
+    OverviewStatus,
+    generate_overview,
+    overview_status_for_row,
+)
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
 from app.backend.summarization.reverify import NotImportedError, reverify_imported_summary
 from integrations.gemini import GeminiSummaryGenerator
 
 router = APIRouter()
+router.include_router(overview_router)
 
 
 class SummarizeRequest(BaseModel):
@@ -112,6 +121,8 @@ class SummarizeJobResponse(BaseModel):
     section_filter: list[str] = []
     sentences: list[SummarySentenceResponse] | None = None
     overview: list[OverviewItemResponse] | None = None
+    overview_status: OverviewStatus = "not_requested"
+    overview_updated_at: datetime | None = None
     imported: bool = False  # B2 SP2: a relayed synthesis — the sender's assessment, region precision, not re-verified
 
 
@@ -275,8 +286,10 @@ def _normalize_summary_sections(sections: list[str] | None) -> list[str] | None:
 def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> None:
     jobs: JobStore[SummarizeJobResponse] = api.state.summary_jobs
     jobs.mark_running(job_id)
+    overview_generator = None
     try:
         generator = _summary_generator(api)
+        overview_generator = resolve_overview_generator(api)
         model = _embedding_model(api)
         store = _vector_store(api)
         support_scorer = resolve_support_scorer(api, embedding_model=model)
@@ -292,15 +305,33 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
                 top_k=request.top_k,
                 verifier_config=config,
                 support_scorer=support_scorer,
-                overview_generator=_overview_generator(api),
+                overview_requested=overview_generator is not None,
                 on_progress=lambda i, n, label: jobs.mark_progress(job_id, i, n, label),
             )
+        # Phase A has committed. Reread the authoritative trust spine from a fresh connection before
+        # publishing completion; no generated-but-unverified or uncommitted response can reach JobStore.
+        with engine.connect() as conn:
             response = _persisted_summary_response(conn, summary_id=result.summary_id, job_id=job_id)
         # inc 415: publish the finished synthesis id as a small Status-navigation hint (see job_store.Job.nav)
         # so a Status-popover click can reopen this exact synthesis, not just the Ask tab in general.
         jobs.mark_done(job_id, response, nav={"summary_id": result.summary_id})
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
+        return
+
+    # Phase B is supplementary. ``generate_overview`` acquires/commits running state, closes its read
+    # connection before provider work, and isolates every failure from the already-durable primary result.
+    if response.overview_status == "pending" and overview_generator is not None:
+        generate_overview(
+            engine,
+            summary_id=result.summary_id,
+            generator=overview_generator,
+        )
+        # Preserve direct status-read compatibility after Phase B without changing the first
+        # completion boundary: observers were already woken with the committed primary above.
+        with engine.connect() as conn:
+            refreshed = _persisted_summary_response(conn, summary_id=result.summary_id, job_id=job_id)
+        jobs.mark_done(job_id, refreshed, nav={"summary_id": result.summary_id})
 
 
 def _summary_generator(api: FastAPI) -> SummaryGenerator:
@@ -320,28 +351,6 @@ def _summary_generator(api: FastAPI) -> SummaryGenerator:
     # consulted), then the authoritative egress gate OUTSIDE — covers the injected provider AND the default.
     return EgressGatedSummaryGenerator(
         inner=CachedSummaryGenerator(inner=inner),
-        data_egress_enabled=config.data_egress_enabled,
-        provider=config.provider,
-        wire_format=config.wire_format,
-        base_url=config.base_url,
-    )
-
-
-def _overview_generator(api: FastAPI):
-    from app.backend.llm.egress import EgressGatedOverviewGenerator
-    from app.backend.llm.providers import requires_egress
-    from integrations.gemini.overview import GeminiOverviewGenerator
-
-    config = resolve_llm_config(api)
-    inner = api.state.overview_generator
-    if inner is None:
-        # For a cloud provider, no overview without egress + a key (the verified claims stand alone); a loopback
-        # provider (builtin `local` or a localhost custom) needs neither.
-        if requires_egress(config) and not (config.data_egress_enabled and config.resolved_api_key()):
-            return None
-        inner = GeminiOverviewGenerator(config=config)
-    return EgressGatedOverviewGenerator(
-        inner=inner,
         data_egress_enabled=config.data_egress_enabled,
         provider=config.provider,
         wire_format=config.wire_format,
@@ -391,6 +400,8 @@ def _persisted_summary_response(conn: Connection, *, summary_id: int, job_id: st
         section_filter=_section_filter_from_ref(summary["scope_ref_json"]),
         sentences=[_summary_sentence_response(conn, sentence) for sentence in sentence_rows],
         overview=overview,
+        overview_status=overview_status_for_row(summary),
+        overview_updated_at=summary["overview_updated_at"],
     )
 
 
@@ -445,6 +456,7 @@ def _imported_summary_response(blob: Any, *, summary_id: int, job_id: str) -> Su
         section_filter=[],
         sentences=sentences,
         overview=overview,
+        overview_status="complete" if overview else "not_requested",
         imported=True,
     )
 

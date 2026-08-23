@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 493** (see Increment workflow) with **2415 root-suite pytest tests
+It is currently at **Increment 494** (see Increment workflow) with **2427 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -699,6 +699,10 @@ the full per-increment narrative for all other increments now lives in the reloc
   the same provider roster id, model, resolved wire mode, canonical endpoint, fixed request semantics, credential
   fingerprint, prompt/generator version, and exact ordered prompt inputs. Old under-specified rows miss once without
   migration, raw secrets/endpoints never enter stored signatures, and local citation verification still reruns.
+  **Inc 494** commits the complete verified synthesis trust spine before optional Overview generation. The primary
+  job is marked done from a committed reread; persisted Overview lifecycle/CAS state makes supplementary generation
+  retryable, first-success-wins, and crash-visible. No database connection is held during the Overview provider call,
+  and any provider/parser/write failure leaves the primary synthesis intact and usable.
 - **Frontend:** modular source under `app/frontend/` (`index.html` shell + `styles.css` +
   ordered `js/*.jsx` React chunks, React/ReactDOM + pdf.js via CDN), assembled by
   `app/backend/api/frontend.py`: the JSX chunks are concatenated and **precompiled to plain JS by

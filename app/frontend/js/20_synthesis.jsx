@@ -15,26 +15,6 @@ function flashClaims(ordinals) {
   });
 }
 
-// inc 124: an evidence-traceable Overview — a short narration OF the verified claims (not authoritative prose).
-// Each line restates one or more verified claims and links back to them: click → the claim(s) flash below.
-function OverviewBlock({ overview }) {
-  if (!overview || overview.length === 0) return null;
-  return (
-    <section className="synth-overview">
-      <p className="eyebrow">Overview — synthesized from the verified claims below</p>
-      {overview.map((item, i) => (
-        <button key={i} className="overview-line" title="Show the verified claim(s) this restates"
-          onClick={() => flashClaims(item.claim_ordinals)}>
-          {item.text}
-          <span className="overview-trace">
-            {(item.claim_ordinals || []).map(o => "[" + (o + 1) + "]").join(" ")}
-          </span>
-        </button>
-      ))}
-    </section>
-  );
-}
-
 const SYNTH_SECTION_OPTIONS = [
   "abstract",
   "methods",
@@ -67,6 +47,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
   const [sourceDiagnostic, setSourceDiagnostic] = useState(null);
   const pollRef = useRef(null);
   const lastLaunchRef = useRef(null);
+  const overviewLifecycle = useSynthesisOverview(state, setState);
 
   // Re-read egress state on mount + whenever Settings closes (settingsNonce), so the nudge clears once AI is on.
   useEffect(() => {
@@ -389,7 +370,9 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
               {state.result.source_chunk_count === 0 && onOpenTextHealth &&
                 <SynthesisSourceDiagnostic diagnostic={sourceDiagnostic} onOpenTextHealth={openTextHealthForSynthesis} />}
             </div>}
-          {sentences.length > 0 && <OverviewBlock overview={state.result.overview} />}
+          {sentences.length > 0 && <OverviewBlock overview={state.result.overview}
+            status={state.result.overview_status || (state.result.overview ? "complete" : "not_requested")}
+            onRetry={readOnly ? null : overviewLifecycle.retry} retrying={overviewLifecycle.retrying} />}
           {sentences.length > 0 && <GroupedSummarySentences sentences={sentences} onOpenCitation={onOpenCitation} onSaveHighlight={readOnly ? null : onSaveHighlight} />}
         </div>}
 

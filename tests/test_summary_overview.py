@@ -13,6 +13,7 @@ from app.backend.summarization.generators import (
     FakeSummaryGenerator,
 )
 from app.backend.summarization.overview import FakeOverviewGenerator, OverviewSentence
+from app.backend.summarization.overview_lifecycle import generate_overview
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
 from integrations.gemini.overview import _parse_overview_response
 from tests.api_helpers import (
@@ -24,11 +25,11 @@ from tests.api_helpers import (
 from tests.test_summarize_selected import _seed_two_papers_two_chunks  # reuse the multi-paper fixture
 
 
-def test_summaries_has_overview_json_column(temp_db_url: str) -> None:
+def test_summaries_has_overview_lifecycle_columns(temp_db_url: str) -> None:
     engine = make_engine(temp_db_url)  # create_all + alembic upgrade head
     cols = {c["name"] for c in sa.inspect(engine).get_columns("summaries")}
     engine.dispose()
-    assert "overview_json" in cols
+    assert {"overview_json", "overview_status", "overview_updated_at"} <= cols
 
 
 def test_fake_overview_generator_returns_sentences() -> None:
@@ -85,8 +86,11 @@ def _overview_for(db_url: str, *, overview_gen):
             vector_store=InMemoryVectorStore(),
             support_scorer=ConstantSupportScorer(),
             top_k=4,
-            overview_generator=overview_gen,
+            overview_requested=overview_gen is not None,
         )
+    if overview_gen is not None:
+        generate_overview(engine, summary_id=result.summary_id, generator=overview_gen)
+    with engine.connect() as conn:
         row = conn.execute(select(summaries.c.overview_json).where(summaries.c.id == result.summary_id)).scalar_one()
     engine.dispose()
     return row

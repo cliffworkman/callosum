@@ -630,6 +630,17 @@ def test_synthesis_failure_recovery_actions_are_wired():
     assert "stale extraction" in raw
     assert "Open scoped Text Health" in raw
     assert "Technical detail" in raw
+
+
+def test_synthesis_overview_lifecycle_never_blocks_verified_claims():
+    raw = assemble_jsx()
+    assert 'status === "pending" || status === "running"' in raw
+    assert "Generating overview… Verified claims are ready below." in raw
+    assert "Overview unavailable" in raw
+    assert "Retry overview" in raw
+    assert "apiPost(`/summaries/${summaryId}/overview/retry`, {})" in raw
+    assert "attempt >= 40" in raw  # supplementary refresh is bounded, never an unbounded polling loop
+    assert "<GroupedSummarySentences" in raw
     assert "lastLaunchRef.current = { body, runningMessage }" in raw
     assert "onOpenTextHealth={ctx.onOpenTextHealth}" in raw
     assert "onOpenTextHealth: openTextHealth" in raw

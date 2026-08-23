@@ -40,6 +40,10 @@ summaries = Table(
     Column("scope_ref_json", JSON),
     Column("content", Text),
     Column("overview_json", JSON),  # inc 124: per-sentence traceable Overview [{text, claim_ordinals:[int]}]
+    # A nullable lifecycle keeps pre-494 rows backward-readable: NULL + an overview is treated as complete;
+    # NULL without one is treated as not_requested, never as queued provider work.
+    Column("overview_status", String(32)),
+    Column("overview_updated_at", DateTime),
     Column(
         "imported_json", JSON
     ),  # B2 SP2 (inc 235): a RELAYED synthesis's self-contained display blob (status="imported")
