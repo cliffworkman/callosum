@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-23 — Increment 493: synthesis generation-cache identity hardening
+- **Files:** `app/backend/llm/cache.py`, `app/backend/llm/providers.py`, `integrations/gemini/generator.py`,
+  `app/backend/persistence/schema.py`, `tests/test_llm_cache.py`, `.claude/LATENCY.md`, `.claude/CLAUDE.md`, and
+  `.claude/docs/increment-notes/INCREMENT-493-NOTES.md`.
+- **What:** versions the synthesis generation cache key and adds provider roster id, model, resolved wire/API mode,
+  normalized endpoint, fixed request semantics, non-reversible credential identity, Gemini SDK environment, and
+  every ordered prompt-relevant source field. Legacy under-specified rows become unreachable without migration.
+- **Why:** two configurations could previously share cached generated wording solely because model/prompt/source
+  strings matched, even when provider, wire mode, or endpoint semantics differed. Verification-on-hit does not make
+  the generated wording configuration-identical.
+- **Boundaries:** cache eligibility only. Prompts, requests, routing, generation parameters, verification, overview,
+  persistence/API/frontend behavior, provider-client reuse, and scientific interpretation are unchanged. Help does
+  not need an update because the correction is invisible except for a safe one-time cache miss.
+- **Revert:** revert this increment; no schema migration or stored-data repair is involved.
+
 ## 2026-08-22 — Increment 492: app-scoped LLM provider-client reuse
 - **Files:** `app/backend/provider_runtime.py`, FastAPI lifecycle/dependency wiring, the shared LLM provider seam,
   LLM-consuming routers, `integrations/gemini/generator.py`, `tests/test_provider_runtime.py`, and architecture /

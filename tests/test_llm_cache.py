@@ -1,12 +1,22 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from fastapi.testclient import TestClient
 from sqlalchemy import func, insert, select, update
 
-from app.backend.llm.cache import repair_summary_cache
+from app.backend.llm.cache import (
+    CachedSummaryGenerator,
+    GenerationCacheIdentity,
+    canonical_hash,
+    repair_summary_cache,
+    summary_generation_input_hash,
+    synthesis_generation_cache_signature,
+)
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.schema import chunks, llm_cache
-from app.backend.summarization.generators import CandidateCitation, CandidateSummarySentence
+from app.backend.summarization.generators import CandidateCitation, CandidateSummarySentence, SourceChunk
+from integrations.gemini.generator import GeminiSummaryGenerator, LLMConfig
 from tests.api_helpers import _seed_summarization_library, _summarization_app
 
 # A generation cache hit must cost zero LLM calls AND return an identical (re-verified) result. This
@@ -65,6 +75,28 @@ def _gen_shape(result):
     return [(s["text"], [(c["quote"], c["chunk_id"]) for c in s["citations"]]) for s in result["sentences"]]
 
 
+def _config_signature(config: LLMConfig, *, prompt_version: str = "summary-v4") -> str:
+    return synthesis_generation_cache_signature(
+        generator_name="gemini-summary-generator",
+        prompt_version=prompt_version,
+        config=config,
+    )
+
+
+def _source_chunk(**overrides) -> SourceChunk:
+    values = {
+        "chunk_id": 11,
+        "paper_id": 7,
+        "attachment_id": 3,
+        "text": "Evidence text.",
+        "page_start": 4,
+        "page_end": 5,
+        "chunk_version": "chunk-v1",
+    }
+    values.update(overrides)
+    return SourceChunk(**values)
+
+
 def test_cache_hit_returns_identical_and_generates_once(temp_db_url: str) -> None:
     seeded = _seed_summarization_library(temp_db_url)
     gen = CountingSummaryGenerator(_facial(seeded))
@@ -77,6 +109,176 @@ def test_cache_hit_returns_identical_and_generates_once(temp_db_url: str) -> Non
     assert gen.calls == 1  # the second call was a cache hit (zero tokens)
     assert first["summary_status"] == second["summary_status"]
     assert _shape(first) == _shape(second)  # identical result
+
+
+def test_identical_provider_configuration_remains_cache_eligible(temp_db_url: str) -> None:
+    seeded = _seed_summarization_library(temp_db_url)
+    config = LLMConfig(
+        provider="custom-a",
+        wire_format="chat_completions",
+        model="shared-model",
+        base_url="https://provider.example/api/",
+        api_key="sk-same-account",
+    )
+    signature = _config_signature(config)
+    first = CountingSummaryGenerator(_facial(seeded), signature=signature)
+    _summarize_papers(TestClient(_summarization_app(temp_db_url, generator=first)), seeded["facial_paper_id"])
+    second = CountingSummaryGenerator(_facial(seeded), signature=_config_signature(config))
+    _summarize_papers(TestClient(_summarization_app(temp_db_url, generator=second)), seeded["facial_paper_id"])
+
+    assert first.calls == 1
+    assert second.calls == 0
+
+
+def test_provider_change_with_same_model_endpoint_and_wire_forces_cache_miss(temp_db_url: str) -> None:
+    seeded = _seed_summarization_library(temp_db_url)
+    common = {
+        "wire_format": "chat_completions",
+        "model": "shared-model",
+        "base_url": "https://provider.example/api",
+        "api_key": "sk-same-account",
+    }
+    first = CountingSummaryGenerator(_facial(seeded), signature=_config_signature(LLMConfig(provider="a", **common)))
+    _summarize_papers(TestClient(_summarization_app(temp_db_url, generator=first)), seeded["facial_paper_id"])
+    second = CountingSummaryGenerator(_facial(seeded), signature=_config_signature(LLMConfig(provider="b", **common)))
+    _summarize_papers(TestClient(_summarization_app(temp_db_url, generator=second)), seeded["facial_paper_id"])
+
+    assert first.calls == 1
+    assert second.calls == 1
+
+
+def test_generation_configuration_dimensions_define_cache_identity(monkeypatch) -> None:
+    base = LLMConfig(
+        provider="custom-a",
+        wire_format="chat_completions",
+        model="shared-model",
+        base_url="https://provider.example/api",
+        api_key="sk-account-a",
+    )
+    signature = _config_signature(base)
+
+    assert GeminiSummaryGenerator(config=base).cache_signature == signature
+    assert _config_signature(replace(base, base_url="https://other.example/api")) != signature
+    assert _config_signature(replace(base, wire_format="responses")) != signature
+    assert _config_signature(replace(base, model="other-model")) != signature
+    assert _config_signature(base, prompt_version="summary-v5") != signature
+    assert _config_signature(replace(base, api_key="sk-account-b")) != signature
+
+    # Trailing slash and an explicitly spelled builtin default resolve to the same actual request endpoint.
+    assert _config_signature(replace(base, base_url="https://provider.example/api/")) == signature
+    openai_default = LLMConfig(
+        provider="openai",
+        wire_format="chat_completions",
+        model="shared-model",
+        api_key="sk-account-a",
+    )
+    assert _config_signature(openai_default) == _config_signature(
+        replace(openai_default, base_url="https://api.openai.com/")
+    )
+
+    # Gemini SDK mode is endpoint/environment-sensitive even though it carries no base_url in LLMConfig.
+    gemini = LLMConfig(provider="gemini", wire_format="gemini", model="shared-model", api_key="gemini-key")
+    before = _config_signature(gemini)
+    monkeypatch.setenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+    assert _config_signature(gemini) != before
+
+
+def test_generation_parameter_change_alters_cache_identity() -> None:
+    config = LLMConfig(
+        provider="anthropic",
+        wire_format="messages",
+        model="shared-model",
+        base_url="https://api.anthropic.com",
+        api_key="sk-ant",
+    )
+    identity = GenerationCacheIdentity.from_config(
+        generator_name="gemini-summary-generator",
+        prompt_version="summary-v4",
+        config=config,
+    )
+    changed = replace(identity, generation_parameters=((*identity.generation_parameters, ("temperature", 1))))
+
+    assert identity.signature != changed.signature
+
+
+def test_prompt_relevant_source_and_scope_fields_define_input_hash() -> None:
+    chunk = _source_chunk()
+    kwargs = {"cache_signature": "sig", "source_chunks": [chunk], "scope_ref": {"query": "question"}}
+    reference = summary_generation_input_hash(**kwargs)
+
+    for changed in (
+        replace(chunk, chunk_id=12),
+        replace(chunk, chunk_version="chunk-v2"),
+        replace(chunk, paper_id=8),
+        replace(chunk, page_start=6),
+        replace(chunk, page_end=6),
+        replace(chunk, text="Changed evidence."),
+    ):
+        assert summary_generation_input_hash(**{**kwargs, "source_chunks": [changed]}) != reference
+    assert summary_generation_input_hash(**{**kwargs, "scope_ref": {"query": "other"}}) != reference
+    assert summary_generation_input_hash(**{**kwargs, "source_chunks": [chunk, replace(chunk, chunk_id=12)]}) != (
+        summary_generation_input_hash(**{**kwargs, "source_chunks": [replace(chunk, chunk_id=12), chunk]})
+    )
+
+
+def test_legacy_under_specified_cache_row_is_not_reused(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    source_chunks = [_source_chunk()]
+    scope_ref = {"query": "question"}
+    generator = CountingSummaryGenerator([], signature="legacy-generator")
+    legacy_key = canonical_hash(
+        {
+            "sig": generator.cache_signature,
+            "chunks": [[11, "chunk-v1", "Evidence text."]],
+            "scope": scope_ref,
+        }
+    )
+    with engine.begin() as conn:
+        conn.execute(
+            insert(llm_cache).values(
+                namespace="summary",
+                input_hash=legacy_key,
+                signature=generator.cache_signature,
+                output_json={"sentences": [{"text": "legacy", "citations": []}]},
+            )
+        )
+        result = CachedSummaryGenerator(generator).generate(
+            source_chunks=source_chunks,
+            scope_ref=scope_ref,
+            conn=conn,
+        )
+        rows = conn.execute(select(func.count()).select_from(llm_cache)).scalar_one()
+    engine.dispose()
+
+    assert result == []
+    assert generator.calls == 1
+    assert rows == 2
+
+
+def test_cache_identity_and_metadata_never_contain_raw_secrets(temp_db_url: str) -> None:
+    secret = "sk-RECOGNIZABLE-RAW-SECRET"
+    config = LLMConfig(
+        provider="custom-a",
+        wire_format="chat_completions",
+        model="shared-model",
+        base_url="https://user:password@provider.example/api",
+        api_key=secret,
+    )
+    signature = _config_signature(config)
+    generator = CountingSummaryGenerator([], signature=f"custom/{secret}/https://user:password@provider.example/api")
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        CachedSummaryGenerator(generator).generate(
+            source_chunks=[_source_chunk()],
+            scope_ref={"query": "question"},
+            conn=conn,
+        )
+        row = conn.execute(select(llm_cache.c.input_hash, llm_cache.c.signature)).one()
+    engine.dispose()
+
+    persisted = "|".join(str(value) for value in row)
+    assert secret not in signature and secret not in persisted
+    assert "password" not in signature and "password" not in persisted
 
 
 def test_changed_chunk_version_forces_miss(temp_db_url: str) -> None:

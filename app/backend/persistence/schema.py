@@ -335,12 +335,10 @@ external_api_cache = Table(
     UniqueConstraint("provider", "cache_key", name="uq_external_api_cache_provider_cache_key"),
 )
 
-# Content-addressed cache for token-expensive LLM generation (inc 61). The key is a content hash of
-# EVERYTHING that determines the output (model + prompt-version + normalized inputs), so any change to an
-# input changes ``input_hash`` and misses automatically — no explicit invalidation. ``namespace`` separates
-# call sites (e.g. "summary"). ``signature`` is the human-readable model/prompt identity (debugging). The
-# cached value is the raw generation output ONLY; the local citation-verification step still runs on every
-# result (it costs no tokens), so a hit never serves stale verification.
+# Content-addressed cache for token-expensive LLM generation (inc 61; identity hardened inc 493). The key hashes
+# provider request semantics, generator/prompt identity, and normalized prompt inputs. ``namespace`` separates
+# call sites (e.g. "summary"). ``signature`` stores only a non-sensitive schema label + identity digest. The
+# cached value is parsed generation candidates only; local citation verification still runs on every result.
 llm_cache = Table(
     "llm_cache",
     metadata,

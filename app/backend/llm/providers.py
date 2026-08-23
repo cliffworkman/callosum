@@ -34,6 +34,7 @@ WIRE_FORMATS = ("gemini", "messages", "chat_completions", "responses")
 _LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
 _HTTP_TIMEOUT = 60.0
 _MAX_TOKENS = 2048  # anthropic requires an explicit cap; a generous bound for our prompts
+_ANTHROPIC_VERSION = "2023-06-01"
 
 # Back-compat: derive the wire format + a default endpoint from a builtin provider NAME when a config carries no
 # explicit ``wire_format`` (a directly-constructed config, or a bare provider-name string).
@@ -51,6 +52,41 @@ def _wire_of(config) -> str:
     if wire:
         return wire
     return _DEFAULT_WIRE.get(getattr(config, "provider", None) or "gemini", "chat_completions")
+
+
+@dataclass(frozen=True)
+class CompletionRequestIdentity:
+    """Output-affecting provider request semantics, excluding model, prompt, and credentials.
+
+    This is deliberately narrower than provider-client reuse identity: proxy, TLS, and pool settings affect
+    transport reuse but do not define whether an already-generated synthesis is semantically reusable.
+    """
+
+    wire_format: str
+    base_url: str | None
+    generation_parameters: tuple[tuple[str, str | int], ...]
+
+
+def completion_request_identity(config) -> CompletionRequestIdentity:
+    """Resolve the same wire, endpoint, and fixed generation settings used by :func:`complete`."""
+    wire = _wire_of(config)
+    base = None
+    if wire != "gemini":
+        base = (getattr(config, "base_url", None) or _DEFAULT_BASE.get(wire) or "").rstrip("/") or None
+    parameters: tuple[tuple[str, str | int], ...]
+    if wire == "gemini":
+        parameters = (("request_shape", "models.generate_content"),)
+    elif wire == "messages":
+        parameters = (
+            ("anthropic_version", _ANTHROPIC_VERSION),
+            ("max_tokens", _MAX_TOKENS),
+            ("request_shape", "messages"),
+        )
+    elif wire == "responses":
+        parameters = (("request_shape", "responses"),)
+    else:
+        parameters = (("request_shape", "chat_completions"),)
+    return CompletionRequestIdentity(wire_format=wire, base_url=base, generation_parameters=parameters)
 
 
 class ProviderError(RuntimeError):
@@ -115,7 +151,8 @@ def complete(
     """
     provider = getattr(config, "provider", "gemini") or "gemini"
     runtime = provider_runtime or getattr(config, "provider_runtime", None)
-    wire = _wire_of(config)
+    request_identity = completion_request_identity(config)
+    wire = request_identity.wire_format
     model = config.model
     key = config.resolved_api_key()
     if requires_egress(config) and not key:
@@ -135,7 +172,7 @@ def complete(
             "The local provider requires a loopback base_url (127.0.0.1 / localhost) — refusing to send to "
             f"{base!r} under the no-egress 'local' label."
         )
-    base = (base or _DEFAULT_BASE.get(wire) or "").rstrip("/")
+    base = request_identity.base_url or ""
     if not base:
         raise ProviderError(f"No base URL configured for provider {provider!r} (wire format {wire!r}).")
     active_http_client = http_client
@@ -199,7 +236,7 @@ def _complete_anthropic(base: str, model: str, api_key: str | None, prompt: str,
     headers = {
         "Content-Type": "application/json",
         "x-api-key": api_key or "",
-        "anthropic-version": "2023-06-01",
+        "anthropic-version": _ANTHROPIC_VERSION,
     }
     payload = {"model": model, "max_tokens": _MAX_TOKENS, "messages": [{"role": "user", "content": prompt}]}
     data = _post(f"{base}/v1/messages", payload, headers, api_key, http_client)

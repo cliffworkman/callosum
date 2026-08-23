@@ -577,11 +577,14 @@ Do not add caching merely because a workflow is slow.
 
 First identify whether the expensive computation is actually repeated.
 
-Known live exception: the synthesis generation cache hashes generator name/model/prompt version plus source chunk
-identity/version/text and scope, and it re-runs local verification on every hit. Its signature does not currently
-include provider identity, wire format, or endpoint. Two provider configurations using the same model string can
-therefore share a raw-generation entry. Future cache-key hardening must define the migration/invalidation behavior as
-well as add the missing configuration identity; verification-on-hit does not make the generated wording identical.
+The live synthesis generation cache uses the versioned `summary-generation-v2` identity. It hashes the generator and
+prompt version; provider roster identity; exact model; resolved wire/API mode; normalized endpoint; fixed wire-level
+generation parameters; a non-reversible credential fingerprint; Gemini SDK environment identity where applicable;
+the ordered prompt-relevant source fields; source version; and scope. Raw credentials and endpoint text are not
+persisted in the signature. Equivalent trailing-slash/default endpoint spellings normalize to the same identity.
+Credential rotation deliberately misses because an arbitrary custom endpoint may bind credentials to different
+tenant/model-deployment semantics. Legacy under-specified rows remain stored but are unreachable under the v2 key.
+Local citation verification still runs on every hit.
 
 ---
 
@@ -660,6 +663,8 @@ Unless deliberately changed and revalidated, Callosum currently relies on these 
 - Authoritative in-process `JobStore` state remains the source of truth for active-job status; notification payloads
   never replace final status/result retrieval.
 - Long-poll correctness tests do not use microbenchmark detection latency as a functional invariant.
+- Synthesis generation-cache hits require the versioned provider/model/wire/endpoint/credential/request-semantics
+  identity plus the exact ordered prompt inputs; legacy under-specified rows cannot satisfy the current key.
 
 Any modification that affects these properties requires explicit review.
 
@@ -675,6 +680,7 @@ Any modification that affects these properties requires explicit review.
 | Critical Read batching and positional pair mapping | `app/backend/methods/critical_review.py` |
 | Critical Read tokenizer-length planning and reconstruction | `app/backend/summarization/stance.py` |
 | Synthesis citation batching and overview placement | `app/backend/summarization/pipeline.py` |
+| Synthesis generation-cache identity and source hashing | `app/backend/llm/cache.py`, `integrations/gemini/generator.py` |
 | Provider pool/client identity and cleanup | `app/backend/provider_runtime.py` |
 | Provider dispatch and explicit-client precedence | `app/backend/llm/providers.py` |
 | Long-poll waiter registration/wake/cleanup | `app/backend/api/job_store.py` |
@@ -691,7 +697,6 @@ Known current boundaries—not completed optimizations—include:
 - optional axis-cluster label calls remain serialized
 - citation-context and citation-suggestion stance inference remains per item despite app-scoped model reuse
 - the help assistant sends the entire public help corpus on each request
-- synthesis generation-cache identity omits provider/wire/endpoint identity when the model string is unchanged
 - evidence truncation/window shape and alternative CrossEncoder backends remain unchanged
 - provider reuse removes construction/pool setup, not provider network/generation latency
 - local model inference is conservatively serialized per compatible runtime identity

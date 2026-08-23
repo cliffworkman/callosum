@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 490** (see Increment workflow) with **2349 root-suite pytest tests
+It is currently at **Increment 493** (see Increment workflow) with **2415 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -695,6 +695,10 @@ the full per-increment narrative for all other increments now lives in the reloc
   non-reversible fingerprints; config rotation cannot reuse stale Gemini credentials, explicit injected clients
   still win, and lifespan shutdown closes app-owned clients. Per-identity construction is race-guarded and
   retryable, while ordinary provider calls are not serialized or otherwise made concurrent by this change.
+  **Inc 493** hardens synthesis-generation cache identity separately from transport reuse: a cache hit now requires
+  the same provider roster id, model, resolved wire mode, canonical endpoint, fixed request semantics, credential
+  fingerprint, prompt/generator version, and exact ordered prompt inputs. Old under-specified rows miss once without
+  migration, raw secrets/endpoints never enter stored signatures, and local citation verification still reruns.
 - **Frontend:** modular source under `app/frontend/` (`index.html` shell + `styles.css` +
   ordered `js/*.jsx` React chunks, React/ReactDOM + pdf.js via CDN), assembled by
   `app/backend/api/frontend.py`: the JSX chunks are concatenated and **precompiled to plain JS by
@@ -1191,7 +1195,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 484). Each increment of real work
+callosum is built in **numbered increments** (currently at 493). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
