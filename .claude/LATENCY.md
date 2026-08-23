@@ -167,11 +167,18 @@ Known live exceptions—not satisfied batching invariants—remain in citation w
 
 - `methods/citation_context.py::classify_citation_contexts()` calls the stance scorer once per available citation
   context (bounded at 500 items)
-- `citations/suggest.py::suggest_citations()` and the evaluated path in `citations/beyond_library.py` call the stance
-  scorer once per retained suggestion (bounded at 20 items per path)
+- `citations/suggest.py::suggest_citations()` calls the stance scorer once per retained local suggestion; that local
+  set is capped at 20 before NLI
+- the evaluated path in `citations/beyond_library.py` calls the stance scorer for every merged, non-library candidate
+  with an abstract before sorting and slicing the response. The returned result set is capped at 20, but the NLI call
+  count is not: a controlled multi-provider audit classified 40 candidates and returned 20 results
 
 These paths reuse the app-owned model runtime, but runtime reuse does not make their per-item inference shape batched.
-Any future change should preserve item order and missing/unclassifiable-item semantics while measuring a batch seam.
+Sequential one-pair inference remains the fastest measured citation-suggestion execution shape overall, so this is a
+measured exception rather than an invitation to batch by default. Any future change should preserve item order and
+missing/unclassifiable-item semantics while measuring a batch seam. The final response cap does not establish that
+pre-slicing before NLI is semantically safe: reducing the evaluated candidate set requires separate measurement and
+design because it could change which returned suggestions have stance evidence.
 
 ---
 
