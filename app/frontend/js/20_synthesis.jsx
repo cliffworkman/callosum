@@ -44,6 +44,7 @@ const SYNTH_SECTION_OPTIONS = [
   "funding",
   "ethics",
 ];
+const SYNTHESIS_ACTIVE_JOB_KEY = "callosum.active-job.synthesis";
 
 function selectedSynthesisSections(sectionFilter) {
   return SYNTH_SECTION_OPTIONS.filter(key => !!sectionFilter[key]);
@@ -83,31 +84,40 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
   useEffect(() => {
     loadHistory();
     return () => {
-      if (pollRef.current) clearTimeout(pollRef.current);
+      if (pollRef.current) pollRef.current();
     };
   }, [loadHistory]);
 
   const pollJob = useCallback((jobId) => {
-    api(`/summarize/${jobId}`).then(r => {
-      if (!r.ok) {
-        setState({ status: "error", error: r.error, jobId });
-        return;
-      }
-      const data = r.data;
-      if (data.status === "done") {
+    if (pollRef.current) pollRef.current();
+    rememberActiveJob(SYNTHESIS_ACTIVE_JOB_KEY, jobId);
+    pollRef.current = observeJobUntilTerminal(`/summarize/${jobId}`, {
+      onProgress: data => {
+        setState({ status: "running", jobId, message: data.status === "pending" ? "Queued for verification" : "Generating and verifying" });
+      },
+      onDone: data => {
+        pollRef.current = null;
+        rememberActiveJob(SYNTHESIS_ACTIVE_JOB_KEY, null);
         setState({ status: "done", result: data, jobId });
         loadHistory();
-      } else if (data.status === "error") {
-        setState({ status: "error", error: data.detail || "Summarization failed.", jobId });
-      } else {
-        setState({ status: "running", jobId, message: data.status === "pending" ? "Queued for verification" : "Generating and verifying" });
-        pollRef.current = setTimeout(() => pollJob(jobId), 1200);
-      }
+      },
+      onError: error => {
+        pollRef.current = null;
+        rememberActiveJob(SYNTHESIS_ACTIVE_JOB_KEY, null);
+        setState({ status: "error", error: error || "Summarization failed.", jobId });
+      },
     });
   }, [loadHistory]);
 
+  useEffect(() => {
+    const jobId = recalledActiveJob(SYNTHESIS_ACTIVE_JOB_KEY);
+    if (!jobId) return;
+    setState({ status: "running", jobId, message: "Reconnecting to synthesis" });
+    pollJob(jobId);
+  }, [pollJob]);
+
   const launchPrepared = useCallback((body, runningMessage) => {
-    if (pollRef.current) clearTimeout(pollRef.current);
+    if (pollRef.current) pollRef.current();
     lastLaunchRef.current = { body, runningMessage };
     setState({ status: "running", message: runningMessage });
     apiPost("/summarize", body).then(r => {
@@ -199,7 +209,8 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
   }, [pendingSummarize ? pendingSummarize.nonce : null]);
 
   const loadSummary = useCallback((summaryId) => {
-    if (pollRef.current) clearTimeout(pollRef.current);
+    if (pollRef.current) pollRef.current();
+    rememberActiveJob(SYNTHESIS_ACTIVE_JOB_KEY, null);
     setScopeNote(null);
     setScopeMeta(null);  // a saved synthesis — the original selection size isn't recorded
     setState({ status: "loading-summary", message: "Loading saved synthesis" });

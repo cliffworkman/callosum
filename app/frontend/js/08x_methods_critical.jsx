@@ -118,6 +118,26 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
   const [cands, setCands] = useState(null);          // Tier-2 candidates
   const [gen, setGen] = useState("idle");            // idle|generating|error
   const [findingCands, setFindingCands] = useState([]);  // paper_findings CANDIDATEs (e.g. statcheck-flagged issues)
+  const t1PollRef = useRef(null);
+
+  const activeJobKey = paperId == null ? null : `callosum.active-job.critical-read.${paperId}`;
+  const pollT1Job = useCallback((jobId) => {
+    if (t1PollRef.current) t1PollRef.current();
+    if (activeJobKey) rememberActiveJob(activeJobKey, jobId);
+    t1PollRef.current = observeJobUntilTerminal(`/critical-read/${jobId}`, {
+      onProgress: () => setT1({ status: "running", jobId }),
+      onDone: data => {
+        t1PollRef.current = null;
+        if (activeJobKey) rememberActiveJob(activeJobKey, null);
+        setT1({ status: "done", backbone: data.backbone, jobId });
+      },
+      onError: error => {
+        t1PollRef.current = null;
+        if (activeJobKey) rememberActiveJob(activeJobKey, null);
+        setT1({ status: "error", error: error || "failed", jobId });
+      },
+    });
+  }, [activeJobKey]);
 
   const loadFindingCands = () => {
     if (paperId == null) return;
@@ -133,13 +153,22 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
     });
     api(`/papers/${paperId}/critical-read/candidates`).then(r => { if (live && r.ok) setCands(r.data.candidates); });
     api(`/papers/${paperId}/findings`).then(r => { if (live && r.ok) setFindingCands(r.data.candidates); });
+    const activeJobId = recalledActiveJob(activeJobKey);
+    if (activeJobId) {
+      setT1({ status: "running", jobId: activeJobId });
+      pollT1Job(activeJobId);
+    }
     if (isDemoMode()) api(`/papers/${paperId}/critical-read/saved`).then(r => {
       if (!live) return;
       if (r.ok && r.data.status === "done") setT1({ status: "done", backbone: r.data.backbone });
       else if (!r.ok) setT1({ status: "error", error: r.error });
     });
-    return () => { live = false; };
-  }, [paperId]);
+    return () => {
+      live = false;
+      if (t1PollRef.current) t1PollRef.current();
+      t1PollRef.current = null;
+    };
+  }, [paperId, activeJobKey, pollT1Job]);
 
   const onFindingReviewed = () => { loadFindingCands(); if (onFindingsChanged) onFindingsChanged(); };
 
@@ -148,16 +177,9 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
 
   const runT1 = () => {
     setT1({ status: "running" });
-    const poll = (jid) => api(`/critical-read/${jid}`).then(rr => {
-      if (!rr.ok) { setT1({ status: "error", error: rr.error }); return; }
-      const d = rr.data;
-      if (d.status === "done") setT1({ status: "done", backbone: d.backbone });
-      else if (d.status === "error") setT1({ status: "error", error: d.detail || "failed" });
-      else setTimeout(() => poll(jid), 1200);
-    });
     apiPost(`/papers/${paperId}/critical-read`, {}).then(r => {
       if (!r.ok) { setT1({ status: "error", error: r.error }); return; }
-      poll(r.data.job_id);
+      pollT1Job(r.data.job_id);
     });
   };
   const generate = async () => {
@@ -288,6 +310,28 @@ function CriticalReadWip({ manuscript, ctx }) {
   const manuscriptId = manuscript ? manuscript.id : null;
   const [latest, setLatest] = useState(null);
   const [state, setState] = useState({ status: "idle" });
+  const pollRef = useRef(null);
+  const reloadWipRef = useRef(ctx.onReloadWip);
+  reloadWipRef.current = ctx.onReloadWip;
+  const activeJobKey = manuscriptId == null ? null : `callosum.active-job.wip-critical-read.${manuscriptId}`;
+  const pollJob = useCallback(jobId => {
+    if (pollRef.current) pollRef.current();
+    if (activeJobKey) rememberActiveJob(activeJobKey, jobId);
+    pollRef.current = observeJobUntilTerminal(`/wip/critical-read/${jobId}`, {
+      onProgress: () => setState({ status: "running", jobId }),
+      onDone: data => {
+        pollRef.current = null;
+        if (activeJobKey) rememberActiveJob(activeJobKey, null);
+        setLatest(data.run); setState({ status: "done", jobId });
+        if (reloadWipRef.current) reloadWipRef.current();
+      },
+      onError: error => {
+        pollRef.current = null;
+        if (activeJobKey) rememberActiveJob(activeJobKey, null);
+        setState({ status: "error", error: error || "Local critical read failed.", jobId });
+      },
+    });
+  }, [activeJobKey]);
   useEffect(() => {
     setState({ status: "idle" }); setLatest(null);
     if (manuscriptId == null) return undefined;
@@ -295,22 +339,22 @@ function CriticalReadWip({ manuscript, ctx }) {
     api(`/wip/manuscripts/${manuscriptId}/checks`).then(r => {
       if (live && r.ok) setLatest((r.data.runs || []).find(run => run.tool_id === "critical-read") || null);
     });
-    return () => { live = false; };
-  }, [manuscriptId, ctx.wipRefresh]);
+    const activeJobId = recalledActiveJob(activeJobKey);
+    if (activeJobId) {
+      setState({ status: "running", jobId: activeJobId });
+      pollJob(activeJobId);
+    }
+    return () => {
+      live = false;
+      if (pollRef.current) pollRef.current();
+      pollRef.current = null;
+    };
+  }, [manuscriptId, ctx.wipRefresh, activeJobKey, pollJob]);
   const start = async () => {
     setState({ status: "running" });
     const response = await apiPost(`/wip/manuscripts/${manuscriptId}/critical-read`, {});
     if (!response.ok) return setState({ status: "error", error: response.error });
-    const poll = jobId => api(`/wip/critical-read/${jobId}`).then(result => {
-      if (!result.ok) return setState({ status: "error", error: result.error });
-      if (result.data.status === "done") {
-        setLatest(result.data.run); setState({ status: "done" });
-        if (ctx.onReloadWip) ctx.onReloadWip();
-      } else if (result.data.status === "error") {
-        setState({ status: "error", error: result.data.detail || "Local critical read failed." });
-      } else setTimeout(() => poll(jobId), 1000);
-    });
-    poll(response.data.job_id);
+    pollJob(response.data.job_id);
   };
   const openSource = async () => {
     const result = await apiPost(`/wip/manuscripts/${manuscriptId}/files/${latest.file_id}/open`, {});

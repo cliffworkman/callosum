@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
 from fastapi import status as http_status
 from pydantic import BaseModel
 from sqlalchemy import Connection, Engine
@@ -127,8 +127,13 @@ def critical_read_start(
 
 
 @router.get("/critical-read/{job_id}", response_model=CriticalReadJobResponse)
-def critical_read_status(job_id: str, request: Request) -> CriticalReadJobResponse:
-    job = request.app.state.critical_review_jobs.get(job_id)
+async def critical_read_status(
+    job_id: str,
+    request: Request,
+    wait_seconds: float = Query(default=0.0, ge=0.0, le=25.0),
+) -> CriticalReadJobResponse:
+    jobs: JobStore[CriticalReadJobResponse] = request.app.state.critical_review_jobs
+    job = await jobs.wait_for_update(job_id, wait_seconds)
     if job is None:
         raise HTTPException(status_code=404, detail="Critical-read job not found")
     if job.status == "done" and job.result is not None:
@@ -294,8 +299,13 @@ def set_critical_read_start(
 
 
 @router.get("/critical-read/set/{job_id}", response_model=SetCriticalReadResponse)
-def set_critical_read_status(job_id: str, request: Request) -> SetCriticalReadResponse:
-    job = request.app.state.critical_review_set_jobs.get(job_id)
+async def set_critical_read_status(
+    job_id: str,
+    request: Request,
+    wait_seconds: float = Query(default=0.0, ge=0.0, le=25.0),
+) -> SetCriticalReadResponse:
+    jobs: JobStore[SetCriticalReadResponse] = request.app.state.critical_review_set_jobs
+    job = await jobs.wait_for_update(job_id, wait_seconds)
     if job is None:
         raise HTTPException(status_code=404, detail="Set critical-read job not found")
     if job.status == "done" and job.result is not None:

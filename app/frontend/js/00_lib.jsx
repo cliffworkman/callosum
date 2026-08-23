@@ -105,13 +105,15 @@ function tagDisplayName(t) {
   return t ? t.name : "";
 }
 const PAGE_SIZE = 50;
-async function api(path) {
+async function api(path, options) {
   const tracked = _startTrackedApiOperation("GET", path); const finish = result => { _finishTrackedApiOperation(tracked, result); return result; };
   try {
-    const res = await callosumFetch(API_BASE + path, { headers: { "Accept": "application/json" } });
+    const init = { headers: { "Accept": "application/json" } };
+    if (options && options.signal) init.signal = options.signal;
+    const res = await callosumFetch(API_BASE + path, init);
     if (!res.ok) {
       if (res.status === 401) { _notifyAuthRequired(); return finish({ ok: false, status: 401, authRequired: true, error: `HTTP 401 on ${path}` }); }
-      return finish({ ok: false, error: `HTTP ${res.status} on ${path}` });
+      return finish({ ok: false, status: res.status, error: `HTTP ${res.status} on ${path}` });
     }
     return finish({ ok: true, data: await res.json() });
   } catch (e) {

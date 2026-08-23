@@ -7,7 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
 from fastapi import status as http_status
 from pydantic import BaseModel
 
@@ -119,8 +119,13 @@ def critical_read_start(
 
 
 @router.get("/critical-read/{job_id}", response_model=WipCriticalReadJobResponse)
-def critical_read_status(job_id: str, request: Request) -> WipCriticalReadJobResponse:
-    job = request.app.state.wip_critical_review_jobs.get(job_id)
+async def critical_read_status(
+    job_id: str,
+    request: Request,
+    wait_seconds: float = Query(default=0.0, ge=0.0, le=25.0),
+) -> WipCriticalReadJobResponse:
+    jobs: JobStore[WipCriticalReadJobResponse] = request.app.state.wip_critical_review_jobs
+    job = await jobs.wait_for_update(job_id, wait_seconds)
     if job is None:
         raise HTTPException(status_code=404, detail="WIP critical-read job not found")
     if job.status == "done" and job.result is not None:

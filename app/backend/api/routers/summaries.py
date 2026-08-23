@@ -162,8 +162,13 @@ def summarize_start(
 
 
 @router.get("/summarize/{job_id}", response_model=SummarizeJobResponse)
-def summarize_status(job_id: str, request: Request) -> SummarizeJobResponse:
-    job = request.app.state.summary_jobs.get(job_id)
+async def summarize_status(
+    job_id: str,
+    request: Request,
+    wait_seconds: float = Query(default=0.0, ge=0.0, le=25.0),
+) -> SummarizeJobResponse:
+    jobs: JobStore[SummarizeJobResponse] = request.app.state.summary_jobs
+    job = await jobs.wait_for_update(job_id, wait_seconds)
     if job is None:
         raise HTTPException(status_code=404, detail="Summary job not found")
     if job.status == "done" and job.result is not None:

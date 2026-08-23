@@ -111,31 +111,49 @@ function CriticalSetModal({ ids, onClose, onOpenPaper }) {
   const [err, setErr] = useState(null);
   const [aiReady, setAiReady] = useState(false);
   const [gen, setGen] = useState("idle");          // idle | generating | error
+  const pollersRef = useRef(new Set());
+  const activeJobKey = `callosum.active-job.critical-read-set.${ids.join(",")}`;
 
-  // Run a set critical-read job (Tier-1 always; Tier-2 when wantLlm) → resolves the report. POST → poll GET.
-  const runSet = useCallback((wantLlm) => new Promise((resolve, reject) => {
-    const poll = (jid) => api(`/critical-read/set/${jid}`).then(rr => {
-      if (!rr.ok) { reject(rr.error); return; }
-      const d = rr.data;
-      if (d.status === "done") resolve(d.report);
-      else if (d.status === "error") reject(d.detail || "failed");
-      else setTimeout(() => poll(jid), 1200);
-    });
+  // Run or resume a set critical-read job.  The held GET is notification only;
+  // its terminal response remains the authoritative report.
+  const runSet = useCallback((wantLlm, resumeJobId) => new Promise((resolve, reject) => {
+    const observe = jobId => {
+      rememberActiveJob(activeJobKey, jobId);
+      let cancel = null;
+      const finish = callback => value => {
+        pollersRef.current.delete(cancel);
+        rememberActiveJob(activeJobKey, null);
+        callback(value);
+      };
+      cancel = observeJobUntilTerminal(`/critical-read/set/${jobId}`, {
+        onDone: data => finish(resolve)(data.report),
+        onError: finish(reject),
+      });
+      pollersRef.current.add(cancel);
+    };
+    if (resumeJobId) {
+      observe(resumeJobId);
+      return;
+    }
     apiPost("/critical-read/set", { paper_ids: ids, llm: !!wantLlm }).then(r => {
       if (!r.ok) { reject(r.error); return; }
-      poll(r.data.job_id);
+      observe(r.data.job_id);
     });
-  }), [ids]);
+  }), [ids, activeJobKey]);
 
   useEffect(() => {
     let live = true;
     setPhase("loading"); setReport(null); setErr(null);
-    runSet(false)
+    runSet(false, recalledActiveJob(activeJobKey))
       .then(rep => { if (live) { setReport(rep); setPhase("ready"); } })
       .catch(e => { if (live) { setErr(e); setPhase("error"); } });
     api("/settings").then(r => { if (live && r.ok) setAiReady(Boolean(r.data.data_egress_enabled)); });
-    return () => { live = false; };
-  }, [runSet]);
+    return () => {
+      live = false;
+      pollersRef.current.forEach(cancel => cancel());
+      pollersRef.current.clear();
+    };
+  }, [runSet, activeJobKey]);
 
   const generate = () => {
     setGen("generating");

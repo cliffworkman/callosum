@@ -3333,20 +3333,22 @@
     return t ? t.name : "";
   }
   const PAGE_SIZE = 50;
-  async function api(path) {
+  async function api(path, options) {
     const tracked = _startTrackedApiOperation("GET", path);
     const finish = (result) => {
       _finishTrackedApiOperation(tracked, result);
       return result;
     };
     try {
-      const res = await callosumFetch(API_BASE + path, { headers: { "Accept": "application/json" } });
+      const init = { headers: { "Accept": "application/json" } };
+      if (options && options.signal) init.signal = options.signal;
+      const res = await callosumFetch(API_BASE + path, init);
       if (!res.ok) {
         if (res.status === 401) {
           _notifyAuthRequired();
           return finish({ ok: false, status: 401, authRequired: true, error: `HTTP 401 on ${path}` });
         }
-        return finish({ ok: false, error: `HTTP ${res.status} on ${path}` });
+        return finish({ ok: false, status: res.status, error: `HTTP ${res.status} on ${path}` });
       }
       return finish({ ok: true, data: await res.json() });
     } catch (e) {
@@ -3864,6 +3866,74 @@
       /* @__PURE__ */ React.createElement("span", { className: "mobile-nav-icon", "aria-hidden": "true" }, t.icon),
       /* @__PURE__ */ React.createElement("span", { className: "mobile-nav-label" }, t.label)
     )));
+  }
+  const JOB_STATUS_WAIT_SECONDS = 20;
+  const JOB_STATUS_FALLBACK_RETRY_MS = 1200;
+  function jobStatusUrl(path, waitSeconds) {
+    const join = path.includes("?") ? "&" : "?";
+    return `${path}${join}wait_seconds=${waitSeconds}`;
+  }
+  function rememberActiveJob(key, jobId) {
+    try {
+      if (jobId) window.sessionStorage.setItem(key, jobId);
+      else window.sessionStorage.removeItem(key);
+    } catch (_) {
+    }
+  }
+  function recalledActiveJob(key) {
+    try {
+      return window.sessionStorage.getItem(key);
+    } catch (_) {
+      return null;
+    }
+  }
+  function observeJobUntilTerminal(path, handlers) {
+    let active = true;
+    let controller = null;
+    let retryTimer = null;
+    const stop = () => {
+      if (!active) return;
+      active = false;
+      if (retryTimer != null) window.clearTimeout(retryTimer);
+      retryTimer = null;
+      if (controller) controller.abort();
+      controller = null;
+    };
+    const requestStatus = async (waitSeconds) => {
+      if (!active) return;
+      controller = new AbortController();
+      const response = await api(jobStatusUrl(path, waitSeconds), { signal: controller.signal });
+      controller = null;
+      if (!active) return;
+      if (!response.ok) {
+        const retryable = response.status == null || response.status >= 500 || response.status === 408 || response.status === 429;
+        if (!retryable) {
+          active = false;
+          if (handlers.onError) handlers.onError(response.error);
+          return;
+        }
+        retryTimer = window.setTimeout(() => {
+          retryTimer = null;
+          requestStatus(0);
+        }, JOB_STATUS_FALLBACK_RETRY_MS);
+        return;
+      }
+      const data = response.data;
+      if (data.status === "done") {
+        active = false;
+        if (handlers.onDone) handlers.onDone(data);
+        return;
+      }
+      if (data.status === "error") {
+        active = false;
+        if (handlers.onError) handlers.onError(data.detail || "Job failed.", data);
+        return;
+      }
+      if (handlers.onProgress) handlers.onProgress(data);
+      requestStatus(JOB_STATUS_WAIT_SECONDS);
+    };
+    requestStatus(0);
+    return stop;
   }
   function useLibrary(opts) {
     const {
@@ -9405,6 +9475,25 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [cands, setCands] = useState(null);
     const [gen, setGen] = useState("idle");
     const [findingCands, setFindingCands] = useState([]);
+    const t1PollRef = useRef(null);
+    const activeJobKey = paperId == null ? null : `callosum.active-job.critical-read.${paperId}`;
+    const pollT1Job = useCallback((jobId) => {
+      if (t1PollRef.current) t1PollRef.current();
+      if (activeJobKey) rememberActiveJob(activeJobKey, jobId);
+      t1PollRef.current = observeJobUntilTerminal(`/critical-read/${jobId}`, {
+        onProgress: () => setT1({ status: "running", jobId }),
+        onDone: (data) => {
+          t1PollRef.current = null;
+          if (activeJobKey) rememberActiveJob(activeJobKey, null);
+          setT1({ status: "done", backbone: data.backbone, jobId });
+        },
+        onError: (error) => {
+          t1PollRef.current = null;
+          if (activeJobKey) rememberActiveJob(activeJobKey, null);
+          setT1({ status: "error", error: error || "failed", jobId });
+        }
+      });
+    }, [activeJobKey]);
     const loadFindingCands = () => {
       if (paperId == null) return;
       api(`/papers/${paperId}/findings`).then((r) => {
@@ -9428,6 +9517,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       api(`/papers/${paperId}/findings`).then((r) => {
         if (live && r.ok) setFindingCands(r.data.candidates);
       });
+      const activeJobId = recalledActiveJob(activeJobKey);
+      if (activeJobId) {
+        setT1({ status: "running", jobId: activeJobId });
+        pollT1Job(activeJobId);
+      }
       if (isDemoMode()) api(`/papers/${paperId}/critical-read/saved`).then((r) => {
         if (!live) return;
         if (r.ok && r.data.status === "done") setT1({ status: "done", backbone: r.data.backbone });
@@ -9435,8 +9529,10 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       });
       return () => {
         live = false;
+        if (t1PollRef.current) t1PollRef.current();
+        t1PollRef.current = null;
       };
-    }, [paperId]);
+    }, [paperId, activeJobKey, pollT1Job]);
     const onFindingReviewed = () => {
       loadFindingCands();
       if (onFindingsChanged) onFindingsChanged();
@@ -9448,22 +9544,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     }, []);
     const runT1 = () => {
       setT1({ status: "running" });
-      const poll = (jid) => api(`/critical-read/${jid}`).then((rr) => {
-        if (!rr.ok) {
-          setT1({ status: "error", error: rr.error });
-          return;
-        }
-        const d = rr.data;
-        if (d.status === "done") setT1({ status: "done", backbone: d.backbone });
-        else if (d.status === "error") setT1({ status: "error", error: d.detail || "failed" });
-        else setTimeout(() => poll(jid), 1200);
-      });
       apiPost(`/papers/${paperId}/critical-read`, {}).then((r) => {
         if (!r.ok) {
           setT1({ status: "error", error: r.error });
           return;
         }
-        poll(r.data.job_id);
+        pollT1Job(r.data.job_id);
       });
     };
     const generate = async () => {
@@ -9535,6 +9621,29 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const manuscriptId = manuscript ? manuscript.id : null;
     const [latest, setLatest] = useState(null);
     const [state, setState] = useState({ status: "idle" });
+    const pollRef = useRef(null);
+    const reloadWipRef = useRef(ctx.onReloadWip);
+    reloadWipRef.current = ctx.onReloadWip;
+    const activeJobKey = manuscriptId == null ? null : `callosum.active-job.wip-critical-read.${manuscriptId}`;
+    const pollJob = useCallback((jobId) => {
+      if (pollRef.current) pollRef.current();
+      if (activeJobKey) rememberActiveJob(activeJobKey, jobId);
+      pollRef.current = observeJobUntilTerminal(`/wip/critical-read/${jobId}`, {
+        onProgress: () => setState({ status: "running", jobId }),
+        onDone: (data) => {
+          pollRef.current = null;
+          if (activeJobKey) rememberActiveJob(activeJobKey, null);
+          setLatest(data.run);
+          setState({ status: "done", jobId });
+          if (reloadWipRef.current) reloadWipRef.current();
+        },
+        onError: (error) => {
+          pollRef.current = null;
+          if (activeJobKey) rememberActiveJob(activeJobKey, null);
+          setState({ status: "error", error: error || "Local critical read failed.", jobId });
+        }
+      });
+    }, [activeJobKey]);
     useEffect(() => {
       setState({ status: "idle" });
       setLatest(null);
@@ -9543,25 +9652,22 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       api(`/wip/manuscripts/${manuscriptId}/checks`).then((r) => {
         if (live && r.ok) setLatest((r.data.runs || []).find((run) => run.tool_id === "critical-read") || null);
       });
+      const activeJobId = recalledActiveJob(activeJobKey);
+      if (activeJobId) {
+        setState({ status: "running", jobId: activeJobId });
+        pollJob(activeJobId);
+      }
       return () => {
         live = false;
+        if (pollRef.current) pollRef.current();
+        pollRef.current = null;
       };
-    }, [manuscriptId, ctx.wipRefresh]);
+    }, [manuscriptId, ctx.wipRefresh, activeJobKey, pollJob]);
     const start = async () => {
       setState({ status: "running" });
       const response = await apiPost(`/wip/manuscripts/${manuscriptId}/critical-read`, {});
       if (!response.ok) return setState({ status: "error", error: response.error });
-      const poll = (jobId) => api(`/wip/critical-read/${jobId}`).then((result) => {
-        if (!result.ok) return setState({ status: "error", error: result.error });
-        if (result.data.status === "done") {
-          setLatest(result.data.run);
-          setState({ status: "done" });
-          if (ctx.onReloadWip) ctx.onReloadWip();
-        } else if (result.data.status === "error") {
-          setState({ status: "error", error: result.data.detail || "Local critical read failed." });
-        } else setTimeout(() => poll(jobId), 1e3);
-      });
-      poll(response.data.job_id);
+      pollJob(response.data.job_id);
     };
     const openSource = async () => {
       const result = await apiPost(`/wip/manuscripts/${manuscriptId}/files/${latest.file_id}/open`, {});
@@ -9628,31 +9734,41 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [err, setErr] = useState(null);
     const [aiReady, setAiReady] = useState(false);
     const [gen, setGen] = useState("idle");
-    const runSet = useCallback((wantLlm) => new Promise((resolve, reject) => {
-      const poll = (jid) => api(`/critical-read/set/${jid}`).then((rr) => {
-        if (!rr.ok) {
-          reject(rr.error);
-          return;
-        }
-        const d = rr.data;
-        if (d.status === "done") resolve(d.report);
-        else if (d.status === "error") reject(d.detail || "failed");
-        else setTimeout(() => poll(jid), 1200);
-      });
+    const pollersRef = useRef(/* @__PURE__ */ new Set());
+    const activeJobKey = `callosum.active-job.critical-read-set.${ids.join(",")}`;
+    const runSet = useCallback((wantLlm, resumeJobId) => new Promise((resolve, reject) => {
+      const observe = (jobId) => {
+        rememberActiveJob(activeJobKey, jobId);
+        let cancel = null;
+        const finish = (callback) => (value) => {
+          pollersRef.current.delete(cancel);
+          rememberActiveJob(activeJobKey, null);
+          callback(value);
+        };
+        cancel = observeJobUntilTerminal(`/critical-read/set/${jobId}`, {
+          onDone: (data) => finish(resolve)(data.report),
+          onError: finish(reject)
+        });
+        pollersRef.current.add(cancel);
+      };
+      if (resumeJobId) {
+        observe(resumeJobId);
+        return;
+      }
       apiPost("/critical-read/set", { paper_ids: ids, llm: !!wantLlm }).then((r) => {
         if (!r.ok) {
           reject(r.error);
           return;
         }
-        poll(r.data.job_id);
+        observe(r.data.job_id);
       });
-    }), [ids]);
+    }), [ids, activeJobKey]);
     useEffect(() => {
       let live = true;
       setPhase("loading");
       setReport(null);
       setErr(null);
-      runSet(false).then((rep) => {
+      runSet(false, recalledActiveJob(activeJobKey)).then((rep) => {
         if (live) {
           setReport(rep);
           setPhase("ready");
@@ -9668,8 +9784,10 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       });
       return () => {
         live = false;
+        pollersRef.current.forEach((cancel) => cancel());
+        pollersRef.current.clear();
       };
-    }, [runSet]);
+    }, [runSet, activeJobKey]);
     const generate = () => {
       setGen("generating");
       runSet(true).then((rep) => {
@@ -13827,6 +13945,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     "funding",
     "ethics"
   ];
+  const SYNTHESIS_ACTIVE_JOB_KEY = "callosum.active-job.synthesis";
   function selectedSynthesisSections(sectionFilter) {
     return SYNTH_SECTION_OPTIONS.filter((key) => !!sectionFilter[key]);
   }
@@ -13861,29 +13980,37 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     useEffect(() => {
       loadHistory();
       return () => {
-        if (pollRef.current) clearTimeout(pollRef.current);
+        if (pollRef.current) pollRef.current();
       };
     }, [loadHistory]);
     const pollJob = useCallback((jobId) => {
-      api(`/summarize/${jobId}`).then((r) => {
-        if (!r.ok) {
-          setState({ status: "error", error: r.error, jobId });
-          return;
-        }
-        const data = r.data;
-        if (data.status === "done") {
+      if (pollRef.current) pollRef.current();
+      rememberActiveJob(SYNTHESIS_ACTIVE_JOB_KEY, jobId);
+      pollRef.current = observeJobUntilTerminal(`/summarize/${jobId}`, {
+        onProgress: (data) => {
+          setState({ status: "running", jobId, message: data.status === "pending" ? "Queued for verification" : "Generating and verifying" });
+        },
+        onDone: (data) => {
+          pollRef.current = null;
+          rememberActiveJob(SYNTHESIS_ACTIVE_JOB_KEY, null);
           setState({ status: "done", result: data, jobId });
           loadHistory();
-        } else if (data.status === "error") {
-          setState({ status: "error", error: data.detail || "Summarization failed.", jobId });
-        } else {
-          setState({ status: "running", jobId, message: data.status === "pending" ? "Queued for verification" : "Generating and verifying" });
-          pollRef.current = setTimeout(() => pollJob(jobId), 1200);
+        },
+        onError: (error) => {
+          pollRef.current = null;
+          rememberActiveJob(SYNTHESIS_ACTIVE_JOB_KEY, null);
+          setState({ status: "error", error: error || "Summarization failed.", jobId });
         }
       });
     }, [loadHistory]);
+    useEffect(() => {
+      const jobId = recalledActiveJob(SYNTHESIS_ACTIVE_JOB_KEY);
+      if (!jobId) return;
+      setState({ status: "running", jobId, message: "Reconnecting to synthesis" });
+      pollJob(jobId);
+    }, [pollJob]);
     const launchPrepared = useCallback((body, runningMessage) => {
-      if (pollRef.current) clearTimeout(pollRef.current);
+      if (pollRef.current) pollRef.current();
       lastLaunchRef.current = { body, runningMessage };
       setState({ status: "running", message: runningMessage });
       apiPost("/summarize", body).then((r) => {
@@ -13961,7 +14088,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       launch(body, `Summarizing ${n} selected paper${n === 1 ? "" : "s"}`);
     }, [pendingSummarize ? pendingSummarize.nonce : null]);
     const loadSummary = useCallback((summaryId) => {
-      if (pollRef.current) clearTimeout(pollRef.current);
+      if (pollRef.current) pollRef.current();
+      rememberActiveJob(SYNTHESIS_ACTIVE_JOB_KEY, null);
       setScopeNote(null);
       setScopeMeta(null);
       setState({ status: "loading-summary", message: "Loading saved synthesis" });
