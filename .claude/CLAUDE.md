@@ -867,6 +867,12 @@ tests. The analogue of a brand promise: never break it.
    overwhelms more actionable work. Add any future exclusion only to `STATUS_HIDDEN_STORES`, with an explicit noise
    rationale and regression test; do not silently bypass Status at a call site.
 
+6. **Model-backed latency is an architectural constraint, not an optional polish pass.** Any backend work that uses
+   local models, remote models, reusable provider clients, model-backed jobs, or latency-sensitive inference must
+   follow [`.claude/LATENCY.md`](LATENCY.md). Preserve the live batching, runtime/client reuse, positional
+   reconstruction, and completion-notification invariants documented there unless an intentional, measured change
+   justifies replacing one. Functional correctness alone does not excuse an avoidable user-visible latency regression.
+
 ---
 
 ## Principles alignment gate (read `.claude/PRINCIPLES.md`)
@@ -1158,6 +1164,28 @@ the doc's mechanism — a subagent *in character* as a concrete user with a goal
 citer** vetting a paper's stats before citing it), driving the feature and reporting what's left to be desired. A
 **reflective pause, not a block**; the output is a finding — fix what's cheap in the same increment, else file a UX
 follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record the pass in the increment notes.
+
+### 12. Latency and model-backed backend work
+
+Any addition or modification to backend code that uses local models, cloud/remote models, model-provider clients,
+model-backed background jobs, or latency-sensitive inference **MUST** comply with the repository latency contract at
+[`.claude/LATENCY.md`](LATENCY.md).
+
+Before implementing such a change:
+
+1. Read `.claude/LATENCY.md`.
+2. Identify the affected user-visible critical path.
+3. Preserve the applicable current performance invariants documented there.
+4. Do not introduce per-item inference, repeated compatible model/client construction, unnecessary fixed polling,
+   uncontrolled transformer padding waste, or unnecessary serialized remote calls.
+5. Preserve scientific semantics and positional ordering unless the task explicitly intends to change them.
+6. Benchmark material performance changes using representative workloads and the measurement requirements in
+   `.claude/LATENCY.md`.
+7. Separate correctness tests from performance benchmarks.
+8. Report any intentional deviation from `.claude/LATENCY.md`, why it is necessary, and the measurements supporting it.
+
+A model-backed change is not complete merely because it is functionally correct; it must also avoid unjustified
+latency regressions.
 
 ---
 
@@ -1499,6 +1527,7 @@ before large design changes:
 | `.claude/DESIGN.md` | **Design dictionary — read before ANY CSS/inline-style change (rule #8): tokens, element recipes, fixed color/type semantics, consolidation worklist** |
 | `.claude/QA-POLICY.md` | **The QA contract — read before changing any end-user surface (rule #10): the fixture contract, the computed coverage gate (`tools/qa/build_surface_map.py`), the honesty-invariant assertions, the severity rubric, and the Codex-exec supervisor + watched-inbox loop. Add/extend a QA route in the same increment as a surface change.** |
 | `.claude/EXPERIENCE-PASS.md` | **The end-user experience pass — read before calling any user-facing change done (rule #11): the two questions (reception / intended-use, the latter bounded by the #9 + A-A vetoes), the persona-grounded experience-agent mechanism (dispatch a subagent in-character as a concrete user with a goal-in-the-moment), the extensible persona/scenario library (deadline citer / corpus builder / skeptical synthesizer), and the statcheck worked example. A reflective pause → a finding (fix-cheap or backlog). The 4th gate: DESIGN=looks, PRINCIPLES=honest, QA=works+covered, EXPERIENCE=serves the user.** |
+| `.claude/LATENCY.md` | **The latency contract — read before adding or modifying local/remote model work, provider-client use, model-backed jobs, or latency-sensitive inference (rule #12). It records the live batching, runtime reuse, provider reuse, token-shape, long-poll, measurement, and scientific-equivalence invariants that performance-sensitive changes must preserve or intentionally revalidate.** |
 | `.claude/docs/future-tracks/` | The 7 longer-horizon track docs (statcheck/open-science, word-plugin, highlight-to-suggest/evaluate, full-text acquisition, my-publications, theory/methods, plugins, gapfinder, library Feed/Search). Referenced by `INCREMENT-BACKLOG.md`. |
 | `.claude/staged-harnesses/REGISTRY.md` | **Dormant fitness-function drafts (backlog #20 ratchet, session-kickoff #11): Pyright, tach, a coverage gate, Hypothesis property tests, an embedding-drift harness, performance monitoring, bandit — each drafted with its activation trigger, not wired in until the trigger fires.** |
 | `app/backend/help/help_content.md` | **The served help corpus (inc 59) — the source of truth for user-facing help.** Edit here (then it renders in the `?` modal). Keep current via the `HELP-DOCS-SYNCED` marker. |
@@ -1548,7 +1577,10 @@ When starting any non-trivial work:
    value; run its drift typology; honor its veto-level boundaries). For anything touching **founder/governance
    authority, workplace power/surveillance, or advisory-body questions**, also consult
    `.claude/GOVERNANCE-COMMITMENTS.md` — narrower still, not a routine read.
-9. **Check the future-tracks watched inbox** (Phase 8). Glance at `.claude/docs/future-tracks-import/`. It
+9. **For model-backed or latency-sensitive backend work, read `.claude/LATENCY.md` (rule #12).** Name the
+   user-visible critical path, the live performance invariants affected, and the representative benchmark needed;
+   keep correctness assertions separate from scheduler-sensitive performance receipts.
+10. **Check the future-tracks watched inbox** (Phase 8). Glance at `.claude/docs/future-tracks-import/`. It
    normally sits empty bar its `README.md` + the items the README's **Parked** list names — **anything else is
    unprocessed input a prior session or the user dropped in.** For each new file, **surface it to the user**
    (report it, never act silently) and handle it per the inbox `README.md`: a genuine **future-track** → run the
@@ -1556,16 +1588,16 @@ When starting any non-trivial work:
    `future-tracks/README.md` index, then **move** it to `future-tracks/`; a **meta / CLAUDE.md directive** →
    action it, then remove it; a **counsel-gated / sensitive** drop → leave it **parked** (it stays in the
    gitignored inbox, named in the README's Parked list — never auto-processed or published).
-10. **Check the QA inbox.** Glance at `.claude/qa-inbox/` (gitignored, local-only — like the future-tracks
+11. **Check the QA inbox.** Glance at `.claude/qa-inbox/` (gitignored, local-only — like the future-tracks
    inbox). It is normally empty bar `_processed/`. For each unprocessed `<run-id>/`, read its `run-summary.md`
    (Critical/High first): **fix Critical/High in-session**, file Medium/Low to `INCREMENT-BACKLOG.md`, open a
    `security-audits/` stub for any security-class finding, then move the run to `.claude/qa-inbox/_processed/`.
    Do not act on a run silently — surface what you found and what you're fixing. The supervisor
    (`tools/qa/supervisor.py`) deposits these via headless Codex `exec` runs (the QA-POLICY loop, rule #10).
-11. **Glance at `.claude/staged-harnesses/REGISTRY.md`.** Has any dormant harness's activation trigger fired
+12. **Glance at `.claude/staged-harnesses/REGISTRY.md`.** Has any dormant harness's activation trigger fired
    (a type-clean baseline, an outside contributor, a library crossing ~1-2k PDFs, an embedding-model change, a
    public deployment)? Keep this a single glance, not a ritual.
-12. **When in doubt, ask.** This project is pre-release with one user — a 30-second confirmation
+13. **When in doubt, ask.** This project is pre-release with one user — a 30-second confirmation
    is cheaper than a wrong turn.
 
 IF NEEDED, see ".\session-kickoff-log.md"
