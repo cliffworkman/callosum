@@ -30,7 +30,7 @@ from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attac
 from app.backend.persistence.findings_repo import get_paper_findings
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper
 from app.backend.persistence.schema import attachments, chunks, embeddings, open_science_signals, papers
-from app.backend.summarization.verification import Stance, StanceScorer, classify_stances
+from app.backend.summarization.verification import Stance, StanceScorer, classify_critical_review_stances
 
 CRITICAL_REVIEW_VERSION = "1"
 MAX_CRITIQUE_CLAIMS = 12
@@ -185,11 +185,13 @@ def search_contested_claim_scopes(
     top_k: int = CRITIQUE_TOP_K,
     max_claims: int = MAX_CRITIQUE_CLAIMS,
 ) -> list[ContestedSearchReport]:
-    """Search one or more scopes with one ordered embedding batch and one ordered NLI batch.
+    """Search one or more scopes with one ordered embedding batch and one logical NLI inference phase.
 
     Retrieval remains per claim because each query has its own candidate-id scope and ``top_k`` result. Explicit
     scope/claim/hit indices carry every NLI result back to the same evidence item the sequential implementation
-    evaluated; no deduplication or unordered mapping occurs.
+    evaluated. The production scorer may group multi-batch inputs by effective token length, but reconstructs every
+    stance into this exact pair order before the threshold/evidence loop below; no deduplication or unordered mapping
+    occurs.
     """
     bounded_claims = [scope.claim_sentences[:max_claims] for scope in scopes]
     active_claims = [
@@ -220,7 +222,7 @@ def search_contested_claim_scopes(
             retrieved_counts[scope_index] += 1
             pairs.append(_RetrievedClaimPair(scope_index, claim_index, hit_index, claim, chunk))
 
-    stances = classify_stances(stance_scorer, [(pair.claim, pair.chunk.text) for pair in pairs])
+    stances = classify_critical_review_stances(stance_scorer, [(pair.claim, pair.chunk.text) for pair in pairs])
     classified_counts = [0] * len(scopes)
     best_by_claim: list[list[ContestedClaim | None]] = [[None] * len(claims) for claims in bounded_claims]
     for pair, stance in zip(pairs, stances, strict=True):
