@@ -9,6 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-24 — Increment 497: post-merge dependency and runtime hardening
+- **Files:** `pyproject.toml`, `requirements-dev.txt`, `uv.lock`, model/provider runtime and provider dispatch,
+  batched stance inference, Critical Read/WIP call sites, focused backend/frontend tests, security audit,
+  `.claude/{LATENCY,CLAUDE,changes}.md`, and `INCREMENT-497-NOTES.md`.
+- **What:** upgrades cryptography 49.0.0 to 50.0.0 and pytest 8.4.2 to 9.1.1; makes local-model and provider-client
+  shutdown terminal without serializing normal provider work; retains the fast batched stance path while retrying
+  an exceptional failed batch per pair so one pathological pair fails closed locally; adds executable coverage for
+  synthesis Overview retry/status edge cases; and removes the inert Critical Read `on_progress` callback surface.
+- **Why:** close post-merge security alerts, eliminate deterministic close/use races, preserve evidence availability
+  when a single NLI pair is malformed, pin two already-shipped browser fixes with source-backed tests, and remove a
+  callback that all three stage-aware Critical Read surfaces had stopped consuming.
+- **Boundaries:** the ordinary NLI path remains one logical batch (including length planning/reconstruction),
+  concurrent provider requests remain concurrent, failed pairs never fabricate stance, and scientific, API,
+  persistence, provider-routing, and user-visible Help behavior are unchanged.
+- **Upstream exception:** Rust `glib` 0.18.5 remains because current Tauri 2.11.5's Linux GTK dependency requires
+  the 0.18 line; Dependabot alert #17 stays open rather than forcing an incompatible lockfile or dismissing risk.
+- **Verification:** final root suite **2461 passed, 3 skipped**; focused runtime (32), stance/CR (72), and frontend/
+  lifecycle (91) sets passed. Strict pip-audit found no Python vulnerabilities. Ruff, configured Bandit, Tach,
+  line budget, pytest-testmon smoke, and `git diff --check` passed. The dependency commit's GitHub CI, e2e, CodeQL,
+  and dependency-graph checks passed.
+- **Revert:** `git revert 6bae604 29866ce 0ead720 9015269 3e5c339 1438bf5` in reverse dependency order as needed;
+  the upstream-blocked Rust alert is intentionally not represented by a code change.
+
 ## 2026-08-24 — post-merge CI cleanup (dist-demo build, CRLF fixture hash, stale UI/screenshot)
 - **Files:** `.github/workflows/ci.yml`, `.gitattributes` (new), `demo/wip-state-v1.json`,
   `tests/e2e/test_demo_static.py`, `www/shots/status_current.png`, `www/showcase-coverage.json`.
