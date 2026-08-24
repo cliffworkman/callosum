@@ -64,8 +64,25 @@ def summary_overview_retry(
 
 def resolve_overview_generator(api: FastAPI):
     from app.backend.llm.egress import EgressGatedOverviewGenerator
+    from app.backend.llm.managed_local import resolve_managed_local_overview
     from app.backend.llm.providers import requires_egress
     from integrations.gemini.overview import GeminiOverviewGenerator
+
+    # Developer-only Automatic AI POC: explicit activation is exclusive and fail-closed. An absent,
+    # stale, or invalid managed descriptor makes Overview unavailable; it never falls through to cloud.
+    managed = resolve_managed_local_overview(api.state.provider_client_runtime)
+    if managed.enabled:
+        if managed.config is None:
+            return None
+        config = managed.config
+        inner = GeminiOverviewGenerator(config=config)
+        return EgressGatedOverviewGenerator(
+            inner=inner,
+            data_egress_enabled=False,
+            provider=config.provider,
+            wire_format=config.wire_format,
+            base_url=config.base_url,
+        )
 
     config = resolve_llm_config(api)
     inner = api.state.overview_generator

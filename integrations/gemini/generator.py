@@ -37,12 +37,13 @@ class LLMConfig:
 
     model: str = "gemini-2.5-flash-lite"
     api_key_env: str = "GOOGLE_API_KEY"
-    api_key: str | None = None
+    api_key: str | None = field(default=None, repr=False)
     provider: str = "gemini"
     wire_format: str = "gemini"
     base_url: str | None = None  # the provider's endpoint host (None for the gemini SDK)
     data_egress_enabled: bool = False
     help_assistant_enabled: bool = False
+    http_trust_env: bool = True
     provider_runtime: ProviderClientRuntime | None = field(default=None, repr=False, compare=False)
 
     @classmethod

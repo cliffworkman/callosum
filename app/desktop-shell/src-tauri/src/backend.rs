@@ -6,7 +6,7 @@
 
 use std::io::{BufRead, BufReader};
 use std::net::TcpListener;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -25,6 +25,7 @@ pub struct ResolvedPaths {
     pub db_url: String,
     pub library_dir: PathBuf,
     pub log_path: PathBuf,
+    pub app_data_dir: PathBuf,
 }
 
 pub enum StartupError {
@@ -96,6 +97,7 @@ pub fn resolved_paths(app: &AppHandle) -> Result<ResolvedPaths, StartupError> {
         db_url,
         library_dir,
         log_path: data_dir.join("backend.log"),
+        app_data_dir: data_dir,
     })
 }
 
@@ -109,7 +111,11 @@ fn pick_free_port() -> std::io::Result<u16> {
 /// Spawn uvicorn against `paths` on a freshly-picked port, retrying with a new port if the process
 /// exits almost immediately (the classic "address already in use" case on a personal machine where
 /// something else grabbed the port in the gap between `pick_free_port` and uvicorn's own bind).
-pub fn spawn_backend(paths: &ResolvedPaths, app_version: &str) -> Result<(BackendHandle, u16), StartupError> {
+pub fn spawn_backend(
+    paths: &ResolvedPaths,
+    app_version: &str,
+    managed_local_ai_descriptor: Option<&std::path::Path>,
+) -> Result<(BackendHandle, u16), StartupError> {
     let mut last_err = String::new();
     for _ in 0..MAX_SPAWN_ATTEMPTS {
         let port = pick_free_port().map_err(|e| StartupError::SpawnFailed(e.to_string()))?;
@@ -129,6 +135,16 @@ pub fn spawn_backend(paths: &ResolvedPaths, app_version: &str) -> Result<(Backen
         .env("CALLOSUM_APP_VERSION", app_version)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+        if let Some(path) = managed_local_ai_descriptor {
+            cmd.env(crate::managed_local_ai::DESCRIPTOR_ENV, path);
+        } else {
+            // Only Tauri may provision this path. Do not inherit a developer shell's stale/spoofed value.
+            cmd.env_remove(crate::managed_local_ai::DESCRIPTOR_ENV);
+        }
+        // Runtime/model paths and backend controls belong exclusively to Tauri's process owner.
+        for name in crate::managed_local_ai::OWNER_ONLY_ENV {
+            cmd.env_remove(name);
+        }
 
         #[cfg(windows)]
         {
@@ -186,7 +202,7 @@ pub fn spawn_backend(paths: &ResolvedPaths, app_version: &str) -> Result<(Backen
 
 /// Drain stdout/stderr on background threads into a rotating-by-restart log file — the only
 /// debugging channel into a real user's machine, so keep it even after the health check passes.
-fn drain_output(child: &mut Child, log_path: &PathBuf) {
+fn drain_output(child: &mut Child, log_path: &Path) {
     for pipe in [
         child.stdout.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>),
         child.stderr.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>),
@@ -194,7 +210,7 @@ fn drain_output(child: &mut Child, log_path: &PathBuf) {
     .into_iter()
     .flatten()
     {
-        let path = log_path.clone();
+        let path = log_path.to_path_buf();
         std::thread::spawn(move || {
             use std::io::Write;
             let reader = BufReader::new(pipe);
@@ -213,7 +229,7 @@ fn confine_to_job(child: &Child) -> Result<win32job::Job, String> {
     let job = win32job::Job::create().map_err(|e| e.to_string())?;
     let mut info = job.query_extended_limit_info().map_err(|e| e.to_string())?;
     info.limit_kill_on_job_close();
-    job.set_extended_limit_info(&mut info).map_err(|e| e.to_string())?;
+    job.set_extended_limit_info(&info).map_err(|e| e.to_string())?;
     job.assign_process(child.as_raw_handle() as isize)
         .map_err(|e| e.to_string())?;
     Ok(job)

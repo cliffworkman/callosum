@@ -131,8 +131,8 @@ class ProviderClientRuntime:
         self._registry_lock = RLock()
         self._closed = False
 
-    def get_http_client(self, *, base_url: str, timeout: float) -> object:
-        return self._http_entry_for(base_url=base_url, timeout=timeout).get()
+    def get_http_client(self, *, base_url: str, timeout: float, trust_env: bool = True) -> object:
+        return self._http_entry_for(base_url=base_url, timeout=timeout, trust_env=trust_env).get()
 
     def get_gemini_client(self, *, api_key: str | None) -> object:
         return self._gemini_entry(api_key).get()
@@ -142,9 +142,10 @@ class ProviderClientRuntime:
         *,
         base_url: str,
         timeout: float,
+        trust_env: bool = True,
         operation: Callable[[object], T],
     ) -> T:
-        return self._http_entry_for(base_url=base_url, timeout=timeout).run(operation)
+        return self._http_entry_for(base_url=base_url, timeout=timeout, trust_env=trust_env).run(operation)
 
     def run_gemini(self, *, api_key: str | None, operation: Callable[[object], T]) -> T:
         return self._gemini_entry(api_key).run(operation)
@@ -181,10 +182,11 @@ class ProviderClientRuntime:
                 self._http_entries[identity] = entry
             return entry
 
-    def _http_entry_for(self, *, base_url: str, timeout: float) -> _ClientEntry:
+    def _http_entry_for(self, *, base_url: str, timeout: float, trust_env: bool = True) -> _ClientEntry:
         identity = HttpClientIdentity(
             endpoint_fingerprint=_fingerprint(base_url.rstrip("/")),
             timeout=timeout,
+            trust_env=trust_env,
             environment_fingerprint=_environment_fingerprint(_HTTP_ENV_KEYS),
         )
         return self._http_entry(identity)

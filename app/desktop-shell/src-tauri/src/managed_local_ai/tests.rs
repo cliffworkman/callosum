@@ -1,0 +1,510 @@
+use super::*;
+use std::io::{Read, Write};
+use std::net::TcpListener;
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+fn test_dir(label: &str) -> PathBuf {
+    let path = std::env::temp_dir().join(format!("callosum-{label}-{}", random_token().unwrap()));
+    std::fs::create_dir_all(&path).unwrap();
+    path
+}
+
+fn fake_config(root: &Path) -> DeveloperConfig {
+    let runtime = root.join(if cfg!(windows) {
+        "llama-server.exe"
+    } else {
+        "llama-server"
+    });
+    let model = root.join("instrument.gguf");
+    std::fs::write(&runtime, b"runtime").unwrap();
+    std::fs::write(&model, b"model").unwrap();
+    DeveloperConfig {
+        runtime,
+        model,
+        gpu_layers: 0,
+        threads: 4,
+    }
+}
+
+#[test]
+fn enabled_runtime_requires_existing_runtime_and_gguf_paths() {
+    let _guard = ENV_LOCK.lock().unwrap();
+    let previous = [ENABLE_ENV, RUNTIME_ENV, MODEL_ENV].map(|name| (name, std::env::var_os(name)));
+    std::env::set_var(ENABLE_ENV, "1");
+    std::env::remove_var(RUNTIME_ENV);
+    std::env::remove_var(MODEL_ENV);
+    assert!(matches!(
+        DeveloperConfig::from_environment(),
+        Err(ManagedAiError::InvalidConfig(_))
+    ));
+
+    let root = test_dir("invalid-config");
+    let not_gguf = root.join("model.txt");
+    std::fs::write(&not_gguf, b"not a model").unwrap();
+    std::env::set_var(RUNTIME_ENV, std::env::current_exe().unwrap());
+    std::env::set_var(MODEL_ENV, &not_gguf);
+    assert!(matches!(
+        DeveloperConfig::from_environment(),
+        Err(ManagedAiError::InvalidConfig(_))
+    ));
+    for (name, value) in previous {
+        match value {
+            Some(value) => std::env::set_var(name, value),
+            None => std::env::remove_var(name),
+        }
+    }
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn server_argv_is_strict_loopback_authenticated_and_shell_free() {
+    let root = test_dir("argv");
+    let config = fake_config(&root);
+    let token_path = root.join("auth-token");
+    let args = server_args(&config, 32123, &token_path);
+    let values = args
+        .iter()
+        .map(|value| value.to_string_lossy())
+        .collect::<Vec<_>>();
+
+    assert!(values
+        .windows(2)
+        .any(|pair| pair == ["--host", "127.0.0.1"]));
+    assert!(!values
+        .iter()
+        .any(|value| value == "0.0.0.0" || value == "localhost"));
+    assert!(values
+        .windows(2)
+        .any(|pair| pair[0] == "--api-key-file" && pair[1] == token_path.to_string_lossy()));
+    assert!(values
+        .windows(2)
+        .any(|pair| pair == ["--alias", MODEL_ALIAS]));
+    assert!(values.contains(&"--no-webui".into()));
+    assert!(values.contains(&"--log-disable".into()));
+    assert!(values.contains(&"--offline".into()));
+    assert!(!values.iter().any(|value| value.contains("Bearer")
+        || value.len() == 64 && value.chars().all(|c| c.is_ascii_hexdigit())));
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn tokens_are_strong_random_and_private_descriptor_has_no_secret_or_model_path() {
+    let first = random_token().unwrap();
+    let second = random_token().unwrap();
+    assert_eq!(first.len(), 64);
+    assert_ne!(first, second);
+    assert!(first.chars().all(|value| value.is_ascii_hexdigit()));
+
+    let descriptor = TargetDescriptor {
+        schema_version: 1,
+        target_id: "llama-cpp-a-b".into(),
+        kind: "device_local",
+        endpoint: "http://127.0.0.1:1234".into(),
+        wire_format: "chat_completions",
+        credential_ref: "private/auth-token".into(),
+        model_alias: MODEL_ALIAS,
+        runtime_family: "llama.cpp",
+        runtime_version: "version 1".into(),
+        runtime_binary_digest: "a".repeat(64),
+        model_artifact_digest: "b".repeat(64),
+        chat_template_digest: Some("c".repeat(64)),
+        context_tokens: CONTEXT_TOKENS,
+        max_output_tokens: MAX_OUTPUT_TOKENS,
+        temperature: 0.0,
+        seed: 42,
+        execution_backend: "cpu".into(),
+        qualification_state: "DEVELOPER_TEST_ONLY",
+    };
+    let encoded = serde_json::to_string(&descriptor).unwrap();
+    assert!(!encoded.contains(&first));
+    assert!(!encoded.contains("instrument.gguf"));
+    assert!(!encoded.contains("llama-server.exe"));
+}
+
+#[test]
+fn private_files_are_created_without_overwrite() {
+    let root = test_dir("private");
+    let path = root.join("auth-token");
+    write_private_file(&path, b"first").unwrap();
+    assert!(write_private_file(&path, b"second").is_err());
+    assert_eq!(std::fs::read(&path).unwrap(), b"first");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn readiness_probe_requires_alias_auth_and_valid_chat_shape() {
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let (endpoint, server) = fake_readiness_server("correct-token", false);
+        let client = reqwest::Client::builder().no_proxy().build().unwrap();
+        let digest = authenticated_probe(&client, &endpoint, "correct-token")
+            .await
+            .unwrap();
+        assert_eq!(digest, Some(digest_bytes("template-v1")));
+        server.join().unwrap();
+
+        let (endpoint, server) = fake_readiness_server("correct-token", false);
+        assert!(authenticated_probe(&client, &endpoint, "wrong-token")
+            .await
+            .is_err());
+        server.join().unwrap();
+
+        let (endpoint, server) = fake_readiness_server("correct-token", true);
+        assert!(authenticated_probe(&client, &endpoint, "correct-token")
+            .await
+            .is_err());
+        server.join().unwrap();
+    });
+}
+
+fn fake_readiness_server(
+    expected_token: &'static str,
+    malformed_chat: bool,
+) -> (String, std::thread::JoinHandle<()>) {
+    let listener = TcpListener::bind((HOST, 0)).unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let endpoint = format!("http://{}:{}", HOST, listener.local_addr().unwrap().port());
+    let server = std::thread::spawn(move || {
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while Instant::now() < deadline {
+            let (mut stream, _) = match listener.accept() {
+                Ok(value) => value,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(10));
+                    continue;
+                }
+                Err(error) => panic!("fake readiness listener failed: {error}"),
+            };
+            let request = read_http_request(&mut stream);
+            let lower = request.to_ascii_lowercase();
+            let authenticated = lower.contains(&format!("authorization: bearer {expected_token}"));
+            let (status, body, terminal) = if lower.starts_with("get /v1/models ") {
+                (
+                    200,
+                    format!(r#"{{"data":[{{"id":"{MODEL_ALIAS}"}}]}}"#),
+                    false,
+                )
+            } else if lower.starts_with("get /props ") && authenticated {
+                (200, r#"{"chat_template":"template-v1"}"#.into(), false)
+            } else if lower.starts_with("post /v1/chat/completions ") && authenticated {
+                let body = if malformed_chat {
+                    r#"{"choices":[]}"#.into()
+                } else {
+                    r#"{"choices":[{"message":{"content":"O"}}]}"#.into()
+                };
+                (200, body, true)
+            } else {
+                (401, r#"{"error":"unauthorized"}"#.into(), true)
+            };
+            let reason = if status == 200 { "OK" } else { "Unauthorized" };
+            write!(
+                stream,
+                "HTTP/1.1 {status} {reason}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+            .unwrap();
+            if terminal {
+                return;
+            }
+        }
+        panic!("fake readiness server timed out before a terminal request");
+    });
+    (endpoint, server)
+}
+
+fn read_http_request(stream: &mut std::net::TcpStream) -> String {
+    stream
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
+    let mut bytes = Vec::new();
+    let mut buffer = [0_u8; 1024];
+    loop {
+        let read = stream.read(&mut buffer).unwrap_or(0);
+        if read == 0 {
+            break;
+        }
+        bytes.extend_from_slice(&buffer[..read]);
+        if bytes.windows(4).any(|window| window == b"\r\n\r\n") {
+            break;
+        }
+    }
+    String::from_utf8_lossy(&bytes).into_owned()
+}
+
+#[test]
+fn shutdown_removes_descriptor_and_token_and_terminates_child() {
+    let root = test_dir("shutdown");
+    let descriptor_path = root.join("target.json");
+    let token_path = root.join("auth-token");
+    std::fs::write(&descriptor_path, b"descriptor").unwrap();
+    std::fs::write(&token_path, b"token").unwrap();
+    let child = long_running_child();
+    let pid = child.id();
+    let handle = confine_process(child, descriptor_path.clone(), token_path.clone()).unwrap();
+    let state = ManagedLocalAiState::default();
+    *state.0.lock().unwrap() = Some(handle);
+
+    shutdown(&state);
+
+    assert!(!descriptor_path.exists());
+    assert!(!token_path.exists());
+    assert!(!process_exists(pid));
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn crash_monitor_invalidates_descriptor_and_token() {
+    let root = test_dir("crash-monitor");
+    let descriptor_path = root.join("target.json");
+    let token_path = root.join("auth-token");
+    std::fs::write(&descriptor_path, b"descriptor").unwrap();
+    std::fs::write(&token_path, b"token").unwrap();
+    let handle = confine_process(
+        long_running_child(),
+        descriptor_path.clone(),
+        token_path.clone(),
+    )
+    .unwrap();
+    let state = ManagedLocalAiState::default();
+    *state.0.lock().unwrap() = Some(handle);
+    start_crash_monitor(state.clone());
+    state
+        .0
+        .lock()
+        .unwrap()
+        .as_mut()
+        .unwrap()
+        .child
+        .kill()
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while descriptor_path.exists() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert!(!descriptor_path.exists());
+    assert!(!token_path.exists());
+    assert!(state.0.lock().unwrap().is_none());
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn forced_shutdown_fallback_terminates_child() {
+    let root = test_dir("forced-shutdown");
+    let descriptor_path = root.join("target.json");
+    let token_path = root.join("auth-token");
+    let child = long_running_child();
+    let pid = child.id();
+    let mut handle = confine_process(child, descriptor_path, token_path).unwrap();
+    force_shutdown(&mut handle);
+    assert!(!process_exists(pid));
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn short_readiness_deadline_fails_closed_and_cleans_up() {
+    let root = test_dir("readiness-timeout");
+    let descriptor_path = root.join("target.json");
+    let token_path = root.join("auth-token");
+    std::fs::write(&descriptor_path, b"descriptor").unwrap();
+    std::fs::write(&token_path, b"token").unwrap();
+    let handle = confine_process(
+        long_running_child(),
+        descriptor_path.clone(),
+        token_path.clone(),
+    )
+    .unwrap();
+    let state = ManagedLocalAiState::default();
+    *state.0.lock().unwrap() = Some(handle);
+    let unused_port = pick_free_port().unwrap();
+    let result = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(wait_until_ready(
+            &state,
+            &format!("http://{HOST}:{unused_port}"),
+            "unused-token",
+            Duration::from_millis(80),
+        ));
+    assert!(matches!(result, Err(ManagedAiError::ReadinessTimeout)));
+    shutdown(&state);
+    assert!(!descriptor_path.exists());
+    assert!(!token_path.exists());
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(windows)]
+fn long_running_child() -> Child {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    Command::new("powershell.exe")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "Start-Sleep -Seconds 30",
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .unwrap()
+}
+
+#[cfg(unix)]
+fn long_running_child() -> Child {
+    use std::os::unix::process::CommandExt;
+    let mut command = Command::new("sleep");
+    command.arg("30").process_group(0).spawn().unwrap()
+}
+
+#[cfg(windows)]
+fn process_exists(pid: u32) -> bool {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let output = Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&output.stdout).contains(&pid.to_string())
+}
+
+#[cfg(unix)]
+fn process_exists(pid: u32) -> bool {
+    unsafe { libc::kill(pid as i32, 0) == 0 }
+}
+
+#[test]
+#[ignore = "requires developer-supplied llama-server, GGUF, and Python paths"]
+fn live_managed_runtime_routes_existing_python_overview_path() {
+    let python =
+        std::env::var_os("CALLOSUM_LOCAL_AI_PYTHON").expect("set CALLOSUM_LOCAL_AI_PYTHON");
+    let root = test_dir("live");
+    let state = ManagedLocalAiState::default();
+    let descriptor = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(start_if_enabled(&root, &state))
+        .unwrap()
+        .expect("CALLOSUM_LOCAL_AI_ENABLED must be 1");
+    let payload: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&descriptor).unwrap()).unwrap();
+    let endpoint = payload["endpoint"].as_str().unwrap();
+    let credential_path = PathBuf::from(payload["credential_ref"].as_str().unwrap());
+    let token = std::fs::read_to_string(&credential_path).unwrap();
+    let model_name = std::env::var_os(MODEL_ENV)
+        .and_then(|path| PathBuf::from(path).file_name().map(|name| name.to_owned()))
+        .unwrap();
+    let model_name = model_name.to_string_lossy();
+
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let client = reqwest::Client::builder().no_proxy().build().unwrap();
+        let models = client
+            .get(format!("{endpoint}/v1/models"))
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        assert!(models.contains(MODEL_ALIAS));
+        assert!(!models.contains(model_name.as_ref()));
+        let body = serde_json::json!({
+            "model": MODEL_ALIAS,
+            "messages": [{"role": "user", "content": "Reply with OK."}],
+            "max_tokens": 1
+        });
+        assert_eq!(
+            client
+                .post(format!("{endpoint}/v1/chat/completions"))
+                .json(&body)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            reqwest::StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            client
+                .post(format!("{endpoint}/v1/chat/completions"))
+                .bearer_auth("wrong-token")
+                .json(&body)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            reqwest::StatusCode::UNAUTHORIZED
+        );
+        assert!(client
+            .post(format!("{endpoint}/v1/chat/completions"))
+            .bearer_auth(&token)
+            .json(&body)
+            .send()
+            .await
+            .unwrap()
+            .status()
+            .is_success());
+    });
+
+    let source_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .expect("desktop crate has repository root")
+        .to_path_buf();
+    let python_code = r#"
+from app.backend.llm.managed_local import resolve_managed_local_overview
+from app.backend.provider_runtime import ProviderClientRuntime
+from integrations.gemini.overview import GeminiOverviewGenerator
+import os
+assert os.getenv("CALLOSUM_LOCAL_AI_RUNTIME") is None
+assert os.getenv("CALLOSUM_LOCAL_AI_MODEL") is None
+runtime = ProviderClientRuntime()
+resolution = resolve_managed_local_overview(runtime)
+assert resolution.enabled and resolution.config is not None
+items = GeminiOverviewGenerator(config=resolution.config).generate(
+    verified_claims=[
+        "The intervention group reported a lower mean score than the comparison group.",
+        "The study used a randomized design with blinded outcome assessment.",
+    ],
+    scope_ref={"scope_type": "developer-poc"},
+)
+assert items and all(item.claim_indices for item in items)
+runtime.close()
+"#;
+    let output = Command::new(python)
+        .arg("-c")
+        .arg(python_code)
+        .current_dir(source_root)
+        .env(ENABLE_ENV, "1")
+        .env(DESCRIPTOR_ENV, &descriptor)
+        .env_remove(RUNTIME_ENV)
+        .env_remove(MODEL_ENV)
+        .env_remove(GPU_LAYERS_ENV)
+        .env_remove(THREADS_ENV)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "production Python Overview path failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stdout.is_empty());
+    assert!(std::fs::read_dir(root.join("managed-local-ai"))
+        .unwrap()
+        .all(|entry| matches!(
+            entry.unwrap().file_name().to_str(),
+            Some("target.json" | "auth-token")
+        )));
+
+    shutdown(&state);
+    assert!(!descriptor.exists());
+    assert!(!credential_path.exists());
+    std::fs::remove_dir_all(root).unwrap();
+}

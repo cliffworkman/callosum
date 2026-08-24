@@ -188,7 +188,12 @@ def complete(
     if http_client is not None:
         return dispatch(http_client)
     if runtime is not None:
-        return runtime.run_http(base_url=base, timeout=_HTTP_TIMEOUT, operation=dispatch)
+        return runtime.run_http(
+            base_url=base,
+            timeout=_HTTP_TIMEOUT,
+            trust_env=bool(getattr(config, "http_trust_env", True)),
+            operation=dispatch,
+        )
     return dispatch(None)
 
 

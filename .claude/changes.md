@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-24 — Increment 498: developer managed local AI sidecar POC
+- **Files:** Tauri managed-local lifecycle/startup wiring, strict Python target resolution and Overview routing,
+  provider proxy-identity support, focused Rust/Python tests, desktop developer docs, LATENCY/CLAUDE contracts,
+  security audit, and `INCREMENT-498-NOTES.md`.
+- **What:** proves that Tauri can securely own a developer-supplied llama-server/GGUF, publish an authenticated
+  strict-loopback target only after model/inference readiness, route only supplementary Overview through the
+  existing `complete()`/parser/lifecycle, and cleanly invalidate/terminate the process without cloud fallback.
+- **Why:** establish the managed-runtime lifecycle and privacy boundary before any model qualification, downloader,
+  hardware policy, production router, or end-user Automatic AI surface is considered.
+- **Boundary:** developer-only and `DEVELOPER_TEST_ONLY`; no bundled artifact, user setting, LAN target, fallback,
+  scientific-semantic change, or model qualification.
+- **Verification:** root suite **2476 passed, 3 skipped**; affected Python suite **122 passed**; Rust lifecycle
+  suite **13 passed, 1 developer-live test ignored by default**, with that official llama.cpp/GGUF live test run
+  separately and passing; Cargo check/clippy, Ruff, Bandit, Tach, line budget, and diff checks pass.
+- **Revert:** revert the single Increment 498 commit; no schema/data migration or installed artifact needs cleanup.
+
 ## 2026-08-24 — Increment 497: post-merge dependency and runtime hardening
 - **Files:** `pyproject.toml`, `requirements-dev.txt`, `uv.lock`, model/provider runtime and provider dispatch,
   batched stance inference, Critical Read/WIP call sites, focused backend/frontend tests, security audit,

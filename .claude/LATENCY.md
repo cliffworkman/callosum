@@ -710,6 +710,10 @@ Unless deliberately changed and revalidated, Callosum currently relies on these 
   permits manual reclamation of stale work, and never overwrites a completed overview.
 - Running Status rows always show elapsed time; calibrated ranges/countdowns require comparable local receipts,
   expose uncertainty in ordinary language, and never alter authoritative completion or Overview lifecycle semantics.
+- The developer-only managed-local Overview POC publishes a target only after model readiness plus authenticated
+  inference succeeds. Tauri exclusively owns the llama-server process; Python exclusively owns target validation,
+  provider configuration, `complete()`, and the unchanged Overview parser/lifecycle. Its HTTP pool ignores proxy
+  environment variables, and local failure is supplementary-only with no cloud fallback.
 
 Any modification that affects these properties requires explicit review.
 
@@ -726,6 +730,7 @@ Any modification that affects these properties requires explicit review.
 | Critical Read tokenizer-length planning and reconstruction | `app/backend/summarization/stance.py` |
 | Synthesis citation batching and primary persistence | `app/backend/summarization/pipeline.py` |
 | Supplementary overview lifecycle/CAS/provider boundary | `app/backend/summarization/overview_lifecycle.py`, `app/backend/api/routers/summary_overview.py` |
+| Developer managed-local Overview target/lifecycle | `app/backend/llm/managed_local.py`, `app/desktop-shell/src-tauri/src/managed_local_ai.rs` |
 | Synthesis generation-cache identity and source hashing | `app/backend/llm/cache.py`, `integrations/gemini/generator.py` |
 | Provider pool/client identity and cleanup | `app/backend/provider_runtime.py` |
 | Provider dispatch and explicit-client precedence | `app/backend/llm/providers.py` |
@@ -748,6 +753,8 @@ Known current boundaries—not completed optimizations—include:
 - local model inference is conservatively serialized per compatible runtime identity
 - process-local `JobStore` notification assumes the documented single-worker launch topology
 - aborting a frontend status observer does not cancel the underlying backend job
+- managed-local generative AI remains an explicitly enabled, unqualified developer POC for Overview only; there is
+  no shipped model/runtime, downloader, hardware policy, general router, LAN target, cloud fallback, or user setting
 
 When code and this map disagree, inspect the code and update this contract in the same change; do not preserve stale
 prose as authority.

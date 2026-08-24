@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 497** (see Increment workflow) with **2461 root-suite pytest tests
+It is currently at **Increment 498** (see Increment workflow) with **2476 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -705,6 +705,11 @@ the full per-increment narrative for all other increments now lives in the reloc
   job is marked done from a committed reread; persisted Overview lifecycle/CAS state makes supplementary generation
   retryable, first-success-wins, and crash-visible. No database connection is held during the Overview provider call,
   and any provider/parser/write failure leaves the primary synthesis intact and usable.
+  **Inc 498** adds an explicitly developer-only managed-local Overview POC. Tauri alone owns a developer-supplied
+  llama-server process, strict loopback port, private per-launch bearer token, authenticated readiness, crash
+  invalidation, and process-tree shutdown; Python validates the immutable `DEVELOPER_TEST_ONLY` descriptor and uses
+  the existing `complete()`/Overview parser/lifecycle without cloud fallback. No runtime, model, downloader, router,
+  hardware policy, LAN target, Settings control, or product qualification ships with it.
 - **Frontend:** modular source under `app/frontend/` (`index.html` shell + `styles.css` +
   ordered `js/*.jsx` React chunks, React/ReactDOM + pdf.js via CDN), assembled by
   `app/backend/api/frontend.py`: the JSX chunks are concatenated and **precompiled to plain JS by

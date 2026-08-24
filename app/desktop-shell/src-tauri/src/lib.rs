@@ -1,7 +1,9 @@
 mod backend;
+mod managed_local_ai;
 mod updater;
 
 use backend::{kill_backend, resolved_paths, spawn_backend, wait_for_health, BackendState};
+use managed_local_ai::{shutdown as shutdown_local_ai, start_if_enabled, ManagedLocalAiState};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use updater::UpdateState;
 
@@ -18,10 +20,21 @@ async fn start_backend_and_show_main(app: AppHandle) {
 
     emit_status(&app, "starting", "Starting Callosum… this can take a minute the first time.");
 
+    let local_ai_state = app.state::<ManagedLocalAiState>().inner().clone();
+    let descriptor = match start_if_enabled(&paths.app_data_dir, &local_ai_state).await {
+        Ok(path) => path,
+        Err(error) => {
+            // Developer-only local AI must fail closed without preventing Callosum or its primary synthesis.
+            eprintln!("Managed local AI unavailable: {}", error.detail());
+            None
+        }
+    };
+
     let app_version = app.package_info().version.to_string();
-    let (mut handle, port) = match spawn_backend(&paths, &app_version) {
+    let (mut handle, port) = match spawn_backend(&paths, &app_version, descriptor.as_deref()) {
         Ok(v) => v,
         Err(e) => {
+            shutdown_local_ai(&local_ai_state);
             emit_status(&app, "failed", &e.detail());
             return;
         }
@@ -30,6 +43,7 @@ async fn start_backend_and_show_main(app: AppHandle) {
     if let Err(e) = wait_for_health(&mut handle, port, &paths.log_path).await {
         let detail = e.detail();
         let _ = handle.child.kill();
+        shutdown_local_ai(&local_ai_state);
         emit_status(&app, "failed", &detail);
         return;
     }
@@ -79,6 +93,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BackendState::default())
+        .manage(ManagedLocalAiState::default())
         .manage(UpdateState::default())
         .invoke_handler(tauri::generate_handler![
             retry_backend,
@@ -101,6 +116,7 @@ pub fn run() {
                 tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
             ) {
                 kill_backend(app_handle.state::<BackendState>().inner());
+                shutdown_local_ai(app_handle.state::<ManagedLocalAiState>().inner());
             }
         });
 }
