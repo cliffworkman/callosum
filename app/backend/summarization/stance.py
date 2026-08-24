@@ -76,6 +76,12 @@ class NLIStanceScorer:
 
             return self._runtime.run(predict) if self._runtime is not None else predict(self._load_model())
         except Exception:
+            # Availability-regression trade-off, disclosed (not a bug): the prior per-pair `classify_stance`
+            # loop degraded per-item (one bad pair returned None, the rest of the batch still classified). Now
+            # that the whole batch is one model.predict() call, one bad pair's failure silences the WHOLE
+            # batch's result. This is still honest — it is reported as `nli-unavailable`, never a false "all
+            # clean" result — but it is a real shape change worth knowing when debugging a Critical Read run
+            # that reports zero contested claims. See `.claude/LATENCY.md` §4.
             return [None] * len(pairs)
 
     def classify_critical_review_stances(self, pairs: list[tuple[str, str]]) -> list[Stance | None]:
@@ -94,10 +100,14 @@ class NLIStanceScorer:
             def predict(model: object):  # type: ignore[no-untyped-def]
                 try:
                     order = _critical_review_nli_order(model, pairs)
-                except (KeyError, TypeError, ValueError):
+                except Exception:
                     # A custom CrossEncoder-like model may expose a tokenizer without the production Hugging Face
-                    # call/result contract. Planning is optional execution shaping, so retain its existing ordered
-                    # batch behavior rather than making an otherwise valid injected scorer unavailable.
+                    # call/result contract, and the real tokenizer call can also raise types outside a narrow
+                    # tuple (e.g. RuntimeError from the Rust fast-tokenizer, AttributeError, IndexError, OSError).
+                    # Planning is optional, side-effect-free execution shaping that only returns an ordering, so
+                    # catching broadly here is safe: any failure should fall through to the existing, already-
+                    # working unbucketed path below rather than escape to the outer handler and silently return
+                    # `[None] * len(pairs)` for the entire batch.
                     order = None
                 if order is None:
                     return self._predict_stances(model, pairs)
@@ -114,6 +124,8 @@ class NLIStanceScorer:
 
             return self._runtime.run(predict) if self._runtime is not None else predict(self._load_model())
         except Exception:
+            # Same disclosed batch-vs-per-item trade-off as `classify_stances` above: one pair's failure
+            # silences the whole Critical Read batch's result rather than degrading just that pair.
             return [None] * len(pairs)
 
     @staticmethod

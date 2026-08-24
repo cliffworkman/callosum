@@ -197,6 +197,45 @@ def test_custom_injected_batch_scorer_keeps_original_order_without_tokenizer_con
     assert len(result) == len(pairs)
 
 
+def test_planner_exception_outside_narrow_tuple_still_falls_back_to_original_batch_path() -> None:
+    """A tokenizer failure that is NOT a KeyError/TypeError/ValueError (e.g. RuntimeError, as the real
+    HuggingFace Rust fast-tokenizer can raise) must still fall through to the existing unbucketed batch path,
+    not escape the inner planning guard and hit the outer handler, which would silently return
+    `[None] * len(pairs)` for the WHOLE batch even though every pair is otherwise perfectly classifiable."""
+    pairs = _pairs(35)
+    rows = _rows(pairs)
+
+    class _RaisingTokenizer:
+        model_max_length = 512
+
+        def __call__(self, *_args, **_kwargs):  # noqa: ANN001
+            raise RuntimeError("tokenizer backend failure (e.g. the Rust fast-tokenizer)")
+
+    class _ModelWithRaisingTokenizer:
+        model = _InnerModel()
+        max_length = 512
+        tokenizer = _RaisingTokenizer()
+
+        def __init__(self) -> None:
+            self.calls: list[list[tuple[str, str]]] = []
+            self.batch_sizes: list[int | None] = []
+
+        def predict(self, model_pairs, *, apply_softmax=True, batch_size=None):  # noqa: ANN001
+            ordered = [tuple(pair) for pair in model_pairs]
+            self.calls.append(ordered)
+            self.batch_sizes.append(batch_size)
+            return [rows[pair] for pair in ordered]
+
+    model = _ModelWithRaisingTokenizer()
+    result = classify_critical_review_stances(NLIStanceScorer(_loader=lambda: model), pairs)
+
+    # The fallback path ran (one ordered, unbucketed call) rather than the whole batch being lost.
+    assert model.calls == [_model_pairs(pairs)]
+    assert model.batch_sizes == [None]
+    assert len(result) == len(pairs)
+    assert all(stance is not None for stance in result)
+
+
 def test_nli_scorer_without_compatible_tokenizer_retains_original_batch_path() -> None:
     pairs = _pairs(35)
 

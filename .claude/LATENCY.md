@@ -175,6 +175,14 @@ Current batched paths that must not regress include:
 - synthesis citation verification: all generated candidate/citation pairs enter `verify_many()`, which performs one
   batched citation embedding call and one batched support-NLI call for the generated summary
 
+Disclosed availability-regression trade-off from this batching: `stance.py`'s `classify_stances()` and
+`classify_critical_review_stances()` now catch failure ONCE for the whole batch and return `[None] * len(pairs)`
+on any single pair's failure, whereas the prior per-pair `classify_stance()` loop degraded per-item (one bad
+pair returned `None`; the rest of the batch still classified). This never produces a false "all clean" result —
+a total failure is still reported as `nli-unavailable`, not silently hidden — but a single pathological input
+can now zero out an entire Critical Read run's contested-claim count instead of just that one pair. Worth
+knowing first when debugging a "why did my whole Set Critical Read report zero contested claims" report.
+
 Retrieval may remain per claim because each claim has its own candidate scope and `top_k`; batching the model work
 does not imply changing retrieval semantics.
 
