@@ -92,27 +92,53 @@ def test_distinct_runtime_identities_do_not_collapse() -> None:
         registry.get_embedding_model(name="model-a", device="cpu", **common),
         registry.get_embedding_model(name="model-b", device="cpu", **common),
         registry.get_embedding_model(name="model-a", device="cuda", **common),
-        registry.get_embedding_model(name="model-a", device="cpu", revision="r2", **common),
+        # A local_files_only=True request cannot reuse the local_files_only=False runtime already
+        # resident at (model-a, cpu) above — see the asymmetric-reuse tests below — so this is a
+        # 4th genuinely distinct runtime, not merely a distinct dataclass identity.
+        registry.get_embedding_model(name="model-a", device="cpu", local_files_only=True, **common),
     ]
     runtimes = [model._runtime for model in models]  # type: ignore[attr-defined]
     assert len({id(runtime) for runtime in runtimes}) == 4
 
 
-def test_local_files_only_does_not_split_runtime_identity() -> None:
-    """``local_files_only`` only controls first-load fetch behavior, not what gets loaded — two callers asking
-    for the same weights/device/backend but different ``local_files_only`` must share one loaded runtime rather
-    than each holding a permanently-resident duplicate copy of the same model."""
+def test_local_files_only_true_then_false_reuses_the_offline_safe_runtime() -> None:
+    """``local_files_only`` only controls first-load fetch behavior, not what gets loaded. Once a
+    local_files_only=True (offline-safe) runtime is resident, a later local_files_only=False request for the
+    same weights/device/backend may safely reuse it — no need for a redundant permanently-resident second copy,
+    since network access is merely PERMITTED for that caller, not required."""
     loads: list[object] = []
     registry = ModelRuntimeRegistry(cross_encoder_factory=lambda _identity: loads.append(object()) or loads[-1])
 
-    network_allowed = registry.get_nli_runtime(model_name=DEFAULT_NLI_MODEL, local_files_only=False)
     local_only = registry.get_nli_runtime(model_name=DEFAULT_NLI_MODEL, local_files_only=True)
+    network_allowed = registry.get_nli_runtime(model_name=DEFAULT_NLI_MODEL, local_files_only=False)
 
     assert network_allowed is local_only
     assert len(loads) == 0
     network_allowed.get()
     assert local_only.loaded_model is loads[0]
     assert len(loads) == 1
+
+
+def test_local_files_only_false_then_true_never_downgrades_the_offline_guarantee() -> None:
+    """The reverse order is NOT safe to collapse: a local_files_only=False caller may have fetched weights over
+    the network, so a LATER local_files_only=True caller — an explicit "must not touch the network" guarantee —
+    must never silently inherit that possibly-network-fetched instance. It gets its own separate runtime."""
+    loads: list[object] = []
+    registry = ModelRuntimeRegistry(cross_encoder_factory=lambda _identity: loads.append(object()) or loads[-1])
+
+    network_allowed = registry.get_nli_runtime(model_name=DEFAULT_NLI_MODEL, local_files_only=False)
+    local_only = registry.get_nli_runtime(model_name=DEFAULT_NLI_MODEL, local_files_only=True)
+
+    assert network_allowed is not local_only
+    network_allowed.get()
+    local_only.get()
+    assert len(loads) == 2
+
+    # A subsequent False request may reuse either already-resident runtime (both are safe for it); the
+    # implementation prefers the offline-safe slot once one exists, rather than constructing a third copy.
+    still_network_allowed = registry.get_nli_runtime(model_name=DEFAULT_NLI_MODEL, local_files_only=False)
+    assert still_network_allowed is local_only
+    assert len(loads) == 2
 
 
 def test_explicit_dependency_injection_wins() -> None:
