@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-24 — post-merge CI cleanup (dist-demo build, CRLF fixture hash, stale UI/screenshot)
+- **Files:** `.github/workflows/ci.yml`, `.gitattributes` (new), `demo/wip-state-v1.json`,
+  `tests/e2e/test_demo_static.py`, `www/shots/status_current.png`, `www/showcase-coverage.json`.
+- **What:** the v0.4.1 merge (`3510892`) had never run its own CI end-to-end (main's Bandit gate was
+  red); once Bandit went green, four real, previously-masked problems surfaced and were fixed: a
+  demo e2e test still asserting the pre-inc-496 bare "Done" Status text; `ci.yml`'s `lint-and-test`
+  job never building `dist-demo/` before the test that checks it exists; `demo/wip-state-v1.json`'s
+  committed content-identity hash baked from a Windows CRLF checkout instead of the canonical LF git
+  blob (fixed via `.gitattributes` + regeneration); and the public showcase screenshot still showing
+  the old bare "Done" text, retaken against the public demo snapshot and the coverage receipt
+  refreshed with an honest review note.
+- **Why:** get `main`'s CI genuinely green post-merge, not just past the one gate the merge handoff
+  flagged, and keep the public site's stated claims matching real, current app behavior.
+- **Revert:** `git revert 5b32cd9`.
+
 <!-- HELP-DOCS-SYNCED: 2026-08-23 — Increment 496: calibrated stage-aware job timing -->
 ## 2026-08-23 — Increment 496: calibrated stage-aware job timing
 - **Files:** `app/backend/api/{job_store,job_timing,routers/status}.py`, synthesis and Critical Read orchestration,

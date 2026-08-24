@@ -183,6 +183,47 @@ that is the top priority. Then review item 3's files properly. Then work the fol
 
 ---
 
+## UPDATE (2026-08-24, later same day) — post-merge CI was NOT clean
+
+Bandit itself did go green on the first post-merge run (`32726183934`), confirming item 2 above —
+but four other, previously-masked problems surfaced once pytest could actually run for the first
+time in a while (the three prior red runs never got past Bandit, so nothing after it, including
+pytest, had executed):
+
+1. `tests/e2e/test_demo_static.py` still asserted the pre-inc-496 bare `"Done"` Status text; the
+   shipped status-timing feature renders `"Done in {duration}"`. Fixed the assertion.
+2. `ci.yml`'s `lint-and-test` job never built `dist-demo/` before
+   `test_website_how_it_works.py::test_primary_local_destinations_exist[demo/-target2]`, which
+   asserts it exists — that case could never have passed there. Added a build step.
+3. `demo/wip-state-v1.json`'s committed `whole_file_hash`/`extracted_from_whole_hash` were computed
+   from a Windows checkout (`core.autocrlf=true` → CRLF) of `tools/demo/fixtures/*.md`; Linux CI
+   checks out the canonical LF git blob and gets a different SHA-256. Added `.gitattributes` (new
+   file, repo had none) to force LF on those fixtures and regenerated the fixture JSON from the
+   corrected source — `demo/snapshot-v1.json` already had the correct (LF-derived) values, so it
+   needed no change.
+4. The public showcase screenshot (`www/shots/status_current.png`) still showed a bare `"Done"`,
+   out of sync with real behavior. Retook it (Playwright, against the public demo snapshot's
+   synthetic data — deliberately not the real WIP library, whose real manuscript titles shouldn't
+   go on the public site) and refreshed `www/showcase-coverage.json`'s review receipt with an
+   honest note.
+
+Also confirmed item 3's originally-flagged files are solid: the tests added alongside them are
+explicitly labeled `Finding 1/3/4 (backlog #57 fixwave)` and correspond exactly to bugs the sibling
+reviews had already surfaced (stuck-overview dead-end → `OVERVIEW_STUCK_AFTER_SECONDS` retry
+button; missing Status-popover visibility → the new `overview_jobs` `JobStore`; the `attachment_id`
+gap on `saveCitationHighlight`). No new issues found on read.
+
+All fixed in `5b32cd9`, pushed to `main`. **Two Cliff-confirmed file deletions** (`.claude/
+CODEX-HANDOFF.md`, `.claude/SESSION-HANDOFF.md` — the ones this doc's correction section describes
+as repeatedly, mysteriously reverting) were committed in the same push at his explicit instruction
+mid-session; they have not reappeared since.
+
+**Still open, not addressed this pass:** the six Arc-2a follow-ups (#2/#4/#5/#6/#8/#9 above) and
+GitHub's Dependabot alert (1 high, 2 moderate, surfaced on the `git push` to `main` — not yet
+triaged).
+
+---
+
 ## Verification commands with observed results
 
 ```bash
