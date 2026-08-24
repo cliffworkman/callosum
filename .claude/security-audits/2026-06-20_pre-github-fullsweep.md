@@ -117,3 +117,15 @@ Closes this audit's own follow-up #2 ("wire `pip-audit` into CI"). Re-ran `pip-a
 
 **Security Audit: PASS** (addendum) — the runtime dependency surface is clean and now continuously gated; the
 one open dev-only finding is accepted, documented, and does not block merges.
+
+## Addendum (2026-08-24) — pytest compatibility pass completed
+
+The deferred PYSEC-2026-1845 risk acceptance is resolved. The dev constraint now requires patched
+`pytest>=9.0.3,<10`; the lock selected pytest 9.1.1. The normal parallel root suite passed 2,453 tests with
+3 skipped under pytest 9.1.1, pytest-xdist 3.8.0, pytest-testmon 2.2.0, pytest-playwright 0.8.0, and Tach 0.35.0.
+The same dependency pass upgraded the shipped transitive `cryptography` package from 49.0.0 to 50.0.0 and passed
+the focused sync encryption, sharing identity, sharing envelope, and OIDC verification tests. No application code,
+runtime dependency range, cryptographic primitive, or trust boundary changed.
+
+**Security Audit: PASS** (2026-08-24 addendum) — the accepted pytest finding and the cryptography 49.x advisory
+are resolved by compatible patched versions with focused and repository-wide regression coverage.
