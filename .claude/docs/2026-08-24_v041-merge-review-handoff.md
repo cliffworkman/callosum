@@ -218,6 +218,22 @@ CODEX-HANDOFF.md`, `.claude/SESSION-HANDOFF.md` — the ones this doc's correcti
 as repeatedly, mysteriously reverting) were committed in the same push at his explicit instruction
 mid-session; they have not reappeared since.
 
+**A second, related bug was caught by the very next CI run for `5b32cd9`**: the `.gitattributes`
+fix above only forced LF for `tools/demo/fixtures/*.md`, but `check_website_coverage.py`'s own
+`source_fingerprint` hashes a much broader set byte-for-byte (`app/frontend/index.html`,
+`styles.css`, `js/*.jsx`, `help_content.md`, `adapters/`, `tui/`, `mcp_server/` — 147 files). The
+local `--refresh` run above was still done on this Windows checkout, so it baked in a
+CRLF-derived fingerprint CI's Linux checkout could never reproduce. Fixed in `23fbb54`: extended
+`.gitattributes` (`text=auto eol=lf`, safe for the one binary mixed into these globs —
+`adapters/word/icon.png`) to cover the tool's actual file set, renormalized the working tree, and
+independently verified all 147 fingerprinted files now match their git blob byte-for-byte before
+refreshing again. **This is a general lesson for this repo, not just these two call sites**: any
+future test or tool that hashes checked-in source bytes for reproducibility needs its inputs
+covered by `.gitattributes`, or a Windows-authored fixture will silently diverge from Linux CI.
+
+**Post-merge CI is now fully green** (`32730483249`, both `lint-and-test` and `e2e-smoke`, every
+step including Bandit) — confirmed by watching the run to completion, not inferred.
+
 **Still open, not addressed this pass:** the six Arc-2a follow-ups (#2/#4/#5/#6/#8/#9 above) and
 GitHub's Dependabot alert (1 high, 2 moderate, surfaced on the `git push` to `main` — not yet
 triaged).
