@@ -169,16 +169,17 @@ Known live exceptions—not satisfied batching invariants—remain in citation w
   context (bounded at 500 items)
 - `citations/suggest.py::suggest_citations()` calls the stance scorer once per retained local suggestion; that local
   set is capped at 20 before NLI
-- the evaluated path in `citations/beyond_library.py` calls the stance scorer for every merged, non-library candidate
-  with an abstract before sorting and slicing the response. The returned result set is capped at 20, but the NLI call
-  count is not: a controlled multi-provider audit classified 40 candidates and returned 20 results
+- the evaluated path in `citations/beyond_library.py` completes provider aggregation, deduplication, relationship
+  resolution, library marking, and deterministic ranking across the complete candidate set before stance inference.
+  It then retains the measured-fastest sequential one-pair policy, but evaluates only abstract-bearing members of
+  the exact returned set; discarded tail candidates receive no stance inference
 
 These paths reuse the app-owned model runtime, but runtime reuse does not make their per-item inference shape batched.
-Sequential one-pair inference remains the fastest measured citation-suggestion execution shape overall, so this is a
-measured exception rather than an invitation to batch by default. Any future change should preserve item order and
-missing/unclassifiable-item semantics while measuring a batch seam. The final response cap does not establish that
-pre-slicing before NLI is semantically safe: reducing the evaluated candidate set requires separate measurement and
-design because it could change which returned suggestions have stance evidence.
+Sequential one-pair inference remains the fastest measured citation-suggestion execution shape overall, so these are
+measured exceptions rather than an invitation to batch by default. The beyond-library pre-slice is safe because its
+exact stable ranking uses only pre-NLI fields and every returned abstract-bearing suggestion still receives the same
+stance call in original construction order before final ranked emission. Any future execution-shape change must
+preserve item order and missing/unclassifiable-item semantics and must be measured rather than assumed faster.
 
 ---
 

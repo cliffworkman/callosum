@@ -213,9 +213,6 @@ def suggest_beyond_library(
         evidence = _evidence_text(item)
         overlap = _overlap(query_terms, _terms(f"{item.title} {item.abstract or ''}"))
         relation = relations.get(item.dedup_key)
-        stance = None
-        if evaluate and stance_scorer is not None and item.abstract:
-            stance = stance_scorer.classify_stance(sentence=query, passage=item.abstract[:1200])
         suggestions.append(
             BeyondLibrarySuggestion(
                 dedup_key=item.dedup_key,
@@ -237,11 +234,32 @@ def suggest_beyond_library(
                 relationship_label=relation.get("label") if relation else None,
                 anchor_paper_id=relation.get("anchor_paper_id") if relation else None,
                 anchor_title=relation.get("anchor_title") if relation else None,
-                stance=stance,
+                stance=None,
             )
         )
-    suggestions.sort(key=lambda s: (0 if s.relationship_kind else 1, -s.metadata_overlap, s.title.lower()))
-    return suggestions[:limit], statuses
+    # Stance never participates in ranking. Determine the exact response first, then keep the measured-fastest
+    # one-pair inference shape only for abstract-bearing suggestions that will actually be returned. Ranking uses
+    # the already-rounded stored overlap and Python's stable sort, exactly as before. Scoring selected indices in
+    # original construction order preserves their prior relative scorer-call order before final ranked emission.
+    ranked_indices = sorted(range(len(suggestions)), key=lambda index: _suggestion_rank_key(suggestions[index]))
+    selected_indices = ranked_indices[:limit]
+    if evaluate and stance_scorer is not None:
+        selected = set(selected_indices)
+        for original_index, suggestion in enumerate(suggestions):
+            if original_index not in selected or not suggestion.abstract:
+                continue
+            stance = stance_scorer.classify_stance(sentence=query, passage=suggestion.abstract[:1200])
+            suggestions[original_index] = replace(suggestion, stance=stance)
+    return [suggestions[index] for index in selected_indices], statuses
+
+
+def _suggestion_rank_key(suggestion: BeyondLibrarySuggestion) -> tuple[int, float, str]:
+    """The public-result ranking contract; stance is deliberately absent."""
+    return (
+        0 if suggestion.relationship_kind else 1,
+        -suggestion.metadata_overlap,
+        suggestion.title.lower(),
+    )
 
 
 def anchors_from_suggestions(conn: Connection, suggestions: list[Any]) -> list[CitationNeighborhoodAnchor]:

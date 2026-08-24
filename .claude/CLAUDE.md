@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 494** (see Increment workflow) with **2427 root-suite pytest tests
+It is currently at **Increment 495** (see Increment workflow) with **2437 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -1199,7 +1199,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 493). Each increment of real work
+callosum is built in **numbered increments** (currently at 495). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

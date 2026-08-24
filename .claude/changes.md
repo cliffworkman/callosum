@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-23 — Increment 495: skip discarded beyond-library stance inference
+- **Files:** `app/backend/citations/beyond_library.py`, `tests/test_beyond_library_preslice_nli.py`,
+  `.claude/{LATENCY,CLAUDE,changes}.md`, and `.claude/docs/increment-notes/INCREMENT-495-NOTES.md`.
+- **What:** completes the existing exact stable ranking and returned slice before NLI, then runs the unchanged
+  sequential scorer only for abstract-bearing returned suggestions in original construction order. Discarded tail
+  candidates no longer receive stance inference.
+- **Why:** stance does not affect merge, deduplication, relationship resolution, library filtering, ranking, or
+  inclusion. Multi-provider workloads previously spent most of their latency classifying candidates later discarded.
+- **Boundaries:** provider calls/order/status, merge and dedup semantics, stored rounded-overlap ranking, stable ties,
+  returned metadata/order/count, stance values, model/runtime reuse, tokenizer, thresholds, API, and frontend are
+  unchanged. Abstract-less returned items remain unclassified and are never backfilled.
+- **Verification:** 33 focused citation-suggestion tests and a 240-test affected integration set passed. Three-trial
+  warm local-NLI benchmarks cut 40-candidate/limit-20 inference 30.5%, 60-candidate/limit-20 inference 54.3%, and
+  40-candidate/limit-5 inference 83.4%, with zero probability/label differences. Ruff, Bandit, Tach, line budget,
+  and diff checks passed. The full parallel suite attempt reached its 20-minute harness bound without an aggregate.
+- **Revert:** revert this increment; no schema, migration, cache, API, or frontend changes are involved.
+
 <!-- HELP-DOCS-SYNCED: 2026-08-23 — Increment 494: synthesis primary/Overview transaction split -->
 ## 2026-08-23 — Increment 494: durable primary synthesis before supplementary Overview
 - **Files:** `app/backend/api/routers/{summaries,summary_overview}.py`,
