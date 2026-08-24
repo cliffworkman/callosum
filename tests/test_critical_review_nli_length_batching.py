@@ -256,6 +256,40 @@ def test_nli_scorer_without_compatible_tokenizer_retains_original_batch_path() -
     assert len(result) == len(pairs)
 
 
+@pytest.mark.parametrize(("critical_review", "pair_count"), [(False, 3), (True, 35)])
+def test_batch_failure_retries_per_pair_and_only_failed_pair_is_unavailable(
+    critical_review: bool,
+    pair_count: int,
+) -> None:
+    pairs = _pairs(pair_count)
+    model_pairs = _model_pairs(pairs)
+    failed_pair = model_pairs[pair_count // 2]
+    lengths = {pair: [64, 129, 257, 512][index % 4] for index, pair in enumerate(model_pairs)}
+    rows = _rows(pairs)
+
+    class _BatchFailingModel(_LengthAwareModel):
+        def predict(self, batch, *, apply_softmax=True, batch_size=None):  # noqa: ANN001
+            assert apply_softmax is True
+            ordered = [tuple(pair) for pair in batch]
+            self.calls.append(ordered)
+            self.batch_sizes.append(batch_size)
+            if len(ordered) > 1:
+                raise RuntimeError("opaque batch failure")
+            if ordered[0] == failed_pair:
+                raise RuntimeError("pathological pair")
+            return [self.rows[ordered[0]]]
+
+    model = _BatchFailingModel(lengths, rows)
+    scorer = NLIStanceScorer(_loader=lambda: model)
+
+    result = scorer.classify_critical_review_stances(pairs) if critical_review else scorer.classify_stances(pairs)
+
+    assert len(result) == pair_count
+    assert result[pair_count // 2] is None
+    assert all(stance is not None for index, stance in enumerate(result) if index != pair_count // 2)
+    assert model.calls[1:] == [[pair] for pair in model_pairs]
+
+
 def test_shared_single_set_wip_search_seam_uses_one_length_aware_phase_and_preserves_ties() -> None:
     claims = [f"claim-{index}" for index in range(8)]
     hit_ids = {index: list(range(index * 5, index * 5 + 5)) for index in range(8)}

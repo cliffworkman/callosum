@@ -9,9 +9,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Protocol, TypeVar
 
 from app.backend.model_runtime import ManagedModelRuntime
+
+T = TypeVar("T")
 
 DEFAULT_NLI_MODEL = "cross-encoder/nli-MiniLM2-L6-H768"
 CRITICAL_REVIEW_NLI_BATCH_SIZE = 32
@@ -49,8 +51,9 @@ class NLIStanceScorer:
     """Local CrossEncoder NLI stance scorer (shares the model family with NLISupportScorer).
 
     The passage is the premise and the claim sentence is the hypothesis; the 3-way softmax maps
-    entailment→support, contradiction→contrast, neutral→mention. On ANY failure → None, so the evaluate path
-    shows no stance rather than a guessed verdict ("silence is not a certificate").
+    entailment→support, contradiction→contrast, neutral→mention. A failed batch is retried per pair so one
+    pathological input cannot silence independent results; any pair that still fails returns None rather than a
+    guessed verdict ("silence is not a certificate").
     """
 
     model_name: str = DEFAULT_NLI_MODEL
@@ -66,23 +69,14 @@ class NLIStanceScorer:
         return self.classify_stances([(sentence, passage)])[0]
 
     def classify_stances(self, pairs: list[tuple[str, str]]) -> list[Stance | None]:
-        """Classify every pair in one CrossEncoder call; any model failure remains an unavailable stance."""
+        """Classify every pair in one CrossEncoder call, isolating individual failures only on batch failure."""
         if not pairs:
             return []
-        try:
 
-            def predict(model: object):  # type: ignore[no-untyped-def]
-                return self._predict_stances(model, pairs)
+        def predict(model: object):  # type: ignore[no-untyped-def]
+            return self._predict_stances(model, pairs)
 
-            return self._runtime.run(predict) if self._runtime is not None else predict(self._load_model())
-        except Exception:
-            # Availability-regression trade-off, disclosed (not a bug): the prior per-pair `classify_stance`
-            # loop degraded per-item (one bad pair returned None, the rest of the batch still classified). Now
-            # that the whole batch is one model.predict() call, one bad pair's failure silences the WHOLE
-            # batch's result. This is still honest — it is reported as `nli-unavailable`, never a false "all
-            # clean" result — but it is a real shape change worth knowing when debugging a Critical Read run
-            # that reports zero contested claims. See `.claude/LATENCY.md` §4.
-            return [None] * len(pairs)
+        return self._predict_with_pair_fallback(pairs, predict)
 
     def classify_critical_review_stances(self, pairs: list[tuple[str, str]]) -> list[Stance | None]:
         """Classify Critical Read pairs with stable, length-aware batching when more than one batch is present.
@@ -95,38 +89,52 @@ class NLIStanceScorer:
         """
         if len(pairs) <= CRITICAL_REVIEW_NLI_BATCH_SIZE:
             return self.classify_stances(pairs)
+
+        def predict(model: object):  # type: ignore[no-untyped-def]
+            try:
+                order = _critical_review_nli_order(model, pairs)
+            except Exception:
+                # A custom CrossEncoder-like model may expose a tokenizer without the production Hugging Face
+                # call/result contract, and the real tokenizer call can also raise types outside a narrow
+                # tuple (e.g. RuntimeError from the Rust fast-tokenizer, AttributeError, IndexError, OSError).
+                # Planning is optional, side-effect-free execution shaping that only returns an ordering, so
+                # catching broadly here is safe: any failure should fall through to the existing, already-
+                # working unbucketed path below rather than escape to the outer failure-isolation handler.
+                order = None
+            if order is None:
+                return self._predict_stances(model, pairs)
+            bucketed_pairs = [pairs[original_index] for original_index in order]
+            bucketed_stances = self._predict_stances(
+                model,
+                bucketed_pairs,
+                batch_size=CRITICAL_REVIEW_NLI_BATCH_SIZE,
+            )
+            reconstructed: list[Stance | None] = [None] * len(pairs)
+            for bucketed_index, original_index in enumerate(order):
+                reconstructed[original_index] = bucketed_stances[bucketed_index]
+            return reconstructed
+
+        return self._predict_with_pair_fallback(pairs, predict)
+
+    def _predict_with_pair_fallback(
+        self,
+        pairs: list[tuple[str, str]],
+        predict_batch: Callable[[object], list[Stance | None]],
+    ) -> list[Stance | None]:
+        """Keep one batched fast path, but restore independent fail-closed behavior after an exception."""
         try:
-
-            def predict(model: object):  # type: ignore[no-untyped-def]
-                try:
-                    order = _critical_review_nli_order(model, pairs)
-                except Exception:
-                    # A custom CrossEncoder-like model may expose a tokenizer without the production Hugging Face
-                    # call/result contract, and the real tokenizer call can also raise types outside a narrow
-                    # tuple (e.g. RuntimeError from the Rust fast-tokenizer, AttributeError, IndexError, OSError).
-                    # Planning is optional, side-effect-free execution shaping that only returns an ordering, so
-                    # catching broadly here is safe: any failure should fall through to the existing, already-
-                    # working unbucketed path below rather than escape to the outer handler and silently return
-                    # `[None] * len(pairs)` for the entire batch.
-                    order = None
-                if order is None:
-                    return self._predict_stances(model, pairs)
-                bucketed_pairs = [pairs[original_index] for original_index in order]
-                bucketed_stances = self._predict_stances(
-                    model,
-                    bucketed_pairs,
-                    batch_size=CRITICAL_REVIEW_NLI_BATCH_SIZE,
-                )
-                reconstructed: list[Stance | None] = [None] * len(pairs)
-                for bucketed_index, original_index in enumerate(order):
-                    reconstructed[original_index] = bucketed_stances[bucketed_index]
-                return reconstructed
-
-            return self._runtime.run(predict) if self._runtime is not None else predict(self._load_model())
+            return self._run_model(predict_batch)
         except Exception:
-            # Same disclosed batch-vs-per-item trade-off as `classify_stances` above: one pair's failure
-            # silences the whole Critical Read batch's result rather than degrading just that pair.
-            return [None] * len(pairs)
+            results: list[Stance | None] = []
+            for pair in pairs:
+                try:
+                    results.extend(self._run_model(lambda model, pair=pair: self._predict_stances(model, [pair])))
+                except Exception:
+                    results.append(None)
+            return results
+
+    def _run_model(self, operation: Callable[[object], T]) -> T:
+        return self._runtime.run(operation) if self._runtime is not None else operation(self._load_model())
 
     @staticmethod
     def _predict_stances(
