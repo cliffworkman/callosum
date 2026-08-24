@@ -134,7 +134,7 @@ async function apiPost(path, body) {
       const detail = data && data.detail ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)) : `HTTP ${res.status} on ${path}`;
       if (res.status === 401) { _notifyAuthRequired(); return finish({ ok: false, status: 401, authRequired: true, error: detail }); }
       console.warn("[callosum] request failed:", path, detail);
-      return finish({ ok: false, error: detail });
+      return finish({ ok: false, status: res.status, error: detail });
     }
     return finish({ ok: true, data });
   } catch (e) {

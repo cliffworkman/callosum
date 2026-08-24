@@ -57,6 +57,7 @@ def summary_overview_retry(
         summary_id=summary_id,
         generator=generator,
         acquired=True,
+        jobs=request.app.state.overview_jobs,
     )
     return OverviewRetryResponse(summary_id=summary_id, accepted=True, overview_status="running")
 

@@ -14,6 +14,7 @@ from typing import Literal, Mapping
 
 from sqlalchemy import Connection, Engine, and_, or_, select, update
 
+from app.backend.api.job_store import JobStore
 from app.backend.persistence.schema import citation_mappings, summaries, summary_sentences
 from app.backend.summarization.overview import OverviewGenerator
 
@@ -113,8 +114,18 @@ def generate_overview(
     summary_id: int,
     generator: OverviewGenerator,
     acquired: bool = False,
+    jobs: JobStore[None] | None = None,
 ) -> OverviewStatus:
-    """Run one supplementary attempt; every failure is isolated from the primary synthesis."""
+    """Run one supplementary attempt; every failure is isolated from the primary synthesis.
+
+    ``jobs`` is optional (backlog #57 fixwave, Core invariant #5): a shared choke point for both
+    callers of this function (the inline post-synthesis attempt in ``summaries.py`` and the retry
+    endpoint's detached ``BackgroundTasks`` call in ``summary_overview.py``) so the real,
+    egress-gated provider call this function makes is visible in the global Status popover either
+    way, without duplicating the wiring at each call site. Registration starts only once an attempt
+    is actually going to run a provider call — never for the "someone already claimed it" no-op path.
+    """
+    job_id: str | None = None
     try:
         if not acquired:
             claimed = False
@@ -122,6 +133,10 @@ def generate_overview(
                 claimed = acquire_overview(conn, summary_id, allow_pending=True, allow_failed=False)
             if not claimed:
                 return _read_status(engine, summary_id)
+
+        if jobs is not None:
+            job_id = jobs.create(nav={"summary_id": summary_id})
+            jobs.mark_running(job_id)
 
         # The connection closes before the remote call. SQLAlchemy's implicit read transaction
         # therefore cannot retain a SQLite connection or writer lock during provider latency.
@@ -140,7 +155,10 @@ def generate_overview(
 
         with engine.begin() as conn:
             persisted = _persist_overview(conn, summary_id, items)
-        return "complete" if persisted else _read_status(engine, summary_id)
+        status = "complete" if persisted else _read_status(engine, summary_id)
+        if jobs is not None and job_id is not None:
+            jobs.mark_done(job_id, None)
+        return status
     except Exception as exc:
         _LOG.warning("Supplementary overview failed for summary %s: %s", summary_id, type(exc).__name__)
         try:
@@ -152,6 +170,8 @@ def generate_overview(
                 )
         except Exception:
             _LOG.exception("Could not persist failed overview state for summary %s", summary_id)
+        if jobs is not None and job_id is not None:
+            jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
         try:
             return _read_status(engine, summary_id)
         except Exception:

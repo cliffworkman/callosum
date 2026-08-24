@@ -159,7 +159,12 @@ function StatusJobRow({ job, onDismiss, onNavigate, now }) {
   const navigable = !!job.nav;
   const elapsed = _statusElapsed(job, now);
   const stageLabel = job.stage?.label || job.progress?.label || (job.store === "client_operations" ? job.label : "Working");
-  const estimateText = !finished ? _statusTimingWording(job.stage, elapsed, job.compute_kind) : null;
+  // The learned-history comparison must be checked against how long the CURRENT stage has run, not the
+  // whole job (job.elapsed_seconds sums every prior stage too) -- see 04bb_status_timing.jsx's
+  // _statusStageElapsed. A job with no stage at all falls back to the job-level `elapsed` exactly as
+  // before: _statusTimingWording never reads its `elapsed` argument unless a stage estimate exists.
+  const stageElapsed = job.stage ? _statusStageElapsed(job, now) : elapsed;
+  const estimateText = !finished ? _statusTimingWording(job.stage, stageElapsed, job.compute_kind) : null;
   return (
     <div className={"status-row" + (job.status === "error" ? " status-row-error" : "")}>
       <div className="status-row-head">

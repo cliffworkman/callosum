@@ -105,6 +105,66 @@ def test_primary_is_committed_and_job_done_while_overview_is_blocked(temp_db_url
     engine.dispose()
 
 
+def test_inline_overview_generation_registers_a_status_popover_job(temp_db_url: str) -> None:
+    # Finding 4 (backlog #57 fixwave): Phase A already marks the primary summary_jobs row "done"
+    # before Phase B's real, egress-gated provider call even starts (see the comment in
+    # _run_summarize_job) -- so the ONLY way this in-flight provider call is visible in the global
+    # Status popover is the shared overview_jobs entry generate_overview() itself registers.
+    seeded = _seed_summarization_library(temp_db_url)
+    overview = BlockingOverviewGenerator()
+    app = _summarization_app(
+        temp_db_url,
+        generator=_summary_generator(seeded["facial_chunk_id"]),
+        overview_generator=overview,
+    )
+    job_id = app.state.summary_jobs.create()
+    worker = threading.Thread(
+        target=_run_summarize_job,
+        args=(app, job_id, SummarizeRequest(scope_type="papers", paper_ids=[seeded["facial_paper_id"]])),
+    )
+    worker.start()
+    assert overview.started.wait(10)
+
+    primary = app.state.summary_jobs.get(job_id)
+    assert primary is not None and primary.status == "done"  # Phase A already finished
+    running = list(app.state.overview_jobs.list_all())
+    assert len(running) == 1
+    _, job = running[0]
+    assert job.status == "running"
+    assert job.nav == {"summary_id": primary.result.summary_id}
+
+    overview.release.set()
+    worker.join(10)
+    finished = list(app.state.overview_jobs.list_all())
+    assert len(finished) == 1
+    assert finished[0][1].status == "done"
+
+
+def test_retry_overview_generation_also_registers_a_status_popover_job(temp_db_url: str) -> None:
+    seeded = _seed_summarization_library(temp_db_url)
+    failing = FailingOverviewGenerator(RuntimeError("first attempt"))
+    app = _summarization_app(
+        temp_db_url,
+        generator=_summary_generator(seeded["facial_chunk_id"]),
+        overview_generator=failing,
+    )
+    client = TestClient(app)
+    started = client.post("/summarize", json={"scope_type": "papers", "paper_ids": [seeded["facial_paper_id"]]}).json()
+    failed = client.get(f"/summarize/{started['job_id']}").json()
+    summary_id = failed["summary_id"]
+    assert len(list(app.state.overview_jobs.list_all())) == 1  # the inline Phase-A attempt above
+
+    app.state.overview_generator = FakeOverviewGenerator([OverviewSentence("Recovered.", [0])])
+    retried = client.post(f"/summaries/{summary_id}/overview/retry", json={})
+    assert retried.status_code == 202
+
+    jobs = list(app.state.overview_jobs.list_all())
+    assert len(jobs) == 2  # the failed inline attempt + this retry
+    latest = max(jobs, key=lambda item: item[1].finished_at or 0)
+    assert latest[1].status == "done"
+    assert latest[1].nav == {"summary_id": summary_id}
+
+
 def test_phase_a_failure_rolls_back_entire_primary(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
     seeded = _seed_summarization_library(temp_db_url)
     engine = make_engine(temp_db_url)

@@ -630,8 +630,10 @@ the full per-increment narrative for all other increments now lives in the reloc
   missing PDFs, and rotated pages retain raw Zotero provenance but receive no guessed bbox. **Inc 489
   hardening:** once an imported row is exact, re-import cannot move it to a relinked/replacement PDF merely
   because the old rectangle still fits; exact attachment identity stays pinned, while raw-only rows can still
-  gain their first proven location. Both native create flows, including “highlight + note,” carry the active
-  attachment id. Audits
+  gain their first proven location. All three native annotation-creation flows carry the active attachment id:
+  both `30_viewer.jsx` create flows, including "highlight + note," plus the Synthesize-pane "Save highlight"
+  action (`saveCitationHighlight`, `40_app.jsx`) — a separate creation path a later whole-branch review found
+  still missing it, fixed to carry the citation's own `attachment_id` (backlog #57 fixwave). Audits
   `2026-08-20_zotero-library-import.md` and
   `2026-08-21_zotero-annotation-position-fidelity.md` PASS.
 - **EndNote whole-library handoff partially verified (backlog #57 Phase 2, inc 486):** current EndNote 2025

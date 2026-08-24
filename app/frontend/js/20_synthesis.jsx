@@ -372,6 +372,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
             </div>}
           {sentences.length > 0 && <OverviewBlock overview={state.result.overview}
             status={state.result.overview_status || (state.result.overview ? "complete" : "not_requested")}
+            updatedAt={state.result.overview_updated_at}
             onRetry={readOnly ? null : overviewLifecycle.retry} retrying={overviewLifecycle.retrying} />}
           {sentences.length > 0 && <GroupedSummarySentences sentences={sentences} onOpenCitation={onOpenCitation} onSaveHighlight={readOnly ? null : onSaveHighlight} />}
         </div>}

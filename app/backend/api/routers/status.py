@@ -45,6 +45,7 @@ STATUS_HIDDEN_STORES = frozenset({"library_scan_jobs", "wip_scan_jobs"})
 # still appears (via _prettify), just with a plainer auto-generated label.
 JOB_LABELS: dict[str, str] = {
     "summary_jobs": "Synthesize · Ask",
+    "overview_jobs": "Synthesize · Overview",
     "axis_score_jobs": "Axis scoring",
     "axis_suggest_jobs": "Axis suggest",
     "dedup_jobs": "Duplicate scan",
@@ -100,6 +101,7 @@ JOB_LABELS: dict[str, str] = {
 # having to duplicate workspace knowledge. No arbitrary path/URL is accepted here.
 JOB_NAV_DEFAULTS: dict[str, dict[str, Any]] = {
     "summary_jobs": {"workspace": "synthesis", "tab": "ask"},
+    "overview_jobs": {"workspace": "synthesis", "tab": "ask"},
     "axis_score_jobs": {"pane": "theory", "section": "axes", "tab": "axes"},
     "axis_suggest_jobs": {"pane": "theory", "section": "axes", "tab": "axes"},
     "dedup_jobs": {"workspace": "library", "modal": "duplicates"},
@@ -160,6 +162,7 @@ JOB_NAV_DEFAULTS: dict[str, dict[str, Any]] = {
 
 JOB_COMPUTE_KINDS: dict[str, str] = {
     "summary_jobs": "Provider AI + local verification",
+    "overview_jobs": "Provider AI",
     "axis_score_jobs": "Local AI",
     "axis_suggest_jobs": "Local AI + optional provider AI",
     "dedup_jobs": "Local AI",

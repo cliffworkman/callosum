@@ -254,6 +254,7 @@ function App() {
     }
     const r = await apiPost(`/papers/${citation.paper_id}/annotations`, {
       page: citation.page_start, color: HIGHLIGHT_COLORS[0], bboxes, anchor_text: citation.quote || "", source: "synthesis",
+      attachment_id: citation.attachment_id,
     });
     if (r.ok) setAnnoRefresh(n => n + 1);
     return r;

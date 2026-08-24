@@ -18,7 +18,7 @@ def _run_node(body: str) -> dict:
 const timing = {
   STATUS_TIMING_SCHEMA, STATUS_TIMING_MAX_RECEIPTS, _estimateStatusStage,
   _formatTimingDuration, _loadTimingHistory, _recordStatusReceipts,
-  _timingWorkloadBucket, _statusTimingWording
+  _timingWorkloadBucket, _statusTimingWording, _statusStageElapsed
 };
 const storage = new Storage();
 """
@@ -107,6 +107,66 @@ console.log(JSON.stringify({
 """
     )
     assert data == {"provider": "Timing varies by provider", "local": None, "clamped": "0s"}
+
+
+def test_stage_scoped_elapsed_drives_wording_not_the_jobs_total_elapsed() -> None:
+    # Finding 1 (backlog #57 fixwave): a multi-stage job's calibrated-timing comparison must be checked
+    # against how long the CURRENT stage has run, not the job's total elapsed time (which sums every prior
+    # stage too). This reproduces the pre-fix call site (04c_status.jsx used to pass the job-level elapsed
+    # value into this exact comparison) side-by-side with the fixed, stage-scoped value from the same
+    # inputs, proving the old behavior would have failed this assertion.
+    data = _run_node(
+        """
+// Calibrate a short ~3s 'verify' stage from 3 prior receipts.
+[3, 3.5, 3.2].forEach((d, i) => timing._recordStatusReceipts({
+  store: 'summary_jobs', job_id: `seed-${i}`,
+  completed_stages: [{ key: 'verify', duration_seconds: d, timing_key: 'nli|model-a', workload_size: 10 }]
+}, storage));
+
+// A multi-stage job now on its 3rd stage: the job has been running a long time in TOTAL (prepare +
+// generate already consumed most of that), but the CURRENT stage just started a fraction of a second ago.
+const job = {
+  store: 'summary_jobs', job_id: 'job-1', status: 'running',
+  elapsed_seconds: 120,
+  observed_at: 1000000,
+  stage: { key: 'verify', timing_key: 'nli|model-a', workload_size: 10, elapsed_seconds: 3.1 },
+};
+const now = job.observed_at + 400;  // 0.4s of local ticking since the last poll
+
+const stageElapsed = timing._statusStageElapsed(job, now);
+const fixedWording = timing._statusTimingWording(job.stage, stageElapsed, 'Local AI', storage);
+// The pre-fix call site passed the JOB-level elapsed into this same comparison instead.
+const preFixWording = timing._statusTimingWording(job.stage, job.elapsed_seconds, 'Local AI', storage);
+
+console.log(JSON.stringify({ stageElapsed, fixedWording, preFixWording }));
+"""
+    )
+    assert data["stageElapsed"] < 4  # ~3.1s + a fraction, nowhere near the 120s job total
+    assert data["fixedWording"].startswith("Usually ") and data["fixedWording"].endswith("for this step")
+    # The old call site's behavior, reproduced here from the same calibration data, would have failed
+    # the assertion above -- it reports the run as anomalously slow when it is actually right on schedule.
+    assert data["preFixWording"] == "Taking longer than recent runs"
+
+
+def test_stage_elapsed_falls_back_cleanly_with_no_stage_or_when_finished() -> None:
+    data = _run_node(
+        """
+console.log(JSON.stringify({
+  noStage: timing._statusStageElapsed({ store: 'summary_jobs', job_id: 'x', status: 'running' }, 1000),
+  notRunning: timing._statusStageElapsed({
+    store: 'summary_jobs', job_id: 'x', status: 'done', observed_at: 900,
+    stage: { key: 'verify', timing_key: 'k', elapsed_seconds: 5 },
+  }, 1000),
+  running: timing._statusStageElapsed({
+    store: 'summary_jobs', job_id: 'x', status: 'running', observed_at: 900,
+    stage: { key: 'verify', timing_key: 'k', elapsed_seconds: 5 },
+  }, 1000),
+}));
+"""
+    )
+    assert data["noStage"] is None
+    assert data["notRunning"] == 5  # terminal job: no local-ticking addition
+    assert data["running"] == 5.1  # running job: base + 100ms ticked locally since observed_at
 
 
 def test_synthesis_timing_identity_separates_endpoint_without_leaking_endpoint_or_secret() -> None:

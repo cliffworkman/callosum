@@ -588,6 +588,18 @@ def test_cite_suggestions_open_the_matched_pdf_and_viewer_names_the_active_file(
     assert "attachment_id: state.attachmentId" in note_create
 
 
+def test_save_citation_highlight_carries_the_citations_own_attachment_id():
+    # Finding 3 (backlog #57 fixwave): saveCitationHighlight (40_app.jsx) is a THIRD native
+    # annotation-creation path, distinct from the two 30_viewer.jsx paths asserted just above --
+    # it must also carry attachment_id, or a verified exact-precision citation could be saved onto
+    # the wrong PDF attachment (Core invariant #2, the coordinate-honesty contract).
+    raw = assemble_jsx()
+    save_highlight = raw[
+        raw.index("const saveCitationHighlight") : raw.index("const closeTab", raw.index("const saveCitationHighlight"))
+    ]
+    assert "attachment_id: citation.attachment_id" in save_highlight
+
+
 def test_mendeley_bridge_guidance_points_to_zoteros_documented_online_import():
     raw = assemble_jsx()
     assert "Mendeley Reference Manager (online import)" in raw

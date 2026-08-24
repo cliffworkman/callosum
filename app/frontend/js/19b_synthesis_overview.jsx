@@ -1,11 +1,40 @@
 // Supplementary synthesis Overview: primary verified claims never wait for this display layer.
-function OverviewBlock({ overview, status, onRetry, retrying }) {
+
+// A pending/running state can otherwise sit unresolvable forever (the app quit mid-generation, or the
+// gap between the primary commit and the Overview call actually starting) with no way for the user to
+// ever trigger a retry — the backend already reclaims a stale `running` row after 5 minutes and already
+// accepts `pending` as retryable at any age (overview_lifecycle.py's acquire_overview), so a click here
+// that lands too early simply 409s harmlessly (see the retry() handling below) rather than double-firing
+// real in-flight work. This threshold is deliberately well short of that 5-minute backend window — just
+// long enough that ordinary, healthy generation (seconds, not minutes) never shows it.
+const OVERVIEW_STUCK_AFTER_SECONDS = 60;
+
+// overview_updated_at is a naive-UTC ISO datetime string from the backend's _naive_utc() (no trailing
+// Z/offset) — Date.parse() would otherwise misread it as local time, the same fix 30e_feed.jsx already
+// applies to last_polled_at.
+function _overviewAgeSeconds(updatedAt) {
+  if (!updatedAt) return null;
+  const iso = /[Z+]/.test(updatedAt) ? updatedAt : updatedAt + "Z";
+  const parsed = Date.parse(iso);
+  return Number.isFinite(parsed) ? Math.max(0, (Date.now() - parsed) / 1000) : null;
+}
+
+function OverviewBlock({ overview, status, updatedAt, onRetry, retrying }) {
   if ((!overview || overview.length === 0) && status === "not_requested") return null;
   if ((!overview || overview.length === 0) && (status === "pending" || status === "running")) {
+    const age = _overviewAgeSeconds(updatedAt);
+    const stuck = age != null && age >= OVERVIEW_STUCK_AFTER_SECONDS;
     return (
       <section className="synth-overview" aria-live="polite">
         <p className="eyebrow">Overview</p>
-        <div className="history-meta">Generating overview… Verified claims are ready below.</div>
+        <div className="history-meta">
+          {stuck
+            ? "Still generating the overview — this is taking longer than usual. Verified claims are ready below."
+            : "Generating overview… Verified claims are ready below."}
+        </div>
+        {stuck && onRetry && <button className="btn btn-link" disabled={retrying} onClick={onRetry}>
+          {retrying ? "Retrying overview…" : "Retry overview"}
+        </button>}
       </section>
     );
   }

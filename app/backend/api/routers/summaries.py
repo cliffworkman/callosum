@@ -330,6 +330,7 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
             engine,
             summary_id=result.summary_id,
             generator=overview_generator,
+            jobs=api.state.overview_jobs,
         )
         # Preserve direct status-read compatibility after Phase B without changing the first
         # completion boundary: observers were already woken with the committed primary above.

@@ -3375,7 +3375,7 @@
           return finish({ ok: false, status: 401, authRequired: true, error: detail });
         }
         console.warn("[callosum] request failed:", path, detail);
-        return finish({ ok: false, error: detail });
+        return finish({ ok: false, status: res.status, error: detail });
       }
       return finish({ ok: true, data });
     } catch (e) {
@@ -5199,10 +5199,15 @@
       }
       const usualLow = _formatTimingDuration(Math.max(1, estimate.lower));
       const usualHigh = _formatTimingDuration(Math.max(1, estimate.upper));
-      return `Usually ${usualLow}\u2013${usualHigh} total`;
+      return `Usually ${usualLow}\u2013${usualHigh} for this step`;
     }
     if (stage?.variable || !stage && (computeKind || "").includes("Provider")) return "Timing varies by provider";
     return null;
+  }
+  function _statusStageElapsed(job, now) {
+    if (!job || !job.stage) return null;
+    const base = Math.max(0, Number(job.stage.elapsed_seconds) || 0);
+    return job.status === "running" ? base + Math.max(0, (now - (job.observed_at || now)) / 1e3) : base;
   }
   const StatusNavContext = React.createContext(null);
   const _clientStatusJobs = /* @__PURE__ */ new Map();
@@ -5364,7 +5369,8 @@
     const navigable = !!job.nav;
     const elapsed = _statusElapsed(job, now);
     const stageLabel = job.stage?.label || job.progress?.label || (job.store === "client_operations" ? job.label : "Working");
-    const estimateText = !finished ? _statusTimingWording(job.stage, elapsed, job.compute_kind) : null;
+    const stageElapsed = job.stage ? _statusStageElapsed(job, now) : elapsed;
+    const estimateText = !finished ? _statusTimingWording(job.stage, stageElapsed, job.compute_kind) : null;
     return /* @__PURE__ */ React.createElement("div", { className: "status-row" + (job.status === "error" ? " status-row-error" : "") }, /* @__PURE__ */ React.createElement("div", { className: "status-row-head" }, navigable ? /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -14077,10 +14083,19 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     if (!diagnostic) return null;
     return /* @__PURE__ */ React.createElement("div", { className: "synth-coverage synth-coverage-warn" }, diagnostic.text, onOpenTextHealth && /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: onOpenTextHealth }, "Open scoped Text Health"));
   }
-  function OverviewBlock({ overview, status, onRetry, retrying }) {
+  const OVERVIEW_STUCK_AFTER_SECONDS = 60;
+  function _overviewAgeSeconds(updatedAt) {
+    if (!updatedAt) return null;
+    const iso = /[Z+]/.test(updatedAt) ? updatedAt : updatedAt + "Z";
+    const parsed = Date.parse(iso);
+    return Number.isFinite(parsed) ? Math.max(0, (Date.now() - parsed) / 1e3) : null;
+  }
+  function OverviewBlock({ overview, status, updatedAt, onRetry, retrying }) {
     if ((!overview || overview.length === 0) && status === "not_requested") return null;
     if ((!overview || overview.length === 0) && (status === "pending" || status === "running")) {
-      return /* @__PURE__ */ React.createElement("section", { className: "synth-overview", "aria-live": "polite" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Overview"), /* @__PURE__ */ React.createElement("div", { className: "history-meta" }, "Generating overview\u2026 Verified claims are ready below."));
+      const age = _overviewAgeSeconds(updatedAt);
+      const stuck = age != null && age >= OVERVIEW_STUCK_AFTER_SECONDS;
+      return /* @__PURE__ */ React.createElement("section", { className: "synth-overview", "aria-live": "polite" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Overview"), /* @__PURE__ */ React.createElement("div", { className: "history-meta" }, stuck ? "Still generating the overview \u2014 this is taking longer than usual. Verified claims are ready below." : "Generating overview\u2026 Verified claims are ready below."), stuck && onRetry && /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", disabled: retrying, onClick: onRetry }, retrying ? "Retrying overview\u2026" : "Retry overview"));
     }
     if ((!overview || overview.length === 0) && status === "failed") {
       return /* @__PURE__ */ React.createElement("section", { className: "synth-overview", "aria-live": "polite" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Overview unavailable"), /* @__PURE__ */ React.createElement("div", { className: "history-meta" }, "The verified synthesis is complete; only its supplementary overview failed."), onRetry && /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", disabled: retrying, onClick: onRetry }, retrying ? "Retrying overview\u2026" : "Retry overview"));
@@ -14440,6 +14455,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       {
         overview: state.result.overview,
         status: state.result.overview_status || (state.result.overview ? "complete" : "not_requested"),
+        updatedAt: state.result.overview_updated_at,
         onRetry: readOnly ? null : overviewLifecycle.retry,
         retrying: overviewLifecycle.retrying
       }
@@ -22257,7 +22273,8 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         color: HIGHLIGHT_COLORS[0],
         bboxes,
         anchor_text: citation.quote || "",
-        source: "synthesis"
+        source: "synthesis",
+        attachment_id: citation.attachment_id
       });
       if (r.ok) setAnnoRefresh((n) => n + 1);
       return r;

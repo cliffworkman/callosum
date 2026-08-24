@@ -128,8 +128,24 @@ function _statusTimingWording(stage, elapsed, computeKind, storage = _statusTimi
     }
     const usualLow = _formatTimingDuration(Math.max(1, estimate.lower));
     const usualHigh = _formatTimingDuration(Math.max(1, estimate.upper));
-    return `Usually ${usualLow}–${usualHigh} total`;
+    // "for this step," not "total": the calibration is per-STAGE (a multi-stage job's stages each get
+    // their own receipts), and this reads next to a job-level elapsed-time counter in the Status row --
+    // "total" would misread as describing the whole job's duration.
+    return `Usually ${usualLow}–${usualHigh} for this step`;
   }
   if (stage?.variable || (!stage && (computeKind || "").includes("Provider"))) return "Timing varies by provider";
   return null;
+}
+
+// Stage-scoped counterpart to 04c_status.jsx's _statusElapsed: the calibrated-timing comparison above must
+// be checked against how long the CURRENT STAGE has run, never the whole job's elapsed time -- a multi-stage
+// job's later stages would otherwise compare against the sum of every prior stage's duration too, so a
+// normal-speed run reads as "taking longer than recent runs" by its last stage. Applies the exact same
+// observed-at/clock-drift treatment _statusElapsed already applies at the job level (base value from the last
+// poll + time ticked locally since that poll while still running), just against job.stage.elapsed_seconds
+// (itself computed server-side from stage.started_at) instead of the job-level total.
+function _statusStageElapsed(job, now) {
+  if (!job || !job.stage) return null;
+  const base = Math.max(0, Number(job.stage.elapsed_seconds) || 0);
+  return job.status === "running" ? base + Math.max(0, (now - (job.observed_at || now)) / 1000) : base;
 }

@@ -214,6 +214,7 @@ def create_app(
     api.state.db_url = resolved_db_url
     api.state.frontend_path = resolved_frontend_path
     api.state.summary_jobs = JobStore()
+    api.state.overview_jobs = JobStore()  # backlog #57 fixwave: supplementary-Overview Status-popover visibility
     api.state.axis_score_jobs = JobStore()
     api.state.axis_suggest_jobs = JobStore()
     api.state.dedup_jobs = JobStore()
