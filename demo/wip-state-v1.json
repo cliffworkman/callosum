@@ -1444,13 +1444,13 @@
       "files": [
         {
           "existence_state": "available",
-          "extracted_from_whole_hash": "24428d65729081eed514f44289f3f05a03b87e25dfa446faf7e43fab80b36482",
+          "extracted_from_whole_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b",
           "extracted_text_hash": "95ac1cd6367c7d295980cfd218898458bd1243d8b71be255e2560fb0750a619c",
           "extraction_error": null,
           "extraction_provider": "plain-text",
           "extraction_status": "complete",
           "extraction_version": "1",
-          "file_size": 2700,
+          "file_size": 2652,
           "id": 1,
           "is_primary": true,
           "last_scanned_at": "2026-08-11T12:00:00",
@@ -1458,7 +1458,7 @@
           "modified_at": "2026-08-11T12:00:00",
           "relative_path": "integrated-review.md",
           "role": "primary-manuscript",
-          "whole_file_hash": "24428d65729081eed514f44289f3f05a03b87e25dfa446faf7e43fab80b36482"
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
         }
       ],
       "funding_runs": [],
@@ -1710,7 +1710,7 @@
           "reason_detail": "meta-analysis",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "24428d65729081eed514f44289f3f05a03b87e25dfa446faf7e43fab80b36482"
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
         },
         {
           "created_at": "2026-08-11T12:00:00",
@@ -1734,7 +1734,7 @@
           "reason_detail": "bayes",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "24428d65729081eed514f44289f3f05a03b87e25dfa446faf7e43fab80b36482"
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
         },
         {
           "created_at": "2026-08-11T12:00:00",
@@ -1758,7 +1758,7 @@
           "reason_detail": "lmm",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "24428d65729081eed514f44289f3f05a03b87e25dfa446faf7e43fab80b36482"
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
         },
         {
           "created_at": "2026-08-11T12:00:00",
@@ -1782,7 +1782,7 @@
           "reason_detail": "transparency",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "24428d65729081eed514f44289f3f05a03b87e25dfa446faf7e43fab80b36482"
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
         },
         {
           "created_at": "2026-08-11T12:00:00",
@@ -1806,7 +1806,7 @@
           "reason_detail": "statcheck",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "24428d65729081eed514f44289f3f05a03b87e25dfa446faf7e43fab80b36482"
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
         },
         {
           "created_at": "2026-08-11T12:00:00",
@@ -1830,7 +1830,7 @@
           "reason_detail": "",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "24428d65729081eed514f44289f3f05a03b87e25dfa446faf7e43fab80b36482"
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
         },
         {
           "created_at": "2026-08-11T12:00:00",
@@ -1854,7 +1854,7 @@
           "reason_detail": "none -> 1",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "24428d65729081eed514f44289f3f05a03b87e25dfa446faf7e43fab80b36482"
+          "whole_file_hash": "e3143edcf0207ff7b93bfb5a0edc3951bb6e53ab98f5af6f6d2ece6092cd845b"
         }
       ],
       "tasks": [
@@ -2942,13 +2942,13 @@
       "files": [
         {
           "existence_state": "available",
-          "extracted_from_whole_hash": "667f508c4744881934c13bdda64e1c1412c9b73db058a1b18a10c32acadda809",
+          "extracted_from_whole_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605",
           "extracted_text_hash": "ba2754728911da17e84dbf763c270c29beb0af35f319ed16088ca0cf22eb8092",
           "extraction_error": null,
           "extraction_provider": "plain-text",
           "extraction_status": "complete",
           "extraction_version": "1",
-          "file_size": 1778,
+          "file_size": 1739,
           "id": 2,
           "is_primary": true,
           "last_scanned_at": "2026-08-11T12:00:00",
@@ -2956,7 +2956,7 @@
           "modified_at": "2026-08-11T12:00:00",
           "relative_path": "synthetic-replication.md",
           "role": "primary-manuscript",
-          "whole_file_hash": "667f508c4744881934c13bdda64e1c1412c9b73db058a1b18a10c32acadda809"
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
         }
       ],
       "funding_runs": [],
@@ -3208,7 +3208,7 @@
           "reason_detail": "meta-analysis",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "667f508c4744881934c13bdda64e1c1412c9b73db058a1b18a10c32acadda809"
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
         },
         {
           "created_at": "2026-08-11T12:00:00",
@@ -3232,7 +3232,7 @@
           "reason_detail": "bayes",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "667f508c4744881934c13bdda64e1c1412c9b73db058a1b18a10c32acadda809"
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
         },
         {
           "created_at": "2026-08-11T12:00:00",
@@ -3256,7 +3256,7 @@
           "reason_detail": "lmm",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "667f508c4744881934c13bdda64e1c1412c9b73db058a1b18a10c32acadda809"
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
         },
         {
           "created_at": "2026-08-11T12:00:00",
@@ -3280,7 +3280,7 @@
           "reason_detail": "transparency",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "667f508c4744881934c13bdda64e1c1412c9b73db058a1b18a10c32acadda809"
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
         },
         {
           "created_at": "2026-08-11T12:00:00",
@@ -3304,7 +3304,7 @@
           "reason_detail": "statcheck",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "667f508c4744881934c13bdda64e1c1412c9b73db058a1b18a10c32acadda809"
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
         },
         {
           "created_at": "2026-08-11T12:00:00",
@@ -3328,7 +3328,7 @@
           "reason_detail": "",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "667f508c4744881934c13bdda64e1c1412c9b73db058a1b18a10c32acadda809"
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
         },
         {
           "created_at": "2026-08-11T12:00:00",
@@ -3352,7 +3352,7 @@
           "reason_detail": "none -> 2",
           "section_hashes_json": null,
           "status_detail": "The primary file matches this checkpoint.",
-          "whole_file_hash": "667f508c4744881934c13bdda64e1c1412c9b73db058a1b18a10c32acadda809"
+          "whole_file_hash": "593f3020446a9e369395ab5da08fea6a85d5e9734783dcec56d82aa90cd46605"
         }
       ],
       "tasks": [

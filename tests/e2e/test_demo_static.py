@@ -170,7 +170,7 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             synthesis_receipt = page.get_by_role("button", name="Synthesize · Ask", exact=True)
             expect(synthesis_receipt).to_be_visible()
             synthesis_row = page.locator(".status-row").filter(has=synthesis_receipt)
-            expect(synthesis_row.locator(".status-row-done")).to_have_text("Done")
+            expect(synthesis_row.locator(".status-row-done")).to_have_text("Done in 0s")
             expect(page.locator(".status-row-dismiss")).to_have_count(0)
             synthesis_receipt.click()
             page.wait_for_selector(".summary-sentence")

@@ -39,6 +39,8 @@ jobs:
         run: uv run pip-audit -r requirements.txt --strict
       - name: "pip-audit (dev dependencies — report-only; see requirements-dev.txt for the one accepted finding)"
         run: uv run pip-audit -r requirements-dev.txt || true
+      - name: Build static demo artifact (dist-demo/ — test_website_how_it_works.py checks its local link target)
+        run: uv run python tools/demo/build_demo.py
       - name: Pytest (offline suite; parallel via pytest-xdist; the browser e2e is opt-in and runs in the job below)
         run: uv run pytest -n auto -q
       - name: QA surface-coverage check (report-only until the route suite is green; inc 120)

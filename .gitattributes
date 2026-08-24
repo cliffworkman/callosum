@@ -1,0 +1,7 @@
+# Demo-fixture manuscript sources are copied byte-for-byte into the demo sandbox and their exact
+# bytes are SHA-256 hashed (app/backend/wip/content.py's whole_file_hash), baked into the committed
+# demo/wip-state-v1.json regression fixture. Without a forced EOL, core.autocrlf differences between
+# platforms (CRLF on a Windows checkout, LF on Linux CI) change the hashed bytes and make that
+# fixture non-reproducible across machines -- confirmed as the cause of a CI-only test failure in
+# test_demo_snapshot.py::test_demo_wip_state_regenerates_from_real_sandbox_deterministically.
+tools/demo/fixtures/*.md text eol=lf
