@@ -23,10 +23,11 @@ with server-owned destinations; URLs, free text, and destination overrides are d
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.backend.api.job_store import Job, JobStore
 
@@ -184,7 +185,7 @@ JOB_COMPUTE_KINDS: dict[str, str] = {
     "citation_context_jobs": "Local AI + public metadata",
     "citation_equity_jobs": "Public metadata",
     "wip_citation_equity_jobs": "Public metadata",
-    "critical_review_jobs": "Provider AI + local verification",
+    "critical_review_jobs": "Local AI",
     "wip_critical_review_jobs": "Local AI",
     "critical_review_set_jobs": "Provider AI + local verification",
     "metadata_enrich_jobs": "Public metadata",
@@ -256,6 +257,23 @@ class StatusProgress(BaseModel):
     eta_seconds: int | None = None
 
 
+class StatusStage(BaseModel):
+    key: str
+    label: str
+    elapsed_seconds: float
+    timing_key: str
+    workload_size: int | None = None
+    variable: bool = False
+
+
+class StatusStageReceipt(BaseModel):
+    key: str
+    duration_seconds: float
+    timing_key: str
+    workload_size: int | None = None
+    variable: bool = False
+
+
 class StatusJob(BaseModel):
     store: str
     job_id: str
@@ -263,6 +281,9 @@ class StatusJob(BaseModel):
     status: str
     detail: str | None = None
     progress: StatusProgress | None = None
+    elapsed_seconds: float | None = None
+    stage: StatusStage | None = None
+    completed_stages: list[StatusStageReceipt] = Field(default_factory=list)
     # inc 415: a narrow, opt-in navigation hint (e.g. {"summary_id": 42}) a job may publish at mark_done()
     # time — NOT job.result, which stays deliberately unread here (inc 406 audit). Most jobs never set it.
     nav: dict[str, Any] | None = None
@@ -284,6 +305,16 @@ def _to_status_job(store_name: str, job_id: str, job: Job) -> StatusJob:
             current=job.progress.current, total=job.progress.total, label=job.progress.label, eta_seconds=eta
         )
     label = JOB_LABELS.get(store_name, _prettify(store_name))
+    stage = None
+    if job.stage is not None:
+        stage = StatusStage(
+            key=job.stage.key,
+            label=job.stage.label,
+            elapsed_seconds=max(0.0, time.monotonic() - job.stage.started_at),
+            timing_key=job.stage.timing_key,
+            workload_size=job.stage.workload_size,
+            variable=job.stage.variable,
+        )
     return StatusJob(
         store=store_name,
         job_id=job_id,
@@ -291,6 +322,18 @@ def _to_status_job(store_name: str, job_id: str, job: Job) -> StatusJob:
         status=job.status,
         detail=job.detail,
         progress=progress,
+        elapsed_seconds=job.elapsed_seconds(),
+        stage=stage,
+        completed_stages=[
+            StatusStageReceipt(
+                key=item.key,
+                duration_seconds=item.duration_seconds,
+                timing_key=item.timing_key,
+                workload_size=item.workload_size,
+                variable=item.variable,
+            )
+            for item in job.completed_stages
+        ],
         nav=_bounded_nav(store_name, job.nav),
         compute_kind=JOB_COMPUTE_KINDS.get(store_name),
     )

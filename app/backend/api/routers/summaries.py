@@ -34,6 +34,7 @@ from app.backend.api.dependencies import (
     resolve_support_scorer,
 )
 from app.backend.api.job_store import JobStore
+from app.backend.api.job_timing import stage_reporter, synthesis_timing_key
 from app.backend.api.routers.paper_files import _is_pdf_attachment
 from app.backend.api.routers.summary_overview import resolve_overview_generator
 from app.backend.api.routers.summary_overview import router as overview_router
@@ -288,6 +289,8 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
     jobs.mark_running(job_id)
     overview_generator = None
     try:
+        llm_config = resolve_llm_config(api)
+        calibration_key = synthesis_timing_key(llm_config)
         generator = _summary_generator(api)
         overview_generator = resolve_overview_generator(api)
         model = _embedding_model(api)
@@ -307,6 +310,7 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
                 support_scorer=support_scorer,
                 overview_requested=overview_generator is not None,
                 on_progress=lambda i, n, label: jobs.mark_progress(job_id, i, n, label),
+                on_stage=stage_reporter(jobs, job_id, calibration_key),
             )
         # Phase A has committed. Reread the authoritative trust spine from a fresh connection before
         # publishing completion; no generated-but-unverified or uncommitted response can reach JobStore.

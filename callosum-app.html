@@ -5080,6 +5080,130 @@
   });
   registerWorkspace({ id: "help", label: "Help", order: 100, utility: true });
   registerWorkspace({ id: "settings", label: "Settings", order: 110, utility: true });
+  const STATUS_TIMING_SCHEMA = 1;
+  const STATUS_TIMING_STORAGE_KEY = "callosum.status-timing.v1";
+  const STATUS_TIMING_MAX_RECEIPTS = 200;
+  const STATUS_TIMING_MAX_PER_SHAPE = 24;
+  function _timingWorkloadBucket(size) {
+    if (!Number.isFinite(size) || size < 0) return "unknown";
+    if (size <= 8) return "0-8";
+    if (size <= 32) return "9-32";
+    if (size <= 128) return "33-128";
+    if (size <= 512) return "129-512";
+    return "513+";
+  }
+  function _formatTimingDuration(seconds) {
+    const value = Math.max(0, Math.floor(Number(seconds) || 0));
+    if (value < 60) return `${value}s`;
+    const minutes = Math.floor(value / 60);
+    const remainder = value % 60;
+    return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`;
+  }
+  function _emptyTimingHistory() {
+    return { schema: STATUS_TIMING_SCHEMA, receipts: [] };
+  }
+  function _statusTimingStorage() {
+    try {
+      return globalThis.localStorage || null;
+    } catch (_) {
+      return null;
+    }
+  }
+  function _validTimingReceipt(item) {
+    return !!item && typeof item.id === "string" && item.id.length <= 180 && typeof item.timing_key === "string" && item.timing_key.length <= 400 && typeof item.stage === "string" && item.stage.length <= 80 && typeof item.bucket === "string" && Number.isFinite(item.duration) && item.duration >= 0 && item.duration <= 24 * 60 * 60;
+  }
+  function _loadTimingHistory(storage = _statusTimingStorage()) {
+    if (!storage) return _emptyTimingHistory();
+    try {
+      const parsed = JSON.parse(storage.getItem(STATUS_TIMING_STORAGE_KEY) || "null");
+      if (!parsed || parsed.schema !== STATUS_TIMING_SCHEMA || !Array.isArray(parsed.receipts)) {
+        return _emptyTimingHistory();
+      }
+      return { schema: STATUS_TIMING_SCHEMA, receipts: parsed.receipts.filter(_validTimingReceipt).slice(-STATUS_TIMING_MAX_RECEIPTS) };
+    } catch (_) {
+      return _emptyTimingHistory();
+    }
+  }
+  function _saveTimingHistory(history, storage = _statusTimingStorage()) {
+    if (!storage) return;
+    try {
+      storage.setItem(STATUS_TIMING_STORAGE_KEY, JSON.stringify(history));
+    } catch (_) {
+    }
+  }
+  function _recordStatusReceipts(job, storage = _statusTimingStorage()) {
+    if (!job || job.status === "error" || !Array.isArray(job.completed_stages) || !job.completed_stages.length) return;
+    const history = _loadTimingHistory(storage);
+    const known = new Set(history.receipts.map((item) => item.id));
+    let changed = false;
+    for (const stage of job.completed_stages) {
+      const id = `${job.store}:${job.job_id}:${stage.key}`;
+      const receipt = {
+        id,
+        timing_key: String(stage.timing_key || "").slice(0, 400),
+        stage: String(stage.key || "").slice(0, 80),
+        bucket: _timingWorkloadBucket(stage.workload_size),
+        duration: Number(stage.duration_seconds),
+        variable: !!stage.variable
+      };
+      if (known.has(id) || !_validTimingReceipt(receipt)) continue;
+      history.receipts.push(receipt);
+      known.add(id);
+      changed = true;
+    }
+    if (!changed) return;
+    const groupedCounts = /* @__PURE__ */ new Map();
+    history.receipts = history.receipts.reverse().filter((item) => {
+      const shape = `${item.timing_key}|${item.stage}|${item.bucket}`;
+      const count = groupedCounts.get(shape) || 0;
+      groupedCounts.set(shape, count + 1);
+      return count < STATUS_TIMING_MAX_PER_SHAPE;
+    }).reverse().slice(-STATUS_TIMING_MAX_RECEIPTS);
+    _saveTimingHistory(history, storage);
+  }
+  function _timingQuantile(sorted, q) {
+    if (!sorted.length) return null;
+    const position = (sorted.length - 1) * q;
+    const lower = Math.floor(position);
+    const fraction = position - lower;
+    return sorted[lower] + ((sorted[lower + 1] ?? sorted[lower]) - sorted[lower]) * fraction;
+  }
+  function _estimateStatusStage(stage, storage = _statusTimingStorage()) {
+    if (!stage || !stage.timing_key || !stage.key) return null;
+    const bucket = _timingWorkloadBucket(stage.workload_size);
+    const matches = _loadTimingHistory(storage).receipts.filter(
+      (item) => item.timing_key === stage.timing_key && item.stage === stage.key && item.bucket === bucket
+    );
+    if (matches.length < 3) return null;
+    const values = matches.map((item) => item.duration).sort((a, b) => a - b);
+    const median = _timingQuantile(values, 0.5);
+    const lower = Math.max(0, (matches.length < 5 ? values[0] : _timingQuantile(values, 0.1)) * 0.9);
+    const upper = (matches.length < 5 ? values[values.length - 1] : _timingQuantile(values, 0.9)) * 1.1;
+    const spread = median > 0 ? (upper - lower) / median : Infinity;
+    const variable = !!stage.variable || matches.some((item) => item.variable);
+    return {
+      confidence: matches.length >= 8 && spread <= 0.35 && !variable ? "high" : "moderate",
+      median,
+      lower,
+      upper,
+      sample_size: matches.length
+    };
+  }
+  function _statusTimingWording(stage, elapsed, computeKind, storage = _statusTimingStorage()) {
+    const estimate = _estimateStatusStage(stage, storage);
+    if (estimate) {
+      if (elapsed >= estimate.upper) return "Taking longer than recent runs";
+      if (estimate.confidence === "high") {
+        const remaining = Math.max(1, Math.round(estimate.median - elapsed));
+        return remaining <= 1 ? "Finishing soon" : `About ${_formatTimingDuration(remaining)} remaining`;
+      }
+      const usualLow = _formatTimingDuration(Math.max(1, estimate.lower));
+      const usualHigh = _formatTimingDuration(Math.max(1, estimate.upper));
+      return `Usually ${usualLow}\u2013${usualHigh} total`;
+    }
+    if (stage?.variable || !stage && (computeKind || "").includes("Provider")) return "Timing varies by provider";
+    return null;
+  }
   const StatusNavContext = React.createContext(null);
   const _clientStatusJobs = /* @__PURE__ */ new Map();
   const _clientStatusListeners = /* @__PURE__ */ new Set();
@@ -5130,7 +5254,7 @@
     _emitClientStatus();
   }
   function _finishClientStatus(jobId, ok = true, detail = null) {
-    _updateClientStatus(jobId, { status: ok ? "done" : "error", detail });
+    _updateClientStatus(jobId, { status: ok ? "done" : "error", detail, finished_at: Date.now() });
   }
   function _dismissClientStatus(jobId) {
     _clientStatusJobs.delete(jobId);
@@ -5227,9 +5351,20 @@
       compute_kind: "Desktop updater"
     };
   }
-  function StatusJobRow({ job, onDismiss, onNavigate }) {
+  function _statusElapsed(job, now) {
+    if (job.store === "client_operations") {
+      const end = job.finished_at || now;
+      return Math.max(0, (end - job.started_at) / 1e3);
+    }
+    const base = Math.max(0, Number(job.elapsed_seconds) || 0);
+    return job.status === "running" ? base + Math.max(0, (now - (job.observed_at || now)) / 1e3) : base;
+  }
+  function StatusJobRow({ job, onDismiss, onNavigate, now }) {
     const finished = job.status === "done" || job.status === "error";
     const navigable = !!job.nav;
+    const elapsed = _statusElapsed(job, now);
+    const stageLabel = job.stage?.label || job.progress?.label || (job.store === "client_operations" ? job.label : "Working");
+    const estimateText = !finished ? _statusTimingWording(job.stage, elapsed, job.compute_kind) : null;
     return /* @__PURE__ */ React.createElement("div", { className: "status-row" + (job.status === "error" ? " status-row-error" : "") }, /* @__PURE__ */ React.createElement("div", { className: "status-row-head" }, navigable ? /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -5247,19 +5382,36 @@
         onClick: () => onDismiss(job)
       },
       "\xD7"
-    )), job.compute_kind && /* @__PURE__ */ React.createElement("div", { className: "status-row-kind" }, job.compute_kind), job.status === "error" ? /* @__PURE__ */ React.createElement("div", { className: "status-row-error-detail" }, job.detail || "Failed.") : job.status === "done" ? /* @__PURE__ */ React.createElement("div", { className: "status-row-done" }, job.progress ? `${job.progress.label} \u2014 ${job.progress.current} / ${job.progress.total}` : "Done") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ProgressBar, { label: "Working\u2026", progress: job.progress, managedBy: "status-popover" }), !job.progress && /* @__PURE__ */ React.createElement("div", { className: "status-row-eta" }, "Completion and ETA are not measurable yet.")));
+    )), job.compute_kind && /* @__PURE__ */ React.createElement("div", { className: "status-row-kind" }, job.compute_kind), job.status === "error" ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "status-row-error-detail" }, job.detail || "Failed."), /* @__PURE__ */ React.createElement("div", { className: "status-row-eta" }, "Stopped after ", _formatTimingDuration(elapsed))) : job.status === "done" ? /* @__PURE__ */ React.createElement("div", { className: "status-row-done" }, job.progress && !job.completed_stages?.length ? `${job.progress.label} \u2014 ${job.progress.current} / ${job.progress.total} \xB7 ${_formatTimingDuration(elapsed)}` : `Done in ${_formatTimingDuration(elapsed)}`) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ProgressBar, { label: stageLabel, progress: job.stage ? null : job.progress, managedBy: "status-popover" }), /* @__PURE__ */ React.createElement("div", { className: "status-row-eta" }, _formatTimingDuration(elapsed), " elapsed", estimateText ? ` \xB7 ${estimateText}` : "")));
   }
   function StatusMenu({ onNavigate, desktopUpdate }) {
     const [open, setOpen] = useState(false);
     const [jobs, setJobs] = useState([]);
+    const jobsRef = useRef([]);
     const [pos, setPos] = useState(null);
+    const [now, setNow] = useState(Date.now());
     const clientJobs = useClientStatusJobs();
+    const hasRunningTimer = [...clientJobs, ...jobs].some((job) => job.status === "running");
     const [updateDismissedPhase, setUpdateDismissedPhase] = useState(null);
     const toggleRef = useRef(null);
     const popRef = useRef(null);
     const load = useCallback(() => {
       api("/status/jobs").then((r) => {
-        if (r.ok) setJobs(r.data.jobs);
+        if (!r.ok) return;
+        const observedAt = Date.now();
+        const previous = new Map(jobsRef.current.map((job) => [`${job.store}:${job.job_id}`, job]));
+        const next = r.data.jobs.map((job) => {
+          const prior = previous.get(`${job.store}:${job.job_id}`);
+          const priorElapsed = prior?.status === "running" ? Number(prior.elapsed_seconds || 0) + Math.max(0, (observedAt - prior.observed_at) / 1e3) : 0;
+          return {
+            ...job,
+            observed_at: observedAt,
+            elapsed_seconds: job.status === "running" ? Math.max(Number(job.elapsed_seconds) || 0, priorElapsed) : job.elapsed_seconds
+          };
+        });
+        next.forEach((job) => _recordStatusReceipts(job));
+        jobsRef.current = next;
+        setJobs(next);
       });
     }, []);
     useEffect(() => {
@@ -5267,6 +5419,12 @@
       const id = setInterval(load, open ? 2e3 : 12e3);
       return () => clearInterval(id);
     }, [open, load]);
+    useEffect(() => {
+      if (!open || !hasRunningTimer) return void 0;
+      setNow(Date.now());
+      const id = setInterval(() => setNow(Date.now()), 1e3);
+      return () => clearInterval(id);
+    }, [open, hasRunningTimer]);
     useEffect(() => {
       if (!open) return;
       const onDoc = (e) => {
@@ -5323,7 +5481,16 @@
       "Status",
       displayJobs.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "status-badge" }, displayJobs.length)
     ), open && pos && ReactDOM.createPortal(
-      /* @__PURE__ */ React.createElement("div", { className: "status-menu-pop", ref: popRef, style: { position: "fixed", top: pos.top, right: pos.right } }, displayJobs.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "status-empty" }, "Nothing running.") : displayJobs.map((j) => /* @__PURE__ */ React.createElement(StatusJobRow, { key: j.store + ":" + j.job_id, job: j, onDismiss: dismiss, onNavigate: navigate })), hasFinished && !isDemoMode() && /* @__PURE__ */ React.createElement("button", { className: "status-clear-finished", onClick: clearFinished }, "Clear all finished")),
+      /* @__PURE__ */ React.createElement("div", { className: "status-menu-pop", ref: popRef, style: { position: "fixed", top: pos.top, right: pos.right } }, displayJobs.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "status-empty" }, "Nothing running.") : displayJobs.map((j) => /* @__PURE__ */ React.createElement(
+        StatusJobRow,
+        {
+          key: j.store + ":" + j.job_id,
+          job: j,
+          now,
+          onDismiss: dismiss,
+          onNavigate: navigate
+        }
+      )), hasFinished && !isDemoMode() && /* @__PURE__ */ React.createElement("button", { className: "status-clear-finished", onClick: clearFinished }, "Clear all finished")),
       document.body
     ));
   }

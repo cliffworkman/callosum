@@ -1224,14 +1224,17 @@ def test_status_popover_tracks_synchronous_ai_and_navigates_to_its_ui(server: st
         row = page.locator(".status-row", has_text="Drafting a Help answer")
         row.wait_for()
         assert row.get_by_text("Provider AI", exact=True).is_visible()
-        assert row.get_by_text("Completion and ETA are not measurable yet.", exact=True).is_visible()
+        timing_text = row.locator(".status-row-eta").inner_text()
+        assert "elapsed" in timing_text
+        assert "Timing varies by provider" in timing_text
         row.get_by_role("button", name="Drafting a Help answer", exact=True).click()
         assert page.get_by_role("tab", name="Help", exact=True).get_attribute("aria-selected") == "true"
 
         page.evaluate("window.__finishHelpRequest()")
         page.locator(".status-menu-toggle").click()
         done_row = page.locator(".status-row", has_text="Drafting a Help answer")
-        done_row.get_by_text("Done", exact=True).wait_for()
+        done_row.locator(".status-row-done").wait_for()
+        assert done_row.locator(".status-row-done").inner_text().startswith("Done in ")
 
         page.set_viewport_size({"width": 375, "height": 812})
         page.locator(".status-menu-toggle").wait_for(state="visible")

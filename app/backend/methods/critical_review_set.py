@@ -6,6 +6,8 @@ Fully local, no LLM, no network. Every heavy dependency is INJECTED (the ``criti
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from sqlalchemy import Connection, select
 
 from app.backend.embeddings.models import EmbeddingModel
@@ -53,6 +55,7 @@ def set_contested_claims(
     embed_model: EmbeddingModel,
     vector_store: VectorStore,
     stance_scorer: StanceScorer,
+    on_stage: Callable[[str, str, int | None], None] | None = None,
 ) -> list[dict]:
     """For each paper in the set, the claims another paper *in the set* contradicts — reusing ``find_contested_claims``
     with ``other_chunk_ids`` scoped to the set. A signal (the disagreement the set already contains), never a verdict;
@@ -74,6 +77,7 @@ def set_contested_claims(
         vector_store=vector_store,
         stance_scorer=stance_scorer,
         resolve_chunk=resolve,
+        on_stage=on_stage,
     )
     for paper_id, report in zip(set_ids, reports, strict=True):
         for c in report.contested_claims:

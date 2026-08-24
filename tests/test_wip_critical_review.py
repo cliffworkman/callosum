@@ -176,9 +176,16 @@ def test_wip_critical_read_persists_grounded_exact_snapshot_receipt_without_embe
     with make_engine(temp_db_url).connect() as conn:
         embeddings_before = conn.scalar(select(func.count()).select_from(schema.embeddings))
 
-    _, job = _start_and_get(client, manuscript_id)
+    start, job = _start_and_get(client, manuscript_id)
 
     assert job["status"] == "done"
+    timing_job = app.state.wip_critical_review_jobs.get(start["job_id"])
+    assert [stage.key for stage in timing_job.completed_stages] == [
+        "preparing_evidence",
+        "embedding_claims",
+        "evaluating_evidence",
+        "finalizing_result",
+    ]
     run = job["run"]
     assert run["tool_id"] == "critical-read" and run["tool_version"] == "1"
     assert run["validity"] == "current"

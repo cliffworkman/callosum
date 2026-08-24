@@ -49,7 +49,7 @@ function _updateClientStatus(jobId, patch) {
   _emitClientStatus();
 }
 function _finishClientStatus(jobId, ok = true, detail = null) {
-  _updateClientStatus(jobId, { status: ok ? "done" : "error", detail });
+  _updateClientStatus(jobId, { status: ok ? "done" : "error", detail, finished_at: Date.now() });
 }
 function _dismissClientStatus(jobId) { _clientStatusJobs.delete(jobId); _emitClientStatus(); }
 function _clearFinishedClientStatus() {
@@ -145,9 +145,21 @@ function desktopUpdateStatusJob(update) {
   };
 }
 
-function StatusJobRow({ job, onDismiss, onNavigate }) {
+function _statusElapsed(job, now) {
+  if (job.store === "client_operations") {
+    const end = job.finished_at || now;
+    return Math.max(0, (end - job.started_at) / 1000);
+  }
+  const base = Math.max(0, Number(job.elapsed_seconds) || 0);
+  return job.status === "running" ? base + Math.max(0, (now - (job.observed_at || now)) / 1000) : base;
+}
+
+function StatusJobRow({ job, onDismiss, onNavigate, now }) {
   const finished = job.status === "done" || job.status === "error";
   const navigable = !!job.nav;
+  const elapsed = _statusElapsed(job, now);
+  const stageLabel = job.stage?.label || job.progress?.label || (job.store === "client_operations" ? job.label : "Working");
+  const estimateText = !finished ? _statusTimingWording(job.stage, elapsed, job.compute_kind) : null;
   return (
     <div className={"status-row" + (job.status === "error" ? " status-row-error" : "")}>
       <div className="status-row-head">
@@ -161,15 +173,22 @@ function StatusJobRow({ job, onDismiss, onNavigate }) {
       </div>
       {job.compute_kind && <div className="status-row-kind">{job.compute_kind}</div>}
       {job.status === "error"
-        ? <div className="status-row-error-detail">{job.detail || "Failed."}</div>
+        ? <React.Fragment>
+            <div className="status-row-error-detail">{job.detail || "Failed."}</div>
+            <div className="status-row-eta">Stopped after {_formatTimingDuration(elapsed)}</div>
+          </React.Fragment>
         : job.status === "done"
           // A finished row never uses ProgressBar's animated sweep (misleading — it would still look "working").
           ? <div className="status-row-done">
-              {job.progress ? `${job.progress.label} — ${job.progress.current} / ${job.progress.total}` : "Done"}
+              {job.progress && !job.completed_stages?.length
+                ? `${job.progress.label} — ${job.progress.current} / ${job.progress.total} · ${_formatTimingDuration(elapsed)}`
+                : `Done in ${_formatTimingDuration(elapsed)}`}
             </div>
           : <React.Fragment>
-              <ProgressBar label="Working…" progress={job.progress} managedBy="status-popover" />
-              {!job.progress && <div className="status-row-eta">Completion and ETA are not measurable yet.</div>}
+              <ProgressBar label={stageLabel} progress={job.stage ? null : job.progress} managedBy="status-popover" />
+              <div className="status-row-eta">
+                {_formatTimingDuration(elapsed)} elapsed{estimateText ? ` · ${estimateText}` : ""}
+              </div>
             </React.Fragment>}
     </div>
   );
@@ -178,8 +197,11 @@ function StatusJobRow({ job, onDismiss, onNavigate }) {
 function StatusMenu({ onNavigate, desktopUpdate }) {
   const [open, setOpen] = useState(false);
   const [jobs, setJobs] = useState([]);
+  const jobsRef = useRef([]);
   const [pos, setPos] = useState(null);  // {top, right} in viewport px, computed from the toggle button
+  const [now, setNow] = useState(Date.now());
   const clientJobs = useClientStatusJobs();
+  const hasRunningTimer = [...clientJobs, ...jobs].some(job => job.status === "running");
   // The synthetic desktop-update row's own dismiss state (component-local — there's no backend job to
   // dismiss). Keyed by phase, not just a bool: dismissing "downloading" hides only that phase, so the
   // later "ready" transition (genuinely new information) still surfaces once.
@@ -188,7 +210,27 @@ function StatusMenu({ onNavigate, desktopUpdate }) {
   const popRef = useRef(null);
 
   const load = useCallback(() => {
-    api("/status/jobs").then(r => { if (r.ok) setJobs(r.data.jobs); });
+    api("/status/jobs").then(r => {
+      if (!r.ok) return;
+      const observedAt = Date.now();
+      const previous = new Map(jobsRef.current.map(job => [`${job.store}:${job.job_id}`, job]));
+      const next = r.data.jobs.map(job => {
+        const prior = previous.get(`${job.store}:${job.job_id}`);
+        const priorElapsed = prior?.status === "running"
+          ? Number(prior.elapsed_seconds || 0) + Math.max(0, (observedAt - prior.observed_at) / 1000)
+          : 0;
+        return {
+          ...job,
+          observed_at: observedAt,
+          elapsed_seconds: job.status === "running"
+            ? Math.max(Number(job.elapsed_seconds) || 0, priorElapsed)
+            : job.elapsed_seconds,
+        };
+      });
+      next.forEach(job => _recordStatusReceipts(job));
+      jobsRef.current = next;
+      setJobs(next);
+    });
   }, []);
 
   useEffect(() => {
@@ -196,6 +238,13 @@ function StatusMenu({ onNavigate, desktopUpdate }) {
     const id = setInterval(load, open ? 2000 : 12000);
     return () => clearInterval(id);
   }, [open, load]);
+
+  useEffect(() => {
+    if (!open || !hasRunningTimer) return undefined;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [open, hasRunningTimer]);
 
   useEffect(() => {
     if (!open) return;
@@ -254,7 +303,8 @@ function StatusMenu({ onNavigate, desktopUpdate }) {
         <div className="status-menu-pop" ref={popRef} style={{ position: "fixed", top: pos.top, right: pos.right }}>
           {displayJobs.length === 0
             ? <div className="status-empty">Nothing running.</div>
-            : displayJobs.map(j => <StatusJobRow key={j.store + ":" + j.job_id} job={j} onDismiss={dismiss} onNavigate={navigate} />)}
+            : displayJobs.map(j => <StatusJobRow key={j.store + ":" + j.job_id} job={j} now={now}
+                onDismiss={dismiss} onNavigate={navigate} />)}
           {hasFinished && !isDemoMode() &&
             <button className="status-clear-finished" onClick={clearFinished}>Clear all finished</button>}
         </div>,

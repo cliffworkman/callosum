@@ -80,6 +80,12 @@ def test_primary_is_committed_and_job_done_while_overview_is_blocked(temp_db_url
     job = app.state.summary_jobs.get(job_id)
     assert job is not None and job.status == "done" and job.result is not None
     assert job.result.overview_status == "pending"
+    assert [stage.key for stage in job.completed_stages] == [
+        "preparing_sources",
+        "generating_synthesis",
+        "verifying_citations",
+        "finalizing_result",
+    ]
     engine = make_engine(temp_db_url)
     with engine.connect() as conn:
         row = conn.execute(select(summaries)).mappings().one()

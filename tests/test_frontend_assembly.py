@@ -1377,7 +1377,16 @@ def test_status_tracks_every_progress_bar_and_synchronous_ai_request_with_naviga
     assert "useProgressStatus({ label, progress, managedBy })" in progress
     assert "StatusScope nav={{ workspace: ws.id, tab: t.id" in raw
     assert "StatusScope nav={{ pane: paneId, section: s.id" in raw
-    assert "Completion and ETA are not measurable yet." in status
+    assert "Completion and ETA are not measurable yet." not in status
+    assert "elapsed" in status
+    assert "_statusTimingWording" in status
+    assert "Math.max(Number(job.elapsed_seconds) || 0, priorElapsed)" in status
+    timing = (PROJECT_ROOT / "app/frontend/js/04bb_status_timing.jsx").read_text(encoding="utf-8")
+    assert "Taking longer than recent runs" in timing
+    assert "Timing varies by provider" in timing
+    assert "STATUS_TIMING_MAX_RECEIPTS = 200" in timing
+    for private_field in ("prompt", "title", "abstract", "citation", "claim", "api_key"):
+        assert f"{private_field}:" not in timing
     assert "compute_kind" in status and "const navigable = !!job.nav" in status
     assert (
         "<StatusMenu onNavigate={onStatusNavigate} desktopUpdate={desktopUpdate} />"

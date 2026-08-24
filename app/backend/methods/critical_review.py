@@ -109,6 +109,7 @@ def find_contested_claims(
     contradiction_threshold: float = 0.55,
     top_k: int = 5,
     max_claims: int = 12,
+    on_stage: Callable[[str, str, int | None], None] | None = None,
 ) -> list[ContestedClaim]:
     """Return the claims from this paper that another paper in the corpus contradicts.
 
@@ -131,6 +132,7 @@ def find_contested_claims(
         contradiction_threshold=contradiction_threshold,
         top_k=top_k,
         max_claims=max_claims,
+        on_stage=on_stage,
     ).contested_claims
 
 
@@ -148,6 +150,7 @@ def search_contested_claims(
     top_k: int = CRITIQUE_TOP_K,
     max_claims: int = MAX_CRITIQUE_CLAIMS,
     on_progress: Callable[[int, int], None] | None = None,
+    on_stage: Callable[[str, str, int | None], None] | None = None,
 ) -> ContestedSearchReport:
     """Detailed form of :func:`find_contested_claims` with bounded coverage accounting.
 
@@ -165,6 +168,7 @@ def search_contested_claims(
         contradiction_threshold=contradiction_threshold,
         top_k=top_k,
         max_claims=max_claims,
+        on_stage=on_stage,
     )
     # Batched inference has no truthful per-claim completion signal. Report the completed stage once instead of
     # replaying synthetic item progress after the model call.
@@ -184,6 +188,7 @@ def search_contested_claim_scopes(
     contradiction_threshold: float = CRITIQUE_CONTRADICTION_THRESHOLD,
     top_k: int = CRITIQUE_TOP_K,
     max_claims: int = MAX_CRITIQUE_CLAIMS,
+    on_stage: Callable[[str, str, int | None], None] | None = None,
 ) -> list[ContestedSearchReport]:
     """Search one or more scopes with one ordered embedding batch and one logical NLI inference phase.
 
@@ -200,6 +205,8 @@ def search_contested_claim_scopes(
         if scope.other_chunk_ids
         for claim_index, claim in enumerate(claims)
     ]
+    if on_stage is not None:
+        on_stage("embedding_claims", "Embedding claims", len(active_claims))
     vectors = embed_model.encode_texts([claim for _, _, claim in active_claims]) if active_claims else []
 
     retrieved_counts = [0] * len(scopes)
@@ -222,6 +229,8 @@ def search_contested_claim_scopes(
             retrieved_counts[scope_index] += 1
             pairs.append(_RetrievedClaimPair(scope_index, claim_index, hit_index, claim, chunk))
 
+    if on_stage is not None:
+        on_stage("evaluating_evidence", "Evaluating evidence", len(pairs))
     stances = classify_critical_review_stances(stance_scorer, [(pair.claim, pair.chunk.text) for pair in pairs])
     classified_counts = [0] * len(scopes)
     best_by_claim: list[list[ContestedClaim | None]] = [[None] * len(claims) for claims in bounded_claims]

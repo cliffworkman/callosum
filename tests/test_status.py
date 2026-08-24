@@ -64,6 +64,43 @@ def test_job_without_progress_shows_no_progress_block(temp_db_url):
     assert jobs[0]["progress"] is None
 
 
+def test_stage_elapsed_and_receipts_are_exposed_without_job_content(temp_db_url, monkeypatch):
+    now = [50.0]
+    monkeypatch.setattr("app.backend.api.job_store.time.monotonic", lambda: now[0])
+    monkeypatch.setattr("app.backend.api.routers.status.time.monotonic", lambda: now[0])
+    app = create_app(db_url=temp_db_url)
+    jid = app.state.summary_jobs.create()
+    app.state.summary_jobs.mark_running(jid)
+    app.state.summary_jobs.mark_stage(
+        jid, "generate", "Generating synthesis", timing_key="synthesis|gemini|model-a", workload_size=6, variable=True
+    )
+    now[0] = 54.0
+    app.state.summary_jobs.mark_stage(
+        jid, "verify", "Verifying citations", timing_key="synthesis|gemini|model-a", workload_size=12
+    )
+
+    row = TestClient(app).get("/status/jobs").json()["jobs"][0]
+    assert row["elapsed_seconds"] == 4.0
+    assert row["stage"] == {
+        "key": "verify",
+        "label": "Verifying citations",
+        "elapsed_seconds": 0.0,
+        "timing_key": "synthesis|gemini|model-a",
+        "workload_size": 12,
+        "variable": False,
+    }
+    assert row["completed_stages"] == [
+        {
+            "key": "generate",
+            "duration_seconds": 4.0,
+            "timing_key": "synthesis|gemini|model-a",
+            "workload_size": 6,
+            "variable": True,
+        }
+    ]
+    assert "result" not in row
+
+
 def test_finished_job_preserves_its_last_known_progress(temp_db_url):
     app = create_app(db_url=temp_db_url)
     jid = app.state.citation_count_jobs.create()
@@ -153,7 +190,7 @@ def test_job_navigation_survives_running_progress_and_error_transitions(temp_db_
 
     row = TestClient(app).get("/status/jobs").json()["jobs"][0]
     assert row["nav"] == {"workspace": "synthesis", "tab": "critique", "paper_id": 42}
-    assert row["compute_kind"] == "Provider AI + local verification"
+    assert row["compute_kind"] == "Local AI"
 
 
 def test_unregistered_job_store_falls_back_to_a_prettified_label(temp_db_url):

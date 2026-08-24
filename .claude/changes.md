@@ -9,6 +9,30 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-08-23 — Increment 496: calibrated stage-aware job timing -->
+## 2026-08-23 — Increment 496: calibrated stage-aware job timing
+- **Files:** `app/backend/api/{job_store,job_timing,routers/status}.py`, synthesis and Critical Read orchestration,
+  `app/frontend/js/{04bb_status_timing,04c_status}.jsx`, `callosum-app.html`, focused lifecycle/status tests,
+  `app/backend/help/help_content.md`, Status QA route, security audit, and `.claude/{LATENCY,CLAUDE,changes}.md`.
+- **What:** replaces the ordinary opaque-status fallback with monotonic stage plus elapsed time. Synthesis and
+  single/Set/WIP Critical Read publish controlled stage transitions. A bounded browser-local history learns broad
+  comparable timing ranges after three receipts and a remaining-time estimate only after eight stable receipts;
+  provider variability, sparse history, and overruns receive explicit uncertainty wording.
+- **Why:** the completed latency campaign established where intrinsic model/provider time remains, but users could
+  not tell what work was underway or whether it was behaving normally. The new display makes that latency legible
+  without fabricating percent completion or reopening optimization work.
+- **Boundaries:** receipts contain configuration/stage labels, coarse numeric workload buckets, and durations only;
+  they never contain scholarly content, prompts, endpoints, or credentials and are capped at 24 per shape / 200
+  total. No model/provider call, heavy tokenization, database write, or unbounded poll was added. UI-only stage
+  transitions do not wake completion long polls; primary synthesis and supplementary Overview semantics are intact.
+- **Verification:** 165 focused status/lifecycle, long-poll, synthesis, Critical Read, privacy, history, and frontend
+  tests passed; the Status browser flow passed with zero console/page errors. The full parallel suite passed **2445
+  tests with 3 skipped** in 21m55s. Ruff, Tach, line budget, QA/website coverage, frontend equality, and diff checks
+  passed; Bandit was unavailable. Controlled calibration/overhead receipts are in `INCREMENT-496-NOTES.md`.
+  Security audit PASS.
+- **Revert:** revert this increment; no schema, migration, scientific output, provider request, or result format is
+  changed. Removing localStorage key `callosum.status-timing.v1` clears learned ranges independently.
+
 ## 2026-08-23 — Increment 495: skip discarded beyond-library stance inference
 - **Files:** `app/backend/citations/beyond_library.py`, `tests/test_beyond_library_preslice_nli.py`,
   `.claude/{LATENCY,CLAUDE,changes}.md`, and `.claude/docs/increment-notes/INCREMENT-495-NOTES.md`.
@@ -26,7 +50,6 @@ are the design diary; this is the chronological "what & why" record.
   and diff checks passed. The full parallel suite attempt reached its 20-minute harness bound without an aggregate.
 - **Revert:** revert this increment; no schema, migration, cache, API, or frontend changes are involved.
 
-<!-- HELP-DOCS-SYNCED: 2026-08-23 — Increment 494: synthesis primary/Overview transaction split -->
 ## 2026-08-23 — Increment 494: durable primary synthesis before supplementary Overview
 - **Files:** `app/backend/api/routers/{summaries,summary_overview}.py`,
   `app/backend/summarization/{pipeline,overview_lifecycle,reverify}.py`,

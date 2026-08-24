@@ -90,3 +90,45 @@ def test_eta_seconds_extrapolates_remaining() -> None:
     assert Job(status="running", progress=JobProgress(0, 10, "x"), started_at=started).eta_seconds() is None
     assert Job(status="running", progress=JobProgress(10, 10, "x"), started_at=started).eta_seconds() == 0
     assert Job(status="running", progress=JobProgress(1, 5, "x")).eta_seconds() is None  # no started_at
+
+
+def test_stage_transitions_are_monotonic_and_finalize_numeric_receipts(monkeypatch) -> None:
+    now = [100.0]
+    monkeypatch.setattr("app.backend.api.job_store.time.monotonic", lambda: now[0])
+    store: JobStore = JobStore()
+    job_id = store.create()
+    store.mark_running(job_id)
+    store.mark_stage(job_id, "prepare", "Preparing evidence", timing_key="critical-read|model-a", workload_size=4)
+    now[0] = 102.5
+    # Updating the same stage's predictor must not reset the stage clock.
+    store.mark_stage(job_id, "prepare", "Preparing evidence", timing_key="critical-read|model-a", workload_size=20)
+    assert store.get(job_id).stage.started_at == 100.0
+    now[0] = 105.0
+    store.mark_stage(job_id, "nli", "Evaluating evidence", timing_key="critical-read|model-a", workload_size=60)
+    running = store.get(job_id)
+    assert running.elapsed_seconds() == 5.0
+    assert [(item.key, item.duration_seconds, item.workload_size) for item in running.completed_stages] == [
+        ("prepare", 5.0, 20)
+    ]
+    now[0] = 112.0
+    store.mark_done(job_id, {"ok": True})
+    done = store.get(job_id)
+    assert done.elapsed_seconds() == 12.0
+    assert [(item.key, item.duration_seconds) for item in done.completed_stages] == [("prepare", 5.0), ("nli", 7.0)]
+
+
+def test_second_done_update_does_not_extend_primary_completion_duration(monkeypatch) -> None:
+    now = [10.0]
+    monkeypatch.setattr("app.backend.api.job_store.time.monotonic", lambda: now[0])
+    store: JobStore = JobStore()
+    job_id = store.create()
+    store.mark_running(job_id)
+    store.mark_stage(job_id, "primary", "Finalizing result", timing_key="synthesis|provider")
+    now[0] = 14.0
+    store.mark_done(job_id, {"overview": None})
+    now[0] = 30.0
+    store.mark_done(job_id, {"overview": "available"})
+    done = store.get(job_id)
+    assert done.finished_at == 14.0
+    assert done.elapsed_seconds() == 4.0
+    assert len(done.completed_stages) == 1

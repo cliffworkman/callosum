@@ -97,10 +97,15 @@ def summarize_scope(
     support_scorer: SupportScorer | None = None,
     overview_requested: bool = False,
     on_progress: Callable[[int, int, str], None] | None = None,
+    on_stage: Callable[[str, str, int | None, bool], None] | None = None,
 ) -> SummaryPersistenceResult:
+    if on_stage is not None:
+        on_stage("preparing_sources", "Preparing sources", None, False)
     source_chunks = _source_chunks_for_scope(conn, scope=scope, model=model, vector_store=vector_store, top_k=top_k)
     # Pass conn so the cache wrapper can read/write llm_cache on this same transaction (a second SQLite
     # connection mid-transaction would lock). Verification below runs on every result, cached or fresh.
+    if on_stage is not None:
+        on_stage("generating_synthesis", "Generating synthesis", len(source_chunks), True)
     candidates = generator.generate(source_chunks=source_chunks, scope_ref=scope.to_ref(), conn=conn)
     verifier = LocalCitationVerifier(
         model=model,
@@ -120,6 +125,8 @@ def summarize_scope(
     flat_items: list[tuple[str, CandidateCitation]] = [
         (candidate.text, citation) for candidate in candidates for citation in candidate.citations
     ]
+    if on_stage is not None:
+        on_stage("verifying_citations", "Verifying citations", len(flat_items), False)
     flat_results = verifier.verify_many(conn, items=flat_items, source_chunks=source_chunks)
     verification_rows: list[list[VerificationResult]] = []
     cursor = 0
@@ -137,6 +144,8 @@ def summarize_scope(
         if overview_requested and any(row and all(item.verified for item in row) for row in verification_rows)
         else "not_requested"
     )
+    if on_stage is not None:
+        on_stage("finalizing_result", "Finalizing result", len(candidates), False)
     summary_id = _insert_summary(
         conn,
         scope=scope,

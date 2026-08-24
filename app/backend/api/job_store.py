@@ -12,6 +12,7 @@ single-user local app (the work is re-runnable).
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from dataclasses import dataclass
 from threading import Lock
@@ -20,6 +21,13 @@ from uuid import uuid4
 
 JobStatus = Literal["pending", "running", "done", "error"]
 R = TypeVar("R")
+_TIMING_PART_RE = re.compile(r"[^A-Za-z0-9._:-]+")
+
+
+def timing_key(workflow: str, *parts: object) -> str:
+    """Build a bounded, non-secret calibration identity from controlled labels."""
+    values = [workflow, *(str(part) for part in parts if part is not None)]
+    return "|".join(_TIMING_PART_RE.sub("-", value.strip())[:120] or "unknown" for value in values)[:400]
 
 
 @dataclass(frozen=True)
@@ -33,6 +41,33 @@ class JobProgress:
 
 
 @dataclass(frozen=True)
+class JobStage:
+    """Current user-meaningful stage for a model-backed job.
+
+    ``key`` and ``timing_key`` are controlled configuration labels, never
+    scholarly content.  ``workload_size`` is an optional numeric predictor.
+    """
+
+    key: str
+    label: str
+    started_at: float
+    timing_key: str
+    workload_size: int | None = None
+    variable: bool = False
+
+
+@dataclass(frozen=True)
+class CompletedJobStage:
+    """Privacy-safe timing receipt emitted after a stage transition."""
+
+    key: str
+    duration_seconds: float
+    timing_key: str
+    workload_size: int | None = None
+    variable: bool = False
+
+
+@dataclass(frozen=True)
 class Job(Generic[R]):
     status: JobStatus
     result: R | None = None
@@ -40,6 +75,8 @@ class Job(Generic[R]):
     progress: JobProgress | None = None
     started_at: float | None = None  # monotonic clock when the job began running (inc 225 — for the ETA)
     finished_at: float | None = None  # monotonic clock when the job reached done/error (inc 406 — for expiry)
+    stage: JobStage | None = None
+    completed_stages: tuple[CompletedJobStage, ...] = ()
     # inc 415: a narrow, opt-in navigation hint a job may publish at mark_done() time (e.g.
     # {"summary_id": 42}) — NOT `result`, which the Status aggregator deliberately never reads (inc 406
     # audit). Small, already-independently-reachable ids only; most job kinds never set this.
@@ -55,6 +92,12 @@ class Job(Generic[R]):
         if remaining <= 0:
             return 0
         return int((time.monotonic() - self.started_at) / p.current * remaining)
+
+    def elapsed_seconds(self) -> float | None:
+        """Monotonic elapsed duration, frozen when the job becomes terminal."""
+        if self.started_at is None:
+            return None
+        return max(0.0, (self.finished_at or time.monotonic()) - self.started_at)
 
 
 class JobStore(Generic[R]):
@@ -93,10 +136,56 @@ class JobStore(Generic[R]):
                 status="running",
                 progress=JobProgress(current=current, total=total, label=label),
                 started_at=self._started_at(job_id),
+                stage=previous.stage if previous else None,
+                completed_stages=previous.completed_stages if previous else (),
                 nav=previous.nav if previous else None,
             )
             waiters = self._take_waiters(job_id)
         self._wake(waiters)
+
+    def mark_stage(
+        self,
+        job_id: str,
+        key: str,
+        label: str,
+        *,
+        timing_key: str,
+        workload_size: int | None = None,
+        variable: bool = False,
+    ) -> None:
+        """Enter a monotonic, user-meaningful stage without fabricating item progress.
+
+        Repeating the current key updates its safe predictors but does not reset
+        its clock. A new key closes the prior stage and retains a numeric receipt
+        for local frontend calibration.
+        """
+        now = time.monotonic()
+        with self._lock:
+            previous = self._jobs.get(job_id)
+            completed = previous.completed_stages if previous else ()
+            prior_stage = previous.stage if previous else None
+            if prior_stage is not None and prior_stage.key != key:
+                completed += (self._complete_stage(prior_stage, now),)
+            started_at = prior_stage.started_at if prior_stage is not None and prior_stage.key == key else now
+            self._jobs[job_id] = Job(
+                status="running",
+                progress=previous.progress if previous else None,
+                started_at=self._started_at(job_id),
+                stage=JobStage(
+                    key=key,
+                    label=label,
+                    started_at=started_at,
+                    timing_key=timing_key,
+                    workload_size=max(0, workload_size) if workload_size is not None else None,
+                    variable=variable,
+                ),
+                completed_stages=completed,
+                nav=previous.nav if previous else None,
+            )
+        # Stage state is consumed by the cross-feature Status aggregator's
+        # existing bounded poll. Do not wake job-completion long polls for a
+        # non-terminal UI-only transition: that would add request churn without
+        # making the authoritative result complete any sooner.
 
     def _started_at(self, job_id: str) -> float:
         """The job's existing start time, else now (caller holds the lock)."""
@@ -112,13 +201,16 @@ class JobStore(Generic[R]):
         (inc 415) is an optional small navigation hint (see `Job.nav`) — most callers omit it."""
         with self._lock:
             prev = self._jobs.get(job_id)
+            now = time.monotonic()
             final_progress = progress if progress is not None else (prev.progress if prev is not None else None)
+            completed = self._completed_with_current(prev, now)
             self._jobs[job_id] = Job(
                 status="done",
                 result=result,
                 progress=final_progress,
                 started_at=prev.started_at if prev is not None else None,
-                finished_at=time.monotonic(),
+                finished_at=prev.finished_at if prev is not None and prev.finished_at is not None else now,
+                completed_stages=completed,
                 nav=nav if nav is not None else (prev.nav if prev is not None else None),
             )
             waiters = self._take_waiters(job_id)
@@ -127,15 +219,32 @@ class JobStore(Generic[R]):
     def mark_error(self, job_id: str, detail: str) -> None:
         with self._lock:
             prev = self._jobs.get(job_id)
+            now = time.monotonic()
             self._jobs[job_id] = Job(
                 status="error",
                 detail=detail,
                 started_at=prev.started_at if prev is not None else None,
-                finished_at=time.monotonic(),
+                finished_at=prev.finished_at if prev is not None and prev.finished_at is not None else now,
+                completed_stages=self._completed_with_current(prev, now),
                 nav=prev.nav if prev is not None else None,
             )
             waiters = self._take_waiters(job_id)
         self._wake(waiters)
+
+    @staticmethod
+    def _complete_stage(stage: JobStage, finished_at: float) -> CompletedJobStage:
+        return CompletedJobStage(
+            key=stage.key,
+            duration_seconds=max(0.0, finished_at - stage.started_at),
+            timing_key=stage.timing_key,
+            workload_size=stage.workload_size,
+            variable=stage.variable,
+        )
+
+    def _completed_with_current(self, job: Job[R] | None, finished_at: float) -> tuple[CompletedJobStage, ...]:
+        if job is None or job.stage is None:
+            return job.completed_stages if job is not None else ()
+        return job.completed_stages + (self._complete_stage(job.stage, finished_at),)
 
     def get(self, job_id: str) -> Job[R] | None:
         with self._lock:

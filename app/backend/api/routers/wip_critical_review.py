@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from app.backend.api.dependencies import resolve_embedding_model, resolve_stance_scorer
 from app.backend.api.job_store import JobProgress, JobStore
+from app.backend.api.job_timing import critical_read_timing_key
 from app.backend.api.wip_security import require_local_wip
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore
 from app.backend.methods.critical_review import (
@@ -144,6 +145,14 @@ def _run_wip_critical_read_job(app: FastAPI, job_id: str, prepared: PreparedSnap
     jobs.mark_progress(job_id, 0, total, "Preparing bounded manuscript claims")
     try:
         embed_model, vector_store, stance_scorer = _wip_critical_deps(app)
+        calibration_key = critical_read_timing_key("critical-read-wip", embed_model, stance_scorer)
+        jobs.mark_stage(
+            job_id,
+            "preparing_evidence",
+            "Preparing evidence",
+            timing_key=calibration_key,
+            workload_size=len(claims),
+        )
         provenance = {
             "embedding_model": str(getattr(embed_model, "name", type(embed_model).__name__))[:200],
             "embedding_version": str(getattr(embed_model, "version", "unknown"))[:200],
@@ -170,6 +179,9 @@ def _run_wip_critical_read_job(app: FastAPI, job_id: str, prepared: PreparedSnap
                     other_chunk_ids=eligible_ids,
                     on_progress=lambda current, count: jobs.mark_progress(
                         job_id, current, max(1, count), "Comparing claims with local Library passages"
+                    ),
+                    on_stage=lambda key, label, size: jobs.mark_stage(
+                        job_id, key, label, timing_key=calibration_key, workload_size=size
                     ),
                 )
             except Exception:
@@ -206,6 +218,7 @@ def _run_wip_critical_read_job(app: FastAPI, job_id: str, prepared: PreparedSnap
                 model_provenance=provenance,
             )
 
+        jobs.mark_stage(job_id, "finalizing_result", "Finalizing result", timing_key=calibration_key)
         run = run_write(app.state.engine, persist)
         final_progress = JobProgress(current=total, total=total, label="Local critical read complete")
         jobs.mark_done(

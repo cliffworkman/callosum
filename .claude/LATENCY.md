@@ -91,6 +91,21 @@ Stopping or unmounting a frontend observer aborts its held status request; it do
 future job-cancellation feature must define separate execution, persistence, and multi-observer semantics rather than
 treating notification cleanup as computation cancellation.
 
+User-facing status estimates are a presentation layer, never a completion authority. Synthesis and single/Set/WIP
+Critical Read publish coarse, monotonic user-meaningful stages; every running Status row shows monotonic elapsed time.
+The browser may learn timing ranges from bounded, schema-versioned local receipts containing only controlled
+workflow/configuration labels, coarse numeric workload buckets, and stage durations. Receipts MUST NOT contain
+scholarly text, prompts, bibliographic metadata, credentials, or raw endpoints, and incompatible model/provider/
+execution-target identities must not share estimates. Sparse, variable, or missing history falls back to stage plus
+elapsed time; provider stages may say timing varies rather than inventing a countdown. Estimates that overrun must
+acknowledge the overrun instead of displaying a stuck or negative remaining time.
+
+ETA instrumentation must not invoke a provider/model, repeat heavy tokenization, add unbounded polling, or create
+high-frequency persistence writes. UI-only stage transitions use the existing Status-aggregator poll and do not wake
+job-completion long polls. Job state and persisted feature results remain authoritative; timing receipts never alter
+job lifecycle, scientific semantics, or completion signaling. Synthesis primary completion excludes supplementary
+overview generation, whose persisted lifecycle is rendered separately while verified claims remain available.
+
 ---
 
 ## 3. Reuse Expensive Runtime Objects
@@ -680,6 +695,8 @@ Unless deliberately changed and revalidated, Callosum currently relies on these 
   holds no database transaction during provider latency, and cannot roll back or fail the primary job.
 - Persisted overview lifecycle state is authoritative. Retry reuses the same summary id, uses guarded acquisition,
   permits manual reclamation of stale work, and never overwrites a completed overview.
+- Running Status rows always show elapsed time; calibrated ranges/countdowns require comparable local receipts,
+  expose uncertainty in ordinary language, and never alter authoritative completion or Overview lifecycle semantics.
 
 Any modification that affects these properties requires explicit review.
 

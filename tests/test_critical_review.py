@@ -528,6 +528,13 @@ def test_critical_read_endpoints(temp_db_url) -> None:
     done = client.get(f"/critical-read/{job_id}").json()
     assert done["status"] == "done" and done["backbone"] is not None
     assert done["backbone"]["contested_claims"] == []  # empty vector store → nothing contested
+    timing_job = app.state.critical_review_jobs.get(job_id)
+    assert [stage.key for stage in timing_job.completed_stages] == [
+        "preparing_evidence",
+        "embedding_claims",
+        "evaluating_evidence",
+        "finalizing_result",
+    ]
 
     cands = client.get(f"/papers/{pid}/critical-read/candidates").json()["candidates"]
     assert len(cands) == 1 and cands[0]["concern"] == "overstated causal claim" and cands[0]["status"] == "pending"

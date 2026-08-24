@@ -22,11 +22,14 @@ Clean seeded instance (`_TEMPLATE.md` → Environment). Egress unset (nothing he
   a bounded destination. The desktop-updater receipt is the deliberate navigation exception because its action
   remains in the updater toast. `library_scan_jobs` and `wip_scan_jobs` are deliberate visibility exceptions: neither
   running work nor finished receipts may appear in Status, while their source UI continues to show state.
-- **`job.result` never leaks.** `GET /status/jobs` may add only `compute_kind` and a bounded `nav` descriptor to
-  `{store, job_id, label, status, detail, progress}`. `nav` contains server-owned workspace/pane/tab/modal tokens plus
-  typed paper/summary ids; never results, prompts, passages, URLs, paths, or secrets.
-- **No invented measurement.** Real `current`/`total` progress gets determinate fill and an approximate ETA after
-  progress begins. An operation without those facts remains indeterminate and says completion/ETA are not measurable.
+- **`job.result` never leaks.** `GET /status/jobs` may add only compute kind, bounded navigation, monotonic elapsed/
+  stage state, and numeric completed-stage receipts. Navigation contains server-owned workspace/pane/tab/modal tokens
+  plus typed paper/summary ids; stage/receipt fields contain controlled labels, configuration identity, coarse numeric
+  workload size, and durations—never results, prompts, passages, URLs, paths, or secrets.
+- **No invented measurement.** Every running row shows stage plus elapsed time. Real `current`/`total` progress may
+  use determinate fill. Calibrated ranges require at least three comparable local receipts; a narrow countdown requires
+  at least eight stable receipts. Sparse local work remains elapsed-only, provider-variable work says timing varies,
+  and overruns say they are taking longer than recent runs—never a negative or stuck-zero countdown.
 - **Local means local.** Installed embeddings, semantic retrieval, NLI, OCR, and clustering are labeled `Local AI`;
   configured external or loopback model calls are accurately labeled `Provider AI` or a combined boundary.
 - **An in-progress job never fabricates an entity.** Clicking a still-running Ask row lands on Ask generally; the
@@ -59,8 +62,8 @@ Clean seeded instance (`_TEMPLATE.md` → Environment). Egress unset (nothing he
    (no fabricated synthesis id). Once it finishes, click the (now `done`) row again → reopens **that exact**
    synthesis (`GET /summaries/{id}` content matches what the job actually produced), not a blank Ask form.
 5. Hold **Help assistant** (`POST /help/ask`) open with a deferred fixture response. Switch to Library, open Status,
-   confirm **Provider AI**, the indeterminate bar, and the explicit unavailable completion/ETA copy; click the row and
-   confirm it returns to Help. Resolve the request and confirm the row becomes **Done**.
+   confirm **Provider AI**, the indeterminate bar, elapsed time, and provider-variance copy; click the row and
+   confirm it returns to Help. Resolve the request and confirm elapsed time freezes in the completed row.
 6. Trigger one synchronous **local-AI** path (for example suggested tags or citation evidence). Confirm it produces
    one Status row, identifies `Local AI`, and navigates to the exact pane/tab and selected paper. Trigger an unowned
    inline progress bar and confirm automatic registration without adding feature-specific Status code.
@@ -82,7 +85,8 @@ Clean seeded instance (`_TEMPLATE.md` → Environment). Egress unset (nothing he
 - Routine Library/WIP scans never appear in Status and retain their source-surface feedback.
 - Provider and installed-local AI are both covered and labeled accurately.
 - `job.result` is never present in a `GET /status/jobs` response; navigation stays bounded and typed.
-- Determinate completion/ETA is evidence-backed; unmeasurable work says so instead of fabricating values.
+- Every running job exposes elapsed time; calibrated estimates are evidence-backed, uncertainty-aware, and gracefully
+  acknowledge overruns. A fresh/incompatible history never fabricates an estimate.
 - Dismiss / Clear all finished are unaffected by the new click target.
 - Status remains available at mobile width; 0 console/page errors and no overflow.
 

@@ -27,6 +27,7 @@ from app.backend.api.dependencies import (
     resolve_stance_scorer,
 )
 from app.backend.api.job_store import JobStore
+from app.backend.api.job_timing import critical_read_timing_key
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore
 from app.backend.methods.critical_review import (
     build_scrutiny_backbone,
@@ -146,6 +147,8 @@ def _run_critical_read_job(app: FastAPI, job_id: str, paper_id: int) -> None:
     jobs.mark_running(job_id)
     try:
         embed_model, vector_store, stance_scorer = _cr_deps(app)
+        calibration_key = critical_read_timing_key("critical-read-single", embed_model, stance_scorer)
+        jobs.mark_stage(job_id, "preparing_evidence", "Preparing evidence", timing_key=calibration_key)
         engine: Engine = app.state.engine
         with engine.connect() as conn:
             contested = find_contested_claims(
@@ -157,7 +160,11 @@ def _run_critical_read_job(app: FastAPI, job_id: str, paper_id: int) -> None:
                 resolve_chunk=make_chunk_resolver(conn),
                 claim_sentences=extract_claim_sentences(conn, paper_id),
                 other_chunk_ids=other_paper_chunk_embedding_ids(conn, paper_id),
+                on_stage=lambda key, label, size: jobs.mark_stage(
+                    job_id, key, label, timing_key=calibration_key, workload_size=size
+                ),
             )
+            jobs.mark_stage(job_id, "finalizing_result", "Finalizing result", timing_key=calibration_key)
             backbone = build_scrutiny_backbone(conn, paper_id, contested_claims=contested)
         jobs.mark_done(
             job_id,
@@ -320,17 +327,41 @@ def _run_set_critical_read_job(app: FastAPI, job_id: str, set_ids: list[int], wa
     jobs.mark_running(job_id)
     try:
         embed_model, vector_store, stance_scorer = _cr_deps(app)
+        calibration_key = critical_read_timing_key("critical-read-set", embed_model, stance_scorer)
+        jobs.mark_stage(
+            job_id,
+            "preparing_evidence",
+            "Preparing evidence",
+            timing_key=calibration_key,
+            workload_size=len(set_ids),
+        )
         engine: Engine = app.state.engine
         with engine.connect() as conn:
             contested = set_contested_claims(
-                conn, set_ids, embed_model=embed_model, vector_store=vector_store, stance_scorer=stance_scorer
+                conn,
+                set_ids,
+                embed_model=embed_model,
+                vector_store=vector_store,
+                stance_scorer=stance_scorer,
+                on_stage=lambda key, label, size: jobs.mark_stage(
+                    job_id, key, label, timing_key=calibration_key, workload_size=size
+                ),
             )
             aggregate = set_aggregate(conn, set_ids, contested)
         if want_llm:
+            jobs.mark_stage(
+                job_id,
+                "generating_critiques",
+                "Generating grounded critiques",
+                timing_key=calibration_key,
+                workload_size=len(set_ids),
+                variable=True,
+            )
             llm_status, candidates = _run_set_tier2(app, set_ids, stance_scorer)
         else:
             llm_status = {"status": "not_searched", "detail": "AI critique was not requested for this run."}
             candidates = []
+        jobs.mark_stage(job_id, "finalizing_result", "Finalizing result", timing_key=calibration_key)
         jobs.mark_done(
             job_id,
             SetCriticalReadResponse(

@@ -331,15 +331,24 @@ def test_set_validation(temp_db_url):
 
 
 def test_set_tier1_report(temp_db_url):
-    client = TestClient(_cr_set_app(temp_db_url))
+    app = _cr_set_app(temp_db_url)
+    client = TestClient(app)
     with make_engine(temp_db_url).begin() as conn:
         a = create_paper(conn, title="A", csl_json={"title": "A"})
         b = create_paper(conn, title="B", csl_json={"title": "B"})
-    done = _poll_set(client, client.post("/critical-read/set", json={"paper_ids": [a, b]}).json()["job_id"])
+    job_id = client.post("/critical-read/set", json={"paper_ids": [a, b]}).json()["job_id"]
+    done = _poll_set(client, job_id)
     assert done["status"] == "done"
     assert len(done["report"]["aggregate"]) == 2
     assert done["report"]["contested_claims"] == []
     assert done["report"]["llm_status"]["status"] == "not_searched"
+    timing_job = app.state.critical_review_set_jobs.get(job_id)
+    assert [stage.key for stage in timing_job.completed_stages] == [
+        "preparing_evidence",
+        "embedding_claims",
+        "evaluating_evidence",
+        "finalizing_result",
+    ]
 
 
 class _FakeSetGenerator:

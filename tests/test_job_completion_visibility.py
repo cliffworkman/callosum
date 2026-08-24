@@ -82,6 +82,23 @@ def test_wait_for_update_wakes_on_completion_without_polling() -> None:
     asyncio.run(scenario())
 
 
+def test_ui_stage_transition_does_not_churn_completion_long_poll() -> None:
+    async def scenario() -> None:
+        store: JobStore[str] = JobStore()
+        job_id = store.create()
+        store.mark_running(job_id)
+        waiter = asyncio.create_task(store.wait_for_update(job_id, 20.0))
+        events = await _registered_events(store, job_id, 1)
+        store.mark_stage(job_id, "verify", "Verifying citations", timing_key="synthesis|fixture")
+        await asyncio.sleep(0)
+        assert not events[0].is_set()
+        assert not waiter.done()
+        store.mark_done(job_id, "result")
+        assert (await waiter).status == "done"  # type: ignore[union-attr]
+
+    asyncio.run(scenario())
+
+
 def test_state_change_during_waiter_registration_is_not_missed() -> None:
     async def scenario() -> None:
         store: JobStore[str] = JobStore()
