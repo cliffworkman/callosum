@@ -22,7 +22,7 @@ uvicorn[standard]>=0.30,<1
 # Optional-account sign-in (SP1, ORCID via OIDC): id-token verification (JWKS signature + iss/aud/exp). A deliberate
 # new dep — JWT verification is exactly what must NOT be hand-rolled. Lazy-imported in app/backend/api/auth/oidc.py,
 # so the app + the hermetic suite run without it; required only for the LIVE sign-in path.
-PyJWT[crypto]>=2.8,<3
+PyJWT[crypto]>=2.13.0,<3
 
 # Optional (inc 152): `pip install keyring` to store BYOK provider API keys in your OS keychain
 # (Windows Credential Manager / macOS Keychain / Linux Secret Service) instead of the local settings file.
