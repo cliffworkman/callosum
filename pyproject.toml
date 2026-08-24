@@ -16,7 +16,9 @@ dependencies = [
     "httpx>=0.27,<1",
     "lxml>=5,<7", # local CSL 1.0.2 Relax NG + Schematron validation (inc 369)
     "pymupdf>=1.24,<2",
-    "sentence-transformers>=3,<6",
+    # Floor is 4, not 3: model_runtime.py's CrossEncoder construction passes backend=, a kwarg
+    # CrossEncoder.__init__ only accepts from sentence-transformers v4 onward.
+    "sentence-transformers>=4,<6",
     "sqlite-vec>=0.1,<1",
     "scikit-learn>=1.4,<2",
     "numpy>=1.26,<3",
