@@ -177,9 +177,6 @@ def _run_wip_critical_read_job(app: FastAPI, job_id: str, prepared: PreparedSnap
                     resolve_chunk=make_chunk_resolver(conn),
                     claim_sentences=[claim.text for claim in claims],
                     other_chunk_ids=eligible_ids,
-                    on_progress=lambda current, count: jobs.mark_progress(
-                        job_id, current, max(1, count), "Comparing claims with local Library passages"
-                    ),
                     on_stage=lambda key, label, size: jobs.mark_stage(
                         job_id, key, label, timing_key=calibration_key, workload_size=size
                     ),

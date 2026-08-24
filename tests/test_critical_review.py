@@ -209,8 +209,6 @@ def test_search_contested_claims_batches_and_preserves_claim_hit_mapping() -> No
             "stronger contrast": ("contrast", 0.81),
         }
     )
-    progress: list[tuple[int, int]] = []
-
     report = search_contested_claims(
         None,
         7,
@@ -220,7 +218,6 @@ def test_search_contested_claims_batches_and_preserves_claim_hit_mapping() -> No
         resolve_chunk=lambda hit: passages.get(hit.embedding_id),
         claim_sentences=claims,
         other_chunk_ids={101, 102, 103, 104, 105},
-        on_progress=lambda current, total: progress.append((current, total)),
     )
 
     assert embed.calls == [claims]
@@ -239,7 +236,6 @@ def test_search_contested_claims_batches_and_preserves_claim_hit_mapping() -> No
         ("Repeated claim.", "repeated passage", 44, 0.61),
     ]
     assert report.retrieved_passages == report.classified_passages == 4
-    assert progress == [(3, 3)]
 
 
 def test_search_contested_claims_batches_maximum_normal_claim_count() -> None:

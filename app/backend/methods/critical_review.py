@@ -149,7 +149,6 @@ def search_contested_claims(
     contradiction_threshold: float = CRITIQUE_CONTRADICTION_THRESHOLD,
     top_k: int = CRITIQUE_TOP_K,
     max_claims: int = MAX_CRITIQUE_CLAIMS,
-    on_progress: Callable[[int, int], None] | None = None,
     on_stage: Callable[[str, str, int | None], None] | None = None,
 ) -> ContestedSearchReport:
     """Detailed form of :func:`find_contested_claims` with bounded coverage accounting.
@@ -170,10 +169,6 @@ def search_contested_claims(
         max_claims=max_claims,
         on_stage=on_stage,
     )
-    # Batched inference has no truthful per-claim completion signal. Report the completed stage once instead of
-    # replaying synthetic item progress after the model call.
-    if on_progress is not None and report.claims_considered and report.eligible_chunk_embeddings:
-        on_progress(report.claims_considered, report.claims_considered)
     return report
 
 
