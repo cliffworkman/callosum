@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-24",
-    "reviewed_rev": "3510892",
-    "source_fingerprint": "74884159e0d3262dcdea93cf9eea4d850ec88f2bbc91601f382b68724643ba09",
-    "note": "Reviewed drift from inc 496 (calibrated job timing status) + its in-flight follow-up: completed Status rows now read \"Done in {duration}\" instead of bare \"Done,\" and the stuck-overview retry affordance was added. Retook shots/status_current.png (Playwright, public demo snapshot data) to show the new duration text on a completed row; the existing claim text (\"Completed work retains timing, outcome, compute boundary, and destination\") remains accurate and is now better illustrated. No other showcase claim affected."
+    "reviewed_rev": "c7e242c",
+    "source_fingerprint": "849e78a26724b5b5fb2b82b7e7b4ab892d077d7091a109e9e6b43f6e5b30b19e",
+    "note": "Re-refreshed after finding the first refresh (this same session) baked in a Windows CRLF-derived source_fingerprint that could never match Linux CI's canonical LF checkout of the fingerprinted app/frontend, help_content.md, adapters, tui, and mcp_server files. Extended .gitattributes (text=auto eol=lf) to cover the full check_website_coverage.py source-fingerprint file set, renormalized the working tree to match the LF git blobs, and refreshed again from that normalized state. No showcase claim or visual content itself changed in this step -- same review as the prior note."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",
