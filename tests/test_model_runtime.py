@@ -92,10 +92,27 @@ def test_distinct_runtime_identities_do_not_collapse() -> None:
         registry.get_embedding_model(name="model-a", device="cpu", **common),
         registry.get_embedding_model(name="model-b", device="cpu", **common),
         registry.get_embedding_model(name="model-a", device="cuda", **common),
-        registry.get_embedding_model(name="model-a", device="cpu", local_files_only=True, **common),
+        registry.get_embedding_model(name="model-a", device="cpu", revision="r2", **common),
     ]
     runtimes = [model._runtime for model in models]  # type: ignore[attr-defined]
     assert len({id(runtime) for runtime in runtimes}) == 4
+
+
+def test_local_files_only_does_not_split_runtime_identity() -> None:
+    """``local_files_only`` only controls first-load fetch behavior, not what gets loaded — two callers asking
+    for the same weights/device/backend but different ``local_files_only`` must share one loaded runtime rather
+    than each holding a permanently-resident duplicate copy of the same model."""
+    loads: list[object] = []
+    registry = ModelRuntimeRegistry(cross_encoder_factory=lambda _identity: loads.append(object()) or loads[-1])
+
+    network_allowed = registry.get_nli_runtime(model_name=DEFAULT_NLI_MODEL, local_files_only=False)
+    local_only = registry.get_nli_runtime(model_name=DEFAULT_NLI_MODEL, local_files_only=True)
+
+    assert network_allowed is local_only
+    assert len(loads) == 0
+    network_allowed.get()
+    assert local_only.loaded_model is loads[0]
+    assert len(loads) == 1
 
 
 def test_explicit_dependency_injection_wins() -> None:

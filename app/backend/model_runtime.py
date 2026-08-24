@@ -8,7 +8,7 @@ interpretation differ, while compatible wrappers share the same underlying weigh
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from threading import Lock, RLock
 from typing import TypeVar
 
@@ -17,13 +17,22 @@ T = TypeVar("T")
 
 @dataclass(frozen=True)
 class ModelRuntimeIdentity:
-    """Settings that materially determine one loaded transformer runtime."""
+    """Settings that materially determine one loaded transformer runtime.
+
+    ``local_files_only`` only controls HOW weights are fetched on first load (allow a network
+    lookup vs. force local-cache-only) — it has no bearing on WHAT model gets loaded or what its
+    outputs are, so it is deliberately excluded from equality/hash (``compare=False``) rather than
+    being a cache-key field. Two callers asking for the same weights on the same device/backend
+    share one loaded runtime even if they differ only in this setting; whichever caller's request
+    is resolved first determines the fetch behavior for that shared instance, which is correct
+    since both are asking for identical weights either way.
+    """
 
     family: str
     model_name: str
     revision: str | None = None
     device: str | None = None
-    local_files_only: bool = False
+    local_files_only: bool = field(default=False, compare=False)
     backend: str = "torch"
 
 
