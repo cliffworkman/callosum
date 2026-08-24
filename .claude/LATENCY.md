@@ -140,10 +140,14 @@ The live implementation is owned by each `create_app()` instance:
 - `ModelRuntimeRegistry` keys local runtimes by model family/name/revision/device/local-files-only/backend.
 - `ManagedModelRuntime` guards first load and serializes inference per compatible runtime identity; it does not hold
   that inference lock around retrieval, database, parsing, provider work, or other orchestration.
+- `embed_chunks()` submits all pending chunk text in one compatible runtime operation, so a search or other embedding
+  request arriving during a large library-import batch waits behind that whole call; measure queue time separately.
 - Compatible support and stance scorers may retain different scientific interpretation while sharing one underlying
   CrossEncoder runtime.
 - `ProviderClientRuntime` owns raw HTTP pools and Gemini clients.
-- FastAPI lifespan shutdown closes both registries before disposing the database engine.
+- FastAPI lifespan shutdown terminally closes both registries before disposing the database engine: closed entries
+  cannot reconstruct, model inference rechecks shutdown after acquiring its lock, and provider shutdown waits for
+  already-started concurrent calls without serializing them during normal operation.
 - Explicit injected models, scorers, HTTP clients, and app-owned registries remain the test/customization precedence.
 
 ---
@@ -175,13 +179,10 @@ Current batched paths that must not regress include:
 - synthesis citation verification: all generated candidate/citation pairs enter `verify_many()`, which performs one
   batched citation embedding call and one batched support-NLI call for the generated summary
 
-Disclosed availability-regression trade-off from this batching: `stance.py`'s `classify_stances()` and
-`classify_critical_review_stances()` now catch failure ONCE for the whole batch and return `[None] * len(pairs)`
-on any single pair's failure, whereas the prior per-pair `classify_stance()` loop degraded per-item (one bad
-pair returned `None`; the rest of the batch still classified). This never produces a false "all clean" result —
-a total failure is still reported as `nli-unavailable`, not silently hidden — but a single pathological input
-can now zero out an entire Critical Read run's contested-claim count instead of just that one pair. Worth
-knowing first when debugging a "why did my whole Set Critical Read report zero contested claims" report.
+`stance.py` preserves per-pair fail-closed availability without regressing the normal execution shape: one batched
+call remains the fast path, but if that opaque batch raises, the same pairs are retried individually in original
+order. Only pairs that still fail become unavailable. This exceptional recovery loop is not permission to return
+normal production inference to per-item execution.
 
 Retrieval may remain per claim because each claim has its own candidate scope and `top_k`; batching the model work
 does not imply changing retrieval semantics.
@@ -691,6 +692,10 @@ Unless deliberately changed and revalidated, Callosum currently relies on these 
 - Critical Read NLI uses stable length-aware bucketing for multi-batch workloads.
 - NLI results are reconstructed into original pair order before interpretation.
 - Critical Read NLI workloads of 32 pairs or fewer bypass length planning.
+- A failed stance batch retries per pair in original order so one pathological pair cannot erase independent results;
+  the per-item loop is failure recovery only, never the normal inference path.
+- Closed model/provider runtime entries cannot reload, and provider shutdown waits for in-flight calls without
+  serializing ordinary concurrent provider work.
 - Synthesis and single/Set/WIP Critical Read completion use 20-second bounded long polling against endpoints capped at
   25 seconds, with immediate-GET plus 1.2-second retry fallback on retryable notification failure.
 - Authoritative in-process `JobStore` state remains the source of truth for active-job status; notification payloads
