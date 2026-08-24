@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from threading import Barrier, Lock
+from threading import Barrier, Event, Lock
 
 import pytest
 
@@ -20,7 +20,7 @@ from app.backend.embeddings.models import (
     DEFAULT_NORMALIZATION,
     SentenceTransformerEmbeddingModel,
 )
-from app.backend.model_runtime import ModelRuntimeIdentity, ModelRuntimeRegistry
+from app.backend.model_runtime import ManagedModelRuntime, ModelRuntimeIdentity, ModelRuntimeRegistry
 from app.backend.summarization.verification import DEFAULT_NLI_MODEL, NLIStanceScorer, NLISupportScorer
 
 
@@ -201,6 +201,47 @@ def test_failed_load_is_retryable() -> None:
     assert loaded is runtime.loaded_model
     assert runtime.load_attempts == 2
     assert runtime.load_count == 1
+
+
+def test_managed_runtime_cannot_reload_after_close() -> None:
+    constructions = 0
+
+    def factory() -> object:
+        nonlocal constructions
+        constructions += 1
+        return object()
+
+    runtime = ManagedModelRuntime(ModelRuntimeIdentity(family="test", model_name="closed"), factory)
+    runtime.get()
+    runtime.close()
+
+    with pytest.raises(RuntimeError, match="Model runtime is closed"):
+        runtime.get()
+    with pytest.raises(RuntimeError, match="Model runtime is closed"):
+        runtime.run(lambda model: model)
+    assert constructions == 1
+
+
+def test_managed_runtime_rechecks_closed_after_get_before_inference() -> None:
+    runtime = ManagedModelRuntime(ModelRuntimeIdentity(family="test", model_name="race"), object)
+    original_get = runtime.get
+    model_acquired = Event()
+    continue_to_inference = Event()
+
+    def gated_get() -> object:
+        model = original_get()
+        model_acquired.set()
+        assert continue_to_inference.wait(timeout=2)
+        return model
+
+    runtime.get = gated_get  # type: ignore[method-assign]
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(runtime.run, lambda model: model)
+        assert model_acquired.wait(timeout=2)
+        runtime.close()
+        continue_to_inference.set()
+        with pytest.raises(RuntimeError, match="Model runtime is closed"):
+            future.result(timeout=2)
 
 
 def test_inference_is_serialized_per_identity_but_not_globally() -> None:

@@ -175,16 +175,21 @@ def complete(
     base = request_identity.base_url or ""
     if not base:
         raise ProviderError(f"No base URL configured for provider {provider!r} (wire format {wire!r}).")
-    active_http_client = http_client
-    if active_http_client is None and runtime is not None:
-        active_http_client = runtime.get_http_client(base_url=base, timeout=_HTTP_TIMEOUT)
-    if wire == "messages":
-        return _complete_anthropic(base, model, key, prompt, active_http_client)
-    if wire == "responses":
-        return _complete_responses(base, model, key, prompt, active_http_client)
-    if wire == "chat_completions":
-        return _complete_openai_compatible(base, model, key, prompt, active_http_client)
-    raise ProviderError(f"Unknown wire format: {wire!r}")
+
+    def dispatch(active_http_client):  # type: ignore[no-untyped-def]
+        if wire == "messages":
+            return _complete_anthropic(base, model, key, prompt, active_http_client)
+        if wire == "responses":
+            return _complete_responses(base, model, key, prompt, active_http_client)
+        if wire == "chat_completions":
+            return _complete_openai_compatible(base, model, key, prompt, active_http_client)
+        raise ProviderError(f"Unknown wire format: {wire!r}")
+
+    if http_client is not None:
+        return dispatch(http_client)
+    if runtime is not None:
+        return runtime.run_http(base_url=base, timeout=_HTTP_TIMEOUT, operation=dispatch)
+    return dispatch(None)
 
 
 def _complete_gemini(

@@ -6,7 +6,7 @@ import hashlib
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
-from threading import Lock, RLock
+from threading import Condition, Lock, RLock
 from typing import TypeVar
 
 T = TypeVar("T")
@@ -53,18 +53,37 @@ class _ClientEntry:
         self._factory = factory
         self._client: object | None = None
         self._load_lock = Lock()
+        self._use_condition = Condition()
+        self._active_uses = 0
+        self._closed = False
         self.construction_count = 0
 
     def get(self) -> object:
+        self._ensure_open()
         client = self._client
         if client is not None:
             return client
         with self._load_lock:
+            self._ensure_open()
             if self._client is None:
                 client = self._factory()
                 self._client = client
                 self.construction_count += 1
             return self._client
+
+    def run(self, operation: Callable[[object], T]) -> T:
+        """Run against the client while keeping shutdown from closing it in flight."""
+        client = self.get()
+        with self._use_condition:
+            self._ensure_open_locked()
+            self._active_uses += 1
+        try:
+            return operation(client)
+        finally:
+            with self._use_condition:
+                self._active_uses -= 1
+                if self._active_uses == 0:
+                    self._use_condition.notify_all()
 
     @property
     def loaded_client(self) -> object | None:
@@ -72,10 +91,22 @@ class _ClientEntry:
 
     def close(self) -> None:
         with self._load_lock:
+            with self._use_condition:
+                self._closed = True
+                while self._active_uses:
+                    self._use_condition.wait()
             client, self._client = self._client, None
             close = getattr(client, "close", None)
             if callable(close):
                 close()
+
+    def _ensure_open(self) -> None:
+        with self._use_condition:
+            self._ensure_open_locked()
+
+    def _ensure_open_locked(self) -> None:
+        if self._closed:
+            raise RuntimeError("Provider client is closed")
 
 
 class ProviderClientRuntime:
@@ -101,18 +132,22 @@ class ProviderClientRuntime:
         self._closed = False
 
     def get_http_client(self, *, base_url: str, timeout: float) -> object:
-        identity = HttpClientIdentity(
-            endpoint_fingerprint=_fingerprint(base_url.rstrip("/")),
-            timeout=timeout,
-            environment_fingerprint=_environment_fingerprint(_HTTP_ENV_KEYS),
-        )
-        return self._http_entry(identity).get()
+        return self._http_entry_for(base_url=base_url, timeout=timeout).get()
 
     def get_gemini_client(self, *, api_key: str | None) -> object:
         return self._gemini_entry(api_key).get()
 
+    def run_http(
+        self,
+        *,
+        base_url: str,
+        timeout: float,
+        operation: Callable[[object], T],
+    ) -> T:
+        return self._http_entry_for(base_url=base_url, timeout=timeout).run(operation)
+
     def run_gemini(self, *, api_key: str | None, operation: Callable[[object], T]) -> T:
-        return operation(self._gemini_entry(api_key).get())
+        return self._gemini_entry(api_key).run(operation)
 
     def client_entries(self) -> tuple[tuple[object, object | None, int], ...]:
         """Safe diagnostic snapshot without constructing unloaded clients."""
@@ -145,6 +180,14 @@ class ProviderClientRuntime:
                 entry = _ClientEntry(lambda: self._http_client_factory(identity))
                 self._http_entries[identity] = entry
             return entry
+
+    def _http_entry_for(self, *, base_url: str, timeout: float) -> _ClientEntry:
+        identity = HttpClientIdentity(
+            endpoint_fingerprint=_fingerprint(base_url.rstrip("/")),
+            timeout=timeout,
+            environment_fingerprint=_environment_fingerprint(_HTTP_ENV_KEYS),
+        )
+        return self._http_entry(identity)
 
     def _gemini_entry(self, api_key: str | None) -> _ClientEntry:
         identity = GeminiClientIdentity(

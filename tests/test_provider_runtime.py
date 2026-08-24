@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from app.backend.api.app import create_app
 from app.backend.api.dependencies import resolve_llm_config
 from app.backend.llm.providers import ProviderError, complete
-from app.backend.provider_runtime import GeminiClientIdentity, HttpClientIdentity, ProviderClientRuntime
+from app.backend.provider_runtime import GeminiClientIdentity, HttpClientIdentity, ProviderClientRuntime, _ClientEntry
 from integrations.gemini.generator import LLMConfig
 
 
@@ -272,6 +272,48 @@ def test_simultaneous_http_first_acquisition_constructs_once_and_failed_load_ret
 
     assert attempts == 2
     assert len({id(client) for client in clients}) == 1
+
+
+def test_client_entry_cannot_reconstruct_after_close() -> None:
+    constructions = 0
+
+    def factory() -> object:
+        nonlocal constructions
+        constructions += 1
+        return _FakeHttpClient()
+
+    entry = _ClientEntry(factory)
+    entry.get()
+    entry.close()
+
+    with pytest.raises(RuntimeError, match="Provider client is closed"):
+        entry.get()
+    assert constructions == 1
+
+
+def test_client_close_waits_for_concurrent_use_without_serializing_calls() -> None:
+    entry = _ClientEntry(_FakeGeminiClient)
+    started = threading.Event()
+    release = threading.Event()
+
+    def operation(_client: object) -> None:
+        started.set()
+        assert release.wait(timeout=2)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        use_future = pool.submit(entry.run, operation)
+        assert started.wait(timeout=2)
+        close_future = pool.submit(entry.close)
+        deadline = time.monotonic() + 2
+        while not entry._closed and time.monotonic() < deadline:
+            time.sleep(0.001)
+        assert entry._closed
+        assert not close_future.done()
+        with pytest.raises(RuntimeError, match="Provider client is closed"):
+            entry.run(lambda client: client)
+        release.set()
+        use_future.result(timeout=2)
+        close_future.result(timeout=2)
 
 
 def test_app_instances_have_isolated_provider_runtimes_and_clients() -> None:

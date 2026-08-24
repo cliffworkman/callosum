@@ -49,14 +49,19 @@ class ManagedModelRuntime:
         self._model: object | None = None
         self._load_lock = Lock()
         self._inference_lock = Lock()
+        self._closed = False
         self.load_attempts = 0
         self.load_count = 0
 
     def get(self) -> object:
+        if self._closed:
+            raise RuntimeError("Model runtime is closed")
         model = self._model
         if model is not None:
             return model
         with self._load_lock:
+            if self._closed:
+                raise RuntimeError("Model runtime is closed")
             if self._model is None:
                 self.load_attempts += 1
                 # Assignment occurs only after a successful construction.  A failed
@@ -70,6 +75,8 @@ class ManagedModelRuntime:
         """Run only model inference under the per-identity safety lock."""
         model = self.get()
         with self._inference_lock:
+            if self._closed:
+                raise RuntimeError("Model runtime is closed")
             return operation(model)
 
     @property
@@ -81,6 +88,7 @@ class ManagedModelRuntime:
         """Release this app's reference after in-flight loading/inference finishes."""
         with self._load_lock:
             with self._inference_lock:
+                self._closed = True
                 model, self._model = self._model, None
                 close = getattr(model, "close", None)
                 if callable(close):
