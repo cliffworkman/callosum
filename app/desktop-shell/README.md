@@ -68,18 +68,23 @@ model is bundled, no Settings control exists, and normal users cannot enable it 
 $env:CALLOSUM_LOCAL_AI_ENABLED = "1"
 $env:CALLOSUM_LOCAL_AI_RUNTIME = "C:\path\to\llama-server.exe"
 $env:CALLOSUM_LOCAL_AI_MODEL = "C:\path\to\model.gguf"
-# Optional test backend controls (not routing policy):
+# Required package intent plus test backend controls (not routing policy):
+$env:CALLOSUM_LOCAL_AI_BUILD_BACKEND = "cpu" # or "cuda" for a CUDA package
 $env:CALLOSUM_LOCAL_AI_GPU_LAYERS = "0"
 $env:CALLOSUM_LOCAL_AI_THREADS = "4"
 ```
 
 Tauri canonicalizes both paths, binds the child to literal `127.0.0.1` on an ephemeral port, provisions a
-per-launch bearer token in the app's private data directory, suppresses runtime content logs, and publishes a
-private target descriptor to Python only after `/health`, the opaque model alias, and an authenticated one-token
-inference probe succeed. Python accepts only that strict descriptor with `DEVELOPER_TEST_ONLY` qualification and
-routes Overview through the existing Chat Completions transport and parser. A missing, stale, or failed local
-target disables that Overview attempt; it never falls through to a cloud provider. Tauri removes descriptor/token
-eligibility before bounded shutdown and owns all graceful/forced process-tree cleanup.
+per-launch bearer token in the app's private data directory, and never persists or surfaces runtime content logs.
+It publishes a private target descriptor to Python only after `/health`, the opaque model alias, an authenticated
+one-token inference probe, and observed backend/offload evidence all succeed. `GPU_LAYERS` is always passed
+explicitly, including `--n-gpu-layers 0`; requested and observed execution are separate immutable descriptor
+fields and must match exactly. Runtime identity covers a deterministic allowlisted manifest of the launcher and
+adjacent execution libraries, not only the launcher executable. Python accepts only that strict descriptor with
+`DEVELOPER_TEST_ONLY` qualification and routes Overview through the existing Chat Completions transport and
+parser. A missing, stale, mismatched, or failed local target disables that Overview attempt; it never falls
+through to a cloud provider. Tauri removes descriptor/token eligibility before bounded shutdown and owns all
+graceful/forced process-tree cleanup.
 
 The optional GPU-layer value is a developer experiment, not a recommendation or hardware threshold. The tested
 model is not qualified for scientific/product use.

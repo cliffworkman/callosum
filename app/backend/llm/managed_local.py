@@ -26,7 +26,7 @@ _MAX_CREDENTIAL_BYTES = 256
 _DIGEST = re.compile(r"[0-9a-f]{64}")
 _TOKEN = re.compile(r"[A-Za-z0-9_-]{32,128}")
 _TARGET_ID = re.compile(r"[a-z0-9][a-z0-9._-]{2,127}")
-_BACKEND = re.compile(r"(?:cpu|gpu-layers:-?\d{1,3})")
+_EXECUTION_BACKENDS = {"cpu", "cuda"}
 _LOG = logging.getLogger(__name__)
 
 
@@ -39,6 +39,12 @@ class ManagedLocalTargetError(ValueError):
 
 
 @dataclass(frozen=True)
+class ManagedExecutionState:
+    backend: str
+    gpu_layers: int
+
+
+@dataclass(frozen=True)
 class ManagedLocalTarget:
     target_id: str
     endpoint: str
@@ -47,13 +53,16 @@ class ManagedLocalTarget:
     runtime_family: str
     runtime_version: str
     runtime_binary_digest: str
+    runtime_bundle_manifest_digest: str
+    declared_build_backend: str
     model_artifact_digest: str
     chat_template_digest: str | None
     context_tokens: int
     max_output_tokens: int
     temperature: float
     seed: int
-    execution_backend: str
+    requested_execution: ManagedExecutionState
+    observed_execution: ManagedExecutionState
     qualification_state: str
 
     def config(self, provider_runtime: ProviderClientRuntime) -> LLMConfig:
@@ -116,7 +125,7 @@ def load_target_from_environment() -> ManagedLocalTarget:
 
 
 def _target_from_payload(payload: dict[str, object], descriptor_path: Path) -> ManagedLocalTarget:
-    _require(payload.get("schema_version") == 1, "schema_version")
+    _require(payload.get("schema_version") == 2, "schema_version")
     _require(payload.get("kind") == "device_local", "target_kind")
     _require(payload.get("wire_format") == "chat_completions", "wire_format")
     _require(payload.get("model_alias") == MODEL_ALIAS, "model_alias")
@@ -128,12 +137,20 @@ def _target_from_payload(payload: dict[str, object], descriptor_path: Path) -> M
     endpoint = _strict_endpoint(_bounded_string(payload, "endpoint", 128))
     runtime_version = _bounded_string(payload, "runtime_version", 160)
     runtime_digest = _digest_value(payload, "runtime_binary_digest")
+    bundle_digest = _digest_value(payload, "runtime_bundle_manifest_digest")
+    declared_build_backend = _bounded_string(payload, "declared_build_backend", 16)
+    _require(declared_build_backend in _EXECUTION_BACKENDS, "declared_build_backend")
     model_digest = _digest_value(payload, "model_artifact_digest")
     template_digest_raw = payload.get("chat_template_digest")
     template_digest = None if template_digest_raw is None else _digest_value(payload, "chat_template_digest")
     credential_ref = _credential_path(payload, descriptor_path)
-    execution_backend = _bounded_string(payload, "execution_backend", 32)
-    _require(bool(_BACKEND.fullmatch(execution_backend)), "execution_backend")
+    requested_execution = _execution_state(payload, "requested_execution")
+    observed_execution = _execution_state(payload, "observed_execution")
+    _require(requested_execution == observed_execution, "execution_mismatch")
+    _require(
+        declared_build_backend == "cuda" or requested_execution == ManagedExecutionState("cpu", 0),
+        "declared_build_backend",
+    )
     _require(payload.get("context_tokens") == 4096, "context_tokens")
     _require(payload.get("max_output_tokens") == 256, "max_output_tokens")
     temperature = payload.get("temperature")
@@ -149,13 +166,16 @@ def _target_from_payload(payload: dict[str, object], descriptor_path: Path) -> M
         runtime_family="llama.cpp",
         runtime_version=runtime_version,
         runtime_binary_digest=runtime_digest,
+        runtime_bundle_manifest_digest=bundle_digest,
+        declared_build_backend=declared_build_backend,
         model_artifact_digest=model_digest,
         chat_template_digest=template_digest,
         context_tokens=4096,
         max_output_tokens=256,
         temperature=0.0,
         seed=42,
-        execution_backend=execution_backend,
+        requested_execution=requested_execution,
+        observed_execution=observed_execution,
         qualification_state=QUALIFICATION_STATE,
     )
 
@@ -179,6 +199,17 @@ def _strict_endpoint(value: str) -> str:
         "endpoint",
     )
     return f"http://127.0.0.1:{port}"
+
+
+def _execution_state(payload: dict[str, object], key: str) -> ManagedExecutionState:
+    raw = payload.get(key)
+    _require(isinstance(raw, dict) and set(raw) == {"backend", "gpu_layers"}, key)
+    backend = raw.get("backend")  # type: ignore[union-attr]
+    gpu_layers = raw.get("gpu_layers")  # type: ignore[union-attr]
+    _require(isinstance(backend, str) and backend in _EXECUTION_BACKENDS, key)
+    _require(isinstance(gpu_layers, int) and not isinstance(gpu_layers, bool) and 0 <= gpu_layers <= 999, key)
+    _require((backend == "cpu") == (gpu_layers == 0), key)
+    return ManagedExecutionState(backend=backend, gpu_layers=gpu_layers)
 
 
 def _credential_path(payload: dict[str, object], descriptor_path: Path) -> Path:

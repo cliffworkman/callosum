@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-24 — Increment 499: managed local runtime identity hardening
+- **Files:** Tauri managed-runtime hashing/manifest/observation/readiness logic, strict Python descriptor validation,
+  focused Rust/Python tests, desktop developer docs, LATENCY/CLAUDE contracts, security audit, and
+  `INCREMENT-499-NOTES.md`.
+- **What:** replaces a MiB stack hash buffer with bounded streaming I/O; always emits the exact
+  `--n-gpu-layers` value including zero; publishes separate requested/observed execution only after startup evidence
+  proves an exact match; and identifies the runtime through a canonical allowlisted launcher-plus-library manifest.
+- **Why:** Phase 3 reproduced a default-stack Windows overflow, automatic CUDA offload despite a claimed CPU target,
+  and identical launcher hashes across materially different CPU/CUDA packages. Routing and qualification must use
+  empirical execution and complete bundle identity, not requested flags or one executable.
+- **Boundary:** still developer-only and `DEVELOPER_TEST_ONLY`; no model qualification, routing policy, model/runtime
+  download, hardware threshold, LAN target, cloud fallback, Settings surface, cache, or scientific-semantic change.
+- **Verification:** root suite **2478 passed, 3 skipped**; affected Python suite **111 passed**; Rust
+  **22 passed, 3 developer-live tests ignored by default**; the live three-machine 0/8/25-layer matrix and
+  controlled mismatch passed. Cargo check, strict Clippy, Ruff, Bandit, Tach, line-budget, touched-file rustfmt,
+  and diff checks passed. The same model remains scientifically unqualified; details are in
+  `INCREMENT-499-NOTES.md`.
+- **Revert:** revert the single Increment 499 commit; no schema/data migration or installed artifact needs cleanup.
+
 ## 2026-08-24 — Increment 498: developer managed local AI sidecar POC
 - **Files:** Tauri managed-local lifecycle/startup wiring, strict Python target resolution and Overview routing,
   provider proxy-identity support, focused Rust/Python tests, desktop developer docs, LATENCY/CLAUDE contracts,

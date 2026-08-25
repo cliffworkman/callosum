@@ -21,7 +21,10 @@ Scope: Tauri-owned developer-supplied llama-server and Python Overview-only desc
   excluded from repr. Errors/logs expose only bounded categories; neither token nor raw runtime/model path is
   emitted by managed lifecycle logging. Tauri also removes the raw developer runtime/model configuration from the
   Python child environment; Python receives only the readiness-gated descriptor path.
-- **Content logging:** llama-server starts with `--log-disable`, stdout/stderr are discarded, the web UI is disabled,
+- **Content logging:** the original POC started llama-server with `--log-disable` and discarded stdout/stderr. Increment
+  499 supersedes that mechanism with bounded non-persistent startup observation of backend/offload evidence; only
+  numeric evidence is retained and all other child-stream content is discarded as it is read. Prompts/outputs still
+  never enter Callosum logs. The web UI is disabled,
   and the runtime is offline. Tauri persists no runtime log. Python usage logging retains existing numeric behavior.
 - **Model-path disclosure:** `/v1/models` must advertise the expected `callosum-managed-local` alias; readiness fails
   otherwise. The private `/props` response is consumed only to hash the chat template and is never exposed to

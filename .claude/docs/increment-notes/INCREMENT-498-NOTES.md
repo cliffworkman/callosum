@@ -22,7 +22,9 @@ template is hashed for target identity. Tauri does not publish eligibility befor
 files are removed before shutdown or after crash, so stale state cannot become an authoritative target.
 
 Windows token and descriptor files use non-inherited ACLs granted only to the current user SID. Unix builds use
-0700/0600. `--log-disable`, discarded child streams, `--offline`, no UI, direct argv, literal `127.0.0.1`, and
+0700/0600. The original POC used `--log-disable` and discarded child streams; Increment 499 supersedes that detail
+with bounded non-persistent startup observation so actual offload can be proven; only numeric evidence is retained,
+and all other child-stream content is discarded as it is read. `--offline`, no UI, direct argv, literal `127.0.0.1`, and
 proxy-disabled HTTP close the POC's main content/secrets paths.
 
 ## Manual verification script

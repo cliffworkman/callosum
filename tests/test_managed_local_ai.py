@@ -38,7 +38,7 @@ def _descriptor(tmp_path: Path, *, endpoint: str = "http://127.0.0.1:32123", tok
     descriptor.write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "target_id": "llama-cpp-0123456789ab-fedcba987654",
                 "kind": "device_local",
                 "endpoint": endpoint,
@@ -48,13 +48,16 @@ def _descriptor(tmp_path: Path, *, endpoint: str = "http://127.0.0.1:32123", tok
                 "runtime_family": "llama.cpp",
                 "runtime_version": "version 10516 (b95502ba9)",
                 "runtime_binary_digest": "a" * 64,
+                "runtime_bundle_manifest_digest": "d" * 64,
+                "declared_build_backend": "cpu",
                 "model_artifact_digest": "b" * 64,
                 "chat_template_digest": "c" * 64,
                 "context_tokens": 4096,
                 "max_output_tokens": 256,
                 "temperature": 0.0,
                 "seed": 42,
-                "execution_backend": "cpu",
+                "requested_execution": {"backend": "cpu", "gpu_layers": 0},
+                "observed_execution": {"backend": "cpu", "gpu_layers": 0},
                 "qualification_state": "DEVELOPER_TEST_ONLY",
             }
         ),
@@ -103,6 +106,10 @@ def test_descriptor_is_immutable_developer_only_and_secret_safe(
     assert target.endpoint == "http://127.0.0.1:32123"
     assert target.qualification_state == "DEVELOPER_TEST_ONLY"
     assert target.model_alias == "callosum-managed-local"
+    assert target.declared_build_backend == "cpu"
+    assert target.requested_execution.backend == "cpu"
+    assert target.requested_execution.gpu_layers == 0
+    assert target.observed_execution == target.requested_execution
     assert config.http_trust_env is False
     assert config.resolved_api_key() == TOKEN
     assert TOKEN not in descriptor.read_text(encoding="utf-8")
@@ -286,13 +293,40 @@ def test_target_identity_distinguishes_runtime_model_template_and_backend(
 ) -> None:
     _enable(monkeypatch, _descriptor(tmp_path))
     target = load_target_from_environment()
-    changed = replace(target, execution_backend="gpu-layers:32")
+    changed = replace(target, runtime_bundle_manifest_digest="e" * 64)
     assert target != changed
     assert {
         target.target_id,
         target.runtime_version,
         target.runtime_binary_digest,
+        target.runtime_bundle_manifest_digest,
+        target.declared_build_backend,
         target.model_artifact_digest,
         target.chat_template_digest,
-        target.execution_backend,
+        target.requested_execution,
+        target.observed_execution,
     }
+
+
+@pytest.mark.parametrize(
+    ("requested", "observed"),
+    [
+        ({"backend": "cpu", "gpu_layers": 0}, {"backend": "cuda", "gpu_layers": 8}),
+        ({"backend": "cuda", "gpu_layers": 8}, {"backend": "cuda", "gpu_layers": 16}),
+    ],
+)
+def test_python_descriptor_validation_rejects_execution_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    requested: dict[str, object],
+    observed: dict[str, object],
+) -> None:
+    descriptor = _descriptor(tmp_path)
+    payload = json.loads(descriptor.read_text(encoding="utf-8"))
+    payload["declared_build_backend"] = "cuda"
+    payload["requested_execution"] = requested
+    payload["observed_execution"] = observed
+    descriptor.write_text(json.dumps(payload), encoding="utf-8")
+    _enable(monkeypatch, descriptor)
+    with pytest.raises(ManagedLocalTargetError, match="execution_mismatch"):
+        load_target_from_environment()

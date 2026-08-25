@@ -14,16 +14,25 @@ use std::time::{Duration, Instant};
 mod files;
 use files::{
     digest_bytes, digest_file, prepare_private_dir, random_token, remove_private_file,
-    runtime_version, write_private_file,
+    runtime_bundle_identity, runtime_version, write_private_file,
 };
+mod observation;
+use observation::{observe_child_output, SharedRuntimeObservation};
 
 const ENABLE_ENV: &str = "CALLOSUM_LOCAL_AI_ENABLED";
 const RUNTIME_ENV: &str = "CALLOSUM_LOCAL_AI_RUNTIME";
 const MODEL_ENV: &str = "CALLOSUM_LOCAL_AI_MODEL";
 const GPU_LAYERS_ENV: &str = "CALLOSUM_LOCAL_AI_GPU_LAYERS";
+const BUILD_BACKEND_ENV: &str = "CALLOSUM_LOCAL_AI_BUILD_BACKEND";
 const THREADS_ENV: &str = "CALLOSUM_LOCAL_AI_THREADS";
 pub const DESCRIPTOR_ENV: &str = "CALLOSUM_MANAGED_LOCAL_AI_DESCRIPTOR";
-pub const OWNER_ONLY_ENV: [&str; 4] = [RUNTIME_ENV, MODEL_ENV, GPU_LAYERS_ENV, THREADS_ENV];
+pub const OWNER_ONLY_ENV: [&str; 5] = [
+    RUNTIME_ENV,
+    MODEL_ENV,
+    GPU_LAYERS_ENV,
+    BUILD_BACKEND_ENV,
+    THREADS_ENV,
+];
 const HOST: &str = "127.0.0.1";
 const MODEL_ALIAS: &str = "callosum-managed-local";
 const CONTEXT_TOKENS: u32 = 4096;
@@ -40,6 +49,8 @@ pub enum ManagedAiError {
     Exited,
     ReadinessTimeout,
     ReadinessProbe,
+    ExecutionUnverified,
+    ExecutionMismatch,
 }
 
 impl ManagedAiError {
@@ -53,15 +64,47 @@ impl ManagedAiError {
             Self::ReadinessProbe => {
                 "the managed local AI endpoint failed its authenticated readiness probe"
             }
+            Self::ExecutionUnverified => {
+                "the managed local AI runtime did not expose verifiable execution state"
+            }
+            Self::ExecutionMismatch => {
+                "the managed local AI runtime execution state did not match its request"
+            }
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum ExecutionBackend {
+    Cpu,
+    Cuda,
+}
+
+impl ExecutionBackend {
+    fn from_environment() -> Result<Self, ManagedAiError> {
+        match std::env::var(BUILD_BACKEND_ENV).ok().as_deref() {
+            Some("cpu") => Ok(Self::Cpu),
+            Some("cuda") => Ok(Self::Cuda),
+            _ => Err(ManagedAiError::InvalidConfig(
+                "CALLOSUM_LOCAL_AI_BUILD_BACKEND must be cpu or cuda",
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+struct ExecutionState {
+    backend: ExecutionBackend,
+    gpu_layers: u32,
 }
 
 #[derive(Debug, Clone)]
 struct DeveloperConfig {
     runtime: PathBuf,
     model: PathBuf,
-    gpu_layers: i32,
+    declared_build_backend: ExecutionBackend,
+    gpu_layers: u32,
     threads: u16,
 }
 
@@ -72,14 +115,32 @@ impl DeveloperConfig {
         }
         let runtime = required_path(RUNTIME_ENV, false)?;
         let model = required_path(MODEL_ENV, true)?;
-        let gpu_layers = parse_i32_env(GPU_LAYERS_ENV, 0, -1, 999)?;
+        let declared_build_backend = ExecutionBackend::from_environment()?;
+        let gpu_layers = parse_i32_env(GPU_LAYERS_ENV, 0, 0, 999)? as u32;
         let threads = parse_i32_env(THREADS_ENV, 4, 1, 128)? as u16;
+        if gpu_layers > 0 && declared_build_backend != ExecutionBackend::Cuda {
+            return Err(ManagedAiError::InvalidConfig(
+                "GPU layers require a cuda managed runtime build",
+            ));
+        }
         Ok(Some(Self {
             runtime,
             model,
+            declared_build_backend,
             gpu_layers,
             threads,
         }))
+    }
+
+    fn requested_execution(&self) -> ExecutionState {
+        ExecutionState {
+            backend: if self.gpu_layers == 0 {
+                ExecutionBackend::Cpu
+            } else {
+                self.declared_build_backend
+            },
+            gpu_layers: self.gpu_layers,
+        }
     }
 }
 
@@ -95,14 +156,22 @@ struct TargetDescriptor {
     runtime_family: &'static str,
     runtime_version: String,
     runtime_binary_digest: String,
+    runtime_bundle_manifest_digest: String,
+    declared_build_backend: ExecutionBackend,
     model_artifact_digest: String,
     chat_template_digest: Option<String>,
     context_tokens: u32,
     max_output_tokens: u32,
     temperature: f32,
     seed: u32,
-    execution_backend: String,
+    requested_execution: ExecutionState,
+    observed_execution: ExecutionState,
     qualification_state: &'static str,
+}
+
+struct ReadinessEvidence {
+    chat_template_digest: Option<String>,
+    observed_execution: ExecutionState,
 }
 
 pub struct ManagedLocalAiHandle {
@@ -134,19 +203,20 @@ pub async fn start_if_enabled(
     remove_private_file(&descriptor_path);
 
     let port = pick_free_port()?;
-    let runtime_digest = digest_file(&config.runtime)?;
+    let runtime_identity = runtime_bundle_identity(&config.runtime)?;
     let model_digest = digest_file(&config.model)?;
     let runtime_version = runtime_version(&config.runtime)?;
     let token = random_token()?;
     write_private_file(&token_path, token.as_bytes())?;
     let mut command = build_command(&config, port, &token_path);
-    let child = match command.spawn() {
+    let mut child = match command.spawn() {
         Ok(child) => child,
         Err(_) => {
             remove_private_file(&token_path);
             return Err(ManagedAiError::Spawn);
         }
     };
+    let runtime_observation = observe_child_output(&mut child);
     let handle = match confine_process(child, descriptor_path.clone(), token_path.clone()) {
         Ok(handle) => handle,
         Err(error) => {
@@ -157,7 +227,16 @@ pub async fn start_if_enabled(
     *state.0.lock().expect("managed local AI state poisoned") = Some(handle);
 
     let endpoint = format!("http://{HOST}:{port}");
-    let template_digest = match wait_until_ready(state, &endpoint, &token, READINESS_TIMEOUT).await
+    let requested_execution = config.requested_execution();
+    let readiness = match wait_until_ready(
+        state,
+        &endpoint,
+        &token,
+        requested_execution,
+        &runtime_observation,
+        READINESS_TIMEOUT,
+    )
+    .await
     {
         Ok(value) => value,
         Err(error) => {
@@ -166,10 +245,10 @@ pub async fn start_if_enabled(
         }
     };
     let descriptor = TargetDescriptor {
-        schema_version: 1,
+        schema_version: 2,
         target_id: format!(
             "llama-cpp-{}-{}",
-            &runtime_digest[..12],
+            &runtime_identity.manifest_digest[..12],
             &model_digest[..12]
         ),
         kind: "device_local",
@@ -179,18 +258,17 @@ pub async fn start_if_enabled(
         model_alias: MODEL_ALIAS,
         runtime_family: "llama.cpp",
         runtime_version,
-        runtime_binary_digest: runtime_digest,
+        runtime_binary_digest: runtime_identity.launcher_digest,
+        runtime_bundle_manifest_digest: runtime_identity.manifest_digest,
+        declared_build_backend: config.declared_build_backend,
         model_artifact_digest: model_digest,
-        chat_template_digest: template_digest,
+        chat_template_digest: readiness.chat_template_digest,
         context_tokens: CONTEXT_TOKENS,
         max_output_tokens: MAX_OUTPUT_TOKENS,
         temperature: 0.0,
         seed: 42,
-        execution_backend: if config.gpu_layers == 0 {
-            "cpu".into()
-        } else {
-            format!("gpu-layers:{}", config.gpu_layers)
-        },
+        requested_execution,
+        observed_execution: readiness.observed_execution,
         qualification_state: "DEVELOPER_TEST_ONLY",
     };
     let bytes = match serde_json::to_vec_pretty(&descriptor) {
@@ -259,8 +337,8 @@ fn build_command(config: &DeveloperConfig, port: u16, token_path: &Path) -> Comm
     let mut command = Command::new(&config.runtime);
     command
         .args(server_args(config, port, token_path))
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -276,7 +354,7 @@ fn build_command(config: &DeveloperConfig, port: u16, token_path: &Path) -> Comm
 }
 
 fn server_args(config: &DeveloperConfig, port: u16, token_path: &Path) -> Vec<OsString> {
-    let mut args = vec![
+    let args = vec![
         "--model".into(),
         config.model.as_os_str().to_owned(),
         "--host".into(),
@@ -298,15 +376,16 @@ fn server_args(config: &DeveloperConfig, port: u16, token_path: &Path) -> Vec<Os
         "--alias".into(),
         MODEL_ALIAS.into(),
         "--no-webui".into(),
-        "--log-disable".into(),
+        "--log-verbosity".into(),
+        // b10516 reports actual offload at trace level. The owner retains only that numeric
+        // startup observation; all other child-stream content is discarded as it is read.
+        "4".into(),
+        "--log-colors".into(),
+        "off".into(),
         "--offline".into(),
+        "--n-gpu-layers".into(),
+        config.gpu_layers.to_string().into(),
     ];
-    if config.gpu_layers != 0 {
-        args.extend([
-            "--n-gpu-layers".into(),
-            config.gpu_layers.to_string().into(),
-        ]);
-    }
     args
 }
 
@@ -314,14 +393,17 @@ async fn wait_until_ready(
     state: &ManagedLocalAiState,
     endpoint: &str,
     token: &str,
+    requested_execution: ExecutionState,
+    runtime_observation: &SharedRuntimeObservation,
     timeout: Duration,
-) -> Result<Option<String>, ManagedAiError> {
+) -> Result<ReadinessEvidence, ManagedAiError> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(4))
         .no_proxy()
         .build()
         .map_err(|_| ManagedAiError::ReadinessProbe)?;
     let deadline = Instant::now() + timeout;
+    let mut endpoint_verified = false;
     loop {
         if !process_is_running(state)? {
             return Err(ManagedAiError::Exited);
@@ -329,15 +411,43 @@ async fn wait_until_ready(
         if let Ok(response) = client.get(format!("{endpoint}/health")).send().await {
             if response.status().is_success() {
                 if let Ok(template) = authenticated_probe(&client, endpoint, token).await {
-                    return Ok(template);
+                    endpoint_verified = true;
+                    match verify_execution(requested_execution, runtime_observation.execution()) {
+                        Ok(observed_execution) => {
+                            return Ok(ReadinessEvidence {
+                                chat_template_digest: template,
+                                observed_execution,
+                            });
+                        }
+                        Err(ManagedAiError::ExecutionMismatch) => {
+                            return Err(ManagedAiError::ExecutionMismatch);
+                        }
+                        Err(ManagedAiError::ExecutionUnverified) => {}
+                        Err(error) => return Err(error),
+                    }
                 }
             }
         }
         if Instant::now() >= deadline {
-            return Err(ManagedAiError::ReadinessTimeout);
+            return if endpoint_verified && runtime_observation.execution().is_none() {
+                Err(ManagedAiError::ExecutionUnverified)
+            } else {
+                Err(ManagedAiError::ReadinessTimeout)
+            };
         }
         tokio::time::sleep(POLL_INTERVAL).await;
     }
+}
+
+fn verify_execution(
+    requested: ExecutionState,
+    observed: Option<ExecutionState>,
+) -> Result<ExecutionState, ManagedAiError> {
+    let observed = observed.ok_or(ManagedAiError::ExecutionUnverified)?;
+    if observed != requested {
+        return Err(ManagedAiError::ExecutionMismatch);
+    }
+    Ok(observed)
 }
 
 async fn authenticated_probe(
@@ -492,13 +602,14 @@ fn cleanup_files(handle: &ManagedLocalAiHandle) {
 }
 
 fn confine_process(
-    mut child: Child,
+    child: Child,
     descriptor_path: PathBuf,
     token_path: PathBuf,
 ) -> Result<ManagedLocalAiHandle, ManagedAiError> {
     #[cfg(windows)]
     {
         use std::os::windows::io::AsRawHandle;
+        let mut child = child;
         let job = win32job::Job::create().map_err(|_| ManagedAiError::Spawn)?;
         let mut info = job
             .query_extended_limit_info()

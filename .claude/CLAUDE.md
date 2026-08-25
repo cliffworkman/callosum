@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 498** (see Increment workflow) with **2476 root-suite pytest tests
+It is currently at **Increment 499** (see Increment workflow) with **2478 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -710,6 +710,10 @@ the full per-increment narrative for all other increments now lives in the reloc
   invalidation, and process-tree shutdown; Python validates the immutable `DEVELOPER_TEST_ONLY` descriptor and uses
   the existing `complete()`/Overview parser/lifecycle without cloud fallback. No runtime, model, downloader, router,
   hardware policy, LAN target, Settings control, or product qualification ships with it.
+  **Inc 499** makes that developer POC's execution identity truthful: hashing streams through a bounded heap buffer;
+  zero/partial/full GPU-layer requests are always explicit; startup observation separately records actual backend and
+  layer count and fails readiness on mismatch; and a canonical allowlisted launcher-plus-library manifest identifies
+  backend packages whose launchers are byte-identical. No unqualified target is published from requested intent alone.
 - **Frontend:** modular source under `app/frontend/` (`index.html` shell + `styles.css` +
   ordered `js/*.jsx` React chunks, React/ReactDOM + pdf.js via CDN), assembled by
   `app/backend/api/frontend.py`: the JSX chunks are concatenated and **precompiled to plain JS by

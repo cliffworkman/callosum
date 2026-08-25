@@ -713,7 +713,11 @@ Unless deliberately changed and revalidated, Callosum currently relies on these 
 - The developer-only managed-local Overview POC publishes a target only after model readiness plus authenticated
   inference succeeds. Tauri exclusively owns the llama-server process; Python exclusively owns target validation,
   provider configuration, `complete()`, and the unchanged Overview parser/lifecycle. Its HTTP pool ignores proxy
-  environment variables, and local failure is supplementary-only with no cloud fallback.
+  environment variables, and local failure is supplementary-only with no cloud fallback. Requested execution is
+  never treated as observed execution: zero/partial/full offload is passed explicitly, bounded startup evidence must
+  prove the actual backend and layer count, and any mismatch fails readiness before descriptor publication. Timing
+  and future qualification identity use that observed state plus the deterministic launcher-and-library bundle
+  manifest identity rather than a launcher hash alone.
 
 Any modification that affects these properties requires explicit review.
 
