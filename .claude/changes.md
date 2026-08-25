@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-25 — Increment 501: Automatic AI Phase 4.1 extended model search
+- **Files:** narrow b10516 managed-CUDA observation/bundle-launch hardening, a separately frozen seven-artifact
+  qualification cohort/adapter/receipt index, focused tests, security audit, and `INCREMENT-501-NOTES.md`.
+- **What:** admits only proven b10516 CUDA trace forms, drains non-UTF-8 startup output without retaining content,
+  launches/probes from the canonical self-contained bundle root, and executes seven new exact artifacts through the
+  unchanged frozen synthesis Overview battery on Juno CUDA.
+- **Result:** every target proved exact requested/observed CUDA equality; all seven artifacts then failed Stage 1.
+  P01 was closest but achieved 20/24 sentence adherence (83.3%, below 90%). No Stage 2, candidate adjudication, or
+  holdout occurred; no artifact qualified. Decision: **EXTEND MODEL SEARCH**.
+- **Boundary:** developer-only; no Automatic AI UI/router/download/catalog, provider behavior, cloud fallback,
+  prompt/parser/reference semantics, production model, or scientific capability changed.
+- **Verification:** root suite **2491 passed, 3 skipped**; full Rust rerun **25 passed, 3 live ignored**; focused
+  Python **85 passed**; Cargo check/strict Clippy, targeted rustfmt, Ruff, Bandit, Tach, line budget, scoped pre-commit,
+  diff, and secret/path checks passed. Seven live Juno CUDA Stage 1 runs and a controlled mismatch preserved cleanup.
+- **Revert:** revert the two Increment 501 commits; raw synthetic receipts remain external and all downloaded new
+  model weights were removed.
+
 ## 2026-08-25 — Increment 500: synthesis Overview model qualification battery
 - **Files:** frozen developer-only qualification profile/fixtures/controls/codebook/candidate and receipt manifests,
   reusable Overview qualification runner, exact production reference-filter extraction, managed-live harness bridge,

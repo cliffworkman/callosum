@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "search_id": "synthesis-overview-phase4-1",
+  "starting_head": "84cfde81a05571a239bb6bd95e956d7f3674b713",
+  "battery_aggregate_sha256": "5fbba390a2fcfbb51121763612fcf8f14cbc8a8fb4462313da160edbb179c707",
+  "search_aggregate_sha256": "89f4c3def6ebd6f13eb6edeb16cffb975df332e1287f3574f626a8f20810c5d6",
+  "host": {
+    "os": "Debian 12",
+    "kernel": "6.1.0-52-amd64",
+    "cpu": "Intel Core i7-8700",
+    "ram_bytes": 16675897344,
+    "gpu": "NVIDIA GeForce RTX 3050",
+    "vram_mib": 8192,
+    "driver": "535.309.01",
+    "cuda_reported": "12.2"
+  },
+  "runtime": {
+    "family": "llama.cpp",
+    "version": "0.1.2-dev build 10516 commit b95502ba9",
+    "launcher_sha256": "8a8c1dc57acbbc16ad0e51acd234c8aa8a45f86895671bd08d010713d9b7d8db",
+    "bundle_manifest_sha256": "fa506480618d327d7e1b7afea87fa104ca298fcf9933f134476b1732b7eaed06",
+    "declared_build_backend": "cuda"
+  },
+  "generation": {
+    "context_tokens": 4096,
+    "max_output_tokens": 256,
+    "temperature": 0.0,
+    "seed": 42,
+    "threads": 4
+  },
+  "results": [
+    {
+      "receipt_id": "synthesis-overview-v1-P01-cuda29",
+      "candidate_code": "P01",
+      "chat_template_sha256": "4e9918361c284a93880606d182d64da6a9fe97cdc1f5c5a78c1c8840444246fc",
+      "execution": {"requested": {"backend": "cuda", "gpu_layers": 29}, "observed": {"backend": "cuda", "gpu_layers": 29}},
+      "result": "not_qualified",
+      "failed_stage": "stage1_reliability",
+      "reason": "20/24 usable outputs met the 2-4 sentence contract (83.3%), below the frozen 90% gate",
+      "metrics": {"http": 24, "mechanical_gate_pass": 24, "usable": 24, "structural_reference_failures": 0, "sentence_adherence": 20, "suspected_truncation": 0, "median_latency_seconds": 0.9920704960022704},
+      "result_file_sha256": "2d21becec35c4ad2bd873a60fe216b9057502528871228a5927efc5a6b85b6a8"
+    },
+    {
+      "receipt_id": "synthesis-overview-v1-P02-cuda17",
+      "candidate_code": "P02",
+      "chat_template_sha256": "f05bf4b967dc993bdc7a2fe6e43759ee218eb0eb340d68b063e1c4f8ad148176",
+      "execution": {"requested": {"backend": "cuda", "gpu_layers": 17}, "observed": {"backend": "cuda", "gpu_layers": 17}},
+      "result": "not_qualified",
+      "failed_stage": "stage1_reliability",
+      "reason": "0/24 JSON parses and 24 structural-reference-invalid outputs",
+      "metrics": {"http": 24, "mechanical_gate_pass": 0, "usable": 0, "structural_reference_failures": 24, "sentence_adherence": 0, "suspected_truncation": 0, "median_latency_seconds": 0.4283424320019549},
+      "result_file_sha256": "e0b5906826292bf32bb30e984259af0b2beae5c6ff8dec78f4ce1a96ab3407d9"
+    },
+    {
+      "receipt_id": "synthesis-overview-v1-P03-cuda29",
+      "candidate_code": "P03",
+      "chat_template_sha256": "57f1fd00f0013a2be96aa79b857391f27e23df5b5f847072b524c897e24d0361",
+      "execution": {"requested": {"backend": "cuda", "gpu_layers": 29}, "observed": {"backend": "cuda", "gpu_layers": 29}},
+      "result": "not_qualified",
+      "failed_stage": "stage1_reliability",
+      "reason": "24/24 outputs exhausted the fixed output cap and failed JSON/reference mechanics",
+      "metrics": {"http": 24, "mechanical_gate_pass": 0, "usable": 0, "structural_reference_failures": 24, "sentence_adherence": 0, "suspected_truncation": 24, "median_latency_seconds": 2.691143452495453},
+      "result_file_sha256": "5757dba021ca86c4542ab710b043f9f86468f7847373a57a61d99ff0b0ce4931"
+    },
+    {
+      "receipt_id": "synthesis-overview-v1-P04-cuda35",
+      "candidate_code": "P04",
+      "chat_template_sha256": "8d9e3a3c114fb2053ec500184677af4f7e5f8ec2582443cd535834e68b3ade29",
+      "execution": {"requested": {"backend": "cuda", "gpu_layers": 35}, "observed": {"backend": "cuda", "gpu_layers": 35}},
+      "result": "not_qualified",
+      "failed_stage": "stage1_reliability",
+      "reason": "5 structural-reference failures, 19/24 usable, and 4/19 usable outputs met the sentence contract",
+      "metrics": {"http": 24, "mechanical_gate_pass": 19, "usable": 19, "structural_reference_failures": 5, "sentence_adherence": 4, "suspected_truncation": 0, "median_latency_seconds": 1.9223508325012517},
+      "result_file_sha256": "b762fa18d29a1d3040d8ef322919d419fc2c2dd65e232b8a2fae7d5591f54e8e"
+    },
+    {
+      "receipt_id": "synthesis-overview-v1-P05-cuda37",
+      "candidate_code": "P05",
+      "chat_template_sha256": "b9b66f04c64fbb8695cf5b35c37780efd0b8e0829fbfe3e30fafb9f469b7d30e",
+      "execution": {"requested": {"backend": "cuda", "gpu_layers": 37}, "observed": {"backend": "cuda", "gpu_layers": 37}},
+      "result": "not_qualified",
+      "failed_stage": "stage1_reliability",
+      "reason": "24/24 outputs exhausted the fixed output cap and failed JSON/reference mechanics",
+      "metrics": {"http": 24, "mechanical_gate_pass": 0, "usable": 0, "structural_reference_failures": 24, "sentence_adherence": 0, "suspected_truncation": 24, "median_latency_seconds": 2.86104183250427},
+      "result_file_sha256": "2f925db859e900d9cbc23e586ee2be6c590327c44b7af163527fa1cd64fa7c88"
+    },
+    {
+      "receipt_id": "synthesis-overview-v1-P06-cuda41",
+      "candidate_code": "P06",
+      "chat_template_sha256": "9524df67b77a7b25a2dfee898f75b316a157eb9d855b51e32aeac79d7c8a83ce",
+      "execution": {"requested": {"backend": "cuda", "gpu_layers": 41}, "observed": {"backend": "cuda", "gpu_layers": 41}},
+      "result": "not_qualified",
+      "failed_stage": "stage1_reliability",
+      "reason": "5 structural-reference failures and 21/24 usable; the zero-invalid-reference and 23/24 usability gates failed",
+      "metrics": {"http": 24, "mechanical_gate_pass": 19, "usable": 21, "structural_reference_failures": 5, "sentence_adherence": 21, "suspected_truncation": 0, "median_latency_seconds": 1.5939344544967753},
+      "result_file_sha256": "7c480e3b66c2dbe7c661052318ab6a3dbfd379c8564f9bf6967acf6e7cafd9b5"
+    },
+    {
+      "receipt_id": "synthesis-overview-v1-P07-cuda33",
+      "candidate_code": "P07",
+      "chat_template_sha256": "fe689ffbd6a4e2d0532d7480696b065b10e0e1eff3f9b9fc4bea415761e4bf4a",
+      "execution": {"requested": {"backend": "cuda", "gpu_layers": 33}, "observed": {"backend": "cuda", "gpu_layers": 33}},
+      "result": "not_qualified",
+      "failed_stage": "stage1_reliability",
+      "reason": "24/24 schema-valid empty arrays yielded no usable Overview sentences",
+      "metrics": {"http": 24, "mechanical_gate_pass": 0, "usable": 0, "structural_reference_failures": 0, "sentence_adherence": 0, "suspected_truncation": 0, "median_latency_seconds": 0.07300260499323485},
+      "result_file_sha256": "2c5186358c8257c90dab12524989e8db1762e32470b3ee713e79d2e7a4280ad6"
+    }
+  ],
+  "adjudication": {
+    "semantic_control_packet_created": false,
+    "candidate_packet_created": false,
+    "status": "not_started_no_stage1_survivor",
+    "reviewers": 0,
+    "authority": "No scientific qualification was granted; Stage 1 reliability failure independently disqualified every exact configuration."
+  },
+  "challenge_holdout": {"opened": false, "reason": "No candidate survived Stage 1."},
+  "result": "no_mechanical_survivor"
+}
