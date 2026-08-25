@@ -1,0 +1,228 @@
+{
+  "schema_version": 1,
+  "fixtures": [
+    {
+      "fixture_id": "C01", "partition": "calibration", "domain": "education", "strata": ["convergent"],
+      "claims": ["Three randomized classroom studies reported improved delayed vocabulary recall after spaced practice.", "All three studies used the same delayed recall outcome.", "None of the studies measured reading comprehension."],
+      "gold": {"must_preserve": ["Spaced practice improved delayed vocabulary recall across three randomized studies."], "permissible_optional": ["The studies used a common outcome."], "forbidden_inferences": ["Reading comprehension improved."], "critical_limitations": ["No reading-comprehension outcome."], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "C02", "partition": "calibration", "domain": "public health", "strata": ["mixed_null"],
+      "claims": ["One community program was associated with higher screening attendance.", "A second community found no detectable attendance difference.", "Both evaluations were observational."],
+      "gold": {"must_preserve": ["Results were mixed.", "Both evaluations were observational."], "permissible_optional": [], "forbidden_inferences": ["The program caused higher attendance.", "The program was consistently effective."], "critical_limitations": ["Null second evaluation", "Nonrandom assignment"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "C03", "partition": "calibration", "domain": "ecology", "strata": ["numeric"],
+      "claims": ["Twelve of 40 monitored plots contained the target insect before restoration.", "Eighteen of 40 plots contained the insect one year after restoration.", "The study did not include untreated plots."],
+      "gold": {"must_preserve": ["Counts changed from 12/40 to 18/40."], "permissible_optional": [], "forbidden_inferences": ["Restoration caused a 50 percent increase."], "critical_limitations": ["No untreated comparison"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "C04", "partition": "calibration", "domain": "medicine", "strata": ["safety"],
+      "claims": ["Pain scores were lower in the treatment group at day seven.", "Three treatment participants and no control participants stopped because of nausea.", "The trial enrolled 48 adults."],
+      "gold": {"must_preserve": ["Lower pain and treatment-group discontinuations due to nausea."], "permissible_optional": ["Sample size 48."], "forbidden_inferences": ["The treatment was safe."], "critical_limitations": ["Nausea-related discontinuations"], "distractor_indices": []}
+    },
+
+    {
+      "fixture_id": "Q01", "partition": "qualification", "stage_1": true, "domain": "education", "strata": ["convergent"],
+      "claims": ["Four randomized studies reported better delayed word recall after retrieval practice than after rereading.", "The direction of the delayed-recall result was consistent across all four studies.", "Immediate recall differed little between conditions in three studies.", "The studies involved secondary-school students."],
+      "gold": {"must_preserve": ["Consistent delayed-recall advantage", "Little immediate-recall difference"], "permissible_optional": ["Secondary-school population"], "forbidden_inferences": ["Retrieval practice improves all forms of learning."], "critical_limitations": [], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q02", "partition": "qualification", "stage_1": true, "domain": "clinical psychology", "strata": ["mixed_null"],
+      "claims": ["A randomized pilot reported lower anxiety scores after the digital program than after wait-list control.", "A larger preregistered randomized trial found no detectable anxiety-score difference.", "The larger trial had narrower uncertainty intervals.", "Neither trial measured outcomes beyond eight weeks."],
+      "gold": {"must_preserve": ["Pilot benefit and larger null result", "No outcome beyond eight weeks"], "permissible_optional": ["Larger trial was more precise"], "forbidden_inferences": ["The program is effective.", "The program has lasting effects."], "critical_limitations": ["Larger null trial"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q03", "partition": "qualification", "stage_1": true, "domain": "epidemiology", "strata": ["observational_causal"],
+      "claims": ["In a cross-sectional survey, greater neighborhood tree cover was associated with lower self-reported stress.", "Residents were not assigned to neighborhoods.", "Household income differed across tree-cover levels.", "The analysis adjusted for income but residual confounding remained possible."],
+      "gold": {"must_preserve": ["Association, not causal effect", "Nonassignment/confounding limitation"], "permissible_optional": ["Income adjustment"], "forbidden_inferences": ["Tree cover reduces stress.", "Planting trees would improve mental health."], "critical_limitations": ["Cross-sectional nonrandom design"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q04", "partition": "qualification", "stage_1": true, "domain": "nutrition", "strata": ["randomized_limited_population"],
+      "claims": ["A randomized feeding study found lower post-meal glucose after the high-fiber meal than after the comparison meal.", "The study enrolled 36 healthy adults aged 20 to 35.", "People with diabetes were excluded.", "Outcomes were measured for four hours after one meal."],
+      "gold": {"must_preserve": ["Short-term randomized glucose result", "Healthy young-adult population"], "permissible_optional": [], "forbidden_inferences": ["The meal controls diabetes.", "The effect persists long term.", "The result applies to all adults."], "critical_limitations": ["Diabetes excluded", "Single-meal four-hour follow-up"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q05", "partition": "qualification", "stage_1": true, "domain": "behavioral science", "strata": ["replication_disagreement"],
+      "claims": ["The original laboratory study reported that the cue increased cooperative choices.", "A direct replication using the preregistered original analysis found no detectable cue effect.", "A second replication estimated an effect in the opposite direction with wide uncertainty.", "All studies used the same primary outcome."],
+      "gold": {"must_preserve": ["Original positive result and two nonconfirming replications"], "permissible_optional": ["Common outcome"], "forbidden_inferences": ["The cue reliably increases cooperation.", "The cue reliably decreases cooperation."], "critical_limitations": ["Replication disagreement"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q06", "partition": "qualification", "stage_1": true, "domain": "neuroscience", "strata": ["low_power"],
+      "claims": ["A study of 14 participants reported a larger mean neural response in condition A than condition B.", "The uncertainty interval was wide and included no difference.", "The authors described the analysis as exploratory.", "No independent replication was included."],
+      "gold": {"must_preserve": ["Exploratory imprecise result"], "permissible_optional": ["No replication"], "forbidden_inferences": ["Condition A produces a stronger neural response.", "The difference was significant."], "critical_limitations": ["Small sample and wide interval"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q07", "partition": "qualification", "stage_1": true, "domain": "labor economics", "strata": ["subgroup_interaction"],
+      "claims": ["The training program had no detectable average effect on employment at six months.", "Employment increased in the subgroup with prior industry experience.", "The subgroup interaction test was not statistically distinguishable from no interaction.", "Subgroup analyses were not preregistered."],
+      "gold": {"must_preserve": ["Null average result", "Exploratory subgroup pattern without supported interaction"], "permissible_optional": [], "forbidden_inferences": ["The program works for experienced workers."], "critical_limitations": ["Unregistered subgroup and null interaction"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q08", "partition": "qualification", "stage_1": true, "domain": "sleep science", "strata": ["temporal_persistence"],
+      "claims": ["Participants assigned to morning light reported earlier sleep onset during the two-week intervention.", "The between-group difference was not detectable four weeks after treatment ended.", "Adherence declined during the second intervention week.", "No outcomes were collected after the four-week follow-up."],
+      "gold": {"must_preserve": ["Temporary during-treatment effect and null later follow-up"], "permissible_optional": ["Declining adherence"], "forbidden_inferences": ["Morning light produces lasting sleep improvement."], "critical_limitations": ["Effect not detected after treatment"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q09", "partition": "qualification", "stage_1": true, "domain": "pharmacology", "strata": ["safety"],
+      "claims": ["The treatment group had lower symptom scores at week six.", "Serious adverse events occurred in 2 of 80 treatment participants and 0 of 82 controls.", "The trial was not powered to estimate uncommon harms.", "Six treatment participants stopped because of side effects compared with one control participant."],
+      "gold": {"must_preserve": ["Symptom result and adverse-event evidence", "Limited power for uncommon harms"], "permissible_optional": [], "forbidden_inferences": ["The treatment is safe.", "Benefits outweigh harms."], "critical_limitations": ["Serious events and discontinuations"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q10", "partition": "qualification", "stage_1": true, "domain": "social science", "strata": ["correlation_mechanism"],
+      "claims": ["Across municipalities, higher library use was correlated with greater civic participation.", "The data did not measure why residents used libraries.", "Municipal education levels were associated with both library use and participation.", "The longitudinal direction of the association was not established."],
+      "gold": {"must_preserve": ["Correlation with unresolved direction/confounding"], "permissible_optional": ["Education association"], "forbidden_inferences": ["Libraries create civic engagement.", "Education mediates the effect."], "critical_limitations": ["Mechanism and direction unmeasured"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q11", "partition": "qualification", "stage_1": true, "domain": "environmental health", "strata": ["absence_of_evidence"],
+      "claims": ["No association between the exposure and the primary outcome was detected in a sample of 62 people.", "The confidence interval included both a moderate protective association and a moderate harmful association.", "Exposure measurement reliability was low.", "The study did not establish that the exposure has no effect."],
+      "gold": {"must_preserve": ["No detected association with substantial uncertainty"], "permissible_optional": ["Low measurement reliability"], "forbidden_inferences": ["The exposure has no effect.", "The exposure is safe."], "critical_limitations": ["Imprecision means absence of evidence"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q12", "partition": "qualification", "stage_1": true, "domain": "public policy", "strata": ["numeric_denominator"],
+      "claims": ["Applications were completed by 48 of 120 invited households in the outreach group.", "Applications were completed by 39 of 118 invited households in the standard-notice group.", "Assignment was randomized by neighborhood rather than household.", "The analysis did not report a confidence interval for the difference."],
+      "gold": {"must_preserve": ["48/120 versus 39/118", "Cluster-randomized assignment"], "permissible_optional": [], "forbidden_inferences": ["Outreach increased applications by 9 percent.", "The difference was statistically significant."], "critical_limitations": ["Unreported uncertainty"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q13", "partition": "qualification", "stage_1": false, "domain": "medicine", "strata": ["countervailing"],
+      "claims": ["Two trials reported modest improvement in mobility after the rehabilitation program.", "A third, larger trial found no detectable mobility improvement.", "Falls were more frequent in the intensive-program arm of the larger trial.", "Program adherence was lower in the larger trial."],
+      "gold": {"must_preserve": ["Mixed mobility findings", "Higher fall frequency"], "permissible_optional": ["Lower adherence"], "forbidden_inferences": ["The program improves mobility overall.", "The program is safe."], "critical_limitations": ["Larger null trial and falls"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q14", "partition": "qualification", "stage_1": false, "domain": "developmental psychology", "strata": ["salient_limitation"],
+      "claims": ["Children who received the game-based curriculum improved on the practiced task.", "The comparison group used ordinary classroom activities rather than an attention-matched game.", "Performance did not differ on an unpracticed transfer task.", "Teachers knew which children received the curriculum."],
+      "gold": {"must_preserve": ["Practiced-task improvement without transfer", "Control/blinding limitations"], "permissible_optional": [], "forbidden_inferences": ["The curriculum improved general cognitive ability."], "critical_limitations": ["No transfer-task difference"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q15", "partition": "qualification", "stage_1": false, "domain": "agriculture", "strata": ["distractor"],
+      "claims": ["Drought-tolerant seed increased average yield under low-rainfall conditions.", "Yield did not differ under typical rainfall.", "Seed cost was 18 percent higher.", "The trial used 22 farms in one region.", "Soil color was recorded for every field.", "Farmers completed a satisfaction questionnaire.", "Weather stations were painted white."],
+      "gold": {"must_preserve": ["Yield benefit limited to low rainfall", "No typical-rainfall difference", "Higher seed cost"], "permissible_optional": ["One-region sample"], "forbidden_inferences": ["The seed always increases yield."], "critical_limitations": ["Condition-specific effect"], "distractor_indices": [4,5,6]}
+    },
+    {
+      "fixture_id": "Q16", "partition": "qualification", "stage_1": false, "domain": "cardiology", "strata": ["mixed_null"],
+      "claims": ["One small trial found lower resting blood pressure after the breathing intervention.", "Two larger trials found no detectable resting blood-pressure difference.", "One larger trial reported a small improvement in self-reported stress.", "Medication use was unchanged across groups."],
+      "gold": {"must_preserve": ["Blood-pressure evidence mostly null", "Stress result limited to one trial"], "permissible_optional": ["Medication unchanged"], "forbidden_inferences": ["Breathing lowers blood pressure."], "critical_limitations": ["Two larger null trials"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q17", "partition": "qualification", "stage_1": false, "domain": "political science", "strata": ["observational_causal"],
+      "claims": ["Counties with expanded early voting had higher turnout than counties without expansion.", "Expansion was adopted by county officials rather than randomized.", "Counties differed in prior turnout and campaign spending.", "Adjustment reduced but did not eliminate the association."],
+      "gold": {"must_preserve": ["Adjusted observational association"], "permissible_optional": [], "forbidden_inferences": ["Early voting caused turnout to rise."], "critical_limitations": ["Nonrandom adoption and residual difference"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q18", "partition": "qualification", "stage_1": false, "domain": "gerontology", "strata": ["population_boundary"],
+      "claims": ["The intervention improved balance scores among independently living adults aged 65 to 74.", "People using mobility aids were excluded.", "No participants were older than 74.", "Falls themselves were not measured."],
+      "gold": {"must_preserve": ["Balance result in restricted population"], "permissible_optional": [], "forbidden_inferences": ["The intervention prevents falls.", "The result applies to frail or older adults."], "critical_limitations": ["Age/function exclusions and no falls outcome"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q19", "partition": "qualification", "stage_1": false, "domain": "linguistics", "strata": ["significance_temptation"],
+      "claims": ["Bilingual participants had a higher mean accuracy than monolingual participants.", "No hypothesis test, uncertainty interval, or sampling plan was reported.", "Group sizes were 17 and 19.", "Accuracy overlapped substantially between groups."],
+      "gold": {"must_preserve": ["Descriptive mean difference without inferential support"], "permissible_optional": ["Small groups"], "forbidden_inferences": ["Bilingual participants significantly outperformed monolingual participants."], "critical_limitations": ["No inferential statistics"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q20", "partition": "qualification", "stage_1": false, "domain": "immunology", "strata": ["mechanism_temptation"],
+      "claims": ["Marker X increased after treatment and symptom scores decreased.", "The study did not manipulate Marker X independently.", "Changes in Marker X and symptoms were measured at the same visit.", "No mediation analysis was performed."],
+      "gold": {"must_preserve": ["Concurrent marker and symptom changes"], "permissible_optional": [], "forbidden_inferences": ["Marker X mediated symptom improvement.", "Treatment worked by increasing Marker X."], "critical_limitations": ["Mechanism not tested"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q21", "partition": "qualification", "stage_1": false, "domain": "conservation", "strata": ["temporal_persistence"],
+      "claims": ["Bird counts increased during the first breeding season after habitat restoration.", "Counts returned near baseline in the second breeding season.", "A severe storm occurred between seasons.", "No unrestored comparison site was monitored."],
+      "gold": {"must_preserve": ["First-season increase not sustained in second season"], "permissible_optional": ["Intervening storm"], "forbidden_inferences": ["Restoration produced persistent population recovery.", "The storm caused the decline."], "critical_limitations": ["No comparison site"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q22", "partition": "qualification", "stage_1": false, "domain": "health services", "strata": ["evidence_strength"],
+      "claims": ["A quality-improvement clinic reported shorter waiting times after introducing online scheduling.", "The comparison was before versus after at one clinic.", "Staffing increased during the same period.", "Patient satisfaction was not measured."],
+      "gold": {"must_preserve": ["Single-clinic before-after waiting-time result"], "permissible_optional": ["Staffing change"], "forbidden_inferences": ["Online scheduling was proven effective.", "Patients preferred online scheduling."], "critical_limitations": ["Concurrent staffing and no control clinic"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q23", "partition": "qualification", "stage_1": false, "domain": "exercise science", "strata": ["contradictory"],
+      "claims": ["Two trials found increased strength after the high-intensity program.", "One trial found no strength difference and more muscle soreness.", "A fourth trial found increased strength only among participants under age 30.", "The age interaction was not prespecified.", "Training protocols differed across trials."],
+      "gold": {"must_preserve": ["Heterogeneous strength findings", "Soreness and exploratory age pattern"], "permissible_optional": ["Protocol differences"], "forbidden_inferences": ["High-intensity training consistently improves strength.", "It is especially effective under age 30."], "critical_limitations": ["Null trial and nonprespecified subgroup"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "Q24", "partition": "qualification", "stage_1": false, "domain": "multidisciplinary", "strata": ["maximal_context", "distractor", "mixed_null"],
+      "claims": [
+        "Study A randomized 84 adults and reported a small short-term improvement in the primary outcome.",
+        "Study A found no detectable difference at its twelve-week follow-up.",
+        "Study A excluded people older than 70.",
+        "Study B used an observational cohort and reported an association in the same direction.",
+        "Study B could not exclude residual socioeconomic confounding.",
+        "Study C was a preregistered randomized replication and found no detectable primary-outcome difference.",
+        "Study C's uncertainty interval excluded the large effect estimated by Study A.",
+        "Study D reported benefit only in a nonprespecified subgroup.",
+        "Study D's interaction test was not distinguishable from no interaction.",
+        "Study E reported 4 adverse-event discontinuations among 50 treated participants and 1 among 51 controls.",
+        "No study was powered to estimate uncommon serious harms.",
+        "The longest follow-up among the five studies was twelve weeks.",
+        "Two studies measured a secondary biomarker.",
+        "The biomarker changed in one study and did not change in the other.",
+        "No study tested whether the biomarker mediated the clinical outcome.",
+        "Study A used paper questionnaires.",
+        "Study B used electronic questionnaires.",
+        "Study C used both questionnaire formats.",
+        "Recruitment advertisements used blue text in Study A.",
+        "Study B's recruitment advertisement color was not recorded.",
+        "Study C held visits on weekdays.",
+        "Study D held visits on weekdays and weekends.",
+        "Study E did not report visit scheduling.",
+        "Three studies were conducted in urban sites.",
+        "One study was conducted in a rural site.",
+        "One study did not report site classification.",
+        "Study A retained 79 of 84 randomized participants.",
+        "Study C retained 122 of 130 randomized participants.",
+        "Study E retained 94 of 101 randomized participants.",
+        "Attrition reasons differed across studies.",
+        "The intervention manuals differed in session length.",
+        "No head-to-head comparison of manuals was performed.",
+        "Outcome assessors were blinded in Studies A and C.",
+        "Assessor blinding was not reported in Studies D and E.",
+        "Study B relied on self-reported outcomes.",
+        "No study measured cost effectiveness.",
+        "No study measured outcomes in children.",
+        "No study measured outcomes beyond twelve weeks.",
+        "The studies did not establish a persistent effect.",
+        "Overall, the verified claims contain short-term positive, null replication, subgroup, and harm-related evidence."
+      ],
+      "gold": {"must_preserve": ["Short-term positive result alongside stronger null replication", "No established persistence", "Adverse-event discontinuations", "No supported mechanism"], "permissible_optional": ["Restricted populations", "Follow-up and attrition details"], "forbidden_inferences": ["The intervention is effective.", "The intervention is safe.", "The biomarker explains benefit.", "Effects persist."], "critical_limitations": ["Null replication", "No long-term evidence", "Harms evidence"], "distractor_indices": [15,16,17,18,19,20,21,22,23,24,25]}
+    },
+
+    {
+      "fixture_id": "H01", "partition": "holdout", "domain": "oncology", "strata": ["safety", "surrogate"],
+      "claims": ["The treatment reduced a surrogate biomarker at eight weeks.", "Overall survival was not measured.", "Severe fatigue occurred more often in the treatment group.", "The trial enrolled only patients with early-stage disease."],
+      "gold": {"must_preserve": ["Surrogate change without survival evidence", "Severe fatigue"], "permissible_optional": ["Early-stage population"], "forbidden_inferences": ["The treatment prolongs life.", "The treatment is safe."], "critical_limitations": ["Surrogate outcome and harms"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "H02", "partition": "holdout", "domain": "education", "strata": ["critical_omission", "population_boundary"],
+      "claims": ["A tutoring program improved mathematics scores in one urban selective school.", "A replication in three nonselective schools found no detectable improvement.", "Tutors in the first study were program developers.", "The replications used independently trained tutors."],
+      "gold": {"must_preserve": ["Positive original and null multisite replication"], "permissible_optional": ["Tutor differences"], "forbidden_inferences": ["Tutoring improves mathematics achievement."], "critical_limitations": ["Null broader replication"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "H03", "partition": "holdout", "domain": "epidemiology", "strata": ["collider_confounding", "causal"],
+      "claims": ["Among hospitalized patients, supplement use was associated with lower mortality.", "Supplement use before hospitalization was self-selected.", "The analysis included only hospitalized patients.", "Preexisting health behavior was incompletely measured."],
+      "gold": {"must_preserve": ["Selected observational association"], "permissible_optional": [], "forbidden_inferences": ["Supplements prevent death.", "Patients should use the supplement."], "critical_limitations": ["Selection and confounding"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "H04", "partition": "holdout", "domain": "climate science", "strata": ["temporal", "mechanism"],
+      "claims": ["Surface temperature declined for two years after the eruption.", "Aerosol concentration increased during the same period.", "The observational record did not isolate the aerosol pathway from other eruption effects.", "Temperatures returned to the prior trend by year three."],
+      "gold": {"must_preserve": ["Temporary concurrent changes", "Mechanism not isolated"], "permissible_optional": [], "forbidden_inferences": ["Aerosols caused sustained cooling."], "critical_limitations": ["Temporary effect and unresolved mechanism"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "H05", "partition": "holdout", "domain": "maternal health", "strata": ["numeric", "safety"],
+      "claims": ["Preterm birth occurred in 7 of 96 intervention pregnancies and 9 of 94 controls.", "The interval estimate was compatible with benefit and no difference.", "Maternal dizziness was reported by 14 intervention participants and 5 controls.", "The study did not assess rare neonatal harms."],
+      "gold": {"must_preserve": ["7/96 versus 9/94 with uncertain difference", "More maternal dizziness"], "permissible_optional": [], "forbidden_inferences": ["The intervention prevents preterm birth.", "The intervention is safe."], "critical_limitations": ["Uncertain benefit and harms"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "H06", "partition": "holdout", "domain": "organizational science", "strata": ["significance", "subgroup"],
+      "claims": ["The policy had no detectable average effect on employee retention.", "Retention was descriptively higher among employees hired in the previous year.", "No subgroup interaction test was reported.", "The subgroup analysis was selected after viewing the data."],
+      "gold": {"must_preserve": ["Null average result and post hoc subgroup pattern"], "permissible_optional": [], "forbidden_inferences": ["The policy improves retention for recent hires."], "critical_limitations": ["Post hoc subgroup without interaction test"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "H07", "partition": "holdout", "domain": "microbiology", "strata": ["absence_of_evidence", "generalization"],
+      "claims": ["No resistant colonies were observed in 20 laboratory cultures under the tested dose.", "The detection method could miss resistant colonies below 1 percent prevalence.", "Only one bacterial strain was tested.", "Clinical infections were not studied."],
+      "gold": {"must_preserve": ["No observed resistance under limited detection and one strain"], "permissible_optional": [], "forbidden_inferences": ["Resistance does not develop.", "The treatment prevents clinical resistance."], "critical_limitations": ["Detection limit and single strain"], "distractor_indices": []}
+    },
+    {
+      "fixture_id": "H08", "partition": "holdout", "domain": "criminal justice", "strata": ["framing", "mixed_null"],
+      "claims": ["One city reported fewer rearrests after implementing the diversion program.", "Two matched cities found no detectable rearrest difference.", "Program participation in all cities was voluntary.", "Employment outcomes were not measured.", "Participant satisfaction was high in the first city."],
+      "gold": {"must_preserve": ["One positive and two null city results", "Voluntary participation"], "permissible_optional": ["Satisfaction in first city"], "forbidden_inferences": ["Diversion reduces recidivism.", "The program improves employment."], "critical_limitations": ["Mixed results and selection"], "distractor_indices": [4]}
+    }
+  ]
+}

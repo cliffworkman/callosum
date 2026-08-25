@@ -10,6 +10,22 @@ fn test_dir(label: &str) -> PathBuf {
     path
 }
 
+fn assert_no_content_stdout(stdout: &[u8], context: &str) {
+    let text = String::from_utf8_lossy(stdout);
+    let cleaned = text
+        .lines()
+        .filter(|line| {
+            *line
+                != "warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead."
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        cleaned.trim().is_empty(),
+        "{context} emitted stdout: {text}"
+    );
+}
+
 fn fake_config(root: &Path) -> DeveloperConfig {
     let runtime = root.join(if cfg!(windows) {
         "llama-server.exe"
@@ -708,27 +724,70 @@ else:
 assert items and all(item.claim_indices for item in items)
 runtime.close()
 "#;
-    let output = Command::new(python)
-        .arg("-c")
-        .arg(python_code)
-        .current_dir(source_root)
-        .env(ENABLE_ENV, "1")
-        .env(DESCRIPTOR_ENV, &descriptor)
-        .env_remove(RUNTIME_ENV)
-        .env_remove(MODEL_ENV)
-        .env_remove(GPU_LAYERS_ENV)
-        .env_remove(BUILD_BACKEND_ENV)
-        .env_remove(THREADS_ENV)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-        .unwrap();
-    assert!(
-        output.status.success(),
-        "production Python Overview path failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(output.stdout.is_empty());
+    if std::env::var_os("CALLOSUM_OVERVIEW_QUALIFICATION_SKIP_SMOKE").is_none() {
+        let output = Command::new(&python)
+            .arg("-c")
+            .arg(python_code)
+            .current_dir(&source_root)
+            .env(ENABLE_ENV, "1")
+            .env(DESCRIPTOR_ENV, &descriptor)
+            .env_remove(RUNTIME_ENV)
+            .env_remove(MODEL_ENV)
+            .env_remove(GPU_LAYERS_ENV)
+            .env_remove(BUILD_BACKEND_ENV)
+            .env_remove(THREADS_ENV)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "production Python Overview path failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_no_content_stdout(&output.stdout, "production Python Overview path");
+    }
+
+    // Optional Phase-4 scientific qualification stage. This remains an ignored developer test:
+    // the managed owner publishes the readiness-gated descriptor, while the reusable Python
+    // harness exercises the unchanged production prompt/complete()/parser/reference path.
+    if let (Some(candidate), Some(stage), Some(repetitions), Some(qualification_output)) = (
+        std::env::var_os("CALLOSUM_OVERVIEW_QUALIFICATION_CANDIDATE"),
+        std::env::var_os("CALLOSUM_OVERVIEW_QUALIFICATION_STAGE"),
+        std::env::var_os("CALLOSUM_OVERVIEW_QUALIFICATION_REPETITIONS"),
+        std::env::var_os("CALLOSUM_OVERVIEW_QUALIFICATION_OUTPUT"),
+    ) {
+        let qualification = Command::new(&python)
+            .arg(source_root.join("tools/qualification/overview_battery.py"))
+            .arg("execute")
+            .arg("--candidate")
+            .arg(candidate)
+            .arg("--stage")
+            .arg(stage)
+            .arg("--repetitions")
+            .arg(repetitions)
+            .arg("--output")
+            .arg(&qualification_output)
+            .current_dir(&source_root)
+            .env(ENABLE_ENV, "1")
+            .env(DESCRIPTOR_ENV, &descriptor)
+            .env_remove(RUNTIME_ENV)
+            .env_remove(MODEL_ENV)
+            .env_remove(GPU_LAYERS_ENV)
+            .env_remove(BUILD_BACKEND_ENV)
+            .env_remove(THREADS_ENV)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .unwrap();
+        assert!(
+            qualification.status.success(),
+            "Overview qualification stage failed: {}",
+            String::from_utf8_lossy(&qualification.stderr)
+        );
+        assert_no_content_stdout(&qualification.stdout, "Overview qualification stage");
+        assert!(Path::new(&qualification_output).is_file());
+    }
     assert!(std::fs::read_dir(root.join("managed-local-ai"))
         .unwrap()
         .all(|entry| matches!(

@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-25 — Increment 500: synthesis Overview model qualification battery
+- **Files:** frozen developer-only qualification profile/fixtures/controls/codebook/candidate and receipt manifests,
+  reusable Overview qualification runner, exact production reference-filter extraction, managed-live harness bridge,
+  focused tests, and `INCREMENT-500-NOTES.md`.
+- **What:** preregisters and executes a staged, task-specific scientific qualification battery through the unchanged
+  production Overview prompt, `complete()`, parser, and reference filter; records exact artifact/template/runtime/
+  execution identity; and preserves raw synthetic responses outside git for reproducibility.
+- **Result:** eight candidates registered, seven executed, zero reliability survivors. Qwen 1.5B alone legitimately
+  advanced to Stage 2 and failed structural/max-context gates; six failed Stage 1; Ministral 3B failed closed at
+  managed execution observation. Qwen 0.5B's mistakenly run Stage 2 sample is excluded because its 87.5% Stage 1
+  sentence compliance missed the frozen 90% gate. No human candidate adjudication/holdout ran; nothing qualified.
+- **Boundary:** no user-facing Automatic AI, model selection/download, routing, provider, prompt, parser, lifecycle,
+  cache, LAN, cloud-fallback, or scientific-semantic production change. Managed local remains developer-only.
+- **Verification:** root suite **2487 passed, 3 skipped**; focused Python **48 passed**; Rust **22 passed, 3 live
+  tests ignored by default**; Cargo check/strict Clippy, Ruff, Bandit, Tach, line budget, pre-commit, and diff checks
+  passed. Seven real managed candidate runs completed on Juno; all published receipts proved CPU/zero offload.
+- **Next:** extend the bounded model search without weakening this frozen profile; separately revalidate the managed
+  observer against rebuilt b10516 CUDA trace identity before any CUDA qualification receipt.
+- **Revert:** revert the single Increment 500 commit; raw outputs/models are untracked external research artifacts.
+
 ## 2026-08-24 — Increment 499: managed local runtime identity hardening
 - **Files:** Tauri managed-runtime hashing/manifest/observation/readiness logic, strict Python descriptor validation,
   focused Rust/Python tests, desktop developer docs, LATENCY/CLAUDE contracts, security audit, and

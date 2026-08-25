@@ -16,7 +16,7 @@ from sqlalchemy import Connection, Engine, and_, or_, select, update
 
 from app.backend.api.job_store import JobStore
 from app.backend.persistence.schema import citation_mappings, summaries, summary_sentences
-from app.backend.summarization.overview import OverviewGenerator
+from app.backend.summarization.overview import OverviewGenerator, validated_overview_items
 
 OverviewStatus = Literal["not_requested", "pending", "running", "complete", "failed"]
 OVERVIEW_STALE_AFTER = timedelta(minutes=5)
@@ -149,7 +149,7 @@ def generate_overview(
             verified_claims=overview_input.verified_claims,
             scope_ref=overview_input.scope_ref,
         )
-        items = _validated_items(produced, overview_input.verified_ordinals)
+        items = validated_overview_items(produced, overview_input.verified_ordinals)
         if not items:
             raise ValueError("overview provider returned no usable referenced sentences")
 
@@ -176,17 +176,6 @@ def generate_overview(
             return _read_status(engine, summary_id)
         except Exception:
             return "failed"
-
-
-def _validated_items(produced: object, verified_ordinals: list[int]) -> list[dict[str, object]]:
-    items: list[dict[str, object]] = []
-    for sentence in produced if isinstance(produced, list) else []:
-        ordinals = sorted(
-            {verified_ordinals[index] for index in sentence.claim_indices if 0 <= index < len(verified_ordinals)}
-        )
-        if sentence.text.strip() and ordinals:
-            items.append({"text": sentence.text.strip(), "claim_ordinals": ordinals})
-    return items
 
 
 def _persist_overview(conn: Connection, summary_id: int, items: list[dict[str, object]]) -> bool:

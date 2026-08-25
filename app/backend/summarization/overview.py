@@ -32,3 +32,15 @@ class FakeOverviewGenerator:
 
     def generate(self, *, verified_claims: list[str], scope_ref: dict[str, object]) -> list[OverviewSentence]:
         return list(self.sentences)
+
+
+def validated_overview_items(produced: object, verified_ordinals: list[int]) -> list[dict[str, object]]:
+    """Apply the production sentence/reference filter to untrusted Overview output."""
+    items: list[dict[str, object]] = []
+    for sentence in produced if isinstance(produced, list) else []:
+        ordinals = sorted(
+            {verified_ordinals[index] for index in sentence.claim_indices if 0 <= index < len(verified_ordinals)}
+        )
+        if sentence.text.strip() and ordinals:
+            items.append({"text": sentence.text.strip(), "claim_ordinals": ordinals})
+    return items

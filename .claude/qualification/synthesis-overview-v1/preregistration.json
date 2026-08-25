@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "qualification_profile": "synthesis-overview-v1",
+  "frozen_before_candidate_output": true,
+  "task": {
+    "task_id": "synthesis_overview",
+    "prompt_contract_version": "overview-v1",
+    "output_contract": "overview-json-array-v1",
+    "production_prompt_builder": "integrations.gemini.overview._prompt",
+    "production_parser": "integrations.gemini.overview._parse_overview_response",
+    "production_reference_filter": "app.backend.summarization.overview.validated_overview_items"
+  },
+  "runtime": {
+    "family": "llama.cpp",
+    "build": 10516,
+    "upstream_commit": "b95502ba9",
+    "primary_host": "juno",
+    "context_tokens": 4096,
+    "max_output_tokens": 256,
+    "temperature": 0.0,
+    "seed": 42,
+    "threads": 4,
+    "execution_preference": "maximum feasible CUDA offload; exact requested and observed execution recorded"
+  },
+  "partitions": {
+    "calibration": {"fixtures": 4, "qualification_evidence": false},
+    "stage_1": {"fixture_ids": ["Q01", "Q02", "Q03", "Q04", "Q05", "Q06", "Q07", "Q08", "Q09", "Q10", "Q11", "Q12"], "repetitions": 2},
+    "stage_2": {"fixture_ids": "Q01-Q24", "repetitions": 3},
+    "stage_3": {"fixture_ids": "H01-H08", "repetitions": 3}
+  },
+  "scientific_integrity_gates": {
+    "unsupported_substantive_facts": 0,
+    "materially_unsupported_sentences": 0,
+    "semantic_reference_failures": 0,
+    "inferential_upgrades": 0,
+    "critical_omissions": 0,
+    "material_framing_distortions": 0,
+    "authority": "blinded human adjudication"
+  },
+  "reliability_gates": {
+    "stage_1_minimum_http_parse_schema_and_usable": "23/24",
+    "stage_1_structural_reference_invalid_outputs": 0,
+    "stage_1_repeated_fixture_total_failures": 0,
+    "confirmatory_minimum_http_parse_schema_and_usable": "92/96",
+    "confirmatory_structural_reference_invalid_outputs": 0,
+    "confirmatory_each_fixture_minimum_usable_repetitions": "2/3",
+    "maximal_context_fixture_failures": 0,
+    "gross_sentence_count_target": "at least 90% of usable outputs contain 2-4 sentences",
+    "rationale": "Overview is supplementary and safely retryable, so rare safe failures are tolerable; misleading output is not. Structural reference invalidity and silent context loss are never accepted."
+  },
+  "stopping_rules": {
+    "stage_1": "Do not advance clear mechanical failures. Advance candidates satisfying every Stage-1 reliability gate.",
+    "stage_2": "One confirmed material scientific-integrity violation is sufficient to classify the exact configuration not qualified; preserve the output and adjudication.",
+    "stage_3": "Run holdout only after Stage-2 human integrity review passes. Do not tune after holdout.",
+    "search": "Do not stop at the first passing artifact until an independent comparison in the smallest passing size tier is adjudicated.",
+    "all_fail": "Do not weaken gates; classify failure patterns and extend the model search or revise the task contract as a separately versioned study.",
+    "all_pass": "Audit fixture/control sensitivity before accepting the result."
+  },
+  "blinding": {
+    "candidate_identity_hidden": true,
+    "parameter_count_hidden": true,
+    "artifact_size_hidden": true,
+    "latency_hidden": true,
+    "execution_target_hidden": true,
+    "packet_fields": ["opaque_response_id", "verified_claims", "raw_overview", "parsed_sentences"]
+  }
+}

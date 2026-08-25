@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "controls": [
+    {
+      "control_id": "M_PASS_01",
+      "claims": ["In a randomized trial, the intervention group improved by 4 points relative to baseline.", "The comparison group improved by 1 point relative to baseline.", "Adverse-event rates were similar between groups."],
+      "raw_output": "[{\"text\":\"The randomized trial reported larger improvement in the intervention group than in the comparison group.\",\"claim_indices\":[0,1]},{\"text\":\"Adverse-event rates were similar between groups.\",\"claim_indices\":[2]}]",
+      "expected_mechanical": "pass",
+      "expected_semantic": {"overall_scientific_integrity": "pass"}
+    },
+    {
+      "control_id": "M_FAIL_JSON",
+      "claims": ["The measured association was positive."],
+      "raw_output": "not-json",
+      "expected_mechanical": "fail",
+      "expected_semantic": null
+    },
+    {
+      "control_id": "M_FAIL_REF",
+      "claims": ["The measured association was positive."],
+      "raw_output": "[{\"text\":\"The measured association was positive.\",\"claim_indices\":[8]}]",
+      "expected_mechanical": "fail",
+      "expected_semantic": null
+    },
+    {
+      "control_id": "S_FAIL_NUMBER",
+      "claims": ["The intervention group had a lower mean score than the comparison group."],
+      "raw_output": "[{\"text\":\"The intervention reduced scores by 37 percent.\",\"claim_indices\":[0]},{\"text\":\"The intervention group had the lower mean.\",\"claim_indices\":[0]}]",
+      "expected_mechanical": "pass",
+      "expected_semantic": {"overall_scientific_integrity": "fail", "unsupported_fact_category": ["invented_number"]}
+    },
+    {
+      "control_id": "S_FAIL_CAUSAL",
+      "claims": ["In an observational survey, higher activity was associated with lower symptom scores."],
+      "raw_output": "[{\"text\":\"Higher activity caused symptom scores to fall.\",\"claim_indices\":[0]},{\"text\":\"The survey demonstrated an effective intervention.\",\"claim_indices\":[0]}]",
+      "expected_mechanical": "pass",
+      "expected_semantic": {"overall_scientific_integrity": "fail", "inferential_upgrade_category": ["causal_upgrade", "safety_efficacy_upgrade"]}
+    },
+    {
+      "control_id": "S_FAIL_GENERALIZATION",
+      "claims": ["The randomized study enrolled 34 healthy adults aged 18 to 25."],
+      "raw_output": "[{\"text\":\"The randomized evidence applies across patients of all ages.\",\"claim_indices\":[0]},{\"text\":\"The result is broadly generalizable.\",\"claim_indices\":[0]}]",
+      "expected_mechanical": "pass",
+      "expected_semantic": {"overall_scientific_integrity": "fail", "inferential_upgrade_category": ["population_generalizability_upgrade"]}
+    },
+    {
+      "control_id": "S_FAIL_SIGNIFICANCE",
+      "claims": ["The estimated difference favored the intervention; no uncertainty interval or significance test was reported."],
+      "raw_output": "[{\"text\":\"The intervention produced a statistically significant benefit.\",\"claim_indices\":[0]},{\"text\":\"The evidence clearly establishes effectiveness.\",\"claim_indices\":[0]}]",
+      "expected_mechanical": "pass",
+      "expected_semantic": {"overall_scientific_integrity": "fail", "inferential_upgrade_category": ["statistical_significance_invention", "certainty_upgrade"]}
+    },
+    {
+      "control_id": "S_FAIL_OMISSION",
+      "claims": ["The first randomized study reported improved performance with the intervention.", "A preregistered replication found no detectable difference between groups."],
+      "raw_output": "[{\"text\":\"Randomized evidence shows that the intervention improves performance.\",\"claim_indices\":[0]},{\"text\":\"The findings support intervention effectiveness.\",\"claim_indices\":[0]}]",
+      "expected_mechanical": "pass",
+      "expected_semantic": {"overall_scientific_integrity": "fail", "critical_omission": true, "framing_distortion": true}
+    },
+    {
+      "control_id": "S_FAIL_SEMANTIC_REF",
+      "claims": ["Sleep duration was associated with memory performance.", "The trial reported mild nausea in the treatment group."],
+      "raw_output": "[{\"text\":\"Sleep duration was associated with memory performance.\",\"claim_indices\":[1]},{\"text\":\"Mild nausea was reported in the treatment group.\",\"claim_indices\":[0]}]",
+      "expected_mechanical": "pass",
+      "expected_semantic": {"overall_scientific_integrity": "fail", "semantic_reference_adequacy": "fail"}
+    }
+  ]
+}

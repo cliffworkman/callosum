@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "qualification_profile": "synthesis-overview-v1",
+  "starting_head": "a860f1ff7e409c3b6b89e42d6d5f97e8d085a241",
+  "battery_aggregate_sha256": "5fbba390a2fcfbb51121763612fcf8f14cbc8a8fb4462313da160edbb179c707",
+  "host": {
+    "os": "Debian 12",
+    "kernel": "6.1.0-52-amd64",
+    "cpu": "Intel Core i7-8700",
+    "ram_bytes": 16675897344,
+    "gpu": "NVIDIA GeForce RTX 3050",
+    "vram_mib": 8192,
+    "driver": "535.309.01",
+    "cuda_reported": "12.2"
+  },
+  "runtime": {
+    "family": "llama.cpp",
+    "version": "0.1.2-dev build 10516 commit b95502ba9",
+    "launcher_sha256": "ae1a38d0278af16f34faf6b0a8b055a80de7ef5ec71e6af726b6ad34927ed35d",
+    "bundle_manifest_sha256": "e2792c598c4a6347aad5327a6158651b49f4fa76b6f2a235d41a1f16ab19fbd2",
+    "declared_build_backend": "cuda"
+  },
+  "execution": {
+    "requested": {"backend": "cpu", "gpu_layers": 0},
+    "observed": {"backend": "cpu", "gpu_layers": 0},
+    "deviation": "The rebuilt pinned runtime emitted CUDA0 rather than the observer's qualified ggml_cuda marker, so CUDA failed closed and all executable receipts used provable CPU execution."
+  },
+  "generation": {
+    "context_tokens": 4096,
+    "max_output_tokens": 256,
+    "temperature": 0.0,
+    "seed": 42,
+    "threads": 4
+  },
+  "results": [
+    {
+      "receipt_id": "synthesis-overview-v1-C01-cpu0",
+      "candidate_code": "C01",
+      "chat_template_sha256": "4e9918361c284a93880606d182d64da6a9fe97cdc1f5c5a78c1c8840444246fc",
+      "result": "not_qualified",
+      "failed_stage": "stage1_reliability",
+      "reason": "21/24 sentence-count adherence (87.5%), below the preregistered 90% gate; the subsequently run Stage 2 sample was protocol-ineligible and is descriptive only",
+      "result_files": {
+        "stage1": "9883bdd0ee403522eb0f9db58a4102dc45d45b62fa74fe6e5620ac9b0b9e5a41",
+        "stage2": "6dffc6ff59735f1ed6f0410a96a0f600403201d2cf82d179f0636f93e995a546"
+      }
+    },
+    {
+      "receipt_id": "synthesis-overview-v1-C02-cpu0",
+      "candidate_code": "C02",
+      "chat_template_sha256": "8d9e3a3c114fb2053ec500184677af4f7e5f8ec2582443cd535834e68b3ade29",
+      "result": "not_qualified",
+      "failed_stage": "stage1_reliability",
+      "reason": "13 structural-reference failures and 11/24 mechanical passes",
+      "result_files": {"stage1": "55bc2ed91aafec45073b0d2bb1e4e776f9cd2f675377695b16b746d03bdee0c2"}
+    },
+    {
+      "receipt_id": "synthesis-overview-v1-C03-cpu0",
+      "candidate_code": "C03",
+      "chat_template_sha256": "4e9918361c284a93880606d182d64da6a9fe97cdc1f5c5a78c1c8840444246fc",
+      "result": "not_qualified",
+      "failed_stage": "stage2_reliability",
+      "reason": "3 structural-reference failures, 69/72 usable, 0/3 maximal-context repetitions usable, and 54/72 sentence-count adherence",
+      "result_files": {
+        "stage1": "e4ee4d49e07a5f50f58d012dd0b1ccf836a635c703488d715e5765ee0a47693e",
+        "stage2": "5cd4788e29bd0fdf24f75b5dc7e7d69095540b6645370ef2b4800a1037faa70e"
+      }
+    },
+    {
+      "receipt_id": "synthesis-overview-v1-C04-cpu0",
+      "candidate_code": "C04",
+      "chat_template_sha256": "872be49dbb638044ad01b60388f48d469ff2980e5f0dccdc22ec907db54d0788",
+      "result": "not_qualified",
+      "failed_stage": "stage1_reliability",
+      "reason": "4 structural-reference failures and 21/24 usable",
+      "result_files": {"stage1": "83dc56b00b48004070a173c09e108d2b858b522c2620d89f0705bff4e93ea377"}
+    },
+    {
+      "receipt_id": "synthesis-overview-v1-C05-cpu0",
+      "candidate_code": "C05",
+      "chat_template_sha256": "8a58e18acd9ca00a43a285fe6ba3760efbda06b5ab7fb57875bfacd72957ed5e",
+      "result": "not_qualified",
+      "failed_stage": "stage1_reliability",
+      "reason": "12 structural-reference failures, 14/24 usable, and 12/24 sentence-count adherence",
+      "result_files": {"stage1": "18c6b586c5525c79d855cc4bff2405869583d6a9f819e30307f9d54a3a446420"}
+    },
+    {
+      "receipt_id": "synthesis-overview-v1-C06-current-runtime",
+      "candidate_code": "C06",
+      "result": "runtime_incompatible",
+      "failed_stage": "managed_readiness",
+      "reason": "Two isolated starts reached upstream model readiness but Callosum could not prove execution state; no target or qualification output was published."
+    },
+    {
+      "receipt_id": "synthesis-overview-v1-C07-cpu0",
+      "candidate_code": "C07",
+      "chat_template_sha256": "4e9918361c284a93880606d182d64da6a9fe97cdc1f5c5a78c1c8840444246fc",
+      "result": "not_qualified",
+      "failed_stage": "stage1_reliability",
+      "reason": "2 structural-reference failures, 22/24 usable, and 19/24 sentence-count adherence",
+      "result_files": {"stage1": "a497b1f3e87f5a4556a0c7e09e3fdd5c34bd83ab1f294f241b7061ff8797567e"}
+    },
+    {
+      "receipt_id": "synthesis-overview-v1-C08-cpu0",
+      "candidate_code": "C08",
+      "chat_template_sha256": "8a58e18acd9ca00a43a285fe6ba3760efbda06b5ab7fb57875bfacd72957ed5e",
+      "result": "not_qualified",
+      "failed_stage": "stage1_reliability",
+      "reason": "12/24 sentence-count adherence, below the preregistered 90% gross-instruction gate",
+      "result_files": {"stage1": "ac49468932072e15e74b9428088b8e4bd029d92409e0acaeb5db522d06a0bcb0"}
+    }
+  ],
+  "adjudication": {
+    "status": "not_started_no_mechanical_survivor",
+    "reviewers": 0,
+    "blinded": true,
+    "authority": "No scientific qualification was granted; reliability failures are independently disqualifying."
+  },
+  "protocol_deviations": [
+    "C01 was mistakenly advanced after 21/24 Stage 1 sentence-count compliance. Its extra Stage 2 output is retained for audit but excluded from qualification evidence."
+  ],
+  "result": "no_qualified_artifact"
+}
