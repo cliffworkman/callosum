@@ -216,7 +216,7 @@ pub async fn start_if_enabled(
             return Err(ManagedAiError::Spawn);
         }
     };
-    let runtime_observation = observe_child_output(&mut child);
+    let runtime_observation = observe_child_output(&mut child, &runtime_version);
     let handle = match confine_process(child, descriptor_path.clone(), token_path.clone()) {
         Ok(handle) => handle,
         Err(error) => {
@@ -336,6 +336,14 @@ fn parse_i32_env(
 fn build_command(config: &DeveloperConfig, port: u16, token_path: &Path) -> Command {
     let mut command = Command::new(&config.runtime);
     command
+        // Resolve adjacent shared libraries from the allowlisted runtime bundle. Self-contained
+        // Linux llama.cpp packages require this; the same working directory is harmless elsewhere.
+        .current_dir(
+            config
+                .runtime
+                .parent()
+                .expect("validated runtime file has a parent directory"),
+        )
         .args(server_args(config, port, token_path))
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

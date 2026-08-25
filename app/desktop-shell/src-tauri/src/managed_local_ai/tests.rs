@@ -116,6 +116,8 @@ fn server_argv_is_strict_loopback_authenticated_and_shell_free() {
     let root = test_dir("argv");
     let config = fake_config(&root);
     let token_path = root.join("auth-token");
+    let command = build_command(&config, 32123, &token_path);
+    assert_eq!(command.get_current_dir(), config.runtime.parent());
     let args = server_args(&config, 32123, &token_path);
     let values = args
         .iter()
@@ -378,7 +380,9 @@ fn execution_verification_accepts_exact_state_and_rejects_mismatch() {
         ),
     ];
     for (requested, lines, accepted) in cases {
-        let observation = SharedRuntimeObservation::default();
+        let observation = SharedRuntimeObservation::for_runtime_version(
+            "version 0.1.2-dev (build 10516 commit b95502ba9)",
+        );
         for line in lines {
             observation.observe_test_line(line);
         }
@@ -614,6 +618,20 @@ fn live_managed_runtime_routes_existing_python_overview_path() {
     );
     assert!(payload["runtime_binary_digest"].as_str().is_some());
     assert!(payload["runtime_bundle_manifest_digest"].as_str().is_some());
+    eprintln!(
+        "managed-local acceptance identity: {}",
+        serde_json::json!({
+            "runtime_family": payload["runtime_family"],
+            "runtime_version": payload["runtime_version"],
+            "launcher_sha256": payload["runtime_binary_digest"],
+            "bundle_manifest_sha256": payload["runtime_bundle_manifest_digest"],
+            "declared_build_backend": payload["declared_build_backend"],
+            "requested_execution": payload["requested_execution"],
+            "observed_execution": payload["observed_execution"],
+            "model_artifact_sha256": payload["model_artifact_digest"],
+            "chat_template_sha256": payload["chat_template_digest"],
+        })
+    );
     let endpoint = payload["endpoint"].as_str().unwrap();
     let credential_path = PathBuf::from(payload["credential_ref"].as_str().unwrap());
     let token = std::fs::read_to_string(&credential_path).unwrap();
@@ -757,8 +775,11 @@ runtime.close()
         std::env::var_os("CALLOSUM_OVERVIEW_QUALIFICATION_REPETITIONS"),
         std::env::var_os("CALLOSUM_OVERVIEW_QUALIFICATION_OUTPUT"),
     ) {
+        let qualification_runner = std::env::var_os("CALLOSUM_OVERVIEW_QUALIFICATION_RUNNER")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| source_root.join("tools/qualification/overview_battery.py"));
         let qualification = Command::new(&python)
-            .arg(source_root.join("tools/qualification/overview_battery.py"))
+            .arg(qualification_runner)
             .arg("execute")
             .arg("--candidate")
             .arg(candidate)
@@ -833,7 +854,8 @@ fn live_runtime_execution_mismatch_is_not_published() {
     write_private_file(&token_path, token.as_bytes()).unwrap();
     let port = pick_free_port().unwrap();
     let mut child = build_command(&config, port, &token_path).spawn().unwrap();
-    let observation = observe_child_output(&mut child);
+    let version = runtime_version(&config.runtime).unwrap();
+    let observation = observe_child_output(&mut child, &version);
     let handle = confine_process(child, descriptor_path.clone(), token_path.clone()).unwrap();
     let state = ManagedLocalAiState::default();
     *state.0.lock().unwrap() = Some(handle);

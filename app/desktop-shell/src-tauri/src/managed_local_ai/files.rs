@@ -229,11 +229,21 @@ pub(super) fn digest_bytes(value: &str) -> String {
 }
 
 pub(super) fn runtime_version(runtime: &Path) -> Result<String, ManagedAiError> {
-    let output = Command::new(runtime)
+    let mut command = Command::new(runtime);
+    command
+        .current_dir(
+            runtime
+                .parent()
+                .expect("validated runtime file has a parent directory"),
+        )
         .arg("--version")
-        .stdin(Stdio::null())
+        .stdin(Stdio::null());
+    let output = command
         .output()
         .map_err(|_| ManagedAiError::Io("runtime version probe failed"))?;
+    if !output.status.success() {
+        return Err(ManagedAiError::Io("runtime version probe failed"));
+    }
     let combined = format!(
         "{} {}",
         String::from_utf8_lossy(&output.stdout),
