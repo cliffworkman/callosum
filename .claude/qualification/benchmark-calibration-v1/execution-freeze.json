@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "calibration_profile": "benchmark-calibration-v1",
+  "starting_head": "4cb610eb44d16ce7792f7e169946ebbacc9dbb22",
+  "frozen_before_provider_output": true,
+  "base_battery_aggregate_sha256": "5fbba390a2fcfbb51121763612fcf8f14cbc8a8fb4462313da160edbb179c707",
+  "files": {
+    ".claude/qualification/benchmark-calibration-v1/preregistration.json": "3920ddbdf90e89b8eb91f60673bfcd7880b62c8d60744c9e2c4c76e8f1b6af0e",
+    ".claude/qualification/benchmark-calibration-v1/protocol-amendment-1.json": "e7b97b35a7ac49c1e88d546a1b6fdbc2d891225ee9d582937a1956ef80242ebc",
+    ".claude/qualification/benchmark-calibration-v1/exploratory-codebook.md": "949783c3ce16f6db6ff52e0cc39f55bab5714f225e8038ad3d30e860b59d6e35",
+    ".claude/qualification/benchmark-calibration-v1/cost-receipt.schema.json": "4aae5929260be3a65a963a6c427b46b11578e373762378b2bea75d050a816b37",
+    ".claude/qualification/benchmark-calibration-v1/public-benchmark-card.template.json": "a4836c899e67fea27911996862919a78c79447826445127d9120e506eb1dc716",
+    "tools/qualification/overview_cloud_calibration.py": "e0d162b6e60bc85861c4055cdd095e7d3dc9421827ff2d2c1cb27256617b80d4"
+  },
+  "aggregate_sha256": "d081dec2fbfe12a977b4dabb712ba2361ff815bdc90c1b90ed48ad7b4f0451bb",
+  "purpose": "Identity of the amended harness that produced the failed live execution; retained after post-execution lint-only maintenance."
+}

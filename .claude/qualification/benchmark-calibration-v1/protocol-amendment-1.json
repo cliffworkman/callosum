@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "amendment_id": "benchmark-calibration-v1-amendment-1",
+  "initial_freeze_aggregate_sha256": "92eedb123ca08c062adb7c1fed03774528e2e3801abc1c82aa6e93a2572e3457",
+  "reason": "The initial Track B execution encountered a sustained provider rate/quota wall after 31 successful requests, and the separate Track A and Track B processes each initialized their retry counter at zero. The combined execution therefore made 14 retry requests, exceeding the preregistered study-wide maximum of 12.",
+  "invalidated_pilot_receipts": {
+    "track_a_sha256": "9f3c8fe9c6ce5d856ee5cd4536a9f41bb50f9c60c37a44b9f78e3ccb405b9c03",
+    "track_b_sha256": "2c89b480d775b977861c74c583428a0ad9bc21871893c52bc2789bdf38ed306b",
+    "status": "protocol-invalid; retained outside git for audit and excluded from benchmark evidence"
+  },
+  "information_viewed_before_amendment": [
+    "mechanical aggregate counts",
+    "provider error type",
+    "fixture-level request success counts",
+    "token and retry totals"
+  ],
+  "information_not_viewed_before_amendment": [
+    "raw Gemini response text",
+    "semantic annotations",
+    "human judgments",
+    "challenge holdout"
+  ],
+  "operational_changes": {
+    "minimum_seconds_between_requests_per_credential": 6.5,
+    "retry_budget_scope": "study-wide across Track A and Track B",
+    "credential_rotation": "only after a provider rate/quota response"
+  },
+  "scientific_contract_changes": "none",
+  "unchanged": [
+    "historical battery and fixture hashes",
+    "production prompt and parser",
+    "generation settings",
+    "Track A and Track B request counts",
+    "mechanical scorer and gates",
+    "exploratory semantic codebook",
+    "holdout prohibition"
+  ],
+  "rerun_rule": "Discard the initial Track A and Track B executions from evidence and rerun both tracks from the beginning under the amended freeze."
+}

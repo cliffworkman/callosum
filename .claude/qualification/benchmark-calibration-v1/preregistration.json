@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "calibration_profile": "benchmark-calibration-v1",
+  "frozen_before_provider_output": true,
+  "historical_battery": {
+    "profile": "synthesis-overview-v1",
+    "aggregate_sha256": "5fbba390a2fcfbb51121763612fcf8f14cbc8a8fb4462313da160edbb179c707",
+    "interpretation": "unchanged; Phase 5A cannot mutate a historical qualification verdict"
+  },
+  "incumbent": {
+    "provider": "gemini",
+    "requested_model": "gemini-2.5-flash-lite",
+    "configuration_sources": [
+      "app/backend/providers_store.py::_BUILTIN_META",
+      "integrations/gemini/generator.py::LLMConfig"
+    ],
+    "wire_contract": "google-genai models.generate_content",
+    "hosted_identity": "time-bound provider execution receipt; not artifact-reproducible"
+  },
+  "task": {
+    "task_id": "synthesis_overview",
+    "prompt_contract_version": "overview-v1",
+    "output_contract": "overview-json-array-v1",
+    "production_prompt_builder": "integrations.gemini.overview._prompt",
+    "production_parser": "integrations.gemini.overview._parse_overview_response",
+    "production_reference_filter": "app.backend.summarization.overview.validated_overview_items"
+  },
+  "generation": {
+    "context_tokens": 4096,
+    "max_output_tokens": 256,
+    "temperature": 0.0,
+    "seed": 42,
+    "thinking_budget_tokens": 0,
+    "response_mime_type": null,
+    "note": "Benchmark-only explicit settings reproduce the frozen local assay; normal production Gemini currently leaves these SDK settings implicit."
+  },
+  "track_a": {
+    "fixture_ids": ["Q01", "Q02", "Q03", "Q04", "Q05", "Q06", "Q07", "Q08", "Q09", "Q10", "Q11", "Q12"],
+    "repetitions": 2,
+    "requests": 24,
+    "verdict": "apply every frozen synthesis-overview-v1 Stage 1 reliability gate literally"
+  },
+  "track_b": {
+    "fixture_ids": "Q01-Q24",
+    "repetitions": 3,
+    "requests": 72,
+    "evidence_class": "descriptive calibration evidence regardless of Track A verdict"
+  },
+  "holdout": {
+    "opened": false,
+    "runner_support": false
+  },
+  "cost": {
+    "currency": "USD",
+    "default_ceiling": 2.0,
+    "planned_requests": 96,
+    "maximum_retry_requests": 12,
+    "maximum_requests": 108,
+    "gemini_standard_paid_price_per_million": {
+      "input": 0.10,
+      "output_including_thinking": 0.40,
+      "cached_input": 0.01
+    },
+    "pricing_source": "https://ai.google.dev/gemini-api/docs/pricing",
+    "pricing_access_date": "2026-08-25"
+  },
+  "credentials": {
+    "approved_env_slots": ["GOOGLE_API_KEY_1", "GOOGLE_API_KEY_2", "GOOGLE_API_KEY_3"],
+    "rotation_only_on": ["rate_limit", "quota_exhaustion"],
+    "maximum_retry_per_request": 1,
+    "never_serialized": true
+  },
+  "blinding": {
+    "local_comparator": "Phase 4 C03 legitimate Stage 2 outputs",
+    "comparator_evidence": "descriptive only; its historical not-qualified verdict remains unchanged",
+    "semantic_controls_first": true,
+    "candidate_identity_hidden": true,
+    "response_order_randomized": true,
+    "decode_key_separate": true,
+    "human_semantic_authority": true
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Callosum cloud benchmark cost receipt",
+  "type": "object",
+  "required": ["schema_version", "provider", "requested_model", "stages", "totals"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "provider": {"type": "string"},
+    "requested_model": {"type": "string"},
+    "stages": {"type": "array"},
+    "totals": {
+      "type": "object",
+      "required": ["requests", "retries", "input_tokens", "output_tokens", "usage_missing_requests", "estimated_cost_usd"]
+    }
+  },
+  "additionalProperties": true
+}

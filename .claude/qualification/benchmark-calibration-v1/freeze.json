@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "calibration_profile": "benchmark-calibration-v1",
+  "starting_head": "4cb610eb44d16ce7792f7e169946ebbacc9dbb22",
+  "frozen_before_provider_output": true,
+  "base_battery_aggregate_sha256": "5fbba390a2fcfbb51121763612fcf8f14cbc8a8fb4462313da160edbb179c707",
+  "files": {
+    ".claude/qualification/benchmark-calibration-v1/preregistration.json": "6324ef6a455ae16b89b43d7b61be0e28638390ec7d33e99cc514a86305722cdb",
+    ".claude/qualification/benchmark-calibration-v1/protocol-amendment-1.json": "e7b97b35a7ac49c1e88d546a1b6fdbc2d891225ee9d582937a1956ef80242ebc",
+    ".claude/qualification/benchmark-calibration-v1/exploratory-codebook.md": "aad07aa3639d5747b5b8d0a585b5fd8590254e3461017391bb27bc6aa624ecf7",
+    ".claude/qualification/benchmark-calibration-v1/cost-receipt.schema.json": "edfa01f220395e09281117d14a47d418eda4677ad4a28f9164443ac416ae0d58",
+    ".claude/qualification/benchmark-calibration-v1/public-benchmark-card.template.json": "a4836c899e67fea27911996862919a78c79447826445127d9120e506eb1dc716",
+    "tools/qualification/overview_cloud_calibration.py": "37731eef4ed5ba9ee1c91f36b5359b82bd6b5bc5e3e8ea3a879f2f6d00f5bb24"
+  },
+  "aggregate_sha256": "d2ac2c7fa036258b56cebdc2804c8b8b165aff2038a48bb326c83e477ec83b72"
+}

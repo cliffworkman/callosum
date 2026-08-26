@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "calibration_profile": "benchmark-calibration-v1",
+  "status": "gemini_provider_infrastructure_failure",
+  "historical_battery_aggregate_sha256": "5fbba390a2fcfbb51121763612fcf8f14cbc8a8fb4462313da160edbb179c707",
+  "initial_calibration_aggregate_sha256": "92eedb123ca08c062adb7c1fed03774528e2e3801abc1c82aa6e93a2572e3457",
+  "amended_calibration_aggregate_sha256": "d081dec2fbfe12a977b4dabb712ba2361ff815bdc90c1b90ed48ad7b4f0451bb",
+  "provider_execution": {
+    "provider": "gemini",
+    "requested_model": "gemini-2.5-flash-lite",
+    "provider_returned_model": "gemini-2.5-flash-lite",
+    "identity_kind": "time-bound hosted alias",
+    "test_date_utc": "2026-08-26",
+    "api_wire": "google-genai models.generate_content"
+  },
+  "cost_preflight": {
+    "planned_requests": 96,
+    "maximum_requests_with_retries": 108,
+    "planned_input_tokens": 21373,
+    "planned_maximum_output_tokens": 24576,
+    "conservative_maximum_input_tokens": 33205,
+    "conservative_maximum_output_tokens": 27648,
+    "conservative_paid_tier_cost_usd": 0.0143797,
+    "active_ceiling_usd": 2.0,
+    "allowed": true
+  },
+  "invalidated_initial_pilot": {
+    "reason": "Track B encountered a sustained provider quota wall and the two-process runner exceeded the study-wide retry ceiling.",
+    "track_a": {
+      "logical_requests": 24,
+      "http_success": 24,
+      "retries": 2,
+      "input_tokens": 4768,
+      "output_tokens": 2888,
+      "raw_receipt_sha256": "9f3c8fe9c6ce5d856ee5cd4536a9f41bb50f9c60c37a44b9f78e3ccb405b9c03"
+    },
+    "track_b": {
+      "logical_requests": 72,
+      "http_success": 31,
+      "retries": 12,
+      "input_tokens": 6123,
+      "output_tokens": 3732,
+      "raw_receipt_sha256": "2c89b480d775b977861c74c583428a0ad9bc21871893c52bc2789bdf38ed306b"
+    },
+    "qualification_evidence": false,
+    "calibration_evidence": false
+  },
+  "amended_track_a": {
+    "logical_requests": 24,
+    "http_success": 6,
+    "provider_failures": 18,
+    "retry_requests": 12,
+    "input_tokens_with_usage_metadata": 1187,
+    "output_tokens_with_usage_metadata": 756,
+    "usage_missing_attempts": 30,
+    "paid_list_price_equivalent_usd": 0.0004211,
+    "raw_receipt_sha256": "398d76958ab7bf918fc16f610bbc3e9d394da5921375f44a310be87f042f7258",
+    "frozen_stage_1_verdict": "indeterminate_provider_infrastructure_failure"
+  },
+  "all_generation_attempts": {
+    "logical_requests": 120,
+    "retry_requests": 26,
+    "http_success": 61,
+    "provider_failures": 59,
+    "input_tokens_with_usage_metadata": 12078,
+    "output_tokens_with_usage_metadata": 7376,
+    "cached_input_tokens": 0,
+    "reasoning_tokens": 0,
+    "usage_missing_attempts": 85,
+    "paid_list_price_equivalent_usd": 0.0041582,
+    "actual_billed_amount": "not exposed by the API; authorized credentials appeared to use a quota-limited tier"
+  },
+  "outcomes": {
+    "track_a_original_qualification_result": "not_established",
+    "track_b_complete": false,
+    "human_packet_created": false,
+    "challenge_holdout": "unopened",
+    "scientific_conclusion": "none"
+  },
+  "privacy": {
+    "data_sent": "frozen synthetic qualification claims only",
+    "credentials_recorded": false,
+    "raw_provider_text_committed": false,
+    "private_paths_recorded": false
+  }
+}
