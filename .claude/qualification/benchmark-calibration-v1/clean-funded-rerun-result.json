@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "calibration_profile": "benchmark-calibration-v1",
+  "execution_start_head": "c960aa7df460d8f0035f63243d70d2110478afba",
+  "test_timestamp_utc": "2026-08-26T02:11:26.994063+00:00",
+  "battery_aggregate_sha256": "5fbba390a2fcfbb51121763612fcf8f14cbc8a8fb4462313da160edbb179c707",
+  "calibration_aggregate_sha256": "d2ac2c7fa036258b56cebdc2804c8b8b165aff2038a48bb326c83e477ec83b72",
+  "historical_evidence_excluded": [
+    "initial Track A pilot",
+    "initial partial Track B pilot",
+    "partial amended Track A run"
+  ],
+  "provider_execution": {
+    "provider": "gemini",
+    "requested_model": "gemini-2.5-flash-lite",
+    "provider_returned_model": "gemini-2.5-flash-lite",
+    "identity_kind": "time-bound hosted alias",
+    "api_wire": "google-genai models.generate_content",
+    "client_host": "Windows 11 x86-64",
+    "provider_compute": "undisclosed/unknown"
+  },
+  "generation": {
+    "max_output_tokens": 256,
+    "temperature": 0.0,
+    "seed": 42,
+    "thinking_budget_tokens": 0
+  },
+  "preflight": {
+    "planned_logical_requests": 96,
+    "maximum_retry_requests": 12,
+    "maximum_attempts": 108,
+    "planned_input_tokens": 21373,
+    "planned_maximum_output_tokens": 24576,
+    "conservative_paid_list_price_usd": 0.0143797,
+    "active_ceiling_usd": 2.0,
+    "result": "allowed",
+    "receipt_sha256": "02e66a937a8722b2475f376a67f495af8c6f56044a1e44713a3f1d0460f2e093"
+  },
+  "track_a": {
+    "logical_requests": 24,
+    "attempts": 24,
+    "retries": 0,
+    "http_success": 24,
+    "usable": 24,
+    "structural_reference_failures": 0,
+    "sentence_adherence": 22,
+    "sentence_adherence_denominator": 24,
+    "suspected_truncation": 0,
+    "verdict": "passes_synthesis_overview_v1_stage1_mechanics",
+    "fixture_pattern": {
+      "Q01": "2/2 usable; 2/2 sentence-adherent",
+      "Q02": "2/2 usable; 2/2 sentence-adherent",
+      "Q03": "2/2 usable; 2/2 sentence-adherent",
+      "Q04": "2/2 usable; 0/2 sentence-adherent",
+      "Q05": "2/2 usable; 2/2 sentence-adherent",
+      "Q06": "2/2 usable; 2/2 sentence-adherent",
+      "Q07": "2/2 usable; 2/2 sentence-adherent",
+      "Q08": "2/2 usable; 2/2 sentence-adherent",
+      "Q09": "2/2 usable; 2/2 sentence-adherent",
+      "Q10": "2/2 usable; 2/2 sentence-adherent",
+      "Q11": "2/2 usable; 2/2 sentence-adherent",
+      "Q12": "2/2 usable; 2/2 sentence-adherent"
+    },
+    "provider_latency_seconds": {
+      "total": 21.8465753,
+      "median": 0.64550785,
+      "p90": 0.76202325,
+      "min": 0.5471949,
+      "max": 6.9199722
+    },
+    "raw_receipt_sha256": "aa2851ecf40d16df34ef4043832e460dc88edbffc22c4f368f4754786b0c6304"
+  },
+  "track_b": {
+    "evidence_class": "descriptive_calibration",
+    "logical_requests": 72,
+    "attempts": 72,
+    "retries": 0,
+    "http_success": 72,
+    "usable": 69,
+    "structural_reference_failures": 3,
+    "sentence_adherence": 66,
+    "sentence_adherence_denominator": 69,
+    "suspected_truncation": 3,
+    "fixture_topology": {
+      "Q01": "3/3 usable",
+      "Q02": "3/3 usable",
+      "Q03": "3/3 usable",
+      "Q04": "3/3 usable; 0/3 sentence-adherent",
+      "Q05": "3/3 usable",
+      "Q06": "3/3 usable",
+      "Q07": "3/3 usable",
+      "Q08": "3/3 usable",
+      "Q09": "3/3 usable",
+      "Q10": "3/3 usable",
+      "Q11": "3/3 usable",
+      "Q12": "3/3 usable",
+      "Q13": "3/3 usable",
+      "Q14": "3/3 usable",
+      "Q15": "3/3 usable",
+      "Q16": "3/3 usable",
+      "Q17": "3/3 usable",
+      "Q18": "3/3 usable",
+      "Q19": "3/3 usable",
+      "Q20": "3/3 usable",
+      "Q21": "3/3 usable",
+      "Q22": "3/3 usable",
+      "Q23": "3/3 usable",
+      "Q24": "0/3 usable; 3/3 truncated at cap; 3/3 structural-reference failures"
+    },
+    "provider_latency_seconds": {
+      "total": 56.8445019,
+      "median": 0.6484249,
+      "p90": 0.77023171,
+      "min": 0.4994294,
+      "max": 6.1578625
+    },
+    "raw_receipt_sha256": "da3f5774f1573b31224454e8ffb26d7a923c8276a630389af8db8e9bdf9a64b2"
+  },
+  "fresh_token_cost": {
+    "logical_requests": 96,
+    "attempts": 96,
+    "successful_requests": 96,
+    "retries": 0,
+    "failed_attempts": 0,
+    "input_tokens": 21373,
+    "output_tokens": 11978,
+    "cached_input_tokens": 0,
+    "reasoning_tokens": 0,
+    "usage_missing_attempts": 0,
+    "paid_list_price_equivalent_usd": 0.0069285,
+    "actual_billed_cost": "not exposed by provider"
+  },
+  "blinded_packet": {
+    "semantic_controls": 9,
+    "opaque_candidates": 2,
+    "candidate_responses": 144,
+    "packet_sha256": "be16f671b3a3e326344002be82c3f9246fd522c3d4175daa53a776936afdfdbc",
+    "decode_key_sha256": "dbb032707b91c348d92062fde69a9bb7fe2cb76283aef6720a5402cfd23d3fb4",
+    "decode_key_separate": true,
+    "identity_label_scan": "pass",
+    "human_review": "pending"
+  },
+  "challenge_holdout": "unopened",
+  "other_provider_status": {
+    "openai": "funded_but_not_executed",
+    "anthropic": "funded_but_not_executed"
+  },
+  "decision": "ready_for_blinded_human_calibration"
+}

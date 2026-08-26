@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "benchmark_version": "benchmark-calibration-v1",
+  "status": "draft_pending_blinded_human_calibration",
+  "test_date": "2026-08-25/26",
+  "callosum_commit": "c960aa7df460d8f0035f63243d70d2110478afba",
+  "execution_class": "cloud",
+  "provider": "gemini",
+  "requested_model": "gemini-2.5-flash-lite",
+  "provider_returned_model_metadata": "gemini-2.5-flash-lite",
+  "hosted_identity_limitation": "Time-bound provider alias; serving implementation is not artifact-reproducible.",
+  "client_host": "Windows 11 x86-64",
+  "provider_compute": "undisclosed/unknown",
+  "task_id": "synthesis_overview",
+  "prompt_contract": "overview-v1",
+  "battery_aggregate_sha256": "5fbba390a2fcfbb51121763612fcf8f14cbc8a8fb4462313da160edbb179c707",
+  "calibration_aggregate_sha256": "d2ac2c7fa036258b56cebdc2804c8b8b165aff2038a48bb326c83e477ec83b72",
+  "track_a": {
+    "fixtures": 12,
+    "repetitions": 2,
+    "http_and_usable": "24/24",
+    "structural_reference_failures": "0/24",
+    "sentence_adherence": "22/24",
+    "suspected_truncation": "0/24",
+    "verdict": "passes synthesis-overview-v1 Stage 1 mechanics"
+  },
+  "track_b": {
+    "fixtures": 24,
+    "repetitions": 3,
+    "http_success": "72/72",
+    "usable": "69/72",
+    "structural_reference_failures": "3/72; all Q24 maximal-context repetitions",
+    "sentence_adherence": "66/69 usable",
+    "suspected_truncation": "3/72; all Q24 maximal-context repetitions"
+  },
+  "scientific_error_categories": "pending blinded human review",
+  "severity_profile": "pending blinded human review",
+  "detectability_profile": "pending; measures evidence-present expert-review detectability, not ordinary-use detectability",
+  "verification_burden": "pending blinded human review",
+  "provider_request_latency_seconds": {
+    "total": 78.6910772,
+    "track_a_median": 0.64550785,
+    "track_b_median": 0.6484249
+  },
+  "token_use": {
+    "input": 21373,
+    "output": 11978,
+    "cached_input": 0,
+    "reasoning": 0
+  },
+  "estimated_monetary_cost_usd": 0.0069285,
+  "actual_billed_cost": "not exposed by provider",
+  "known_limitations": [
+    "Synthetic fixtures only.",
+    "Hosted model aliases may change behind the requested identifier.",
+    "No blinded human scientific adjudication has been completed.",
+    "All three maximal-context Q24 repetitions exhausted the output cap and were mechanically unusable.",
+    "Detectability ratings are conditional on a reviewer seeing the supplied evidence.",
+    "Critical-omission and framing-distortion judgments have comparatively high reviewer/authorship dependence."
+  ],
+  "recommended_verification_cautions": [
+    "Do not interpret mechanical passage as scientific qualification.",
+    "Complete semantic-control validation before candidate review.",
+    "Keep candidate identities decoded only after blinded coding is locked."
+  ]
+}

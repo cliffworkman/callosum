@@ -18,3 +18,8 @@ calibration set, or human packet was produced; see `provider-infrastructure-fail
 
 `execution-freeze.json` preserves the exact amended runner identity used live. `freeze.json` is the validated
 post-execution harness identity after lint-only maintenance and is the manifest to use for a future full rerun.
+
+The clean funded rerun subsequently completed from request 1 under `freeze.json`; no excluded output was reused.
+See `clean-funded-rerun-result.json`, `public-benchmark-card.clean-funded-rerun.json`, and
+`reviewer-guidance.clean-funded-rerun.md`. The mixed packet and separate decode key remain gitignored pending human
+review. The challenge holdout remains unopened.
