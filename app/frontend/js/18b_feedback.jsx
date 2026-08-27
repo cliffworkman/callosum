@@ -196,9 +196,9 @@ function FeedbackDialog({ onClose }) {
           <fieldset className="feedback-type-tabs">
             <legend>Report type</legend>
             <label><input type="radio" name="feedback-type" value="bug" checked={draft.report_type === "bug"}
-              onChange={() => change("report_type", "bug")} /> Bug report</label>
+              onChange={() => change("report_type", "bug")} /> Bug Report</label>
             <label><input type="radio" name="feedback-type" value="feature" checked={draft.report_type === "feature"}
-              onChange={() => change("report_type", "feature")} /> Feature request</label>
+              onChange={() => change("report_type", "feature")} /> Feature Request</label>
           </fieldset>
           <div className="feedback-grid">
             {field("title", "Title", { required: true, maxLength: 160 })}
@@ -219,13 +219,13 @@ function FeedbackDialog({ onClose }) {
               <label className="settings-field"><span className="settings-field-label">Is it reproducible?</span>
                 <select className="settings-input" value={draft.reproducibility} onChange={event => change("reproducibility", event.target.value)}>
                   <option value="always">Always</option><option value="sometimes">Sometimes</option>
-                  <option value="once">Happened once</option><option value="not_yet">Not tried again</option>
+                  <option value="once">Happened Once</option><option value="not_yet">Not Tried Again</option>
                 </select>
               </label>
               <label className="settings-field"><span className="settings-field-label">Reporter-assessed impact</span>
                 <select className="settings-input" value={draft.reporter_assessed_impact} onChange={event => change("reporter_assessed_impact", event.target.value)}>
-                  <option value="blocking">Blocking my work</option><option value="major">Major impact</option>
-                  <option value="normal">Normal impact</option><option value="minor">Minor impact</option>
+                  <option value="blocking">Blocking My Work</option><option value="major">Major Impact</option>
+                  <option value="normal">Normal Impact</option><option value="minor">Minor Impact</option>
                 </select>
               </label>
             </div>
@@ -244,8 +244,8 @@ function FeedbackDialog({ onClose }) {
               {field("operating_system", "Operating system", { required: true, maxLength: 128 })}
               <label className="settings-field"><span className="settings-field-label">Installation or packaging type</span>
                 <select className="settings-input" value={draft.installation_type} onChange={event => change("installation_type", event.target.value)}>
-                  <option value="tauri">Tauri desktop</option><option value="browser">Browser</option>
-                  <option value="source">Source checkout</option><option value="other">Other</option>
+                  <option value="tauri">Tauri Desktop</option><option value="browser">Browser</option>
+                  <option value="source">Source Checkout</option><option value="other">Other</option>
                 </select>
               </label>
             </div>
@@ -270,7 +270,7 @@ function FeedbackDialog({ onClose }) {
           </p>}
           {copyMessage && <p className="feedback-state" role="status">{copyMessage}</p>}
           <div className="settings-actions feedback-actions">
-            <button type="button" className="btn btn-ghost" onClick={copy}>Copy exact report</button>
+            <button type="button" className="btn btn-ghost" onClick={copy}>Copy Exact Report</button>
             <span className="feedback-action-spacer" />
             <button type="button" className="btn btn-ghost" disabled={submitting} onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={submitting || !capability.enabled || result?.ok}>

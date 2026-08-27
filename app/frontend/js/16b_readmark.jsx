@@ -53,7 +53,7 @@ function ReadPriorityControl({ paper, onChanged, demoLocked }) {
         className={"paper-read" + (read ? " is-read" : "")}
         title={read ? "Read — click to mark unread" : "Mark as read"}
         onClick={toggleRead}
-      >{read ? "✓ read" : "○ unread"}</button>
+      >{read ? "✓ Read" : "○ Unread"}</button>
       <span className="paper-priority-wrap">
         <button
           className={"paper-priority pr-" + (priority || "none")}

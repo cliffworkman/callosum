@@ -492,7 +492,7 @@ function CitationStylesSettings() {
                 <p className="citation-style-summary">
                   Source: {citationStyleProvenanceLabel(selected, catalog)}
                   {selected.provenance.source_url &&
-                    <> · <a href={selected.provenance.source_url} target="_blank" rel="noreferrer">View source</a></>}
+                    <> · <a href={selected.provenance.source_url} target="_blank" rel="noreferrer">View Source</a></>}
                   {selected.provenance.installed_at && ` · Installed ${citationStyleDateLabel(selected.provenance.installed_at)}`}
                   {selected.provenance.last_checked_at && ` · Checked ${citationStyleDateLabel(selected.provenance.last_checked_at)}`}
                   {selected.provenance.locally_modified_at && ` · Edited ${citationStyleDateLabel(selected.provenance.locally_modified_at)}`}
@@ -509,7 +509,7 @@ function CitationStylesSettings() {
                 </label>
                 <button type="button" className="btn btn-primary" disabled={busy || selected.application_default}
                   onClick={() => update({ set_default: true, mark_used: true }, "Application default saved.")}>
-                  {selected.application_default ? "Application default" : "Use as application default"}
+                  {selected.application_default ? "Application Default" : "Use as Application Default"}
                 </button>
               </div>
               <span className="settings-sub citation-style-default-note">
@@ -518,15 +518,15 @@ function CitationStylesSettings() {
               <div className="citation-style-personal-actions">
                 {selected.custom && selected.independent &&
                   <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setEditorStyle(selected)}>
-                    Edit source
+                    Edit Source
                   </button>}
                 <button type="button" className="btn btn-ghost" disabled={busy}
                   onClick={() => duplicateSelected(!(selected.custom && selected.independent))}>
-                  {selected.custom && selected.independent ? "Duplicate" : "Duplicate to edit"}
+                  {selected.custom && selected.independent ? "Duplicate" : "Duplicate to Edit"}
                 </button>
                 {["repository", "url"].includes(selected.provenance?.source_type) &&
                   <button type="button" className="btn btn-ghost" disabled={busy} onClick={checkSelectedUpdate}>
-                    {busy ? "Checking…" : "Check for updates"}
+                    {busy ? "Checking…" : "Check for Updates"}
                   </button>}
                 {selected.custom &&
                   <>

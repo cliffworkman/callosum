@@ -77,12 +77,12 @@ function MethodCreditButton({ items, onChanged }) {
     }
   };
   const label = done
-    ? "✓ added to library"
+    ? "✓ Added to Library"
     : state.status === "adding"
-      ? "adding…"
+      ? "Adding…"
       : state.status === "error"
-        ? "add failed — retry"
-        : "＋ add missing to library";
+        ? "Add Failed — Retry"
+        : "＋ Add Missing to Library";
   return (
     <button className="btn-link" disabled={done || inFlight} onClick={addMissing} title={state.status === "error" ? "The import didn't complete — click to try again." : undefined}>
       {label}

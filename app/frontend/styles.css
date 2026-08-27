@@ -973,6 +973,12 @@
   .grim-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 8px 0; }
   .grim-form label { display: flex; flex-direction: column; font-size: 10px; color: var(--ink-3); gap: 2px; }
   .grim-in { width: 64px; font-family: var(--mono); font-size: 12px; padding: 3px 5px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); }
+  /* 2026-08-27 (backlog #60): .grim-in's compact 3px padding left a visible gap under the row's flex-end-
+     aligned .btn-primary (5px) -- scoped to THIS form only (`.grim-in` is also used bare elsewhere, e.g.
+     .credit-author-head's compact icon-button row, which stays untouched -- a different, already-reviewed
+     compact pairing, not this defect). */
+  .grim-form .grim-in, .grim-form .btn { height: var(--control-h); box-sizing: border-box; }
+  .grim-form .btn { display: inline-flex; align-items: center; justify-content: center; }
   .grim-result { margin: 8px 0; }
   .grim-line { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
   .grim-k { font-family: var(--mono); font-size: 11px; color: var(--ink-3); width: 64px; }
@@ -995,6 +1001,10 @@
   .es-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 8px 0; }
   .es-form label { display: flex; flex-direction: column; font-size: 10px; color: var(--ink-3); gap: 2px; }
   .es-in { width: 78px; font-family: var(--mono); font-size: 12px; padding: 3px 5px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); }
+  /* 2026-08-27 (backlog #60): same .grim-form fix, same reason -- scoped to THIS form only (.es-in is also
+     used bare in .credit-author-head's compact icon-button row, untouched, same rationale as .grim-in above). */
+  .es-form .es-in, .es-form .btn { height: var(--control-h); box-sizing: border-box; }
+  .es-form .btn { display: inline-flex; align-items: center; justify-content: center; }
   .es-sel { width: auto; min-width: 120px; }
   .es-result { margin: 10px 0; font-size: 12px; }
   .es-value { margin-bottom: 3px; }
@@ -2152,6 +2162,12 @@
     min-width: 0; padding: 6px 8px; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
     background: var(--panel); color: var(--ink); font: 12px var(--sans);
   }
+  /* 2026-08-27 (backlog #60): the same "input/button/select sharing one row at different heights" defect the
+     .searchbar fix addressed -- .lib-sort's select rendered visibly shorter than its input/button neighbors
+     here too. Same scoped recipe, this container only. */
+  .wip-root-form input, .wip-root-form .btn { height: var(--control-h); box-sizing: border-box; }
+  .wip-root-form .btn { display: inline-flex; align-items: center; justify-content: center; }
+  .wip-root-form select.lib-sort { height: var(--control-h); box-sizing: border-box; border-radius: var(--radius); }
   .wip-root-error { grid-column: 1 / -1; color: var(--danger); font-size: 11px; }
   .wip-card { border-left: 3px solid transparent; }
   .wip-card:hover { border-left-color: var(--wip-line); }
@@ -2765,6 +2781,10 @@
     border: 1px solid var(--line-2); border-radius: var(--radius-sm); padding: 4px 10px; min-width: 180px;
   }
   .mypubs-pubs-search:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  /* 2026-08-27 (backlog #60): a search-box-plus-sort-select row, the exact pattern the .searchbar fix targeted --
+     just implemented as its own bespoke container that fix didn't reach. */
+  .mypubs-pubs-controls .mypubs-pubs-search { height: var(--control-h); box-sizing: border-box; }
+  .mypubs-pubs-controls select.lib-sort { height: var(--control-h); box-sizing: border-box; border-radius: var(--radius); }
   /* inc 118 (SP2): group-by-domain toggle + grouped sections (header + cards behind a left rule). */
   .mypubs-group-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-2); cursor: pointer; }
   .mypubs-domain-group { margin-bottom: 14px; }

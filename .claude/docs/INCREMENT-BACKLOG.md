@@ -30,15 +30,6 @@
 
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
-- **#59 Title-Case retrospective.** DESIGN.md now has a rule that button/toggle/dropdown labels use Title Case
-  (2026-08-27, prompted by "Auto-Refresh"/"Mark All Read" in Feed) — that same fix was only applied to the
-  controls concretely touched in that change. A full app-wide pass is still needed: audit every button, toggle,
-  and dropdown label for Title Case compliance and fix stragglers.
-- **#60 Control-height retrospective.** DESIGN.md now has a canonical `--control-h` token (2026-08-27, prompted
-  by visibly mismatched heights across the input/select/buttons in Feed's and Search's own `.searchbar` rows) —
-  applied there only (the shared `.searchbar` container, covering Feed/Search/Library-header/WIP-filters). A
-  full app-wide pass is still needed: audit every other button/input/select for height consistency and apply
-  `--control-h` (or a documented, deliberate exception) wherever it's missing.
 - **#61 `OpenAlexAuthorClient` caches a failed fetch as a permanent "no result."** Found live (2026-08-27) while
   verifying Feed's Author-follow flow: a transient `httpx`/Brotli decompression error on one real OpenAlex
   response got written to `external_api_cache` with `status_code=NULL`, and `_fetch()`'s cache-read branch

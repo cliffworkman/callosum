@@ -80,7 +80,7 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
     const selectedSource = override && override.source != null ? override.source : source;
     const selectedLabel = override && override.sourceLabel
       ? override.sourceLabel
-      : (selectedSource ? ((sources.find(s => s.kind === selectedSource) || {}).label || selectedSource) : "All sources");
+      : (selectedSource ? ((sources.find(s => s.kind === selectedSource) || {}).label || selectedSource) : "All Sources");
     if (override) { setQ(query); setSource(selectedSource || ""); }
     const gen = (searchGenRef.current += 1);
     setStatus("loading"); setError(""); setCursor(-1); setExpanded(new Set()); setRelevance({});
@@ -180,17 +180,17 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
             const h = history[Number(e.target.value)];
             if (h) runSearch(h);
           }} title="Recall and re-run a recent Search query">
-            <option value="">Recent searches</option>
+            <option value="">Recent Searches</option>
             {history.map((h, i) => <option key={`${h.source || "all"}-${h.q}-${i}`} value={i}>
-              {h.q} · {h.sourceLabel || h.source || "All sources"}
+              {h.q} · {h.sourceLabel || h.source || "All Sources"}
             </option>)}
           </select>
           <button className="btn btn-primary" onClick={clearSearchHistory} disabled={!history.length}
-            title="Clear recent Search query history stored in this browser">Clear history</button>
+            title="Clear recent Search query history stored in this browser">Clear History</button>
           {onOpenWanted && <button className="btn btn-primary" onClick={onOpenWanted} title="Papers you want an OA copy of — re-check open-access sources">Wanted</button>}
           {onOpenGaps && <button className="btn btn-primary" onClick={onOpenGaps} title="Works related to several of your papers that you don't have yet — references you cite, or newer work citing you">Gaps</button>}
           {onOpenOverlooked && <button className="btn btn-primary" onClick={onOpenOverlooked} title="Per axis: works relevant to it but under-cited for their year — work the field may have overlooked">Overlooked</button>}
-          {onOpenBeyondSaved && <button className="btn btn-primary" onClick={onOpenBeyondSaved} title="Beyond-library citation suggestions you flagged with Save for later while writing">Saved for later</button>}
+          {onOpenBeyondSaved && <button className="btn btn-primary" onClick={onOpenBeyondSaved} title="Beyond-library citation suggestions you flagged with Save for later while writing">Saved for Later</button>}
         </div>
         <div className="discover-hint">
           Public metadata search · source choice controls where to query; the complete returned list is shown (nothing AI-filtered) · <b>j/k</b> move · <b>s</b> save · <b>Enter</b> abstract

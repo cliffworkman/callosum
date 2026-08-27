@@ -121,7 +121,7 @@ function SynthesisSourceDiagnostic({ diagnostic, onOpenTextHealth }) {
   return (
     <div className="synth-coverage synth-coverage-warn">
       {diagnostic.text}
-      {onOpenTextHealth && <button className="btn btn-link" onClick={onOpenTextHealth}>Open scoped Text Health</button>}
+      {onOpenTextHealth && <button className="btn btn-link" onClick={onOpenTextHealth}>Open Scoped Text Health</button>}
     </div>
   );
 }

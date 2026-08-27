@@ -143,13 +143,13 @@ function LmmPaper({ paperId, onOpenPaper, active }) {
   return (
     <div className="detail-statcheck">
       <span className="detail-cite-label">{meta ? meta.title : "This paper"}</span>
-      <DemoMethodAction label="Audit reporting" />
+      <DemoMethodAction label="Audit Reporting" />
       {!meta
         ? <span className="tag-suggest-empty">loading…</span>
         : !hasText
           ? <span className="tag-suggest-empty">Process a PDF first — the auditor reads the paper's extracted text.</span>
           : state.status === "idle" && !isDemoMode()
-            ? <button className="btn-link" title="Audit this paper's mixed-model reporting — local, no AI" onClick={run}>Audit reporting</button>
+            ? <button className="btn-link" title="Audit this paper's mixed-model reporting — local, no AI" onClick={run}>Audit Reporting</button>
             : null}
       {state.status === "running" && <span className="tag-suggest-empty">auditing…</span>}
       {state.status === "error" && <div className="axis-err">Couldn't audit: {state.error}</div>}

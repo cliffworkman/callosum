@@ -126,7 +126,7 @@ function OnboardingWizard({ onDone, onMyPubsRefreshed, onScanned, onImported, on
         <div className="axis-modal-head">
           <span>Welcome to Callosum — {ONBOARDING_STEP_LABELS[stepId]}</span>
           {stepId !== "done" &&
-            <button className="axis-link" disabled={busy} onClick={finish}>Skip setup</button>}
+            <button className="axis-link" disabled={busy} onClick={finish}>Skip Setup</button>}
         </div>
         <div className="onboarding-body">{body}</div>
         <div className="onboarding-nav axis-form-actions">

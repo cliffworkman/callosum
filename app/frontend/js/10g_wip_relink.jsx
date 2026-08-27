@@ -28,7 +28,7 @@ function WipRelink({ manuscript, onRelinked }) {
     <button className="btn-ghost" disabled={readOnly}
       title={readOnly ? "Relinking requires the local app." : undefined}
       onClick={() => { setEditing(value => !value); setError(""); }}>
-      {editing ? "Cancel" : "Relink folder"}
+      {editing ? "Cancel" : "Relink Folder"}
     </button>
     {editing && <form onSubmit={submit}>
       <input aria-label="New manuscript folder" placeholder="Full path to the relocated manuscript folder"

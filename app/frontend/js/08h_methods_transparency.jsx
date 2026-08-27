@@ -89,13 +89,13 @@ function TransparencyPaper({ paperId, onOpenPaper, onOpenMetaPreregistration, ac
   return (
     <div className="detail-statcheck">
       <span className="detail-cite-label">{meta ? meta.title : "This paper"}</span>
-      <DemoMethodAction label="Check disclosures" />
+      <DemoMethodAction label="Check Disclosures" />
       {!meta
         ? <span className="tag-suggest-empty">loading…</span>
         : !hasText
           ? <span className="tag-suggest-empty">Process a PDF first — the auditor reads the paper's extracted text.</span>
           : state.status === "idle" && !isDemoMode()
-            ? <button className="btn-link" title="Detect this paper's open-science disclosures — local, no AI" onClick={run}>Check disclosures</button>
+            ? <button className="btn-link" title="Detect this paper's open-science disclosures — local, no AI" onClick={run}>Check Disclosures</button>
             : null}
       {state.status === "running" && <span className="tag-suggest-empty">checking…</span>}
       {state.status === "error" && <div className="axis-err">Couldn't check: {state.error}</div>}
@@ -213,7 +213,7 @@ function RegistrationReferenceActions({ paperId, attachments, onChanged }) {
       <label className="settings-field-label" htmlFor={`registration-reference-${paperId}`}>Registration URL, DOI, or identifier</label>
       <div className="settings-actions registration-source-row">
         <input id={`registration-reference-${paperId}`} className="settings-input" value={value} onChange={e => setValue(e.target.value)} placeholder="https://osf.io/… or 10.17605/OSF.IO/…" />
-        <button className="btn btn-ghost" disabled={status.state === "working" || !value.trim()} onClick={addReference}>Save reference</button>
+        <button className="btn btn-ghost" disabled={status.state === "working" || !value.trim()} onClick={addReference}>Save Reference</button>
       </div>
     </div>
     <div className="settings-actions">
@@ -224,10 +224,10 @@ function RegistrationReferenceActions({ paperId, attachments, onChanged }) {
       <label className="settings-field-label" htmlFor={`registration-attachment-${paperId}`}>Existing attachment</label>
       <div className="settings-actions registration-source-row">
         <select id={`registration-attachment-${paperId}`} className="settings-input" value={selectedAttachment} onChange={e => setSelectedAttachment(e.target.value)}>
-          <option value="">Choose an existing attachment…</option>
+          <option value="">Choose an Existing Attachment…</option>
           {attachments.filter(a => a.role !== "preregistration").map(a => <option value={a.id} key={a.id}>{a.filename || `Attachment ${a.id}`} · {a.role || "legacy role"}</option>)}
         </select>
-        <button className="btn btn-ghost" disabled={status.state === "working" || !selectedAttachment} onClick={markAttachment}>Mark as preregistration</button>
+        <button className="btn btn-ghost" disabled={status.state === "working" || !selectedAttachment} onClick={markAttachment}>Mark as Preregistration</button>
       </div>
     </div>}
     {status.state === "error" && <div className="settings-note settings-note-err">{status.error}</div>}
@@ -322,7 +322,7 @@ function RegistrationDiscovery({ paperId, paperTitle, onOpenPaper, refreshKey = 
         <div><h2 className="settings-card-title">Registration source</h2><div className="settings-sub">{statusLabel}</div></div>
         <button className="btn btn-ghost" disabled={isDemoMode() || state.status === "running" || state.status === "working"} onClick={showDisclosure}
           title={isDemoMode() ? "Registry search is unavailable in the static online demo." : undefined}>
-          {links.length ? "Search again" : "Find registration"}
+          {links.length ? "Search Again" : "Find Registration"}
         </button>
       </div>
       {state.status === "consent" && <div className="provider-egress-warn registration-discovery-consent">
@@ -401,12 +401,12 @@ function RegistrationCandidateCard({ link, confirmed, versions = [], busy, onCon
     </div>}
     <div className="settings-actions">
       {link.canonical_url && <button className="axis-link" onClick={() => window.open(link.canonical_url, "_blank", "noopener")}>Open externally</button>}
-      {!confirmed && <button className="btn btn-ghost" disabled={isDemoMode() || busy || unavailableLink || ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status)} onClick={onConfirm}>Confirm link</button>}
+      {!confirmed && <button className="btn btn-ghost" disabled={isDemoMode() || busy || unavailableLink || ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status)} onClick={onConfirm}>Confirm Link</button>}
       {!confirmed && <button className="btn-link" disabled={isDemoMode() || busy} onClick={onReject}>Dismiss</button>}
       {confirmed && canAcquire && <button className="btn btn-ghost" disabled={isDemoMode() || busy} onClick={onAcquire}>
         {latestVersion ? "Check for an updated version" : "Acquire registration"}
       </button>}
-      {confirmed && <button className="btn-link" disabled={isDemoMode() || busy} onClick={onIncorrect}>Incorrect registration match</button>}
+      {confirmed && <button className="btn-link" disabled={isDemoMode() || busy} onClick={onIncorrect}>Incorrect Registration Match</button>}
     </div>
     {confirmed && !latestVersion && !canAcquire && <div className="settings-sub">This provider has no bounded acquisition route. Attach a local registration PDF below.</div>}
     <div className="settings-sub registration-candidate-caveat">Candidate evidence supports inspection, not a claim that this is the paper's correct registration or that the paper followed it.</div>

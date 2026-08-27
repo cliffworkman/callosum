@@ -131,7 +131,7 @@ function LibreOfficeSettings() {
   return (
     <>
       <p className="eyebrow">LibreOffice plugin</p>
-      <button className="btn btn-ghost settings-integration-action" disabled={busy} onClick={install}>{busy ? "Installing…" : "Install plugin"}</button>
+      <button className="btn btn-ghost settings-integration-action" disabled={busy} onClick={install}>{busy ? "Installing…" : "Install Plugin"}</button>
       <div className="settings-sub">
         Installs the Callosum extension — a <b>Callosum</b> menu + toolbar in Writer (Add citation, Suggest, Refresh, Style, Flatten). Click Install, confirm in LibreOffice's Extension Manager, then restart Writer. The app must be running for the plugin to reach it. <button className="btn-link" onClick={() => downloadAsset("/integrations/libreoffice/plugin.oxt", "callosum.oxt")}>Download .oxt.</button>
       </div>
@@ -156,7 +156,7 @@ function WordSettings() {
   return (
     <>
       <p className="eyebrow">Microsoft Word add-in (desktop)</p>
-      <button className="btn btn-ghost settings-integration-action" disabled={busy} onClick={openFolder}>{busy ? "Opening…" : "Open add-in folder"}</button>
+      <button className="btn btn-ghost settings-integration-action" disabled={busy} onClick={openFolder}>{busy ? "Opening…" : "Open Add-in Folder"}</button>
       <div className="settings-sub">
         A task pane in <b>desktop</b> Word (Windows/Mac) that searches your library and inserts citations — everything stays on your machine. One-time setup: <b>1)</b> trust a local certificate, run <code>npx office-addin-dev-certs install</code>; <b>2)</b> run Callosum over HTTPS, <code>python tools/run_https.py</code>, then open <code>https://localhost:8443</code>; <b>3)</b> download the manifest and sideload it in Word (see the adapter README). <button className="btn-link" onClick={() => downloadAsset("/integrations/word/manifest.xml", "callosum-word-manifest.xml")}>Download manifest.</button>
       </div>
@@ -215,7 +215,7 @@ function RemoteAccessSettings() {
     <>
       <p className="eyebrow">Google Docs (Remote access)</p>
       <div className="settings-row settings-integration-toggle">
-        <span className="settings-field-label settings-integration-control-title">Allow citing from Google Docs</span>
+        <span className="settings-field-label settings-integration-control-title">Allow Citing from Google Docs</span>
         <button type="button" className={"settings-switch" + (on ? " on" : "")} role="switch" aria-checked={on}
           aria-label="Allow remote access" disabled={busy} onClick={on ? disable : enable}><span className="settings-knob" /></button>
       </div>
@@ -224,7 +224,7 @@ function RemoteAccessSettings() {
       </span>
       {on &&
         <div className="settings-keyrow">
-          <button className="btn btn-ghost" disabled={busy} onClick={regenerate}>Regenerate token</button>
+          <button className="btn btn-ghost" disabled={busy} onClick={regenerate}>Regenerate Token</button>
         </div>}
       {token &&
         <div className="settings-field">
@@ -368,7 +368,7 @@ function AccountSettings() {
         </label>
         {signedIn
           ? <div className="settings-account-row">
-              <button className="btn btn-ghost" disabled={busy} onClick={signOut}>{busy ? "Signing out…" : "Sign out"}</button>
+              <button className="btn btn-ghost" disabled={busy} onClick={signOut}>{busy ? "Signing out…" : "Sign Out"}</button>
               <div className="settings-note">Signed in{acct.display_name ? " as " + acct.display_name : (acct.email ? " as " + acct.email : "")}{acct.orcid ? " · ORCID " + acct.orcid : ""}{acct.is_superuser ? " · superuser" : ""}.</div>
             </div>
           : acct && acct.configured
@@ -510,11 +510,11 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
               <div className="settings-subsection">
                 <p className="eyebrow">Appearance</p>
                 <div className="settings-row">
-                  <span className="settings-sub">Dark mode</span>
+                  <span className="settings-sub">Dark Mode</span>
                   <button
                     type="button"
                     className={"settings-switch" + (dark ? " on" : "")}
-                    role="switch" aria-checked={dark} aria-label="Dark mode"
+                    role="switch" aria-checked={dark} aria-label="Dark Mode"
                     onClick={() => onTheme(dark ? "light" : "dark")}
                   ><span className="settings-knob" /></button>
                 </div>
@@ -533,7 +533,7 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
             <div className="settings-section settings-section-wide">
               <div className="settings-axis-controls">
                 <div className="settings-row settings-axis-control">
-                  <span className="eyebrow settings-axis-title">Hide uncertain papers by default</span>
+                  <span className="eyebrow settings-axis-title">Hide Uncertain Papers by Default</span>
                   <button
                     type="button"
                     className={"settings-switch" + (hideUncertainDefault ? " on" : "")}

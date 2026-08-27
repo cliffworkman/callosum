@@ -172,21 +172,21 @@ function WipFilters({ wip }) {
       <input placeholder="Search manuscript title, type, journal, or notes…" value={wip.query}
         onChange={event => wip.setQuery(event.target.value)} spellCheck={false} />
       <select className="lib-sort" value={wip.stage} onChange={event => wip.setStage(event.target.value)}>
-        <option value="">All stages</option>
+        <option value="">All Stages</option>
         {WIP_STAGES.map(item => <option key={item[0]} value={item[0]}>{item[1]}</option>)}
       </select>
       <select className="lib-sort" value={wip.workspaceState}
         onChange={event => wip.setWorkspaceState(event.target.value)}>
         <option value="active">Active</option><option value="paused">Paused</option>
-        <option value="archived">Archived</option><option value="missing">Missing folder</option>
-        <option value="">All states</option>
+        <option value="archived">Archived</option><option value="missing">Missing Folder</option>
+        <option value="">All States</option>
       </select>
       <span className="lib-sort-label">Sort</span>
       <select className="lib-sort" value={wip.sort} onChange={event => wip.setSort(event.target.value)}>
-        <option value="activity">Last modified</option><option value="title">Title</option>
+        <option value="activity">Last Modified</option><option value="title">Title</option>
         <option value="stage">Stage</option><option value="deadline">Deadline</option>
-        <option value="created">Created</option><option value="open_tasks">Open tasks</option>
-        <option value="unresolved_findings">Unresolved findings</option>
+        <option value="created">Created</option><option value="open_tasks">Open Tasks</option>
+        <option value="unresolved_findings">Unresolved Findings</option>
       </select>
     </div>
     <div className="wip-facets">
@@ -196,23 +196,23 @@ function WipFilters({ wip }) {
         onChange={event => patch({ targetJournal: event.target.value })} />
       <select aria-label="Filter by deadline" value={wip.filters.deadline}
         onChange={event => patch({ deadline: event.target.value })}>
-        <option value="">Any deadline</option><option value="overdue">Overdue</option>
-        <option value="next-30-days">Next 30 days</option><option value="none">No deadline</option>
+        <option value="">Any Deadline</option><option value="overdue">Overdue</option>
+        <option value="next-30-days">Next 30 Days</option><option value="none">No Deadline</option>
       </select>
       <select aria-label="Filter by modified date" value={wip.filters.modifiedDays}
         onChange={event => patch({ modifiedDays: event.target.value })}>
-        <option value="">Modified anytime</option><option value="7">Past 7 days</option>
-        <option value="30">Past 30 days</option><option value="90">Past 90 days</option>
+        <option value="">Modified Anytime</option><option value="7">Past 7 Days</option>
+        <option value="30">Past 30 Days</option><option value="90">Past 90 Days</option>
       </select>
-      <WipFilterToggle label="Open tasks" active={wip.filters.hasOpenTasks}
+      <WipFilterToggle label="Open Tasks" active={wip.filters.hasOpenTasks}
         onClick={() => patch({ hasOpenTasks: !wip.filters.hasOpenTasks })} />
-      <WipFilterToggle label="Unresolved findings" active={wip.filters.hasUnresolvedFindings}
+      <WipFilterToggle label="Unresolved Findings" active={wip.filters.hasUnresolvedFindings}
         onClick={() => patch({ hasUnresolvedFindings: !wip.filters.hasUnresolvedFindings })} />
-      <WipFilterToggle label="Stale checks" active={wip.filters.hasStaleChecks}
+      <WipFilterToggle label="Stale Checks" active={wip.filters.hasStaleChecks}
         onClick={() => patch({ hasStaleChecks: !wip.filters.hasStaleChecks })} />
-      <WipFilterToggle label="Missing primary" active={wip.filters.missingPrimary}
+      <WipFilterToggle label="Missing Primary" active={wip.filters.missingPrimary}
         onClick={() => patch({ missingPrimary: !wip.filters.missingPrimary })} />
-      {active && <button className="axis-link" onClick={() => wip.setFilters(WIP_EMPTY_FILTERS)}>Clear filters</button>}
+      {active && <button className="axis-link" onClick={() => wip.setFilters(WIP_EMPTY_FILTERS)}>Clear Filters</button>}
     </div>
   </div>;
 }

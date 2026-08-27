@@ -239,11 +239,11 @@ def test_discover_search_and_journals_recent_history_controls():
     assert 'title="Recall and re-run a recent Search query"' in raw
     assert 'title="Clear the current query and results (cancels an in-flight search)"' in raw
     assert 'setQ(""); setItems([]); setError(""); setCursor(-1)' in raw
-    assert "Clear ×" in raw and "Recent searches" in raw and "Clear history" in raw
+    assert "Clear ×" in raw and "Recent Searches" in raw and "Clear History" in raw
     assert 'const PUB_HISTORY_KEY = "callosum.discover.journalsHistory.v1"' in raw
     assert "function _pubLoadHistory()" in raw and "const rememberRun = (entry) =>" in raw
     assert 'title="Recall and re-run a recent Journals search"' in raw
-    assert "Recent journal searches" in raw
+    assert "Recent Journal Searches" in raw
     assert "run(null, h)" in raw
     assert "const [lastRunInput, setLastRunInput] = useState(null)" in raw
     assert 'if (state.status === "done") run(val, lastRunInput || undefined)' in raw
@@ -304,12 +304,12 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
     assert "<WipDetails manuscript={t.manuscript} onUpdate={wip.updateManuscript}" in raw
     assert "onRelinked={wip.reload} onOpenPaper={onOpenPdf} workspace externalRefresh={wip.refresh} />" in raw
     assert '["overview", "structure", "tasks", "files", "references", "checks", "activity"]' in raw
-    assert "Create checkpoint" in raw
+    assert "Create Checkpoint" in raw
     assert "Run statcheck" in raw
-    assert "Check transparency" in raw
-    assert "Audit LMM reporting" in raw
-    assert "Audit Bayesian reporting" in raw
-    assert "Audit meta-analysis reporting" in raw
+    assert "Check Transparency" in raw
+    assert "Audit LMM Reporting" in raw
+    assert "Audit Bayesian Reporting" in raw
+    assert "Audit Meta-Analysis Reporting" in raw
     assert (
         "function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText, selectText, "
         "renderResult, progressManagedBy })" in raw
@@ -328,12 +328,12 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
     assert "Mismatches, reporting gaps, coherence flags, and advisories are retained" in raw
     assert "showRegistrationReferences={false}" in raw
     assert "running && <ProgressBar />" in raw
-    assert "Open source file" in raw
+    assert "Open Source File" in raw
     assert "An empty history is not a clean manuscript." in raw
     assert "run.coverage" in raw
     assert "finding.details_json.computed_p" in raw
     assert "function WipRelink({ manuscript, onRelinked })" in raw
-    assert "Relink folder" in raw
+    assert "Relink Folder" in raw
     assert "Used in WIPs" in raw
     assert "onOpenWip={ctx.onOpenWip}" in raw
     assert "onRelinked={wip.reload}" in raw
@@ -341,8 +341,8 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
     assert 'role="button" tabIndex={0}' in raw
     assert "function WipFilters({ wip })" in raw
     assert 'params.set("has_open_tasks", "true")' in raw
-    assert "Unresolved findings" in raw
-    assert "Missing primary" in raw
+    assert "Unresolved Findings" in raw
+    assert "Missing Primary" in raw
     assert "manuscript.stale_check_count" in raw
     assert "function WipContextMenu({ menu, onClose, onOpen, onUpdate, onRescan, onDelete })" in raw
     assert 'event.key === "ContextMenu"' in raw
@@ -408,8 +408,8 @@ def test_method_credit_button_checks_and_imports_only_missing_sources():
     raw = assemble_jsx()
     assert "function MethodCreditButton(" in raw
     assert 'apiPost("/library/credit/status", { dois })' in raw
-    assert '"＋ add missing to library"' in raw
-    assert '"✓ added to library"' in raw
+    assert '"＋ Add Missing to Library"' in raw
+    assert '"✓ Added to Library"' in raw
     assert "state.importedAll ? [] : missingCreditItems(allItems, state.present)" in raw
     assert 'apiPost("/library/import", { content: JSON.stringify(missing), format: "csl-json" })' in raw
     assert raw.count("<MethodCreditButton items=") >= 12
@@ -640,7 +640,7 @@ def test_synthesis_failure_recovery_actions_are_wired():
     assert "No source chunks matched this query" in raw
     assert "no extracted text" in raw
     assert "stale extraction" in raw
-    assert "Open scoped Text Health" in raw
+    assert "Open Scoped Text Health" in raw
     assert "Technical detail" in raw
 
 
@@ -726,7 +726,7 @@ def test_pdf_text_health_controls_are_present_and_local_only_worded():
     assert "Reprocess missing section labels" in raw
     assert "Stale extraction version" in raw
     assert "counts.stale_chunk_version" in raw
-    assert "details for OCR" in raw
+    assert "Details for OCR" in raw
     assert "Show in Library" in raw
     assert "onShowLibrary={showTextHealthFilter}" in raw
     assert "libraryTextHealthFilter" in raw
@@ -945,10 +945,10 @@ def test_registration_comparison_ui_is_paired_reviewable_stale_aware_and_scorele
     css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
     assert "function RegistrationComparisonWorkspace(" in raw
     assert "Compare now" in source and "Re-run comparison" in source
-    assert "Include relevant supplements" in source
+    assert "Include Relevant Supplements" in source
     assert "Expand beyond expected sections when bounded search is weak" in source
-    assert "Open registration evidence" in source and "Open publication evidence" in source
-    assert "Inspect stored registration" in source and "Open registration attachment" in source
+    assert "Open Registration Evidence" in source and "Open Publication Evidence" in source
+    assert "Inspect Stored Registration" in source and "Open Registration Attachment" in source
     assert "Mark reviewed" in source and "Dismiss flag" in source and "Save note" in source
     assert "Incorrect registration match" in raw
     assert "Comparison stale" in source
@@ -1413,7 +1413,7 @@ def test_citation_style_manager_surface_and_deep_link():
     assert "/source/validate`" in raw
     assert "expected_revision: loaded.revision" in raw
     assert "Validate & preview" in raw
-    assert "Edit source" in raw and "Duplicate to edit" in raw
+    assert "Edit Source" in raw and "Duplicate to Edit" in raw
     assert "Discard unsaved citation-style changes?" in raw
     assert "locally_modified_at" in raw
     assert "Existing documents that use it will not render" in raw
@@ -1423,7 +1423,7 @@ def test_citation_style_manager_surface_and_deep_link():
     assert "window.confirm(" in raw
     assert "Personal style" in raw
     assert '["installed", "Installed"]' in raw
-    assert "Use as application default" in raw
+    assert "Use as Application Default" in raw
     assert "Existing documents keep their embedded style and locale." in raw
     assert 'window.location.hash === "#citation-styles" ? "settings"' in raw
     assert '<SettingsCard title="Citation styles" id="citation-styles">' in raw

@@ -74,7 +74,7 @@ function GapsModal({ onClose, onChanged }) {
             <button className={`tags-srcfilter-btn${direction === "forward" ? " on" : ""}`} onClick={() => setDirection("forward")}>Works citing you</button>
           </div>
           <select className="lib-sort" value={axisId} onChange={e => setAxisId(e.target.value)} title="Scope to an axis">
-            <option value="">All papers</option>
+            <option value="">All Papers</option>
             {axes.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
           </select>
           <button className="btn btn-primary" disabled={running} onClick={runRefresh}>{running ? "Scanning…" : "Refresh"}</button>

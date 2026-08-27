@@ -201,7 +201,7 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
               <ProviderFields draft={draft} setDraft={setDraft} disabled={busy} wireFormats={wireFormats} />
               <div className="settings-actions">
                 <button className="btn btn-ghost" disabled={busy} onClick={() => setEditing(false)}>Cancel</button>
-                <button className="btn btn-primary" disabled={busy || !draft.name.trim() || !draft.base_url.trim()} onClick={saveEdit}>{busy ? "Saving…" : "Save details"}</button>
+                <button className="btn btn-primary" disabled={busy || !draft.name.trim() || !draft.base_url.trim()} onClick={saveEdit}>{busy ? "Saving…" : "Save Details"}</button>
               </div>
             </>
           ) : (
@@ -224,7 +224,7 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
                   {keySet && !fromEnv && <button className="btn btn-ghost" disabled={busy} onClick={() => onSaveKey(p.id, "")}>Clear</button>}
                 </div>
               </div>
-              {!p.builtin && <button className="btn-link" disabled={busy} onClick={startEdit}>Edit name / URL / models</button>}
+              {!p.builtin && <button className="btn-link" disabled={busy} onClick={startEdit}>Edit Name / URL / Models</button>}
             </>
           )}
 
@@ -347,9 +347,9 @@ function AiSettings({ agentSettings }) {
           </span>
         </div>
         <div className="settings-row settings-ai-control">
-          <span className="eyebrow settings-ai-control-title">AI help assistant</span>
+          <span className="eyebrow settings-ai-control-title">AI Help Assistant</span>
           <button type="button" className={"settings-switch" + (helpOn ? " on" : "")}
-            role="switch" aria-checked={helpOn} aria-label="AI help assistant"
+            role="switch" aria-checked={helpOn} aria-label="AI Help Assistant"
             onClick={toggleHelp}><span className="settings-knob" /></button>
           <span className="settings-sub">
             Answers questions about using Callosum (the “Ask…” box in Help). Its <b>own</b> switch — it sends only your question + the public help docs, never your library, so it works with any provider and is independent of the egress toggle above.

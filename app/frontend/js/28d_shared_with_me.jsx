@@ -140,7 +140,7 @@ function SharedRow({ row, onDismiss, onImported, onBlock }) {
             <>
               {!row.revoked && <button className="axis-link" onClick={() => setImporting(true)}>Import</button>}
               <button className="axis-link" onClick={onDismiss}>Dismiss</button>
-              <button className="axis-link axis-danger" onClick={onBlock}>Block sender</button>
+              <button className="axis-link axis-danger" onClick={onBlock}>Block Sender</button>
             </>}
         </div>}
     </div>

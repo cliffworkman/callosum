@@ -41,7 +41,7 @@ function AnnotationsPanel({ annotations, onCopy, onExport, onJump, onEdit, onDel
           </div>
           {a.note && <div className="pdf-annot-note">{a.note}</div>}
           <div className="pdf-annot-actions">
-            <button onClick={(e) => onEdit(a, e.clientX - 250, e.clientY + 6)}>{a.note ? "Edit note" : "Add note"}</button>
+            <button onClick={(e) => onEdit(a, e.clientX - 250, e.clientY + 6)}>{a.note ? "Edit Note" : "Add Note"}</button>
             <button className="danger" onClick={() => onDelete(a.id)}>Delete</button>
           </div>
         </div>)}

@@ -323,7 +323,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
         </div>
         {focusAxis &&
           <div className="focus-card">
-            <div className="focus-card-head">Adding to <b>{focusAxis.label}</b> — click <b>+ add</b> on the papers below.</div>
+            <div className="focus-card-head">Adding to <b>{focusAxis.label}</b> — click <b>+ Add</b> on the papers below.</div>
             <div className="focus-card-foot">
               <span className="focus-count">
                 {pendingAdd || pendingRemove ? `+${pendingAdd} −${pendingRemove} staged` : "no changes yet"}
@@ -337,7 +337,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <div className="focus-card-head">Filtered to axis <b>{libraryAxisFilter.label}</b>{libraryAxisFilter.hideUncertain ? " · assigned only" : ""}</div>
             <div className="focus-card-foot">
               <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
-              <button className="axis-link" onClick={onClearAxisFilter}>clear</button>
+              <button className="axis-link" onClick={onClearAxisFilter}>Clear</button>
             </div>
           </div>}
         {libraryTagFilter &&
@@ -345,7 +345,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <div className="focus-card-head">Filtered to tag <b>{libraryTagFilter.name}</b></div>
             <div className="focus-card-foot">
               <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
-              <button className="axis-link" onClick={onClearTagFilter}>clear</button>
+              <button className="axis-link" onClick={onClearTagFilter}>Clear</button>
             </div>
           </div>}
         {libraryNeedsReview &&
@@ -353,7 +353,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <div className="focus-card-head">Unsorted — papers whose metadata still needs review (raw imports, unresolved DOIs)</div>
             <div className="focus-card-foot">
               <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
-              <button className="axis-link" onClick={onClearNeedsReview}>clear</button>
+              <button className="axis-link" onClick={onClearNeedsReview}>Clear</button>
             </div>
           </div>}
         {libraryTextHealthFilter &&
@@ -361,7 +361,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <div className="focus-card-head">Text Health: <b>{libraryTextHealthFilter.label}</b></div>
             <div className="focus-card-foot">
               <span className="focus-count">{textHealthShown}</span>
-              <button className="axis-link" onClick={onClearTextHealthFilter}>clear</button>
+              <button className="axis-link" onClick={onClearTextHealthFilter}>Clear</button>
             </div>
           </div>}
         {libraryReferenceFilter &&
@@ -369,7 +369,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <div className="focus-card-head">Reference checks: <b>{libraryReferenceFilter.label}</b></div>
             <div className="focus-card-foot">
               <span className="focus-count">{referenceShown}</span>
-              <button className="axis-link" onClick={onClearReferenceFilter}>clear</button>
+              <button className="axis-link" onClick={onClearReferenceFilter}>Clear</button>
             </div>
           </div>}
         {librarySignalFilter === "statcheck-inconsistent" &&
@@ -377,7 +377,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <div className="focus-card-head">Reporting inconsistencies — papers where a reported p-value didn't recompute (statcheck). Usually innocent (typos, rounding); a list to review, not a verdict.</div>
             <div className="focus-card-foot">
               <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
-              <button className="axis-link" onClick={onClearSignalFilter}>clear</button>
+              <button className="axis-link" onClick={onClearSignalFilter}>Clear</button>
             </div>
           </div>}
         {librarySignalFilter === "retraction-retracted" &&
@@ -385,7 +385,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <div className="focus-card-head">Retracted — papers a registry (Crossref / OpenAlex) records as retracted. Verify before citing; open each paper's Review section for the notice.</div>
             <div className="focus-card-foot">
               <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
-              <button className="axis-link" onClick={onClearSignalFilter}>clear</button>
+              <button className="axis-link" onClick={onClearSignalFilter}>Clear</button>
             </div>
           </div>}
         {librarySignalFilter === "transparency-data-detected" &&
@@ -393,7 +393,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <div className="focus-card-head">Open Data — papers where the transparency auditor detected a data-availability disclosure in the extracted text.</div>
             <div className="focus-card-foot">
               <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
-              <button className="axis-link" onClick={onClearSignalFilter}>clear</button>
+              <button className="axis-link" onClick={onClearSignalFilter}>Clear</button>
             </div>
           </div>}
         {librarySignalFilter === "needs-review" &&
@@ -401,7 +401,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <div className="focus-card-head">To review — papers with findings you haven't reviewed yet. Open each paper's Review section (METHODS) to Confirm or Note each one.</div>
             <div className="focus-card-foot">
               <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
-              <button className="axis-link" onClick={onClearSignalFilter}>clear</button>
+              <button className="axis-link" onClick={onClearSignalFilter}>Clear</button>
             </div>
           </div>}
         <div className="searchbar">
@@ -412,15 +412,15 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             spellCheck={false}
           />
           <select className="lib-sort" value={librarySearchField} onChange={e => onSearchFieldChange(e.target.value)} title="Search in">
-            <option value="all">All fields</option>
+            <option value="all">All Fields</option>
             <option value="title">Title</option>
             <option value="author">Author</option>
             <option value="journal">Journal</option>
-            <option value="fulltext">Full text (PDFs)</option>
+            <option value="fulltext">Full Text (PDFs)</option>
           </select>
           {itemTypes && itemTypes.length > 0 &&
             <select className="lib-sort" value={libraryItemType} onChange={e => onItemTypeChange(e.target.value)} title="Filter by type">
-              <option value="">All types</option>
+              <option value="">All Types</option>
               {itemTypes.map(t => <option key={t.item_type} value={t.item_type}>{_typeLabel(t.item_type)} ({t.count})</option>)}
             </select>}
           {/* inc 221/301: read + priority filter facets (your triage labels) — now available in Trash too. */}
@@ -448,9 +448,9 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                 <select className="lib-sort" value={special ? librarySort : fd.field} title="Sort the library"
                   onChange={e => { const v = e.target.value; onSortChange(SORT_FIELDS.some(f => f.field === v) ? _sortKey(v, fd.dir) : v); }}>
                   {SORT_FIELDS.map(f => <option key={f.field} value={f.field}>{f.label}</option>)}
-                  <option value="citations_desc">Most cited</option>
-                  <option value="priority">By priority</option>
-                  <option value="unread">Unread first</option>
+                  <option value="citations_desc">Most Cited</option>
+                  <option value="priority">By Priority</option>
+                  <option value="unread">Unread First</option>
                 </select>
                 {!special &&
                   <button className="lib-sort-dir" aria-label="Invert sort direction"
@@ -466,7 +466,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             {query ? ` · filtered by “${query}”` : ""}
             {` · page ${page + 1}`}
             {selecting && state.papers.length > 0 &&
-              <button className="lib-select-all" onClick={() => onSelectAll(state.papers.map(p => p.id))}>select all</button>}
+              <button className="lib-select-all" onClick={() => onSelectAll(state.papers.map(p => p.id))}>Select All</button>}
           </div>}
       </div>
 
@@ -480,35 +480,35 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             title="Optionally focus the synthesis on a question — leave blank for a general summary"
             onChange={e => setBulkFocus(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") onBulkSummarize(bulkFocus); }} />
-          <button className="axis-link" onClick={() => onBulkSummarize(bulkFocus)} title="Generate a verified synthesis of the selected papers — focused on your question if you typed one">summarize</button>
+          <button className="axis-link" onClick={() => onBulkSummarize(bulkFocus)} title="Generate a verified synthesis of the selected papers — focused on your question if you typed one">Summarize</button>
           <button className="axis-link" onClick={onBulkPcurve} title="Run a p-curve (evidential value) over the selected papers — collection-level, never per-paper">p-curve</button>
-          <button className="axis-link" onClick={onBulkZcurve} title="Run a z-curve (expected replication/discovery rate) over the selected papers — collection-level, never per-paper or author">z-curve</button>
+          <button className="axis-link" onClick={onBulkZcurve} title="Run a z-curve (expected replication/discovery rate) over the selected papers — collection-level, never per-paper or author">Z-curve</button>
           <BulkReferenceCheckButton paperIds={[...selectedLibraryIds]} onDone={onBulkReferenceCheckDone} />
           <ReprocessSelectedTextButton paperIds={[...selectedLibraryIds]} onDone={onEnriched} />
           <GrobidParseSelectedButton paperIds={[...selectedLibraryIds]} onDone={onEnriched} />
           {selCount >= 2 &&
-            <button className="axis-link" onClick={onBulkMerge} title="Merge the selected papers into one record — keeps every PDF, link, tag, and highlight; the others move to Trash">merge</button>}
+            <button className="axis-link" onClick={onBulkMerge} title="Merge the selected papers into one record — keeps every PDF, link, tag, and highlight; the others move to Trash">Merge</button>}
           {selCount >= 2 && onBulkCriticalRead &&
-            <button className="axis-link" onClick={onBulkCriticalRead} title="Critically review the selected papers together — cross-paper contradictions + a fact matrix of each paper's method-check signals; a signal, not a verdict">critical read</button>}
+            <button className="axis-link" onClick={onBulkCriticalRead} title="Critically review the selected papers together — cross-paper contradictions + a fact matrix of each paper's method-check signals; a signal, not a verdict">Critical Read</button>}
           <select className="bulk-export" value="" title="Export citations for the selected papers"
             onChange={e => { if (e.target.value) { onBulkExport(e.target.value); e.target.value = ""; } }}>
-            <option value="" disabled>export…</option>
+            <option value="" disabled>Export…</option>
             <option value="bibtex">BibTeX (.bib)</option>
             <option value="ris">RIS (.ris)</option>
             <option value="csl-json">CSL-JSON</option>
           </select>
           {onBulkExportBundle &&
-            <button className="axis-link" onClick={onBulkExportBundle} title="Export the selected papers as a portable bundle — metadata + tags + annotations, no PDFs">bundle</button>}
+            <button className="axis-link" onClick={onBulkExportBundle} title="Export the selected papers as a portable bundle — metadata + tags + annotations, no PDFs">Bundle</button>}
           {onBulkShare &&
-            <button className="axis-link" onClick={onBulkShare} title="End-to-end encrypt the selected papers' metadata + tags + annotations to one collaborator — no PDFs, only they can decrypt it">share…</button>}
+            <button className="axis-link" onClick={onBulkShare} title="End-to-end encrypt the selected papers' metadata + tags + annotations to one collaborator — no PDFs, only they can decrypt it">Share…</button>}
           {citeStyles.length > 0 &&
             <select className="bulk-export" value="" title="Download a formatted bibliography for the selected papers"
               onChange={e => { if (e.target.value) { onBulkBibliography(e.target.value); e.target.value = ""; } }}>
-              <option value="" disabled>bibliography…</option>
+              <option value="" disabled>Bibliography…</option>
               {citeStyles.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
             </select>}
-          <button className="axis-link axis-danger" onClick={onBulkDelete}>delete</button>
-          <button className="axis-link" onClick={onClearLibrarySelect}>clear</button>
+          <button className="axis-link axis-danger" onClick={onBulkDelete}>Delete</button>
+          <button className="axis-link" onClick={onClearLibrarySelect}>Clear</button>
         </div>}
 
       {state.status === "loading" &&
@@ -549,7 +549,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
               title={fIn ? "On this axis — click to remove" : "Add to this axis"}
               onClick={e => { e.stopPropagation(); onToggleFocusPaper(p.id); }}
             >
-              {fStaged === "add" ? "✓ staged" : fStaged === "remove" ? "− staged" : fIn ? "✓ in axis" : "+ add"}
+              {fStaged === "add" ? "✓ Staged" : fStaged === "remove" ? "− Staged" : fIn ? "✓ In Axis" : "+ Add"}
             </button>}
           {trashView &&
             <button className="paper-restore" title="Restore from Trash"

@@ -39,9 +39,9 @@ function UsageSettings() {
   return (
     <>
       <div className="settings-row settings-ai-control">
-        <span className="eyebrow settings-ai-control-title">Track local usage</span>
+        <span className="eyebrow settings-ai-control-title">Track Local Usage</span>
         <button type="button" className={"settings-switch" + (on ? " on" : "")} role="switch" aria-checked={on}
-          aria-label="Track local usage" disabled={busy} onClick={toggle}><span className="settings-knob" /></button>
+          aria-label="Track Local Usage" disabled={busy} onClick={toggle}><span className="settings-knob" /></button>
         <span className="settings-sub">
           <b>On by default</b> -- nothing here ever leaves this machine, so this behaves like any other local
           feature rather than the egress-consent toggles elsewhere on this page. Callosum counts a handful of
@@ -65,8 +65,8 @@ function UsageSettings() {
         </div>
       </div>
       <div className="settings-actions">
-        <button type="button" className="btn btn-ghost" onClick={exportLog}>Export usage log</button>
-        <button type="button" className="btn btn-ghost" disabled={busy} onClick={clearLog}>Clear usage log</button>
+        <button type="button" className="btn btn-ghost" onClick={exportLog}>Export Usage Log</button>
+        <button type="button" className="btn btn-ghost" disabled={busy} onClick={clearLog}>Clear Usage Log</button>
       </div>
     </>
   );

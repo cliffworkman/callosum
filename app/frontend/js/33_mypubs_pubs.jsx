@@ -129,12 +129,12 @@ function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decompos
             <option value="year_asc">Year (oldest)</option>
             <option value="title">Title (A–Z)</option>
             <option value="title_desc">Title (Z–A)</option>
-            <option value="added">Date added</option>
-            {paperCitations && <option value="most_cited">Most cited</option>}
+            <option value="added">Date Added</option>
+            {paperCitations && <option value="most_cited">Most Cited</option>}
           </select>
           {hasDomains &&
             <label className="mypubs-group-toggle" title="Group your publications by research domain">
-              <input type="checkbox" checked={groupByDomain} onChange={e => setGroupByDomain(e.target.checked)} /> Group by domain
+              <input type="checkbox" checked={groupByDomain} onChange={e => setGroupByDomain(e.target.checked)} /> Group by Domain
             </label>}
           {decomposeSlot}
         </span>
@@ -144,11 +144,11 @@ function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decompos
         <div className="axis-bulk-bar">
           <span className="axis-bulk-count">{sel.size} selected</span>
           <button className="axis-link" disabled={demoMode} onClick={doSummarize}
-            title={demoMode ? "Generating a new synthesis requires local Callosum." : "Generate a verified synthesis of the selected papers"}>summarize</button>
+            title={demoMode ? "Generating a new synthesis requires local Callosum." : "Generate a verified synthesis of the selected papers"}>Summarize</button>
           <select className="bulk-export" value="" title="Export citations for the selected papers"
             disabled={demoMode}
             onChange={e => { if (e.target.value) { doExport(e.target.value); e.target.value = ""; } }}>
-            <option value="" disabled>export…</option>
+            <option value="" disabled>Export…</option>
             <option value="bibtex">BibTeX (.bib)</option>
             <option value="ris">RIS (.ris)</option>
             <option value="csl-json">CSL-JSON</option>
@@ -156,11 +156,11 @@ function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decompos
           {citeStyles.length > 0 &&
             <select className="bulk-export" value="" disabled={demoMode} title={demoMode ? "Formatting and downloading a new bibliography requires local Callosum." : "Download a formatted bibliography for the selected papers"}
               onChange={e => { if (e.target.value) { doBibliography(e.target.value); e.target.value = ""; } }}>
-              <option value="" disabled>bibliography…</option>
+              <option value="" disabled>Bibliography…</option>
               {citeStyles.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
             </select>}
-          <button className="axis-link axis-danger" disabled={demoMode} title={demoMode ? "Deleting publications requires the local Callosum database." : undefined} onClick={doDelete}>delete</button>
-          <button className="axis-link" onClick={clearSel}>clear</button>
+          <button className="axis-link axis-danger" disabled={demoMode} title={demoMode ? "Deleting publications requires the local Callosum database." : undefined} onClick={doDelete}>Delete</button>
+          <button className="axis-link" onClick={clearSel}>Clear</button>
           {demoMode && <span className="axis-hint">Selection is local to this page; synthesis, export, bibliography, and deletion require the installed app.</span>}
         </div>}
 

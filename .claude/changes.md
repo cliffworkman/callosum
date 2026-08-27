@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-27 — Increment 505: Feed-suggestion bug fixes + Title-Case/control-height retrospective sweeps (backlog #59/#60)
+- **Files:** `app/frontend/js/30g_feed_suggest.jsx`, `app/backend/clustering/followed_authors.py`,
+  `tests/test_feed.py`, ~50 `app/frontend/js/*.jsx` files (Title-Case control-label sweep, incl. two files
+  — `10k_wip_checks.jsx`, `35d_citation_styles.jsx` — an earlier partial pass had missed entirely),
+  `app/frontend/styles.css` (`--control-h` extended to `.wip-root-form`/`.mypubs-pubs-controls`/`.grim-form`/
+  `.es-form`), `.claude/DESIGN.md`, `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/INCREMENT-BACKLOG-DONE.md`, `tests/test_frontend_assembly.py` (stale literal-text assertions
+  updated to match renamed controls), `tests/test_funding_discovery.py` (same).
+- **What:** fixed two live Feed-suggestion bugs (the My Publications axis suggested as a followable topic;
+  "others"/"et al." suggested as a followable author), then closed backlog #59 (Title-Case retrospective) and
+  #60 (control-height retrospective) — both explicitly scoped out of inc 504's own narrower fix.
+- **Why:** Cliff flagged the two bugs live right after inc 504 shipped, then asked to execute the two
+  backlogged app-wide aesthetic sweeps in the same session.
+- **Revert:** `git revert` this commit, or restore individual files from the prior commit (`ec6fc0f`).
+
 <!-- HELP-DOCS-SYNCED: 2026-08-27 — Increment 504: Feed consolidation + Suggest modal + toolbar cleanup -->
 ## 2026-08-27 — Increment 504: Discover → Feed consolidation, 5-tab Suggest modal, toolbar cleanup
 - **Files:** `app/frontend/js/30e_feed.jsx` (rewritten), new `app/frontend/js/30g_feed_suggest.jsx`, deleted

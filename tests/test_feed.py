@@ -491,6 +491,11 @@ def test_suggest_authors_endpoint_ranks_by_frequency_excludes_self_and_followed(
             title="Self",
             csl_json={"title": "Self", "author": [{"literal": "Jane Q. User"}]},
         )  # must be excluded -- it's the user
+        create_paper(
+            conn,
+            title="Messy",
+            csl_json={"title": "Messy", "author": [{"literal": "others"}, {"literal": "Et al."}]},
+        )  # real upstream metadata sometimes has a literal "others"/"et al." placeholder, not a real co-author
     engine.dispose()
 
     client = TestClient(create_app(db_url=temp_db_url))
@@ -498,6 +503,7 @@ def test_suggest_authors_endpoint_ranks_by_frequency_excludes_self_and_followed(
     assert authors[0] == {"name": "Alex Popular", "paper_count": 3}
     assert {"name": "Cody Rare", "paper_count": 2} in authors
     assert not any(a["name"] == "Jane Q. User" for a in authors)  # self excluded
+    assert not any(a["name"].lower() in {"others", "et al."} for a in authors)  # non-name placeholders excluded
 
     client.post("/followed-authors", json={"author_id": "A1", "display_name": "Alex Popular"})
     authors_after_follow = client.get("/feed/suggest-authors").json()["authors"]

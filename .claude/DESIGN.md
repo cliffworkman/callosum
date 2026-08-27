@@ -207,15 +207,39 @@ with one canonical token, `--control-h: 32px`, applied via `height` + `box-sizin
 ordinary `--radius`, since `.lib-sort` was never one of §3 #5's declared intentional compact exceptions).
 **Deliberately scoped to `.searchbar`** rather than the bare `.btn-primary`/`.btn-ghost`/`.lib-sort` base rules,
 which are reused in dozens of unrelated contexts app-wide where no inconsistency was reported — touching those
-globally would be a much larger, riskier change than the one actually needed. A full retrospective audit of
-every other button/input/select for height consistency is backlog #60, not done here.
+globally would be a much larger, riskier change than the one actually needed.
+
+**Backlog #60's retrospective audit shipped 2026-08-27.** Four more input+button row containers had the same
+box-sizing/padding mismatch and got the identical scoped fix: `.wip-root-form` (10f_wip.jsx),
+`.mypubs-pubs-controls` (33_mypubs_pubs.jsx), `.grim-form` (07_methods_grim.jsx), `.es-form`
+(08i_methods_effectsize.jsx) — each `<container> input/.es-in/.grim-in, <container> .btn { height:
+var(--control-h); box-sizing: border-box; }` plus a `.btn` flex-center rule, scoped to that one container so
+`.grim-in`/`.es-in`'s *other* reuse sites are untouched. **Deliberately left unfixed:** `.credit-author-head`
+(38_credit.jsx) — pairs a text input with a compact `.btn-icon` remove button, already one of §3 #5's
+documented intentional compact variants; forcing alignment there would fight established precedent rather than
+fix a bug. Two native `<input type="file">` + `.btn` rows (`.scan-row`, 28_import.jsx/28b_bundle.jsx) were
+audited and left alone too — a browser's own file-picker chrome isn't reliably restylable to a fixed
+`--control-h`, and `.scan-row`'s `align-items: center` already keeps the row visually sane despite the height
+difference; this is native-control chrome, not the CSS-controllable mismatch the token exists to fix.
 
 ### Title Case for control labels (2026-08-27)
 Button text, toggle labels, and dropdown option text use **Title Case** ("Mark All Read," "Auto-Refresh," not
 "Mark all read"/"Auto-refresh on open") — found live when two Feed controls didn't match this pattern. Prose
 (descriptions, tooltips, empty-state copy, modal body text) is unaffected — this rule is about short control
-labels only, the words a user clicks, not the sentences around them. A full retrospective audit of every other
-button/toggle/dropdown label app-wide is backlog #59, not done here.
+labels only, the words a user clicks, not the sentences around them. Two established, deliberate stylization
+exceptions ride along unchanged: domain-specific fixed-case terms (`p-curve`, `statcheck`, `bioRxiv`/`medRxiv`,
+`metafor`, `RevMan`, `Z-curve`) keep their own established casing rather than being force-capitalized, and long,
+sentence-like toggle/checkbox labels (e.g. "Let an AI agent edit your library," "Expand beyond expected sections
+when bounded search is weak") stay as prose — a user-confirmed call, since these read as explanatory sentences,
+not click targets.
+
+**Backlog #59's retrospective audit shipped 2026-08-27** — every `<button>`/`<option>`/toggle-label/standalone
+`<a>` control across `app/frontend/js/*.jsx` was swept for Title Case, ~60 individual strings across ~50 files.
+Two entire files (`10k_wip_checks.jsx`, `35d_citation_styles.jsx`) had been missed by an earlier partial pass and
+got a full first-time sweep here. Inline metadata-line links (e.g. a lowercase "source"/"notice" mention inside
+a `· label: value` provenance row) were deliberately left as prose, distinct from standalone `.btn-link`-styled
+action links (which were recased) — the same reception-context judgment call DESIGN.md already applies
+elsewhere.
 
 ### Chips (interactive, rounded-pill, toggle)
 `--term-chip`: dashed `--line-2` border + `--panel` bg when off; solid `--accent` border + `--accent-soft`

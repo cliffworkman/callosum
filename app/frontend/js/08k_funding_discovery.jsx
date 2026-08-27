@@ -328,7 +328,7 @@ function FundingDiscoveryPanel({ ctx }) {
           {hiddenProspects > 0 &&
             <label className="funding-low-toggle">
               <input type="checkbox" checked={showLowerProspects} onChange={e => setShowLowerProspects(e.target.checked)} />
-              <span>Show lower-signal prospects</span>
+              <span>Show Lower-Signal Prospects</span>
               <small>{hiddenProspects} lower-signal prospect{hiddenProspects === 1 ? "" : "s"} {showLowerProspects ? "shown" : "hidden"} by a display-only signal filter.</small>
             </label>}
           <FundingSection title={`Funding Prospects (${prospects.length})`} items={prospects}

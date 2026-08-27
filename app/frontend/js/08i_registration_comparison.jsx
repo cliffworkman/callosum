@@ -175,14 +175,14 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
         </select>
       </label>}
       <label className="settings-check"><input type="checkbox" checked={includeSupplements} disabled={isDemoMode()}
-        onChange={event => setIncludeSupplements(event.target.checked)} /> Include relevant supplements</label>
+        onChange={event => setIncludeSupplements(event.target.checked)} /> Include Relevant Supplements</label>
       <label className="settings-check"><input type="checkbox" checked={expandSearch} disabled={isDemoMode()}
         onChange={event => setExpandSearch(event.target.checked)} /> Expand beyond expected sections when bounded search is weak</label>
-      <button className="btn-link" disabled={isDemoMode()} onClick={inspectRaw}>{showRaw ? "Hide stored registration" : "Inspect stored registration"}</button>
+      <button className="btn-link" disabled={isDemoMode()} onClick={inspectRaw}>{showRaw ? "Hide Stored Registration" : "Inspect Stored Registration"}</button>
       {selectedVersion?.attachment_id && selectedVersion.provider !== "osf" && <button className="btn-link"
         onClick={() => onOpenPaper && onOpenPaper({ id: paperId, title: paperTitle }, {
           id: `file:${selectedVersion.attachment_id}`, paperId, attachmentId: selectedVersion.attachment_id,
-        })}>Open registration attachment</button>}
+        })}>Open Registration Attachment</button>}
     </div>
     {state.status === "running" && <ProgressBar label="Comparing bounded registration fields with publication passages…" managedBy="backend-job" />}
     {state.status === "error" && <div className="settings-note settings-note-err">Comparison failed: {state.error}</div>}
@@ -270,13 +270,13 @@ function RegistrationComparisonRow({ row, onUpdated, onOpenRegistration, onOpenP
         <b>Registration</b>
         {row.registration_evidence_text ? <blockquote>{row.registration_evidence_text}</blockquote>
           : <div className="settings-sub">No extracted registration evidence for this canonical field.</div>}
-        {canOpenRegistration && <button className="btn-link" onClick={onOpenRegistration}>Open registration evidence</button>}
+        {canOpenRegistration && <button className="btn-link" onClick={onOpenRegistration}>Open Registration Evidence</button>}
       </div>
       <div className="registration-evidence-column">
         <b>Publication</b>
         {row.publication_evidence_text ? <blockquote>{row.publication_evidence_text}</blockquote>
           : <div className="settings-sub">Not located in the recorded publication search scope.</div>}
-        {canOpenPublication && <button className="btn-link" onClick={onOpenPublication}>Open publication evidence</button>}
+        {canOpenPublication && <button className="btn-link" onClick={onOpenPublication}>Open Publication Evidence</button>}
       </div>
     </div>
     <div className="registration-comparison-why"><b>Why this was surfaced</b><div>{row.explanation}</div></div>

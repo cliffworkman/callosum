@@ -191,7 +191,7 @@ function WipStructure({ manuscriptId, sections, onReload, readOnly }) {
       <div className="wip-section-add">
         <input value={name} disabled={readOnly} onChange={event => setName(event.target.value)} placeholder="Add a custom section"
           onKeyDown={event => { if (event.key === "Enter") add(); }} />
-        <button className="axis-btn" disabled={readOnly || !name.trim()} onClick={add}>Add section</button>
+        <button className="axis-btn" disabled={readOnly || !name.trim()} onClick={add}>Add Section</button>
       </div>
       {sections.map((section, index) =>
         <div className="wip-section-row" key={section.id}>
@@ -227,10 +227,10 @@ function WipTasks({ manuscriptId, tasks, sections, onReload, readOnly }) {
         <input value={title} disabled={readOnly} onChange={event => setTitle(event.target.value)} placeholder="Add a manuscript task"
           onKeyDown={event => { if (event.key === "Enter") add(); }} />
         <select value={sectionId} disabled={readOnly} onChange={event => setSectionId(event.target.value)}>
-          <option value="">Whole manuscript</option>
+          <option value="">Whole Manuscript</option>
           {sections.map(section => <option key={section.id} value={section.id}>{section.name}</option>)}
         </select>
-        <button className="axis-btn" disabled={readOnly || !title.trim()} onClick={add}>Add task</button>
+        <button className="axis-btn" disabled={readOnly || !title.trim()} onClick={add}>Add Task</button>
       </div>
       {tasks.length === 0 && <p className="axis-hint">No manuscript tasks.</p>}
       {tasks.map(task =>
@@ -277,7 +277,7 @@ function WipReferences({ manuscriptId, references, onReload, onOpenPaper, readOn
           {["cited", "possibly-cited", "background-reading", "to-cite", "rejected-for-use", "needs-verification"]
             .map(state => <option key={state} value={state}>{state.replace(/-/g, " ")}</option>)}
         </select>
-        <button className="axis-btn" disabled={readOnly || !paperId} onClick={add}>Link paper</button>
+        <button className="axis-btn" disabled={readOnly || !paperId} onClick={add}>Link Paper</button>
       </div>
       {error && <div className="wip-root-error">{error}</div>}
       {references.length === 0 && <p className="axis-hint">No Library references linked yet.</p>}
@@ -435,7 +435,7 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
         onChange={event => setDraft({ ...draft, notes: event.target.value })} /></label>
     </div>
     <button className="axis-btn" disabled={saving || readOnly} onClick={save}
-      title={isDemoMode() ? "Manuscript changes require the local app." : undefined}>{saving ? "Saving…" : "Save manuscript"}</button>
+      title={isDemoMode() ? "Manuscript changes require the local app." : undefined}>{saving ? "Saving…" : "Save Manuscript"}</button>
   </>;
   const fileView = <section className="wip-work-view">
     {files.length === 0 ? <p className="axis-hint">No files discovered.</p> :
@@ -448,14 +448,14 @@ function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace =
           {["manuscript-candidate", "supplement", "cover-letter", "response-to-reviewers", "reporting-checklist",
             "figure", "table", "analysis-output", "other"].map(role =>
             <option key={role} value={role}>{role.replace(/-/g, " ")}</option>)}
-          {file.is_primary && <option value="primary-manuscript">primary manuscript</option>}
+          {file.is_primary && <option value="primary-manuscript">Primary Manuscript</option>}
         </select>
         <button className={"btn-ghost" + (file.is_primary ? " wip-primary" : "")}
           disabled={readOnly || file.existence_state !== "available"}
           onClick={async () => {
             const result = await apiPatch(`/wip/manuscripts/${manuscript.id}/files/${file.id}`, { is_primary: true });
             if (result.ok) reload();
-          }}>{file.is_primary ? "Primary" : "Make primary"}</button>
+          }}>{file.is_primary ? "Primary" : "Make Primary"}</button>
         <button className="btn-icon" title={readOnly ? "Opening the local manuscript file requires the local app." : "Open file"} disabled={readOnly}
           onClick={() => apiPost(`/wip/manuscripts/${manuscript.id}/files/${file.id}/open`, {})}>↗</button>
         <button className="btn-icon" title={readOnly ? "Revealing local files requires the local app." : "Reveal file in its folder"} disabled={readOnly}

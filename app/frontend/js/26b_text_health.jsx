@@ -151,12 +151,12 @@ function TextHealthModal({ onClose, onOpenPaper, onOpenDetails, onShowLibrary, o
                     <div className="wanted-row-meta">{_textHealthMeta(item)}</div>
                   </div>
                   <button className="axis-link"
-                    onClick={() => onOpenPaper && onOpenPaper({ id: item.paper_id, title: _textHealthTitle(item.paper_id, titles) })}>open</button>
+                    onClick={() => onOpenPaper && onOpenPaper({ id: item.paper_id, title: _textHealthTitle(item.paper_id, titles) })}>Open</button>
                   {(flag === "missing_section_labels" || flag === "stale_chunk_version") &&
                     <button className="axis-link" disabled={run.status === "running"}
-                      onClick={() => reprocessOne(item.paper_id)}>reprocess</button>}
+                      onClick={() => reprocessOne(item.paper_id)}>Reprocess</button>}
                   {flag === "no_chunks" &&
-                    <button className="axis-link" onClick={() => openDetailsForOcr(item)}>details for OCR</button>}
+                    <button className="axis-link" onClick={() => openDetailsForOcr(item)}>Details for OCR</button>}
                 </div>
               ))}
               {group.length > 80 && <div className="axis-hint">Showing first 80 of {group.length}.</div>}

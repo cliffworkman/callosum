@@ -39,7 +39,7 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
       <div className="wip-check-actions">
         <button className="btn-ghost" disabled={creating || readOnly} onClick={createCheckpoint}
           title={savedDemo ? "Checkpoint creation requires the local app." : undefined}>
-          {creating ? "Creating…" : "Create checkpoint"}
+          {creating ? "Creating…" : "Create Checkpoint"}
         </button>
         <button className="axis-btn" disabled={running || readOnly} title={savedDemo ? "Rerunning checks requires the local app." : undefined}
           onClick={() => runCheck("statcheck", "Statcheck could not run.")}>
@@ -47,19 +47,19 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
         </button>
         <button className="axis-btn" disabled={running || readOnly} title={savedDemo ? "Rerunning checks requires the local app." : undefined}
           onClick={() => runCheck("transparency", "Transparency check could not run.")}>
-          {runningTool === "transparency" ? "Checking…" : "Check transparency"}
+          {runningTool === "transparency" ? "Checking…" : "Check Transparency"}
         </button>
         <button className="axis-btn" disabled={running || readOnly} title={savedDemo ? "Rerunning checks requires the local app." : undefined}
           onClick={() => runCheck("lmm", "Mixed-model reporting audit could not run.")}>
-          {runningTool === "lmm" ? "Auditing…" : "Audit LMM reporting"}
+          {runningTool === "lmm" ? "Auditing…" : "Audit LMM Reporting"}
         </button>
         <button className="axis-btn" disabled={running || readOnly} title={savedDemo ? "Rerunning checks requires the local app." : undefined}
           onClick={() => runCheck("bayes", "Bayesian reporting audit could not run.")}>
-          {runningTool === "bayes" ? "Auditing…" : "Audit Bayesian reporting"}
+          {runningTool === "bayes" ? "Auditing…" : "Audit Bayesian Reporting"}
         </button>
         <button className="axis-btn" disabled={running || readOnly} title={savedDemo ? "Rerunning checks requires the local app." : undefined}
           onClick={() => runCheck("meta-analysis", "Meta-analysis reporting audit could not run.")}>
-          {runningTool === "meta-analysis" ? "Auditing…" : "Audit meta-analysis reporting"}
+          {runningTool === "meta-analysis" ? "Auditing…" : "Audit Meta-Analysis Reporting"}
         </button>
       </div>
     </div>
@@ -77,7 +77,7 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
       <small>v{run.tool_version} · snapshot {run.snapshot_id} · {run.coverage}</small>
       <div><button className="btn-link" disabled={readOnly}
         title={savedDemo ? "The synthetic manuscript file is local-app only; saved quotations and detector details remain below." : undefined}
-        onClick={() => openSourceFile(run.file_id)}>Open source file</button></div>
+        onClick={() => openSourceFile(run.file_id)}>Open Source File</button></div>
       {run.tool_id === "transparency" && <WipTransparencyResult run={run}
         onOpenSource={() => openSourceFile(run.file_id)} />}
       {run.tool_id === "lmm" && <WipLmmResult run={run}
@@ -286,7 +286,7 @@ function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText
       </div>
       <p>{latest.result_summary}</p>
       <small>v{latest.tool_version} · snapshot {latest.snapshot_id} · {latest.coverage}</small>
-      <div><button className="btn-link" onClick={() => openSource(latest.file_id)}>Open source file</button></div>
+      <div><button className="btn-link" onClick={() => openSource(latest.file_id)}>Open Source File</button></div>
       {renderResult(latest, () => openSource(latest.file_id))}
     </div>}
   </div>;
@@ -294,7 +294,7 @@ function WipChecklistSection({ manuscript, ctx, toolId, label, labels, emptyText
 
 function WipTransparencySection({ manuscript, ctx }) {
   return <WipChecklistSection manuscript={manuscript} ctx={ctx} toolId="transparency" label="Transparency"
-    labels={{ first: "Check disclosures", again: "Check disclosures again", running: "Checking…",
+    labels={{ first: "Check Disclosures", again: "Check Disclosures Again", running: "Checking…",
       progress: "Checking manuscript disclosures…", error: "Transparency check failed" }}
     emptyText="No transparency check run yet. An empty history is not a clean manuscript."
     selectText="Select a WIP manuscript to check its disclosures."
@@ -303,7 +303,7 @@ function WipTransparencySection({ manuscript, ctx }) {
 
 function WipLmmSection({ manuscript, ctx }) {
   return <WipChecklistSection manuscript={manuscript} ctx={ctx} toolId="lmm" label="Mixed-model reporting"
-    labels={{ first: "Audit reporting", again: "Audit reporting again", running: "Auditing…",
+    labels={{ first: "Audit Reporting", again: "Audit Reporting Again", running: "Auditing…",
       progress: "Auditing mixed-model reporting…", error: "Mixed-model reporting audit failed" }}
     emptyText="No mixed-model reporting audit yet. An empty history says nothing about the manuscript."
     selectText="Select a WIP manuscript to audit its mixed-model reporting."
@@ -312,7 +312,7 @@ function WipLmmSection({ manuscript, ctx }) {
 
 function WipBayesSection({ manuscript, ctx }) {
   return <WipChecklistSection manuscript={manuscript} ctx={ctx} toolId="bayes" label="Bayesian reporting"
-    labels={{ first: "Audit reporting", again: "Audit reporting again", running: "Auditing…",
+    labels={{ first: "Audit Reporting", again: "Audit Reporting Again", running: "Auditing…",
       progress: "Auditing Bayesian reporting…", error: "Bayesian reporting audit failed" }}
     emptyText="No Bayesian reporting audit yet. An empty history says nothing about the manuscript."
     selectText="Select a WIP manuscript to audit its Bayesian reporting."
@@ -322,7 +322,7 @@ function WipBayesSection({ manuscript, ctx }) {
 function WipMetaAnalysisSection({ manuscript, ctx }) {
   return <WipChecklistSection manuscript={manuscript} ctx={ctx} toolId="meta-analysis"
     label="Meta-analysis reporting"
-    labels={{ first: "Audit reporting", again: "Audit reporting again", running: "Auditing…",
+    labels={{ first: "Audit Reporting", again: "Audit Reporting Again", running: "Auditing…",
       progress: "Auditing meta-analysis reporting…", error: "Meta-analysis reporting audit failed" }}
     emptyText="No meta-analysis reporting audit yet. An empty history says nothing about the manuscript."
     selectText="Select a WIP manuscript to audit its meta-analysis reporting."
@@ -332,7 +332,7 @@ function WipMetaAnalysisSection({ manuscript, ctx }) {
 function WipAnalyticFlexibilitySection({ manuscript, ctx }) {
   return <WipChecklistSection manuscript={manuscript} ctx={ctx} toolId="analytic-flexibility"
     label="Analytic-flexibility surfacing"
-    labels={{ first: "Surface decision points", again: "Surface again", running: "Surfacing…",
+    labels={{ first: "Surface Decision Points", again: "Surface Again", running: "Surfacing…",
       progress: "Surfacing analytic decision points…", error: "Analytic-flexibility surfacing failed" }}
     emptyText="No analytic-flexibility run yet. An empty history is not a claim the design had no flexibility."
     selectText="Select a WIP manuscript to surface its analytic decision points."

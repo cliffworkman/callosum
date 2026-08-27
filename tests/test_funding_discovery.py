@@ -1138,7 +1138,7 @@ def test_frontend_registration_and_forbidden_language_absent():
         "Why grouped?" in text
         and "Grouping uses exact provider opportunity, funder+scheme, or funder identity keys" in text
     )
-    assert "Show lower-signal prospects" in text and "fundingIsLowerSignalProspect" in text
+    assert "Show Lower-Signal Prospects" in text and "fundingIsLowerSignalProspect" in text
     assert "display-only signal filter" in text
     assert "Refresh history" in text and "refresh_events" in text and "savedRefreshEventLabel" in text
     assert "Save changes" in text and "FUNDING_WORKFLOW_STATES" in text and "What needs review next?" in text

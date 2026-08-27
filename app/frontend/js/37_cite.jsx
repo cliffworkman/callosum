@@ -253,7 +253,7 @@ function CitePane({ ctx }) {
       </div>
       <label className="cite-beyond-toggle">
         <input type="checkbox" checked={includeBeyond} disabled={isDemoMode()} onChange={e => setIncludeBeyond(e.target.checked)} />
-        <span>Also search beyond my library</span>
+        <span>Also Search Beyond My Library</span>
         <small>Uses public metadata providers. Abstract-level stance is weaker than full-text library evidence.</small>
       </label>
       {isDemoMode() && <div className="settings-note">Saved citation suggestions generated in Callosum. Rerunning or searching public providers requires the local application.</div>}

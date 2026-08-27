@@ -96,8 +96,8 @@ function AxisEditModalBody({ mode, axisId, initialTitle, initialDescription, ini
       <div className="axis-add-head">
         <input className="axis-add-input" placeholder="add a term…" value={custom}
           onChange={e => setCustom(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } }} />
-        <button className="axis-link" onClick={addCustom}>add</button>
-        <button className="axis-link" disabled={searching} onClick={runSearch}>{searching ? "searching…" : "search related terms"}</button>
+        <button className="axis-link" onClick={addCustom}>Add</button>
+        <button className="axis-link" disabled={searching} onClick={runSearch}>{searching ? "Searching…" : "Search Related Terms"}</button>
       </div>
       {searching && <ProgressBar label="Suggesting related terms…" managedBy="tracked-request" />}
       {searchMsg && <div className="axis-hint">{searchMsg}</div>}
@@ -107,7 +107,7 @@ function AxisEditModalBody({ mode, axisId, initialTitle, initialDescription, ini
         <button className="axis-btn" disabled={saving || !title.trim()} onClick={save}>
           {saving ? "Saving…" : (mode === "edit" ? "Save changes" : "Create axis")}
         </button>
-        <button className="axis-link" disabled={saving} onClick={onClose}>cancel</button>
+        <button className="axis-link" disabled={saving} onClick={onClose}>Cancel</button>
       </div>
     </>
   );

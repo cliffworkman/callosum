@@ -26,8 +26,8 @@ function DuplicateGroupCard({ group, onOpenPaper, onChanged, onDismiss, onMerge 
         <span className="dup-conf">{_dupConfLabel(group.confidence)}</span>
         <span className="dup-reason">{group.reason}</span>
         <button className="axis-link" onClick={() => onMerge && onMerge(papers.map(p => p.id))}
-          title="Merge these into one record — keeps every PDF, link, tag, and highlight; the others move to Trash">merge</button>
-        <button className="axis-link" onClick={onDismiss} title="Not a duplicate — won't be flagged again">dismiss</button>
+          title="Merge these into one record — keeps every PDF, link, tag, and highlight; the others move to Trash">Merge</button>
+        <button className="axis-link" onClick={onDismiss} title="Not a duplicate — won't be flagged again">Dismiss</button>
       </div>
       {papers.map(p => (
         <div key={p.id} className="dup-paper">
@@ -37,8 +37,8 @@ function DuplicateGroupCard({ group, onOpenPaper, onChanged, onDismiss, onMerge 
               {fmtAuthors(p.authors) || "—"}{p.year ? " · " + p.year : ""}{p.venue ? " · " + p.venue : ""}
             </div>
           </div>
-          <button className="axis-link" onClick={() => onOpenPaper && onOpenPaper(p)}>open</button>
-          <button className="axis-link axis-danger" disabled={busy} onClick={() => del(p)}>delete</button>
+          <button className="axis-link" onClick={() => onOpenPaper && onOpenPaper(p)}>Open</button>
+          <button className="axis-link axis-danger" disabled={busy} onClick={() => del(p)}>Delete</button>
         </div>
       ))}
     </div>
@@ -122,7 +122,7 @@ function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge, mergedIds, 
         {dismissedPairs.length > 0 &&
           <div className="dup-dismissed">
             <button className="dup-dismissed-toggle" onClick={() => setShowDismissed(s => !s)}>
-              {showDismissed ? "▾" : "▸"} Previously dismissed ({dismissedPairs.length})
+              {showDismissed ? "▾" : "▸"} Previously Dismissed ({dismissedPairs.length})
             </button>
             {showDismissed && dismissedPairs.map((pair, i) => (
               <div key={i} className="dup-dismissed-row">

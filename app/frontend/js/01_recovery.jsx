@@ -86,7 +86,7 @@ function AccessLockOverlay() {
               only you can open.</p>
             {!codePath &&
               <div className="lockout-actions">
-                <button className="btn-primary" disabled={busy} onClick={startReset}>{busy ? "Working…" : "Get my recovery code"}</button>
+                <button className="btn-primary" disabled={busy} onClick={startReset}>{busy ? "Working…" : "Get My Recovery Code"}</button>
               </div>}
             {codePath &&
               <React.Fragment>
@@ -94,15 +94,15 @@ function AccessLockOverlay() {
                   file, so Notepad (Windows) or TextEdit (Mac) will open it — and copy the code inside:
                   <code className="lockout-path">{codePath}</code>
                   <div className="lockout-hint">
-                    <button className="btn-link" onClick={copyPath}>{copied ? "Copied ✓" : "Copy path"}</button>
+                    <button className="btn-link" onClick={copyPath}>{copied ? "Copied ✓" : "Copy Path"}</button>
                     <span> — paste it into your File Explorer / Finder address bar to jump straight to the file.</span>
                   </div>
                 </div>
                 <input className="settings-input" placeholder="Paste the code from the file" value={codeInput} autoFocus
                   onChange={e => setCodeInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") submitReset(); }} />
                 <div className="lockout-actions">
-                  <button className="btn-primary" disabled={busy} onClick={submitReset}>{busy ? "Working…" : "Turn off remote access"}</button>
-                  <button className="btn-ghost" disabled={busy} onClick={startReset}>New code</button>
+                  <button className="btn-primary" disabled={busy} onClick={submitReset}>{busy ? "Working…" : "Turn Off Remote Access"}</button>
+                  <button className="btn-ghost" disabled={busy} onClick={startReset}>New Code</button>
                 </div>
               </React.Fragment>}
           </div>}

@@ -25,7 +25,10 @@ function FeedSuggestModal({ subs, libJournals, sourceMeta, onFollow, onFollowAut
 
   useEffect(() => {
     if (isDemoMode()) return;  // these 4 new tabs need real library/axis data -- not available in the shared demo
-    api("/axes").then(r => setAxes(r.ok ? r.data : []));
+    // The My Publications axis (kind="my_publications") tracks the user's OWN papers -- it's not a research
+    // topic/keyword to match a bioRxiv category or follow as a PubMed query against, so it's excluded a priori
+    // rather than surfaced as if it were an ordinary axis.
+    api("/axes").then(r => setAxes(r.ok ? r.data.filter(a => a.kind !== "my_publications") : []));
     api("/tags").then(r => setTags(r.ok ? r.data : []));
     api("/feed/suggest-authors").then(r => setAuthorSuggestions(r.ok ? (r.data.authors || []) : []));
   }, []);

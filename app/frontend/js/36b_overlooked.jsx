@@ -94,7 +94,7 @@ function OverlookedLensModal({ onClose, onChanged }) {
 
         <div className="gaps-controls">
           <select className="lib-sort" value={axisId} onChange={e => setAxisId(e.target.value)} title="Choose an axis">
-            <option value="">Choose an axis…</option>
+            <option value="">Choose an Axis…</option>
             {axes.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
           </select>
           <button className="btn btn-primary" disabled={running || !axisId} onClick={runRefresh}>{running ? "Scanning…" : "Refresh"}</button>

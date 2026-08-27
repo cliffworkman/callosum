@@ -133,7 +133,7 @@ function EffectSizeSection() {
           <div className="es-value">{d.metric} = <b>{d.value}</b> <span className="es-var">(Var {d.variance}, SE {d.se})</span>
             <button className="btn-link es-copy" title="Copy value + variance (tab-separated) for a metafor/JASP row" onClick={() => {
               navigator.clipboard.writeText(`${d.value}\t${d.variance}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
-            }}>{copied ? "✓ copied" : "copy value + variance"}</button>
+            }}>{copied ? "✓ Copied" : "Copy Value + Variance"}</button>
           </div>
           <div className="es-ci">95% CI [{d.ci_low}, {d.ci_high}]</div>
           {d.path.length > 0 &&

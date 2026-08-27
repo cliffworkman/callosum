@@ -39,7 +39,7 @@ function PaperUrlsEditor({ paper, readOnly, onChanged }) {
                 {item.label && <span className="paper-url-full" title={item.url}>{item.url}</span>}
                 {!readOnly && item.id != null &&
                   <button className="btn-link danger" onClick={() => remove(item)} disabled={busy}
-                    title="Remove this URL from the paper record">remove</button>}
+                    title="Remove this URL from the paper record">Remove</button>}
               </div>
             ))}
           </div>

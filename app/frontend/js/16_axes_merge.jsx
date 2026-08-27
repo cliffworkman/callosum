@@ -116,7 +116,7 @@ function MergeAxesModal({ axes, onClose, onMerged }) {
         <div className="axis-add-head">
           <input className="axis-add-input" placeholder="add your own term…" value={custom}
             onChange={e => setCustom(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } }} />
-          <button className="axis-link" onClick={addCustom}>add</button>
+          <button className="axis-link" onClick={addCustom}>Add</button>
         </div>
 
         <div className="axis-modal-note">Resulting description (editable):</div>
@@ -126,7 +126,7 @@ function MergeAxesModal({ axes, onClose, onMerged }) {
         {error && <div className="axis-err">{error}</div>}
         <div className="axis-form-actions">
           <button className="axis-btn" disabled={applying || !label.trim()} onClick={apply}>{applying ? "Merging…" : "Merge axes"}</button>
-          <button className="axis-link" disabled={applying} onClick={onClose}>cancel</button>
+          <button className="axis-link" disabled={applying} onClick={onClose}>Cancel</button>
         </div>
       </div>
     </div>

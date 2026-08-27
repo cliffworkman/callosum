@@ -50,7 +50,7 @@ function FindingCard({ finding, onReviewed, onOpenPaper }) {
       {reasonOpen && !reviewed &&
         <div className="finding-reason">
           <input className="grim-in finding-reason-in" placeholder="why (required)" value={reason} onChange={e => setReason(e.target.value)} />
-          <button className="btn-link" disabled={busy || !reason.trim()} onClick={() => review("accepted", reason.trim())}>save</button>
+          <button className="btn-link" disabled={busy || !reason.trim()} onClick={() => review("accepted", reason.trim())}>Save</button>
         </div>}
     </div>
   );
@@ -77,7 +77,7 @@ function ScrutinyBackboneView({ backbone, onOpen, triageOnly }) {
           </div>
           {s.detail && <div className="bayes-check-note">{s.detail}</div>}
           {s.notice_url &&
-            <a className="btn-link" href={s.notice_url} target="_blank" rel="noopener noreferrer">notice</a>}
+            <a className="btn-link" href={s.notice_url} target="_blank" rel="noopener noreferrer">Notice</a>}
         </div>
       ))}
       {ccAll.length > 0 && <p className="eyebrow">Claims your corpus contests</p>}
@@ -230,7 +230,7 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
       {meta && meta.hasText && t1.status === "idle" &&
         <div className="cr-run-toggles">
           <CritiqueRunToggles wantLlm={wantLlm} setWantLlm={setWantLlm} wantTriage={wantTriage}
-            setWantTriage={setWantTriage} aiReady={aiReady} suggestLabel="Suggest critiques (AI)" />
+            setWantTriage={setWantTriage} aiReady={aiReady} suggestLabel="Suggest Critiques (AI)" />
           <button className="btn btn-primary" onClick={runT1}
             title="Compose this paper's method-check flags + any corpus-contested claims — local, no AI">
             Run critical read
@@ -258,7 +258,7 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
           ? <div className="tag-suggest-empty">Enable AI features in Settings for AI-suggested critiques — the facts above need no AI.</div>
           : <button className="btn-link" disabled={gen === "generating"} onClick={generate}
               title="The AI proposes concerns; each must quote the paper verbatim, and you confirm or reject it.">
-              {gen === "generating" ? "Suggesting…" : cands ? "Suggest more critiques (AI)" : "Suggest critiques (AI)"}
+              {gen === "generating" ? "Suggesting…" : cands ? "Suggest More Critiques (AI)" : "Suggest Critiques (AI)"}
             </button>}
         {gen === "generating" && <ProgressBar label="Suggesting and locally verifying critiques…" managedBy="tracked-request" />}
         {gen === "error" && <div className="axis-err">Couldn’t suggest critiques — is AI enabled with a key (Settings)?</div>}
@@ -330,7 +330,7 @@ function WipCriticalReadResult({ run, ctx, onOpenSource }) {
       Query embeddings are transient and never stored as paper embeddings. Only article-fulltext Library passages
       are eligible. This surfaces disagreement; it does not decide which claim is correct.
     </div>
-    <button className="btn-link" onClick={onOpenSource}>Open primary manuscript file</button>
+    <button className="btn-link" onClick={onOpenSource}>Open Primary Manuscript File</button>
   </div>;
 }
 

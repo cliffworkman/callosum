@@ -51,7 +51,7 @@ function FolderBrowserModal({ title = "Choose a folder", initialPath, onCancel, 
         <div className="axis-form-actions">
           <button className="axis-link" onClick={onCancel}>Cancel</button>
           <button className="btn btn-primary" disabled={!path || loading} onClick={() => onSelect(path)}>
-            Select this folder
+            Select This Folder
           </button>
         </div>
       </div>

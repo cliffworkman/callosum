@@ -654,3 +654,13 @@ appended here.)*
   search/insert/Suggest/Refresh/style-switch/Flatten arc as the Word add-in. Never marked done here until this
   entry (2026-08-18) — see `.claude/CLAUDE.md`'s "Cross-editor adapters" paragraph and
   `security-audits/2026-06-28_googledocs-tunnel.md` / `2026-06-28_googledocs-addon.md`.
+- [x] **#59 Title-Case retrospective** (inc 505, 2026-08-27) — every `<button>`/`<option>`/toggle-label/standalone
+  `<a>` control across `app/frontend/js/*.jsx` (~60 strings, ~50 files, incl. two files a partial pass had missed
+  entirely) swept to Title Case, with two documented exceptions: fixed-stylization domain terms (p-curve,
+  statcheck, bioRxiv/medRxiv, metafor, RevMan, Z-curve) and long sentence-like toggle labels (kept as prose, a
+  user-confirmed call). See `INCREMENT-505-NOTES.md` and `.claude/DESIGN.md`'s "Title Case for control labels".
+- [x] **#60 Control-height retrospective** (inc 505, 2026-08-27) — the `--control-h` fix extended from
+  `.searchbar` to four more input+button row containers (`.wip-root-form`, `.mypubs-pubs-controls`,
+  `.grim-form`, `.es-form`); `.credit-author-head` and two native-file-input rows (`.scan-row`) audited and
+  deliberately left alone (documented exceptions, not gaps). See `INCREMENT-505-NOTES.md` and
+  `.claude/DESIGN.md`'s "Everyday form-row controls".

@@ -11,13 +11,13 @@ function CritiqueRunToggles({ wantLlm, setWantLlm, wantTriage, setWantTriage, ai
         <input type="checkbox" checked={wantLlm} onChange={e => setWantLlm(e.target.checked)} /> {suggestLabel}
       </label>
       <label className="settings-check">
-        <input type="checkbox" checked={wantTriage} onChange={e => setWantTriage(e.target.checked)} /> AI triage (flag likely-noise items)
+        <input type="checkbox" checked={wantTriage} onChange={e => setWantTriage(e.target.checked)} /> AI Triage (Flag Likely-Noise Items)
       </label>
     </React.Fragment>
   );
 }
 
-const CRITIQUE_TRIAGE_LABELS = { prioritize: "Prioritize", uncertain: "Uncertain", likely_noise: "Likely noise" };
+const CRITIQUE_TRIAGE_LABELS = { prioritize: "Prioritize", uncertain: "Uncertain", likely_noise: "Likely Noise" };
 
 function TriageBadge({ triage }) {
   if (!triage) return null;

@@ -241,7 +241,7 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
                 ariaLabel={effectiveMode === "cites" ? "Citations by year" : "Publications by year"}
               />
               {effectiveMode === "pubs" && domainSummary &&
-                <div className="mypubs-domain-summary">{domainSummary} · <button className="axis-link" onClick={() => setSelectedDomains(new Set())}>clear</button></div>}
+                <div className="mypubs-domain-summary">{domainSummary} · <button className="axis-link" onClick={() => setSelectedDomains(new Set())}>Clear</button></div>}
             </div>
           </div>}
       </section>
@@ -253,7 +253,7 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
           <span className="mypubs-summary-actions">
             {(data.starred_count || 0) > 0 &&
               <label className="mypubs-starred-toggle" title="Generate from only your ⭐ starred publications (star them in the My Publications sidebar card)">
-                <input type="checkbox" checked={starredOnly} onChange={e => setStarredOnly(e.target.checked)} /> ⭐ only
+                <input type="checkbox" checked={starredOnly} onChange={e => setStarredOnly(e.target.checked)} /> ⭐ Only
               </label>}
             <button className="btn btn-ghost" disabled={demoMode || gen.status === "running"} onClick={generate}
               title={demoMode ? "Generating a new research-summary draft requires local Callosum and a configured AI provider." : undefined}>
@@ -301,8 +301,8 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
                       <input className="domain-rename-input" list="mypubs-axis-names" autoFocus value={editLabel}
                         onChange={e => setEditLabel(e.target.value)}
                         onKeyDown={e => { if (e.key === "Enter") saveRename(d); if (e.key === "Escape") setEditingDomain(null); }} />
-                      <button className="axis-link" onClick={() => saveRename(d)}>save</button>
-                      <button className="axis-link" onClick={() => setEditingDomain(null)}>cancel</button>
+                      <button className="axis-link" onClick={() => saveRename(d)}>Save</button>
+                      <button className="axis-link" onClick={() => setEditingDomain(null)}>Cancel</button>
                     </div>
                   : <>
                       <button type="button" className={"domain-row" + (selectedDomains.has(i) ? " on" : "")}

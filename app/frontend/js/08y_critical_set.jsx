@@ -223,8 +223,8 @@ function CriticalSetModal({ ids, resumeJobId, onClose, onOpenPaper }) {
         {phase === "idle" &&
           <div className="cr-run-toggles">
             <CritiqueRunToggles wantLlm={wantLlm} setWantLlm={setWantLlm} wantTriage={wantTriage}
-              setWantTriage={setWantTriage} aiReady={aiReady} suggestLabel="Suggest cross-paper critiques (AI)" />
-            <button className="btn btn-primary" onClick={start}>Run critique</button>
+              setWantTriage={setWantTriage} aiReady={aiReady} suggestLabel="Suggest Cross-Paper Critiques (AI)" />
+            <button className="btn btn-primary" onClick={start}>Run Critique</button>
           </div>}
         {phase === "loading" && <ProgressBar label="Assembling the scrutiny surface…" managedBy="backend-job" />}
         {phase === "error" && <div className="axis-err">Couldn’t assemble: {String(err)}</div>}
@@ -247,7 +247,7 @@ function CriticalSetModal({ ids, resumeJobId, onClose, onOpenPaper }) {
                 Enable AI features in Settings for AI-suggested cross-paper critiques — the facts above need no AI.
               </div>}
             {!generated && aiReady &&
-              <div className="tag-suggest-empty">Not requested for this run — re-run with “Suggest cross-paper critiques” checked.</div>}
+              <div className="tag-suggest-empty">Not requested for this run — re-run with “Suggest Cross-Paper Critiques” checked.</div>}
             {generated && llmStatus.status === "unavailable" &&
               <div className="tag-suggest-empty">{llmStatus.detail}</div>}
             {generated && llmStatus.status === "success" && !candidatesAll.length &&

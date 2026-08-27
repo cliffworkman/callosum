@@ -304,8 +304,8 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
         {axes && axes.length > 1 &&
           <select className="axis-sort" value={sortBy} onChange={e => setSortBy(e.target.value)} title="Sort axes">
             <option value="name">A–Z</option>
-            <option value="count">most papers</option>
-            <option value="recent">newest</option>
+            <option value="count">Most Papers</option>
+            <option value="recent">Newest</option>
           </select>}
         {!readOnly && <button className="axis-suggest" title="Suggest axes from your library" onClick={() => setSuggesting(true)}>✨</button>}
         {!readOnly && <button className="axis-new" title="New curated axis (hand-picked, hand-ordered)" onClick={createCurated}>📌</button>}
@@ -325,9 +325,9 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
         <div className="axis-bulk-bar">
           <span className="axis-bulk-count">{selectedIds.size} selected</span>
           <button className="axis-link" disabled={selectedIds.size < 2} onClick={openMerge}
-            title={selectedIds.size < 2 ? "Select 2+ axes to merge" : "Merge selected axes into one"}>merge</button>
-          <button className="axis-link axis-danger" onClick={bulkDelete}>delete</button>
-          <button className="axis-link" onClick={() => setSelectedIds(new Set())}>clear</button>
+            title={selectedIds.size < 2 ? "Select 2+ axes to merge" : "Merge selected axes into one"}>Merge</button>
+          <button className="axis-link axis-danger" onClick={bulkDelete}>Delete</button>
+          <button className="axis-link" onClick={() => setSelectedIds(new Set())}>Clear</button>
         </div>}
 
       {axes === null && <div className="axis-hint">—</div>}

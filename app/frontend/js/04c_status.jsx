@@ -311,7 +311,7 @@ function StatusMenu({ onNavigate, desktopUpdate }) {
             : displayJobs.map(j => <StatusJobRow key={j.store + ":" + j.job_id} job={j} now={now}
                 onDismiss={dismiss} onNavigate={navigate} />)}
           {hasFinished && !isDemoMode() &&
-            <button className="status-clear-finished" onClick={clearFinished}>Clear all finished</button>}
+            <button className="status-clear-finished" onClick={clearFinished}>Clear All Finished</button>}
         </div>,
         document.body
       )}

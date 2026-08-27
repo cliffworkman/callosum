@@ -97,7 +97,7 @@ function GrimSection({ ctx }) {
               <span className={"cite-status " + (d.grimmer.consistent ? "verified" : "flagged")}>{d.grimmer.consistent ? "consistent" : "impossible"}</span>
             </div>}
           <div className="grim-caveat">GRIM/GRIMMER assume integer-scale data — they don't apply to continuous measures. An inconsistency is a prompt to look, not a verdict or an accusation.</div>
-          {paperId != null && <button className="btn-link" onClick={save}>Save this check</button>}
+          {paperId != null && <button className="btn-link" onClick={save}>Save This Check</button>}
         </div>}
       {paperId != null && saved.checks.length > 0 &&
         <div className="grim-saved-list">
@@ -192,7 +192,7 @@ function DebitSection({ ctx }) {
             <span className={"cite-status " + (d.debit.consistent ? "verified" : "flagged")}>{d.debit.consistent ? "consistent" : "impossible"}</span>
           </div>
           <div className="grim-caveat">{d.debit.note}</div>
-          {paperId != null && <button className="btn-link" onClick={save}>Save this check</button>}
+          {paperId != null && <button className="btn-link" onClick={save}>Save This Check</button>}
         </div>}
       {paperId != null && saved.checks.length > 0 &&
         <div className="grim-saved-list">
@@ -278,7 +278,7 @@ function DuplicateValuesSection({ ctx }) {
               </ul>
             : <div className="grim-caveat">No exact value repeats more than once.</div>}
           <div className="grim-caveat">{d.duplicate_values.note}</div>
-          {paperId != null && <button className="btn-link" onClick={save}>Save this check</button>}
+          {paperId != null && <button className="btn-link" onClick={save}>Save This Check</button>}
         </div>}
       {paperId != null && saved.checks.length > 0 &&
         <div className="grim-saved-list">

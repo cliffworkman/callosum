@@ -16,11 +16,17 @@ from app.backend.persistence.followed_author_repo import list_followed_authors
 from app.backend.persistence.profile_repo import get_profile
 from app.backend.persistence.schema import papers
 
+# Real CSL-JSON author data sometimes carries a literal placeholder instead of an actual name -- an
+# "et al." artifact from whatever upstream metadata source produced it, not something callosum invents.
+# Excluded a priori; never surfaced as if it were a real recurring co-author.
+_NON_NAME_AUTHOR_TOKENS = {"others", "et al", "et al.", "and others", "anonymous"}
+
 
 def suggest_authors_to_follow(conn: Connection, *, limit: int = 20) -> list[dict[str, Any]]:
     """Authors ranked by paper count across the live library, excluding the user's own name (last-name-token
     match against the user's profile, the `_family_tokens` convention also used in my_publications.py and
-    citation_equity.py) and anyone already followed. Case-insensitive dedup; displays the original casing."""
+    citation_equity.py), anyone already followed, and known non-name placeholder strings. Case-insensitive
+    dedup; displays the original casing."""
     profile = get_profile(conn) or {}
     self_tokens = _self_family_tokens(profile)
     followed = {row["display_name"].strip().lower() for row in list_followed_authors(conn)}
@@ -31,7 +37,7 @@ def suggest_authors_to_follow(conn: Connection, *, limit: int = 20) -> list[dict
     for (csl_json,) in rows:
         for name in _authors_from_csl(csl_json):
             key = name.strip().lower()
-            if not key or key in followed:
+            if not key or key in followed or key in _NON_NAME_AUTHOR_TOKENS:
                 continue
             last = key.split()[-1] if key.split() else key
             if last in self_tokens:

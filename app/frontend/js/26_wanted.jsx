@@ -79,7 +79,7 @@ function WantedModal({ onClose, onOpenPaper, onChanged }) {
           <button className="axis-link" onClick={onClose}>×</button>
         </div>
         <div className="axis-modal-note">
-          Papers you want an open-access copy of. <b>Sync from library</b> adds your PDF-less papers;{" "}
+          Papers you want an open-access copy of. <b>Sync from Library</b> adds your PDF-less papers;{" "}
           <b>Re-check OA</b> searches the open-access sources and imports any authorized copy it finds
           (bronze = unstable). Add an external paper by DOI.
         </div>
@@ -92,7 +92,7 @@ function WantedModal({ onClose, onOpenPaper, onChanged }) {
           </div>}
 
         <div className="wanted-actions">
-          <button className="axis-link" disabled={busy} onClick={syncLibrary}>Sync from library</button>
+          <button className="axis-link" disabled={busy} onClick={syncLibrary}>Sync from Library</button>
           <button className="btn btn-primary" disabled={recheck.status === "running"} onClick={runRecheck}>
             {recheck.status === "running" ? "Re-checking…" : "Re-check OA"}
           </button>
@@ -134,7 +134,7 @@ function WantedModal({ onClose, onOpenPaper, onChanged }) {
             <span className={"wanted-status" + (it.status === "fulfilled" ? " fulfilled" : "")}>{it.status}</span>
             {it.paper_id && it.status === "fulfilled" &&
               <button className="axis-link"
-                onClick={() => onOpenPaper && onOpenPaper({ id: it.paper_id, title: _wantedTitle(it) })}>open</button>}
+                onClick={() => onOpenPaper && onOpenPaper({ id: it.paper_id, title: _wantedTitle(it) })}>Open</button>}
             <button className="axis-link" title="Remove from the wanted list" onClick={() => removeItem(it.id)}>×</button>
           </div>
         ))}

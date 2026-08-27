@@ -401,13 +401,13 @@ function PublishersPanel({ ctx }) {
             const h = history[Number(e.target.value)];
             if (h) run(null, h);
           }} title="Recall and re-run a recent Journals search">
-            <option value="">Recent journal searches</option>
+            <option value="">Recent Journal Searches</option>
             {history.map((h, i) => <option key={`${h.kind}-${h.paperId || h.subject}-${i}`} value={i}>
               {historyLabel(h)}
             </option>)}
           </select>
           <button className="btn btn-primary" disabled={!history.length} onClick={clearRunHistory}
-            title="Clear recent Journals search history stored in this browser">Clear history</button>
+            title="Clear recent Journals search history stored in this browser">Clear History</button>
         </div>}
 
       {state.status === "running" && <ProgressBar progress={state.progress} label="Matching journals…" managedBy="backend-job" />}

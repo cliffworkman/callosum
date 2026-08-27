@@ -279,7 +279,7 @@ function FeedPane({ onSaved, active, embedded }) {
           <div className="settings-note">
             The reviewed snapshot contains 1,240 cached public-metadata records; this view loads the same 200-item
             default as live Callosum. The sample star and any read/star changes are practice state stored only in
-            this browser. <button className="btn-link" onClick={resetDemoTriage}>Reset read/star practice</button>
+            this browser. <button className="btn-link" onClick={resetDemoTriage}>Reset Read/Star Practice</button>
           </div>}
       </div>
       <div className="pane-list-body">

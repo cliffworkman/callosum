@@ -434,14 +434,14 @@ function SyncSettings() {
       {step3 &&
         <div className="settings-field settings-sync-enable">
           <div className="settings-row">
-            <label className="settings-field-label">Enable sync
+            <label className="settings-field-label">Enable Sync
               <span className="settings-sub">
                 Off by default. When on, your papers/tags/axes/notes/highlights sync as opaque, end-to-end-encrypted
                 data to the server below.
               </span>
             </label>
             <button type="button" className={"settings-switch" + (status.enabled ? " on" : "")} role="switch"
-              aria-checked={status.enabled} aria-label="Enable sync" disabled={busy || !serverUrl.trim()}
+              aria-checked={status.enabled} aria-label="Enable Sync" disabled={busy || !serverUrl.trim()}
               onClick={toggleEnabled}><span className="settings-knob" /></button>
           </div>
         </div>}

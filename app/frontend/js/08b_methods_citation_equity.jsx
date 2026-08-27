@@ -82,7 +82,7 @@ function CiteEquityFoot() {
     <React.Fragment>
       <div className="cite-equity-howto">
         Read this as a mirror, not a report card. If a concentration stands out, the move is to read more
-        widely — never to drop a relevant citation, or add one to hit a number. Use <b>Find overlooked work</b>
+        widely — never to drop a relevant citation, or add one to hit a number. Use <b>Find Overlooked Work</b>
         (below) to surface topically-relevant papers your list may have missed.
       </div>
       <div className="method-credit">
@@ -135,7 +135,7 @@ function CitationEquityPaper({ paperId, meta }) {
           {meta && meta.hasDoi && state.status === "idle" && !isDemoMode() &&
             <button className="btn btn-primary" onClick={run}
               title="Resolve this paper's references via OpenAlex (public metadata) and compute its structural signals">
-              Run audit
+              Run Audit
             </button>}
         </div>
       </div>
@@ -186,10 +186,10 @@ function OverlookedCard({ c }) {
           <span className="cite-equity-cand-why"> · shared: {c.shared_concepts.join(", ")}</span>}
         {openHref && <a className="btn-link cite-equity-cand-open" href={openHref} target="_blank" rel="noopener noreferrer">Open ↗</a>}
         {st === "in"
-          ? <span className="cite-equity-cand-inlib">✓ in library</span>
+          ? <span className="cite-equity-cand-inlib">✓ In Library</span>
           : <button className="btn-link" disabled={isDemoMode() || st !== "idle"} onClick={add}
               title={isDemoMode() ? "Adding papers is unavailable in the read-only online demo" : "Add this metadata record to the library"}>
-              {st === "added" ? "✓ in library" : st === "adding" ? "adding…" : "＋ Add to library"}
+              {st === "added" ? "✓ In Library" : st === "adding" ? "Adding…" : "＋ Add to Library"}
             </button>}
       </div>
       {c.abstract &&
@@ -236,7 +236,7 @@ function OverlookedWork({ paperId, hasDoi }) {
           {hasDoi && state.status === "idle" &&
             <button className="btn btn-primary" onClick={run}
               title="Find topically-relevant work this paper's reference list omits (OpenAlex related work + a sample of the field, ranked locally)">
-              Find overlooked work
+              Find Overlooked Work
             </button>}
         </div>
       </div>
@@ -312,7 +312,7 @@ function CitationEquitySectionWip({ manuscript }) {
             {state.status === "idle" &&
               <button className="btn btn-primary" onClick={run}
                 title="Resolve this manuscript's cited references via OpenAlex (public metadata) and compute structural signals">
-                Run audit
+                Run Audit
               </button>}
           </div>
         </div>

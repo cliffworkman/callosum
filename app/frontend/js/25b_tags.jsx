@@ -92,7 +92,7 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly 
               title={t.locked ? "Unlock this tag before removing it from this paper" : "Lock this tag on this paper"}
               aria-label={t.locked ? "Unlock this tag on this paper" : "Lock this tag on this paper"}
               aria-pressed={!!t.locked}
-              onClick={() => setLocked(t.id, !t.locked)}>{t.locked ? "locked" : "lock"}</button>}
+              onClick={() => setLocked(t.id, !t.locked)}>{t.locked ? "Locked" : "Lock"}</button>}
             <button className="tag-chip-name" title={tagSourceLabel(t.source) + " · click to filter the library"}
               onClick={() => onFilterToTag && onFilterToTag({ id: t.id, name: tagDisplayName(t) })}>{tagDisplayName(t)}</button>
             {!immutable && !t.locked && !tagIsSystemFact(t.source) && <button className="tag-chip-x" title="Remove this tag" onClick={() => remove(t.id)}>×</button>}
@@ -117,7 +117,7 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly 
         </React.Fragment>}
         <button className="btn-link" disabled={suggesting}
           title={immutable ? "Show the saved local tag suggestions" : "Suggest tags from this paper's text (local, no AI sent off-device)"}
-          onClick={suggest}>{suggesting ? "suggesting…" : (immutable ? "✨ Show saved suggestions" : "✨ Suggest")}</button>
+          onClick={suggest}>{suggesting ? "Suggesting…" : (immutable ? "✨ Show Saved Suggestions" : "✨ Suggest")}</button>
         {suggestions.map(name => immutable
           ? <span key={"sug-" + name} className="term-chip tag-suggest-chip">{name}</span>
           : <button key={"sug-" + name} className="term-chip tag-suggest-chip" title="Add this suggested tag"

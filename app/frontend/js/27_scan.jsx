@@ -97,7 +97,7 @@ function ScanModalBody({ onClose, onScanned, onShowUnsorted }) {
               </div>
               {w.is_default
                 ? <span className="watched-default-note" title="Your library folder is always watched — it can't be removed">default</span>
-                : <button className="axis-link" title="Stop watching (keeps the imported papers)" onClick={() => unwatch(w.id)}>remove</button>}
+                : <button className="axis-link" title="Stop watching (keeps the imported papers)" onClick={() => unwatch(w.id)}>Remove</button>}
             </div>
           ))}
           <button className="btn btn-ghost" disabled={scan.status === "running"} onClick={rescanAll}>

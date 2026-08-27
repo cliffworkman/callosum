@@ -272,7 +272,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
           <select className="wb-in" value={newDesign} disabled={isDemoMode()} onChange={e => setNewDesign(e.target.value)}>
             {WB_DESIGNS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
           </select>
-          <button className="btn btn-primary" disabled={isDemoMode()} onClick={createProject}>Create project</button>
+          <button className="btn btn-primary" disabled={isDemoMode()} onClick={createProject}>Create Project</button>
         </div>
         <ul className="wb-projects">
           {projects.length === 0 && <li className="wb-empty">No projects yet — create one above.</li>}
@@ -280,7 +280,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
             <li key={p.id} className="wb-project-row">
               <button className="btn-link wb-open" onClick={() => openProject(p.id)}>{p.name}</button>
               <span className="wb-meta">{p.design.replace(/_/g, " ")} · {p.row_count} row{p.row_count === 1 ? "" : "s"}</span>
-              <button className="btn-link wb-del" disabled={isDemoMode()} onClick={() => removeProject(p.id)}>delete</button>
+              <button className="btn-link wb-del" disabled={isDemoMode()} onClick={() => removeProject(p.id)}>Delete</button>
             </li>
           ))}
         </ul>
@@ -318,7 +318,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
           </button>}
         {project.rows.length > 0 &&
           <button className="btn-link" title={isDemoMode() ? "Recomputing requires the local app." : "Convert every row that has valid inputs"}
-            disabled={isDemoMode()} onClick={convertAll}>Convert all →</button>}
+            disabled={isDemoMode()} onClick={convertAll}>Convert All →</button>}
         {project.rows.length > 0 &&
           <span className="wb-meta">{convertedCount} of {project.rows.length} converted</span>}
         <span className="wb-spacer" />
@@ -330,7 +330,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
         <button className="btn-link" title="Raw per-group study data in RevMan's import columns for this design (RevMan computes the effect)"
           onClick={() => downloadAsset(exportUrl("revman"), `extraction-${project.id}-revman.csv`)}>RevMan</button>
         <button className="btn-link" title="Provenance audit (JSON): every cell's page + quote — your source trail"
-          onClick={() => downloadAsset(exportUrl("audit"), `extraction-${project.id}-provenance.json`)}>provenance</button>
+          onClick={() => downloadAsset(exportUrl("audit"), `extraction-${project.id}-provenance.json`)}>Provenance</button>
       </div>
       <textarea className="wb-protocol" placeholder="Protocol note (question, inclusion criteria)…" defaultValue={project.protocol_note || ""} disabled={isDemoMode()}
         key={"proto" + project.id} onBlur={e => apiPatch("/workbench/projects/" + project.id, { protocol_note: e.target.value })} />
@@ -428,7 +428,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
             <label>Page <input className="wb-in" type="number" min="1" value={anchor.page} disabled={isDemoMode()} onChange={e => setAnchor(a => ({ ...a, page: e.target.value }))} /></label>
             <label>Quote <input className="wb-in" placeholder="the reported text…" value={anchor.quote} disabled={isDemoMode()} onChange={e => setAnchor(a => ({ ...a, quote: e.target.value }))} /></label>
             <div className="wb-anchor-actions">
-              <button className="btn btn-primary" disabled={isDemoMode()} onClick={saveAnchor}>Save anchor</button>
+              <button className="btn btn-primary" disabled={isDemoMode()} onClick={saveAnchor}>Save Anchor</button>
               {anchor.hasCell && <button className="btn-link" onClick={openAtAnchor}>Open at anchor →</button>}
               <button className="btn-link" onClick={() => setAnchor(null)}>Cancel</button>
             </div>

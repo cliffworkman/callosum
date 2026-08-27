@@ -47,8 +47,8 @@ function WipContextMenu({ menu, onClose, onOpen, onUpdate, onRescan, onDelete })
     <button role="menuitem" onClick={() => update({ state: manuscript.state === "archived" ? "active" : "archived" })}>
       {manuscript.state === "archived" ? "Restore to active" : "Archive manuscript"}
     </button>
-    <button role="menuitem" onClick={rescan}>Rescan files</button>
+    <button role="menuitem" onClick={rescan}>Rescan Files</button>
     <hr className="wip-context-menu-divider" />
-    <button role="menuitem" className="wip-context-menu-danger" onClick={remove}>Remove manuscript</button>
+    <button role="menuitem" className="wip-context-menu-danger" onClick={remove}>Remove Manuscript</button>
   </div>;
 }

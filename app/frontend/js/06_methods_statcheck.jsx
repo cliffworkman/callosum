@@ -56,7 +56,7 @@ function StatcheckLibrary({ onShowFlagged, onRan }) {
       {run.status === "done" && s &&
         <div className="settings-note">
           {s.checked} paper{s.checked === 1 ? "" : "s"} with statistics checked · <b>{s.flagged}</b> with inconsistencies.
-          {s.flagged > 0 && onShowFlagged && <> <button className="btn-link" onClick={onShowFlagged}>Show flagged papers</button></>}
+          {s.flagged > 0 && onShowFlagged && <> <button className="btn-link" onClick={onShowFlagged}>Show Flagged Papers</button></>}
         </div>}
     </div>
   );
