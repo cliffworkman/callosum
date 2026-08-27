@@ -485,6 +485,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           <button className="axis-link" onClick={onBulkZcurve} title="Run a z-curve (expected replication/discovery rate) over the selected papers — collection-level, never per-paper or author">z-curve</button>
           <BulkReferenceCheckButton paperIds={[...selectedLibraryIds]} onDone={onBulkReferenceCheckDone} />
           <ReprocessSelectedTextButton paperIds={[...selectedLibraryIds]} onDone={onEnriched} />
+          <GrobidParseSelectedButton paperIds={[...selectedLibraryIds]} onDone={onEnriched} />
           {selCount >= 2 &&
             <button className="axis-link" onClick={onBulkMerge} title="Merge the selected papers into one record — keeps every PDF, link, tag, and highlight; the others move to Trash">merge</button>}
           {selCount >= 2 && onBulkCriticalRead &&

@@ -20,6 +20,7 @@ ALLOWED_RAW_COMMITS = {
     "papers.py": 1,  # reprocess-pdf (re-extract + re-embed); purge commits moved to paper_purge.py (file staging)
     "summaries.py": 1,  # summary reverify — local retrieval + NLI + quote-location over the library
     "critical_review.py": 1,  # candidate generate — NLI verification of AI drafts (egress-gated)
+    "critical_review_triage.py": 1,  # triage_candidates — the AI-triage evaluator call (egress-gated)
     "workbench.py": 1,  # propose_row — the LLM assisted-extraction proposal (egress)
     "analytic_flexibility.py": 1,  # propose_analytic_flexibility — the LLM candidate-proposal call (egress)
     # I/O-mixed — a retry could double-fire an external fetch or a secret write.

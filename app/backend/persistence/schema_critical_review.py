@@ -9,11 +9,25 @@ is remembered so it is never re-proposed.
 
 from __future__ import annotations
 
-from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, Integer, String, Table, Text, func
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    func,
+)
 
 from app.backend.persistence.schema_base import enum_check, metadata
 
 CRITICAL_REVIEW_STATUSES = ("pending", "accepted", "rejected")
+CRITICAL_REVIEW_TRIAGE_LABELS = ("prioritize", "uncertain", "likely_noise")
 
 critical_review_candidates = Table(
     "critical_review_candidates",
@@ -33,4 +47,27 @@ critical_review_candidates = Table(
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     enum_check("status", CRITICAL_REVIEW_STATUSES, "cr_status_valid"),
     Index("ix_cr_candidates_paper_id", "paper_id"),
+)
+
+# Optional, reversible LLM triage over a persisted Tier-2 candidate (mirrors
+# registration_comparison_triage_annotations exactly). One row per candidate — candidates have no "run" grouping
+# concept (accept/reject already act per-candidate-id, paper-agnostic), so this is keyed by candidate_id alone.
+critical_review_candidate_triage = Table(
+    "critical_review_candidate_triage",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("candidate_id", ForeignKey("critical_review_candidates.id", ondelete="CASCADE"), nullable=False),
+    Column("label", String(40), nullable=False),
+    Column("show_in_triage", Integer, nullable=False, server_default="0"),
+    Column("rationale", Text),
+    Column("concerns_json", JSON, nullable=False),
+    Column("basis", Text),
+    Column("provider_id", String(120), nullable=False),
+    Column("model_id", String(200)),
+    Column("prompt_version", String(120), nullable=False),
+    Column("evidence_fingerprint", String(128), nullable=False),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    enum_check("label", CRITICAL_REVIEW_TRIAGE_LABELS, "cr_candidate_triage_label_valid"),
+    UniqueConstraint("candidate_id", name="uq_cr_candidate_triage_candidate"),
+    Index("ix_cr_candidate_triage_candidate", "candidate_id"),
 )

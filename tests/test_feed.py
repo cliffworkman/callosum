@@ -470,3 +470,35 @@ def test_library_journals_endpoint(temp_db_url):
     client = TestClient(create_app(db_url=temp_db_url))
     journals = client.get("/feed/library-journals").json()["journals"]
     assert journals == [{"journal": "Nature", "count": 2}, {"journal": "Cell", "count": 1}]  # most-frequent first
+
+
+def test_suggest_authors_endpoint_ranks_by_frequency_excludes_self_and_followed(temp_db_url):
+    """Feed's Suggest-modal Author tab: a plain per-author paper count across the library, most-frequent first,
+    excluding the user's own name (profile last-name match) and anyone already followed."""
+    from app.backend.persistence.profile_repo import upsert_profile
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Jane Q. User", name_variants=[], orcid=None)
+        for i in range(3):
+            create_paper(conn, title=f"P{i}", csl_json={"title": f"P{i}", "author": [{"literal": "Alex Popular"}]})
+        for i in range(2):
+            create_paper(
+                conn, title=f"Q{i}", csl_json={"title": f"Q{i}", "author": [{"family": "Rare", "given": "Cody"}]}
+            )
+        create_paper(
+            conn,
+            title="Self",
+            csl_json={"title": "Self", "author": [{"literal": "Jane Q. User"}]},
+        )  # must be excluded -- it's the user
+    engine.dispose()
+
+    client = TestClient(create_app(db_url=temp_db_url))
+    authors = client.get("/feed/suggest-authors").json()["authors"]
+    assert authors[0] == {"name": "Alex Popular", "paper_count": 3}
+    assert {"name": "Cody Rare", "paper_count": 2} in authors
+    assert not any(a["name"] == "Jane Q. User" for a in authors)  # self excluded
+
+    client.post("/followed-authors", json={"author_id": "A1", "display_name": "Alex Popular"})
+    authors_after_follow = client.get("/feed/suggest-authors").json()["authors"]
+    assert not any(a["name"] == "Alex Popular" for a in authors_after_follow)  # already-followed excluded

@@ -224,14 +224,17 @@ def test_followed_authors_migration_upgrades_an_existing_0068_database(tmp_path)
     (NotImplementedError). A fresh-DB test alone can't catch this -- migration 0001 creates every
     current-metadata table via metadata.create_all() (which handles the constraint natively), so the
     guarded 0069 branch never actually ran on a fresh DB. Only a real pre-existing deployed database
-    (upgrade to 0068, drop the tables migration 0001 pre-created, then upgrade to head) exercises the
-    branch that Alembic's ALTER-based path actually executes."""
+    (upgrade to 0068, drop the table migration 0001 pre-created, then upgrade to head) exercises the
+    branch that Alembic's ALTER-based path actually executes. (`followed_author_candidates`, 0069's other
+    guarded table, was dropped from the live ORM metadata 2026-08-27 when its feature was retired --
+    0069's own historical DDL for it is untouched, so it still creates that now-unused table on any DB,
+    matching this project's additive-migration convention; nothing left needs a drop-then-upgrade
+    simulation for it, since it's no longer pre-created by 0001 either.)"""
     db_url = f"sqlite:///{tmp_path / 'migration-followed-authors.sqlite'}"
     cfg = _config_for(db_url)
     command.upgrade(cfg, "0068_ajol_records")
     engine = create_engine(db_url)
     with engine.begin() as conn:
-        conn.exec_driver_sql("DROP TABLE followed_author_candidates")
         conn.exec_driver_sql("DROP TABLE followed_authors")
     engine.dispose()
 

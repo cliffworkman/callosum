@@ -45,7 +45,9 @@ def _paper_with_attachment(conn, title: str) -> tuple[int, int]:
     return pid, aid
 
 
-def _chunk_with_embedding(conn, paper_id: int, attachment_id: int, *, text: str, page: int) -> tuple[int, int]:
+def _chunk_with_embedding(
+    conn, paper_id: int, attachment_id: int, *, text: str, page: int, section: str | None = None
+) -> tuple[int, int]:
     chunk_id = create_chunk(
         conn,
         paper_id=paper_id,
@@ -59,6 +61,7 @@ def _chunk_with_embedding(conn, paper_id: int, attachment_id: int, *, text: str,
         chunking_strategy="paragraph",
         chunk_version="v1",
         source_attachment_checksum="chk",
+        section=section,
     )
     embedding_id = int(
         conn.execute(
@@ -148,6 +151,20 @@ def test_set_chunk_embedding_ids_scopes_to_set():
         got = set_chunk_embedding_ids(c, [a, b], a)
     eng.dispose()
     assert got == {b_emb}  # only B (in-set, other); excludes A (self) and C (not in set)
+
+
+def test_set_chunk_embedding_ids_excludes_references_section():
+    # A bibliography is not substantive contrasting prose -- must never enter the set's own corpus.
+    eng = _fresh_db()
+    with eng.begin() as c:
+        a, aa = _paper_with_attachment(c, "A")
+        b, ab = _paper_with_attachment(c, "B")
+        _, b_body = _chunk_with_embedding(c, b, ab, text="a body passage", page=1)
+        _, b_refs = _chunk_with_embedding(c, b, ab, text="1. Smith et al. 2020.", page=9, section="references")
+        got = set_chunk_embedding_ids(c, [a, b], a)
+    eng.dispose()
+    assert got == {b_body}
+    assert b_refs not in got
 
 
 def test_set_contested_only_surfaces_intra_set():
@@ -384,3 +401,44 @@ def test_set_tier2_fake_generator_and_egress_off(temp_db_url, monkeypatch):
     )
     assert done2["report"]["llm_status"]["status"] == "unavailable"
     assert done2["report"]["candidates"] == []
+
+
+class _FakeCandidateTriage:
+    """Introspects the actual item_ids sent (a candidate's DB id, not knowable ahead of time) and labels each."""
+
+    def evaluate(self, *, items):
+        return {
+            "status": {"status": "success", "provider_id": "local", "model_id": "fixture-model"},
+            "annotations": {
+                item["item_id"]: {
+                    "label": "prioritize",
+                    "show_in_triage": True,
+                    "rationale": "Matches a substantive concern.",
+                    "concerns": [],
+                    "basis": "test",
+                }
+                for item in items
+            },
+        }
+
+
+def test_set_triage_toggle_annotates_candidates_in_one_run(temp_db_url):
+    app = _cr_set_app(temp_db_url)
+    with make_engine(temp_db_url).begin() as conn:
+        a = create_paper(conn, title="A", abstract="The sample was n = 12 participants.", csl_json={"title": "A"})
+        b = create_paper(conn, title="B", abstract="We used a within-subjects design.", csl_json={"title": "B"})
+    app.state.critical_review_set_generator = _FakeSetGenerator(
+        [SetCandidateDraft("Small sample size.", "The sample was n = 12 participants.", [2])]
+    )
+    app.state.critical_review_triage_evaluator = _FakeCandidateTriage()
+    client = TestClient(app)
+    done = _poll_set(
+        client,
+        client.post("/critical-read/set", json={"paper_ids": [a, b], "llm": True, "triage": True}).json()["job_id"],
+    )
+    assert done["status"] == "done"
+    cands = done["report"]["candidates"]
+    assert len(cands) == 1
+    assert cands[0]["llm_triage"]["label"] == "prioritize"
+    # no contested claims surfaced (empty vector store) -> the ephemeral Tier-1 triage stage is honestly "not_searched"
+    assert done["report"]["triage_status"]["status"] == "not_searched"

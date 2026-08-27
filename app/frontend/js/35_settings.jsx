@@ -553,9 +553,11 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
                 </div>
               </div>
             </div>
-            <div className="settings-section"><AcquisitionSettings /></div>
+            <div className="settings-section">
+              <AcquisitionSettings />
+              <div className="settings-subsection"><GrobidSettings /></div>
+            </div>
             <div className="settings-section"><LocalMaintenanceSettings onRetractionRan={onRetractionRan} /></div>
-            <div className="settings-section"><GrobidSettings /></div>
             <div className="settings-section settings-section-wide"><PublishersSettings /></div>
           </div>
         </SettingsCard>

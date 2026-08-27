@@ -193,24 +193,6 @@ followed_authors = Table(
     UniqueConstraint("author_id", name="uq_followed_authors_author_id"),
 )
 
-# The derived candidate cache for followed_authors: one row per (author, absent work), replaced per-author on
-# refresh. cited_by_count is the WORK's own OpenAlex citation count -- semantically different from
-# gap_candidates.cited_by_in_library (which counts the user's own library citing it) -- never conflate in the UI.
-followed_author_candidates = Table(
-    "followed_author_candidates",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("author_id", String(20), nullable=False),
-    Column("author_display_name", Text),  # snapshot at compute time so provenance needs no join
-    Column("openalex_work_id", String(40)),
-    Column("doi", String(255)),
-    Column("title", Text),
-    Column("year", Integer),
-    Column("cited_by_count", Integer, nullable=False, server_default="0"),
-    Column("computed_at", String(40), nullable=False),
-    Index("ix_followed_author_candidates_author", "author_id"),
-)
-
 # My Publications Layer-4 grounded prospection (incs 386/389): bounded, explicit-refresh snapshots keyed by an
 # all-publications or server-validated domain scope. Candidates retain the exact shared references + confirmed
 # own-publication rows that caused them to surface. One row per scope keeps a genuine empty result distinguishable

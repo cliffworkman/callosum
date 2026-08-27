@@ -9,6 +9,214 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-08-27 — Increment 504: Feed consolidation + Suggest modal + toolbar cleanup -->
+## 2026-08-27 — Increment 504: Discover → Feed consolidation, 5-tab Suggest modal, toolbar cleanup
+- **Files:** `app/frontend/js/30e_feed.jsx` (rewritten), new `app/frontend/js/30g_feed_suggest.jsx`, deleted
+  `app/frontend/js/30f_followed_authors.jsx`, `app/frontend/js/04b_workspaces.jsx`,
+  `app/backend/api/routers/{feed,followed_authors,status}.py`, `app/backend/api/app.py`,
+  `app/backend/clustering/followed_authors.py`, `app/backend/persistence/{followed_author_repo,schema_findings,
+  schema}.py`, `app/backend/demo_extended_state.py`, `tools/demo/capture_demo_extended_state.py`,
+  `demo/{demo-runtime.js,extended-state-v1.json,snapshot-v1.json}`, new migration
+  `alembic/versions/0077_drop_followed_author_candidates.py`, `app/frontend/styles.css`, `.claude/DESIGN.md`,
+  `app/backend/help/help_content.md`, `.claude/qa-routes/route_44_feed.md` (deleted
+  `route_87_followed_authors.md`), `.claude/docs/INCREMENT-BACKLOG.md`, `CLAUDE.md`, tests across
+  `test_feed.py`/`test_followed_authors.py`/`test_migrations.py`/`test_demo_snapshot.py`/
+  `test_frontend_assembly.py`/`tests/e2e/test_demo_static.py`.
+- **What:** consolidated the standalone Followed Authors tab into Feed (a 5th, frontend-only "Author" dropdown
+  option auto-detecting ORCID vs. name; dropped the tab's own gap-candidate machinery per the user's explicit
+  call, keeping only the follow/unfollow primitive); redesigned Suggest into a 5-tab modal (Journal unchanged;
+  bioRxiv/medRxiv Categories and PubMed Search entirely frontend-composed against existing axes/tags/search-
+  history data; Author via one new `GET /feed/suggest-authors` library-frequency endpoint); capped the
+  followed-sources pill row to one line with a measured-overflow "…" modal; merged the two filter groups (a
+  literal duplicate "All" button) into one exclusive All/Unread/Highlighted/Starred toggle; retitled "Auto-
+  Refresh"/"Mark All Read" to Title Case; fixed a real 4-way control-height mismatch in the shared `.searchbar`
+  row family via a new `--control-h` token. New DESIGN.md rules (Title Case; `--control-h`) plus two backlog
+  items (#59, #60) scope the rest of the app-wide retrospective as follow-up, not done here. Refreshed the
+  served help corpus (Feed/Followed-Authors sections) to match. Found and backlogged (#61, not fixed) a
+  separate pre-existing bug: `OpenAlexAuthorClient._fetch()` permanently caches a transient fetch error as an
+  authoritative "no result."
+- **Why:** requested — Feed had grown into a disjointed set of controls (a near-duplicate standalone tab,
+  a journal-only Suggest modal, a redundant filter row, un-Title-Cased labels, mismatched control heights).
+- **Verification:** targeted suite (162 tests across the touched files) + full `pytest -n auto -q`
+  (**2531 passed, 3 skipped**) + the opt-in Chromium E2E demo smoke test (`CALLOSUM_RUN_E2E=1`, which builds
+  and drives the real static demo bundle end-to-end) all green. Live-verified via Playwright against the real
+  ~200-paper testing DB: the Followed Authors tab is gone; Suggest's bioRxiv tab correctly ranked "neuroscience"
+  first against real axes/tags; the Author tab ranked 20 real recurring co-authors with the seeded user's own
+  name absent from the full list; followed + unfollowed a real author by name (after clearing one stale
+  errored OpenAlex cache row — see backlog #61) with the pill appearing/disappearing correctly in both the
+  header row and the overflow modal; confirmed the `.searchbar` control-height fix visually on both Feed's and
+  Search's toolbar rows. The real testing DB's live migration to `0077_drop_followed_author_candidates` ran
+  cleanly on server startup against genuine pre-existing data.
+- **Revert:** `git diff` the files above; the new migration has no down-migration (project convention) — a
+  revert would need a manual re-add of the dropped table if ever required, which is not expected.
+
+## 2026-08-27 — Relevance row highlight: whole-row wash, lighter shade, and generalized to Search
+- **Files:** `app/frontend/styles.css`, `app/frontend/js/30d_discover.jsx`, `30e_feed.jsx`,
+  `.claude/DESIGN.md`, `tests/test_frontend_assembly.py`.
+- **What:** three follow-on refinements to the violet relevance badge below, all same-day:
+  (1) the small pill alone still wasn't distinctive enough in Feed's long scrolling list, so a
+  matched row's **entire entry** now washes with a new, lighter token `--highlight-wash`
+  (`#f6f1f9` light / `#262134` dark), and the unread dot recolors from `--accent` to `--highlight`
+  to match; (2) a first pass reused the pill's own `--highlight-soft` for the row too — live
+  verification found it read as too saturated for a whole entry and made the pill's own
+  background disappear into the row it sat on (same color) — fixed by adding the dedicated,
+  lighter `--highlight-wash` token, with hover stepping up to `--highlight-soft`;
+  (3) generalized the row wash from a Feed-only `.feed-item-highlight` class to the shared
+  `.discover-item.relevance-row-highlight`, applied identically on Search's rows too, since a
+  relevance match should look the same wherever it appears. Search's keyboard-cursor row (`.cur`)
+  gets an explicit `.discover-item.cur.relevance-row-highlight` override so the selection cue
+  never disappears under the wash.
+- **Why:** user feedback across three rounds of live review — first that the pill alone didn't
+  stand out, then that the resulting row wash was too dark/saturated, then that the same
+  treatment should be the default everywhere a relevance hint appears, not just Feed.
+- **Verification:** `pytest tests/test_frontend_assembly.py tests/test_discovery.py -q` → all
+  passed. Live-verified via Playwright in both light and dark theme on both Feed and Search:
+  confirmed the lighter wash, the pill still popping against it, the recolored unread dot
+  (Feed), and the `.cur` override (Search) all render correctly; pixel-sampled the rendered
+  screenshot to confirm the resting-state background matches the intended hex exactly (an
+  earlier sample had been inflated by a stale `:hover` state from a prior scroll, caught and
+  corrected before drawing conclusions).
+- **Revert:** `git diff` the files above; no schema/migration involved.
+
+## 2026-08-27 — Give the axis-relevance badge its own violet color, not `--accent`
+- **Files:** `app/frontend/styles.css`, `app/frontend/js/30d_discover.jsx`, `30e_feed.jsx`,
+  `.claude/DESIGN.md`, `tests/test_frontend_assembly.py`.
+- **What:** the relevance-hint badge (Search + Feed) reused `--accent`/`--accent-soft`/`--accent-line` —
+  the same indigo used for provenance/primary actions/the Status badge/segmented "on" states everywhere
+  else — so it didn't visually stand out. Added a new violet token triple
+  (`--highlight`/`--highlight-soft`/`--highlight-line`, light + dark), anchored to the already-vetted
+  `--tag-purple` hex (reusing the *value*, not the tag-chip token itself, to keep the two semantic
+  domains independent). Renamed `.discover-relevance` → `.relevance-highlight` (same shape/copy, new
+  color) at both call sites; documented the new token + recipe + fixed-semantics entry in DESIGN.md.
+- **Why:** requested — the badge should "leverage existing color theming while being sufficiently
+  distinctive to stand out"; the old indigo blended into the rest of the chrome.
+- **Verification:** `pytest tests/test_frontend_assembly.py -q` → 73 passed. Live-verified in both light
+  and dark theme via Playwright screenshots: light mode shows a clearly distinct violet pill against the
+  neutral list; dark mode is legible but visually closer to the app's other indigo elements than light
+  mode is (the badge's soft-pill rendering vs. solid-fill buttons still differentiates it) — flagged to
+  the user as a judgment call, not silently finalized.
+- **Revert:** `git diff` the files above; no schema/migration involved.
+
+## 2026-08-27 — Feed: wire in the existing axis-relevance highlight
+- **Files:** `app/backend/api/routers/discovery.py`, `app/frontend/js/30e_feed.jsx`,
+  `tests/test_discovery_relevance.py`, `test_frontend_assembly.py`,
+  `.claude/qa-routes/route_44_feed.md`.
+- **What:** the user reported Feed doesn't highlight relevant papers as expected. Investigation
+  found no bug — the axis-relevance mechanism (`score_axis_relevance()`, "a hint, never a
+  filter") was wired only into Discover → Search, never Feed. Reused the existing, unchanged,
+  already-tested mechanism: Feed now fires the same `POST /discovery/relevance` call
+  Search already makes, right after its item list loads, and renders the same
+  `.discover-relevance` badge. The only backend change was raising
+  `RelevanceRequest.items`'s cap from 50 (sized for Search's `limit=25`) to 200 (Feed's own
+  default page size) so a full Feed page fits in one call instead of needing chunking.
+- **Why:** the highlighting feature the user expected genuinely didn't exist for Feed yet — not
+  a misfiring threshold to loosen.
+- **Verification:** `pytest tests/test_discovery_relevance.py tests/test_frontend_assembly.py
+  tests/test_feed.py tests/test_discovery.py -q` → 117 passed; full suite run separately.
+  Live-verified against the real testing library: 35 of 200 currently-loaded Feed items
+  correctly picked up sensible axis badges (e.g. a facial-stigma paper matched "Facial
+  Perception and Stigma" at 0.54), the complete list stayed unfiltered/unreordered, an empty
+  (Starred) filter correctly skipped the relevance call entirely, and 0 console errors.
+- **Revert:** `git diff` the files above; no schema/migration involved.
+
+## 2026-08-27 — Critique triage: fix reference-list noise, gate runs behind a button + toggles
+- **Files:** `app/backend/methods/critical_review.py`, `critical_review_set.py`, new
+  `critical_review_triage.py`; `app/backend/api/routers/critical_review.py`, new
+  `critical_review_triage.py`; `app/backend/persistence/schema_critical_review.py`, new
+  `critical_review_triage_repo.py`; `alembic/versions/0076_critical_review_candidate_triage.py`;
+  `app/frontend/js/08x_methods_critical.jsx`, `08y_critical_set.jsx`, new `08z_critical_triage.jsx`,
+  `styles.css`; `tests/test_critical_review*.py`, `test_frontend_assembly.py`; two QA route docs.
+- **What:** (1) a real bug fix — critique's evidence retrieval (contested-claims corpus + the Tier-2
+  LLM's verbatim haystack) never excluded `chunks.section == "references"`, so a paper's own
+  bibliography could surface as "contradicting" evidence; now excluded at the four retrieval/haystack
+  call sites. (2) a new, reversible **AI-triage** layer (labels: prioritize/uncertain/likely_noise,
+  mirroring inc-435's registration-comparison triage) — ephemeral for Tier-1 contested claims
+  (in-job, no persistence), persisted for Tier-2 candidates (new `critical_review_candidate_triage`
+  table, read-time-attached with staleness). (3) the Set critique modal no longer auto-runs on open —
+  it now shows an idle "Run critique" button plus "Suggest cross-paper critiques (AI)" and "AI
+  triage" toggles that drive one combined job (eliminating the old wasteful full-Tier-1 rerun the
+  post-hoc "Suggest" button caused); single-paper Critical Read gained the same two toggles
+  alongside its already-existing button, with "Suggest critiques" now auto-chaining after Tier-1
+  when checked upfront (its manual button remains as a fallback).
+- **Why:** live use showed "Where these papers disagree" quoting a references list, plus a general
+  complaint that contested-claim evidence is often lengthy and the disagreement not obvious — AI
+  triage (evidenced live: correctly flagged byline/citation-adjacent text the section-exclusion
+  fix alone didn't catch) directly targets that.
+- **Verification:** `pytest tests/test_critical_review.py tests/test_critical_review_set.py
+  tests/test_critical_review_triage.py tests/test_critical_review_nli_length_batching.py
+  tests/test_wip_critical_review.py tests/test_frontend_assembly.py tests/test_status.py -q` → 167
+  passed; full suite run separately. Live-verified end-to-end with a real Gemini key against the
+  real testing library (both the Set and single-paper surfaces, all toggle combinations, the
+  "All rows"/"AI-focused" filter, and persistence across a page reload) — caught and fixed one real
+  bug live: the single-paper job's pre-existing "finalizing_result" stage label fired before the
+  new triage stage, understating what was actually final; reordered so triage always precedes it.
+- **Revert:** `git diff` the files above; the new migration has no down-migration by design
+  (project convention) — drop `critical_review_candidate_triage` manually if ever needed.
+
+## 2026-08-26 — Critical Read (set) modal can now be reopened from Status
+- **Files:** `app/backend/api/routers/status.py`, `app/frontend/js/40_app.jsx`, `app/frontend/js/08y_critical_set.jsx`,
+  `tests/test_status.py`, `tests/test_frontend_assembly.py`.
+- **What:** closing the multi-paper "critical read" modal while its job still runs used to strand the user —
+  the Status popover's row for `critical_review_set_jobs` landed on the single-paper Critique tab, which has no
+  concept of a multi-paper job and rendered nothing. Its nav default now points at `{"workspace": "synthesis",
+  "modal": "critical-set"}` instead of a tab; `onStatusNavigate` reopens `CriticalSetModal` with the job's
+  exact `job_id` (a new `resumeJobId` prop, preferred over the existing sessionStorage-keyed ids recall), which
+  resumes polling the same already-running job or immediately shows its finished report.
+- **Why:** reported live — a multi-paper critical read otherwise locks the user out of ever seeing the result
+  once the modal is closed, forcing them to wait with the modal pinned open instead of using the rest of the app.
+- **Verification:** live-verified via Playwright against a freshly restarted dev server (a stale uvicorn process
+  was killed first) — reopening from a still-running Status row resumes the progress bar; reopening from a done
+  row shows the full facts-matrix/contested-claims report. `pytest tests/test_status.py tests/test_frontend_assembly.py
+  tests/test_critical_review_set.py -q` → 103 passed; full suite run separately.
+- **Revert:** `git diff` the five files above and revert; no schema/migration involved.
+
+## 2026-08-26 — GROBID: per-paper/unparsed-only bulk parsing, metadata-only exclusion, Settings layout
+- **Files:** `app/backend/api/routers/grobid.py`, `app/backend/grobid_pipeline.py`, `app/frontend/js/35_settings.jsx`,
+  `app/frontend/js/35e_maintenance.jsx`, `app/frontend/js/10b_libmenus.jsx`, `app/frontend/js/10_pdf_layer.jsx`,
+  `tests/test_grobid_endpoints.py`, `tests/test_grobid_pipeline.py`.
+- **What:** four UI/behavior requests after live use: (1) GROBID Settings moved directly under Library access,
+  filling previously-empty whitespace; (2) "Test connection" merged onto the Save row as "Test"; (3) a new
+  "Parse unparsed only" button (`only_unparsed`, backed by new `paper_ids_with_sections()`) alongside "Parse all
+  papers"; (4) a per-paper "parse structure (GROBID)" bulk-selection button
+  (`GrobidParseSelectedButton`/`pollGrobidLibraryParse`). Also: bulk parsing now excludes metadata-only papers
+  (no local PDF) from the candidate count entirely via `_papers_with_local_pdf`, rather than silently no-op'ing
+  or miscounting them as skipped.
+- **Why:** live GROBID use surfaced all four gaps in the same Settings/Library session; GROBID structurally
+  cannot parse a paper with no PDF, so it shouldn't be counted as considered.
+- **Verification:** `pytest tests/test_grobid_endpoints.py tests/test_grobid_pipeline.py -q` plus full suite
+  (below). Manually live-tested via Playwright; caught and fixed one self-inflicted issue (a stale, un-restarted
+  uvicorn process briefly appeared to reparse the whole library on a scoped request — the scoping logic itself
+  was correct, confirmed against a fresh server).
+- **Revert:** `git diff` the files above; no schema/migration involved.
+
+## 2026-08-26 — GROBID reliability: 503 retry + reduced concurrency + disabled response compression
+- **Files:** `integrations/grobid/client.py`, `app/backend/api/routers/grobid.py`, `tests/test_grobid_client.py`.
+- **What:** `parse_fulltext` retries a 503 ("Could not get an engine from the pool") up to 3× with linear
+  backoff instead of failing the whole paper immediately; `GROBID_PARSE_WORKERS` dropped from 4→2 to reduce
+  concurrent load on GROBID's own engine pool; the client now sends `Accept-Encoding: identity` to stop asking
+  GROBID to compress responses at all, after a live run repeatedly hit `Error -3 while decompressing data:
+  incorrect header check` from httpx's streaming decoder under heavy concurrent load.
+- **Why:** reported live during a full-library bulk parse; root-caused via `docker logs grobid` (engine-pool
+  exhaustion under concurrent load, not a crash) and by reasoning through httpx's streaming decompression path.
+- **Verification:** `pytest tests/test_grobid_client.py -q`; user confirmed a subsequent live bulk parse succeeded.
+- **Revert:** `git diff` the three files above; no schema/migration involved.
+
+## 2026-08-26 — Synthesis: exclude repeated running-header/footer text from unscoped evidence
+- **Files:** `app/backend/summarization/chunk_filtering.py`, `app/backend/summarization/pipeline.py`,
+  `tests/test_chunk_filtering.py`, `tests/test_summaries.py`.
+- **What:** a new `exclude_repeated_boilerplate_chunks()` drops per-paper chunks whose text is short (≤25 words)
+  and recurs verbatim — modulo a trailing page/section number — across 3+ of that same paper's own pages, before
+  retrieval. Wired into `source_chunks_for_scope` right after chunk rows are fetched.
+- **Why:** reported live — a synthesis run without a section restriction pulled evidence that was entirely a
+  paper's own running header (containing the queried phrase) instead of real body text, because an unscoped
+  query has no section filter to exclude it. GROBID's existing section-aware retrieval doesn't reach this path
+  (it's scoped to Suggest-Citation only), so this is a GROBID-independent fix for the same symptom the user
+  suspected GROBID might resolve.
+- **Verification:** `pytest tests/test_chunk_filtering.py tests/test_summaries.py -q`; live-tested against the
+  user's real library, which surfaced a real gap in the first version (exact-match repetition missed headers with
+  a varying trailing page number) — fixed by comparing on a normalized key that strips the trailing number.
+- **Revert:** `git diff` the four files above; no schema/migration involved.
+
 ## 2026-08-25 — Increment 501: Automatic AI Phase 4.1 extended model search
 - **Files:** narrow b10516 managed-CUDA observation/bundle-launch hardening, a separately frozen seven-artifact
   qualification cohort/adapter/receipt index, focused tests, security audit, and `INCREMENT-501-NOTES.md`.

@@ -1,21 +1,32 @@
-// Literature Feed — the Feed center tab (backlog #28 SP2b, inc 188; backend SP2a inc 187).
-// Follow bioRxiv categories (pull-only, opt-in) → Refresh polls them → triage the items (read / star / save).
-// AI never filters: the complete polled list is shown; read/starred are the user's own state. Save is metadata-only
-// (reuses /discovery/save; no PDF). Function declarations hoist in the IIFE, so 30c_frame references this.
+// Literature Feed — the Feed center tab (backlog #28 SP2b, inc 188; backend SP2a inc 187). Consolidated with
+// the former standalone Followed Authors tab 2026-08-27: follow an author (name or ORCID, auto-detected)
+// directly from this tab's own add-source row; the Suggest modal now covers all five source kinds (30g_feed_
+// suggest.jsx). Follow bioRxiv categories (pull-only, opt-in) → Refresh polls them → triage the items
+// (read / star / save). AI never filters: the complete polled list is shown; read/starred are the user's own
+// state. Save is metadata-only (reuses /discovery/save; no PDF). Function declarations hoist in the IIFE, so
+// 30c_frame references this.
+
+const FEED_ORCID_RE = /^(?:https?:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/i;
 
 function FeedPane({ onSaved, active, embedded }) {
   const [subs, setSubs] = useState([]);
   const [sourceMeta, setSourceMeta] = useState([]); // [{kind,label,placeholder,suggestions}] — drives the Follow picker
   const [selKind, setSelKind] = useState("");
   const [cat, setCat] = useState("");
+  const [authorFollowErr, setAuthorFollowErr] = useState("");
   const [items, setItems] = useState([]);
+  const [relevance, setRelevance] = useState({});
+  const [relevanceLoading, setRelevanceLoading] = useState(false);
   const [unread, setUnread] = useState(0);
-  const [filter, setFilter] = useState("all"); // all | unread | starred
+  const [filter, setFilter] = useState("all"); // all | unread | highlighted | starred (one exclusive toggle)
   const [refreshing, setRefreshing] = useState(false);
   const [savingKey, setSavingKey] = useState(null);
   const [expanded, setExpanded] = useState(() => new Set());
   const [libJournals, setLibJournals] = useState([]); // inc 295: journals already in the library (Suggest + typeahead)
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [subsOverflow, setSubsOverflow] = useState(false);
+  const [subsModalOpen, setSubsModalOpen] = useState(false);
+  const subsRowRef = useRef(null);
   // SP2c-3: opt-in auto-refresh when the Feed is opened + a source is stale (pull-first; default off).
   const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem("callosum.feedAutoRefresh") === "1");
   const autoRanRef = useRef(0);
@@ -35,7 +46,22 @@ function FeedPane({ onSaved, active, embedded }) {
   const loadItems = useCallback(async () => {
     const qs = filter === "unread" ? "?unread=true" : filter === "starred" ? "?starred=true" : "";
     const r = await api(`/feed${qs}`);
-    if (r.ok) { setItems(r.data.items || []); setUnread(r.data.unread_count || 0); }
+    if (!r.ok) return;
+    const rows = r.data.items || [];
+    setItems(rows); setUnread(r.data.unread_count || 0);
+    // Relevance is keyed by the stable feed_items id, so switching filters within the SAME underlying item
+    // universe keeps any already-computed badges rather than flashing them off and recomputing needlessly.
+    // Axis-relevance highlight (mirrors 30d_discover.jsx's identical Search-tab pattern): a best-effort,
+    // never-filtering hint. feed_view() rows have no dedup_key (only id) -- score_axis_relevance treats this
+    // field as an opaque caller-chosen lookup key, never interpreted, so reusing `id` here is contract-safe.
+    if (!isDemoMode() && rows.length) {
+      setRelevanceLoading(true);
+      const rr = await apiPost("/discovery/relevance", {
+        items: rows.map(it => ({ dedup_key: String(it.id), title: it.title || "", abstract: it.abstract || null })),
+      });
+      if (rr.ok && rr.data && rr.data.relevance) setRelevance(rr.data.relevance);
+      setRelevanceLoading(false);
+    }
   }, [filter]);
 
   useEffect(() => { loadSubs(); }, [loadSubs]);
@@ -43,18 +69,50 @@ function FeedPane({ onSaved, active, embedded }) {
   // inc 295: the library's own journals (venue + count) drive the journal typeahead + the Suggest modal — local, no egress.
   useEffect(() => { api("/feed/library-journals").then(r => { if (r.ok) setLibJournals(r.data.journals || []); }); }, []);
 
-  const followJournal = useCallback(async (title) => {
-    const r = await apiPost("/feed/subscriptions", { kind: "journal", value: title, label: title });
+  // The followed-sources pill row is capped to one visible line (CSS max-height); a real measured overflow
+  // check -- not a guessed pill count, which would be wrong on many viewport widths -- shows the "…" button
+  // only when pills actually got clipped.
+  useEffect(() => {
+    const el = subsRowRef.current;
+    if (!el) return;
+    const check = () => setSubsOverflow(el.scrollHeight > el.clientHeight + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [subs]);
+
+  // Shared by the Suggest modal's Journal/bioRxiv/medRxiv/PubMed tabs -- every non-author kind follows the
+  // same {kind, value, label} shape.
+  const followFromSuggest = useCallback(async (kind, value) => {
+    const r = await apiPost("/feed/subscriptions", { kind, value, label: value });
     if (r.ok) loadSubs();
   }, [loadSubs]);
 
+  // inc 2026-08-27 (Followed Authors consolidation): "Author" is a frontend-only pseudo-kind -- the backend's
+  // real followed_author kind stays user_addable=False (a raw OpenAlex id is never something to type), so
+  // following by name/ORCID goes through the SAME resolve endpoint the former standalone tab used, and the
+  // matching feed_subscriptions row appears via the backend's existing dual-write (loadSubs() alone surfaces it).
+  const followAuthor = useCallback(async (raw) => {
+    const trimmed = (raw || "").trim();
+    if (!trimmed) return;
+    setAuthorFollowErr("");
+    const value = trimmed.replace(/^https?:\/\/orcid\.org\//i, "");
+    const body = FEED_ORCID_RE.test(trimmed) ? { orcid: value } : { name: value };
+    const r = await apiPost("/followed-authors", body);
+    if (!r.ok) { setAuthorFollowErr(r.error || "Couldn't follow that author."); return; }
+    if (r.data.status === "no-match") { setAuthorFollowErr("No OpenAlex author matched that name/ORCID."); return; }
+    setCat(""); loadSubs();
+  }, [loadSubs]);
+
   const follow = useCallback(async () => {
+    if (selKind === "author") { await followAuthor(cat); return; }
     // bioRxiv categories are lowercase in the API; PubMed queries keep the user's casing.
     const value = selKind === "biorxiv_category" ? cat.trim().toLowerCase() : cat.trim();
     if (!value || !selKind) return;
-    const r = await apiPost("/feed/subscriptions", { kind: selKind, value, label: value });
-    if (r.ok) { setCat(""); loadSubs(); }
-  }, [cat, selKind, loadSubs]);
+    await followFromSuggest(selKind, value);
+    setCat("");
+  }, [cat, selKind, followFromSuggest, followAuthor]);
 
   const unfollow = useCallback(async (id) => {
     await apiDelete(`/feed/subscriptions/${id}`);
@@ -139,38 +197,51 @@ function FeedPane({ onSaved, active, embedded }) {
   }, []);
 
   // inc 455: kinds like followed-author are dispatch-only (their `value` is a bare OpenAlex author id, not
-  // something a user should type) — omitted from the picker, but sourceMeta itself stays full so an
-  // already-followed subscription's chip label lookup above still resolves.
+  // something a user should type) — omitted from the real picker; "Author" below is a frontend-only pseudo-kind
+  // that routes through the resolve endpoint instead. sourceMeta itself stays full so an already-followed
+  // subscription's chip label lookup still resolves.
   const addableSourceMeta = sourceMeta.filter(m => m.user_addable !== false);
   const followedAuthorSubIds = new Set(subs.filter(s => s.kind === "followed_author").map(s => s.id));
+  // "Highlighted" is a view filter only (like the critique-triage "AI-focused" toggle elsewhere in the app) --
+  // it never changes what's polled/stored, and one click back to "All" always recovers the complete list.
+  const visibleItems = filter === "highlighted" ? items.filter(it => relevance[String(it.id)]) : items;
 
   return (
     <div className={embedded ? "feed discover-feed-embedded" : "discover feed"}>
       <div className="pane-head">
-        <div className="feed-subs">
-          {subs.map(s => {
-            const meta = sourceMeta.find(m => m.kind === s.kind);
-            const tag = (meta ? meta.label : s.kind).split(" ")[0];
-            return (
-              <span key={s.id} className="feed-sub" title={`${meta ? meta.label : s.kind} · ${s.value}`}>
-                <span className="feed-sub-kind">{tag}</span>{s.label || s.value}
-                <button className="feed-sub-x" title={isDemoMode() ? "Unfollowing needs the persistent local library" : "Unfollow"}
-                  onClick={() => unfollow(s.id)}>×</button>
-              </span>
-            );
-          })}
-          {!subs.length ? <span className="discover-hint">Follow a source to start your feed.</span> : null}
+        <div className="feed-subs-row">
+          <div className="feed-subs feed-subs-capped" ref={subsRowRef}>
+            {subs.map(s => {
+              const meta = sourceMeta.find(m => m.kind === s.kind);
+              const tag = (meta ? meta.label : s.kind).split(" ")[0];
+              return (
+                <span key={s.id} className="feed-sub" title={`${meta ? meta.label : s.kind} · ${s.value}`}>
+                  <span className="feed-sub-kind">{tag}</span>{s.label || s.value}
+                  <button className="feed-sub-x" title={isDemoMode() ? "Unfollowing needs the persistent local library" : "Unfollow"}
+                    onClick={() => unfollow(s.id)}>×</button>
+                </span>
+              );
+            })}
+            {!subs.length ? <span className="discover-hint">Follow a source to start your feed.</span> : null}
+          </div>
+          {subsOverflow
+            ? <button className="feed-sub-more" onClick={() => setSubsModalOpen(true)} title="Show every followed source">…</button>
+            : null}
         </div>
         <div className="searchbar">
           {addableSourceMeta.length > 1 ? (
-            <select className="lib-sort" value={selKind} disabled={isDemoMode()} onChange={e => setSelKind(e.target.value)}>
+            <select className="lib-sort" value={selKind} disabled={isDemoMode()}
+              onChange={e => { setSelKind(e.target.value); setAuthorFollowErr(""); }}>
               {addableSourceMeta.map(m => <option key={m.kind} value={m.kind}>{m.label}</option>)}
+              <option value="author">Author</option>
             </select>
           ) : null}
           <input
             value={cat} onChange={e => setCat(e.target.value)} list="feed-source-suggestions"
             disabled={isDemoMode()}
-            placeholder={(addableSourceMeta.find(m => m.kind === selKind) || {}).placeholder || "Follow a source…"}
+            placeholder={selKind === "author"
+              ? "an author name or ORCID iD, e.g. Jane Doe or 0000-0002-1825-0097"
+              : (addableSourceMeta.find(m => m.kind === selKind) || {}).placeholder || "Follow a source…"}
             onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); follow(); } }}
           />
           <datalist id="feed-source-suggestions">
@@ -180,27 +251,28 @@ function FeedPane({ onSaved, active, embedded }) {
             ).map(c => <option key={c} value={c} />)}
           </datalist>
           <button className="btn btn-ghost" onClick={follow} disabled={isDemoMode() || !cat.trim()}>Follow</button>
-          {selKind === "journal"
-            ? <button className="btn btn-ghost" onClick={() => setSuggestOpen(true)} title="Journals already in your library">Suggest</button>
-            : null}
+          <button className="btn btn-ghost" onClick={() => setSuggestOpen(true)}
+            title="Suggested sources to follow, based on your library and axes">Suggest</button>
           <button className="btn btn-primary" onClick={refresh} disabled={refreshing || !subs.length}
             title={isDemoMode() ? "Refresh needs external journal and search providers" : undefined}>
             {refreshing ? "Refreshing…" : "Refresh"}
           </button>
         </div>
+        {authorFollowErr ? <div className="axis-err">{authorFollowErr}</div> : null}
         <div className="feed-controls">
           <div className="tags-srcfilter">
-            {["all", "unread", "starred"].map(f => (
-              <button key={f} className={"tags-srcfilter-btn" + (filter === f ? " on" : "")} onClick={() => setFilter(f)}>
-                {f === "all" ? "All" : f === "unread" ? `Unread${unread ? ` (${unread})` : ""}` : "Starred"}
+            {["all", "unread", "highlighted", "starred"].map(f => (
+              <button key={f} className={"tags-srcfilter-btn" + (filter === f ? " on" : "")} onClick={() => setFilter(f)}
+                title={f === "highlighted" ? "Items with a likely axis match (a hint, not a filter on what exists — just what's shown here)" : undefined}>
+                {f === "all" ? "All" : f === "unread" ? `Unread${unread ? ` (${unread})` : ""}` : f === "highlighted" ? "Highlighted" : "Starred"}
               </button>
             ))}
           </div>
           <div className="feed-controls-right">
             <label className="auto-refresh-toggle" title="When you open the Feed and a source is stale (>6h), refresh it automatically">
-              <input type="checkbox" checked={autoRefresh} onChange={toggleAuto} /> Auto-refresh on open
+              <input type="checkbox" checked={autoRefresh} onChange={toggleAuto} /> Auto-Refresh
             </label>
-            {unread ? <button className="btn btn-link" onClick={markAllRead}>Mark all read</button> : null}
+            {unread ? <button className="btn btn-link" onClick={markAllRead}>Mark All Read</button> : null}
           </div>
         </div>
         {isDemoMode() &&
@@ -214,15 +286,26 @@ function FeedPane({ onSaved, active, embedded }) {
         {!subs.length
           ? <div className="discover-empty">Your feed is empty. Follow a bioRxiv category above, then Refresh to pull recent preprints.</div>
           : !items.length
-            ? <div className="discover-empty">No items{filter !== "all" ? ` (${filter})` : ""}. Refresh to poll your followed sources.</div>
-            : null}
-        {items.map(it => (
-          <div key={it.id} className={"discover-item feed-item" + (it.is_read ? " read" : "")} onClick={() => setRead(it, true)}>
+            ? <div className="discover-empty">No items{filter !== "all" && filter !== "highlighted" ? ` (${filter})` : ""}. Refresh to poll your followed sources.</div>
+            : filter === "highlighted" && !visibleItems.length
+              ? <div className="discover-empty">
+                  {relevanceLoading
+                    ? "Checking axis matches…"
+                    : "No items here matched one of your axes closely enough to highlight — that isn’t \"nothing relevant,\" just nothing this local check flagged. Switch back to All to see everything."}
+                </div>
+              : null}
+        {visibleItems.map(it => (
+          <div key={it.id} className={"discover-item feed-item" + (it.is_read ? " read" : "") + (relevance[String(it.id)] ? " relevance-row-highlight" : "")} onClick={() => setRead(it, true)}>
             <div className="feed-row-top">
-              {!it.is_read ? <span className="feed-unread-dot" title="Unread" /> : null}
+              {!it.is_read ? <span className={"feed-unread-dot" + (relevance[String(it.id)] ? " feed-unread-dot-highlight" : "")} title="Unread" /> : null}
               <div className="discover-title">{it.title}</div>
               {followedAuthorSubIds.has(it.subscription_id)
                 ? <span className="feed-followed-badge" title="From a followed author">Followed</span>
+                : null}
+              {relevance[String(it.id)]
+                ? <span className="relevance-highlight" title="A likely match to one of your axes (a hint — the full list is never filtered).">
+                    likely: {relevance[String(it.id)].axis_label} · match {relevance[String(it.id)].similarity.toFixed(2)}
+                  </span>
                 : null}
             </div>
             <div className="paper-meta">
@@ -250,46 +333,15 @@ function FeedPane({ onSaved, active, embedded }) {
         ))}
       </div>
       {suggestOpen
-        ? <FeedSuggestModal journals={libJournals} subs={subs} onFollow={followJournal} onClose={() => setSuggestOpen(false)} />
+        ? <FeedSuggestModal
+            subs={subs} libJournals={libJournals} sourceMeta={sourceMeta}
+            onFollow={followFromSuggest} onFollowAuthor={followAuthor}
+            onClose={() => setSuggestOpen(false)}
+          />
         : null}
-    </div>
-  );
-}
-
-// inc 295: journals already in the user's library (venue + paper count) — follow one to seed the feed. Ranked by
-// count (a transparent tally of the user's own library, not a quality ranking). Reuses the axis-modal + gap-row recipes.
-function FeedSuggestModal({ journals, subs, onFollow, onClose }) {
-  const followed = new Set((subs || []).filter(s => s.kind === "journal").map(s => (s.value || "").toLowerCase()));
-  return (
-    <div className="axis-modal-overlay" onClick={onClose}>
-      <div className="axis-modal" onClick={e => e.stopPropagation()}>
-        <div className="axis-modal-head">
-          <span>Journals in your library</span>
-          <button className="axis-link" onClick={onClose}>×</button>
-        </div>
-        <div className="axis-modal-note">
-          Journals you already have papers from — <b>Follow</b> one to pull its recent articles into your feed. Ordered
-          by how many papers you have from each (a tally of your own library, not a quality ranking).
-        </div>
-        {!journals.length
-          ? <div className="axis-hint">No journals in your library yet — import some papers, then their journals show up here.</div>
-          : journals.map(j => {
-            const isFollowed = followed.has((j.journal || "").toLowerCase());
-            return (
-              <div key={j.journal} className="gap-row">
-                <div className="gap-row-info">
-                  <div className="gap-row-title">{j.journal}</div>
-                  <div className="gap-row-meta"><span className="gap-count">{j.count} paper{j.count === 1 ? "" : "s"} in your library</span></div>
-                </div>
-                <div className="gap-row-actions">
-                  {isFollowed
-                    ? <span className="discover-inlib">✓ Following</span>
-                    : <button className="axis-link" onClick={() => onFollow(j.journal)}>Follow</button>}
-                </div>
-              </div>
-            );
-          })}
-      </div>
+      {subsModalOpen
+        ? <FeedSubsOverflowModal subs={subs} sourceMeta={sourceMeta} onUnfollow={unfollow} onClose={() => setSubsModalOpen(false)} />
+        : null}
     </div>
   );
 }

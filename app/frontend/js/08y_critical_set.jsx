@@ -57,9 +57,11 @@ function CriticalSetMatrix({ aggregate }) {
   );
 }
 
-function CriticalSetDisagreements({ contested, titleById, onOpen }) {
+function CriticalSetDisagreements({ contested, titleById, onOpen, triageOnly }) {
   const label = (id) => titleById[id] || ("Paper " + id);
-  if (!contested || !contested.length) {
+  const all = contested || [];
+  const shown = all.filter(c => critiqueTriageVisible(c, triageOnly));
+  if (!all.length) {
     return (
       <div className="tag-suggest-empty">
         Nothing surfaced by this check — no paper in the set contradicts another’s claims that these signals caught.
@@ -67,7 +69,10 @@ function CriticalSetDisagreements({ contested, titleById, onOpen }) {
       </div>
     );
   }
-  return contested.map((c, i) => (
+  if (!shown.length) {
+    return <div className="tag-suggest-empty">All {all.length} disagreement(s) here were triaged as lower-yield — switch to “All rows” to see them.</div>;
+  }
+  return shown.map((c, i) => (
     <div key={i} className="bayes-check-item">
       <div className="bayes-check-note"><b>{label(c.claim_paper_id)}:</b> “{c.claim}”</div>
       <button className="bayes-check-ev" title={c.page != null ? "Open page " + c.page : "Open the contesting paper"}
@@ -75,6 +80,7 @@ function CriticalSetDisagreements({ contested, titleById, onOpen }) {
         Contested by “{label(c.other_paper_id)}”: “{c.passage}”
       </button>
       <div className="lmm-basis">stance: {c.stance} · confidence {Math.round((c.confidence || 0) * 100)}%</div>
+      <TriageBadge triage={c.llm_triage} />
     </div>
   ));
 }
@@ -95,6 +101,7 @@ function CriticalSetCandidate({ c, titleById, onAccept, onReject }) {
           The model relates this to: {related.join("; ")}{" "}
           <span className="cr-related-note">(the model’s framing, not a verified link)</span>
         </div>}
+      <TriageBadge triage={c.llm_triage} />
       {c.status === "accepted"
         ? <span className="cite-status verified">✓ accepted</span>
         : <div className="cr-actions">
@@ -105,18 +112,20 @@ function CriticalSetCandidate({ c, titleById, onAccept, onReject }) {
   );
 }
 
-function CriticalSetModal({ ids, onClose, onOpenPaper }) {
-  const [phase, setPhase] = useState("loading");  // loading | ready | error
+function CriticalSetModal({ ids, resumeJobId, onClose, onOpenPaper }) {
+  const [phase, setPhase] = useState("idle");  // idle | loading | ready | error
   const [report, setReport] = useState(null);
   const [err, setErr] = useState(null);
   const [aiReady, setAiReady] = useState(false);
-  const [gen, setGen] = useState("idle");          // idle | generating | error
+  const [wantLlm, setWantLlm] = useState(false);
+  const [wantTriage, setWantTriage] = useState(false);
+  const [triageOnly, setTriageOnly] = useState(false);
   const pollersRef = useRef(new Set());
   const activeJobKey = `callosum.active-job.critical-read-set.${ids.join(",")}`;
 
   // Run or resume a set critical-read job.  The held GET is notification only;
   // its terminal response remains the authoritative report.
-  const runSet = useCallback((wantLlm, resumeJobId) => new Promise((resolve, reject) => {
+  const runSet = useCallback((wantLlm, wantTriage, resumeJobId) => new Promise((resolve, reject) => {
     const observe = jobId => {
       rememberActiveJob(activeJobKey, jobId);
       let cancel = null;
@@ -135,29 +144,41 @@ function CriticalSetModal({ ids, onClose, onOpenPaper }) {
       observe(resumeJobId);
       return;
     }
-    apiPost("/critical-read/set", { paper_ids: ids, llm: !!wantLlm }).then(r => {
+    apiPost("/critical-read/set", { paper_ids: ids, llm: !!wantLlm, triage: !!wantTriage }).then(r => {
       if (!r.ok) { reject(r.error); return; }
       observe(r.data.job_id);
     });
   }), [ids, activeJobKey]);
 
+  // Only auto-resume without the button when there's a real in-flight/finished job to reattach to (a Status-nav
+  // resumeJobId, or a recalled sessionStorage job for this exact set) -- a genuinely fresh open shows the idle button.
   useEffect(() => {
+    const resume = resumeJobId || recalledActiveJob(activeJobKey);
+    if (!resume) { setPhase("idle"); return undefined; }
     let live = true;
     setPhase("loading"); setReport(null); setErr(null);
-    runSet(false, recalledActiveJob(activeJobKey))
+    runSet(false, false, resume)
       .then(rep => { if (live) { setReport(rep); setPhase("ready"); } })
       .catch(e => { if (live) { setErr(e); setPhase("error"); } });
-    api("/settings").then(r => { if (live && r.ok) setAiReady(Boolean(r.data.data_egress_enabled)); });
-    return () => {
-      live = false;
-      pollersRef.current.forEach(cancel => cancel());
-      pollersRef.current.clear();
-    };
-  }, [runSet, activeJobKey]);
+    return () => { live = false; };
+  }, [runSet, activeJobKey, resumeJobId]);
 
-  const generate = () => {
-    setGen("generating");
-    runSet(true).then(rep => { setReport(rep); setGen("idle"); }).catch(() => setGen("error"));
+  useEffect(() => {
+    let live = true;
+    api("/settings").then(r => { if (live && r.ok) setAiReady(Boolean(r.data.data_egress_enabled)); });
+    return () => { live = false; };
+  }, []);
+
+  useEffect(() => () => {
+    pollersRef.current.forEach(cancel => cancel());
+    pollersRef.current.clear();
+  }, []);
+
+  const start = () => {
+    setPhase("loading"); setReport(null); setErr(null);
+    runSet(wantLlm, wantTriage, null)
+      .then(rep => { setReport(rep); setPhase("ready"); })
+      .catch(e => { setErr(e); setPhase("error"); });
   };
   const act = async (cid, action) => {
     const r = await apiPost(`/critical-read/candidates/${cid}/${action}`, {});
@@ -177,9 +198,14 @@ function CriticalSetModal({ ids, onClose, onOpenPaper }) {
 
   const titleById = {};
   ((report && report.aggregate) || []).forEach(r => { titleById[r.paper_id] = r.title; });
-  const candidates = ((report && report.candidates) || []).filter(c => c.status !== "rejected");
+  const contestedAll = (report && report.contested_claims) || [];
+  const candidatesAll = ((report && report.candidates) || []).filter(c => c.status !== "rejected");
+  const candidates = candidatesAll.filter(c => critiqueTriageVisible(c, triageOnly));
   const llmStatus = report && report.llm_status;
-  const generated = !!llmStatus && llmStatus.status !== "not_searched";  // Tier-2 already ran this session
+  const generated = !!llmStatus && llmStatus.status !== "not_searched";  // Tier-2 ran as part of this run
+  const hasTriage = contestedAll.some(c => c.llm_triage) || candidatesAll.some(c => c.llm_triage);
+  const hiddenCount = (contestedAll.length - contestedAll.filter(c => critiqueTriageVisible(c, true)).length)
+    + (candidatesAll.length - candidatesAll.filter(c => critiqueTriageVisible(c, true)).length);
 
   return (
     <div className="axis-modal-overlay" onClick={onClose}>
@@ -194,9 +220,16 @@ function CriticalSetModal({ ids, onClose, onOpenPaper }) {
           you confirm</b>. Never a score; the critique is of the work, never the authors.
         </div>
 
+        {phase === "idle" &&
+          <div className="cr-run-toggles">
+            <CritiqueRunToggles wantLlm={wantLlm} setWantLlm={setWantLlm} wantTriage={wantTriage}
+              setWantTriage={setWantTriage} aiReady={aiReady} suggestLabel="Suggest cross-paper critiques (AI)" />
+            <button className="btn btn-primary" onClick={start}>Run critique</button>
+          </div>}
         {phase === "loading" && <ProgressBar label="Assembling the scrutiny surface…" managedBy="backend-job" />}
         {phase === "error" && <div className="axis-err">Couldn’t assemble: {String(err)}</div>}
         {phase === "ready" && report && <React.Fragment>
+          <TriageFilterControls hasTriage={hasTriage} triageOnly={triageOnly} onView={setTriageOnly} hiddenCount={hiddenCount} />
           <div className="cr-set-section">
             <p className="eyebrow">What the checks surfaced (facts)</p>
             <CriticalSetMatrix aggregate={report.aggregate} />
@@ -204,24 +237,20 @@ function CriticalSetModal({ ids, onClose, onOpenPaper }) {
 
           <div className="cr-set-section">
             <p className="eyebrow">Where these papers disagree</p>
-            <CriticalSetDisagreements contested={report.contested_claims} titleById={titleById} onOpen={open} />
+            <CriticalSetDisagreements contested={contestedAll} titleById={titleById} onOpen={open} triageOnly={triageOnly} />
           </div>
 
           <div className="cr-set-section cr-tier2">
             <p className="eyebrow">AI cross-paper critiques (candidates)</p>
-            {!aiReady &&
+            {!generated && !aiReady &&
               <div className="tag-suggest-empty">
                 Enable AI features in Settings for AI-suggested cross-paper critiques — the facts above need no AI.
               </div>}
-            {aiReady && !generated &&
-              <button className="btn-link" disabled={gen === "generating"} onClick={generate}
-                title="The AI proposes concerns spanning these papers; each must quote a paper verbatim, and you confirm or reject it.">
-                {gen === "generating" ? "Suggesting…" : "Suggest cross-paper critiques (AI)"}
-              </button>}
-            {gen === "error" && <div className="axis-err">Couldn’t suggest critiques — is AI enabled with a key (Settings)?</div>}
+            {!generated && aiReady &&
+              <div className="tag-suggest-empty">Not requested for this run — re-run with “Suggest cross-paper critiques” checked.</div>}
             {generated && llmStatus.status === "unavailable" &&
               <div className="tag-suggest-empty">{llmStatus.detail}</div>}
-            {generated && llmStatus.status === "success" && !candidates.length &&
+            {generated && llmStatus.status === "success" && !candidatesAll.length &&
               <div className="tag-suggest-empty">No grounded cross-paper concerns surfaced — nothing quoted a paper verbatim.</div>}
             {candidates.map(c => (
               <CriticalSetCandidate key={c.id} c={c} titleById={titleById}

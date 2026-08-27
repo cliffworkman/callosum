@@ -35,7 +35,7 @@ from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers.library import JobProgressOut, _progress_out
 from app.backend.api.routers.paper_files import _local_attachment_path, _select_primary_pdf_attachment
-from app.backend.grobid_pipeline import parse_paper_structure
+from app.backend.grobid_pipeline import paper_ids_with_sections, parse_paper_structure
 from app.backend.llm.providers import requires_egress
 from app.backend.persistence.repository import get_attachments_for_paper, get_paper, list_live_paper_ids
 from app.backend.persistence.sqlite_retry import run_write
@@ -44,7 +44,9 @@ from integrations.grobid.client import GrobidError
 from integrations.grobid.tei_parse import GrobidParseError
 
 _log = logging.getLogger("callosum.grobid")
-GROBID_PARSE_WORKERS = 4  # inc 418 rationale: a handful of in-flight GROBID requests, not dozens
+GROBID_PARSE_WORKERS = 2  # lowered 2026-08-26 (was 4): 4 concurrent requests exhausted a real self-hosted
+# GROBID's internal engine pool, 503-ing 100% of a 216-paper bulk run -- see backlog #58. The client's own
+# retry-on-503 (integrations/grobid/client.py) absorbs remaining transient pool contention.
 
 router = APIRouter(tags=["grobid"])
 
@@ -225,15 +227,27 @@ class GrobidBulkParseResponse(BaseModel):
     progress: JobProgressOut | None = None
 
 
+class GrobidLibraryParseRequest(BaseModel):
+    # Both scoping options are mutually exclusive conveniences over the same "which live papers" question;
+    # paper_ids wins if both are somehow set (the Library-view bulk-select action always sends only paper_ids).
+    paper_ids: list[int] | None = None
+    only_unparsed: bool = False
+
+
 @router.post("/grobid/library/parse", response_model=GrobidBulkParseResponse, status_code=http_status.HTTP_202_ACCEPTED)
-def parse_library(background_tasks: BackgroundTasks, request: Request) -> GrobidBulkParseResponse:
+def parse_library(
+    background_tasks: BackgroundTasks, request: Request, body: GrobidLibraryParseRequest | None = None
+) -> GrobidBulkParseResponse:
     base_url = app_settings.stored_grobid_url()
     if not base_url:
         raise HTTPException(status_code=409, detail=_UNCONFIGURED_DETAIL)
     if _egress_refused(base_url):
         raise HTTPException(status_code=403, detail=_EGRESS_REFUSED_DETAIL)
+    scope = body or GrobidLibraryParseRequest()
     job_id = request.app.state.grobid_parse_jobs.create()
-    background_tasks.add_task(_run_grobid_bulk_parse_job, request.app, job_id, base_url)
+    background_tasks.add_task(
+        _run_grobid_bulk_parse_job, request.app, job_id, base_url, scope.paper_ids, scope.only_unparsed
+    )
     return GrobidBulkParseResponse(job_id=job_id, status="pending")
 
 
@@ -259,13 +273,35 @@ def _bulk_parse_one(conn: Connection, paper_id: int, base_url: str) -> dict | No
     return parse_paper_structure(conn, paper_id, attachment["id"], pdf_bytes, base_url)
 
 
-def _run_grobid_bulk_parse_job(app: FastAPI, job_id: str, base_url: str) -> None:
+def _papers_with_local_pdf(conn: Connection, candidate_ids: list[int]) -> list[int]:
+    """Filter to only papers with a locally-resolvable primary PDF attachment. GROBID has nothing to do for a
+    metadata-only paper -- excluding these upfront (rather than counting them as "considered" and letting
+    _bulk_parse_one silently no-op on each) keeps papers_skipped meaning a real failure, not "no PDF", and
+    keeps only_unparsed from perpetually re-counting papers that can never be parsed."""
+    return [
+        pid
+        for pid in candidate_ids
+        if _local_attachment_path(_select_primary_pdf_attachment(get_attachments_for_paper(conn, pid))) is not None
+    ]
+
+
+def _run_grobid_bulk_parse_job(
+    app: FastAPI, job_id: str, base_url: str, paper_ids: list[int] | None = None, only_unparsed: bool = False
+) -> None:
     jobs: JobStore[GrobidBulkParseResponse] = app.state.grobid_parse_jobs
     jobs.mark_running(job_id)
     try:
         engine = app.state.engine
         with engine.connect() as conn:
-            ids = list_live_paper_ids(conn)
+            live_ids = set(list_live_paper_ids(conn))
+            if paper_ids:
+                ids = [pid for pid in paper_ids if pid in live_ids]
+            elif only_unparsed:
+                already_parsed = paper_ids_with_sections(conn)
+                ids = [pid for pid in live_ids if pid not in already_parsed]
+            else:
+                ids = list(live_ids)
+            ids = _papers_with_local_pdf(conn, ids)
         total = len(ids)
         parsed = skipped = sections_found = chunks_mapped = 0
         completed = 0

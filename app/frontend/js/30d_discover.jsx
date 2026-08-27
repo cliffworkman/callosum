@@ -204,12 +204,12 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
         {items.map((it, i) => (
           <div
             key={it.dedup_key} data-row={i}
-            className={"discover-item" + (i === cursor ? " cur" : "")}
+            className={"discover-item" + (i === cursor ? " cur" : "") + (relevance[it.dedup_key] ? " relevance-row-highlight" : "")}
             onClick={() => setCursor(i)}
           >
             <div className="discover-title">{it.title}</div>
             {relevance[it.dedup_key]
-              ? <div className="discover-relevance" title="A likely match to one of your axes (a hint — the full list is never filtered).">
+              ? <div className="relevance-highlight" title="A likely match to one of your axes (a hint — the full list is never filtered).">
                   likely: {relevance[it.dedup_key].axis_label} · match {relevance[it.dedup_key].similarity.toFixed(2)}
                 </div>
               : null}

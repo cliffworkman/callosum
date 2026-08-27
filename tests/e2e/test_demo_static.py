@@ -237,7 +237,6 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
                 "Search",
                 "Journals",
                 "Funding",
-                "Followed Authors",
             ]
             expect(page.locator(".workspace-slot:visible .demo-workspace-note")).to_contain_text("Saved demo view")
             expect(page.locator(".feed-sub:visible")).to_have_count(9)
@@ -270,10 +269,6 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             expect(page.locator(".workspace-slot:visible .demo-workspace-note")).to_contain_text("Saved demo view")
             page.get_by_role("tab", name="Journals", exact=True).click()
             expect(page.locator(".pub-card:visible")).to_have_count(8)
-            page.get_by_role("tab", name="Followed Authors", exact=True).click()
-            expect(page.locator(".followed-authors .gap-row:visible")).to_have_count(50)
-            page.get_by_role("button", name="Refresh all", exact=True).click()
-            expect(page.locator(".demo-mode-banner")).to_contain_text("local backend and OpenAlex access")
             page.get_by_role("tab", name="Work", exact=True).click()
             assert page.locator(".workspace-slot:visible .workspace-tabs [role=tab]").all_inner_texts() == [
                 "Cite",

@@ -204,6 +204,46 @@ function ReprocessSelectedTextButton({ paperIds, onDone }) {
   );
 }
 
+async function pollGrobidLibraryParse(jobId, setProg) {
+  for (let i = 0; i < 1200; i++) {
+    await new Promise(r => setTimeout(r, 1500));
+    const r = await api("/grobid/library/parse/" + jobId);
+    if (!r.ok) break;
+    if (r.data.progress) setProg({
+      current: r.data.progress.current, total: r.data.progress.total, eta: r.data.progress.eta_seconds
+    });
+    if (r.data.status === "done" || r.data.status === "error") return r.data;
+  }
+  return null;
+}
+
+// backlog #58: parse just the selected paper(s)' document structure with GROBID (one or many — the same
+// bulk-parse job as Settings' "Parse structure for library", scoped to paper_ids instead of the whole library).
+// Mirrors ReprocessSelectedTextButton's exact pattern above.
+function GrobidParseSelectedButton({ paperIds, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [prog, setProg] = useState(null);
+  const ids = paperIds || [];
+  const run = async () => {
+    if (busy || ids.length === 0) return;
+    setBusy(true); setProg(null);
+    const start = await apiPost("/grobid/library/parse", { paper_ids: ids });
+    const jid = start.ok && start.data ? start.data.job_id : null;
+    const done = jid ? await pollGrobidLibraryParse(jid, setProg) : null;
+    setBusy(false); setProg(null);
+    if (done && done.status === "done") onDone && onDone(done.summary || null);
+  };
+  const label = busy
+    ? (prog ? `parsing ${prog.current}/${prog.total}` : "parsing…")
+    : "parse structure (GROBID)";
+  return (
+    <button className="axis-link" onClick={run} disabled={busy || ids.length === 0}
+      title="Parse the selected paper(s)' document structure with GROBID (configured in Settings) — maps section detection onto each paper's already-extracted text.">
+      {label}
+    </button>
+  );
+}
+
 function BulkReferenceCheckButton({ paperIds, onDone }) {
   const [busy, setBusy] = useState(false);
   const [prog, setProg] = useState(null);

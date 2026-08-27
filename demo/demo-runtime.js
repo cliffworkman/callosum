@@ -379,16 +379,6 @@
       }
       if (path === "/feed/library-journals") return jsonResponse({ journals: snapshot.api.extended.feed.library_journals });
       if (path === "/followed-authors") return jsonResponse(snapshot.api.extended.discover.followed_authors);
-      if (path === "/followed-authors/candidates") {
-        var followedSeen = new Set();
-        var followedCandidates = snapshot.api.extended.discover.followed_author_candidates.filter(function (item) {
-          var key = item.openalex_work_id || (item.doi && item.doi.toLowerCase()) || String(item.title || "").trim().toLowerCase();
-          if (!key || followedSeen.has(key)) return false;
-          followedSeen.add(key);
-          return true;
-        });
-        return jsonResponse({ candidates: followedCandidates });
-      }
       if (path === "/funding-discovery/saved") return jsonResponse({ items: snapshot.api.extended.discover.saved_funding });
       if (path === "/funding-discovery/runs") return jsonResponse({ runs: snapshot.api.extended.discover.funding_runs });
       var fundingRunMatch = path.match(/^\/funding-discovery\/runs\/(\d+)$/);

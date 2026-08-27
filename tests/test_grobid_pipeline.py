@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import create_engine, select
 
-from app.backend.grobid_pipeline import parse_paper_structure
+from app.backend.grobid_pipeline import paper_ids_with_sections, parse_paper_structure
 from app.backend.persistence.repository import create_attachment, create_paper
 from app.backend.persistence.schema import chunks
 from app.backend.persistence.schema_grobid import paper_sections
@@ -65,6 +65,29 @@ def _add_chunk(conn, *, paper_id, attachment_id, page=1, bbox=None):
         )
     )
     return result.inserted_primary_key[0]
+
+
+def test_paper_ids_with_sections_reflects_only_papers_with_a_mapped_section(temp_db_url: str) -> None:
+    # backlog #58: backs the bulk-parse job's "only_unparsed" mode -- a real bug this session found (a stale,
+    # un-restarted server silently ignored a new scoping request field and re-parsed the whole library) makes
+    # this worth a direct regression test, not just manual verification.
+    engine = create_engine(temp_db_url)
+    with engine.begin() as conn:
+        parsed_pid, _, _ = _seed_paper_with_chunk(conn)
+        unparsed_pid, _, _ = _seed_paper_with_chunk(conn)
+        conn.execute(
+            paper_sections.insert().values(
+                paper_id=parsed_pid,
+                title="Discussion",
+                section_kind="discussion",
+                page_start=1,
+                page_end=1,
+                order_index=0,
+            )
+        )
+        result = paper_ids_with_sections(conn)
+    assert parsed_pid in result
+    assert unparsed_pid not in result
 
 
 def test_parse_paper_structure_maps_overlapping_chunk_by_coordinates(temp_db_url: str) -> None:

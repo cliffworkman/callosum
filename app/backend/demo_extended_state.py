@@ -13,7 +13,7 @@ from app.backend.api.routers.annotations import AnnotationResponse
 from app.backend.api.routers.citation_context import CitationContextReportModel
 from app.backend.api.routers.citation_equity import EquityReportModel, OverlookedReportModel
 from app.backend.api.routers.citation_suggest import SuggestResponse
-from app.backend.api.routers.followed_authors import FollowedAuthorCandidateOut, FollowedAuthorOut
+from app.backend.api.routers.followed_authors import FollowedAuthorOut
 from app.backend.api.routers.my_publication_citing_authors import CitingAuthorListResponse
 from app.backend.api.routers.my_publication_gaps import CitationGapListResponse
 from app.backend.api.routers.my_publication_topics import EmergingTopicListResponse
@@ -22,7 +22,8 @@ from app.backend.api.routers.reference_integrity import ReferenceOverviewItem, R
 from app.backend.api.routers.saved_searches import SavedSearch
 from app.backend.api.routers.workbench import ProjectSummary
 
-DEMO_EXTENDED_STATE_SCHEMA_VERSION = 1
+DEMO_EXTENDED_STATE_SCHEMA_VERSION = 2  # v2 (2026-08-27): dropped followed_author_candidates -- the Followed
+# Authors tab's own gap-candidate view was retired when it consolidated into Discover -> Feed.
 
 
 class _StrictModel(BaseModel):
@@ -127,7 +128,6 @@ class DemoDiscoverState(_StrictModel):
     funding_reports: dict[str, DemoFundingReport]
     saved_funding: list[dict[str, JsonValue]] = Field(default_factory=list)
     followed_authors: list[FollowedAuthorOut] = Field(default_factory=list)
-    followed_author_candidates: list[FollowedAuthorCandidateOut] = Field(default_factory=list)
     citation_gaps: CitationGapListResponse
     emerging_topics: EmergingTopicListResponse
     citing_authors: CitingAuthorListResponse
@@ -206,10 +206,4 @@ class DemoExtendedState(_StrictModel):
             raise ValueError("workbench exports must cover every saved project")
         if set(map(int, self.discover.funding_reports)) != {item.run_id for item in self.discover.funding_runs}:
             raise ValueError("funding summary/detail indexes do not agree")
-        followed_keys = [
-            item.openalex_work_id or (item.doi or "").casefold() or (item.title or "").strip().casefold()
-            for item in self.discover.followed_author_candidates
-        ]
-        if any(not key for key in followed_keys) or len(followed_keys) != len(set(followed_keys)):
-            raise ValueError("followed-author demo candidates must have unique public work identities")
         return self

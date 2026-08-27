@@ -30,12 +30,94 @@
 
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
+- **#59 Title-Case retrospective.** DESIGN.md now has a rule that button/toggle/dropdown labels use Title Case
+  (2026-08-27, prompted by "Auto-Refresh"/"Mark All Read" in Feed) — that same fix was only applied to the
+  controls concretely touched in that change. A full app-wide pass is still needed: audit every button, toggle,
+  and dropdown label for Title Case compliance and fix stragglers.
+- **#60 Control-height retrospective.** DESIGN.md now has a canonical `--control-h` token (2026-08-27, prompted
+  by visibly mismatched heights across the input/select/buttons in Feed's and Search's own `.searchbar` rows) —
+  applied there only (the shared `.searchbar` container, covering Feed/Search/Library-header/WIP-filters). A
+  full app-wide pass is still needed: audit every other button/input/select for height consistency and apply
+  `--control-h` (or a documented, deliberate exception) wherever it's missing.
+- **#61 `OpenAlexAuthorClient` caches a failed fetch as a permanent "no result."** Found live (2026-08-27) while
+  verifying Feed's Author-follow flow: a transient `httpx`/Brotli decompression error on one real OpenAlex
+  response got written to `external_api_cache` with `status_code=NULL`, and `_fetch()`'s cache-read branch
+  (`integrations/openalex/author.py`) treats ANY cached row — success or error — as authoritative, so that
+  author's name/ORCID can never resolve again without a manual cache-row delete. Needs a fix that only caches
+  genuine 2xx responses (or a bounded TTL/retry on error rows), not a workaround at the call site. Separately
+  noticed but unconfirmed: `_fetch_by_orcid`'s URL literally uses backslashes
+  (`f"{OPENALEX_ROOT}\authors\orcid:{orcid.strip()}"`) instead of forward slashes — worth checking whether this
+  is a live bug or an escaping/display artifact when this item is picked up.
 
 ---
 
 ## 2. Needs a design decision from Cliff (not destructive/security — just your call)
 
-*(none currently — the statcheck signal/work-state duality was resolved 2026-08-09; see `INCREMENT-BACKLOG-DONE.md`.)*
+- **#58 Bundle GROBID with callosum, not just self-hosted opt-in.** GROBID (`integrations/grobid/`,
+  inc 479) currently ships as a **deliberately never-bundled**, separately-run, opt-in Docker
+  service the user points callosum at from Settings — see CLAUDE.md's Section-scoped
+  Suggest-Citation + GROBID paragraph. **Real evidence this may need to change (2026-08-25,
+  found live by Cliff):** without GROBID, synthesis retrieval that isn't scoped to a specific
+  section (e.g. run against "all sections" rather than "Discussion") pulls in repeated per-page
+  running-header/footer text — the paper's own short-title line that PDF layout repeats on every
+  page — as if it were real body content. For a synthesis asking "what is the anomalous-is-bad
+  bias?" run unscoped, every retrieved evidence chunk was a near-duplicate fragment of the header
+  line itself ("Workman et al. The 'anomalous-is-bad' stereotype"), verified/cited as if
+  substantive, while the identical query scoped to Discussion returned clean, real evidence. The
+  heuristic (non-GROBID) section/chunk pipeline's own tagging doesn't reliably exclude running
+  headers from retrieval once no section filter narrows the search; GROBID's real section-
+  boundary bboxes (mapped onto callosum's own PyMuPDF chunk coordinates by content overlap, not
+  fuzzy text matching) may resolve this since it identifies structural document regions instead
+  of guessing per-block. **Status: Cliff is re-running GROBID parsing across the full library now
+  to confirm whether this actually fixes the header-pollution problem — not yet confirmed, don't
+  treat as settled.** **If confirmed, this reframes GROBID from "optional accuracy boost" to "the
+  fix for a real retrieval-quality bug"** — which pressures the original "never bundled" choice,
+  since asking every user to separately run Docker + configure a URL to get *correct* (not merely
+  improved) retrieval is a much higher bar than asking for an optional quality upgrade. **Design
+  tradeoffs to weigh, not yet resolved:** GROBID is a JVM service with GB-scale CRF/embedding
+  model files (unlike the already-bundled portable CPython the desktop shell ships today) — a
+  full bundle would meaningfully grow the Windows/macOS/Linux installer size; alternatives include
+  a download-on-first-use runtime (fetched and cached locally rather than baked into the
+  installer) or keeping it external but making setup the strongly-recommended default path (a
+  guided one-command flow surfaced during onboarding) rather than a buried Settings field.
+  **The narrower, cheaper fix shipped 2026-08-26, independent of the bundling decision:** the
+  *heuristic* (non-GROBID) retrieval path now excludes repeated running-header/footer text
+  directly — `app/backend/summarization/chunk_filtering.py::exclude_repeated_boilerplate_chunks`
+  drops any chunk whose text is short (≤25 words) and recurs verbatim across ≥3 of the *same
+  paper's* own pages, wired into `pipeline.py::_source_chunks_for_scope` ahead of both the
+  query-ranked and no-query retrieval branches, with a per-paper safety valve (never silences a
+  paper down to zero candidate chunks). This is complementary to the existing content-pattern
+  `is_front_matter_chunk` (which already catches journal-citation-style running headers via DOI/
+  volume/superscript patterns, per its own test fixtures) — a plain title-case running header has
+  none of those fingerprints and needed the repetition-based signal instead. Tests:
+  `tests/test_chunk_filtering.py`, `tests/test_summaries.py`. **This may fully resolve the original
+  reported bug on its own, for every user, regardless of whether GROBID is ever bundled** — the
+  live re-test (rerun the original unscoped "anomalous-is-bad bias" synthesis) still needs doing to
+  confirm real Discussion-section evidence now surfaces instead of header fragments.
+  **Operational snag hit while confirming (2026-08-25/26), also fixed 2026-08-26:** the first
+  attempt to bulk-parse the full ~216-paper library failed 100% with GROBID returning HTTP 503 —
+  its own log shows `Could not get an engine from the pool within configured time`, i.e. GROBID's
+  internal fixed-size processing-engine pool was exhausted by callosum's bulk-parse job sending
+  requests faster/more concurrently than GROBID could drain them, not a crash (the container stayed
+  up, CPU-pegged, actively working). Fixed with two changes: `integrations/grobid/client.py::
+  parse_fulltext` now retries specifically on 503 (linear backoff, bounded at 3 attempts — every
+  other non-200 status still fails immediately as likely-permanent), and the bulk job's
+  `GROBID_PARSE_WORKERS` (`app/backend/api/routers/grobid.py`) dropped from 4 to 2 concurrent
+  requests. Tests: `tests/test_grobid_client.py`. **A second live retry surfaced a distinct failure**
+  (`Error -3 while decompressing data: incorrect header check`, from httpx's own streaming decoder) —
+  root-caused as GROBID returning a truncated/corrupted gzip response under the same heavy concurrent
+  load; fixed by sending `Accept-Encoding: identity` so GROBID never compresses the response at all
+  (a TEI-XML response is already bounded by the existing size cap, so the larger uncompressed
+  transfer is an acceptable trade). **Confirmed live:** a subsequent full-library bulk parse
+  succeeded. Four follow-on UI requests shipped the same day: GROBID Settings moved directly under
+  Library access (was empty whitespace); "Test connection" merged onto the Save row as "Test"; a
+  "Parse unparsed only" button alongside "Parse all papers" (`only_unparsed`, backed by
+  `paper_ids_with_sections()`); and a per-paper bulk-selection "parse structure (GROBID)" button
+  mirroring the existing reprocess-text action. Bulk parsing also now excludes metadata-only papers
+  (no local PDF) from the candidate count entirely, since GROBID structurally cannot parse one.
+  Tests: `tests/test_grobid_endpoints.py`, `tests/test_grobid_pipeline.py`. **Still open:** if
+  bundling GROBID is pursued later, its own concurrency-pool sizing still deserves first-class
+  design attention rather than relying on these mitigations alone.
 
 ---
 
@@ -228,4 +310,3 @@ the Principles + A-A gates before build.)*
   span-pointing signal, never an authorship claim" version keeps the accusation-adjacent shape front and
   center. Same disposition as the declined salami-slicing branch of #54 — the A-A no-accusation veto, not a
   data-consistency question.
-

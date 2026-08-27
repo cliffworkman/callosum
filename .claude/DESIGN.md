@@ -40,10 +40,13 @@ first attempt — expect iteration.
 | `--flag-line` / `--flag-ink` | `#e6cdb4` / `#6e4421` | border + text partners for `--flag-soft` |
 | `--danger` / `--danger-line` | `#b3261e` / `#e3b1ac` | **destructive actions** (delete) — distinct from `--flag` (status) |
 | `--wip` / `--wip-soft` / `--wip-line` | `#147b78` / `#e5f3f1` / `#9bcac5` | unpublished-manuscript context; always paired with a visible `WIP` badge, never a quality signal |
+| `--highlight` / `--highlight-soft` / `--highlight-line` | `#6f47c0` / `#f1e8fb` / `#ddc7f2` | violet — axis-relevance/library-highlight signal (`.relevance-highlight`), deliberately distinct from `--accent` so a "likely relevant" hint doesn't blend into the app's provenance/primary-action indigo. Anchored to `--tag-purple`'s exact hex (an already-vetted, both-theme-tuned hue) — a deliberate reuse of the *value*, not the tag-chip token itself, so the two semantic domains (user tags vs. this system signal) stay independent. |
+| `--highlight-wash` | `#f6f1f9` | lighter still than `--highlight-soft` — the default whole-**row** background (`.relevance-row-highlight`, Search + Feed) so a matched entry isn't as saturated as the small pill sitting on it; hover steps up to `--highlight-soft` |
 | `--accent-overlay` | `#5c55b0` | on-page indigo (PDF highlight/synthesis) — **constant across themes** (white page) |
 | `--on-fill` | `#ffffff` | text on a filled semantic color (primary button, status badge) — **flips in dark** |
 | `--radius` | `7px` | default corner radius |
 | `--radius-sm` / `--radius-lg` / `--radius-pill` | `5px` / `12px` / `999px` | radius scale (inc 53): small controls / modals / pills (DESIGN.md §3 #6) |
+| `--control-h` | `32px` | canonical height for the `.searchbar` family — text input, select, and any button sharing that row (2026-08-27; see §2 "Everyday form-row controls") |
 | `--mono` / `--sans` / `--serif` | (stacks) | mono = metadata/numbers; sans = chrome; serif = paper titles, summary sentences, quotes |
 
 Type roles: **serif** (`--serif`) = paper/summary/quote titles (reads like a bibliography); **sans** =
@@ -167,6 +170,52 @@ radius. Semantic color **pairs**: verified → `--verified-soft`/`--verified`; f
 `.tier-retracted` (inc 292) for a registry-recorded retraction. Both use `--danger-line`/`--danger`, are
 **non-interactive** status pills, and must remain evidence prompts — not author accusations, scores, or destructive
 actions. Don't extend red to weaker statuses.
+
+**`.relevance-highlight` — the axis-relevance hint badge (Discover → Search and Feed).** A *sans*, natural-case
+pill (not the mono/uppercase status-pill recipe above — it renders a compound sentence, "likely: &lt;axis&gt; ·
+match X.XX", not a short status word), so it keeps its own small rule rather than joining the pill group. Uses the
+violet triple `--highlight`/`--highlight-soft`/`--highlight-line` — deliberately **not** `--accent`, even though
+this is also "provenance-adjacent" — so the badge doesn't visually disappear into the app's ubiquitous indigo
+chrome (buttons, the Status badge, segmented-toggle "on" states, the selected-paper cue, etc.). It is a **hint,
+never a filter or a verdict** (an item with no badge is "no strong axis match," not "irrelevant" — silence is not
+a certificate); reuse `.relevance-highlight` for any future axis/library-relevance signal rather than reaching for
+`--accent` or inventing a new hue.
+
+**Relevance row highlight (`.relevance-row-highlight`) — the DEFAULT treatment for a matched row, wherever a row
+list shows one.** The pill alone wasn't enough to stand out while scanning a long list — a matched row's **entire
+entry** washes with a **fourth token**, `--highlight-wash`, deliberately lighter than the pill's own
+`--highlight-soft` (a first attempt reused `--highlight-soft` for the row too and found it read as too saturated
+for a whole entry, and — a second problem — made the pill's own background disappear into the row it sat on,
+since both were the same color). The row's resting/hover pair steps `--highlight-wash` → `--highlight-soft`
+(hover), leaving `--highlight-line` as the pill's border only — never used by the row. The class is applied on
+`.discover-item` (the shared row recipe both Search and Feed build on), so it's automatically the same look on
+both surfaces rather than a Feed-only special case; Search's keyboard-cursor row (`.cur`) always wins over the
+wash via an explicit `.discover-item.cur.relevance-row-highlight` override — 3-class specificity, not cascade
+order, so a highlighted row never hides which one is currently selected. Feed additionally recolors its unread
+dot (`.feed-unread-dot-highlight`) from `--accent` to `--highlight` so it reads as one coherent violet cue rather
+than a stray indigo dot sitting in a lavender row — Search has no dot, so that half is Feed-only. Reuse
+`.relevance-row-highlight` (+ the dot recolor where a comparable unread/status dot exists) on any future
+long-list surface that reuses this signal.
+
+### Everyday form-row controls (`.searchbar`, 2026-08-27)
+`.searchbar` is the shared "search box + filter selects + action buttons" row shape (Library header, WIP
+filters, Discover → Search, Discover → Feed). Its text `<input>`, any `.lib-sort` `<select>`, and any `.btn`
+inside it previously rendered at 4 visibly different heights (8px/6px/5px/3px vertical padding respectively,
+plus `.lib-sort`'s own smaller `--radius-sm`) — a real inconsistency found live, not a design choice. Fixed
+with one canonical token, `--control-h: 32px`, applied via `height` + `box-sizing: border-box` to
+`.searchbar input`/`.searchbar .btn`/`.searchbar .lib-sort` (the select's radius is also promoted to the
+ordinary `--radius`, since `.lib-sort` was never one of §3 #5's declared intentional compact exceptions).
+**Deliberately scoped to `.searchbar`** rather than the bare `.btn-primary`/`.btn-ghost`/`.lib-sort` base rules,
+which are reused in dozens of unrelated contexts app-wide where no inconsistency was reported — touching those
+globally would be a much larger, riskier change than the one actually needed. A full retrospective audit of
+every other button/input/select for height consistency is backlog #60, not done here.
+
+### Title Case for control labels (2026-08-27)
+Button text, toggle labels, and dropdown option text use **Title Case** ("Mark All Read," "Auto-Refresh," not
+"Mark all read"/"Auto-refresh on open") — found live when two Feed controls didn't match this pattern. Prose
+(descriptions, tooltips, empty-state copy, modal body text) is unaffected — this rule is about short control
+labels only, the words a user clicks, not the sentences around them. A full retrospective audit of every other
+button/toggle/dropdown label app-wide is backlog #59, not done here.
 
 ### Chips (interactive, rounded-pill, toggle)
 `--term-chip`: dashed `--line-2` border + `--panel` bg when off; solid `--accent` border + `--accent-soft`
@@ -414,10 +463,16 @@ Ranked; "legit" = a context difference worth keeping.
 4. **Semantics of color are fixed:** indigo `--accent` = provenance/verification + primary action; green
    `--verified` = affirmative — grounded/verified, **connection-OK (the logo dot), and the "go"/create
    affordance (the new-axis "+")**; amber `--flag` = unresolved/uncertain/region (a *status*); red
-   `--danger` = destructive. Don't borrow one for another.
+   `--danger` = destructive; violet `--highlight` = an axis-relevance/library-highlight signal
+   (`.relevance-highlight`), kept distinct from `--accent` specifically so it doesn't disappear into the
+   app's ubiquitous provenance/primary-action indigo. Don't borrow one for another.
 5. **Type roles are fixed:** serif for paper/summary/quote text; sans for chrome; mono for
    numbers/IDs/status.
-6. When a change reveals a new inconsistency, **add it to §3** so the dictionary stays the source of truth.
+6. **Control labels use Title Case** (button text, toggle labels, dropdown options) — "Mark All Read," not
+   "Mark all read." Prose (descriptions, tooltips, body copy) is unaffected.
+7. **New everyday form-row controls (inputs/selects/buttons sharing a `.searchbar` row) use `--control-h`** for a
+   consistent height — don't re-type a one-off padding/height combination.
+8. When a change reveals a new inconsistency, **add it to §3** so the dictionary stays the source of truth.
 
 ---
 

@@ -671,9 +671,8 @@ def test_single_paper_critical_read_lives_in_synthesize_critique():
     # Tier 1 is user-triggered (2026-07-20) -- no auto-run effect keyed off an `active` visibility flag.
     assert "function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged })" in raw
     assert 'if (active && meta && meta.hasText && t1.status === "idle") runT1();' not in raw
-    assert (
-        'meta && meta.hasText && t1.status === "idle" &&\n        <button className="btn btn-primary" onClick={runT1}'
-    ) in raw
+    assert 'meta && meta.hasText && t1.status === "idle" &&\n        <div className="cr-run-toggles">' in raw
+    assert '<button className="btn btn-primary" onClick={runT1}' in raw
     assert "Run critical read" in raw
 
 
@@ -998,6 +997,20 @@ def test_set_critical_review_modal_shipped():
     assert "the model’s framing, not a verified link" in raw  # related_paper_ids is framing, not a #13-verified link
 
 
+def test_critical_set_modal_reopens_from_status_by_job_id():
+    """Fix: closing the multi-paper critical-read modal mid-run used to strand the user -- the Status
+    row landed on the empty single-paper Critique tab. The Status click must reopen the modal itself,
+    keyed on the job's own id, not merely on the (sessionStorage-recalled) paper ids."""
+    raw = assemble_jsx()
+    assert 'nav.modal === "critical-set"' in raw
+    assert "setCritSetIds(nav.paper_ids)" in raw
+    assert "setCritSetResumeJobId(job.job_id)" in raw
+    assert "resumeJobId={critSetResumeJobId}" in raw
+    assert "function CriticalSetModal({ ids, resumeJobId, onClose, onOpenPaper })" in raw
+    assert "const resume = resumeJobId || recalledActiveJob(activeJobKey);" in raw
+    assert "runSet(false, false, resume)" in raw
+
+
 def test_reading_queue_is_stratified_by_priority():
     raw = assemble_jsx()
     css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
@@ -1032,9 +1045,121 @@ def test_feed_suggests_journals_from_library():
     raw = assemble_jsx()
     # the Feed follows journals by TITLE; a Suggest modal + typeahead read the user's own library journals
     assert "function FeedSuggestModal(" in raw
+    assert "function FeedSuggestJournals(" in raw
     assert 'api("/feed/library-journals")' in raw
-    assert 'apiPost("/feed/subscriptions", { kind: "journal", value: title, label: title })' in raw
-    assert 'selKind === "journal"' in raw and "libJournals.map(j => j.journal)" in raw
+    assert 'apiPost("/feed/subscriptions", { kind, value, label: value })' in raw  # shared by all 4 non-author kinds
+    assert "libJournals.map(j => j.journal)" in raw
+
+
+def test_relevance_highlight_badge_is_violet_not_accent():
+    """The axis-relevance badge (Search + Feed) uses its own violet --highlight token triple, deliberately
+    distinct from --accent so a "likely relevant" hint doesn't blend into the app's ubiquitous provenance/
+    primary-action indigo (DESIGN.md). Both call sites share the one class; no --discover-relevance left behind."""
+    raw = assemble_jsx()
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    assert '<div className="relevance-highlight"' in raw  # Search tab (30d_discover.jsx)
+    assert '<span className="relevance-highlight"' in raw  # Feed tab (30e_feed.jsx)
+    assert "discover-relevance" not in raw and "discover-relevance" not in css  # old class fully retired
+    assert ".relevance-highlight {" in css
+    assert "color: var(--highlight); background: var(--highlight-soft); border: 1px solid var(--highlight-line);" in css
+    assert "--highlight: #6f47c0;" in css and "--highlight: #b196ec;" in css  # light + dark
+
+
+def test_relevance_row_highlight_is_shared_default_across_search_and_feed():
+    """The pill alone wasn't distinctive enough in a long scrolling list: a matched row's entire entry washes
+    with --highlight-wash — deliberately lighter than the pill's own --highlight-soft, so the pill still pops
+    against the row instead of blending into it. This is the DEFAULT row treatment wherever a relevance-matched
+    row appears (Search + Feed share one .relevance-row-highlight class on .discover-item, not a Feed-only rule);
+    Feed additionally recolors its unread dot from --accent to --highlight (Search has no such dot); and the
+    keyboard-cursor row (.cur, Search only) always wins over the wash via an explicit 3-class override
+    (DESIGN.md's relevance row highlight recipe)."""
+    raw = assemble_jsx()
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    assert 'relevance[it.dedup_key] ? " relevance-row-highlight" : ""' in raw  # Search tab (30d_discover.jsx)
+    assert 'relevance[String(it.id)] ? " relevance-row-highlight" : ""' in raw  # Feed tab (30e_feed.jsx)
+    assert 'relevance[String(it.id)] ? " feed-unread-dot-highlight" : ""' in raw
+    assert "feed-item-highlight" not in raw and "feed-item-highlight" not in css  # old Feed-only class retired
+    assert ".discover-item.relevance-row-highlight { background: var(--highlight-wash); }" in css
+    assert ".discover-item.relevance-row-highlight:hover { background: var(--highlight-soft); }" in css
+    assert ".discover-item.cur.relevance-row-highlight { background: var(--sel); }" in css
+    assert ".feed-unread-dot.feed-unread-dot-highlight { background: var(--highlight); }" in css
+    assert "--highlight-wash: #f6f1f9;" in css and "--highlight-wash: #262134;" in css  # light + dark
+
+
+def test_feed_highlights_axis_relevant_items():
+    """Feed reuses the existing Search-tab axis-relevance hint (score_axis_relevance, "a hint, never a
+    filter") -- a best-effort follow-up call after the item list loads, never gating/reordering the list."""
+    raw = assemble_jsx()
+    assert 'apiPost("/discovery/relevance", {' in raw
+    assert (
+        'items: rows.map(it => ({ dedup_key: String(it.id), title: it.title || "", abstract: it.abstract || null }))'
+        in raw
+    )
+    assert "!isDemoMode() && rows.length" in raw
+    assert "relevance[String(it.id)]" in raw
+    fe = raw.split("function FeedPane(", 1)[1]
+    assert '<span className="relevance-highlight"' in fe
+    # 2026-08-27: All/Unread/Highlighted/Starred is ONE exclusive toggle on `filter` (no separate
+    # highlightedOnly boolean/second filter group -- that was the duplicate "All" button the redesign removed).
+    assert 'const visibleItems = filter === "highlighted" ? items.filter(it => relevance[String(it.id)]) : items;' in fe
+    assert '["all", "unread", "highlighted", "starred"].map(f =>' in fe
+    assert "setHighlightedOnly" not in fe
+    assert "visibleItems.map(it =>" in fe
+
+
+def test_feed_filter_row_is_one_merged_exclusive_toggle_in_order():
+    """The old All/Unread/Starred group and the separate All/Highlighted group (two literal "All" buttons doing
+    the same job) are merged into one .tags-srcfilter row, ordered All, Unread, Highlighted, Starred."""
+    raw = assemble_jsx()
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    # Bound to just FeedPane's own body (not "everything after," which every other assembled chunk also follows) --
+    # the next top-level function declaration in file order closes it.
+    fe = raw.split("function FeedPane(", 1)[1].split("\nfunction ", 1)[0]
+    assert fe.count('<div className="tags-srcfilter">') == 1  # was 2 separate groups before this redesign
+    # the single source-array literal IS the render order -- All, Unread, Highlighted, Starred
+    assert '["all", "unread", "highlighted", "starred"].map(f =>' in fe
+    assert ".feed-controls .tags-srcfilter-btn { flex: 0 0 auto; white-space: nowrap; padding: 4px 12px; }" in css
+
+
+def test_feed_author_option_auto_detects_orcid_vs_name():
+    """A 5th, frontend-only "Author" dropdown option (backend followed_author stays user_addable=False -- a raw
+    OpenAlex id is never something to type) auto-detects a pasted ORCID vs. a plain name and posts to the SAME
+    /followed-authors resolve endpoint the former standalone Followed Authors tab used."""
+    raw = assemble_jsx()
+    fe = raw.split("function FeedPane(", 1)[1]
+    assert '<option value="author">Author</option>' in fe
+    assert "FEED_ORCID_RE" in raw and r"\d{4}-\d{4}-\d{4}-\d{3}[\dX]" in raw
+    assert 'apiPost("/followed-authors", body)' in fe
+    assert 'selKind === "author"' in fe
+
+
+def test_followed_authors_tab_removed_and_consolidated_into_feed():
+    """The standalone Followed Authors workspace tab is gone -- following an author, seeing its pill, and
+    unfollowing it are all reachable from Feed alone now."""
+    raw = assemble_jsx()
+    assert "FollowedAuthorsPane" not in raw
+    assert '"followed-authors"' not in raw
+    assert "function FeedSuggestAuthors(" in raw  # the Suggest modal's replacement Author tab
+    assert 'api("/feed/suggest-authors")' in raw
+
+
+def test_feed_subs_row_caps_to_one_line_with_overflow_modal():
+    """An unbounded followed-sources pill row was flagged as an "unwieldy proliferation" risk -- capped to one
+    visible row via a real measured overflow check (ResizeObserver), with a "…" button opening a modal that
+    lists (and can unfollow) every followed source, unconstrained by the cap."""
+    raw = assemble_jsx()
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    assert "new ResizeObserver(check)" in raw
+    assert '"feed-subs feed-subs-capped"' in raw
+    assert "function FeedSubsOverflowModal(" in raw
+    assert ".feed-subs-capped { flex: 1 1 auto; min-width: 0; max-height: 28px; overflow: hidden; }" in css
+
+
+def test_feed_auto_refresh_and_mark_all_read_are_title_case():
+    raw = assemble_jsx()
+    fe = raw.split("function FeedPane(", 1)[1].split("\nfunction ", 1)[0]
+    assert "/> Auto-Refresh" in fe and "/> Auto-refresh on open" not in fe
+    assert ">Mark All Read<" in fe and ">Mark all read<" not in fe
 
 
 def test_misc_ux_batch_wiring():

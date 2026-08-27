@@ -22,7 +22,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import VectorHit, VectorStore
@@ -37,6 +37,15 @@ MAX_CRITIQUE_CLAIMS = 12
 MAX_CRITIQUE_CLAIM_CHARS = 1000
 CRITIQUE_TOP_K = 5
 CRITIQUE_CONTRADICTION_THRESHOLD = 0.55
+
+# A bibliography is not substantive contrasting prose -- excluded from both the Tier-1 retrieval
+# corpus and the Tier-2 LLM haystack. Most chunks have no detected heading at all (section IS NULL),
+# which must stay eligible -- `!=` alone would silently drop them under SQL's NULL comparison rules.
+_EXCLUDED_EVIDENCE_SECTIONS = {"references"}
+
+
+def _not_excluded_section_clause():
+    return or_(chunks.c.section.is_(None), chunks.c.section.notin_(_EXCLUDED_EVIDENCE_SECTIONS))
 
 
 @dataclass(frozen=True)
@@ -466,7 +475,9 @@ def paper_full_text(conn, paper_id) -> str:
     paper = get_paper(conn, paper_id)
     parts = [str(paper["abstract"] or "").strip()]
     parts += [
-        str(row["text"] or "") for row in get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_DOCUMENT_ROLES)
+        str(row["text"] or "")
+        for row in get_chunks_for_paper(conn, paper_id, document_roles=ARTICLE_DOCUMENT_ROLES)
+        if row["section"] not in _EXCLUDED_EVIDENCE_SECTIONS
     ]
     return "\n".join(part for part in parts if part)
 
@@ -488,6 +499,7 @@ def other_paper_chunk_embedding_ids(conn, paper_id) -> set[int]:
             chunks.c.paper_id != paper_id,
             papers.c.deleted_at.is_(None),
             attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES),
+            _not_excluded_section_clause(),
         )
     )
     return {int(row[0]) for row in rows}
@@ -521,6 +533,7 @@ def library_article_chunk_embedding_ids(
             embeddings.c.normalization == normalization,
             papers.c.deleted_at.is_(None),
             attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES),
+            _not_excluded_section_clause(),
         )
     )
     return {int(row[0]) for row in rows}

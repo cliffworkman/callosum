@@ -17,6 +17,7 @@ from sqlalchemy import Connection, Engine
 
 from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
+from app.backend.clustering.followed_authors import suggest_authors_to_follow
 from app.backend.discovery.feed import feed_view, refresh_subscriptions
 from app.backend.persistence import feed_repo, followed_author_repo
 from app.backend.persistence.sqlite_retry import run_write
@@ -51,6 +52,14 @@ def library_journals(conn: Connection = Depends(get_connection)) -> dict[str, An
     """Journals already present in the library (venue + paper count, most-frequent first) — powers the Feed's
     "Suggest" journals modal + the follow typeahead. Read-only, local (no egress); the user's own data, not a ranking."""
     return {"journals": feed_repo.list_library_journals(conn)}
+
+
+@router.get("/feed/suggest-authors")
+def suggest_authors(conn: Connection = Depends(get_connection)) -> dict[str, Any]:
+    """Authors who recur across the library (paper count, most-frequent first) — powers the Suggest modal's
+    Author tab. Excludes the user's own name and anyone already followed. Read-only, local (no egress); a plain
+    tally of the user's own data, never a ranking or a recommendation of a person."""
+    return {"authors": suggest_authors_to_follow(conn)}
 
 
 @router.post("/feed/subscriptions")

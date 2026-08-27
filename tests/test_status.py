@@ -143,6 +143,19 @@ def test_status_job_surfaces_a_published_nav_payload(temp_db_url):
     assert row["nav"] == {"workspace": "synthesis", "tab": "ask", "summary_id": 99}
 
 
+def test_critical_review_set_job_nav_reopens_the_modal_not_the_critique_tab(temp_db_url):
+    # backlog fix: the multi-paper "critical read" job has no home in the single-paper Critique tab --
+    # closing CriticalSetModal while the job runs must let the Status row reopen that same modal, keyed
+    # on the job's own paper_ids, rather than stranding the user on an empty tab (found live).
+    app = create_app(db_url=temp_db_url)
+    jid = app.state.critical_review_set_jobs.create(nav={"paper_ids": [3, 7]})
+    app.state.critical_review_set_jobs.mark_running(jid)
+    client = TestClient(app)
+
+    row = client.get("/status/jobs").json()["jobs"][0]
+    assert row["nav"] == {"workspace": "synthesis", "modal": "critical-set", "paper_ids": [3, 7]}
+
+
 def test_status_navigation_rejects_free_text_urls_and_destination_overrides(temp_db_url):
     app = create_app(db_url=temp_db_url)
     jid = app.state.summary_jobs.create(

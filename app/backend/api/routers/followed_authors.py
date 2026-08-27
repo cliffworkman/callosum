@@ -1,48 +1,34 @@
-"""Followed authors — a lightweight OpenAlex-author subscription that feeds gap-finder (backlog #29, inc 454).
+"""Followed authors — a lightweight OpenAlex-author subscription (backlog #29, inc 454; consolidated
+into Discover -> Feed, dropping the standalone tab's gap-candidate view, 2026-08-27).
 
 Follow an author (by name/ORCID, or directly from an already-resolved id, e.g. the My-Publications citing-authors
-panel); Refresh fetches their works (cached, bounded) and surfaces those absent from the library, "by <author>
-(followed)". GET reads are cache-only (zero egress); only the explicit Refresh job calls OpenAlex. Add/Dismiss
-reuse gap-finder's own metadata-import path and its shared `profile.dismissed_gap_works` list — one dismissal
-domain across both sources, since a dismissal is about the work, not which generator re-derived it.
+panel, or Feed's own "Author" add-source option). GET reads are cache-only (zero egress); resolving a name/ORCID
+is the only call that reaches OpenAlex.
 
 inc 455: follow/unfollow here also keeps a matching `feed_subscriptions` row (kind="followed_author") in sync,
-so the SAME author's works also flow into the chronological Feed (Discover → Feed), not just this dedicated
-"what am I missing" list — two purpose-built reads of one underlying "I follow this author" fact. The reverse
-sync (unfollowing via Feed's own subscription chip) lives in `routers/feed.py::remove_subscription`.
+so the SAME author's works flow into the chronological Feed (Discover → Feed) via `FollowedAuthorFeedSource` —
+this router's whole remaining job is just "the follow/unfollow primitive," not a second content surface. The
+reverse sync (unfollowing via Feed's own subscription chip) lives in `routers/feed.py::remove_subscription`.
 """
 
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
 from fastapi import status as http_status
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection, Engine
 
 from app.backend.api.dependencies import get_connection, get_engine
-from app.backend.api.job_store import JobStore
-from app.backend.clustering.followed_authors import (
-    FOLLOWED_AUTHOR_MAX_CANDIDATES,
-    FOLLOWED_AUTHOR_NOTE,
-    compute_followed_author_candidates,
-)
-from app.backend.clustering.my_publications import import_citing_work
 from app.backend.persistence import feed_repo
 from app.backend.persistence.followed_author_repo import (
     add_followed_author,
     get_followed_author,
     list_followed_authors,
-    read_followed_author_candidates,
     remove_followed_author,
-    replace_followed_author_candidates,
-    set_last_refreshed,
 )
-from app.backend.persistence.profile_repo import dismiss_gap, dismissed_gaps
-from app.backend.persistence.repository import find_existing_paper_by_identity
 from app.backend.persistence.sqlite_retry import run_write
 from integrations.openalex import OpenAlexAuthorClient
 
@@ -135,171 +121,6 @@ def unfollow_author(author_id: str, engine: Engine = Depends(get_engine)) -> Res
     return run_write(engine, _do)
 
 
-class FollowedAuthorCandidateOut(BaseModel):
-    author_id: str
-    author_display_name: str | None = None
-    openalex_work_id: str | None = None
-    doi: str | None = None
-    title: str | None = None
-    year: int | None = None
-    cited_by_count: int = 0
-
-
-class FollowedAuthorCandidatesResponse(BaseModel):
-    candidates: list[FollowedAuthorCandidateOut] = []
-
-
-@router.get("/followed-authors/candidates", response_model=FollowedAuthorCandidatesResponse)
-def followed_author_candidates_list(conn: Connection = Depends(get_connection)) -> FollowedAuthorCandidatesResponse:
-    rows = read_followed_author_candidates(conn)
-    dismissed = dismissed_gaps(conn)
-    out: list[FollowedAuthorCandidateOut] = []
-    for row in rows:  # filter at read time, exactly like GET /gaps -- Add/Dismiss take effect without a recompute
-        if (row["openalex_work_id"] and row["openalex_work_id"] in dismissed) or (
-            row["doi"] and row["doi"] in dismissed
-        ):
-            continue
-        if row["doi"] and find_existing_paper_by_identity(conn, doi=row["doi"]) is not None:
-            continue
-        out.append(FollowedAuthorCandidateOut(**row))
-    return FollowedAuthorCandidatesResponse(candidates=out)
-
-
-class FollowedAuthorRefreshRequest(BaseModel):
-    author_id: str | None = None  # omit/null = refresh every followed author in one job
-
-
-class FollowedAuthorRefreshResult(BaseModel):
-    authors_refreshed: int = 0
-    works_checked: int = 0
-    count: int = 0
-    note: str = ""
-
-
-class FollowedAuthorRefreshResponse(BaseModel):
-    job_id: str
-    status: Literal["pending", "running", "done", "error"]
-    detail: str | None = None
-    result: FollowedAuthorRefreshResult | None = None
-
-
-@router.post(
-    "/followed-authors/refresh", response_model=FollowedAuthorRefreshResponse, status_code=http_status.HTTP_202_ACCEPTED
-)
-def followed_authors_refresh(
-    payload: FollowedAuthorRefreshRequest,
-    background_tasks: BackgroundTasks,
-    request: Request,
-    conn: Connection = Depends(get_connection),
-) -> FollowedAuthorRefreshResponse:
-    if payload.author_id and get_followed_author(conn, payload.author_id) is None:
-        raise HTTPException(status_code=404, detail="Followed author not found")
-    job_id = request.app.state.followed_author_jobs.create()
-    background_tasks.add_task(_run_followed_author_refresh, request.app, job_id, payload.author_id)
-    return FollowedAuthorRefreshResponse(job_id=job_id, status="pending")
-
-
-@router.get("/followed-authors/refresh/{job_id}", response_model=FollowedAuthorRefreshResponse)
-def followed_authors_refresh_status(job_id: str, request: Request) -> FollowedAuthorRefreshResponse:
-    job = request.app.state.followed_author_jobs.get(job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Followed-authors refresh job not found")
-    if job.status == "done" and job.result is not None:
-        return job.result
-    return FollowedAuthorRefreshResponse(job_id=job_id, status=job.status, detail=job.detail)
-
-
-class FollowedAuthorAddRequest(BaseModel):
-    doi: str
-    openalex_work_id: str | None = None
-    title: str | None = None
-
-
-class FollowedAuthorAddResponse(BaseModel):
-    status: str  # imported | exists | invalid
-    paper_id: int | None = None
-
-
-@router.post("/followed-authors/add", response_model=FollowedAuthorAddResponse)
-def followed_authors_add(
-    payload: FollowedAuthorAddRequest, request: Request, engine: Engine = Depends(get_engine)
-) -> FollowedAuthorAddResponse:
-    def _do(conn: Connection) -> FollowedAuthorAddResponse:
-        result = import_citing_work(
-            conn,
-            doi=payload.doi,
-            openalex_work_id=payload.openalex_work_id,
-            title=payload.title,
-            crossref_client=request.app.state.crossref_client,
-            imported_source="followed-author-import",
-        )
-        if result.get("status") == "invalid":
-            raise HTTPException(status_code=422, detail="A DOI is required to add a followed-author candidate.")
-        return FollowedAuthorAddResponse(status=str(result.get("status")), paper_id=result.get("paper_id"))
-
-    return run_write(engine, _do)
-
-
-class FollowedAuthorDismissRequest(BaseModel):
-    openalex_work_id: str | None = None
-    doi: str | None = None
-
-
-@router.post("/followed-authors/dismiss", status_code=http_status.HTTP_204_NO_CONTENT)
-def followed_authors_dismiss(payload: FollowedAuthorDismissRequest, engine: Engine = Depends(get_engine)) -> Response:
-    def _do(conn: Connection) -> Response:
-        for key in (payload.openalex_work_id, payload.doi):
-            if key:
-                dismiss_gap(conn, key)  # SAME list as /gaps/dismiss -- source-agnostic by design
-        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
-
-    return run_write(engine, _do)
-
-
 def _author_client(app: FastAPI) -> OpenAlexAuthorClient:
     injected = app.state.openalex_author_client
     return injected if injected is not None else OpenAlexAuthorClient()
-
-
-def _run_followed_author_refresh(app: FastAPI, job_id: str, author_id: str | None) -> None:
-    jobs: JobStore[FollowedAuthorRefreshResponse] = app.state.followed_author_jobs
-    jobs.mark_running(job_id)
-    try:
-        engine = app.state.engine
-        client = _author_client(app)
-        # inc D: fetches run on a READ connection with the client caching self-committingly, so they never hold
-        # the write lock; the final batch persist is one short run_write.
-        fetch_client = client.with_cache_engine(engine) if hasattr(client, "with_cache_engine") else client
-        computed_at = datetime.now(timezone.utc).isoformat()
-        with engine.connect() as conn:
-            targets = [
-                t for t in ([get_followed_author(conn, author_id)] if author_id else list_followed_authors(conn)) if t
-            ]
-            dismissed = dismissed_gaps(conn)
-            per_author: list[tuple[str, list, int]] = []
-            for row in targets:
-                candidates, coverage = compute_followed_author_candidates(
-                    conn,
-                    author_client=fetch_client,
-                    author_id=row["author_id"],
-                    author_display_name=row["display_name"],
-                    dismissed=dismissed,
-                    max_candidates=FOLLOWED_AUTHOR_MAX_CANDIDATES,
-                )
-                per_author.append((row["author_id"], candidates, coverage["works_checked"]))
-
-        def _persist(conn: Connection) -> None:
-            for aid, candidates, _checked in per_author:
-                replace_followed_author_candidates(conn, aid, candidates, computed_at=computed_at)
-                set_last_refreshed(conn, aid, refreshed_at=computed_at)
-
-        run_write(engine, _persist)
-        result = FollowedAuthorRefreshResult(
-            authors_refreshed=len(per_author),
-            works_checked=sum(c for _, _, c in per_author),
-            count=sum(len(c) for _, c, _ in per_author),
-            note=FOLLOWED_AUTHOR_NOTE,
-        )
-        jobs.mark_done(job_id, FollowedAuthorRefreshResponse(job_id=job_id, status="done", result=result))
-    except Exception as exc:
-        jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")

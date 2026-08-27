@@ -35,6 +35,10 @@
     --wip: #147b78;          /* teal — unpublished manuscript context, never a quality/status judgment */
     --wip-soft: #e5f3f1;
     --wip-line: #9bcac5;
+    --highlight: #6f47c0;       /* violet — axis-relevance/library-highlight signal, distinct from --accent */
+    --highlight-soft: #f1e8fb;
+    --highlight-line: #ddc7f2;
+    --highlight-wash: #f6f1f9;  /* lighter still than --highlight-soft — a whole-row wash (Feed), never the pill */
     /* inc 207 (A5): the tag-color palette — one ink per key; the colored-chip recipe mixes it with --panel for the
        bg (so it auto-adapts to the theme). Light inks here; the dark block overrides them lighter. NOT semantic
        (these are user-chosen labels, distinct from the indigo/green/amber/red status colors above). */
@@ -53,6 +57,8 @@
     --radius-sm: 5px;          /* small controls (chips rows, inline buttons) — DESIGN.md §3 #6 */
     --radius-lg: 12px;         /* modals */
     --radius-pill: 999px;      /* pills / toggles / round badges */
+    --control-h: 32px;         /* canonical height for the .searchbar family: text input, select, and any
+                                  button sharing a row (2026-08-27) — DESIGN.md §2 "Everyday form-row controls" */
     --mono: "SFMono-Regular", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
     --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     --serif: "Iowan Old Style", "Palatino Linotype", "Georgia", serif;
@@ -88,6 +94,10 @@
     --wip: #6fcac2;
     --wip-soft: #1f3936;
     --wip-line: #356b66;
+    --highlight: #b196ec;
+    --highlight-soft: #332a52;
+    --highlight-line: #4d3f78;
+    --highlight-wash: #262134;
     --sel: #2a2740;
     --hover: #2f2a22;
     --on-fill: #201d16;
@@ -503,6 +513,11 @@
   .citation-style-editor-output > .settings-field-label { display: block; }
   .citation-style-editor-preview { padding-bottom: 12px; }
   .citation-style-editor-actions { flex: none; justify-content: flex-end; margin-top: 12px; }
+  /* Feed's Suggest modal (2026-08-27): 5 tabs need a fixed tab strip + an internally-scrolling body, the same
+     shape as .citation-style-editor-modal above (flex column, only the body scrolls). */
+  .axis-modal.feed-suggest-modal { width: min(640px, calc(100vw - 48px)); max-height: 86vh; overflow: hidden; display: flex; flex-direction: column; }
+  .feed-suggest-modal .tags-srcfilter { flex: none; }
+  .feed-suggest-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin-top: 4px; }
   .settings-subsection { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
   .settings-section .settings-sub { max-width: none; }
   .settings-ai-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 24px; margin-top: 14px; }
@@ -1283,6 +1298,13 @@
     background: var(--bg); color: var(--ink);
   }
   .searchbar input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  /* 2026-08-27: the input/select/buttons sharing a .searchbar row (Library header, WIP filters, Discover
+     Search, Feed) previously rendered at 4 different heights (8px/6px/5px/3px vertical padding respectively) —
+     visibly mismatched. One canonical height, applied only within this shared row container (never the bare
+     .btn-primary/.btn-ghost/.lib-sort rules used in dozens of unrelated contexts app-wide). */
+  .searchbar input { height: var(--control-h); box-sizing: border-box; }
+  .searchbar .btn { height: var(--control-h); box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
+  .searchbar .lib-sort { height: var(--control-h); box-sizing: border-box; border-radius: var(--radius); }
   /* library sort control (inc 69; inline with the search box since inc 88) */
   .lib-sort-label { flex: none; white-space: nowrap; font-family: var(--sans); font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
   .lib-sort {
@@ -1712,6 +1734,18 @@
   .cr-matrix-caption { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin-top: 6px; }
   .cr-related { font-size: 11px; color: var(--ink-2); margin-top: 4px; }
   .cr-related-note { color: var(--ink-3); font-style: italic; }
+  /* Critique triage (backlog: critique triage) — a reversible display layer over existing facts/candidates,
+     same token semantics as .registration-row-triage: flag = prioritize, accent = uncertain, muted = likely noise. */
+  .cr-run-toggles { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 8px 0; }
+  .cr-triage { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+    background: var(--panel-2); color: var(--ink-2); font-size: 11.5px; line-height: 1.5; }
+  .cr-triage > b { display: block; margin-bottom: 3px; color: var(--ink); }
+  .cr-triage.triage-prioritize { border-color: var(--flag-line); background: var(--flag-soft); }
+  .cr-triage.triage-uncertain { border-color: var(--accent-line); background: var(--accent-soft); }
+  .cr-triage.triage-likely_noise { color: var(--ink-3); }
+  .cr-triage.stale { opacity: .7; }
+  .cr-triage small { display: block; margin-top: 4px; color: var(--ink-3); }
+  .cr-triage-view { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
   /* Bayesian auditor SP4 (inc 244): Tier-3 advisory prompts — neutral/accent tint, deliberately NOT the amber flag. */
   .bayes-advisory { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 8px; }
   .bayes-advisory-item { padding: 6px 8px; border-left: 2px solid var(--accent-soft); margin-bottom: 6px; font-size: 12px; color: var(--ink-2); }
@@ -2379,10 +2413,22 @@
   .discover-item { padding: 13px 18px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .1s; }
   .discover-item:hover { background: var(--hover); }
   .discover-item.cur { background: var(--sel); box-shadow: inset 3px 0 0 var(--accent); }
+  /* Axis-relevance row highlight — the DEFAULT treatment for a relevance-matched entry wherever a row list shows
+     one (Search + Feed): --highlight-wash is deliberately lighter than the pill's own --highlight-soft below (a
+     first attempt reused --highlight-soft for the row too and found it read as too saturated for a whole entry,
+     and made the pill's own background disappear into the row it sat on, since both were the same color). Hover
+     steps up to --highlight-soft. The keyboard-cursor row (.cur, Search only) always wins over the wash — an
+     explicit 3-class override, not cascade order, so a highlighted row never hides which one is currently
+     selected. */
+  .discover-item.relevance-row-highlight { background: var(--highlight-wash); }
+  .discover-item.relevance-row-highlight:hover { background: var(--highlight-soft); }
+  .discover-item.cur.relevance-row-highlight { background: var(--sel); }
   .discover-title { font-family: var(--serif); font-size: 15px; line-height: 1.32; color: var(--ink); margin: 0 0 4px; font-weight: 500; }
-  .discover-relevance {
+  /* The axis-relevance hint (Search + Feed) — deliberately violet, not --accent, so a "likely relevant"
+     signal doesn't visually blend into the app's ubiquitous provenance/primary-action indigo (DESIGN.md §2). */
+  .relevance-highlight {
     display: inline-block; margin: 0 0 4px; font-family: var(--sans); font-size: 11px;
-    color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    color: var(--highlight); background: var(--highlight-soft); border: 1px solid var(--highlight-line);
     border-radius: var(--radius-pill); padding: 1px 8px;
   }
   .discover-foot { display: flex; gap: 10px; align-items: center; margin-top: 7px; flex-wrap: wrap; }
@@ -2396,7 +2442,12 @@
   .discover-feed-embedded { border-top: 1px solid var(--line); margin-top: 8px; }
 
   /* ---- Feed tab (inc 188) — reuses the .discover-item row recipe; tokens only ---- */
-  .feed-subs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .feed-subs-row { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 8px; }
+  .feed-subs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  /* 2026-08-27: caps the header's own pill row to a single visible line (unwieldy proliferation as follows
+     accumulate) -- flex:1 min-width:0 lets it shrink to leave room for the "…" overflow button beside it. The
+     SAME .feed-sub pills render unconstrained (this modifier omitted) inside FeedSubsOverflowModal. */
+  .feed-subs-capped { flex: 1 1 auto; min-width: 0; max-height: 28px; overflow: hidden; }
   .feed-sub {
     display: inline-flex; align-items: center; gap: 5px; font-family: var(--sans); font-size: 11.5px;
     color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
@@ -2405,14 +2456,30 @@
   .feed-sub-kind { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .03em; opacity: .7; margin-right: 5px; }
   .feed-sub-x { border: none; background: none; color: var(--accent); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; }
   .feed-sub-x:hover { color: var(--flag-ink); }
+  /* Deliberately its OWN class, not .feed-sub reused -- a shared class would make this "reveal more" control
+     indistinguishable from a real followed-source pill to any .feed-sub-counting code/test (caught live: it
+     inflated the demo E2E smoke test's expected pill count by one). Same visual recipe, restated. */
+  .feed-sub-more {
+    flex: none; display: inline-flex; align-items: center; font-family: var(--sans); font-size: 11.5px;
+    color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    border-radius: var(--radius-pill); padding: 2px 9px; cursor: pointer;
+  }
+  .feed-sub-more:hover { background: var(--accent-line); }
   .feed-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
   .feed-controls-right { display: flex; align-items: center; gap: 12px; }
+  /* The merged All/Unread/Highlighted/Starred row (2026-08-27, replacing two separate filter groups) needs its
+     own width so "Highlighted" and "Unread (N)" don't wrap mid-word under .tags-srcfilter-btn's shared flex:1 +
+     overflow-wrap:anywhere base (used by many unrelated tab strips app-wide, so scoped here, not changed globally). */
+  .feed-controls .tags-srcfilter-btn { flex: 0 0 auto; white-space: nowrap; padding: 4px 12px; }
   /* Shared by any opt-in "auto-refresh when stale" checkbox (Feed, backlog #31's Retraction Watch cadence, …) —
      renamed from .feed-autorefresh (2026-07-21) when a second feature adopted the same recipe. */
   .auto-refresh-toggle { display: inline-flex; align-items: center; gap: 5px; font-family: var(--sans); font-size: 11px; color: var(--ink-3); cursor: pointer; }
   .feed-row-top { display: flex; align-items: baseline; gap: 7px; }
   .feed-unread-dot { flex: none; width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--accent); margin-top: 5px; }
   .feed-item.read .discover-title { color: var(--ink-2); font-weight: 400; }
+  /* The row wash itself is .discover-item.relevance-row-highlight, shared with Search (defined above .discover-
+     title) — Feed's own addition is just recoloring its unread dot to match, since Search has no such dot. */
+  .feed-unread-dot.feed-unread-dot-highlight { background: var(--highlight); }
   .feed-star { border: none; background: none; cursor: pointer; font-size: 14px; line-height: 1; color: var(--ink-3); padding: 0; }
   .feed-star.on { color: var(--flag); }
   .feed-star:hover { color: var(--flag); }

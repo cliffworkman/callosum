@@ -20,6 +20,7 @@ from app.backend.methods.critical_review import (
     find_contested_claims,
     make_chunk_resolver,
     other_paper_chunk_embedding_ids,
+    paper_full_text,
     search_contested_claims,
 )
 from app.backend.persistence import critical_review_repo as repo
@@ -303,7 +304,9 @@ def _paper_with_attachment(conn, title: str) -> tuple[int, int]:
     return pid, aid
 
 
-def _chunk_with_embedding(conn, paper_id: int, attachment_id: int, *, text: str, page: int) -> tuple[int, int]:
+def _chunk_with_embedding(
+    conn, paper_id: int, attachment_id: int, *, text: str, page: int, section: str | None = None
+) -> tuple[int, int]:
     chunk_id = create_chunk(
         conn,
         paper_id=paper_id,
@@ -317,6 +320,7 @@ def _chunk_with_embedding(conn, paper_id: int, attachment_id: int, *, text: str,
         chunking_strategy="paragraph",
         chunk_version="v1",
         source_attachment_checksum="chk",
+        section=section,
     )
     embedding_id = int(
         conn.execute(
@@ -463,6 +467,34 @@ def test_other_paper_chunk_embedding_ids() -> None:
         # soft-deleting B removes its chunk-embeddings from the corpus
         c.execute(update(schema.papers).where(schema.papers.c.id == pid_b).values(deleted_at=func.current_timestamp()))
         assert other_paper_chunk_embedding_ids(c, pid_a) == set()
+
+
+def test_other_paper_chunk_embedding_ids_excludes_references_section() -> None:
+    # A bibliography is not substantive contrasting prose -- must never enter the corpus a contested-claim
+    # detector retrieves from, even though it carries a real embedding like any other chunk.
+    eng = _fresh_db()
+    with eng.begin() as c:
+        pid_a, aid_a = _paper_with_attachment(c, "A")
+        pid_b, aid_b = _paper_with_attachment(c, "B")
+        _, emb_body = _chunk_with_embedding(c, pid_b, aid_b, text="a body passage", page=1)
+        _, emb_refs = _chunk_with_embedding(c, pid_b, aid_b, text="1. Smith et al. 2020.", page=9, section="references")
+
+        ids = other_paper_chunk_embedding_ids(c, pid_a)
+        assert emb_body in ids
+        assert emb_refs not in ids
+
+
+def test_paper_full_text_excludes_references_section() -> None:
+    # The Tier-2 LLM haystack must never include a paper's own bibliography as quotable body text.
+    eng = _fresh_db()
+    with eng.begin() as c:
+        pid, aid = _paper_with_attachment(c, "P")
+        _chunk_with_embedding(c, pid, aid, text="a real body passage", page=1)
+        _chunk_with_embedding(c, pid, aid, text="1. Smith et al. 2020.", page=9, section="references")
+
+        text = paper_full_text(c, pid)
+        assert "a real body passage" in text
+        assert "Smith et al." not in text
 
 
 def test_make_chunk_resolver_resolves_and_misses() -> None:
@@ -646,6 +678,50 @@ def test_generate_candidates_endpoint_verifies_and_egress_gates(temp_db_url, mon
     monkeypatch.delenv("CALLOSUM_ALLOW_DATA_EGRESS", raising=False)
     r2 = client.post(f"/papers/{pid}/critical-read/candidates/generate")
     assert r2.status_code == 422
+
+
+def test_generate_candidates_with_triage_toggle_annotates_in_one_round_trip(temp_db_url):
+    from types import SimpleNamespace
+
+    from app.backend.methods.critical_review_triage import CriticalReviewTriageEvaluator
+    from integrations.gemini.critical_review import CandidateDraft
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(
+            conn, title="P", abstract="We prove causation between X and Y in all cases.", csl_json={"title": "P"}
+        )
+    engine.dispose()
+
+    class _FakeGen:
+        def propose(self, *, paper_text):
+            return [CandidateDraft(concern="causal overreach", anchor_quote="We prove causation between X and Y")]
+
+    class _FakeStance:
+        def classify_stance(self, *, sentence, passage):
+            return SimpleNamespace(label="contrast", confidence=0.6)
+
+    def complete_fn(config, prompt):
+        import re
+
+        item_id = int(re.search(r'"item_id":\s*(\d+)', prompt).group(1))
+        return SimpleNamespace(
+            text=f'{{"items":[{{"item_id":{item_id},"label":"uncertain","show_in_triage":true,'
+            f'"rationale":"Worth a second look.","concerns":[]}}]}}'
+        )
+
+    app = create_app(db_url=temp_db_url)
+    app.state.critical_review_generator = _FakeGen()
+    app.state.critical_review_deps = {"embed_model": None, "vector_store": None, "stance_scorer": _FakeStance()}
+    app.state.critical_review_triage_evaluator = CriticalReviewTriageEvaluator(
+        config=SimpleNamespace(provider="local", model="fixture-model"), complete_fn=complete_fn
+    )
+    client = TestClient(app)
+    r = client.post(f"/papers/{pid}/critical-read/candidates/generate", json={"triage": True})
+    assert r.status_code == 200, r.text
+    cands = r.json()["candidates"]
+    assert len(cands) == 1
+    assert cands[0]["llm_triage"]["label"] == "uncertain"
 
 
 # --- Task 7: Principles guard (signal not verdict; no composite score; no author-directed judgment) -------------

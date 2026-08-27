@@ -119,6 +119,9 @@ function App() {
     pcurvePapers, setPcurvePapers, zcurvePapers, setZcurvePapers, mergeIds, setMergeIds, onMerged,
     critSetIds, setCritSetIds, sharePaperIds, setSharePaperIds,
   } = lib;
+  // Status-nav resume: lets the Status popover reopen an in-progress/finished multi-paper critical
+  // read by its exact job id, rather than relying only on sessionStorage-keyed ids recall.
+  const [critSetResumeJobId, setCritSetResumeJobId] = useState(null);
 
   const {
     focusAxis, focusMembers, focusPending, axisRefresh, setAxisRefresh,
@@ -222,6 +225,10 @@ function App() {
     if (nav.view === "wip") { selectWorkspace("library"); setActiveTab("wip"); if (mobile) setMobilePane("library"); }
     if (nav.modal === "duplicates") setDuplicatesOpen(true);
     if (nav.modal === "merge" && Array.isArray(nav.paper_ids) && nav.paper_ids.length > 1) setMergeIds(nav.paper_ids);
+    if (nav.modal === "critical-set" && Array.isArray(nav.paper_ids) && nav.paper_ids.length > 1) {
+      setCritSetIds(nav.paper_ids);
+      setCritSetResumeJobId(job.job_id);
+    }
     if (nav.modal === "wanted") setWantedOpen(true);
     if (nav.modal === "text-health") { setTextHealthContext(null); setTextHealthOpen(true); }
     if (nav.modal === "gaps") setGapsOpen(true);
@@ -483,7 +490,8 @@ function App() {
             onMerged={(survivorId) => { if (duplicatesOpen) setDupMergedIds(mergeIds); onMerged(survivorId); }} />
         </StatusScope>}
       {critSetIds &&
-        <CriticalSetModal ids={critSetIds} onClose={() => setCritSetIds(null)} onOpenPaper={openPdf} />}
+        <CriticalSetModal ids={critSetIds} resumeJobId={critSetResumeJobId}
+          onClose={() => { setCritSetIds(null); setCritSetResumeJobId(null); }} onOpenPaper={openPdf} />}
       {sharePaperIds &&
         <ShareModal ids={sharePaperIds} onClose={() => setSharePaperIds(null)} />}
       {wantedOpen &&

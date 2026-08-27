@@ -1,9 +1,9 @@
 <!-- qa-coverage
 api: /papers/{paper_id}/critical-read*, /critical-read/*, /wip/manuscripts/{manuscript_id}/critical-read, /wip/critical-read/{job_id}, /papers/{paper_id}/findings, /findings/{finding_id}/review, /findings/overview
-fe: 08x_methods_critical.jsx, 04b_workspaces.jsx
+fe: 08x_methods_critical.jsx, 04b_workspaces.jsx, 08z_critical_triage.jsx
 -->
 
-# ROUTE 67 - Critical read (scrutiny surface: Tier-1 facts + the findings queue + Tier-2 AI candidates)
+# ROUTE 67 - Critical read (scrutiny surface: Tier-1 facts + the findings queue + Tier-2 AI candidates + triage)
 
 **Tier:** 2 local-stateful + egress-gated
 **Goal:** Exercise the single-paper **Synthesize → Critique** tab — the selected-paper/open-PDF cue before its
@@ -41,6 +41,14 @@ egress enabled + a fake/loopback provider. Register listeners before navigation.
 - **Tier 1 is user-triggered, not auto-run (2026-07-20).** Opening Critique on a paper with text must NOT by
   itself fire `POST /papers/{id}/critical-read` — a **"Run critical read"** button must be clicked first. An
   automatic Tier-1 POST on mount/paper-switch, with no prior click, is **High**.
+- **Suggest/triage toggles (critique-triage feature).** Two checkboxes ("Suggest critiques (AI)", "AI triage")
+  appear beside "Run critical read" only when egress is enabled. Checking "Suggest critiques" before running Tier 1
+  must auto-chain `POST …/candidates/generate` immediately after Tier 1 completes — no second manual click needed —
+  while the existing manual "Suggest critiques (AI)" button still works standalone for a run where the toggle was
+  left off. "AI triage" is a reversible display layer only: a labeled contested claim or candidate may show an
+  **"AI triage · <label>"** badge + rationale, and an "All rows"/"AI-focused" filter may hide `likely_noise` items,
+  but neither may alter a claim's/candidate's text, stance, confidence, or status. A triage label that mutates
+  underlying content is **Critical**.
 - **WIP is a separate local-only trust path (inc 445).** Opening Critique on a manuscript never calls the paper
   route or provider candidate route. Only an explicit **Run local critical read** starts the loopback WIP job. Draft
   query embeddings are transient; only matching-model article-fulltext Library embeddings may be searched. Status
@@ -78,6 +86,11 @@ egress enabled + a fake/loopback provider. Register listeners before navigation.
 6. **Egress ON (fake/loopback provider):** click **Suggest critiques (AI)** (`POST …/candidates/generate`). Confirm
    each returned candidate quotes the paper verbatim (`GET …/critical-read/candidates`), is marked a **candidate**,
    and carries a stance + confidence. An ungrounded model draft must NOT appear (dropped by the #13 bar).
+6b. **Egress ON, toggle flow:** on a different paper, check **both** "Suggest critiques (AI)" and "AI triage"
+   *before* clicking "Run critical read." Confirm exactly one Tier-1 POST fires, `POST …/candidates/generate` fires
+   automatically once Tier 1 completes (no manual click), and any contested claim/candidate may carry an "AI triage ·
+   <label>" badge. Toggle "AI-focused" → only `likely_noise` items hide; toggle back to "All rows" → every item
+   reappears unchanged (same text/stance/confidence/status).
 7. **Accept** a candidate (`POST /critical-read/candidates/{id}/accept`) → it persists as accepted (survives reload).
    **Reject** another (`.../reject`) → it disappears and is never re-proposed on a re-generate.
 8. **The findings queue.** Run a statcheck batch (METHODS → Statistics check → "Check all papers") on a paper with
@@ -113,6 +126,8 @@ egress enabled + a fake/loopback provider. Register listeners before navigation.
   and never reads as a quality/verdict signal.
 - No composite score anywhere; facts vs. candidates visually distinct; every Tier-2 candidate is verbatim-grounded with a
   stance + confidence; no author-directed language.
+- The Suggest/triage toggles auto-chain exactly once per run and stay off by default; AI triage never mutates a
+  claim's or candidate's underlying text, stance, confidence, or status — only its own reversible label/filter.
 - Accept persists; reject never returns. Mobile viewport has no horizontal overflow.
 
 ## Deposit

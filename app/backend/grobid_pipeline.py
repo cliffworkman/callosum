@@ -97,3 +97,9 @@ def parse_paper_structure(conn: Connection, paper_id: int, attachment_id: int, p
                 break  # first overlapping span wins -- spans shouldn't overlap each other in a well-formed TEI
 
     return {"sections_found": len(spans), "chunks_mapped": chunks_mapped}
+
+
+def paper_ids_with_sections(conn: Connection) -> set[int]:
+    """Paper ids that already have at least one GROBID-mapped section -- lets the bulk parse job offer an
+    "unparsed only" mode (backlog #58) without re-parsing papers a prior run already covered."""
+    return {int(row[0]) for row in conn.execute(select(paper_sections.c.paper_id).distinct())}

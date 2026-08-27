@@ -93,7 +93,6 @@ JOB_LABELS: dict[str, str] = {
     "my_publication_gap_jobs": "Co-citation gap scan",
     "my_publication_citing_author_jobs": "Citing-authors scan",
     "my_publication_topic_jobs": "Emerging-topics scan",
-    "followed_author_jobs": "Followed-authors refresh",
 }
 
 # Every backend job family has a stable UI home. A job may add a narrower entity hint (paper_id, summary_id, ...)
@@ -133,7 +132,11 @@ JOB_NAV_DEFAULTS: dict[str, dict[str, Any]] = {
     "citation_context_jobs": {"workspace": "work", "tab": "meta-reference"},
     "critical_review_jobs": {"workspace": "synthesis", "tab": "critique"},
     "wip_critical_review_jobs": {"workspace": "synthesis", "tab": "critique"},
-    "critical_review_set_jobs": {"workspace": "synthesis", "tab": "critique"},
+    # The Critique tab renders a single paper's (or a WIP manuscript's) Critical Read only -- it has no concept
+    # of a multi-paper "set" job. Reopen the modal that actually shows this job's progress/report instead of
+    # landing on a tab with nothing relevant to display (found live: closing the modal mid-run stranded the
+    # user with no way back to it).
+    "critical_review_set_jobs": {"workspace": "synthesis", "modal": "critical-set"},
     "metadata_enrich_jobs": {"workspace": "library"},
     "ocr_jobs": {"pane": "methods", "section": "details"},
     # Task 11 (backlog #30 Stage 2) added the real per-paper "Parse document structure…" action right beside
@@ -157,7 +160,6 @@ JOB_NAV_DEFAULTS: dict[str, dict[str, Any]] = {
     "my_publication_gap_jobs": {"workspace": "profile"},
     "my_publication_citing_author_jobs": {"workspace": "profile"},
     "my_publication_topic_jobs": {"workspace": "profile"},
-    "followed_author_jobs": {"workspace": "discover", "tab": "followed-authors"},
 }
 
 JOB_COMPUTE_KINDS: dict[str, str] = {
@@ -210,7 +212,6 @@ JOB_COMPUTE_KINDS: dict[str, str] = {
     "my_publication_gap_jobs": "Public metadata + local analysis",
     "my_publication_citing_author_jobs": "Public metadata + local analysis",
     "my_publication_topic_jobs": "Public metadata + local analysis",
-    "followed_author_jobs": "Public metadata + local analysis",
 }
 
 _NAV_ENTITY_IDS = {"paper_id", "summary_id", "manuscript_id"}

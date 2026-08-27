@@ -1,11 +1,11 @@
 """Followed-author Feed source (backlog #29, inc 455): a followed author's own works flow into the chronological
-Feed too, not just the dedicated "what am I missing" gap list (inc 454, `clustering/followed_authors.py`).
-Reuses the already-audited `OpenAlexAuthorClient` -- no new host/dependency.
+Feed. Reuses the already-audited `OpenAlexAuthorClient` -- no new host/dependency.
 
-Deliberately does NOT dedupe against the library at write time -- unlike `compute_followed_author_candidates`,
-whose whole point IS library-dedup for the gap list. This mirrors Feed's own established convention (journal /
+Deliberately does NOT dedupe against the library at write time -- Feed's own established convention (journal /
 bioRxiv / PubMed all store everything polled and compute `in_library` at READ time via `feed_view`) -- importing
 a paper is reflected without a re-poll, and Feed keeps its full chronological history regardless of library state.
+(The standalone Followed Authors tab's separate library-deduped gap list was retired 2026-08-27, consolidating
+this feature into Feed alone.)
 
 `FeedSource.fetch(value, *, limit)` receives no DB connection (every other source is a stateless HTTP wrapper),
 but `OpenAlexAuthorClient.fetch_author_works` needs one for its cache read -- so this source holds its own
@@ -54,7 +54,7 @@ class FollowedAuthorFeedSource:
 
 
 def _to_entry(work: AuthorWork) -> FeedEntry | None:
-    if not work.doi:  # mirrors compute_followed_author_candidates' own bar -- no DOI, no stable dedup_key
+    if not work.doi:  # no DOI, no stable dedup_key
         return None
     return FeedEntry(
         dedup_key=f"doi:{work.doi}",

@@ -18,7 +18,7 @@ Start by:
 ## Finding your way around
 Callosum has three panes, plus a **menu bar** across the top of the center pane that switches **workspaces** (what you're doing right now):
 
-- **Menu bar (top of the center pane):** switch between **My Publications** (your publications + impact), **Library** (your collection + open PDFs), **Synthesize** (Ask, Critique, and Meta-Preregistration), **Discover** (Feed, Search, Wanted, Gaps, Overlooked, Saved for later, Followed Authors, Journals, Funding), and **Work** (Cite, Meta-Reference, CRediT, Statements, Meta-Analyze — citing, reference-list analysis, credit + open-science statements, and meta-analysis dataset prep). **Help**, **Settings**, **Feedback**, and the **Status** popover sit at the right of the menu bar.
+- **Menu bar (top of the center pane):** switch between **My Publications** (your publications + impact), **Library** (your collection + open PDFs), **Synthesize** (Ask, Critique, and Meta-Preregistration), **Discover** (Feed, Search, Wanted, Gaps, Overlooked, Saved for later, Journals, Funding), and **Work** (Cite, Meta-Reference, CRediT, Statements, Meta-Analyze — citing, reference-list analysis, credit + open-science statements, and meta-analysis dataset prep). **Help**, **Settings**, **Feedback**, and the **Status** popover sit at the right of the menu bar.
 - **Left pane:** an **accordion** with **Axes** (plus a **Tags** tab — your labels alongside your conceptual lenses), the reading queue, and review/findings sections — click a section header to open it (one at a time).
 - **Right pane:** a **Details** accordion — the editable bibliographic info for the paper you've selected (a hint until you select one).
 
@@ -1239,7 +1239,7 @@ Each candidate shows **"cited by N of your papers"** (backward) or **"cites N of
 
 After a Refresh it tells you how many papers it scanned ("scanned M of N — the rest have no DOI"), and the coverage is partial (it depends on what OpenAlex has), so this is a prompt to look, not an exhaustive list. Public metadata only — no AI, and nothing leaves the machine but the OpenAlex/Crossref lookups.
 
-A third gap source, **works by authors you follow**, lives in its own **Discover → Followed Authors** tab rather than this backward/forward toggle — see *Following authors*.
+You can also **follow a specific author** from **Discover → Feed** to see their new work as it's published — see *Following sources (Feed)*. That's a chronological stream, not a gap-finder: for "which of this author's works am I missing," use the backward/forward toggle above instead.
 
 <!-- section: beyond-library-saved -->
 ## Saved for later
@@ -1392,32 +1392,19 @@ Recent Search queries are stored in this browser only. Use **Recent searches** t
 
 <!-- section: following-sources-feed -->
 ## Following sources (Feed)
-The **Discover → Feed** tab is for *keeping up* rather than searching: you **follow** a source, and Callosum collects its recent items for you to triage. It is **pull-only and opt-in** — nothing subscribes you automatically and nothing notifies you; you add a source, then click **Refresh** to poll it. The only thing that leaves the machine is the poll to the public source (bioRxiv) — this is **not** the AI/Gemini egress.
+The **Discover → Feed** tab is for *keeping up* rather than searching: you **follow** a source, and Callosum collects its recent items for you to triage. It is **pull-only and opt-in** — nothing subscribes you automatically and nothing notifies you; you add a source, then click **Refresh** to poll it. The only thing that leaves the machine is the poll to the public source (bioRxiv, PubMed, or an author lookup) — this is **not** the AI/Gemini egress.
 
 To use it:
 
-- **Follow a source** — the default source type is **Journal**: type a **journal title** like `Nature Neuroscience` and, as you type, the box suggests **journals already in your library**. Click **Follow** to add it (Callosum finds the journal's recent articles for you). Prefer to browse? Click **Suggest** to open a list of every journal you already have papers from — ranked by how many papers you have from each — and Follow one in a click. You can also switch the source type to **bioRxiv category** / **medRxiv category** (a subject like `neuroscience`) or **PubMed search** (a query like `CRISPR off-target`). Each followed source shows as a chip (with its source tag) you can remove with its **×**.
+- **Follow a source** — the default source type is **Journal**: type a **journal title** like `Nature Neuroscience` and, as you type, the box suggests **journals already in your library**. Click **Follow** to add it. You can also switch the source type to **bioRxiv category** / **medRxiv category** (a subject like `neuroscience`), **PubMed search** (a query like `CRISPR off-target`), or **Author** — type a name or an ORCID iD (Callosum detects which one you typed) to follow a specific person and see their new work as it's published. You can also follow an author directly from **My Publications**, using the one-click quick-action on an already-identified citing-author's card. Each followed source shows as a chip (with its source tag) you can remove with its **×**. Once you have enough followed sources to fill more than one row, they're capped to a single line with a **…** button that opens the full list.
+- **Suggest** opens a window with a tab for each source type: **Journal** lists every journal you already have papers from, ranked by how many papers you have from each. **bioRxiv Categories** / **medRxiv Categories** list every category, with any that match one of your axes or tags listed first (the match is named, never a hidden score). **PubMed Search** suggests queries drawn from your recent Search history, your axes, and your tags. **Author** lists authors who recur across your library, ranked by how many papers you have from each — excluding you and anyone you already follow. Every suggestion is a plain, inspectable tally of your own library, never a quality ranking or a recommendation. Click **Follow** on any suggestion to add it in one step.
 - **Refresh** polls every followed source and adds any new items (re-polling never duplicates an item or resets what you've already read).
-- Filter by **All / Unread / Starred**; **Mark all read** clears the unread count.
-- Each item shows an unread dot, the title, authors, posted date, and journal. **Click a row to mark it read**; **★** stars it for later; **Save** adds its metadata to your library (deduped, no PDF — like Discover); a paper you already have is marked **✓ in library**. **Abstract** expands the summary.
-- New works by anyone you follow on **Discover → Followed Authors** flow into this same stream too, badged **Followed** — one combined chronological feed rather than a separate list to check.
+- Filter by **All / Unread / Highlighted / Starred** (one at a time). **Highlighted** shows only items that look like a likely match to one of your axes — a hint, not a judgment that the rest are irrelevant. **Mark All Read** clears the unread count.
+- Each item shows an unread dot, the title, authors, posted date, and journal. **Click a row to mark it read**; **★** stars it for later; **Save** adds its metadata to your library (deduped, no PDF — like Discover); a paper you already have is marked **✓ in library**. **Abstract** expands the summary. A followed author's new works are badged **Followed**, intermixed with your other sources in the same stream, not a separate list.
 
 The complete polled list is shown — read/starred are your own state, never an AI judgment about what matters.
 
-**Auto-refresh (optional).** Tick **Auto-refresh on open** to have Callosum refresh your feed automatically when you open the Feed tab and a source hasn't been polled in a while (about 6 hours). It's off by default and stays pull-first — there's no background polling and nothing leaves your machine except the on-demand source lookups.
-
-<!-- section: following-authors -->
-## Following authors
-The **Discover → Followed Authors** tab is a third gap-finder source (alongside the backward/forward "Finding gaps" toggle), scoped to specific people rather than to your whole library: follow an author, and Callosum surfaces their works that aren't in your library yet.
-
-To use it:
-
-- **Follow an author** — search by name or ORCID iD. You can also follow an author directly from **My Publications**, using the one-click quick-action on an already-identified citing-author's card — no extra lookup needed.
-- **Refresh** fetches each followed author's works from OpenAlex (cached, capped per author) and lists those you don't already have, labeled **"by \<author\> (followed)"**. **Add** imports the metadata; **Dismiss** hides a candidate (shared with the same dismissal list the backward/forward gap finder uses, so dismissing a work anywhere keeps it dismissed everywhere).
-- Unlike backward/forward gaps, this list is **not** ranked by axis relevance — every followed author's missing works are shown together, most-recent first.
-- A followed author's new works also flow into **Discover → Feed**, badged **Followed**, alongside your other followed sources — see *Following sources (Feed)*.
-
-Following an author never sends anything except the lookup itself — public OpenAlex metadata only, no AI.
+**Auto-refresh (optional).** Tick **Auto-Refresh** to have Callosum refresh your feed automatically when you open the Feed tab and a source hasn't been polled in a while (about 6 hours). It's off by default and stays pull-first — there's no background polling and nothing leaves your machine except the on-demand source lookups.
 
 <!-- section: trash-and-restore -->
 ## Trash and restore

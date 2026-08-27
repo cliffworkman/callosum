@@ -59,6 +59,10 @@
     --wip: #147b78;          /* teal — unpublished manuscript context, never a quality/status judgment */
     --wip-soft: #e5f3f1;
     --wip-line: #9bcac5;
+    --highlight: #6f47c0;       /* violet — axis-relevance/library-highlight signal, distinct from --accent */
+    --highlight-soft: #f1e8fb;
+    --highlight-line: #ddc7f2;
+    --highlight-wash: #f6f1f9;  /* lighter still than --highlight-soft — a whole-row wash (Feed), never the pill */
     /* inc 207 (A5): the tag-color palette — one ink per key; the colored-chip recipe mixes it with --panel for the
        bg (so it auto-adapts to the theme). Light inks here; the dark block overrides them lighter. NOT semantic
        (these are user-chosen labels, distinct from the indigo/green/amber/red status colors above). */
@@ -77,6 +81,8 @@
     --radius-sm: 5px;          /* small controls (chips rows, inline buttons) — DESIGN.md §3 #6 */
     --radius-lg: 12px;         /* modals */
     --radius-pill: 999px;      /* pills / toggles / round badges */
+    --control-h: 32px;         /* canonical height for the .searchbar family: text input, select, and any
+                                  button sharing a row (2026-08-27) — DESIGN.md §2 "Everyday form-row controls" */
     --mono: "SFMono-Regular", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
     --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     --serif: "Iowan Old Style", "Palatino Linotype", "Georgia", serif;
@@ -112,6 +118,10 @@
     --wip: #6fcac2;
     --wip-soft: #1f3936;
     --wip-line: #356b66;
+    --highlight: #b196ec;
+    --highlight-soft: #332a52;
+    --highlight-line: #4d3f78;
+    --highlight-wash: #262134;
     --sel: #2a2740;
     --hover: #2f2a22;
     --on-fill: #201d16;
@@ -527,6 +537,11 @@
   .citation-style-editor-output > .settings-field-label { display: block; }
   .citation-style-editor-preview { padding-bottom: 12px; }
   .citation-style-editor-actions { flex: none; justify-content: flex-end; margin-top: 12px; }
+  /* Feed's Suggest modal (2026-08-27): 5 tabs need a fixed tab strip + an internally-scrolling body, the same
+     shape as .citation-style-editor-modal above (flex column, only the body scrolls). */
+  .axis-modal.feed-suggest-modal { width: min(640px, calc(100vw - 48px)); max-height: 86vh; overflow: hidden; display: flex; flex-direction: column; }
+  .feed-suggest-modal .tags-srcfilter { flex: none; }
+  .feed-suggest-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin-top: 4px; }
   .settings-subsection { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
   .settings-section .settings-sub { max-width: none; }
   .settings-ai-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 24px; margin-top: 14px; }
@@ -1307,6 +1322,13 @@
     background: var(--bg); color: var(--ink);
   }
   .searchbar input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  /* 2026-08-27: the input/select/buttons sharing a .searchbar row (Library header, WIP filters, Discover
+     Search, Feed) previously rendered at 4 different heights (8px/6px/5px/3px vertical padding respectively) —
+     visibly mismatched. One canonical height, applied only within this shared row container (never the bare
+     .btn-primary/.btn-ghost/.lib-sort rules used in dozens of unrelated contexts app-wide). */
+  .searchbar input { height: var(--control-h); box-sizing: border-box; }
+  .searchbar .btn { height: var(--control-h); box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
+  .searchbar .lib-sort { height: var(--control-h); box-sizing: border-box; border-radius: var(--radius); }
   /* library sort control (inc 69; inline with the search box since inc 88) */
   .lib-sort-label { flex: none; white-space: nowrap; font-family: var(--sans); font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
   .lib-sort {
@@ -1736,6 +1758,18 @@
   .cr-matrix-caption { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin-top: 6px; }
   .cr-related { font-size: 11px; color: var(--ink-2); margin-top: 4px; }
   .cr-related-note { color: var(--ink-3); font-style: italic; }
+  /* Critique triage (backlog: critique triage) — a reversible display layer over existing facts/candidates,
+     same token semantics as .registration-row-triage: flag = prioritize, accent = uncertain, muted = likely noise. */
+  .cr-run-toggles { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 8px 0; }
+  .cr-triage { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+    background: var(--panel-2); color: var(--ink-2); font-size: 11.5px; line-height: 1.5; }
+  .cr-triage > b { display: block; margin-bottom: 3px; color: var(--ink); }
+  .cr-triage.triage-prioritize { border-color: var(--flag-line); background: var(--flag-soft); }
+  .cr-triage.triage-uncertain { border-color: var(--accent-line); background: var(--accent-soft); }
+  .cr-triage.triage-likely_noise { color: var(--ink-3); }
+  .cr-triage.stale { opacity: .7; }
+  .cr-triage small { display: block; margin-top: 4px; color: var(--ink-3); }
+  .cr-triage-view { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
   /* Bayesian auditor SP4 (inc 244): Tier-3 advisory prompts — neutral/accent tint, deliberately NOT the amber flag. */
   .bayes-advisory { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 8px; }
   .bayes-advisory-item { padding: 6px 8px; border-left: 2px solid var(--accent-soft); margin-bottom: 6px; font-size: 12px; color: var(--ink-2); }
@@ -2403,10 +2437,22 @@
   .discover-item { padding: 13px 18px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .1s; }
   .discover-item:hover { background: var(--hover); }
   .discover-item.cur { background: var(--sel); box-shadow: inset 3px 0 0 var(--accent); }
+  /* Axis-relevance row highlight — the DEFAULT treatment for a relevance-matched entry wherever a row list shows
+     one (Search + Feed): --highlight-wash is deliberately lighter than the pill's own --highlight-soft below (a
+     first attempt reused --highlight-soft for the row too and found it read as too saturated for a whole entry,
+     and made the pill's own background disappear into the row it sat on, since both were the same color). Hover
+     steps up to --highlight-soft. The keyboard-cursor row (.cur, Search only) always wins over the wash — an
+     explicit 3-class override, not cascade order, so a highlighted row never hides which one is currently
+     selected. */
+  .discover-item.relevance-row-highlight { background: var(--highlight-wash); }
+  .discover-item.relevance-row-highlight:hover { background: var(--highlight-soft); }
+  .discover-item.cur.relevance-row-highlight { background: var(--sel); }
   .discover-title { font-family: var(--serif); font-size: 15px; line-height: 1.32; color: var(--ink); margin: 0 0 4px; font-weight: 500; }
-  .discover-relevance {
+  /* The axis-relevance hint (Search + Feed) — deliberately violet, not --accent, so a "likely relevant"
+     signal doesn't visually blend into the app's ubiquitous provenance/primary-action indigo (DESIGN.md §2). */
+  .relevance-highlight {
     display: inline-block; margin: 0 0 4px; font-family: var(--sans); font-size: 11px;
-    color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    color: var(--highlight); background: var(--highlight-soft); border: 1px solid var(--highlight-line);
     border-radius: var(--radius-pill); padding: 1px 8px;
   }
   .discover-foot { display: flex; gap: 10px; align-items: center; margin-top: 7px; flex-wrap: wrap; }
@@ -2420,7 +2466,12 @@
   .discover-feed-embedded { border-top: 1px solid var(--line); margin-top: 8px; }
 
   /* ---- Feed tab (inc 188) — reuses the .discover-item row recipe; tokens only ---- */
-  .feed-subs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .feed-subs-row { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 8px; }
+  .feed-subs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  /* 2026-08-27: caps the header's own pill row to a single visible line (unwieldy proliferation as follows
+     accumulate) -- flex:1 min-width:0 lets it shrink to leave room for the "…" overflow button beside it. The
+     SAME .feed-sub pills render unconstrained (this modifier omitted) inside FeedSubsOverflowModal. */
+  .feed-subs-capped { flex: 1 1 auto; min-width: 0; max-height: 28px; overflow: hidden; }
   .feed-sub {
     display: inline-flex; align-items: center; gap: 5px; font-family: var(--sans); font-size: 11.5px;
     color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
@@ -2429,14 +2480,30 @@
   .feed-sub-kind { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .03em; opacity: .7; margin-right: 5px; }
   .feed-sub-x { border: none; background: none; color: var(--accent); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; }
   .feed-sub-x:hover { color: var(--flag-ink); }
+  /* Deliberately its OWN class, not .feed-sub reused -- a shared class would make this "reveal more" control
+     indistinguishable from a real followed-source pill to any .feed-sub-counting code/test (caught live: it
+     inflated the demo E2E smoke test's expected pill count by one). Same visual recipe, restated. */
+  .feed-sub-more {
+    flex: none; display: inline-flex; align-items: center; font-family: var(--sans); font-size: 11.5px;
+    color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    border-radius: var(--radius-pill); padding: 2px 9px; cursor: pointer;
+  }
+  .feed-sub-more:hover { background: var(--accent-line); }
   .feed-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
   .feed-controls-right { display: flex; align-items: center; gap: 12px; }
+  /* The merged All/Unread/Highlighted/Starred row (2026-08-27, replacing two separate filter groups) needs its
+     own width so "Highlighted" and "Unread (N)" don't wrap mid-word under .tags-srcfilter-btn's shared flex:1 +
+     overflow-wrap:anywhere base (used by many unrelated tab strips app-wide, so scoped here, not changed globally). */
+  .feed-controls .tags-srcfilter-btn { flex: 0 0 auto; white-space: nowrap; padding: 4px 12px; }
   /* Shared by any opt-in "auto-refresh when stale" checkbox (Feed, backlog #31's Retraction Watch cadence, …) —
      renamed from .feed-autorefresh (2026-07-21) when a second feature adopted the same recipe. */
   .auto-refresh-toggle { display: inline-flex; align-items: center; gap: 5px; font-family: var(--sans); font-size: 11px; color: var(--ink-3); cursor: pointer; }
   .feed-row-top { display: flex; align-items: baseline; gap: 7px; }
   .feed-unread-dot { flex: none; width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--accent); margin-top: 5px; }
   .feed-item.read .discover-title { color: var(--ink-2); font-weight: 400; }
+  /* The row wash itself is .discover-item.relevance-row-highlight, shared with Search (defined above .discover-
+     title) — Feed's own addition is just recoloring its unread dot to match, since Search has no such dot. */
+  .feed-unread-dot.feed-unread-dot-highlight { background: var(--highlight); }
   .feed-star { border: none; background: none; cursor: pointer; font-size: 14px; line-height: 1; color: var(--ink-3); padding: 0; }
   .feed-star.on { color: var(--flag); }
   .feed-star:hover { color: var(--flag); }
@@ -5054,13 +5121,6 @@
         onOpenBeyondSaved: ctx.onOpenBeyondSaved
       }
     )
-  });
-  registerWorkspaceTab({ id: "discover" }, {
-    id: "followed-authors",
-    label: "Followed Authors",
-    order: 50,
-    hideInReadOnly: true,
-    render: (ctx, active) => /* @__PURE__ */ React.createElement(FollowedAuthorsPane, { active, onSaved: ctx.onDiscoverSaved })
   });
   registerWorkspaceTab({ id: "work" }, {
     id: "meta-analyze",
@@ -9622,11 +9682,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       onOpenPaper({ id: finding.paper_id, title: "" }, { page, precision: exact ? "exact" : "region", bboxJson: exact ? p.bbox_json : null });
     } }, "show in paper \xB7 p.", page), reviewed ? /* @__PURE__ */ React.createElement("div", { className: "finding-reviewed" }, "\u2713 ", finding.review_state, finding.review_reason ? ` \u2014 ${finding.review_reason}` : "") : /* @__PURE__ */ React.createElement("div", { className: "finding-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: () => review("confirmed") }, "Confirmed"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: () => setReasonOpen((v) => !v) }, "Accepted\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: () => review("noted") }, "Noted")), reasonOpen && !reviewed && /* @__PURE__ */ React.createElement("div", { className: "finding-reason" }, /* @__PURE__ */ React.createElement("input", { className: "grim-in finding-reason-in", placeholder: "why (required)", value: reason, onChange: (e) => setReason(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy || !reason.trim(), onClick: () => review("accepted", reason.trim()) }, "save")));
   }
-  function ScrutinyBackboneView({ backbone, onOpen }) {
+  function ScrutinyBackboneView({ backbone, onOpen, triageOnly }) {
     const ms = backbone.method_signals || [];
-    const cc = backbone.contested_claims || [];
-    const nothing = !ms.length && !cc.length && !backbone.citation_signal;
-    return /* @__PURE__ */ React.createElement("div", { className: "cr-backbone" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "What the checks surfaced (facts)"), nothing && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Nothing surfaced by these checks. That isn\u2019t a clean bill of health \u2014 it means ", /* @__PURE__ */ React.createElement("i", null, "these particular signals"), " found nothing to flag. Read on your own judgment."), ms.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: "ms" + i, className: "bayes-check-item" }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-head" }, /* @__PURE__ */ React.createElement("span", { className: "bayes-check-label" }, s.label), /* @__PURE__ */ React.createElement("span", { className: "bayes-check-muted" }, s.kind)), s.detail && /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, s.detail), s.notice_url && /* @__PURE__ */ React.createElement("a", { className: "btn-link", href: s.notice_url, target: "_blank", rel: "noopener noreferrer" }, "notice"))), cc.length > 0 && /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Claims your corpus contests"), cc.map((c, i) => /* @__PURE__ */ React.createElement("div", { key: "cc" + i, className: "bayes-check-item" }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, /* @__PURE__ */ React.createElement("b", null, "This paper:"), " \u201C", c.claim, "\u201D"), /* @__PURE__ */ React.createElement(
+    const ccAll = backbone.contested_claims || [];
+    const cc = ccAll.filter((c) => critiqueTriageVisible(c, triageOnly));
+    const nothing = !ms.length && !ccAll.length && !backbone.citation_signal;
+    return /* @__PURE__ */ React.createElement("div", { className: "cr-backbone" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "What the checks surfaced (facts)"), nothing && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Nothing surfaced by these checks. That isn\u2019t a clean bill of health \u2014 it means ", /* @__PURE__ */ React.createElement("i", null, "these particular signals"), " found nothing to flag. Read on your own judgment."), ms.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: "ms" + i, className: "bayes-check-item" }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-head" }, /* @__PURE__ */ React.createElement("span", { className: "bayes-check-label" }, s.label), /* @__PURE__ */ React.createElement("span", { className: "bayes-check-muted" }, s.kind)), s.detail && /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, s.detail), s.notice_url && /* @__PURE__ */ React.createElement("a", { className: "btn-link", href: s.notice_url, target: "_blank", rel: "noopener noreferrer" }, "notice"))), ccAll.length > 0 && /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Claims your corpus contests"), ccAll.length > 0 && !cc.length && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "All ", ccAll.length, " contested claim(s) here were triaged as lower-yield \u2014 switch to \u201CAll rows\u201D to see them."), cc.map((c, i) => /* @__PURE__ */ React.createElement("div", { key: "cc" + i, className: "bayes-check-item" }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, /* @__PURE__ */ React.createElement("b", null, "This paper:"), " \u201C", c.claim, "\u201D"), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "bayes-check-ev",
@@ -9636,10 +9697,10 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       "Contested by another paper: \u201C",
       c.passage,
       "\u201D"
-    ), /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "stance: ", c.stance, " \xB7 confidence ", Math.round((c.confidence || 0) * 100), "%"))));
+    ), /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "stance: ", c.stance, " \xB7 confidence ", Math.round((c.confidence || 0) * 100), "%"), /* @__PURE__ */ React.createElement(TriageBadge, { triage: c.llm_triage }))));
   }
   function CriticalCandidate({ c, onAccept, onReject }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "cr-candidate" + (c.status === "accepted" ? " cr-accepted" : "") }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, c.concern), /* @__PURE__ */ React.createElement("div", { className: "cr-quote" }, "\u201C", c.anchor_quote, "\u201D"), c.confidence != null && /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "stance: ", c.stance || "\u2014", " \xB7 confidence ", Math.round(c.confidence * 100), "%"), c.status === "accepted" ? /* @__PURE__ */ React.createElement("span", { className: "cite-status verified" }, "\u2713 accepted") : /* @__PURE__ */ React.createElement("div", { className: "cr-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onAccept }, "Accept"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onReject }, "Reject")));
+    return /* @__PURE__ */ React.createElement("div", { className: "cr-candidate" + (c.status === "accepted" ? " cr-accepted" : "") }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, c.concern), /* @__PURE__ */ React.createElement("div", { className: "cr-quote" }, "\u201C", c.anchor_quote, "\u201D"), c.confidence != null && /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "stance: ", c.stance || "\u2014", " \xB7 confidence ", Math.round(c.confidence * 100), "%"), /* @__PURE__ */ React.createElement(TriageBadge, { triage: c.llm_triage }), c.status === "accepted" ? /* @__PURE__ */ React.createElement("span", { className: "cite-status verified" }, "\u2713 accepted") : /* @__PURE__ */ React.createElement("div", { className: "cr-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onAccept }, "Accept"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onReject }, "Reject")));
   }
   function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
     const [meta, setMeta] = useState(null);
@@ -9648,7 +9709,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [cands, setCands] = useState(null);
     const [gen, setGen] = useState("idle");
     const [findingCands, setFindingCands] = useState([]);
+    const [wantLlm, setWantLlm] = useState(false);
+    const [wantTriage, setWantTriage] = useState(false);
+    const [triageOnly, setTriageOnly] = useState(false);
     const t1PollRef = useRef(null);
+    const autoChainRef = useRef(false);
+    const generateRef = useRef(null);
     const activeJobKey = paperId == null ? null : `callosum.active-job.critical-read.${paperId}`;
     const pollT1Job = useCallback((jobId) => {
       if (t1PollRef.current) t1PollRef.current();
@@ -9659,6 +9725,10 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           t1PollRef.current = null;
           if (activeJobKey) rememberActiveJob(activeJobKey, null);
           setT1({ status: "done", backbone: data.backbone, jobId });
+          if (autoChainRef.current && generateRef.current) {
+            autoChainRef.current = false;
+            generateRef.current();
+          }
         },
         onError: (error) => {
           t1PollRef.current = null;
@@ -9716,8 +9786,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       });
     }, []);
     const runT1 = () => {
+      autoChainRef.current = wantLlm;
       setT1({ status: "running" });
-      apiPost(`/papers/${paperId}/critical-read`, {}).then((r) => {
+      apiPost(`/papers/${paperId}/critical-read`, { triage: wantTriage }).then((r) => {
         if (!r.ok) {
           setT1({ status: "error", error: r.error });
           return;
@@ -9727,12 +9798,13 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     };
     const generate = async () => {
       setGen("generating");
-      const r = await apiPost(`/papers/${paperId}/critical-read/candidates/generate`, {});
+      const r = await apiPost(`/papers/${paperId}/critical-read/candidates/generate`, { triage: wantTriage });
       if (r.ok) {
         setCands(r.data.candidates);
         setGen("idle");
       } else setGen("error");
     };
+    generateRef.current = generate;
     const act = async (cid, action) => {
       const r = await apiPost(`/critical-read/candidates/${cid}/${action}`, {});
       if (!r.ok) return;
@@ -9742,8 +9814,21 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       if (onOpenPaper && page != null) onOpenPaper({ id: pid }, { page, precision: "region" });
     };
     if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to read it critically.");
-    const shown = (cands || []).filter((c) => c.status !== "rejected");
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "What a skeptical reader should check before citing \u2014 a ", /* @__PURE__ */ React.createElement("b", null, "signal, not a verdict"), ". The facts below are gathered from local method checks + the rest of your corpus; the AI suggestions are ", /* @__PURE__ */ React.createElement("b", null, "candidates you confirm"), ". Never a score, and the critique is of the work, never the authors."), meta && !meta.hasText && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the critical read needs the paper\u2019s text."), meta && meta.hasText && t1.status === "idle" && /* @__PURE__ */ React.createElement(
+    const shownAll = (cands || []).filter((c) => c.status !== "rejected");
+    const shown = shownAll.filter((c) => critiqueTriageVisible(c, triageOnly));
+    const hasTriage = (t1.backbone && t1.backbone.contested_claims || []).some((c) => c.llm_triage) || shownAll.some((c) => c.llm_triage);
+    const hiddenCount = shownAll.length - shownAll.filter((c) => critiqueTriageVisible(c, true)).length + ((t1.backbone && t1.backbone.contested_claims || []).length - (t1.backbone && t1.backbone.contested_claims || []).filter((c) => critiqueTriageVisible(c, true)).length);
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "What a skeptical reader should check before citing \u2014 a ", /* @__PURE__ */ React.createElement("b", null, "signal, not a verdict"), ". The facts below are gathered from local method checks + the rest of your corpus; the AI suggestions are ", /* @__PURE__ */ React.createElement("b", null, "candidates you confirm"), ". Never a score, and the critique is of the work, never the authors."), meta && !meta.hasText && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the critical read needs the paper\u2019s text."), meta && meta.hasText && t1.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "cr-run-toggles" }, /* @__PURE__ */ React.createElement(
+      CritiqueRunToggles,
+      {
+        wantLlm,
+        setWantLlm,
+        wantTriage,
+        setWantTriage,
+        aiReady,
+        suggestLabel: "Suggest critiques (AI)"
+      }
+    ), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-primary",
@@ -9751,7 +9836,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         title: "Compose this paper's method-check flags + any corpus-contested claims \u2014 local, no AI"
       },
       "Run critical read"
-    ), t1.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Assembling the scrutiny surface\u2026", managedBy: "backend-job" }), t1.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t assemble: ", t1.error), t1.status === "done" && t1.backbone && /* @__PURE__ */ React.createElement(ScrutinyBackboneView, { backbone: t1.backbone, onOpen: open }), isDemoMode() && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Saved deterministic critical read. Reruns and AI critique generation require the local Callosum application."), findingCands.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cr-findings" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Needs your review"), findingCands.map((f) => /* @__PURE__ */ React.createElement(FindingCard, { key: f.id, finding: f, onReviewed: onFindingReviewed, onOpenPaper }))), /* @__PURE__ */ React.createElement("div", { className: "cr-tier2" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI-suggested critiques (candidates)"), isDemoMode() ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "AI critique generation is unavailable in the online demo; no paper text is sent anywhere.") : !aiReady ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Enable AI features in Settings for AI-suggested critiques \u2014 the facts above need no AI.") : /* @__PURE__ */ React.createElement(
+    )), t1.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Assembling the scrutiny surface\u2026", managedBy: "backend-job" }), t1.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t assemble: ", t1.error), t1.status === "done" && t1.backbone && /* @__PURE__ */ React.createElement(TriageFilterControls, { hasTriage, triageOnly, onView: setTriageOnly, hiddenCount }), t1.status === "done" && t1.backbone && /* @__PURE__ */ React.createElement(ScrutinyBackboneView, { backbone: t1.backbone, onOpen: open, triageOnly }), isDemoMode() && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Saved deterministic critical read. Reruns and AI critique generation require the local Callosum application."), findingCands.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cr-findings" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Needs your review"), findingCands.map((f) => /* @__PURE__ */ React.createElement(FindingCard, { key: f.id, finding: f, onReviewed: onFindingReviewed, onOpenPaper }))), /* @__PURE__ */ React.createElement("div", { className: "cr-tier2" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI-suggested critiques (candidates)"), isDemoMode() ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "AI critique generation is unavailable in the online demo; no paper text is sent anywhere.") : !aiReady ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Enable AI features in Settings for AI-suggested critiques \u2014 the facts above need no AI.") : /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn-link",
@@ -9759,8 +9844,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onClick: generate,
         title: "The AI proposes concerns; each must quote the paper verbatim, and you confirm or reject it."
       },
-      gen === "generating" ? "Suggesting\u2026" : "Suggest critiques (AI)"
-    ), gen === "generating" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Suggesting and locally verifying critiques\u2026", managedBy: "tracked-request" }), gen === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t suggest critiques \u2014 is AI enabled with a key (Settings)?"), shown.map((c) => /* @__PURE__ */ React.createElement(CriticalCandidate, { key: c.id, c, onAccept: () => act(c.id, "accept"), onReject: () => act(c.id, "reject") }))));
+      gen === "generating" ? "Suggesting\u2026" : cands ? "Suggest more critiques (AI)" : "Suggest critiques (AI)"
+    ), gen === "generating" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Suggesting and locally verifying critiques\u2026", managedBy: "tracked-request" }), gen === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t suggest critiques \u2014 is AI enabled with a key (Settings)?"), shownAll.length > 0 && !shown.length && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "All ", shownAll.length, " candidate(s) here were triaged as lower-yield \u2014 switch to \u201CAll rows\u201D to see them."), shown.map((c) => /* @__PURE__ */ React.createElement(CriticalCandidate, { key: c.id, c, onAccept: () => act(c.id, "accept"), onReject: () => act(c.id, "reject") }))));
   }
   function WipCriticalReadResult({ run, ctx, onOpenSource }) {
     const result = run.structured_result_json || {};
@@ -9878,12 +9963,17 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       return /* @__PURE__ */ React.createElement("tr", { key: row.paper_id }, /* @__PURE__ */ React.createElement("td", { className: "cr-matrix-title", title: row.title }, row.title), kinds.map((k) => /* @__PURE__ */ React.createElement("td", { key: k, title: byKind[k] ? byKind[k].detail || byKind[k].label || "" : "" }, byKind[k] ? byKind[k].label || "\u2022" : "\u2014")), /* @__PURE__ */ React.createElement("td", null, row.contested_count || 0));
     }))), /* @__PURE__ */ React.createElement("div", { className: "cr-matrix-caption" }, "Facts each check surfaced \u2014 ", /* @__PURE__ */ React.createElement("b", null, "not a score"), ". An empty cell means ", /* @__PURE__ */ React.createElement("i", null, "this check found nothing on this paper"), ", not a clean bill of health.", kinds.length === 0 && /* @__PURE__ */ React.createElement("span", null, " No method checks (statcheck, transparency, \u2026) have been ", /* @__PURE__ */ React.createElement("b", null, "run"), " on these papers yet \u2014 run them from each paper\u2019s Synthesize \u2192 Critique tab to populate this. The ", /* @__PURE__ */ React.createElement("i", null, "contested"), " column reflects only intra-set disagreement, which needs no prior check.")));
   }
-  function CriticalSetDisagreements({ contested, titleById, onOpen }) {
+  function CriticalSetDisagreements({ contested, titleById, onOpen, triageOnly }) {
     const label = (id) => titleById[id] || "Paper " + id;
-    if (!contested || !contested.length) {
+    const all = contested || [];
+    const shown = all.filter((c) => critiqueTriageVisible(c, triageOnly));
+    if (!all.length) {
       return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Nothing surfaced by this check \u2014 no paper in the set contradicts another\u2019s claims that these signals caught. That isn\u2019t agreement, only silence from ", /* @__PURE__ */ React.createElement("i", null, "these"), " checks.");
     }
-    return contested.map((c, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "bayes-check-item" }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, /* @__PURE__ */ React.createElement("b", null, label(c.claim_paper_id), ":"), " \u201C", c.claim, "\u201D"), /* @__PURE__ */ React.createElement(
+    if (!shown.length) {
+      return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "All ", all.length, " disagreement(s) here were triaged as lower-yield \u2014 switch to \u201CAll rows\u201D to see them.");
+    }
+    return shown.map((c, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "bayes-check-item" }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, /* @__PURE__ */ React.createElement("b", null, label(c.claim_paper_id), ":"), " \u201C", c.claim, "\u201D"), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "bayes-check-ev",
@@ -9895,21 +9985,23 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       "\u201D: \u201C",
       c.passage,
       "\u201D"
-    ), /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "stance: ", c.stance, " \xB7 confidence ", Math.round((c.confidence || 0) * 100), "%")));
+    ), /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "stance: ", c.stance, " \xB7 confidence ", Math.round((c.confidence || 0) * 100), "%"), /* @__PURE__ */ React.createElement(TriageBadge, { triage: c.llm_triage })));
   }
   function CriticalSetCandidate({ c, titleById, onAccept, onReject }) {
     const related = (c.related_paper_ids_json || []).map((id) => titleById[id] || "Paper " + id);
-    return /* @__PURE__ */ React.createElement("div", { className: "cr-candidate" + (c.status === "accepted" ? " cr-accepted" : "") }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, c.concern), /* @__PURE__ */ React.createElement("div", { className: "cr-quote" }, "\u201C", c.anchor_quote, "\u201D"), /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "in \u201C", titleById[c.paper_id] || "Paper " + c.paper_id, "\u201D", c.stance ? " \xB7 stance: " + c.stance : "", c.confidence != null ? " \xB7 confidence " + Math.round(c.confidence * 100) + "%" : ""), related.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cr-related" }, "The model relates this to: ", related.join("; "), " ", /* @__PURE__ */ React.createElement("span", { className: "cr-related-note" }, "(the model\u2019s framing, not a verified link)")), c.status === "accepted" ? /* @__PURE__ */ React.createElement("span", { className: "cite-status verified" }, "\u2713 accepted") : /* @__PURE__ */ React.createElement("div", { className: "cr-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onAccept }, "Accept"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onReject }, "Reject")));
+    return /* @__PURE__ */ React.createElement("div", { className: "cr-candidate" + (c.status === "accepted" ? " cr-accepted" : "") }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, c.concern), /* @__PURE__ */ React.createElement("div", { className: "cr-quote" }, "\u201C", c.anchor_quote, "\u201D"), /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "in \u201C", titleById[c.paper_id] || "Paper " + c.paper_id, "\u201D", c.stance ? " \xB7 stance: " + c.stance : "", c.confidence != null ? " \xB7 confidence " + Math.round(c.confidence * 100) + "%" : ""), related.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cr-related" }, "The model relates this to: ", related.join("; "), " ", /* @__PURE__ */ React.createElement("span", { className: "cr-related-note" }, "(the model\u2019s framing, not a verified link)")), /* @__PURE__ */ React.createElement(TriageBadge, { triage: c.llm_triage }), c.status === "accepted" ? /* @__PURE__ */ React.createElement("span", { className: "cite-status verified" }, "\u2713 accepted") : /* @__PURE__ */ React.createElement("div", { className: "cr-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onAccept }, "Accept"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onReject }, "Reject")));
   }
-  function CriticalSetModal({ ids, onClose, onOpenPaper }) {
-    const [phase, setPhase] = useState("loading");
+  function CriticalSetModal({ ids, resumeJobId, onClose, onOpenPaper }) {
+    const [phase, setPhase] = useState("idle");
     const [report, setReport] = useState(null);
     const [err, setErr] = useState(null);
     const [aiReady, setAiReady] = useState(false);
-    const [gen, setGen] = useState("idle");
+    const [wantLlm, setWantLlm] = useState(false);
+    const [wantTriage, setWantTriage] = useState(false);
+    const [triageOnly, setTriageOnly] = useState(false);
     const pollersRef = useRef(/* @__PURE__ */ new Set());
     const activeJobKey = `callosum.active-job.critical-read-set.${ids.join(",")}`;
-    const runSet = useCallback((wantLlm, resumeJobId) => new Promise((resolve, reject) => {
+    const runSet = useCallback((wantLlm2, wantTriage2, resumeJobId2) => new Promise((resolve, reject) => {
       const observe = (jobId) => {
         rememberActiveJob(activeJobKey, jobId);
         let cancel = null;
@@ -9924,11 +10016,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         });
         pollersRef.current.add(cancel);
       };
-      if (resumeJobId) {
-        observe(resumeJobId);
+      if (resumeJobId2) {
+        observe(resumeJobId2);
         return;
       }
-      apiPost("/critical-read/set", { paper_ids: ids, llm: !!wantLlm }).then((r) => {
+      apiPost("/critical-read/set", { paper_ids: ids, llm: !!wantLlm2, triage: !!wantTriage2 }).then((r) => {
         if (!r.ok) {
           reject(r.error);
           return;
@@ -9937,11 +10029,16 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       });
     }), [ids, activeJobKey]);
     useEffect(() => {
+      const resume = resumeJobId || recalledActiveJob(activeJobKey);
+      if (!resume) {
+        setPhase("idle");
+        return void 0;
+      }
       let live = true;
       setPhase("loading");
       setReport(null);
       setErr(null);
-      runSet(false, recalledActiveJob(activeJobKey)).then((rep) => {
+      runSet(false, false, resume).then((rep) => {
         if (live) {
           setReport(rep);
           setPhase("ready");
@@ -9952,21 +10049,34 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           setPhase("error");
         }
       });
+      return () => {
+        live = false;
+      };
+    }, [runSet, activeJobKey, resumeJobId]);
+    useEffect(() => {
+      let live = true;
       api("/settings").then((r) => {
         if (live && r.ok) setAiReady(Boolean(r.data.data_egress_enabled));
       });
       return () => {
         live = false;
-        pollersRef.current.forEach((cancel) => cancel());
-        pollersRef.current.clear();
       };
-    }, [runSet, activeJobKey]);
-    const generate = () => {
-      setGen("generating");
-      runSet(true).then((rep) => {
+    }, []);
+    useEffect(() => () => {
+      pollersRef.current.forEach((cancel) => cancel());
+      pollersRef.current.clear();
+    }, []);
+    const start = () => {
+      setPhase("loading");
+      setReport(null);
+      setErr(null);
+      runSet(wantLlm, wantTriage, null).then((rep) => {
         setReport(rep);
-        setGen("idle");
-      }).catch(() => setGen("error"));
+        setPhase("ready");
+      }).catch((e) => {
+        setErr(e);
+        setPhase("error");
+      });
     };
     const act = async (cid, action) => {
       const r = await apiPost(`/critical-read/candidates/${cid}/${action}`, {});
@@ -9985,19 +10095,24 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     (report && report.aggregate || []).forEach((r) => {
       titleById[r.paper_id] = r.title;
     });
-    const candidates = (report && report.candidates || []).filter((c) => c.status !== "rejected");
+    const contestedAll = report && report.contested_claims || [];
+    const candidatesAll = (report && report.candidates || []).filter((c) => c.status !== "rejected");
+    const candidates = candidatesAll.filter((c) => critiqueTriageVisible(c, triageOnly));
     const llmStatus = report && report.llm_status;
     const generated = !!llmStatus && llmStatus.status !== "not_searched";
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal cr-set-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Critically review ", ids.length, " sources"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "What a skeptical reader should check before trusting these papers ", /* @__PURE__ */ React.createElement("b", null, "together"), " \u2014 a ", /* @__PURE__ */ React.createElement("b", null, "signal, not a verdict"), ". Facts come from local method checks + where the set disagrees; AI critiques are ", /* @__PURE__ */ React.createElement("b", null, "candidates you confirm"), ". Never a score; the critique is of the work, never the authors."), phase === "loading" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Assembling the scrutiny surface\u2026", managedBy: "backend-job" }), phase === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t assemble: ", String(err)), phase === "ready" && report && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "cr-set-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "What the checks surfaced (facts)"), /* @__PURE__ */ React.createElement(CriticalSetMatrix, { aggregate: report.aggregate })), /* @__PURE__ */ React.createElement("div", { className: "cr-set-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Where these papers disagree"), /* @__PURE__ */ React.createElement(CriticalSetDisagreements, { contested: report.contested_claims, titleById, onOpen: open })), /* @__PURE__ */ React.createElement("div", { className: "cr-set-section cr-tier2" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI cross-paper critiques (candidates)"), !aiReady && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Enable AI features in Settings for AI-suggested cross-paper critiques \u2014 the facts above need no AI."), aiReady && !generated && /* @__PURE__ */ React.createElement(
-      "button",
+    const hasTriage = contestedAll.some((c) => c.llm_triage) || candidatesAll.some((c) => c.llm_triage);
+    const hiddenCount = contestedAll.length - contestedAll.filter((c) => critiqueTriageVisible(c, true)).length + (candidatesAll.length - candidatesAll.filter((c) => critiqueTriageVisible(c, true)).length);
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal cr-set-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Critically review ", ids.length, " sources"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "What a skeptical reader should check before trusting these papers ", /* @__PURE__ */ React.createElement("b", null, "together"), " \u2014 a ", /* @__PURE__ */ React.createElement("b", null, "signal, not a verdict"), ". Facts come from local method checks + where the set disagrees; AI critiques are ", /* @__PURE__ */ React.createElement("b", null, "candidates you confirm"), ". Never a score; the critique is of the work, never the authors."), phase === "idle" && /* @__PURE__ */ React.createElement("div", { className: "cr-run-toggles" }, /* @__PURE__ */ React.createElement(
+      CritiqueRunToggles,
       {
-        className: "btn-link",
-        disabled: gen === "generating",
-        onClick: generate,
-        title: "The AI proposes concerns spanning these papers; each must quote a paper verbatim, and you confirm or reject it."
-      },
-      gen === "generating" ? "Suggesting\u2026" : "Suggest cross-paper critiques (AI)"
-    ), gen === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t suggest critiques \u2014 is AI enabled with a key (Settings)?"), generated && llmStatus.status === "unavailable" && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, llmStatus.detail), generated && llmStatus.status === "success" && !candidates.length && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No grounded cross-paper concerns surfaced \u2014 nothing quoted a paper verbatim."), candidates.map((c) => /* @__PURE__ */ React.createElement(
+        wantLlm,
+        setWantLlm,
+        wantTriage,
+        setWantTriage,
+        aiReady,
+        suggestLabel: "Suggest cross-paper critiques (AI)"
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: start }, "Run critique")), phase === "loading" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Assembling the scrutiny surface\u2026", managedBy: "backend-job" }), phase === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t assemble: ", String(err)), phase === "ready" && report && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(TriageFilterControls, { hasTriage, triageOnly, onView: setTriageOnly, hiddenCount }), /* @__PURE__ */ React.createElement("div", { className: "cr-set-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "What the checks surfaced (facts)"), /* @__PURE__ */ React.createElement(CriticalSetMatrix, { aggregate: report.aggregate })), /* @__PURE__ */ React.createElement("div", { className: "cr-set-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Where these papers disagree"), /* @__PURE__ */ React.createElement(CriticalSetDisagreements, { contested: contestedAll, titleById, onOpen: open, triageOnly })), /* @__PURE__ */ React.createElement("div", { className: "cr-set-section cr-tier2" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI cross-paper critiques (candidates)"), !generated && !aiReady && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Enable AI features in Settings for AI-suggested cross-paper critiques \u2014 the facts above need no AI."), !generated && aiReady && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Not requested for this run \u2014 re-run with \u201CSuggest cross-paper critiques\u201D checked."), generated && llmStatus.status === "unavailable" && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, llmStatus.detail), generated && llmStatus.status === "success" && !candidatesAll.length && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No grounded cross-paper concerns surfaced \u2014 nothing quoted a paper verbatim."), candidates.map((c) => /* @__PURE__ */ React.createElement(
       CriticalSetCandidate,
       {
         key: c.id,
@@ -10007,6 +10122,22 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onReject: () => act(c.id, "reject")
       }
     ))))));
+  }
+  function CritiqueRunToggles({ wantLlm, setWantLlm, wantTriage, setWantTriage, aiReady, suggestLabel }) {
+    if (!aiReady) return null;
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("label", { className: "settings-check" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: wantLlm, onChange: (e) => setWantLlm(e.target.checked) }), " ", suggestLabel), /* @__PURE__ */ React.createElement("label", { className: "settings-check" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: wantTriage, onChange: (e) => setWantTriage(e.target.checked) }), " AI triage (flag likely-noise items)"));
+  }
+  const CRITIQUE_TRIAGE_LABELS = { prioritize: "Prioritize", uncertain: "Uncertain", likely_noise: "Likely noise" };
+  function TriageBadge({ triage }) {
+    if (!triage) return null;
+    return /* @__PURE__ */ React.createElement("div", { className: "cr-triage triage-" + triage.label + (triage.status === "stale" ? " stale" : "") }, /* @__PURE__ */ React.createElement("b", null, "AI triage \xB7 ", CRITIQUE_TRIAGE_LABELS[triage.label] || triage.label), triage.rationale && /* @__PURE__ */ React.createElement("div", null, triage.rationale), !!(triage.concerns || []).length && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Review caveat: ", triage.concerns.join(" \xB7 ")), /* @__PURE__ */ React.createElement("small", null, "Display aid only \u2014 not a revised fact or a judgment about the paper or authors."));
+  }
+  function TriageFilterControls({ hasTriage, triageOnly, onView, hiddenCount }) {
+    if (!hasTriage) return null;
+    return /* @__PURE__ */ React.createElement("div", { className: "cr-triage-view" }, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter", role: "group", "aria-label": "Critique row view" }, /* @__PURE__ */ React.createElement("button", { className: "tags-srcfilter-btn" + (!triageOnly ? " on" : ""), onClick: () => onView(false) }, "All rows"), /* @__PURE__ */ React.createElement("button", { className: "tags-srcfilter-btn" + (triageOnly ? " on" : ""), onClick: () => onView(true) }, "AI-focused")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, triageOnly ? `${hiddenCount} lower-yield row${hiddenCount === 1 ? "" : "s"} hidden from this display.` : "Everything these checks surfaced is visible."));
+  }
+  function critiqueTriageVisible(item, triageOnly) {
+    return !triageOnly || !item.llm_triage || item.llm_triage.show_in_triage;
   }
   const _CSL_TYPE_LABELS = {
     "article-journal": "Journal article",
@@ -10477,7 +10608,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           if (e.key === "Enter") onBulkSummarize(bulkFocus);
         }
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onBulkSummarize(bulkFocus), title: "Generate a verified synthesis of the selected papers \u2014 focused on your question if you typed one" }, "summarize"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkPcurve, title: "Run a p-curve (evidential value) over the selected papers \u2014 collection-level, never per-paper" }, "p-curve"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkZcurve, title: "Run a z-curve (expected replication/discovery rate) over the selected papers \u2014 collection-level, never per-paper or author" }, "z-curve"), /* @__PURE__ */ React.createElement(BulkReferenceCheckButton, { paperIds: [...selectedLibraryIds], onDone: onBulkReferenceCheckDone }), /* @__PURE__ */ React.createElement(ReprocessSelectedTextButton, { paperIds: [...selectedLibraryIds], onDone: onEnriched }), selCount >= 2 && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkMerge, title: "Merge the selected papers into one record \u2014 keeps every PDF, link, tag, and highlight; the others move to Trash" }, "merge"), selCount >= 2 && onBulkCriticalRead && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkCriticalRead, title: "Critically review the selected papers together \u2014 cross-paper contradictions + a fact matrix of each paper's method-check signals; a signal, not a verdict" }, "critical read"), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onBulkSummarize(bulkFocus), title: "Generate a verified synthesis of the selected papers \u2014 focused on your question if you typed one" }, "summarize"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkPcurve, title: "Run a p-curve (evidential value) over the selected papers \u2014 collection-level, never per-paper" }, "p-curve"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkZcurve, title: "Run a z-curve (expected replication/discovery rate) over the selected papers \u2014 collection-level, never per-paper or author" }, "z-curve"), /* @__PURE__ */ React.createElement(BulkReferenceCheckButton, { paperIds: [...selectedLibraryIds], onDone: onBulkReferenceCheckDone }), /* @__PURE__ */ React.createElement(ReprocessSelectedTextButton, { paperIds: [...selectedLibraryIds], onDone: onEnriched }), /* @__PURE__ */ React.createElement(GrobidParseSelectedButton, { paperIds: [...selectedLibraryIds], onDone: onEnriched }), selCount >= 2 && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkMerge, title: "Merge the selected papers into one record \u2014 keeps every PDF, link, tag, and highlight; the others move to Trash" }, "merge"), selCount >= 2 && onBulkCriticalRead && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkCriticalRead, title: "Critically review the selected papers together \u2014 cross-paper contradictions + a fact matrix of each paper's method-check signals; a signal, not a verdict" }, "critical read"), /* @__PURE__ */ React.createElement(
       "select",
       {
         className: "bulk-export",
@@ -10782,6 +10913,47 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onClick: run,
         disabled: busy || ids.length === 0,
         title: "Re-extract text and section labels for the selected local PDFs. No OCR, no metadata changes, no network."
+      },
+      label
+    );
+  }
+  async function pollGrobidLibraryParse(jobId, setProg) {
+    for (let i = 0; i < 1200; i++) {
+      await new Promise((r2) => setTimeout(r2, 1500));
+      const r = await api("/grobid/library/parse/" + jobId);
+      if (!r.ok) break;
+      if (r.data.progress) setProg({
+        current: r.data.progress.current,
+        total: r.data.progress.total,
+        eta: r.data.progress.eta_seconds
+      });
+      if (r.data.status === "done" || r.data.status === "error") return r.data;
+    }
+    return null;
+  }
+  function GrobidParseSelectedButton({ paperIds, onDone }) {
+    const [busy, setBusy] = useState(false);
+    const [prog, setProg] = useState(null);
+    const ids = paperIds || [];
+    const run = async () => {
+      if (busy || ids.length === 0) return;
+      setBusy(true);
+      setProg(null);
+      const start = await apiPost("/grobid/library/parse", { paper_ids: ids });
+      const jid = start.ok && start.data ? start.data.job_id : null;
+      const done = jid ? await pollGrobidLibraryParse(jid, setProg) : null;
+      setBusy(false);
+      setProg(null);
+      if (done && done.status === "done") onDone && onDone(done.summary || null);
+    };
+    const label = busy ? prog ? `parsing ${prog.current}/${prog.total}` : "parsing\u2026" : "parse structure (GROBID)";
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-link",
+        onClick: run,
+        disabled: busy || ids.length === 0,
+        title: "Parse the selected paper(s)' document structure with GROBID (configured in Settings) \u2014 maps section detection onto each paper's already-extracted text."
       },
       label
     );
@@ -17395,11 +17567,11 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       {
         key: it.dedup_key,
         "data-row": i,
-        className: "discover-item" + (i === cursor ? " cur" : ""),
+        className: "discover-item" + (i === cursor ? " cur" : "") + (relevance[it.dedup_key] ? " relevance-row-highlight" : ""),
         onClick: () => setCursor(i)
       },
       /* @__PURE__ */ React.createElement("div", { className: "discover-title" }, it.title),
-      relevance[it.dedup_key] ? /* @__PURE__ */ React.createElement("div", { className: "discover-relevance", title: "A likely match to one of your axes (a hint \u2014 the full list is never filtered)." }, "likely: ", relevance[it.dedup_key].axis_label, " \xB7 match ", relevance[it.dedup_key].similarity.toFixed(2)) : null,
+      relevance[it.dedup_key] ? /* @__PURE__ */ React.createElement("div", { className: "relevance-highlight", title: "A likely match to one of your axes (a hint \u2014 the full list is never filtered)." }, "likely: ", relevance[it.dedup_key].axis_label, " \xB7 match ", relevance[it.dedup_key].similarity.toFixed(2)) : null,
       /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, it.authors && it.authors.length ? /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, it.authors.slice(0, 3).join("; "), it.authors.length > 3 ? " et al." : "") : null, it.year ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.year) : null, it.journal ? /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, it.journal) : null),
       /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, (it.sources || []).map((s) => /* @__PURE__ */ React.createElement("span", { key: s, className: "discover-source" }, s)), it.saved ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 in library") : /* @__PURE__ */ React.createElement(
         "button",
@@ -17419,12 +17591,16 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       expanded.has(it.dedup_key) && it.abstract ? /* @__PURE__ */ React.createElement("div", { className: "discover-abstract" }, it.abstract) : null
     ))));
   }
+  const FEED_ORCID_RE = /^(?:https?:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/i;
   function FeedPane({ onSaved, active, embedded }) {
     const [subs, setSubs] = useState([]);
     const [sourceMeta, setSourceMeta] = useState([]);
     const [selKind, setSelKind] = useState("");
     const [cat, setCat] = useState("");
+    const [authorFollowErr, setAuthorFollowErr] = useState("");
     const [items, setItems] = useState([]);
+    const [relevance, setRelevance] = useState({});
+    const [relevanceLoading, setRelevanceLoading] = useState(false);
     const [unread, setUnread] = useState(0);
     const [filter, setFilter] = useState("all");
     const [refreshing, setRefreshing] = useState(false);
@@ -17432,6 +17608,9 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [expanded, setExpanded] = useState(() => /* @__PURE__ */ new Set());
     const [libJournals, setLibJournals] = useState([]);
     const [suggestOpen, setSuggestOpen] = useState(false);
+    const [subsOverflow, setSubsOverflow] = useState(false);
+    const [subsModalOpen, setSubsModalOpen] = useState(false);
+    const subsRowRef = useRef(null);
     const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem("callosum.feedAutoRefresh") === "1");
     const autoRanRef = useRef(0);
     const loadSubs = useCallback(async () => {
@@ -17447,9 +17626,17 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const loadItems = useCallback(async () => {
       const qs = filter === "unread" ? "?unread=true" : filter === "starred" ? "?starred=true" : "";
       const r = await api(`/feed${qs}`);
-      if (r.ok) {
-        setItems(r.data.items || []);
-        setUnread(r.data.unread_count || 0);
+      if (!r.ok) return;
+      const rows = r.data.items || [];
+      setItems(rows);
+      setUnread(r.data.unread_count || 0);
+      if (!isDemoMode() && rows.length) {
+        setRelevanceLoading(true);
+        const rr = await apiPost("/discovery/relevance", {
+          items: rows.map((it) => ({ dedup_key: String(it.id), title: it.title || "", abstract: it.abstract || null }))
+        });
+        if (rr.ok && rr.data && rr.data.relevance) setRelevance(rr.data.relevance);
+        setRelevanceLoading(false);
       }
     }, [filter]);
     useEffect(() => {
@@ -17463,19 +17650,47 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         if (r.ok) setLibJournals(r.data.journals || []);
       });
     }, []);
-    const followJournal = useCallback(async (title) => {
-      const r = await apiPost("/feed/subscriptions", { kind: "journal", value: title, label: title });
+    useEffect(() => {
+      const el = subsRowRef.current;
+      if (!el) return;
+      const check = () => setSubsOverflow(el.scrollHeight > el.clientHeight + 1);
+      check();
+      const ro = new ResizeObserver(check);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }, [subs]);
+    const followFromSuggest = useCallback(async (kind, value) => {
+      const r = await apiPost("/feed/subscriptions", { kind, value, label: value });
       if (r.ok) loadSubs();
     }, [loadSubs]);
+    const followAuthor = useCallback(async (raw) => {
+      const trimmed = (raw || "").trim();
+      if (!trimmed) return;
+      setAuthorFollowErr("");
+      const value = trimmed.replace(/^https?:\/\/orcid\.org\//i, "");
+      const body = FEED_ORCID_RE.test(trimmed) ? { orcid: value } : { name: value };
+      const r = await apiPost("/followed-authors", body);
+      if (!r.ok) {
+        setAuthorFollowErr(r.error || "Couldn't follow that author.");
+        return;
+      }
+      if (r.data.status === "no-match") {
+        setAuthorFollowErr("No OpenAlex author matched that name/ORCID.");
+        return;
+      }
+      setCat("");
+      loadSubs();
+    }, [loadSubs]);
     const follow = useCallback(async () => {
+      if (selKind === "author") {
+        await followAuthor(cat);
+        return;
+      }
       const value = selKind === "biorxiv_category" ? cat.trim().toLowerCase() : cat.trim();
       if (!value || !selKind) return;
-      const r = await apiPost("/feed/subscriptions", { kind: selKind, value, label: value });
-      if (r.ok) {
-        setCat("");
-        loadSubs();
-      }
-    }, [cat, selKind, loadSubs]);
+      await followFromSuggest(selKind, value);
+      setCat("");
+    }, [cat, selKind, followFromSuggest, followAuthor]);
     const unfollow = useCallback(async (id) => {
       await apiDelete(`/feed/subscriptions/${id}`);
       loadSubs();
@@ -17563,7 +17778,8 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     }, []);
     const addableSourceMeta = sourceMeta.filter((m) => m.user_addable !== false);
     const followedAuthorSubIds = new Set(subs.filter((s) => s.kind === "followed_author").map((s) => s.id));
-    return /* @__PURE__ */ React.createElement("div", { className: embedded ? "feed discover-feed-embedded" : "discover feed" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "feed-subs" }, subs.map((s) => {
+    const visibleItems = filter === "highlighted" ? items.filter((it) => relevance[String(it.id)]) : items;
+    return /* @__PURE__ */ React.createElement("div", { className: embedded ? "feed discover-feed-embedded" : "discover feed" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "feed-subs-row" }, /* @__PURE__ */ React.createElement("div", { className: "feed-subs feed-subs-capped", ref: subsRowRef }, subs.map((s) => {
       const meta = sourceMeta.find((m) => m.kind === s.kind);
       const tag = (meta ? meta.label : s.kind).split(" ")[0];
       return /* @__PURE__ */ React.createElement("span", { key: s.id, className: "feed-sub", title: `${meta ? meta.label : s.kind} \xB7 ${s.value}` }, /* @__PURE__ */ React.createElement("span", { className: "feed-sub-kind" }, tag), s.label || s.value, /* @__PURE__ */ React.createElement(
@@ -17575,14 +17791,27 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         },
         "\xD7"
       ));
-    }), !subs.length ? /* @__PURE__ */ React.createElement("span", { className: "discover-hint" }, "Follow a source to start your feed.") : null), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, addableSourceMeta.length > 1 ? /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: selKind, disabled: isDemoMode(), onChange: (e) => setSelKind(e.target.value) }, addableSourceMeta.map((m) => /* @__PURE__ */ React.createElement("option", { key: m.kind, value: m.kind }, m.label))) : null, /* @__PURE__ */ React.createElement(
+    }), !subs.length ? /* @__PURE__ */ React.createElement("span", { className: "discover-hint" }, "Follow a source to start your feed.") : null), subsOverflow ? /* @__PURE__ */ React.createElement("button", { className: "feed-sub-more", onClick: () => setSubsModalOpen(true), title: "Show every followed source" }, "\u2026") : null), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, addableSourceMeta.length > 1 ? /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "lib-sort",
+        value: selKind,
+        disabled: isDemoMode(),
+        onChange: (e) => {
+          setSelKind(e.target.value);
+          setAuthorFollowErr("");
+        }
+      },
+      addableSourceMeta.map((m) => /* @__PURE__ */ React.createElement("option", { key: m.kind, value: m.kind }, m.label)),
+      /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author")
+    ) : null, /* @__PURE__ */ React.createElement(
       "input",
       {
         value: cat,
         onChange: (e) => setCat(e.target.value),
         list: "feed-source-suggestions",
         disabled: isDemoMode(),
-        placeholder: (addableSourceMeta.find((m) => m.kind === selKind) || {}).placeholder || "Follow a source\u2026",
+        placeholder: selKind === "author" ? "an author name or ORCID iD, e.g. Jane Doe or 0000-0002-1825-0097" : (addableSourceMeta.find((m) => m.kind === selKind) || {}).placeholder || "Follow a source\u2026",
         onKeyDown: (e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -17590,7 +17819,15 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           }
         }
       }
-    ), /* @__PURE__ */ React.createElement("datalist", { id: "feed-source-suggestions" }, (selKind === "journal" ? libJournals.map((j) => j.journal) : (addableSourceMeta.find((m) => m.kind === selKind) || {}).suggestions || []).map((c) => /* @__PURE__ */ React.createElement("option", { key: c, value: c }))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: follow, disabled: isDemoMode() || !cat.trim() }, "Follow"), selKind === "journal" ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setSuggestOpen(true), title: "Journals already in your library" }, "Suggest") : null, /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("datalist", { id: "feed-source-suggestions" }, (selKind === "journal" ? libJournals.map((j) => j.journal) : (addableSourceMeta.find((m) => m.kind === selKind) || {}).suggestions || []).map((c) => /* @__PURE__ */ React.createElement("option", { key: c, value: c }))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: follow, disabled: isDemoMode() || !cat.trim() }, "Follow"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-ghost",
+        onClick: () => setSuggestOpen(true),
+        title: "Suggested sources to follow, based on your library and axes"
+      },
+      "Suggest"
+    ), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-primary",
@@ -17599,7 +17836,16 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         title: isDemoMode() ? "Refresh needs external journal and search providers" : void 0
       },
       refreshing ? "Refreshing\u2026" : "Refresh"
-    )), /* @__PURE__ */ React.createElement("div", { className: "feed-controls" }, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, ["all", "unread", "starred"].map((f) => /* @__PURE__ */ React.createElement("button", { key: f, className: "tags-srcfilter-btn" + (filter === f ? " on" : ""), onClick: () => setFilter(f) }, f === "all" ? "All" : f === "unread" ? `Unread${unread ? ` (${unread})` : ""}` : "Starred"))), /* @__PURE__ */ React.createElement("div", { className: "feed-controls-right" }, /* @__PURE__ */ React.createElement("label", { className: "auto-refresh-toggle", title: "When you open the Feed and a source is stale (>6h), refresh it automatically" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: autoRefresh, onChange: toggleAuto }), " Auto-refresh on open"), unread ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: markAllRead }, "Mark all read") : null)), isDemoMode() && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "The reviewed snapshot contains 1,240 cached public-metadata records; this view loads the same 200-item default as live Callosum. The sample star and any read/star changes are practice state stored only in this browser. ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: resetDemoTriage }, "Reset read/star practice"))), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, !subs.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Your feed is empty. Follow a bioRxiv category above, then Refresh to pull recent preprints.") : !items.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No items", filter !== "all" ? ` (${filter})` : "", ". Refresh to poll your followed sources.") : null, items.map((it) => /* @__PURE__ */ React.createElement("div", { key: it.id, className: "discover-item feed-item" + (it.is_read ? " read" : ""), onClick: () => setRead(it, true) }, /* @__PURE__ */ React.createElement("div", { className: "feed-row-top" }, !it.is_read ? /* @__PURE__ */ React.createElement("span", { className: "feed-unread-dot", title: "Unread" }) : null, /* @__PURE__ */ React.createElement("div", { className: "discover-title" }, it.title), followedAuthorSubIds.has(it.subscription_id) ? /* @__PURE__ */ React.createElement("span", { className: "feed-followed-badge", title: "From a followed author" }, "Followed") : null), /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, it.authors && it.authors.length ? /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, it.authors.slice(0, 3).join("; "), it.authors.length > 3 ? " et al." : "") : null, it.posted_date ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.posted_date) : it.year ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.year) : null, it.journal ? /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, it.journal) : null), /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, /* @__PURE__ */ React.createElement(
+    )), authorFollowErr ? /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, authorFollowErr) : null, /* @__PURE__ */ React.createElement("div", { className: "feed-controls" }, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, ["all", "unread", "highlighted", "starred"].map((f) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: f,
+        className: "tags-srcfilter-btn" + (filter === f ? " on" : ""),
+        onClick: () => setFilter(f),
+        title: f === "highlighted" ? "Items with a likely axis match (a hint, not a filter on what exists \u2014 just what's shown here)" : void 0
+      },
+      f === "all" ? "All" : f === "unread" ? `Unread${unread ? ` (${unread})` : ""}` : f === "highlighted" ? "Highlighted" : "Starred"
+    ))), /* @__PURE__ */ React.createElement("div", { className: "feed-controls-right" }, /* @__PURE__ */ React.createElement("label", { className: "auto-refresh-toggle", title: "When you open the Feed and a source is stale (>6h), refresh it automatically" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: autoRefresh, onChange: toggleAuto }), " Auto-Refresh"), unread ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: markAllRead }, "Mark All Read") : null)), isDemoMode() && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "The reviewed snapshot contains 1,240 cached public-metadata records; this view loads the same 200-item default as live Callosum. The sample star and any read/star changes are practice state stored only in this browser. ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: resetDemoTriage }, "Reset read/star practice"))), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, !subs.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Your feed is empty. Follow a bioRxiv category above, then Refresh to pull recent preprints.") : !items.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No items", filter !== "all" && filter !== "highlighted" ? ` (${filter})` : "", ". Refresh to poll your followed sources.") : filter === "highlighted" && !visibleItems.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, relevanceLoading ? "Checking axis matches\u2026" : 'No items here matched one of your axes closely enough to highlight \u2014 that isn\u2019t "nothing relevant," just nothing this local check flagged. Switch back to All to see everything.') : null, visibleItems.map((it) => /* @__PURE__ */ React.createElement("div", { key: it.id, className: "discover-item feed-item" + (it.is_read ? " read" : "") + (relevance[String(it.id)] ? " relevance-row-highlight" : ""), onClick: () => setRead(it, true) }, /* @__PURE__ */ React.createElement("div", { className: "feed-row-top" }, !it.is_read ? /* @__PURE__ */ React.createElement("span", { className: "feed-unread-dot" + (relevance[String(it.id)] ? " feed-unread-dot-highlight" : ""), title: "Unread" }) : null, /* @__PURE__ */ React.createElement("div", { className: "discover-title" }, it.title), followedAuthorSubIds.has(it.subscription_id) ? /* @__PURE__ */ React.createElement("span", { className: "feed-followed-badge", title: "From a followed author" }, "Followed") : null, relevance[String(it.id)] ? /* @__PURE__ */ React.createElement("span", { className: "relevance-highlight", title: "A likely match to one of your axes (a hint \u2014 the full list is never filtered)." }, "likely: ", relevance[String(it.id)].axis_label, " \xB7 match ", relevance[String(it.id)].similarity.toFixed(2)) : null), /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, it.authors && it.authors.length ? /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, it.authors.slice(0, 3).join("; "), it.authors.length > 3 ? " et al." : "") : null, it.posted_date ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.posted_date) : it.year ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.year) : null, it.journal ? /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, it.journal) : null), /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "feed-star" + (it.is_starred ? " on" : ""),
@@ -17624,139 +17870,17 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     ), it.abstract ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: (e) => {
       e.stopPropagation();
       toggleExpand(it.id);
-    } }, expanded.has(it.id) ? "Hide abstract" : "Abstract") : null), expanded.has(it.id) && it.abstract ? /* @__PURE__ */ React.createElement("div", { className: "discover-abstract" }, it.abstract) : null))), suggestOpen ? /* @__PURE__ */ React.createElement(FeedSuggestModal, { journals: libJournals, subs, onFollow: followJournal, onClose: () => setSuggestOpen(false) }) : null);
-  }
-  function FeedSuggestModal({ journals, subs, onFollow, onClose }) {
-    const followed = new Set((subs || []).filter((s) => s.kind === "journal").map((s) => (s.value || "").toLowerCase()));
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Journals in your library"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Journals you already have papers from \u2014 ", /* @__PURE__ */ React.createElement("b", null, "Follow"), " one to pull its recent articles into your feed. Ordered by how many papers you have from each (a tally of your own library, not a quality ranking)."), !journals.length ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No journals in your library yet \u2014 import some papers, then their journals show up here.") : journals.map((j) => {
-      const isFollowed = followed.has((j.journal || "").toLowerCase());
-      return /* @__PURE__ */ React.createElement("div", { key: j.journal, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, j.journal), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, j.count, " paper", j.count === 1 ? "" : "s", " in your library"))), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, isFollowed ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 Following") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onFollow(j.journal) }, "Follow")));
-    })));
-  }
-  function FollowedAuthorsPane({ active, onSaved }) {
-    const [authors, setAuthors] = useState([]);
-    const [nameInput, setNameInput] = useState("");
-    const [orcidInput, setOrcidInput] = useState("");
-    const [followErr, setFollowErr] = useState("");
-    const [rows, setRows] = useState([]);
-    const [refresh, setRefresh] = useState({ status: "idle" });
-    const [lastScan, setLastScan] = useState(null);
-    const loadAuthors = useCallback(() => {
-      api("/followed-authors").then((r) => {
-        if (r.ok) setAuthors(r.data || []);
-      });
-    }, []);
-    const loadCandidates = useCallback(() => {
-      api("/followed-authors/candidates").then((r) => {
-        if (r.ok) setRows(r.data.candidates || []);
-      });
-    }, []);
-    useEffect(() => {
-      loadAuthors();
-      loadCandidates();
-    }, [loadAuthors, loadCandidates]);
-    const follow = async () => {
-      const name = nameInput.trim(), orcid = orcidInput.trim();
-      if (!name && !orcid) return;
-      setFollowErr("");
-      const r = await apiPost("/followed-authors", { name: name || null, orcid: orcid || null });
-      if (!r.ok) {
-        setFollowErr(r.error);
-        return;
-      }
-      if (r.data.status === "no-match") {
-        setFollowErr("No OpenAlex author matched that name/ORCID.");
-        return;
-      }
-      setNameInput("");
-      setOrcidInput("");
-      loadAuthors();
-    };
-    const unfollow = async (authorId) => {
-      await apiDelete(`/followed-authors/${authorId}`);
-      loadAuthors();
-      loadCandidates();
-    };
-    const runRefresh = async (authorId) => {
-      setRefresh({ status: "running" });
-      setLastScan(null);
-      const poll = (jobId) => api(`/followed-authors/refresh/${jobId}`).then((r2) => {
-        if (!r2.ok) {
-          setRefresh({ status: "error", error: r2.error });
-          return;
-        }
-        const d = r2.data;
-        if (d.status === "done") {
-          setRefresh({ status: "idle" });
-          setLastScan({ authorsRefreshed: d.result.authors_refreshed, worksChecked: d.result.works_checked, note: d.result.note });
-          loadAuthors();
-          loadCandidates();
-        } else if (d.status === "error") setRefresh({ status: "error", error: d.detail || "Followed-authors refresh failed." });
-        else setTimeout(() => poll(jobId), 2e3);
-      });
-      const r = await apiPost("/followed-authors/refresh", { author_id: authorId || null });
-      if (!r.ok) {
-        setRefresh({ status: "error", error: r.error });
-        return;
-      }
-      poll(r.data.job_id);
-    };
-    const add = async (row) => {
-      const r = await apiPost("/followed-authors/add", { doi: row.doi, openalex_work_id: row.openalex_work_id, title: row.title });
-      if (r.ok) {
-        loadCandidates();
-        if (onSaved) onSaved();
-      }
-    };
-    const dismiss = async (row) => {
-      const r = await apiPost("/followed-authors/dismiss", { openalex_work_id: row.openalex_work_id, doi: row.doi });
-      if (r.ok) loadCandidates();
-    };
-    const running = refresh.status === "running";
-    return /* @__PURE__ */ React.createElement("div", { className: "discover followed-authors" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "feed-subs" }, authors.map((a) => /* @__PURE__ */ React.createElement(
-      "span",
+    } }, expanded.has(it.id) ? "Hide abstract" : "Abstract") : null), expanded.has(it.id) && it.abstract ? /* @__PURE__ */ React.createElement("div", { className: "discover-abstract" }, it.abstract) : null))), suggestOpen ? /* @__PURE__ */ React.createElement(
+      FeedSuggestModal,
       {
-        key: a.author_id,
-        className: "feed-sub",
-        title: `OpenAlex ${a.author_id}${a.matched_by === "name" ? " \xB7 matched by name, not ORCID \u2014 lower confidence" : ""}${a.last_refreshed_at ? ` \xB7 last refreshed ${new Date(a.last_refreshed_at).toLocaleString()}` : " \xB7 never refreshed"}`
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "feed-sub-kind" }, "Author"),
-      a.display_name,
-      /* @__PURE__ */ React.createElement(
-        "button",
-        {
-          className: "feed-sub-x",
-          title: isDemoMode() ? "Unfollowing needs the persistent local library" : "Unfollow",
-          onClick: () => unfollow(a.author_id)
-        },
-        "\xD7"
-      )
-    )), !authors.length ? /* @__PURE__ */ React.createElement("span", { className: "discover-hint" }, "Follow an author to start surfacing their absent works.") : null), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement("input", { value: nameInput, disabled: isDemoMode(), onChange: (e) => setNameInput(e.target.value), placeholder: "Author name\u2026" }), /* @__PURE__ */ React.createElement("input", { value: orcidInput, disabled: isDemoMode(), onChange: (e) => setOrcidInput(e.target.value), placeholder: "or ORCID (0000-0002-1825-0097)" }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: follow, disabled: isDemoMode() || !nameInput.trim() && !orcidInput.trim() }, "Follow"), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "btn btn-primary",
-        disabled: running || !authors.length,
-        onClick: () => runRefresh(null),
-        title: isDemoMode() ? "Refresh needs the local backend and OpenAlex" : void 0
-      },
-      running ? "Scanning\u2026" : "Refresh all"
-    )), followErr && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, followErr)), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Works by a followed author that aren't in your library yet. ", /* @__PURE__ */ React.createElement("b", null, "Add"), " imports the metadata; ", /* @__PURE__ */ React.createElement("b", null, "Dismiss"), " hides it for good. Not filtered or ranked by relevance to your research axes \u2014 only deduplicated against your library."), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Checking followed authors' works through OpenAlex\u2026", managedBy: "backend-job" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, refresh.error), lastScan && /* @__PURE__ */ React.createElement("div", { className: "gaps-coverage" }, "Refreshed ", lastScan.authorsRefreshed, " author", lastScan.authorsRefreshed === 1 ? "" : "s", ", checked ", lastScan.worksChecked, " works. ", lastScan.note), !running && authors.length > 0 && rows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No absent works for your followed authors \u2014 everything found is already in your library, or nothing has been refreshed yet."), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, rows.map((row) => /* @__PURE__ */ React.createElement("div", { key: `${row.author_id}-${row.openalex_work_id || row.doi}`, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, row.title || row.doi), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, "by ", row.author_display_name, " (followed)"), row.year ? ` \xB7 ${row.year}` : "")), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "axis-link",
-        onClick: () => add(row),
-        title: isDemoMode() ? "Adding changes the persistent local library" : void 0
-      },
-      "Add"
-    ), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "axis-link",
-        onClick: () => dismiss(row),
-        title: isDemoMode() ? "Dismissing changes persistent local state" : void 0
-      },
-      "Dismiss"
-    ))))));
+        subs,
+        libJournals,
+        sourceMeta,
+        onFollow: followFromSuggest,
+        onFollowAuthor: followAuthor,
+        onClose: () => setSuggestOpen(false)
+      }
+    ) : null, subsModalOpen ? /* @__PURE__ */ React.createElement(FeedSubsOverflowModal, { subs, sourceMeta, onUnfollow: unfollow, onClose: () => setSubsModalOpen(false) }) : null);
   }
   function usePinchZoom({ scrollRef, pagesRef, scaleRef, active, onCommit }) {
     useEffect(() => {
@@ -17838,6 +17962,118 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       x1: r1(Math.max(...rects.map((b) => b.x1))),
       y1: r1(Math.max(...rects.map((b) => b.y1)))
     };
+  }
+  const FEED_SUGGEST_TABS = [
+    { id: "journal", label: "Journal" },
+    { id: "biorxiv_category", label: "bioRxiv Categories" },
+    { id: "medrxiv_category", label: "medRxiv Categories" },
+    { id: "pubmed_query", label: "PubMed Search" },
+    { id: "author", label: "Author" }
+  ];
+  function FeedSuggestModal({ subs, libJournals, sourceMeta, onFollow, onFollowAuthor, onClose }) {
+    const [tab, setTab] = useState("journal");
+    const [axes, setAxes] = useState(null);
+    const [tags, setTags] = useState(null);
+    const [authorSuggestions, setAuthorSuggestions] = useState(null);
+    useEffect(() => {
+      if (isDemoMode()) return;
+      api("/axes").then((r) => setAxes(r.ok ? r.data : []));
+      api("/tags").then((r) => setTags(r.ok ? r.data : []));
+      api("/feed/suggest-authors").then((r) => setAuthorSuggestions(r.ok ? r.data.authors || [] : []));
+    }, []);
+    const followedByKind = (kind) => new Set(
+      (subs || []).filter((s) => s.kind === kind).map((s) => (s.value || "").toLowerCase())
+    );
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal feed-suggest-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Suggested sources to follow"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, FEED_SUGGEST_TABS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t.id, className: "tags-srcfilter-btn" + (tab === t.id ? " on" : ""), onClick: () => setTab(t.id) }, t.label))), /* @__PURE__ */ React.createElement("div", { className: "feed-suggest-body" }, tab === "journal" && /* @__PURE__ */ React.createElement(FeedSuggestJournals, { journals: libJournals, followed: followedByKind("journal"), onFollow: (v) => onFollow("journal", v) }), (tab === "biorxiv_category" || tab === "medrxiv_category") && /* @__PURE__ */ React.createElement(
+      FeedSuggestCategories,
+      {
+        kind: tab,
+        categories: (sourceMeta.find((m) => m.kind === tab) || {}).suggestions || [],
+        axes,
+        tags,
+        followed: followedByKind(tab),
+        onFollow: (v) => onFollow(tab, v)
+      }
+    ), tab === "pubmed_query" && /* @__PURE__ */ React.createElement(FeedSuggestQueries, { axes, tags, followed: followedByKind("pubmed_query"), onFollow: (v) => onFollow("pubmed_query", v) }), tab === "author" && /* @__PURE__ */ React.createElement(FeedSuggestAuthors, { authors: authorSuggestions, onFollow: onFollowAuthor }))));
+  }
+  function FeedSuggestJournals({ journals, followed, onFollow }) {
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Journals you already have papers from \u2014 ", /* @__PURE__ */ React.createElement("b", null, "Follow"), " one to pull its recent articles into your feed. Ordered by how many papers you have from each (a tally of your own library, not a quality ranking)."), !journals.length ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No journals in your library yet \u2014 import some papers, then their journals show up here.") : journals.map((j) => {
+      const isFollowed = followed.has((j.journal || "").toLowerCase());
+      return /* @__PURE__ */ React.createElement("div", { key: j.journal, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, j.journal), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, j.count, " paper", j.count === 1 ? "" : "s", " in your library"))), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, isFollowed ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 Following") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onFollow(j.journal) }, "Follow")));
+    }));
+  }
+  function _categoryMatchReasons(category, axes, tags) {
+    const cat = category.toLowerCase();
+    const reasons = [];
+    (axes || []).forEach((a) => {
+      const label = (a.label || "").toLowerCase();
+      const desc = (a.description || "").toLowerCase();
+      if (label && (label.includes(cat) || cat.includes(label)) || desc && (desc.includes(cat) || cat.includes(desc))) {
+        reasons.push(`your axis "${a.label}"`);
+      }
+    });
+    (tags || []).forEach((t) => {
+      const name = (t.name || "").toLowerCase();
+      if (name && (name.includes(cat) || cat.includes(name))) reasons.push(`your tag "${t.name}"`);
+    });
+    return reasons;
+  }
+  function FeedSuggestCategories({ kind, categories, axes, tags, followed, onFollow }) {
+    const loading = axes === null || tags === null;
+    const server = kind === "biorxiv_category" ? "bioRxiv" : "medRxiv";
+    const sorted = categories.map((c) => ({ category: c, reasons: loading ? [] : _categoryMatchReasons(c, axes, tags) })).sort((a, b) => b.reasons.length - a.reasons.length || a.category.localeCompare(b.category));
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Every ", server, " category. Ones matching one of your axes or tags are listed first, with the match named \u2014 a plain text match, not a semantic score. ", /* @__PURE__ */ React.createElement("b", null, "Follow"), " pulls its recent preprints into your feed."), loading ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Checking your axes and tags\u2026") : sorted.map(({ category, reasons }) => {
+      const isFollowed = followed.has(category.toLowerCase());
+      return /* @__PURE__ */ React.createElement("div", { key: category, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, category), reasons.length ? /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, "matches ", reasons.join(", "))) : null), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, isFollowed ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 Following") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onFollow(category) }, "Follow")));
+    }));
+  }
+  function FeedSuggestQueries({ axes, tags, followed, onFollow }) {
+    const loading = axes === null || tags === null;
+    const candidates = [];
+    const seen = /* @__PURE__ */ new Set();
+    const add = (text, source) => {
+      const trimmed = (text || "").trim();
+      const key = trimmed.toLowerCase();
+      if (!trimmed || seen.has(key)) return;
+      seen.add(key);
+      candidates.push({ text: trimmed, source });
+    };
+    if (!loading) {
+      (_discoverLoadSearchHistory() || []).forEach((h) => add(h.q, "your recent search"));
+      (axes || []).forEach((a) => add(a.label, "one of your axes"));
+      (tags || []).forEach((t) => add(t.name, tagIsImported(t.source) ? "an imported keyword tag" : "one of your tags"));
+    }
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Suggested from your recent Search queries, your axes, and your tags (keywords + your own). ", /* @__PURE__ */ React.createElement("b", null, "Follow"), "saves the exact text as a PubMed search that polls for new matches."), loading ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Checking your axes and tags\u2026") : !candidates.length ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Nothing to suggest yet \u2014 search the literature, add an axis, or tag a paper first.") : candidates.map((c) => {
+      const isFollowed = followed.has(c.text.toLowerCase());
+      return /* @__PURE__ */ React.createElement("div", { key: c.text, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, c.text), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, "from ", c.source))), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, isFollowed ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 Following") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onFollow(c.text) }, "Follow")));
+    }));
+  }
+  function FeedSuggestAuthors({ authors, onFollow }) {
+    const [justFollowed, setJustFollowed] = useState(() => /* @__PURE__ */ new Set());
+    const loading = authors === null;
+    const handleFollow = async (name) => {
+      await onFollow(name);
+      setJustFollowed((prev) => new Set(prev).add(name.toLowerCase()));
+    };
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Authors who recur across your library, ranked by paper count \u2014 excluding you and anyone already followed. A plain tally of your own library, never a ranking of the author's work or a recommendation to collaborate."), loading ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Checking your library\u2026") : !authors.length ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No recurring authors found yet.") : authors.map((a) => {
+      const isFollowed = justFollowed.has(a.name.toLowerCase());
+      return /* @__PURE__ */ React.createElement("div", { key: a.name, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, a.name), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, a.paper_count, " paper", a.paper_count === 1 ? "" : "s", " in your library"))), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, isFollowed ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 Following") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => handleFollow(a.name) }, "Follow")));
+    }));
+  }
+  function FeedSubsOverflowModal({ subs, sourceMeta, onUnfollow, onClose }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "All followed sources"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Every journal, category, search, and author you follow. Click \xD7 to unfollow."), /* @__PURE__ */ React.createElement("div", { className: "feed-subs" }, (subs || []).map((s) => {
+      const meta = sourceMeta.find((m) => m.kind === s.kind);
+      const tag = (meta ? meta.label : s.kind).split(" ")[0];
+      return /* @__PURE__ */ React.createElement("span", { key: s.id, className: "feed-sub", title: `${meta ? meta.label : s.kind} \xB7 ${s.value}` }, /* @__PURE__ */ React.createElement("span", { className: "feed-sub-kind" }, tag), s.label || s.value, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "feed-sub-x",
+          title: isDemoMode() ? "Unfollowing needs the persistent local library" : "Unfollow",
+          onClick: () => onUnfollow(s.id)
+        },
+        "\xD7"
+      ));
+    }))));
   }
   function usePagesMouseUpHandler({ pagesRef, armedRef, setPicker }) {
     return useCallback(() => {
@@ -19390,7 +19626,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onChange: (e) => onAxisCutoffDefault(Number(e.target.value)),
         "aria-label": "Default axis cutoff"
       }
-    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(GrobidSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Citation styles", id: "citation-styles" }, /* @__PURE__ */ React.createElement(CitationStylesSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Plugins" }, /* @__PURE__ */ React.createElement(PluginsSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Your usage" }, /* @__PURE__ */ React.createElement(UsageSettings, null)), /* @__PURE__ */ React.createElement(DemoExternalInterfaces, null)));
+    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement(GrobidSettings, null))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Citation styles", id: "citation-styles" }, /* @__PURE__ */ React.createElement(CitationStylesSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Plugins" }, /* @__PURE__ */ React.createElement(PluginsSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Your usage" }, /* @__PURE__ */ React.createElement(UsageSettings, null)), /* @__PURE__ */ React.createElement(DemoExternalInterfaces, null)));
   }
   function MyPubsSettings({ onRefreshed }) {
     const [name, setName] = useState("");
@@ -20941,7 +21177,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       setTest(r.ok ? r.data : { ok: false, detail: r.error || "Test failed." });
     };
     const [run, setRun] = useState({ status: "idle" });
-    const runLibrary = async () => {
+    const runLibrary = async (onlyUnparsed) => {
       setRun({ status: "running" });
       const poll = (jobId) => api(`/grobid/library/parse/${jobId}`).then((r2) => {
         if (!r2.ok) {
@@ -20956,7 +21192,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           setTimeout(() => poll(jobId), 1500);
         }
       });
-      const r = await apiPost("/grobid/library/parse", {});
+      const r = await apiPost("/grobid/library/parse", onlyUnparsed ? { only_unparsed: true } : {});
       if (!r.ok) {
         setRun({ status: "error", error: r.error });
         return;
@@ -20972,7 +21208,16 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         value: urlInput,
         onChange: (e) => setUrlInput(e.target.value)
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: save }, busy ? "Saving\u2026" : "Save")), url && /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: testing, onClick: testConnection }, testing ? "Testing\u2026" : "Test connection")), test && /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (test.ok ? "" : " settings-note-err") }, test.detail), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (msgErr ? " settings-note-err" : "") }, msg)), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Parse structure for library"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: !url || run.status === "running", onClick: runLibrary }, run.status === "running" ? "Parsing\u2026" : "Parse all papers")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, `Runs GROBID structure parsing across every paper with a local PDF \u2014 the same per-paper action as the "Parse document structure\u2026" button in a paper's Details, just for the whole library at once.`)), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Parsing document structure\u2026", progress: run.progress, managedBy: "backend-job" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.papers_parsed, " paper", s.papers_parsed === 1 ? "" : "s", " parsed", s.papers_skipped ? ` \xB7 ${s.papers_skipped} skipped` : "", " \xB7 ", s.sections_found, " section", s.sections_found === 1 ? "" : "s", " found \xB7 ", s.chunks_mapped, " chunk", s.chunks_mapped === 1 ? "" : "s", " mapped."));
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: save }, busy ? "Saving\u2026" : "Save"), url && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: testing, onClick: testConnection }, testing ? "Testing\u2026" : "Test")), test && /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (test.ok ? "" : " settings-note-err") }, test.detail), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (msgErr ? " settings-note-err" : "") }, msg)), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Parse structure for library"), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: !url || run.status === "running", onClick: () => runLibrary(false) }, run.status === "running" ? "Parsing\u2026" : "Parse all papers"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-ghost",
+        disabled: !url || run.status === "running",
+        onClick: () => runLibrary(true),
+        title: "Skip papers that already have a GROBID-mapped section from a prior run."
+      },
+      run.status === "running" ? "Parsing\u2026" : "Parse unparsed only"
+    ))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, `Runs GROBID structure parsing across every paper with a local PDF \u2014 the same per-paper action as the "Parse document structure\u2026" button in a paper's Details, just for the whole library at once. "Parse unparsed only" skips papers a prior run already mapped.`)), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Parsing document structure\u2026", progress: run.progress, managedBy: "backend-job" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.papers_parsed, " paper", s.papers_parsed === 1 ? "" : "s", " parsed", s.papers_skipped ? ` \xB7 ${s.papers_skipped} skipped` : "", " \xB7 ", s.sections_found, " section", s.sections_found === 1 ? "" : "s", " found \xB7 ", s.chunks_mapped, " chunk", s.chunks_mapped === 1 ? "" : "s", " mapped."));
   }
   function UsageSettings() {
     const [summary, setSummary] = useState(null);
@@ -22129,6 +22374,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       sharePaperIds,
       setSharePaperIds
     } = lib;
+    const [critSetResumeJobId, setCritSetResumeJobId] = useState(null);
     const {
       focusAxis,
       focusMembers,
@@ -22240,6 +22486,10 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       }
       if (nav.modal === "duplicates") setDuplicatesOpen(true);
       if (nav.modal === "merge" && Array.isArray(nav.paper_ids) && nav.paper_ids.length > 1) setMergeIds(nav.paper_ids);
+      if (nav.modal === "critical-set" && Array.isArray(nav.paper_ids) && nav.paper_ids.length > 1) {
+        setCritSetIds(nav.paper_ids);
+        setCritSetResumeJobId(job.job_id);
+      }
       if (nav.modal === "wanted") setWantedOpen(true);
       if (nav.modal === "text-health") {
         setTextHealthContext(null);
@@ -22538,7 +22788,18 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           onMerged(survivorId);
         }
       }
-    )), critSetIds && /* @__PURE__ */ React.createElement(CriticalSetModal, { ids: critSetIds, onClose: () => setCritSetIds(null), onOpenPaper: openPdf }), sharePaperIds && /* @__PURE__ */ React.createElement(ShareModal, { ids: sharePaperIds, onClose: () => setSharePaperIds(null) }), wantedOpen && /* @__PURE__ */ React.createElement(WantedModal, { onClose: () => setWantedOpen(false), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), textHealthOpen && /* @__PURE__ */ React.createElement(
+    )), critSetIds && /* @__PURE__ */ React.createElement(
+      CriticalSetModal,
+      {
+        ids: critSetIds,
+        resumeJobId: critSetResumeJobId,
+        onClose: () => {
+          setCritSetIds(null);
+          setCritSetResumeJobId(null);
+        },
+        onOpenPaper: openPdf
+      }
+    ), sharePaperIds && /* @__PURE__ */ React.createElement(ShareModal, { ids: sharePaperIds, onClose: () => setSharePaperIds(null) }), wantedOpen && /* @__PURE__ */ React.createElement(WantedModal, { onClose: () => setWantedOpen(false), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), textHealthOpen && /* @__PURE__ */ React.createElement(
       TextHealthModal,
       {
         onClose: () => {

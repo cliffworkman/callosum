@@ -111,3 +111,13 @@ def test_relevance_endpoint(temp_db_url):
     assert set(rel) == {"d1"} and rel["d1"]["axis_label"] == "Alpha"
     # bad inputs fail closed
     assert client.post("/discovery/relevance", json={"items": []}).status_code == 422
+
+
+def test_relevance_endpoint_accepts_up_to_feeds_default_page_size(temp_db_url):
+    # Feed's GET /feed defaults to limit=200 and sends its whole page in one relevance call (no chunking) --
+    # the cap must cover that exactly, not just Search's own smaller limit=25.
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=_KwModel()))
+    items_200 = [{"dedup_key": f"d{i}", "title": "Beta", "abstract": ""} for i in range(200)]
+    assert client.post("/discovery/relevance", json={"items": items_200}).status_code == 200
+    items_201 = items_200 + [{"dedup_key": "d200", "title": "Beta", "abstract": ""}]
+    assert client.post("/discovery/relevance", json={"items": items_201}).status_code == 422

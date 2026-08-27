@@ -446,7 +446,10 @@ missing_literature_suggestions = Table(
 # Literature Feed tables (inc 187) — same split rationale; re-exported so existing import paths keep working and
 # importing this module registers them on the shared metadata.
 # Critical-review candidate store (backlog #12) — same split rationale.
-from app.backend.persistence.schema_critical_review import critical_review_candidates  # noqa: E402,F401
+from app.backend.persistence.schema_critical_review import (  # noqa: E402,F401
+    critical_review_candidate_triage,
+    critical_review_candidates,
+)
 
 # Per-paper saved DEBIT checks (inc 467) — an append-only user-curated log, mirroring paper_grim_checks.
 from app.backend.persistence.schema_debit_checks import paper_debit_checks  # noqa: E402,F401
@@ -459,7 +462,6 @@ from app.backend.persistence.schema_feed import feed_items, feed_subscriptions  
 from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     agent_writes,
     ajol_records,
-    followed_author_candidates,
     followed_authors,
     gap_candidates,
     my_publication_citation_gap_cache,

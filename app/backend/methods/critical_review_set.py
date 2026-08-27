@@ -14,6 +14,7 @@ from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import VectorStore
 from app.backend.methods.critical_review import (
     ContestedSearchScope,
+    _not_excluded_section_clause,
     _stored_method_signals,
     extract_claim_sentences,
     make_chunk_resolver,
@@ -43,6 +44,7 @@ def set_chunk_embedding_ids(conn: Connection, set_ids: list[int], exclude_id: in
             chunks.c.paper_id != exclude_id,
             papers.c.deleted_at.is_(None),
             attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES),
+            _not_excluded_section_clause(),
         )
     )
     return {int(r[0]) for r in rows}

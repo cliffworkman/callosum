@@ -224,7 +224,7 @@ function GrobidSettings() {
   // "backend-job" so this ProgressBar doesn't ALSO register a duplicate client-side Status row (invariant #5 --
   // the backend job is already the one source of truth for this operation's Status entry).
   const [run, setRun] = useState({ status: "idle" });  // idle | running | done | error
-  const runLibrary = async () => {
+  const runLibrary = async (onlyUnparsed) => {
     setRun({ status: "running" });
     const poll = (jobId) => api(`/grobid/library/parse/${jobId}`).then(r => {
       if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
@@ -233,7 +233,7 @@ function GrobidSettings() {
       else if (d.status === "error") setRun({ status: "error", error: d.detail || "Parse failed." });
       else { setRun({ status: "running", progress: d.progress }); setTimeout(() => poll(jobId), 1500); }
     });
-    const r = await apiPost("/grobid/library/parse", {});
+    const r = await apiPost("/grobid/library/parse", onlyUnparsed ? { only_unparsed: true } : {});
     if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
     poll(r.data.job_id);
   };
@@ -256,11 +256,9 @@ function GrobidSettings() {
           <input className="settings-input" placeholder="http://127.0.0.1:8070" value={urlInput}
             onChange={e => setUrlInput(e.target.value)} />
           <button className="btn btn-ghost" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
+          {url &&
+            <button className="btn btn-ghost" disabled={testing} onClick={testConnection}>{testing ? "Testing…" : "Test"}</button>}
         </div>
-        {url &&
-          <div className="settings-keyrow">
-            <button className="btn btn-ghost" disabled={testing} onClick={testConnection}>{testing ? "Testing…" : "Test connection"}</button>
-          </div>}
         {test && <div className={"settings-note" + (test.ok ? "" : " settings-note-err")}>{test.detail}</div>}
         {msg && <div className={"settings-note" + (msgErr ? " settings-note-err" : "")}>{msg}</div>}
       </div>
@@ -268,13 +266,20 @@ function GrobidSettings() {
       <div className="settings-field">
         <div className="settings-row settings-maintenance-action">
           <span className="settings-field-label">Parse structure for library</span>
-          <button className="btn btn-ghost" disabled={!url || run.status === "running"} onClick={runLibrary}>
-            {run.status === "running" ? "Parsing…" : "Parse all papers"}
-          </button>
+          <div className="settings-keyrow">
+            <button className="btn btn-ghost" disabled={!url || run.status === "running"} onClick={() => runLibrary(false)}>
+              {run.status === "running" ? "Parsing…" : "Parse all papers"}
+            </button>
+            <button className="btn btn-ghost" disabled={!url || run.status === "running"} onClick={() => runLibrary(true)}
+              title="Skip papers that already have a GROBID-mapped section from a prior run.">
+              {run.status === "running" ? "Parsing…" : "Parse unparsed only"}
+            </button>
+          </div>
         </div>
         <span className="settings-sub">
           Runs GROBID structure parsing across every paper with a local PDF — the same per-paper action as the
           "Parse document structure…" button in a paper's Details, just for the whole library at once.
+          "Parse unparsed only" skips papers a prior run already mapped.
         </span>
       </div>
       {run.status === "running" && <ProgressBar label="Parsing document structure…" progress={run.progress} managedBy="backend-job" />}

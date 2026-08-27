@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 501** (see Increment workflow) with **2491 root-suite pytest tests
+It is currently at **Increment 504** (see Increment workflow) with **2531 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -532,6 +532,21 @@ the full per-increment narrative for all other increments now lives in the reloc
   now carries OpenAlex's real `publication_date` (validated `YYYY-MM-DD`, added to the existing works `select=`
   param), and Feed's `posted_date` prefers it over the bare-year fallback — additive/backward-compatible, so a
   pre-458 cached work (or one OpenAlex itself never dated precisely) keeps the old bare-year behavior.
+  **Consolidated into Feed (2026-08-27):** the standalone Followed-Authors tab (`30f_followed_authors.jsx`) and
+  its "what am I missing" gap-candidate machinery (`compute_followed_author_candidates`,
+  `followed_author_candidates` table, the `/followed-authors/candidates|add|dismiss|refresh` endpoints) are
+  retired — Feed's own un-deduped chronological stream (badged "Followed," `in_library` known per item) was
+  judged sufficient without a separate curated view. Following an author is now a frontend-only "Author" option
+  on Feed's own add-source dropdown (`30e_feed.jsx`), auto-detecting a plain name vs. an ORCID iD (bare or a
+  pasted `https://orcid.org/...` URL) and posting to the unchanged `POST /followed-authors` resolve endpoint —
+  the backend's `followed_author` kind stays `user_addable=false`, so a raw OpenAlex id still can't be typed
+  into the generic `/feed/subscriptions` endpoint. Feed's Suggest modal (previously journal-only) gained 4 more
+  tabs alongside Journal: bioRxiv/medRxiv Categories (matched against the user's axes/tags, entirely
+  frontend-composed — no new endpoint, since the fixed category lists already ride `sourceMeta`), PubMed Search
+  (suggested from Discover→Search history + axes + tags), and Author (`GET /feed/suggest-authors`, a new
+  library-frequency tally excluding the user's own name and anyone already followed). The followed-sources pill
+  row is now capped to one visible line with a measured-overflow "…" button opening a full unfollow-capable
+  list, since an unbounded row was flagged as an unwieldy-proliferation risk.
 - **Beyond-library saved queue (backlog #30's last open piece, inc 465):** a "Save for later" button on every
   beyond-library suggestion card (`app/backend/citations/beyond_library.py`'s live, per-sentence search — both
   the web Cite pane and the LibreOffice adapter's Suggest dialog) persists the suggestion verbatim into a new
@@ -1210,7 +1225,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 497). Each increment of real work
+callosum is built in **numbered increments** (currently at 504). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

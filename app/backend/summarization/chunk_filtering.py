@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import re
 
+from app.backend.summarization.generators import SourceChunk
+
 _DOI = re.compile(r"\b10\.\d{4,9}/\S+", re.IGNORECASE)
 # A journal volume:page run like "38:3391-3401" (hyphen or en/em dash).
 _VOLUME = re.compile(r"\b\d{1,4}\s?[:;]\s?\d+\s?[-–—]\s?\d+")
@@ -118,3 +120,48 @@ def is_front_matter_chunk(text: str) -> bool:
             if stop / n < 0.10:
                 return True  # short masthead/label line with almost no function words
     return False
+
+
+REPEATED_BOILERPLATE_MAX_WORDS = 25
+REPEATED_BOILERPLATE_MIN_PAGE_COUNT = 3
+_TRAILING_NUMBER = re.compile(r"\s*\d+\s*$")
+
+
+def _normalize_space(text: str) -> str:
+    return " ".join((text or "").split())
+
+
+def _repetition_key(text: str) -> str:
+    """Running headers/footers often embed a page or section-relative counter directly in the text (e.g. a
+    Supplementary Materials header reading "...STEREOTYPE (SOM) 14" on one page and "...STEREOTYPE (SOM) 9" on
+    another) -- confirmed live: this made every occurrence's normalized text unique and defeated exact-match
+    repetition detection entirely. Strip one trailing numeric token before comparing; real body prose
+    essentially never repeats its own non-numeric prefix verbatim across several of a paper's own pages."""
+    return _TRAILING_NUMBER.sub("", _normalize_space(text))
+
+
+def exclude_repeated_boilerplate_chunks(chunks: list[SourceChunk]) -> list[SourceChunk]:
+    """Drop chunks whose text is short and recurs verbatim (modulo a trailing page number) across several of
+    the SAME paper's own pages -- a running header/footer, not real content (complementary to
+    is_front_matter_chunk above, which is purely content-pattern-based and doesn't catch a plain title-case
+    running header with no DOI/superscript/volume fingerprint). Never a cross-paper comparison, and never drops
+    a paper's ENTIRE candidate set (falls back to the unfiltered chunks for that paper if every one of its
+    chunks would otherwise qualify) -- mirrors this codebase's existing "front matter is never dropped
+    outright" philosophy (_select_no_query's own docstring) at the paper level, while still excluding real
+    noise at the chunk level for the common case."""
+    by_paper: dict[int, list[SourceChunk]] = {}
+    for chunk in chunks:
+        by_paper.setdefault(chunk.paper_id, []).append(chunk)
+    kept_ids: set[int] = set()
+    for paper_chunks in by_paper.values():
+        pages_by_text: dict[str, set[int]] = {}
+        for chunk in paper_chunks:
+            pages_by_text.setdefault(_repetition_key(chunk.text), set()).add(chunk.page_start)
+        boilerplate_keys = {
+            key
+            for key, pages in pages_by_text.items()
+            if len(key.split()) <= REPEATED_BOILERPLATE_MAX_WORDS and len(pages) >= REPEATED_BOILERPLATE_MIN_PAGE_COUNT
+        }
+        survivors = [c for c in paper_chunks if _repetition_key(c.text) not in boilerplate_keys]
+        kept_ids.update((c.chunk_id for c in (survivors if survivors else paper_chunks)))
+    return [c for c in chunks if c.chunk_id in kept_ids]

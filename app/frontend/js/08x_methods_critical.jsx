@@ -56,10 +56,11 @@ function FindingCard({ finding, onReviewed, onOpenPaper }) {
   );
 }
 
-function ScrutinyBackboneView({ backbone, onOpen }) {
+function ScrutinyBackboneView({ backbone, onOpen, triageOnly }) {
   const ms = backbone.method_signals || [];
-  const cc = backbone.contested_claims || [];
-  const nothing = !ms.length && !cc.length && !backbone.citation_signal;
+  const ccAll = backbone.contested_claims || [];
+  const cc = ccAll.filter(c => critiqueTriageVisible(c, triageOnly));
+  const nothing = !ms.length && !ccAll.length && !backbone.citation_signal;
   return (
     <div className="cr-backbone">
       <p className="eyebrow">What the checks surfaced (facts)</p>
@@ -79,7 +80,9 @@ function ScrutinyBackboneView({ backbone, onOpen }) {
             <a className="btn-link" href={s.notice_url} target="_blank" rel="noopener noreferrer">notice</a>}
         </div>
       ))}
-      {cc.length > 0 && <p className="eyebrow">Claims your corpus contests</p>}
+      {ccAll.length > 0 && <p className="eyebrow">Claims your corpus contests</p>}
+      {ccAll.length > 0 && !cc.length &&
+        <div className="tag-suggest-empty">All {ccAll.length} contested claim(s) here were triaged as lower-yield — switch to “All rows” to see them.</div>}
       {cc.map((c, i) => (
         <div key={"cc" + i} className="bayes-check-item">
           <div className="bayes-check-note"><b>This paper:</b> “{c.claim}”</div>
@@ -88,6 +91,7 @@ function ScrutinyBackboneView({ backbone, onOpen }) {
             Contested by another paper: “{c.passage}”
           </button>
           <div className="lmm-basis">stance: {c.stance} · confidence {Math.round((c.confidence || 0) * 100)}%</div>
+          <TriageBadge triage={c.llm_triage} />
         </div>
       ))}
     </div>
@@ -101,6 +105,7 @@ function CriticalCandidate({ c, onAccept, onReject }) {
       <div className="cr-quote">“{c.anchor_quote}”</div>
       {c.confidence != null &&
         <div className="lmm-basis">stance: {c.stance || "—"} · confidence {Math.round(c.confidence * 100)}%</div>}
+      <TriageBadge triage={c.llm_triage} />
       {c.status === "accepted"
         ? <span className="cite-status verified">✓ accepted</span>
         : <div className="cr-actions">
@@ -118,7 +123,12 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
   const [cands, setCands] = useState(null);          // Tier-2 candidates
   const [gen, setGen] = useState("idle");            // idle|generating|error
   const [findingCands, setFindingCands] = useState([]);  // paper_findings CANDIDATEs (e.g. statcheck-flagged issues)
+  const [wantLlm, setWantLlm] = useState(false);      // "Suggest critiques" toggle -- auto-chains after Tier-1
+  const [wantTriage, setWantTriage] = useState(false);
+  const [triageOnly, setTriageOnly] = useState(false);
   const t1PollRef = useRef(null);
+  const autoChainRef = useRef(false);   // was Tier-2 requested for the run currently in flight?
+  const generateRef = useRef(null);     // kept current below -- lets pollT1Job's onDone auto-chain safely
 
   const activeJobKey = paperId == null ? null : `callosum.active-job.critical-read.${paperId}`;
   const pollT1Job = useCallback((jobId) => {
@@ -130,6 +140,7 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
         t1PollRef.current = null;
         if (activeJobKey) rememberActiveJob(activeJobKey, null);
         setT1({ status: "done", backbone: data.backbone, jobId });
+        if (autoChainRef.current && generateRef.current) { autoChainRef.current = false; generateRef.current(); }
       },
       onError: error => {
         t1PollRef.current = null;
@@ -176,17 +187,19 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
   useEffect(() => { api("/settings").then(r => { if (r.ok) setAiReady(Boolean(r.data.data_egress_enabled)); }); }, []);
 
   const runT1 = () => {
+    autoChainRef.current = wantLlm;
     setT1({ status: "running" });
-    apiPost(`/papers/${paperId}/critical-read`, {}).then(r => {
+    apiPost(`/papers/${paperId}/critical-read`, { triage: wantTriage }).then(r => {
       if (!r.ok) { setT1({ status: "error", error: r.error }); return; }
       pollT1Job(r.data.job_id);
     });
   };
   const generate = async () => {
     setGen("generating");
-    const r = await apiPost(`/papers/${paperId}/critical-read/candidates/generate`, {});
+    const r = await apiPost(`/papers/${paperId}/critical-read/candidates/generate`, { triage: wantTriage });
     if (r.ok) { setCands(r.data.candidates); setGen("idle"); } else setGen("error");
   };
+  generateRef.current = generate;
   const act = async (cid, action) => {
     const r = await apiPost(`/critical-read/candidates/${cid}/${action}`, {});
     if (!r.ok) return;
@@ -197,7 +210,13 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
   const open = (pid, page) => { if (onOpenPaper && page != null) onOpenPaper({ id: pid }, { page, precision: "region" }); };
 
   if (paperId == null) return <div className="tag-suggest-empty">Select a paper to read it critically.</div>;
-  const shown = (cands || []).filter(c => c.status !== "rejected");
+  const shownAll = (cands || []).filter(c => c.status !== "rejected");
+  const shown = shownAll.filter(c => critiqueTriageVisible(c, triageOnly));
+  const hasTriage = ((t1.backbone && t1.backbone.contested_claims) || []).some(c => c.llm_triage)
+    || shownAll.some(c => c.llm_triage);
+  const hiddenCount = shownAll.length - shownAll.filter(c => critiqueTriageVisible(c, true)).length
+    + (((t1.backbone && t1.backbone.contested_claims) || []).length
+      - ((t1.backbone && t1.backbone.contested_claims) || []).filter(c => critiqueTriageVisible(c, true)).length);
   return (
     <div className="detail-statcheck">
       <span className="detail-cite-label">{meta ? meta.title : "This paper"}</span>
@@ -209,13 +228,20 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
       {meta && !meta.hasText &&
         <span className="tag-suggest-empty">Process a PDF first — the critical read needs the paper’s text.</span>}
       {meta && meta.hasText && t1.status === "idle" &&
-        <button className="btn btn-primary" onClick={runT1}
-          title="Compose this paper's method-check flags + any corpus-contested claims — local, no AI">
-          Run critical read
-        </button>}
+        <div className="cr-run-toggles">
+          <CritiqueRunToggles wantLlm={wantLlm} setWantLlm={setWantLlm} wantTriage={wantTriage}
+            setWantTriage={setWantTriage} aiReady={aiReady} suggestLabel="Suggest critiques (AI)" />
+          <button className="btn btn-primary" onClick={runT1}
+            title="Compose this paper's method-check flags + any corpus-contested claims — local, no AI">
+            Run critical read
+          </button>
+        </div>}
       {t1.status === "running" && <ProgressBar label="Assembling the scrutiny surface…" managedBy="backend-job" />}
       {t1.status === "error" && <div className="axis-err">Couldn’t assemble: {t1.error}</div>}
-      {t1.status === "done" && t1.backbone && <ScrutinyBackboneView backbone={t1.backbone} onOpen={open} />}
+      {t1.status === "done" && t1.backbone &&
+        <TriageFilterControls hasTriage={hasTriage} triageOnly={triageOnly} onView={setTriageOnly} hiddenCount={hiddenCount} />}
+      {t1.status === "done" && t1.backbone &&
+        <ScrutinyBackboneView backbone={t1.backbone} onOpen={open} triageOnly={triageOnly} />}
       {isDemoMode() && <div className="settings-note">Saved deterministic critical read. Reruns and AI critique generation require the local Callosum application.</div>}
 
       {findingCands.length > 0 &&
@@ -232,10 +258,12 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
           ? <div className="tag-suggest-empty">Enable AI features in Settings for AI-suggested critiques — the facts above need no AI.</div>
           : <button className="btn-link" disabled={gen === "generating"} onClick={generate}
               title="The AI proposes concerns; each must quote the paper verbatim, and you confirm or reject it.">
-              {gen === "generating" ? "Suggesting…" : "Suggest critiques (AI)"}
+              {gen === "generating" ? "Suggesting…" : cands ? "Suggest more critiques (AI)" : "Suggest critiques (AI)"}
             </button>}
         {gen === "generating" && <ProgressBar label="Suggesting and locally verifying critiques…" managedBy="tracked-request" />}
         {gen === "error" && <div className="axis-err">Couldn’t suggest critiques — is AI enabled with a key (Settings)?</div>}
+        {shownAll.length > 0 && !shown.length &&
+          <div className="tag-suggest-empty">All {shownAll.length} candidate(s) here were triaged as lower-yield — switch to “All rows” to see them.</div>}
         {shown.map(c => <CriticalCandidate key={c.id} c={c} onAccept={() => act(c.id, "accept")} onReject={() => act(c.id, "reject")} />)}
       </div>
     </div>

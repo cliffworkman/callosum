@@ -52,7 +52,8 @@ class RelevanceItem(BaseModel):
 
 
 class RelevanceRequest(BaseModel):
-    items: list[RelevanceItem] = Field(min_length=1, max_length=50)
+    # 200 matches Feed's own default page size (feed_view's limit=200) — Search never sends more than 25.
+    items: list[RelevanceItem] = Field(min_length=1, max_length=200)
 
 
 class SaveRequest(BaseModel):

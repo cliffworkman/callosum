@@ -438,9 +438,6 @@ def capture(output: Path) -> DemoExtendedState:
                     funding_reports={str(funding_report["run_id"]): DemoFundingReport.model_validate(funding_report)},
                     saved_funding=[],
                     followed_authors=_must(client.get("/followed-authors"), "followed authors"),
-                    followed_author_candidates=_must(
-                        client.get("/followed-authors/candidates"), "followed-author candidates"
-                    )["candidates"],
                     citation_gaps=CitationGapListResponse.model_validate(citation_gaps),
                     emerging_topics=EmergingTopicListResponse.model_validate(emerging_topics),
                     citing_authors=CitingAuthorListResponse.model_validate(citing_authors),

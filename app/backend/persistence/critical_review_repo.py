@@ -50,6 +50,14 @@ def set_status(conn: Connection, candidate_id: int, status: str) -> bool:
     return result.rowcount > 0
 
 
+def list_candidates_by_ids(conn: Connection, candidate_ids: list[int]) -> list[dict[str, Any]]:
+    """Candidates by an explicit id set, oldest first — the set-critique triage path spans several paper_ids."""
+    if not candidate_ids:
+        return []
+    query = select(cands).where(cands.c.id.in_(candidate_ids)).order_by(cands.c.id)
+    return [dict(row._mapping) for row in conn.execute(query)]
+
+
 def rejected_signatures(conn: Connection, paper_id: int) -> set[str]:
     """The signatures of this paper's rejected candidates — never re-proposed."""
     query = select(cands.c.signature).where(cands.c.paper_id == paper_id, cands.c.status == "rejected")

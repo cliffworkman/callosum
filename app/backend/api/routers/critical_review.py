@@ -28,6 +28,11 @@ from app.backend.api.dependencies import (
 )
 from app.backend.api.job_store import JobStore
 from app.backend.api.job_timing import critical_read_timing_key
+from app.backend.api.routers.critical_review_triage import (
+    triage_and_persist_candidates,
+    triage_contested,
+    triage_contested_dicts,
+)
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore
 from app.backend.methods.critical_review import (
     build_scrutiny_backbone,
@@ -50,6 +55,7 @@ class ContestedClaimResponse(BaseModel):
     page: int | None = None
     stance: str
     confidence: float
+    llm_triage: dict | None = None  # optional, reversible display annotation — never persisted (ephemeral per-run)
 
 
 class MethodSignalResponse(BaseModel):
@@ -63,6 +69,11 @@ class ScrutinyBackboneResponse(BaseModel):
     method_signals: list[MethodSignalResponse] = []
     citation_signal: dict | None = None
     contested_claims: list[ContestedClaimResponse] = []
+    triage_status: dict | None = None
+
+
+class CriticalReadStartRequest(BaseModel):
+    triage: bool = False
 
 
 class CriticalReadStartResponse(BaseModel):
@@ -86,10 +97,15 @@ class CandidateResponse(BaseModel):
     stance: str | None = None
     confidence: float | None = None
     status: str
+    llm_triage: dict | None = None  # persisted, reversible display annotation — read-time attached + staleness-aware
 
 
 class CandidateListResponse(BaseModel):
     candidates: list[CandidateResponse] = []
+
+
+class GenerateCandidatesRequest(BaseModel):
+    triage: bool = False
 
 
 class CandidateStatusResponse(BaseModel):
@@ -114,16 +130,21 @@ def _cr_deps(app: FastAPI):
     status_code=http_status.HTTP_202_ACCEPTED,
 )
 def critical_read_start(
-    paper_id: int, background_tasks: BackgroundTasks, request: Request, conn: Connection = Depends(get_connection)
+    paper_id: int,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    body: CriticalReadStartRequest | None = None,
+    conn: Connection = Depends(get_connection),
 ) -> CriticalReadStartResponse:
     # Async (embeds + NLI over the corpus is slow): returns a job id to poll. Validate the paper first. Tier 1 is
-    # fully local — no egress gate here; egress applies only to the Tier-2 candidate generator (a later endpoint).
+    # fully local — no egress gate here; egress applies only to Tier 2 and the optional triage stage below.
     try:
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
     job_id = request.app.state.critical_review_jobs.create(nav={"paper_id": paper_id})
-    background_tasks.add_task(_run_critical_read_job, request.app, job_id, paper_id)
+    want_triage = bool(body.triage) if body else False
+    background_tasks.add_task(_run_critical_read_job, request.app, job_id, paper_id, want_triage)
     return CriticalReadStartResponse(job_id=job_id, status="pending")
 
 
@@ -142,7 +163,7 @@ async def critical_read_status(
     return CriticalReadJobResponse(job_id=job_id, status=job.status, detail=job.detail)
 
 
-def _run_critical_read_job(app: FastAPI, job_id: str, paper_id: int) -> None:
+def _run_critical_read_job(app: FastAPI, job_id: str, paper_id: int, want_triage: bool = False) -> None:
     jobs: JobStore[CriticalReadJobResponse] = app.state.critical_review_jobs
     jobs.mark_running(job_id)
     try:
@@ -164,8 +185,27 @@ def _run_critical_read_job(app: FastAPI, job_id: str, paper_id: int) -> None:
                     job_id, key, label, timing_key=calibration_key, workload_size=size
                 ),
             )
-            jobs.mark_stage(job_id, "finalizing_result", "Finalizing result", timing_key=calibration_key)
             backbone = build_scrutiny_backbone(conn, paper_id, contested_claims=contested)
+        contested_responses = [
+            ContestedClaimResponse(
+                claim=c.claim,
+                passage=c.passage,
+                other_paper_id=c.other_paper_id,
+                page=c.page,
+                stance=c.stance,
+                confidence=c.confidence,
+            )
+            for c in backbone.contested_claims
+        ]
+        triage_status = None
+        if want_triage:
+            # No DB connection held during the triage provider call (LATENCY.md), mirroring inc-494's Overview
+            # discipline — the connection above is already closed by this point.
+            jobs.mark_stage(
+                job_id, "triaging_claims", "Triaging claims with AI", timing_key=calibration_key, variable=True
+            )
+            triage_status = triage_contested(app, contested_responses)
+        jobs.mark_stage(job_id, "finalizing_result", "Finalizing result", timing_key=calibration_key)
         jobs.mark_done(
             job_id,
             CriticalReadJobResponse(
@@ -174,17 +214,8 @@ def _run_critical_read_job(app: FastAPI, job_id: str, paper_id: int) -> None:
                 backbone=ScrutinyBackboneResponse(
                     method_signals=[MethodSignalResponse(**signal) for signal in backbone.method_signals],
                     citation_signal=backbone.citation_signal,
-                    contested_claims=[
-                        ContestedClaimResponse(
-                            claim=c.claim,
-                            passage=c.passage,
-                            other_paper_id=c.other_paper_id,
-                            page=c.page,
-                            stance=c.stance,
-                            confidence=c.confidence,
-                        )
-                        for c in backbone.contested_claims
-                    ],
+                    contested_claims=contested_responses,
+                    triage_status=triage_status,
                 ),
             ),
         )
@@ -194,7 +225,12 @@ def _run_critical_read_job(app: FastAPI, job_id: str, paper_id: int) -> None:
 
 @router.get("/papers/{paper_id}/critical-read/candidates", response_model=CandidateListResponse)
 def critical_read_candidates(paper_id: int, conn: Connection = Depends(get_connection)) -> CandidateListResponse:
+    from app.backend.methods.critical_review_triage import TRIAGE_PROMPT_VERSION
+    from app.backend.persistence import critical_review_triage_repo as triage_repo
+
     rows = repo.list_candidates(conn, paper_id)
+    stored = triage_repo.load_candidate_triage(conn, [r["id"] for r in rows])
+    attached = triage_repo.attach_candidate_triage(rows, stored, current_prompt_version=TRIAGE_PROMPT_VERSION)
     return CandidateListResponse(
         candidates=[
             CandidateResponse(
@@ -206,6 +242,7 @@ def critical_read_candidates(paper_id: int, conn: Connection = Depends(get_conne
                 stance=r["stance"],
                 confidence=r["confidence"],
                 status=r["status"],
+                llm_triage=attached.get(r["id"]),
             )
             for r in rows
         ]
@@ -214,7 +251,10 @@ def critical_read_candidates(paper_id: int, conn: Connection = Depends(get_conne
 
 @router.post("/papers/{paper_id}/critical-read/candidates/generate", response_model=CandidateListResponse)
 def generate_candidates(
-    paper_id: int, request: Request, conn: Connection = Depends(get_connection)
+    paper_id: int,
+    request: Request,
+    body: GenerateCandidatesRequest | None = None,
+    conn: Connection = Depends(get_connection),
 ) -> CandidateListResponse:
     # Tier 2 (egress-gated, invariant #3): the LLM PROPOSES concerns; each is admitted only through the #13
     # verbatim bar (verify_candidates → canonical_text_contains), annotated with a local NLI stance, and persisted
@@ -247,7 +287,10 @@ def generate_candidates(
         stance_scorer=stance_scorer,
         rejected_signatures=repo.rejected_signatures(conn, paper_id),
     )
-    repo.insert_candidates(conn, paper_id, verified)
+    ids = repo.insert_candidates(conn, paper_id, verified)
+    if body and body.triage and ids:
+        candidates_for_triage = [{**cand, "id": cid} for cand, cid in zip(verified, ids, strict=False)]
+        triage_and_persist_candidates(request.app, conn, candidates_for_triage)
     conn.commit()
     return critical_read_candidates(paper_id, conn)
 
@@ -276,6 +319,7 @@ MAX_SET_PAPERS = 12
 class SetCriticalReadRequest(BaseModel):
     paper_ids: list[int]
     llm: bool = False
+    triage: bool = False
 
 
 class SetCriticalReadResponse(BaseModel):
@@ -301,7 +345,7 @@ def set_critical_read_start(
         except NoResultFound:
             raise HTTPException(status_code=404, detail=f"Paper {pid} not found") from None
     job_id = request.app.state.critical_review_set_jobs.create(nav={"paper_ids": ids})
-    background_tasks.add_task(_run_set_critical_read_job, request.app, job_id, ids, bool(body.llm))
+    background_tasks.add_task(_run_set_critical_read_job, request.app, job_id, ids, bool(body.llm), bool(body.triage))
     return SetCriticalReadResponse(job_id=job_id, status="pending")
 
 
@@ -320,7 +364,9 @@ async def set_critical_read_status(
     return SetCriticalReadResponse(job_id=job_id, status=job.status, detail=job.detail)
 
 
-def _run_set_critical_read_job(app: FastAPI, job_id: str, set_ids: list[int], want_llm: bool) -> None:
+def _run_set_critical_read_job(
+    app: FastAPI, job_id: str, set_ids: list[int], want_llm: bool, want_triage: bool = False
+) -> None:
     from app.backend.methods.critical_review_set import set_aggregate, set_contested_claims
 
     jobs: JobStore[SetCriticalReadResponse] = app.state.critical_review_set_jobs
@@ -357,10 +403,17 @@ def _run_set_critical_read_job(app: FastAPI, job_id: str, set_ids: list[int], wa
                 workload_size=len(set_ids),
                 variable=True,
             )
-            llm_status, candidates = _run_set_tier2(app, set_ids, stance_scorer)
+            llm_status, candidates = _run_set_tier2(app, set_ids, stance_scorer, want_triage)
         else:
             llm_status = {"status": "not_searched", "detail": "AI critique was not requested for this run."}
             candidates = []
+        triage_status = None
+        if want_triage:
+            # No DB connection is held during this provider call -- the connection above already closed.
+            jobs.mark_stage(
+                job_id, "triaging_claims", "Triaging claims with AI", timing_key=calibration_key, variable=True
+            )
+            triage_status = triage_contested_dicts(app, contested)
         jobs.mark_stage(job_id, "finalizing_result", "Finalizing result", timing_key=calibration_key)
         jobs.mark_done(
             job_id,
@@ -372,6 +425,7 @@ def _run_set_critical_read_job(app: FastAPI, job_id: str, set_ids: list[int], wa
                     "contested_claims": contested,
                     "candidates": candidates,
                     "llm_status": llm_status,
+                    "triage_status": triage_status,
                 },
             ),
         )
@@ -379,7 +433,9 @@ def _run_set_critical_read_job(app: FastAPI, job_id: str, set_ids: list[int], wa
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
 
 
-def _run_set_tier2(app: FastAPI, set_ids: list[int], stance_scorer) -> tuple[dict, list[dict]]:
+def _run_set_tier2(
+    app: FastAPI, set_ids: list[int], stance_scorer, want_triage: bool = False
+) -> tuple[dict, list[dict]]:
     # Tier 2 (egress-gated, invariant #3): the LLM proposes CROSS-PAPER concerns; each is admitted only through the
     # extended #13 bar (verify_set_candidates → verbatim anchor in some set paper), annotated with a local NLI stance,
     # and persisted as a pending CANDIDATE the human accepts/rejects. A fake generator (test seam) still honors the gate.
@@ -423,5 +479,16 @@ def _run_set_tier2(app: FastAPI, set_ids: list[int], stance_scorer) -> tuple[dic
                 response.append(
                     {**cand, "id": cid, "status": "pending", "related_paper_ids_json": cand.get("related_paper_ids")}
                 )
+    if want_triage and response:
+        # A separate, later connection -- no DB connection is held during either provider call (LATENCY.md).
+        from app.backend.methods.critical_review_triage import TRIAGE_PROMPT_VERSION
+        from app.backend.persistence import critical_review_triage_repo as triage_repo
+
+        with engine.begin() as conn2:
+            triage_and_persist_candidates(app, conn2, response)
+            stored = triage_repo.load_candidate_triage(conn2, [c["id"] for c in response])
+        attached = triage_repo.attach_candidate_triage(response, stored, current_prompt_version=TRIAGE_PROMPT_VERSION)
+        for cand in response:
+            cand["llm_triage"] = attached.get(cand["id"])
     detail = None if response else "No grounded cross-paper concerns surfaced."
     return {"status": "success", "count": len(response), "detail": detail}, response

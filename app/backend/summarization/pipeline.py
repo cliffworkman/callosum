@@ -22,7 +22,7 @@ from app.backend.persistence.schema import (
     summaries,
     summary_sentences,
 )
-from app.backend.summarization.chunk_filtering import is_front_matter_chunk
+from app.backend.summarization.chunk_filtering import exclude_repeated_boilerplate_chunks, is_front_matter_chunk
 from app.backend.summarization.generators import CandidateCitation, SourceChunk, SummaryGenerator
 from app.backend.summarization.verification import (
     LocalCitationVerifier,
@@ -217,6 +217,7 @@ def _source_chunks_for_scope(
     if scope.sections:
         stmt = stmt.where(chunks.c.section.in_(scope.sections))
     rows = [_source_chunk_from_row(row) for row in conn.execute(stmt).mappings()]
+    rows = exclude_repeated_boilerplate_chunks(rows)
     if scope.query:
         return _rank_chunks_for_query(
             conn,

@@ -498,7 +498,7 @@ def test_feed_snapshot_requires_exact_human_approval_digest():
         )
 
 
-def test_saved_discover_fixture_preserves_reviewed_feed_and_unique_followed_author_candidates():
+def test_saved_discover_fixture_preserves_reviewed_feed_and_followed_authors():
     extended = DemoExtendedState.model_validate_json(Path("demo/extended-state-v1.json").read_bytes())
     feed = extended.feed
     assert feed.included is True
@@ -506,9 +506,8 @@ def test_saved_discover_fixture_preserves_reviewed_feed_and_unique_followed_auth
     assert len(feed.items) == 1240  # the static provider applies the live endpoint's 200-item default at read time
     assert any(item.is_read for item in feed.items)
     assert any(item.in_library for item in feed.items)
-    candidates = extended.discover.followed_author_candidates
-    keys = [item.openalex_work_id or item.doi or (item.title or "").casefold() for item in candidates]
-    assert len(keys) == len(set(keys)) == 50
+    assert len(extended.discover.followed_authors) == 1  # the tab's gap-candidate view was retired 2026-08-27;
+    # the follow list itself (now surfaced via Feed's own pills, not a separate tab) is unaffected
 
 
 def test_demo_runtime_has_bounded_feed_local_state_locks_and_static_funding_export():

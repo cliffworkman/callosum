@@ -234,6 +234,59 @@ def test_summary_section_filter_limits_source_chunks_without_changing_verificati
     assert result["sentences"][0]["citations"][0]["section"] == "methods"
 
 
+def test_source_chunks_for_scope_excludes_repeated_running_header(temp_db_url: str) -> None:
+    # backlog #58: an unscoped ("all sections") synthesis surfaced repeated per-page running-header text as
+    # if it were real evidence. Confirm the wiring in _source_chunks_for_scope actually excludes it.
+    engine = make_engine(temp_db_url)
+    header_text = "Workman et al. The running-header line"
+    with engine.begin() as conn:
+        paper_id = create_paper(conn, title="Headered", csl_json={"title": "Headered"})
+        attachment_id = create_attachment(
+            conn,
+            paper_id=paper_id,
+            storage_mode="linked",
+            availability="available",
+            content_type="application/pdf",
+            checksum="headered",
+        )
+        for page in (1, 2, 3):
+            create_chunk(
+                conn,
+                paper_id=paper_id,
+                attachment_id=attachment_id,
+                text=header_text,
+                page_start=page,
+                page_end=page,
+                bbox_coordinate_system="pdf-points-top-left",
+                extraction_tool="fixture",
+                extraction_version="1",
+                chunking_strategy="paragraph",
+                chunk_version=f"header-v{page}",
+                source_attachment_checksum="headered",
+                section="discussion",
+            )
+        content_chunk = create_chunk(
+            conn,
+            paper_id=paper_id,
+            attachment_id=attachment_id,
+            text="Anomalous faces were rated as less trustworthy than typical faces.",
+            page_start=2,
+            page_end=2,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="fixture",
+            extraction_version="1",
+            chunking_strategy="paragraph",
+            chunk_version="content-v1",
+            source_attachment_checksum="headered",
+            section="discussion",
+        )
+        model, store = ApiFakeEmbeddingModel(), InMemoryVectorStore()
+        scope = SummaryScope(scope_type="papers", paper_ids=[paper_id])
+        source_chunks = _source_chunks_for_scope(conn, scope=scope, model=model, vector_store=store, top_k=10)
+
+    assert [chunk.chunk_id for chunk in source_chunks] == [content_chunk]
+
+
 def test_summary_section_filter_rejects_unknown_keys(temp_db_url: str) -> None:
     client = TestClient(_summarization_app(temp_db_url))
 
