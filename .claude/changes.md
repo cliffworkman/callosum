@@ -9,6 +9,18 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 515: closes Word/Docs parity P0 (bibliography-bounds review + safer Flatten)
+- **Files:** `adapters/word/taskpane.{js,html}`, `adapters/word/README.md`, `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/increment-notes/INCREMENT-515-NOTES.md`.
+- **What:** the bibliography-bounds review confirmed Word's Content-Control-bounded bibliography is already
+  structurally safe (no code change) — Word gets for free the safety property LibreOffice needed several
+  dedicated increments to earn. Flatten now shows a pre-confirm citation/bibliography count, an honest
+  "Callosum can't save a copy for you" note (Office.js has no `saveAs`, confirmed via research), an opt-in
+  checkbox to also clear the one piece of add-in document metadata that exists, and a post-flatten integrity
+  re-scan rather than assuming the delete calls all landed.
+- **Why:** closes out the last two P0 items on the Word/Docs parity roadmap before moving to P1.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 514: a combined dev launcher so Word's server can't silently drift from the main one
 - **Files:** new `tools/run_dev.py`, `adapters/word/README.md`, `README.md`, `.claude/CLAUDE.md`,
   `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/docs/increment-notes/INCREMENT-514-NOTES.md`.

@@ -85,7 +85,13 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
 - **Citation style** — changing the dropdown re-renders the whole document in the new style (the choice is
   remembered per document).
 - **Flatten to static text** — convert the live citation + bibliography fields to plain text for hand-off
-  (two-click confirm; **one-way**).
+  (two-click confirm; **one-way**). The first click shows exactly how many citations (and whether the
+  bibliography) will be affected before you confirm; after flattening, Callosum re-scans the document to
+  confirm nothing is left live rather than just assuming the operation worked. Office.js has no way for an
+  add-in to save a copy of your document on your behalf (confirmed, not a missed feature) — the confirm
+  message reminds you to use **File → Save As** first if you want to keep the live version too. An optional
+  **"Also clear Callosum's saved style setting"** checkbox removes the one piece of Callosum-specific document
+  metadata this add-in stores (your chosen citation style), for a cleaner hand-off copy.
 
 ## How it works (for the curious)
 The task pane is served by callosum at `https://localhost:8443/integrations/word/taskpane.html` and its API calls
@@ -100,6 +106,12 @@ end. The only external load is **office.js** from Microsoft's CDN: that is the O
 must load (it cannot use Subresource Integrity because Microsoft updates it in place); it is not callosum sending
 your data anywhere. All formatting happens in callosum's bundled citeproc engine, so the output matches the in-app
 "Cite as…" and the LibreOffice adapter.
+
+**Bibliography-write safety (verified, inc 515):** the References block is a Word Content Control, an
+inherently bounded range — Refresh's `insertText(..., replace)` only ever touches text *inside* that control,
+never anything past it. This is a structurally different (and safer) data model than a bookmark-delimited
+range, which is why Word never needed the dedicated hardening work the LibreOffice adapter's own bibliography
+implementation did (incs 374-384) — Word gets the same safety property for free from Content Controls.
 
 ## Credit
 The live-field / embedded-CSL-JSON cite design follows the **Zotero `CSL_CITATION` field convention** (reused as a
@@ -145,7 +157,9 @@ The bibliography lives at the document end (no chapter/section-scoped bibliograp
 adapter for that, still Word/Docs-only work); no native footnote/endnote placement yet (every citation is
 in-text); Suggest covers papers **already in your library** (beyond-library discovery is a separate track);
 desktop requires the HTTPS run-mode + the trusted dev cert. Word-on-the-web needs the relay above; Google Docs
-has its own adapter (`adapters/googledocs/`).
+has its own adapter (`adapters/googledocs/`). Office.js has no `saveAs` — Flatten can't save a copy of your
+document for you before converting it, only tell you to (a real platform limitation, confirmed via Microsoft's
+own API surface, not a missed feature).
 
 Existing **Mendeley Cite** and **EndNote Cite While You Write** fields are not converted. Their vendors document
 the outer Word mechanism (content controls for Mendeley Cite; `ADDIN EN.CITE` fields for EndNote), but not a

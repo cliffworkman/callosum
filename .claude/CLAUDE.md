@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 514** (see Increment workflow) with **2563 root-suite pytest tests
+It is currently at **Increment 515** (see Increment workflow) with **2563 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -550,7 +550,13 @@ the full per-increment narrative for all other increments now lives in the reloc
   together if either dies — `adapters/word/README.md`'s setup now points at it as the primary path. **Word has
   never worked in the packaged Tauri desktop app** (confirmed via `backend.rs`: random port per launch, plain
   HTTP only, no Word wiring) — backlogged as its own item (`INCREMENT-BACKLOG.md` #33/#34), not silently
-  scoped out. See `INCREMENT-514-NOTES.md`.
+  scoped out. See `INCREMENT-514-NOTES.md`. **Inc 515 closes the parity roadmap's P0 remainder**: verified
+  Word's Content-Control-bounded bibliography is already structurally safe against the exact data-loss hazard
+  the roadmap doc flagged for LibreOffice's original bookmark-based approach (no code change needed — Word
+  gets this property for free); Flatten now shows a pre-confirm citation/bibliography count, an honest
+  "Callosum can't save a copy for you" reminder (Office.js has no `saveAs`, confirmed via research not
+  assumed), an opt-in checkbox clearing the add-in's one piece of document metadata, and a post-flatten
+  integrity re-scan instead of assuming success. See `INCREMENT-515-NOTES.md`.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -1328,7 +1334,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 514). Each increment of real work
+callosum is built in **numbered increments** (currently at 515). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

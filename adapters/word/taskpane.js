@@ -544,17 +544,35 @@
     await refreshDocument();
   }
 
-  // Flatten = convert citation + bibliography Content Controls to plain text (one-way). Two-click confirm — no dialog.
+  // Flatten = convert citation + bibliography Content Controls to plain text (one-way). Two-click confirm — no
+  // dialog. Office.js has no saveAs (confirmed by research, not assumed) -- an add-in cannot save a copy on
+  // the user's behalf, so the honest move is telling them to do it themselves before confirming, not silently
+  // omitting that safety net the way a bare "click again" would.
   var flattenArmed = false;
-  function onFlatten() {
+  async function onFlatten() {
     if (!flattenArmed) {
+      var citationCount = 0, hasBib = false;
+      await Word.run(async function (ctx) {
+        var ccs = ctx.document.body.contentControls;
+        ccs.load("items/tag");
+        await ctx.sync();
+        ccs.items.forEach(function (cc) {
+          if (CallosumCore.isCitationTag(cc.tag)) citationCount += 1;
+          else if (cc.tag === CallosumCore.BIB_TAG) hasBib = true;
+        });
+      });
       flattenArmed = true;
       $("flatten").textContent = "Click again to flatten (one-way)";
-      setStatus("Flatten makes every citation + the bibliography plain text — click again to confirm.");
+      setStatus(
+        "This will flatten " + citationCount + " citation(s)" + (hasBib ? " + the bibliography" : "") +
+          " to plain text. Callosum can't undo this or save a copy for you — consider File → Save As " +
+          "first (Word's own Ctrl+Z should still work). Click again to confirm.",
+        true,
+      );
       setTimeout(function () {
         flattenArmed = false;
         $("flatten").textContent = "Flatten to static text";
-      }, 4000);
+      }, 8000);
       return;
     }
     flattenArmed = false;
@@ -564,7 +582,7 @@
   async function doFlatten() {
     setStatus("Flattening…");
     try {
-      var n = 0;
+      var n = 0, remaining = 0;
       await Word.run(async function (ctx) {
         var ccs = ctx.document.body.contentControls;
         ccs.load("items/tag");
@@ -576,8 +594,26 @@
           }
         });
         await ctx.sync();
+        // Post-flatten integrity check: re-scan rather than trust the delete calls above all landed.
+        var after = ctx.document.body.contentControls;
+        after.load("items/tag");
+        await ctx.sync();
+        after.items.forEach(function (cc) {
+          if (CallosumCore.isCitationTag(cc.tag) || cc.tag === CallosumCore.BIB_TAG) remaining += 1;
+        });
       });
-      setStatus("Flattened " + n + " field(s) to static text — live updating is off for them now.");
+      if ($("flattenClearStyle").checked) {
+        try {
+          Office.context.document.settings.remove("callosumStyle");
+          Office.context.document.settings.saveAsync(function () {});
+        } catch (e) { /* settings unavailable -- flatten itself already succeeded, not worth failing over */ }
+      }
+      setStatus(
+        remaining === 0
+          ? "Flattened " + n + " field(s) to static text — verified none remain live."
+          : "Flattened " + n + " field(s), but " + remaining + " still show as live — Refresh and check manually.",
+        remaining !== 0,
+      );
     } catch (e) {
       setStatus("Couldn't flatten: " + ((e && e.message) || e), true);
     }

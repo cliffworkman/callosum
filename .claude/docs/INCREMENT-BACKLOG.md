@@ -169,9 +169,12 @@ the Principles + A-A gates before build.)*
       `INCREMENT-512-NOTES.md`. **Inc 513 fixed a second real bug found live**: orphan detection wasn't
       trash-aware (sourced from `check-selected`'s `not_found`, whose internal lookup has no `deleted_at`
       filter) — now uses a trash-aware per-id `/papers/export` existence check instead — see
-      `INCREMENT-513-NOTES.md`. **Still not started:** a bibliography-bounds safety review (Word's content-
-      control-bounded bibliography may already be safer than the roadmap's LibreOffice-bookmark critique —
-      verify, don't assume); safer Flatten (count summary, optional link-retention).
+      `INCREMENT-513-NOTES.md`. **P0 fully closed, inc 515**: the bibliography-bounds safety review confirmed
+      Word's Content-Control-bounded bibliography is structurally safe already (no code change needed — Word
+      gets the safety property LibreOffice needed incs 374-384 to earn, for free from its data model); Flatten
+      now shows a pre-confirm citation/bibliography count, an honest "Callosum can't save a copy for you"
+      reminder (Office.js has no `saveAs`, confirmed), an opt-in style-setting cleanup, and a post-operation
+      integrity re-scan — see `INCREMENT-515-NOTES.md`.
     - **P1 (not started):** note-style (footnote/endnote) citation placement (needs Word's own `noteIndex`
       computation from scratch — no existing infra, unlike LibreOffice's `_note_containers`); a persistent
       "Citations in this document" panel; bibliography categories/chapter-section blocks; accessibility pass
