@@ -1,9 +1,17 @@
 # Word/Docs parity arc — handoff to Codex (2026-08-28)
 
-Written by Claude at the end of a long session (incs 508-517). Cliff's Claude usage is maxed out for
-~48 hours (until Sunday); he asked for this arc handed off to Codex to keep moving in the meantime.
-**Cliff will not be available to answer questions during this window.** Make conservative, well-documented
-judgment calls rather than blocking on him — see "Working solo" below.
+Written by Claude at the end of a long session (incs 508-517, +inc 518 fixing CI after this was first written).
+Cliff's Claude usage is maxed out for ~48 hours (until Sunday); he asked for this arc handed off to Codex to
+keep moving in the meantime. **Cliff will not be available to answer questions during this window.** Make
+conservative, well-documented judgment calls rather than blocking on him — see "Working solo" below.
+
+**CI is green as of inc 518** (`.claude/docs/increment-notes/INCREMENT-518-NOTES.md`) — it had been red since
+2026-08-27 (three unrelated causes: a stale Bandit baseline, two stale e2e literal-text assertions from the
+inc-505 Title-Case sweep, an orphaned QA-route mapping from the Feed-consolidation tab retirement), all fixed
+and verified locally (full suite 2563 passed/3 skipped, e2e 13/13, Bandit/tach/line-budget/pip-audit/website-
+coverage all clean) before this handoff was finalized. **If CI goes red again after you push, don't assume
+it's the same three issues re-occurring** — read the actual failure log fresh (`gh run view --log-failed`),
+the same way inc 518 did, rather than pattern-matching to what's already been fixed.
 
 ## READ FIRST — do not re-derive this
 

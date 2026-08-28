@@ -379,7 +379,7 @@ def _run_wip_checklists_e2e(server: str, tmp_path):
         assert "snapshot" in wip_run.inner_text()
         assert "not detected" in wip_run.inner_text().lower()
 
-        lmm_button = wip_checks.get_by_role("button", name="Audit LMM reporting", exact=True)
+        lmm_button = wip_checks.get_by_role("button", name="Audit LMM Reporting", exact=True)
         lmm_button.wait_for()
         lmm_run = wip_checks.locator(".wip-tool-run").filter(has_text="Mixed-model reporting")
         lmm_run.wait_for()

@@ -246,7 +246,7 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             ).to_be_visible()
             page.get_by_role("button", name="Starred", exact=True).click()
             expect(page.locator(".feed-item:visible")).to_have_count(1)
-            page.get_by_role("button", name="Reset read/star practice", exact=True).click()
+            page.get_by_role("button", name="Reset Read/Star Practice", exact=True).click()
             expect(page.locator(".feed-item:visible")).to_have_count(0)
             page.get_by_role("button", name="All", exact=True).click()
             expect(page.locator(".feed-item:visible")).to_have_count(200)

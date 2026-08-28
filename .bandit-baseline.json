@@ -1,19 +1,19 @@
 {
   "errors": [],
-  "generated_at": "2026-08-02T16:45:25Z",
+  "generated_at": "2026-08-28T22:09:04Z",
   "metrics": {
     "_totals": {
-      "CONFIDENCE.HIGH": 63,
+      "CONFIDENCE.HIGH": 74,
       "CONFIDENCE.LOW": 4,
       "CONFIDENCE.MEDIUM": 6,
       "CONFIDENCE.UNDEFINED": 0,
       "SEVERITY.HIGH": 0,
-      "SEVERITY.LOW": 57,
+      "SEVERITY.LOW": 68,
       "SEVERITY.MEDIUM": 16,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 53447,
+      "loc": 64803,
       "nosec": 0,
-      "skipped_tests": 0
+      "skipped_tests": 2
     },
     "app/backend\\__init__.py": {
       "CONFIDENCE.HIGH": 0,
@@ -210,6 +210,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\analytic_flexibility.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 66,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\api\\__init__.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -232,7 +245,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 81,
+      "loc": 106,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -258,7 +271,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 392,
+      "loc": 496,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -310,7 +323,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 12,
+      "loc": 88,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -336,7 +349,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 120,
+      "loc": 269,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\job_timing.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 39,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -405,6 +431,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\api\\routers\\analytic_flexibility.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 39,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\api\\routers\\annotations.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -414,7 +453,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 163,
+      "loc": 169,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -427,7 +466,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 449,
+      "loc": 445,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -444,6 +483,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\api\\routers\\beyond_library_saved.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 208,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\api\\routers\\citation_context.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -453,7 +505,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 133,
+      "loc": 126,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -479,7 +531,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 264,
+      "loc": 327,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\citation_stance.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 31,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -496,6 +561,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\api\\routers\\citation_suggest.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 160,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\api\\routers\\citations.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -505,7 +583,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 480,
+      "loc": 337,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -531,7 +609,33 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 315,
+      "loc": 413,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\critical_review_triage.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 130,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\diagnostics.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 37,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -544,7 +648,7 @@
       "SEVERITY.LOW": 1,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 104,
+      "loc": 97,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -570,7 +674,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 114,
+      "loc": 132,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -596,7 +700,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 64,
+      "loc": 69,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\followed_authors.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 97,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -639,6 +756,32 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\api\\routers\\grobid.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 272,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\grobid_docker.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 84,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\api\\routers\\health.py": {
       "CONFIDENCE.HIGH": 5,
       "CONFIDENCE.LOW": 0,
@@ -661,7 +804,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 78,
+      "loc": 80,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -674,7 +817,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 455,
+      "loc": 453,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -688,6 +831,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 114,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\library_zotero.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 118,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -713,7 +869,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 134,
+      "loc": 139,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -726,7 +882,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 133,
+      "loc": 140,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -739,7 +895,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 450,
+      "loc": 473,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\methods_ajol.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 63,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -752,7 +921,33 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 192,
+      "loc": 199,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\methods_debit_saved.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 94,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\methods_duplicate_values.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 106,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -778,7 +973,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 179,
+      "loc": 241,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -792,6 +987,32 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 81,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\methods_top_factor.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 60,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\methods_zcurve.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 98,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -843,7 +1064,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 416,
+      "loc": 413,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -895,7 +1116,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 116,
+      "loc": 120,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -908,7 +1129,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 78,
+      "loc": 80,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -947,7 +1168,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 473,
+      "loc": 474,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -960,7 +1181,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 211,
+      "loc": 273,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -986,7 +1207,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 500,
+      "loc": 502,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1025,7 +1246,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 487,
+      "loc": 481,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1051,7 +1272,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 117,
+      "loc": 110,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1077,7 +1298,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 223,
+      "loc": 232,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1094,6 +1315,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\api\\routers\\statements.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 41,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\api\\routers\\status.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -1103,7 +1337,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 253,
+      "loc": 325,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1116,7 +1350,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 488,
+      "loc": 512,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\summary_overview.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 85,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1129,7 +1376,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 180,
+      "loc": 321,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\sync_shares.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 289,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1155,7 +1415,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 258,
+      "loc": 256,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1168,7 +1428,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 339,
+      "loc": 353,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\usage.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 58,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1207,7 +1480,33 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 108,
+      "loc": 322,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\wip_citation_equity.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 100,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\wip_critical_review.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 212,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1221,6 +1520,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 52,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\wip_reference_integrity.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 279,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1246,7 +1558,7 @@
       "SEVERITY.LOW": 6,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 78,
+      "loc": 90,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1259,7 +1571,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 328,
+      "loc": 327,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\api\\routers\\zotero_citations.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 50,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1311,7 +1636,7 @@
       "SEVERITY.LOW": 4,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 390,
+      "loc": 411,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1337,7 +1662,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 356,
+      "loc": 424,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1364,6 +1689,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 379,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\citations\\section_scope.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 69,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1493,7 +1831,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 140,
+      "loc": 160,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1585,6 +1923,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 144,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\clustering\\followed_authors.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 115,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1692,6 +2043,110 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\demo_ask_overview.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 29,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\demo_capabilities.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 63,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\demo_coverage.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 49,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\demo_extended_state.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 175,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\demo_library_state.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 31,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\demo_snapshot.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 469,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\demo_synthesis_state.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 47,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\demo_wip_state.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 183,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\discovery\\__init__.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -1740,7 +2195,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 142,
+      "loc": 157,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\discovery\\followed_author_feed_source.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 52,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1857,7 +2325,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 72,
+      "loc": 88,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1948,7 +2416,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 77,
+      "loc": 80,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2052,7 +2520,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 177,
+      "loc": 179,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2160,6 +2628,32 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\grobid_lifecycle.py": {
+      "CONFIDENCE.HIGH": 11,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 11,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 153,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\grobid_pipeline.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 84,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\help\\__init__.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -2221,7 +2715,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 351,
+      "loc": 482,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\importers\\zotero_annotation_position.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 103,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2247,7 +2754,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 125,
+      "loc": 196,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2264,6 +2771,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\llm\\managed_local.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 220,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\llm\\providers.py": {
       "CONFIDENCE.HIGH": 1,
       "CONFIDENCE.LOW": 0,
@@ -2273,7 +2793,7 @@
       "SEVERITY.LOW": 1,
       "SEVERITY.MEDIUM": 1,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 216,
+      "loc": 279,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2338,7 +2858,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 333,
+      "loc": 337,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2390,7 +2910,7 @@
       "SEVERITY.LOW": 2,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 495,
+      "loc": 497,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2455,7 +2975,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 451,
+      "loc": 452,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2481,7 +3001,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 250,
+      "loc": 279,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2507,7 +3027,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 264,
+      "loc": 490,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2520,7 +3040,33 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 97,
+      "loc": 108,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\methods\\critical_review_triage.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 167,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\methods\\duplicate_values.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 38,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2559,7 +3105,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 99,
+      "loc": 140,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2572,7 +3118,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 285,
+      "loc": 286,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2585,7 +3131,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 274,
+      "loc": 275,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2637,7 +3183,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 186,
+      "loc": 259,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2715,7 +3261,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 225,
+      "loc": 226,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2729,6 +3275,32 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 39,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\methods\\zcurve.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 221,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\model_runtime.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 280,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2780,7 +3352,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 474,
+      "loc": 479,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2858,7 +3430,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 110,
+      "loc": 135,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2914,6 +3486,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\persistence\\ajol_repo.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 59,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\persistence\\annotations_repo.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -2923,7 +3508,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 74,
+      "loc": 98,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2936,7 +3521,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 43,
+      "loc": 49,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\persistence\\critical_review_triage_repo.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 119,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2953,6 +3551,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\persistence\\debit_checks_repo.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 37,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\persistence\\dedup_repo.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -2963,6 +3574,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 51,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\persistence\\diagnostics_repo.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 12,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2979,6 +3603,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\persistence\\duplicate_value_checks_repo.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 37,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\persistence\\feed_repo.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -2988,7 +3625,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 110,
+      "loc": 124,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3001,7 +3638,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 123,
+      "loc": 124,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\persistence\\followed_author_repo.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 58,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3161,6 +3811,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\persistence\\received_shares_repo.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 26,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\persistence\\reference_integrity_repo.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -3313,7 +3976,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 490,
+      "loc": 467,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\persistence\\schema_annotations.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 48,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3339,7 +4015,33 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 28,
+      "loc": 61,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\persistence\\schema_debit_checks.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 19,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\persistence\\schema_duplicate_value_checks.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 16,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3365,7 +4067,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 164,
+      "loc": 230,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3392,6 +4094,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 20,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\persistence\\schema_grobid.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 18,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3456,7 +4171,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 99,
+      "loc": 101,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3469,7 +4184,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 45,
+      "loc": 60,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3483,6 +4198,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 23,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\persistence\\schema_usage.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 29,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3508,7 +4236,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 129,
+      "loc": 133,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3535,6 +4263,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 104,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\persistence\\schema_wip_reference_integrity.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 60,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3642,6 +4383,32 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\persistence\\top_factor_repo.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 53,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\persistence\\usage_repo.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 70,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\persistence\\wanted_repo.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -3668,6 +4435,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\persistence\\wip_bayes_repo.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 190,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\persistence\\wip_checks_repo.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -3677,7 +4457,33 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 205,
+      "loc": 481,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\persistence\\wip_critical_review_repo.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 176,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\persistence\\wip_meta_analysis_repo.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 105,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3691,6 +4497,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 161,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\persistence\\wip_reference_integrity_repo.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 210,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3746,6 +4565,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\provider_runtime.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 195,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\providers_store.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -3756,6 +4588,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 203,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\publisher_settings.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 42,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4093,7 +4938,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 99,
+      "loc": 137,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4119,7 +4964,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 23,
+      "loc": 33,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\summarization\\overview_lifecycle.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 175,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4132,7 +4990,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 371,
+      "loc": 379,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4145,7 +5003,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 151,
+      "loc": 153,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\summarization\\stance.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 215,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4158,7 +5029,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 410,
+      "loc": 417,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\superuser.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 34,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4214,6 +5098,32 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/backend\\sync\\identity.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 64,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\sync\\sharing.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 94,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/backend\\sync\\transport.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -4223,7 +5133,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 69,
+      "loc": 203,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\usage.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 21,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4237,6 +5160,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 1,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/backend\\wip\\analytic_flexibility_text.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 42,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4314,7 +5250,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 141,
+      "loc": 147,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4341,6 +5277,32 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 97,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "integrations\\ajol\\__init__.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 9,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "integrations\\ajol\\adapter.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 106,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4379,7 +5341,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 88,
+      "loc": 89,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4405,7 +5367,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 84,
+      "loc": 85,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4431,7 +5393,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 89,
+      "loc": 95,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4496,7 +5458,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 90,
+      "loc": 92,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4509,7 +5471,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 123,
+      "loc": 128,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4535,7 +5497,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 138,
+      "loc": 140,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4549,6 +5511,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 18,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "integrations\\gemini\\analytic_flexibility_assistant.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 85,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4587,7 +5562,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 115,
+      "loc": 119,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4600,7 +5575,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 125,
+      "loc": 129,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4626,7 +5601,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 119,
+      "loc": 133,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4669,6 +5644,84 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "integrations\\grobid\\client.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 61,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "integrations\\grobid\\section_classify.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 11,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "integrations\\grobid\\tei_parse.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 107,
+      "nosec": 0,
+      "skipped_tests": 2
+    },
+    "integrations\\http_bounds.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 55,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "integrations\\nlm\\__init__.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 2,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "integrations\\nlm\\journals.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 120,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "integrations\\openalex\\__init__.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -4691,7 +5744,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 535,
+      "loc": 294,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4704,7 +5757,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 369,
+      "loc": 379,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4734,6 +5787,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "integrations\\openalex\\field_sample.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 182,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "integrations\\openalex\\sources.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -4743,7 +5809,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 283,
+      "loc": 285,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4757,6 +5823,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 57,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "integrations\\openalex\\work_meta.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 182,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4782,7 +5861,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 75,
+      "loc": 76,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4812,6 +5891,32 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "integrations\\scielo\\__init__.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 3,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "integrations\\scielo\\journals.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 109,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "integrations\\semantic_scholar\\__init__.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -4834,7 +5939,33 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 137,
+      "loc": 234,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "integrations\\top_factor\\__init__.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 4,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "integrations\\top_factor\\adapter.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 105,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4860,7 +5991,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 323,
+      "loc": 330,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4886,7 +6017,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 101,
+      "loc": 208,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4900,6 +6031,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 63,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "sync_server\\identity_store.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 32,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -4938,7 +6082,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 46,
+      "loc": 82,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "sync_server\\share_store.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 59,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -5387,7 +6544,7 @@
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "15 import os\n16 import subprocess\n17 import sys\n",
+      "code": "22 import os\n23 import subprocess\n24 import sys\n",
       "col_offset": 0,
       "end_col_offset": 17,
       "filename": "app/backend\\api\\routers\\word.py",
@@ -5398,16 +6555,16 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Consider possible security implications associated with the subprocess module.",
-      "line_number": 16,
+      "line_number": 23,
       "line_range": [
-        16
+        23
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
       "test_id": "B404",
       "test_name": "blacklist"
     },
     {
-      "code": "50     if sys.platform.startswith(\"win\"):\n51         os.startfile(path)  # noqa: S606  (constant WORD_DIR; 127.0.0.1-local only)\n52     elif sys.platform == \"darwin\":\n",
+      "code": "57     if sys.platform.startswith(\"win\"):\n58         os.startfile(path)  # noqa: S606  (constant WORD_DIR; 127.0.0.1-local only)\n59     elif sys.platform == \"darwin\":\n",
       "col_offset": 8,
       "end_col_offset": 26,
       "filename": "app/backend\\api\\routers\\word.py",
@@ -5418,16 +6575,16 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Starting a process without a shell.",
-      "line_number": 51,
+      "line_number": 58,
       "line_range": [
-        51
+        58
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b606_start_process_with_no_shell.html",
       "test_id": "B606",
       "test_name": "start_process_with_no_shell"
     },
     {
-      "code": "52     elif sys.platform == \"darwin\":\n53         subprocess.Popen([\"open\", path])\n54     else:\n",
+      "code": "59     elif sys.platform == \"darwin\":\n60         subprocess.Popen([\"open\", path])\n61     else:\n",
       "col_offset": 8,
       "end_col_offset": 40,
       "filename": "app/backend\\api\\routers\\word.py",
@@ -5438,16 +6595,16 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Starting a process with a partial executable path",
-      "line_number": 53,
+      "line_number": 60,
       "line_range": [
-        53
+        60
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
       "test_id": "B607",
       "test_name": "start_process_with_partial_path"
     },
     {
-      "code": "52     elif sys.platform == \"darwin\":\n53         subprocess.Popen([\"open\", path])\n54     else:\n",
+      "code": "59     elif sys.platform == \"darwin\":\n60         subprocess.Popen([\"open\", path])\n61     else:\n",
       "col_offset": 8,
       "end_col_offset": 40,
       "filename": "app/backend\\api\\routers\\word.py",
@@ -5458,16 +6615,16 @@
       },
       "issue_severity": "LOW",
       "issue_text": "subprocess call - check for execution of untrusted input.",
-      "line_number": 53,
+      "line_number": 60,
       "line_range": [
-        53
+        60
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
       "test_id": "B603",
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "54     else:\n55         subprocess.Popen([\"xdg-open\", path])\n56 \n",
+      "code": "61     else:\n62         subprocess.Popen([\"xdg-open\", path])\n63 \n",
       "col_offset": 8,
       "end_col_offset": 44,
       "filename": "app/backend\\api\\routers\\word.py",
@@ -5478,16 +6635,16 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Starting a process with a partial executable path",
-      "line_number": 55,
+      "line_number": 62,
       "line_range": [
-        55
+        62
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
       "test_id": "B607",
       "test_name": "start_process_with_partial_path"
     },
     {
-      "code": "54     else:\n55         subprocess.Popen([\"xdg-open\", path])\n56 \n",
+      "code": "61     else:\n62         subprocess.Popen([\"xdg-open\", path])\n63 \n",
       "col_offset": 8,
       "end_col_offset": 44,
       "filename": "app/backend\\api\\routers\\word.py",
@@ -5498,16 +6655,16 @@
       },
       "issue_severity": "LOW",
       "issue_text": "subprocess call - check for execution of untrusted input.",
-      "line_number": 55,
+      "line_number": 62,
       "line_range": [
-        55
+        62
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
       "test_id": "B603",
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "324                 return v\n325         except Exception:\n326             pass  # backend error \u2192 fall through to the file\n327     v = load_settings().get(field)\n",
+      "code": "355                 return v\n356         except Exception:\n357             pass  # backend error \u2192 fall through to the file\n358     v = load_settings().get(field)\n",
       "col_offset": 8,
       "end_col_offset": 16,
       "filename": "app/backend\\app_settings.py",
@@ -5518,17 +6675,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 325,
+      "line_number": 356,
       "line_range": [
-        325,
-        326
+        356,
+        357
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "342                     kr.delete_password(_KEYCHAIN_SERVICE, field)\n343                 except Exception:\n344                     pass  # nothing stored to delete\n345             # Drop any plaintext copy left in the file (migrate away from file storage).\n",
+      "code": "373                     kr.delete_password(_KEYCHAIN_SERVICE, field)\n374                 except Exception:\n375                     pass  # nothing stored to delete\n376             # Drop any plaintext copy left in the file (migrate away from file storage).\n",
       "col_offset": 16,
       "end_col_offset": 24,
       "filename": "app/backend\\app_settings.py",
@@ -5539,17 +6696,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 343,
+      "line_number": 374,
       "line_range": [
-        343,
-        344
+        374,
+        375
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "350             return\n351         except Exception:\n352             pass  # keychain write failed \u2192 fall through to the file store\n353     data = load_settings()\n",
+      "code": "381             return\n382         except Exception:\n383             pass  # keychain write failed \u2192 fall through to the file store\n384     data = load_settings()\n",
       "col_offset": 8,
       "end_col_offset": 16,
       "filename": "app/backend\\app_settings.py",
@@ -5560,17 +6717,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 351,
+      "line_number": 382,
       "line_range": [
-        351,
-        352
+        382,
+        383
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "375 # library remotely. Recovery if the token is lost: set CALLOSUM_DISABLE_REMOTE_ACCESS=1, or edit the settings file.\n376 _ACCESS_TOKEN_FIELD = \"access_token\"\n377 \n",
+      "code": "406 # library remotely. Recovery if the token is lost: set CALLOSUM_DISABLE_REMOTE_ACCESS=1, or edit the settings file.\n407 _ACCESS_TOKEN_FIELD = \"access_token\"\n408 \n",
       "col_offset": 22,
       "end_col_offset": 36,
       "filename": "app/backend\\app_settings.py",
@@ -5581,9 +6738,9 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Possible hardcoded password: 'access_token'",
-      "line_number": 376,
+      "line_number": 407,
       "line_range": [
-        376
+        407
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html",
       "test_id": "B105",
@@ -6215,7 +7372,265 @@
       "test_name": "blacklist"
     },
     {
-      "code": "29 WIRE_FORMATS = (\"gemini\", \"messages\", \"chat_completions\", \"responses\")\n30 _LOOPBACK_HOSTS = {\"127.0.0.1\", \"localhost\", \"::1\", \"0.0.0.0\"}\n31 _HTTP_TIMEOUT = 60.0\n",
+      "code": "27 import socket\n28 import subprocess\n29 import time\n",
+      "col_offset": 0,
+      "end_col_offset": 17,
+      "filename": "app/backend\\grobid_lifecycle.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Consider possible security implications associated with the subprocess module.",
+      "line_number": 28,
+      "line_range": [
+        28
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
+      "test_id": "B404",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "61     try:\n62         result = subprocess.run([\"docker\", \"info\"], capture_output=True, timeout=_DOCKER_CMD_TIMEOUT)\n63     except (OSError, subprocess.TimeoutExpired):\n",
+      "col_offset": 17,
+      "end_col_offset": 101,
+      "filename": "app/backend\\grobid_lifecycle.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 62,
+      "line_range": [
+        62
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "61     try:\n62         result = subprocess.run([\"docker\", \"info\"], capture_output=True, timeout=_DOCKER_CMD_TIMEOUT)\n63     except (OSError, subprocess.TimeoutExpired):\n",
+      "col_offset": 17,
+      "end_col_offset": 101,
+      "filename": "app/backend\\grobid_lifecycle.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call - check for execution of untrusted input.",
+      "line_number": 62,
+      "line_range": [
+        62
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+      "test_id": "B603",
+      "test_name": "subprocess_without_shell_equals_true"
+    },
+    {
+      "code": "71     try:\n72         result = subprocess.run(\n73             [\"docker\", \"inspect\", \"--format\", \"{{.State.Status}}\", name],\n74             capture_output=True,\n75             timeout=_DOCKER_CMD_TIMEOUT,\n76             text=True,\n77         )\n78     except (OSError, subprocess.TimeoutExpired):\n",
+      "col_offset": 17,
+      "end_col_offset": 9,
+      "filename": "app/backend\\grobid_lifecycle.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 72,
+      "line_range": [
+        72,
+        73,
+        74,
+        75,
+        76,
+        77
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "71     try:\n72         result = subprocess.run(\n73             [\"docker\", \"inspect\", \"--format\", \"{{.State.Status}}\", name],\n74             capture_output=True,\n75             timeout=_DOCKER_CMD_TIMEOUT,\n76             text=True,\n77         )\n78     except (OSError, subprocess.TimeoutExpired):\n",
+      "col_offset": 17,
+      "end_col_offset": 9,
+      "filename": "app/backend\\grobid_lifecycle.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call - check for execution of untrusted input.",
+      "line_number": 72,
+      "line_range": [
+        72,
+        73,
+        74,
+        75,
+        76,
+        77
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+      "test_id": "B603",
+      "test_name": "subprocess_without_shell_equals_true"
+    },
+    {
+      "code": "124     try:\n125         pull = subprocess.run([\"docker\", \"pull\", GROBID_IMAGE], capture_output=True, timeout=_PULL_TIMEOUT, text=True)\n126     except subprocess.TimeoutExpired as exc:\n",
+      "col_offset": 15,
+      "end_col_offset": 118,
+      "filename": "app/backend\\grobid_lifecycle.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 125,
+      "line_range": [
+        125
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "124     try:\n125         pull = subprocess.run([\"docker\", \"pull\", GROBID_IMAGE], capture_output=True, timeout=_PULL_TIMEOUT, text=True)\n126     except subprocess.TimeoutExpired as exc:\n",
+      "col_offset": 15,
+      "end_col_offset": 118,
+      "filename": "app/backend\\grobid_lifecycle.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call - check for execution of untrusted input.",
+      "line_number": 125,
+      "line_range": [
+        125
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+      "test_id": "B603",
+      "test_name": "subprocess_without_shell_equals_true"
+    },
+    {
+      "code": "158     try:\n159         return subprocess.run(\n160             [\n161                 \"docker\",\n162                 \"run\",\n163                 \"-d\",\n164                 \"--name\",\n165                 GROBID_CONTAINER_NAME,\n166                 \"-p\",\n167                 f\"{port}:{GROBID_INTERNAL_PORT}\",\n168                 GROBID_IMAGE,\n169             ],\n170             capture_output=True,\n171             timeout=_RUN_TIMEOUT,\n172             text=True,\n173         )\n174     except subprocess.TimeoutExpired as exc:\n",
+      "col_offset": 15,
+      "end_col_offset": 9,
+      "filename": "app/backend\\grobid_lifecycle.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 159,
+      "line_range": [
+        159,
+        160,
+        161,
+        162,
+        163,
+        164,
+        165,
+        166,
+        167,
+        168,
+        169,
+        170,
+        171,
+        172,
+        173
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "158     try:\n159         return subprocess.run(\n160             [\n161                 \"docker\",\n162                 \"run\",\n163                 \"-d\",\n164                 \"--name\",\n165                 GROBID_CONTAINER_NAME,\n166                 \"-p\",\n167                 f\"{port}:{GROBID_INTERNAL_PORT}\",\n168                 GROBID_IMAGE,\n169             ],\n170             capture_output=True,\n171             timeout=_RUN_TIMEOUT,\n172             text=True,\n173         )\n174     except subprocess.TimeoutExpired as exc:\n",
+      "col_offset": 15,
+      "end_col_offset": 9,
+      "filename": "app/backend\\grobid_lifecycle.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call - check for execution of untrusted input.",
+      "line_number": 159,
+      "line_range": [
+        159,
+        160,
+        161,
+        162,
+        163,
+        164,
+        165,
+        166,
+        167,
+        168,
+        169,
+        170,
+        171,
+        172,
+        173
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+      "test_id": "B603",
+      "test_name": "subprocess_without_shell_equals_true"
+    },
+    {
+      "code": "179     try:\n180         subprocess.run([\"docker\", \"rm\", \"-f\", name], capture_output=True, timeout=_STOP_TIMEOUT)\n181     except (OSError, subprocess.TimeoutExpired):\n",
+      "col_offset": 8,
+      "end_col_offset": 96,
+      "filename": "app/backend\\grobid_lifecycle.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 180,
+      "line_range": [
+        180
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "179     try:\n180         subprocess.run([\"docker\", \"rm\", \"-f\", name], capture_output=True, timeout=_STOP_TIMEOUT)\n181     except (OSError, subprocess.TimeoutExpired):\n",
+      "col_offset": 8,
+      "end_col_offset": 96,
+      "filename": "app/backend\\grobid_lifecycle.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call - check for execution of untrusted input.",
+      "line_number": 180,
+      "line_range": [
+        180
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+      "test_id": "B603",
+      "test_name": "subprocess_without_shell_equals_true"
+    },
+    {
+      "code": "33 WIRE_FORMATS = (\"gemini\", \"messages\", \"chat_completions\", \"responses\")\n34 _LOOPBACK_HOSTS = {\"127.0.0.1\", \"localhost\", \"::1\", \"0.0.0.0\"}\n35 _HTTP_TIMEOUT = 60.0\n",
       "col_offset": 52,
       "end_col_offset": 61,
       "filename": "app/backend\\llm\\providers.py",
@@ -6226,16 +7641,16 @@
       },
       "issue_severity": "MEDIUM",
       "issue_text": "Possible binding to all interfaces.",
-      "line_number": 30,
+      "line_number": 34,
       "line_range": [
-        30
+        34
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b104_hardcoded_bind_all_interfaces.html",
       "test_id": "B104",
       "test_name": "hardcoded_bind_all_interfaces"
     },
     {
-      "code": "258             body = exc.response.text[:200]\n259         except Exception:\n260             pass\n261         detail = f\"HTTP {exc.response.status_code}: {body}\"\n",
+      "code": "332             body = exc.response.text[:200]\n333         except Exception:\n334             pass\n335         detail = f\"HTTP {exc.response.status_code}: {body}\"\n",
       "col_offset": 8,
       "end_col_offset": 16,
       "filename": "app/backend\\llm\\providers.py",
@@ -6246,10 +7661,10 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 259,
+      "line_number": 333,
       "line_range": [
-        259,
-        260
+        333,
+        334
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
@@ -6298,7 +7713,7 @@
       "test_name": "try_except_pass"
     },
     {
-      "code": "415                         summary[\"axes_members_added\"] += 1\n416         except Exception:\n417             pass  # a bad axis never sinks the import\n418 \n",
+      "code": "417                         summary[\"axes_members_added\"] += 1\n418         except Exception:\n419             pass  # a bad axis never sinks the import\n420 \n",
       "col_offset": 8,
       "end_col_offset": 16,
       "filename": "app/backend\\metadata\\library_bundle.py",
@@ -6309,17 +7724,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 416,
+      "line_number": 418,
       "line_range": [
-        416,
-        417
+        418,
+        419
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "547                 summary[\"syntheses_imported\"] += 1\n548         except Exception:\n549             pass  # a bad synthesis never sinks the import\n",
+      "code": "549                 summary[\"syntheses_imported\"] += 1\n550         except Exception:\n551             pass  # a bad synthesis never sinks the import\n",
       "col_offset": 8,
       "end_col_offset": 16,
       "filename": "app/backend\\metadata\\library_bundle.py",
@@ -6330,10 +7745,10 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 548,
+      "line_number": 550,
       "line_range": [
-        548,
-        549
+        550,
+        551
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",

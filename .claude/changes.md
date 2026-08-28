@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 518: fix CI, red since 2026-08-27 (three distinct, unrelated issues)
+- **Files:** `.bandit-baseline.json`, `tests/e2e/test_demo_static.py`, `tests/e2e/test_smoke.py`,
+  `www/showcase-coverage.json`, `www/showcase.html`.
+- **What:** confirmed via `gh run list` that CI has been red since before any Word work started (last green:
+  the 8/24 v0.4.1 bump). Three unrelated root causes: (1) a stale Bandit baseline (last regenerated 8/2) not
+  yet absorbing `grobid_lifecycle.py`'s already-reviewed subprocess findings — regenerated after diffing fresh
+  vs. old to confirm nothing else was new; (2) two e2e Playwright tests with stale literal button-text
+  assertions the inc-505 Title-Case sweep missed (`tests/e2e/` wasn't covered by that sweep's search); (3) a
+  QA-route mapping orphaned by the Feed-consolidation commit's tab retirement, plus a legitimate source-
+  fingerprint drift acknowledgment (reviewed every commit touching fingerprinted paths since the last review,
+  confirmed no showcase claim actually needed changing beyond the one orphaned mapping).
+- **Why:** Cliff asked to get CI green before handing the Word parity arc to Codex.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 517: Word add-in accessibility pass (P1, backlog #33/#34)
 - **Files:** `adapters/word/taskpane.js`, `.claude/docs/INCREMENT-BACKLOG.md`,
   `.claude/docs/increment-notes/INCREMENT-517-NOTES.md`.
