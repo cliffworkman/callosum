@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 515** (see Increment workflow) with **2563 root-suite pytest tests
+It is currently at **Increment 516** (see Increment workflow) with **2563 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -556,7 +556,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   gets this property for free); Flatten now shows a pre-confirm citation/bibliography count, an honest
   "Callosum can't save a copy for you" reminder (Office.js has no `saveAs`, confirmed via research not
   assumed), an opt-in checkbox clearing the add-in's one piece of document metadata, and a post-flatten
-  integrity re-scan instead of assuming success. See `INCREMENT-515-NOTES.md`.
+  integrity re-scan instead of assuming success. See `INCREMENT-515-NOTES.md`. **Inc 516 ships the first P1
+  item**: a "Citations in this document" panel (mirrors RefWorks' "My Citations") — every unique cited work,
+  occurrence count, orphan/retraction badges, click-to-navigate (`Range.select()`, confirmed it brings the
+  selection into view with no separate scroll call needed), and client-side search. Extracted a shared
+  `checkPaperExistence()` helper from Document diagnostics' previously-inlined trash-aware existence check
+  (inc 513) so both features reuse identical logic rather than risk drift between two copies. Scoped narrower
+  than the roadmap's wishlist ("metadata conflicts," "most recent citation" — no insertion-timestamp data
+  exists to support the latter) — disclosed, not silently dropped. See `INCREMENT-516-NOTES.md`.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -1334,7 +1341,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 515). Each increment of real work
+callosum is built in **numbered increments** (currently at 516). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

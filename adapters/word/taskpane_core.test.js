@@ -255,6 +255,75 @@ test("summarizeDiagnostics: retraction-flagged papers surface by distinct id; 'n
   assert.deepStrictEqual(report.retractionFlagged, [checked[0]]);
 });
 
+// ---- Citations-in-this-document panel (inc 516) ----
+test("buildCitationsPanelEntries: the same paper cited solo, then again inside a grouped citation, is one entry", () => {
+  const tags = [
+    core.encodeCitationTag([{ id: "callosum-1", title: "Notes", author: [{ family: "Lovelace" }] }]), // index 0
+    core.encodeCitationTag([{ id: "callosum-2", title: "B" }, { id: "callosum-1", title: "Notes", author: [{ family: "Lovelace" }] }]), // index 1
+  ];
+  const entries = core.buildCitationsPanelEntries(tags);
+  assert.strictEqual(entries.length, 2);
+  const lovelace = entries.find((e) => e.paperId === "1");
+  assert.strictEqual(lovelace.occurrenceCount, 2);
+  assert.deepStrictEqual(lovelace.positions, [0, 1]);
+  assert.strictEqual(lovelace.row, "Lovelace — Notes");
+});
+
+test("buildCitationsPanelEntries: unresolvable (pre-fix) items each get their own singleton entry, never grouped", () => {
+  const tags = [
+    core.encodeCitationTag([{ id: "some-zotero-key", title: "Old" }]),
+    core.encodeCitationTag([{ id: "some-zotero-key", title: "Old" }]), // identical CSL, still NOT merged
+  ];
+  const entries = core.buildCitationsPanelEntries(tags);
+  assert.strictEqual(entries.length, 2);
+  assert.ok(entries.every((e) => e.paperId === null && e.occurrenceCount === 1));
+});
+
+test("buildCitationsPanelEntries: malformed citation tags are skipped but still consume a position slot", () => {
+  const tags = [
+    core.CITATION_PREFIX + " not-base64!!", // malformed, index 0 -- consumes a slot
+    core.encodeCitationTag([{ id: "callosum-1", title: "A" }]), // index 1
+  ];
+  const entries = core.buildCitationsPanelEntries(tags);
+  assert.strictEqual(entries.length, 1);
+  assert.deepStrictEqual(entries[0].positions, [1]); // NOT [0] -- the malformed one still occupied index 0
+});
+
+test("buildCitationsPanelEntries: non-citation tags (bibliography, arbitrary) are ignored entirely", () => {
+  const tags = ["Heading 1", core.BIB_TAG, core.encodeCitationTag([{ id: "callosum-1", title: "A" }])];
+  const entries = core.buildCitationsPanelEntries(tags);
+  assert.strictEqual(entries.length, 1);
+  assert.deepStrictEqual(entries[0].positions, [0]); // the citation is the first (and only) CITATION-tagged control
+});
+
+test("buildCitationsPanelEntries: entries are ordered by first occurrence", () => {
+  const tags = [
+    core.encodeCitationTag([{ id: "callosum-2", title: "B" }]),
+    core.encodeCitationTag([{ id: "callosum-1", title: "A" }]),
+    core.encodeCitationTag([{ id: "callosum-2", title: "B" }]),
+  ];
+  const entries = core.buildCitationsPanelEntries(tags);
+  assert.deepStrictEqual(entries.map((e) => e.paperId), ["2", "1"]);
+});
+
+test("mergePanelEntryStatus: flags orphaned + retraction-flagged entries by resolved paper id; unresolved untouched", () => {
+  const entries = [
+    { key: "id:1", paperId: "1", row: "A", occurrenceCount: 1, positions: [0] },
+    { key: "id:2", paperId: "2", row: "B", occurrenceCount: 1, positions: [1] },
+    { key: "unresolved:2:0", paperId: null, row: "C", occurrenceCount: 1, positions: [2] },
+  ];
+  const checked = [{ paper_id: 2, status: "retracted", nature: "Retraction", date: null, notice_url: null, sources: [] }];
+  const merged = core.mergePanelEntryStatus(entries, [1], checked);
+  assert.strictEqual(merged[0].orphaned, true);
+  assert.strictEqual(merged[0].retraction, null);
+  assert.strictEqual(merged[1].orphaned, false);
+  assert.deepStrictEqual(merged[1].retraction, checked[0]);
+  assert.strictEqual(merged[2].orphaned, false);
+  assert.strictEqual(merged[2].retraction, null);
+  // never mutates the input array's own objects
+  assert.strictEqual(entries[0].orphaned, undefined);
+});
+
 // ---- Word-on-the-web relay (SP4): local vs. tunneled origin + the Bearer token header ----
 test("isLocalOrigin: localhost/127.0.0.1 are local; a tunnel hostname is not", () => {
   assert.strictEqual(core.isLocalOrigin("localhost"), true);

@@ -9,6 +9,18 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 516: Word "Citations in this document" panel (P1, backlog #33/#34)
+- **Files:** `adapters/word/taskpane_core.js`, `adapters/word/taskpane_core.test.js`,
+  `adapters/word/taskpane.{js,html,css}`, `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/increment-notes/INCREMENT-516-NOTES.md`.
+- **What:** a new on-demand panel (mirrors RefWorks' "My Citations") listing every unique cited work with
+  occurrence count, orphan/retraction badges, and click-to-navigate. Extracted a shared `checkPaperExistence()`
+  helper from Document diagnostics' previously-inlined trash-aware existence check so both features reuse the
+  identical, already-fixed (inc 513) logic instead of risking drift between two copies.
+- **Why:** first P1 item on the Word/Docs parity roadmap; Cliff's pick over the bigger note-style-placement
+  item and the accessibility pass.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 515: closes Word/Docs parity P0 (bibliography-bounds review + safer Flatten)
 - **Files:** `adapters/word/taskpane.{js,html}`, `adapters/word/README.md`, `.claude/docs/INCREMENT-BACKLOG.md`,
   `.claude/docs/increment-notes/INCREMENT-515-NOTES.md`.

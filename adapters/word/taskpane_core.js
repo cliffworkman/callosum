@@ -258,6 +258,54 @@
     };
   }
 
+  // ---- Citations-in-this-document panel (inc 516, backlog #33/#34 P1) ----
+  // Groups repeated citations of the SAME library paper into one entry with an occurrence count + every
+  // occurrence's position (an index into the document-order list of citation-tagged controls -- the same
+  // "index into document order" concept refreshDocument/runDiagnostics already rely on). An item with no
+  // resolvable paper id (extractPaperId returned null -- a pre-inc-512 legacy citation) gets its OWN singleton
+  // entry rather than being guessed into an existing group.
+  function buildCitationsPanelEntries(tags) {
+    var entriesByKey = {};
+    var order = [];
+    var citationIndex = -1;
+    (tags || []).forEach(function (tag) {
+      if (!isCitationTag(tag)) return;
+      citationIndex += 1;
+      var items = decodeCitationTag(tag);
+      if (!items) return; // malformed -- Document diagnostics reports this separately; the panel just skips it
+      items.forEach(function (item, i) {
+        var pid = extractPaperId(item && item.id);
+        var key = pid != null ? "id:" + pid : "unresolved:" + citationIndex + ":" + i;
+        var entry = entriesByKey[key];
+        if (!entry) {
+          entry = { key: key, paperId: pid, row: cslRecordRow(item), occurrenceCount: 0, positions: [] };
+          entriesByKey[key] = entry;
+          order.push(key);
+        }
+        entry.occurrenceCount += 1;
+        entry.positions.push(citationIndex);
+      });
+    });
+    return order.map(function (key) { return entriesByKey[key]; });
+  }
+  // Pure augmentation: mark each entry orphaned/retraction-flagged from the same shaped inputs
+  // summarizeDiagnostics already consumes (a "missing ids" list + a retraction check-selected `checked` array).
+  function mergePanelEntryStatus(entries, missingPaperIds, retractionChecked) {
+    var missingSet = {};
+    (missingPaperIds || []).forEach(function (id) { missingSet[String(id)] = true; });
+    var flaggedByPaperId = {};
+    (retractionChecked || []).forEach(function (row) {
+      var status = row && row.status;
+      if (status && status !== "none" && status !== "unchecked") flaggedByPaperId[String(row.paper_id)] = row;
+    });
+    return (entries || []).map(function (entry) {
+      var out = Object.assign({}, entry);
+      out.orphaned = entry.paperId != null && !!missingSet[String(entry.paperId)];
+      out.retraction = entry.paperId != null ? flaggedByPaperId[String(entry.paperId)] || null : null;
+      return out;
+    });
+  }
+
   // ---- Word-on-the-web relay (SP4) ----
   // The task pane is served same-origin from callosum on desktop (localhost/127.0.0.1) -- no token needed, the
   // browser/webview never leaves the machine. Word-on-the-web loads the SAME task pane through the cloudflared
@@ -299,6 +347,8 @@
     stampCallosumId: stampCallosumId,
     extractPaperId: extractPaperId,
     summarizeDiagnostics: summarizeDiagnostics,
+    buildCitationsPanelEntries: buildCitationsPanelEntries,
+    mergePanelEntryStatus: mergePanelEntryStatus,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.CallosumCore = api;

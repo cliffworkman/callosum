@@ -399,10 +399,51 @@
     }
   }
 
+  // Shared by Document diagnostics (inc 512-513) and the Citations panel (inc 516): given a list of resolved
+  // paper ids, determine which are still real library papers and their retraction status, in one orchestration
+  // both features reuse identically -- factored out so the inc-513 trash-aware existence fix can't drift
+  // between two copies. Caps at MAX_EXISTENCE_CHECK_IDS, matching /methods/retraction/check-selected's own cap.
+  var MAX_EXISTENCE_CHECK_IDS = 100; // matches methods_retraction.py's own MAX_CHECK_SELECTED request cap
+  async function checkPaperExistence(ids) {
+    var truncated = ids.length > MAX_EXISTENCE_CHECK_IDS;
+    var checkedIds = truncated ? ids.slice(0, MAX_EXISTENCE_CHECK_IDS) : ids;
+
+    // Existence (and orphan) detection: /methods/retraction/check-selected's own "not found" only means the
+    // paper ROW is gone -- its internal get_paper() lookup has no deleted_at filter, so a TRASHED paper still
+    // resolves as "found." /papers/export DOES exclude trash (get_papers_for_export filters deleted_at IS
+    // NULL), but its response .id can't be trusted to correlate back to which requested id it answers (the
+    // same stored-id problem inc 512 already fixed for citation tags) -- so check ONE id at a time and key off
+    // presence/count, never off the returned record's own id value.
+    var missingIds = [];
+    await Promise.all(checkedIds.map(async function (id) {
+      var r = await callosumFetch("/papers/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paper_ids: [Number(id)], format: "csl-json" }),
+      });
+      var exists = false;
+      if (r.ok) { var rows = await r.json(); exists = Array.isArray(rows) && rows.length > 0; }
+      if (!exists) missingIds.push(Number(id));
+    }));
+    var existingIds = checkedIds.filter(function (id) { return missingIds.indexOf(Number(id)) === -1; });
+
+    var checked = [];
+    if (existingIds.length) {
+      var r2 = await callosumFetch("/methods/retraction/check-selected", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paper_ids: existingIds.map(Number) }),
+      });
+      if (!r2.ok) throw new Error("retraction check failed (" + r2.status + ")");
+      var data = await r2.json();
+      checked = (data && data.checked) || [];
+    }
+    return { missingIds: missingIds, checked: checked, truncated: truncated };
+  }
+
   // Document diagnostics (inc 512): a read-only scan -- malformed/unresolvable citations, orphaned or
   // retracted cited works, and bibliography health. Mirrors composer.py's diagnose_document narrowed to what
   // Word's tag model can actually check (see taskpane_core.js's summarizeDiagnostics comment).
-  var MAX_DIAGNOSTICS_PAPER_IDS = 100; // matches methods_retraction.py's own MAX_CHECK_SELECTED request cap
   function renderDiagnosticsReport(report, truncated) {
     var lines = [];
     lines.push(report.citationCount + " citation(s) found.");
@@ -417,7 +458,7 @@
       lines.push("⚠ " + report.retractionFlagged.length + " cited paper(s) flagged (retraction/correction) — see Methods for detail.");
     }
     lines.push("Bibliography: " + report.bibliography + ".");
-    if (truncated) lines.push("(Only the first " + MAX_DIAGNOSTICS_PAPER_IDS + " distinct cited papers were checked against the library.)");
+    if (truncated) lines.push("(Only the first " + MAX_EXISTENCE_CHECK_IDS + " distinct cited papers were checked against the library.)");
     $("diagnostics").textContent = lines.join(" ");
   }
   async function runDiagnostics() {
@@ -442,45 +483,87 @@
           if (pid != null) idSet[pid] = true;
         });
       });
-      var ids = Object.keys(idSet);
-      var truncated = ids.length > MAX_DIAGNOSTICS_PAPER_IDS;
-      var checkedIds = truncated ? ids.slice(0, MAX_DIAGNOSTICS_PAPER_IDS) : ids;
-
-      // Existence (and orphan) detection: /methods/retraction/check-selected's own "not found" only means the
-      // paper ROW is gone -- its internal get_paper() lookup has no deleted_at filter, so a TRASHED paper still
-      // resolves as "found." /papers/export DOES exclude trash (get_papers_for_export filters deleted_at IS
-      // NULL), but its response .id can't be trusted to correlate back to which requested id it answers (the
-      // same stored-id problem this increment already fixed for citation tags) -- so check ONE id at a time and
-      // key off presence/count, never off the returned record's own id value.
-      var missingIds = [];
-      await Promise.all(checkedIds.map(async function (id) {
-        var r = await callosumFetch("/papers/export", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paper_ids: [Number(id)], format: "csl-json" }),
-        });
-        var exists = false;
-        if (r.ok) { var rows = await r.json(); exists = Array.isArray(rows) && rows.length > 0; }
-        if (!exists) missingIds.push(Number(id));
-      }));
-      var existingIds = checkedIds.filter(function (id) { return missingIds.indexOf(Number(id)) === -1; });
-
-      var checked = [];
-      if (existingIds.length) {
-        var r2 = await callosumFetch("/methods/retraction/check-selected", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paper_ids: existingIds.map(Number) }),
-        });
-        if (!r2.ok) throw new Error("retraction check failed (" + r2.status + ")");
-        var data = await r2.json();
-        checked = (data && data.checked) || [];
-      }
-
-      renderDiagnosticsReport(CallosumCore.summarizeDiagnostics(tags, missingIds, checked), truncated);
+      var existence = await checkPaperExistence(Object.keys(idSet));
+      renderDiagnosticsReport(
+        CallosumCore.summarizeDiagnostics(tags, existence.missingIds, existence.checked),
+        existence.truncated,
+      );
       setStatus("Diagnostics complete.");
     } catch (e) {
       setStatus("Couldn't run diagnostics: " + ((e && e.message) || e), true);
+    }
+  }
+
+  // Citations-in-this-document panel (inc 516): every unique cited work, occurrence count, orphan/retraction
+  // badges, click-to-navigate to its first occurrence, and client-side search -- explicit on-demand trigger,
+  // matching Document diagnostics' own UX pattern (no auto-refresh, no background work on load).
+  var citationsPanelEntries = []; // last-computed entries, re-filtered client-side on every search keystroke
+  function renderCitationsPanelBadges(entry) {
+    var badges = [];
+    if (entry.orphaned) badges.push('<span class="badge-warn">not in library</span>');
+    if (entry.retraction) badges.push('<span class="badge-warn">' + escapeHtml(entry.retraction.status) + "</span>");
+    return badges.join(" ");
+  }
+  function renderCitationsPanelList() {
+    var filterText = ($("citationsSearch").value || "").trim().toLowerCase();
+    var visible = filterText
+      ? citationsPanelEntries.filter(function (e) { return e.row.toLowerCase().indexOf(filterText) !== -1; })
+      : citationsPanelEntries;
+    $("citationsPanel").innerHTML = visible.length
+      ? visible.map(function (e) {
+          return '<li><button class="row" data-position="' + e.positions[0] + '">' +
+            escapeHtml(e.row) + " · " + e.occurrenceCount + "×  " + renderCitationsPanelBadges(e) +
+            "</button></li>";
+        }).join("")
+      : '<li class="empty">' + escapeHtml(citationsPanelEntries.length ? "No matches." : "No citations in this document yet.") + "</li>";
+  }
+  async function runCitationsPanel() {
+    setStatus("Scanning the document…");
+    $("citationsPanel").innerHTML = "";
+    $("citationsSearch").style.display = "block"; // revealed on first use, like the tunnel token section
+    try {
+      var tags = [];
+      await Word.run(async function (ctx) {
+        var ccs = ctx.document.body.contentControls;
+        ccs.load("items/tag");
+        await ctx.sync();
+        tags = ccs.items.map(function (cc) { return cc.tag; });
+      });
+      var entries = CallosumCore.buildCitationsPanelEntries(tags);
+      var ids = entries.map(function (e) { return e.paperId; }).filter(function (id) { return id != null; });
+      var existence = await checkPaperExistence(ids);
+      citationsPanelEntries = CallosumCore.mergePanelEntryStatus(entries, existence.missingIds, existence.checked);
+      renderCitationsPanelList();
+      setStatus(
+        entries.length + " unique work(s) cited" + (existence.truncated ? " (only the first " + MAX_EXISTENCE_CHECK_IDS + " checked against the library)" : "") + ".",
+      );
+    } catch (e) {
+      setStatus("Couldn't build the citations panel: " + ((e && e.message) || e), true);
+    }
+  }
+  function onCitationsPanelClick(ev) {
+    var btn = ev.target.closest("button.row[data-position]");
+    if (btn) navigateToCitation(Number(btn.getAttribute("data-position")));
+  }
+  // Re-scans fresh rather than holding stale Content Control references from when the panel was built --
+  // the document may have changed since then (matches the composer's own .track()/.untrack() caution, just
+  // solved here by not caching cross-click state at all instead).
+  async function navigateToCitation(position) {
+    try {
+      var found = false;
+      await Word.run(async function (ctx) {
+        var ccs = ctx.document.body.contentControls;
+        ccs.load("items/tag");
+        await ctx.sync();
+        var citationCCs = ccs.items.filter(function (cc) { return CallosumCore.isCitationTag(cc.tag); });
+        if (position < 0 || position >= citationCCs.length) return;
+        citationCCs[position].select();
+        await ctx.sync();
+        found = true;
+      });
+      if (!found) setStatus("Couldn't locate that citation — the document may have changed. Try again.", true);
+    } catch (e) {
+      setStatus("Couldn't navigate: " + ((e && e.message) || e), true);
     }
   }
 
@@ -651,6 +734,9 @@
     $("editAtCursor").addEventListener("click", editCitationAtCursor);
     $("deleteAtCursor").addEventListener("click", deleteCitationAtCursor);
     $("diagnosticsRun").addEventListener("click", runDiagnostics);
+    $("citationsPanelRun").addEventListener("click", runCitationsPanel);
+    $("citationsPanel").addEventListener("click", onCitationsPanelClick);
+    $("citationsSearch").addEventListener("input", debounce(renderCitationsPanelList, 150));
     $("refresh").addEventListener("click", function () { refreshDocument(); });
     $("flatten").addEventListener("click", onFlatten);
     $("style").addEventListener("change", onStyleChange);

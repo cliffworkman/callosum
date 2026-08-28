@@ -56,8 +56,12 @@
 
     <div class="actions">
       <button id="diagnosticsRun" type="button" class="secondary">Document diagnostics…</button>
+      <button id="citationsPanelRun" type="button" class="secondary">Citations in this document…</button>
     </div>
     <div id="diagnostics" class="diagnostics" role="status" aria-live="polite"></div>
+
+    <input id="citationsSearch" type="search" placeholder="Search cited works…" autocomplete="off" aria-label="Search citations in this document" style="display:none"/>
+    <ul id="citationsPanel" class="results"></ul>
 
     <div id="status" class="status" role="status" aria-live="polite"></div>
   </div>

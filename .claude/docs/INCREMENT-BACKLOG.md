@@ -175,12 +175,16 @@ the Principles + A-A gates before build.)*
       now shows a pre-confirm citation/bibliography count, an honest "Callosum can't save a copy for you"
       reminder (Office.js has no `saveAs`, confirmed), an opt-in style-setting cleanup, and a post-operation
       integrity re-scan — see `INCREMENT-515-NOTES.md`.
-    - **P1 (not started):** note-style (footnote/endnote) citation placement (needs Word's own `noteIndex`
-      computation from scratch — no existing infra, unlike LibreOffice's `_note_containers`); a persistent
-      "Citations in this document" panel; bibliography categories/chapter-section blocks; accessibility pass
-      (likely cheaper than LibreOffice's, since the task pane is plain HTML/CSS, not native AWT dialogs). A
-      dedicated style-browser UI is low-value — Word's style dropdown already reflects anything installed via
-      Settings' shared catalog.
+    - **P1 — "Citations in this document" panel shipped inc 516.** Every unique cited work, occurrence count,
+      orphan/retraction badges (reusing the shared `checkPaperExistence()` helper factored out of Document
+      diagnostics in the same increment), click-to-navigate, client-side search. Scoped narrower than the
+      roadmap's wishlist: "metadata conflicts" and "most recent citation" skipped (disclosed, not silently
+      dropped — see `INCREMENT-516-NOTES.md`). **Still not started:** note-style (footnote/endnote) citation
+      placement (needs Word's own `noteIndex` computation from scratch — no existing infra, unlike
+      LibreOffice's `_note_containers`, and confirmed the biggest remaining lift); bibliography categories/
+      chapter-section blocks; accessibility pass (likely cheaper than LibreOffice's, since the task pane is
+      plain HTML/CSS, not native AWT dialogs). A dedicated style-browser UI is low-value — Word's style
+      dropdown already reflects anything installed via Settings' shared catalog.
     - **P2/leapfrog (not started):** evidence-aware Suggest-Citation details (stance breakdown, weak-evidence
       warning, Open in PDF — mirrors inc 460); citation-coverage/integrity-preflight audits
       (`POST /methods/retraction/check-selected` is already adapter-agnostic, zero backend work — mirrors inc
