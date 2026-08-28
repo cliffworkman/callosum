@@ -160,11 +160,15 @@ the Principles + A-A gates before build.)*
       composer mirroring `adapters/libreoffice/composer.py`'s assembly model; the shared backend
       (`render_document`/`citeproc_runner.js`) needed zero changes, it already supported this. See
       `INCREMENT-509-NOTES.md`.
-    - **P0 remainder (not started):** a "Document diagnostics" command mirroring inc 459's
-      `diagnose_document` (malformed/duplicate-id/orphaned citations, bibliography health) but walking
-      `context.document.contentControls` instead of UNO ReferenceMarks; a bibliography-bounds safety review
-      (Word's content-control-bounded bibliography may already be safer than the roadmap's LibreOffice-bookmark
-      critique — verify, don't assume); safer Flatten (count summary, optional link-retention).
+    - **P0 remainder — Document diagnostics shipped inc 512.** A read-only "Document diagnostics…" command
+      (malformed/unresolvable citations, orphaned or retraction-flagged cited works, bibliography health),
+      walking `context.document.contentControls` instead of UNO ReferenceMarks; "unsupported schema version"/
+      "duplicate mark identity" have no Word equivalent (disclosed, not silently dropped). Fixed a real bug
+      found while scoping it: Word's composer trusted the stored `csl_json.id` instead of stamping a reliable
+      `"callosum-<paperId>"` id the way LibreOffice's `_build_records` already does — see
+      `INCREMENT-512-NOTES.md`. **Still not started:** a bibliography-bounds safety review (Word's content-
+      control-bounded bibliography may already be safer than the roadmap's LibreOffice-bookmark critique —
+      verify, don't assume); safer Flatten (count summary, optional link-retention).
     - **P1 (not started):** note-style (footnote/endnote) citation placement (needs Word's own `noteIndex`
       computation from scratch — no existing infra, unlike LibreOffice's `_note_containers`); a persistent
       "Citations in this document" panel; bibliography categories/chapter-section blocks; accessibility pass

@@ -57,6 +57,21 @@ test("decodeCitationTag: non-citation / malformed / empty-items → null (never 
   assert.strictEqual(core.decodeCitationTag(core.encodeCitationTag([])), null);
 });
 
+// ---- reliable paper-id tracking (inc 512) ----
+test("stampCallosumId: overwrites .id to 'callosum-<paperId>'; never mutates the input record", () => {
+  const csl = { id: "some-zotero-key", title: "Notes" };
+  const stamped = core.stampCallosumId(csl, 7);
+  assert.deepStrictEqual(stamped, { id: "callosum-7", title: "Notes" });
+  assert.strictEqual(csl.id, "some-zotero-key"); // input untouched
+});
+
+test("extractPaperId: strips the prefix; absent prefix (pre-fix/foreign id) → null, never guesses", () => {
+  assert.strictEqual(core.extractPaperId("callosum-7"), "7");
+  assert.strictEqual(core.extractPaperId("some-zotero-key"), null);
+  assert.strictEqual(core.extractPaperId(null), null);
+  assert.strictEqual(core.extractPaperId(undefined), null);
+});
+
 // ---- render-document request + response (SP2) ----
 test("buildDocumentRequest: positional citationIDs in document order + style/locale", () => {
   assert.deepStrictEqual(
@@ -179,6 +194,65 @@ test("assemblyRowFromDecodedItem: round-trips buildClusterItems' output back int
   assert.strictEqual(row.row, "Lovelace — Notes");
   // Round-trip: building cluster items from the reconstructed row reproduces the original decoded item.
   assert.deepStrictEqual(core.buildClusterItems([row]), [decoded]);
+});
+
+// ---- Document diagnostics (inc 512) ----
+test("summarizeDiagnostics: a clean document — citations resolve, bibliography present, nothing flagged", () => {
+  const tags = [
+    core.encodeCitationTag([{ id: "callosum-1", title: "A" }]),
+    core.encodeCitationTag([{ id: "callosum-2", title: "B" }, { id: "callosum-3", title: "C" }]),
+    core.BIB_TAG,
+  ];
+  const report = core.summarizeDiagnostics(tags, [], []); // nothing in the not_found list -- all resolved
+  assert.deepStrictEqual(report, {
+    citationCount: 2,
+    malformedCount: 0,
+    unresolvableItemCount: 0,
+    distinctPaperIds: ["1", "2", "3"],
+    orphanedPaperIds: [],
+    bibliography: "ok",
+    retractionFlagged: [],
+  });
+});
+
+test("summarizeDiagnostics: malformed tags counted separately; unrelated (non-Callosum) tags ignored entirely", () => {
+  const tags = [core.CITATION_PREFIX + " not-base64!!", "Heading 1", "SomeOtherAddin_Field"];
+  const report = core.summarizeDiagnostics(tags, [], []);
+  assert.strictEqual(report.citationCount, 1); // the malformed one IS a citation tag, just undecodable
+  assert.strictEqual(report.malformedCount, 1);
+  assert.strictEqual(report.bibliography, "missing"); // citations exist, no bibliography tag
+});
+
+test("summarizeDiagnostics: no citations at all → bibliography is n/a, not 'missing'", () => {
+  assert.strictEqual(core.summarizeDiagnostics([], [], []).bibliography, "n/a");
+  assert.strictEqual(core.summarizeDiagnostics(["Heading 1"], [], []).bibliography, "n/a");
+});
+
+test("summarizeDiagnostics: a pre-fix/foreign id (no callosum- prefix) counts as unresolvable, not orphaned", () => {
+  const tags = [core.encodeCitationTag([{ id: "some-zotero-key", title: "Old" }])];
+  const report = core.summarizeDiagnostics(tags, [], []);
+  assert.strictEqual(report.unresolvableItemCount, 1);
+  assert.deepStrictEqual(report.distinctPaperIds, []); // never guessed a paper id for it
+  assert.deepStrictEqual(report.orphanedPaperIds, []);
+});
+
+test("summarizeDiagnostics: a resolvable id in the retraction check's not_found list is orphaned", () => {
+  const tags = [core.encodeCitationTag([{ id: "callosum-99", title: "Deleted paper" }])];
+  const report = core.summarizeDiagnostics(tags, [99], []); // 99 is a real int in not_found, like the API returns
+  assert.deepStrictEqual(report.orphanedPaperIds, ["99"]);
+});
+
+test("summarizeDiagnostics: retraction-flagged papers surface by distinct id; 'none'/'unchecked' don't flag", () => {
+  const tags = [
+    core.encodeCitationTag([{ id: "callosum-1", title: "A" }]),
+    core.encodeCitationTag([{ id: "callosum-2", title: "B" }]),
+  ];
+  const checked = [
+    { paper_id: 1, status: "retracted", nature: "Retraction", date: "2020-01-01", notice_url: null, sources: [] },
+    { paper_id: 2, status: "none" },
+  ];
+  const report = core.summarizeDiagnostics(tags, [], checked); // both papers exist -- nothing in not_found
+  assert.deepStrictEqual(report.retractionFlagged, [checked[0]]);
 });
 
 // ---- Word-on-the-web relay (SP4): local vs. tunneled origin + the Bearer token header ----

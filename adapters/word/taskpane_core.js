@@ -72,6 +72,25 @@
     }
   }
 
+  // ---- reliable paper-id tracking (inc 512) ----
+  // /papers/export returns the STORED, un-normalized csl_json.id verbatim (confirmed by reading
+  // citation_export.py's to_csl_json) -- NOT guaranteed to equal the paper's real numeric database id (it
+  // depends on how the paper was originally imported: a Zotero key, a DOI-based id, etc. could end up there).
+  // Rendering doesn't care (render_document is self-contained -- each cluster carries its own full record, so
+  // `id` is only an internal citeproc correlation key within one request) but anything that needs to know
+  // WHICH library paper a citation references does. Mirrors callosum_cite.py:307's own `_build_records`
+  // convention exactly, rather than inventing a different one: stamp a known-reliable id at insert time.
+  var CALLOSUM_ID_PREFIX = "callosum-";
+  function stampCallosumId(csl, paperId) {
+    return Object.assign({}, csl, { id: CALLOSUM_ID_PREFIX + paperId });
+  }
+  // The inverse: strip the prefix, or null if it's absent (a citation inserted before this convention existed,
+  // or a foreign one) -- never guess at a paper id that wasn't actually stamped.
+  function extractPaperId(cslId) {
+    var s = String(cslId || "");
+    return s.indexOf(CALLOSUM_ID_PREFIX) === 0 ? s.slice(CALLOSUM_ID_PREFIX.length) : null;
+  }
+
   // ---- the document render-document contract (SP2) ----
   // itemsList is the per-cluster CSL-JSON item arrays in DOCUMENT ORDER (one per citation content control).
   function buildDocumentRequest(itemsList, style, locale) {
@@ -182,6 +201,62 @@
     return row;
   }
 
+  // ---- Document diagnostics (inc 512, backlog #33/#34 P0 remainder) ----
+  // Mirrors adapters/libreoffice/callosum_cite.py's `diagnose_document`/`citation_integrity_preflight` (inc
+  // 459), narrowed to what Word's simpler tag model can actually check: Word has no embedded schema-version
+  // field and no LibreOffice-style random mark identity distinct from Word's own (always-unique, Word-managed)
+  // content-control id, so "unsupported schema version" and "duplicate mark identity" have no Word equivalent
+  // and are deliberately not checked here -- narrower on purpose, not silently.
+  //
+  // `tags`: every content control's raw .tag string in the document (citations, the bibliography tag, and any
+  // unrelated ones, which are ignored). `notFoundPaperIds`/`retractionChecked` both come from ONE
+  // POST /methods/retraction/check-selected call over the distinct resolvable paper ids found in `tags` --
+  // its response already separates `not_found` (real requested ids that don't exist -- i.e. orphaned) from
+  // `checked` (status per id that DOES exist), so no separate existence-check call is needed. Deliberately NOT
+  // using /papers/export for this: its CSL-JSON response returns the STORED csl_json.id verbatim, which -- like
+  // the citation-tag id problem this increment already fixed -- isn't guaranteed to match the real requested
+  // id, so it can't reliably answer "did paper 7 come back."
+  function summarizeDiagnostics(tags, notFoundPaperIds, retractionChecked) {
+    var notFoundSet = {};
+    (notFoundPaperIds || []).forEach(function (id) { notFoundSet[String(id)] = true; });
+    var flaggedByPaperId = {};
+    (retractionChecked || []).forEach(function (row) {
+      var status = row && row.status;
+      if (status && status !== "none" && status !== "unchecked") flaggedByPaperId[String(row.paper_id)] = row;
+    });
+
+    var citationCount = 0, malformedCount = 0, unresolvableItemCount = 0;
+    var resolvedIds = {}, hasBibliography = false;
+    (tags || []).forEach(function (tag) {
+      if (tag === BIB_TAG) { hasBibliography = true; return; }
+      if (!isCitationTag(tag)) return;
+      citationCount += 1;
+      var items = decodeCitationTag(tag);
+      if (!items) { malformedCount += 1; return; }
+      items.forEach(function (item) {
+        var pid = extractPaperId(item && item.id);
+        if (pid == null) unresolvableItemCount += 1;
+        else resolvedIds[pid] = true;
+      });
+    });
+
+    var distinctPaperIds = Object.keys(resolvedIds);
+    var orphanedPaperIds = distinctPaperIds.filter(function (id) { return notFoundSet[id]; });
+    var retractionFlagged = distinctPaperIds
+      .filter(function (id) { return flaggedByPaperId[id]; })
+      .map(function (id) { return flaggedByPaperId[id]; });
+
+    return {
+      citationCount: citationCount,
+      malformedCount: malformedCount,
+      unresolvableItemCount: unresolvableItemCount,
+      distinctPaperIds: distinctPaperIds,
+      orphanedPaperIds: orphanedPaperIds,
+      bibliography: citationCount === 0 ? "n/a" : (hasBibliography ? "ok" : "missing"),
+      retractionFlagged: retractionFlagged,
+    };
+  }
+
   // ---- Word-on-the-web relay (SP4) ----
   // The task pane is served same-origin from callosum on desktop (localhost/127.0.0.1) -- no token needed, the
   // browser/webview never leaves the machine. Word-on-the-web loads the SAME task pane through the cloudflared
@@ -220,6 +295,9 @@
     cslRecordRow: cslRecordRow,
     formatAssemblyRow: formatAssemblyRow,
     assemblyRowFromDecodedItem: assemblyRowFromDecodedItem,
+    stampCallosumId: stampCallosumId,
+    extractPaperId: extractPaperId,
+    summarizeDiagnostics: summarizeDiagnostics,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.CallosumCore = api;

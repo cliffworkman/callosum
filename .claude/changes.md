@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 512: Word Document diagnostics + a real CSL-id reliability fix (backlog #33/#34 P0)
+- **Files:** `adapters/word/taskpane_core.js`, `adapters/word/taskpane_core.test.js`, `adapters/word/
+  taskpane.{js,html,css}`, `.claude/docs/increment-notes/INCREMENT-512-NOTES.md`.
+- **What:** a read-only "Document diagnostics…" command (malformed/unresolvable citations, orphaned or
+  retraction-flagged cited works, bibliography health), mirroring LibreOffice's `diagnose_document`. Scoping it
+  surfaced a real bug: Word's composer trusted the stored, un-normalized `csl_json.id` for a paper instead of
+  stamping a reliable `"callosum-<paperId>"` id like LibreOffice's `callosum_cite.py:307` already does —
+  harmless for rendering (self-contained per request) but broken for anything needing "which library paper is
+  this," exactly what diagnostics needs. Fixed by matching LibreOffice's convention. Orphan detection reuses
+  `POST /methods/retraction/check-selected`'s existing `not_found` field (real requested ids) rather than a
+  second `/papers/export` call, which would have had the identical id-reliability problem.
+- **Why:** continuing the phased Word/Docs parity roadmap at the P0 remainder; zero backend changes needed.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 511: desktop Word structurally exempt from Remote Access (supersedes inc 510's workaround)
 - **Files:** `tools/run_https.py`, `app/backend/app_settings.py`, `app/backend/api/access_control.py`,
   `adapters/googledocs/cloudflared-config.yml`, `adapters/word/README.md`, `adapters/word/taskpane.js`, new

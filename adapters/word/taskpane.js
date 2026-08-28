@@ -185,8 +185,11 @@
         body: JSON.stringify({ paper_ids: [paperId], format: "csl-json" }),
       });
       if (!r.ok) throw new Error("export failed (" + r.status + ")");
-      var csl = CallosumCore.firstCslRecord(await r.json());
-      if (!csl) throw new Error("no CSL-JSON returned");
+      var exported = CallosumCore.firstCslRecord(await r.json());
+      if (!exported) throw new Error("no CSL-JSON returned");
+      // The stored csl_json.id isn't guaranteed to be the real paper id (inc 512) -- stamp a reliable one
+      // (matching callosum_cite.py's own convention) so Document diagnostics can later identify this citation.
+      var csl = CallosumCore.stampCallosumId(exported, paperId);
       assembly.push({ csl: csl, row: CallosumCore.cslRecordRow(csl) });
       openOptionsIdx = -1;
       renderAssembly();
@@ -396,6 +399,73 @@
     }
   }
 
+  // Document diagnostics (inc 512): a read-only scan -- malformed/unresolvable citations, orphaned or
+  // retracted cited works, and bibliography health. Mirrors composer.py's diagnose_document narrowed to what
+  // Word's tag model can actually check (see taskpane_core.js's summarizeDiagnostics comment).
+  var MAX_DIAGNOSTICS_PAPER_IDS = 100; // matches methods_retraction.py's own MAX_CHECK_SELECTED request cap
+  function renderDiagnosticsReport(report, truncated) {
+    var lines = [];
+    lines.push(report.citationCount + " citation(s) found.");
+    if (report.malformedCount) lines.push("⚠ " + report.malformedCount + " malformed (can't be read).");
+    if (report.unresolvableItemCount) {
+      lines.push("⚠ " + report.unresolvableItemCount + " item(s) with no identifiable library paper (likely inserted before this check existed).");
+    }
+    if (report.orphanedPaperIds.length) {
+      lines.push("⚠ " + report.orphanedPaperIds.length + " cited paper(s) no longer in your library.");
+    }
+    if (report.retractionFlagged.length) {
+      lines.push("⚠ " + report.retractionFlagged.length + " cited paper(s) flagged (retraction/correction) — see Methods for detail.");
+    }
+    lines.push("Bibliography: " + report.bibliography + ".");
+    if (truncated) lines.push("(Only the first " + MAX_DIAGNOSTICS_PAPER_IDS + " distinct cited papers were checked against the library.)");
+    $("diagnostics").textContent = lines.join(" ");
+  }
+  async function runDiagnostics() {
+    setStatus("Scanning the document…");
+    $("diagnostics").textContent = "";
+    try {
+      var tags = [];
+      await Word.run(async function (ctx) {
+        var ccs = ctx.document.body.contentControls;
+        ccs.load("items/tag");
+        await ctx.sync();
+        tags = ccs.items.map(function (cc) { return cc.tag; });
+      });
+
+      var idSet = {};
+      tags.forEach(function (tag) {
+        if (!CallosumCore.isCitationTag(tag)) return;
+        var items = CallosumCore.decodeCitationTag(tag);
+        if (!items) return;
+        items.forEach(function (item) {
+          var pid = CallosumCore.extractPaperId(item && item.id);
+          if (pid != null) idSet[pid] = true;
+        });
+      });
+      var ids = Object.keys(idSet);
+      var truncated = ids.length > MAX_DIAGNOSTICS_PAPER_IDS;
+      var checkedIds = truncated ? ids.slice(0, MAX_DIAGNOSTICS_PAPER_IDS) : ids;
+
+      var notFound = [], checked = [];
+      if (checkedIds.length) {
+        var r = await callosumFetch("/methods/retraction/check-selected", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paper_ids: checkedIds.map(Number) }),
+        });
+        if (!r.ok) throw new Error("retraction check failed (" + r.status + ")");
+        var data = await r.json();
+        notFound = (data && data.not_found) || [];
+        checked = (data && data.checked) || [];
+      }
+
+      renderDiagnosticsReport(CallosumCore.summarizeDiagnostics(tags, notFound, checked), truncated);
+      setStatus("Diagnostics complete.");
+    } catch (e) {
+      setStatus("Couldn't run diagnostics: " + ((e && e.message) || e), true);
+    }
+  }
+
   // Re-render every Callosum citation in document order + rebuild the bibliography (the Zotero-style loop).
   async function refreshDocument() {
     setStatus("Refreshing…");
@@ -526,6 +596,7 @@
     $("cancelAssembly").addEventListener("click", resetAssembly);
     $("editAtCursor").addEventListener("click", editCitationAtCursor);
     $("deleteAtCursor").addEventListener("click", deleteCitationAtCursor);
+    $("diagnosticsRun").addEventListener("click", runDiagnostics);
     $("refresh").addEventListener("click", function () { refreshDocument(); });
     $("flatten").addEventListener("click", onFlatten);
     $("style").addEventListener("change", onStyleChange);
