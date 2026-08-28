@@ -184,7 +184,7 @@ the Principles + A-A gates before build.)*
       keyboard reachability were already correct (confirmed by direct read, plain HTML with no `tabindex`
       overrides) — see `INCREMENT-517-NOTES.md`.
       **HANDED OFF TO CODEX 2026-08-28** (Cliff's Claude usage maxed out ~48h) — see
-      `.claude/handoffs/2026-08-28_codex-word-parity-handoff.md` for the exact remaining scope, verification
+      `.claude/docs/2026-08-28_codex-word-parity-handoff.md` for the exact remaining scope, verification
       requirements, and known traps. **Still not started:** note-style (footnote/endnote) citation placement
       (needs Word's own `noteIndex` computation from scratch — no existing infra, unlike LibreOffice's
       `_note_containers`, and confirmed the biggest remaining lift); bibliography categories/chapter-section
