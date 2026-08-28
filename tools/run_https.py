@@ -18,6 +18,16 @@ import os
 import sys
 from pathlib import Path
 
+# uvicorn.run("app.backend.api.app:app", ...) below resolves that dotted path via a DEFERRED import inside
+# uvicorn itself, not a direct `from app...` here -- so this file never triggered Python's own import
+# machinery to fail loudly at parse time. Running exactly as documented (`python tools/run_https.py`, script
+# mode) puts this file's own directory (tools/) on sys.path, NOT the project root, so uvicorn's later import
+# of `app.backend...` raises `ModuleNotFoundError: No module named 'app'` -- a real bug, caught live
+# (2026-08-28) the first time this script was ever actually run, since Word was never installed before. Same
+# fix every other tools/ script needing a sibling `app` import already uses (e.g. build_frontend.py).
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
 
 def _dev_cert_paths() -> tuple[str, str] | tuple[None, None]:
     home = Path.home() / ".office-addin-dev-certs"

@@ -35,9 +35,20 @@ below is for (the same tunnel `adapters/googledocs/` already uses, just relaying
 3. **Sideload the manifest** into Word:
    - In callosum: **Settings → Microsoft Word add-in → Download manifest** (saves `manifest.xml`), or grab it from
      `adapters/word/manifest.xml` (Settings → **Open add-in folder**).
-   - **Windows:** put `manifest.xml` in a folder, then in Word: **File → Options → Trust Center → Trust Center
-     Settings → Trusted Add-in Catalogs**, add that folder's path, tick *Show in Menu*, restart Word. Then
-     **Home → Add-ins → (Shared Folder) → Callosum Citations**.
+   - **Windows — corrected 2026-08-28 (live-verified; the Trust Center's "Catalog Url" field genuinely rejects a
+     bare local path — confirmed against Microsoft's own current docs, not just this project's earlier
+     assumption):** Word's Trusted Add-in Catalogs needs a **network share path**, not a plain `C:\...` folder
+     path, even for a folder on your own machine:
+     1. In File Explorer, right-click the `adapters/word` folder (containing `manifest.xml`) → **Properties** →
+        **Sharing** tab → **Share…** button.
+     2. In the *Network access* dialog, add yourself with **Read/Write** permission → **Share**. Note the exact
+        network path shown (e.g. `\\YOUR-PC-NAME\word`) — this is the value Word needs, not the local path.
+     3. In Word: **File → Options → Trust Center → Trust Center Settings → Trusted Add-in Catalogs**, paste that
+        `\\...` network path into **Catalog Url**, click **Add catalog**, tick **Show in Menu**, OK, OK. Close and
+        reopen Word.
+     4. **Home → Add-ins → Advanced** (not "Shared Folder" directly — that tab lives *inside* this dialog) →
+        choose the **SHARED FOLDER** tab at the top of the Office Add-ins dialog → select **Callosum Citations** →
+        **Add**.
    - **Mac:** copy `manifest.xml` to `~/Library/Containers/com.microsoft.Word/Data/Documents/wef/` (create it if
      needed), restart Word, then **Home → Add-ins → Callosum Citations**.
 

@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 507** (see Increment workflow) with **2561 root-suite pytest tests
+It is currently at **Increment 508** (see Increment workflow) with **2561 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -481,9 +481,17 @@ the full per-increment narrative for all other increments now lives in the reloc
   Security audits: `2026-06-27_word-addin.md`, `2026-06-28_googledocs-tunnel.md`,
   `2026-06-28_googledocs-addon.md`, `2026-08-18_word-online-relay.md` (all PASS; the tunnel audit is the
   binding one for `2026-06-27_remote-access-auth.md`'s token-gate reuse, and inc 482's own audit for
-  `access_control.py`'s exemption-list fix). **Not yet live-verified in real Word or Word-on-the-web** — the
-  maintainer doesn't have desktop Word installed as of inc 482; see `INCREMENT-482-NOTES.md`'s manual
-  verification script.
+  `access_control.py`'s exemption-list fix). **Desktop Word live-verified 2026-08-28 (inc 508)** — the
+  maintainer's first-ever real run: search-and-insert, Suggest-from-the-sentence, Refresh/renumber +
+  bibliography, and Flatten all confirmed working. This surfaced and fixed two real, previously-undiscovered
+  bugs: `tools/run_https.py` (invoked exactly as documented, `python tools/run_https.py`) raised
+  `ModuleNotFoundError: No module named 'app'` — Python's script-mode `sys.path` doesn't include the project
+  root, only the script's own directory, and this file never added it (every other `tools/` script needing a
+  sibling `app` import already does); and `adapters/word/README.md`'s sideload instructions were wrong for
+  current Word — the Trust Center's "Trusted Add-in Catalogs" genuinely requires a **network share path**
+  (`\\hostname\share`, via right-click folder → Properties → Sharing → Share), not a bare local `C:\...` path,
+  confirmed against Microsoft's own current docs and corrected in the README. **Word-on-the-web (the SP4 relay
+  flow) remains not yet live-verified** — a separate next step; see `INCREMENT-508-NOTES.md`.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,

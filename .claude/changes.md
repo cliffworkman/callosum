@@ -9,6 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 508: First real live verification of the desktop Word add-in (backlog #33/#34)
+- **Files:** `tools/run_https.py`, `adapters/word/README.md`, `.claude/CLAUDE.md`, `.claude/docs/INCREMENT-BACKLOG.md`.
+- **What:** Cliff got Word installed and ran the desktop add-in for real for the first time — search-insert,
+  Suggest, Refresh/bibliography, and Flatten all worked. Found and fixed two real bugs along the way: a
+  `sys.path` bug in `tools/run_https.py` (the documented `python tools/run_https.py` invocation raised
+  `ModuleNotFoundError`), and a wrong Trusted-Add-in-Catalogs sideload instruction in the README (Word
+  requires a network share path, not a local one — confirmed against Microsoft's own current docs).
+- **Why:** the add-in shipped months ago but was never exercised in real Word since the maintainer didn't have
+  it installed; this was the backlog's own stated prerequisite before deciding the next concrete increment.
+- **Revert:** `git revert` this commit, or restore individual files from the prior commit.
+
 ## 2026-08-28 — Increment 507: GROBID accessible from Settings (Docker install/start/stop, closes backlog #58)
 - **Files:** new `app/backend/grobid_lifecycle.py`, new `app/backend/api/routers/grobid_docker.py`,
   `app/backend/api/app.py`, `app/backend/api/routers/status.py`, `app/frontend/js/35e_maintenance.jsx`, new

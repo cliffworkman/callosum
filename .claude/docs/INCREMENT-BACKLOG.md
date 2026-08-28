@@ -139,11 +139,13 @@ the Principles + A-A gates before build.)*
   - **Word-on-the-web shipped inc 482 (SP4)** — the same task pane now runs through the existing cloudflared
     relay Google Docs already uses (a real `AccessControlMiddleware` exemption-list bug was found and fixed
     in the same increment; see `INCREMENT-482-NOTES.md` + `security-audits/2026-08-18_word-online-relay.md`).
-    **Not yet live-verified** — the maintainer doesn't have desktop Word installed yet; neither the existing
-    desktop SP1-3 flow nor the new SP4 relay flow has ever been exercised in real Word. **Immediate next
-    step, not yet done:** once Word is installed, run both — the desktop regression check first, then the
-    Word-on-the-web relay setup (`adapters/word/README.md`'s "Word on the web" section) — before deciding the
-    next concrete increment (grouped citations/locators is the natural next P1 item once verification lands).
+    **Desktop live-verified 2026-08-28 (inc 508)** — search-insert, Suggest, Refresh/bibliography, and Flatten
+    all confirmed working in real Word for the first time; found + fixed two real bugs along the way (a
+    `tools/run_https.py` `sys.path` bug and a wrong Trust-Center sideload instruction in the README — see
+    `INCREMENT-508-NOTES.md`). **Immediate next step, not yet done:** the Word-on-the-web relay setup
+    (`adapters/word/README.md`'s "Word on the web" section) still needs its own live verification — before
+    deciding the next concrete increment (grouped citations/locators is the natural next P1 item once that
+    verification lands too).
   - AppSource / broader public distribution readiness (design with it in mind; do not build the actual
     submission/review process until there's a real reason to).
 - **#35 My Publications — Layer 4.** Deterministic Layer 4 is complete (`INCREMENT-BACKLOG-DONE.md`). **Still
