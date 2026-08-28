@@ -446,20 +446,38 @@
       var truncated = ids.length > MAX_DIAGNOSTICS_PAPER_IDS;
       var checkedIds = truncated ? ids.slice(0, MAX_DIAGNOSTICS_PAPER_IDS) : ids;
 
-      var notFound = [], checked = [];
-      if (checkedIds.length) {
-        var r = await callosumFetch("/methods/retraction/check-selected", {
+      // Existence (and orphan) detection: /methods/retraction/check-selected's own "not found" only means the
+      // paper ROW is gone -- its internal get_paper() lookup has no deleted_at filter, so a TRASHED paper still
+      // resolves as "found." /papers/export DOES exclude trash (get_papers_for_export filters deleted_at IS
+      // NULL), but its response .id can't be trusted to correlate back to which requested id it answers (the
+      // same stored-id problem this increment already fixed for citation tags) -- so check ONE id at a time and
+      // key off presence/count, never off the returned record's own id value.
+      var missingIds = [];
+      await Promise.all(checkedIds.map(async function (id) {
+        var r = await callosumFetch("/papers/export", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paper_ids: checkedIds.map(Number) }),
+          body: JSON.stringify({ paper_ids: [Number(id)], format: "csl-json" }),
         });
-        if (!r.ok) throw new Error("retraction check failed (" + r.status + ")");
-        var data = await r.json();
-        notFound = (data && data.not_found) || [];
+        var exists = false;
+        if (r.ok) { var rows = await r.json(); exists = Array.isArray(rows) && rows.length > 0; }
+        if (!exists) missingIds.push(Number(id));
+      }));
+      var existingIds = checkedIds.filter(function (id) { return missingIds.indexOf(Number(id)) === -1; });
+
+      var checked = [];
+      if (existingIds.length) {
+        var r2 = await callosumFetch("/methods/retraction/check-selected", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paper_ids: existingIds.map(Number) }),
+        });
+        if (!r2.ok) throw new Error("retraction check failed (" + r2.status + ")");
+        var data = await r2.json();
         checked = (data && data.checked) || [];
       }
 
-      renderDiagnosticsReport(CallosumCore.summarizeDiagnostics(tags, notFound, checked), truncated);
+      renderDiagnosticsReport(CallosumCore.summarizeDiagnostics(tags, missingIds, checked), truncated);
       setStatus("Diagnostics complete.");
     } catch (e) {
       setStatus("Couldn't run diagnostics: " + ((e && e.message) || e), true);

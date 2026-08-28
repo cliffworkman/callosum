@@ -203,7 +203,7 @@ test("summarizeDiagnostics: a clean document — citations resolve, bibliography
     core.encodeCitationTag([{ id: "callosum-2", title: "B" }, { id: "callosum-3", title: "C" }]),
     core.BIB_TAG,
   ];
-  const report = core.summarizeDiagnostics(tags, [], []); // nothing in the not_found list -- all resolved
+  const report = core.summarizeDiagnostics(tags, [], []); // nothing missing -- every cited paper resolved
   assert.deepStrictEqual(report, {
     citationCount: 2,
     malformedCount: 0,
@@ -236,9 +236,9 @@ test("summarizeDiagnostics: a pre-fix/foreign id (no callosum- prefix) counts as
   assert.deepStrictEqual(report.orphanedPaperIds, []);
 });
 
-test("summarizeDiagnostics: a resolvable id in the retraction check's not_found list is orphaned", () => {
-  const tags = [core.encodeCitationTag([{ id: "callosum-99", title: "Deleted paper" }])];
-  const report = core.summarizeDiagnostics(tags, [99], []); // 99 is a real int in not_found, like the API returns
+test("summarizeDiagnostics: a resolvable id confirmed missing (deleted OR trashed) is orphaned", () => {
+  const tags = [core.encodeCitationTag([{ id: "callosum-99", title: "Deleted or trashed paper" }])];
+  const report = core.summarizeDiagnostics(tags, [99], []); // 99 came back missing from the per-id existence check
   assert.deepStrictEqual(report.orphanedPaperIds, ["99"]);
 });
 
@@ -251,7 +251,7 @@ test("summarizeDiagnostics: retraction-flagged papers surface by distinct id; 'n
     { paper_id: 1, status: "retracted", nature: "Retraction", date: "2020-01-01", notice_url: null, sources: [] },
     { paper_id: 2, status: "none" },
   ];
-  const report = core.summarizeDiagnostics(tags, [], checked); // both papers exist -- nothing in not_found
+  const report = core.summarizeDiagnostics(tags, [], checked); // both papers exist -- nothing missing
   assert.deepStrictEqual(report.retractionFlagged, [checked[0]]);
 });
 

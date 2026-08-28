@@ -209,16 +209,17 @@
   // and are deliberately not checked here -- narrower on purpose, not silently.
   //
   // `tags`: every content control's raw .tag string in the document (citations, the bibliography tag, and any
-  // unrelated ones, which are ignored). `notFoundPaperIds`/`retractionChecked` both come from ONE
-  // POST /methods/retraction/check-selected call over the distinct resolvable paper ids found in `tags` --
-  // its response already separates `not_found` (real requested ids that don't exist -- i.e. orphaned) from
-  // `checked` (status per id that DOES exist), so no separate existence-check call is needed. Deliberately NOT
-  // using /papers/export for this: its CSL-JSON response returns the STORED csl_json.id verbatim, which -- like
-  // the citation-tag id problem this increment already fixed -- isn't guaranteed to match the real requested
-  // id, so it can't reliably answer "did paper 7 come back."
-  function summarizeDiagnostics(tags, notFoundPaperIds, retractionChecked) {
+  // unrelated ones, which are ignored). `missingPaperIds`: real ids confirmed NOT to resolve via a per-id
+  // /papers/export existence check (presence/count only -- never the response record's own .id VALUE, which
+  // isn't guaranteed to match the requested id, the same problem this increment already fixed for citation
+  // tags). NOT sourced from /methods/retraction/check-selected's own `not_found` -- that endpoint's internal
+  // get_paper() lookup has no deleted_at filter, so a paper moved to TRASH still resolves as "found" there,
+  // silently missing exactly the orphan case a user is most likely to test (confirmed live, not assumed: a
+  // trashed paper's citation was reported clean until this was fixed). `retractionChecked`: the `checked` array
+  // from that same endpoint, called only for ids already confirmed to exist.
+  function summarizeDiagnostics(tags, missingPaperIds, retractionChecked) {
     var notFoundSet = {};
-    (notFoundPaperIds || []).forEach(function (id) { notFoundSet[String(id)] = true; });
+    (missingPaperIds || []).forEach(function (id) { notFoundSet[String(id)] = true; });
     var flaggedByPaperId = {};
     (retractionChecked || []).forEach(function (row) {
       var status = row && row.status;

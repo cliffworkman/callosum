@@ -166,7 +166,10 @@ the Principles + A-A gates before build.)*
       "duplicate mark identity" have no Word equivalent (disclosed, not silently dropped). Fixed a real bug
       found while scoping it: Word's composer trusted the stored `csl_json.id` instead of stamping a reliable
       `"callosum-<paperId>"` id the way LibreOffice's `_build_records` already does — see
-      `INCREMENT-512-NOTES.md`. **Still not started:** a bibliography-bounds safety review (Word's content-
+      `INCREMENT-512-NOTES.md`. **Inc 513 fixed a second real bug found live**: orphan detection wasn't
+      trash-aware (sourced from `check-selected`'s `not_found`, whose internal lookup has no `deleted_at`
+      filter) — now uses a trash-aware per-id `/papers/export` existence check instead — see
+      `INCREMENT-513-NOTES.md`. **Still not started:** a bibliography-bounds safety review (Word's content-
       control-bounded bibliography may already be safer than the roadmap's LibreOffice-bookmark critique —
       verify, don't assume); safer Flatten (count summary, optional link-retention).
     - **P1 (not started):** note-style (footnote/endnote) citation placement (needs Word's own `noteIndex`

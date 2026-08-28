@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 512** (see Increment workflow) with **2563 root-suite pytest tests
+It is currently at **Increment 513** (see Increment workflow) with **2563 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -533,10 +533,16 @@ the full per-increment narrative for all other increments now lives in the reloc
   it surfaced a real bug: Word's composer trusted the stored, un-normalized `csl_json.id` instead of stamping a
   reliable `"callosum-<paperId>"` id the way `callosum_cite.py:307`'s `_build_records` already does — harmless
   for rendering (self-contained per request) but broken for "which library paper is this," exactly what
-  diagnostics needs. Fixed to match LibreOffice's convention. Orphan detection reuses
-  `POST /methods/retraction/check-selected`'s existing `not_found` field (real requested ids) rather than a
-  second `/papers/export` call, which would have hit the identical id-reliability problem — caught while
-  designing, not after shipping. Zero backend changes. See `INCREMENT-512-NOTES.md`.
+  diagnostics needs. Fixed to match LibreOffice's convention. Zero backend changes. **Inc 513 fixes a second,
+  real bug in orphan detection itself, found live** — Cliff trashed a cited paper and diagnostics still
+  reported clean. Inc 512 sourced "orphaned" from `POST /methods/retraction/check-selected`'s `not_found`
+  field, but that endpoint's internal `get_paper()` lookup has no `deleted_at` filter (confirmed by reading
+  `repository.py:99-100`), so a trashed paper's row still resolves as "found" — never lands in `not_found`.
+  Fixed by checking existence via a parallel per-id `/papers/export` call instead (`get_papers_for_export`
+  *does* filter trash, confirmed by reading `paper_query_repo.py:399-409`), keying off response presence/count
+  rather than the record's own `.id` value (the same correlation problem already solved for citation tags).
+  Retraction status is now checked only for confirmed-existing papers. See `INCREMENT-512-NOTES.md` +
+  `INCREMENT-513-NOTES.md`.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -1313,7 +1319,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 512). Each increment of real work
+callosum is built in **numbered increments** (currently at 513). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

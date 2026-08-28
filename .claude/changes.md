@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 513: Word diagnostics' orphan detection made trash-aware (real bug, found live)
+- **Files:** `adapters/word/taskpane.js`, `adapters/word/taskpane_core.js`,
+  `adapters/word/taskpane_core.test.js`, `.claude/docs/increment-notes/INCREMENT-513-NOTES.md`.
+- **What:** Cliff trashed a cited paper and diagnostics still reported clean. Root cause: orphan detection
+  reused `/methods/retraction/check-selected`'s `not_found` field, but its internal `get_paper()` lookup has no
+  `deleted_at` filter, so a trashed paper's row still resolves as "found." Fixed by checking existence via a
+  parallel per-id `/papers/export` call (which *does* filter trash), keying off response presence/count rather
+  than trusting the record's own `.id` value — sidesteps the id-correlation problem inc 512 already fixed for
+  citation tags. Retraction status is now checked only for confirmed-existing papers.
+- **Why:** exactly the first thing a user would test, and it was silently wrong — a real, previously-shipped
+  gap, not a hypothetical.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 512: Word Document diagnostics + a real CSL-id reliability fix (backlog #33/#34 P0)
 - **Files:** `adapters/word/taskpane_core.js`, `adapters/word/taskpane_core.test.js`, `adapters/word/
   taskpane.{js,html,css}`, `.claude/docs/increment-notes/INCREMENT-512-NOTES.md`.
