@@ -124,12 +124,14 @@ switch, Flatten — works identically to desktop; every fetch just carries the B
 saved. The task-pane files themselves (HTML/JS/CSS/icon) carry no library data, so relaying them through the
 tunnel needs no token — only your `/papers`, `/citations/*` calls do, exactly like the Google Docs add-on.
 
-**Using desktop Word at the same time?** (inc 510) Remote Access is a single global on/off — turning it on for
-this tunnel also means desktop Word's own calls now need the same token (there's no safe way for callosum to
-tell "this request came from the tunnel" apart from "this request came from desktop," since cloudflared's local
-forward makes both look identical at the network layer). Desktop's task pane doesn't show the token field by
-default, but the moment it hits a 401 it reveals the same **Access token** field with an explanation — paste
-the same token, **Save**, and desktop works normally alongside the tunnel from then on.
+**Using desktop Word at the same time?** No extra setup needed (inc 511) — `python tools/run_https.py`
+deliberately exempts its own dedicated :8443 process from the Remote Access token requirement, since
+`cloudflared`'s ingress can only ever forward tunnel traffic to the plain HTTP dev port (never :8443 — see
+`adapters/googledocs/cloudflared-config.yml`'s own warning comment). So Remote Access can be on for a Google
+Docs/Word-on-the-web collaborator while you use desktop Word at the same time, with no token needed on the
+desktop side at all. If desktop's task pane ever *does* show a revealed **Access token** field (a 401 got
+through — e.g. `run_https.py` wasn't used, or the tunnel was ever misconfigured to point at :8443), paste the
+same Remote Access token from Settings and **Save**; that's a signal something's off, not the expected flow.
 
 ## Limitations
 The bibliography lives at the document end (no chapter/section-scoped bibliographies yet — see the LibreOffice

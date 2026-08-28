@@ -12,6 +12,12 @@
 #
 # Fill in <TUNNEL_ID> + the credentials path from `cloudflared tunnel create callosum` (see README.md). On Windows
 # the credentials file is typically C:\Users\<you>\.cloudflared\<TUNNEL_ID>.json.
+#
+# WARNING (inc 511): every `service:` below MUST point at the plain HTTP dev port (:8080 here; :8888 if you run
+# the dev server that way instead) — NEVER at the Word-desktop HTTPS port (:8443, tools/run_https.py). That
+# process deliberately disables its own Remote Access token check, on the documented assumption that it is
+# architecturally never the tunnel's target. Pointing this config at :8443 would let anyone reaching this
+# tunnel's public hostname bypass the token entirely.
 
 tunnel: <TUNNEL_ID>
 credentials-file: <HOME>/.cloudflared/<TUNNEL_ID>.json

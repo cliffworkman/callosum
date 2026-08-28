@@ -428,7 +428,10 @@ def set_remote_access_enabled(enabled: bool) -> None:
 
 def stored_remote_access() -> bool:
     """Whether remote access is enabled. The CALLOSUM_DISABLE_REMOTE_ACCESS env var force-disables it (a local
-    recovery hatch if the access token is lost — a remote caller can't set env vars on the user's machine)."""
+    recovery hatch if the access token is lost — a remote caller can't set env vars on the user's machine).
+    Second legitimate caller (inc 511): `tools/run_https.py` sets this in its OWN process only, since that
+    dedicated desktop-Word HTTPS server is never the port a cloudflared tunnel targets (see its own module
+    docstring) -- letting desktop Word work regardless of whether Remote Access happens to be on elsewhere."""
     if os.getenv("CALLOSUM_DISABLE_REMOTE_ACCESS", "").strip().lower() in {"1", "true", "yes"}:
         return False
     return bool(load_settings().get("remote_access_enabled", False))

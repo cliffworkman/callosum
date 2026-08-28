@@ -3,21 +3,20 @@
  * SP4: Word-on-the-web relay; inc 509: grouped-citation composer with locators/edit/delete).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
- * is a SAME-ORIGIN call to the local API — nothing leaves the machine. Ordinarily no token is needed either
- * (Remote Access is off by default), but Remote Access is a single global on/off with no way to tell a tunnel
- * request from a local one at the network layer (see access_control.py's own docstring — cloudflared's local
- * forward makes both look identical, so the token stays the ONLY safe boundary, applied uniformly regardless
- * of origin). So if Cliff/a user also has Remote Access on (e.g. a Google Docs collaborator needs the tunnel
- * while Word desktop is used at the same time — inc 510), desktop calls need the SAME token too.
+ * is a SAME-ORIGIN call to the local API — nothing leaves the machine, and (inc 511) desktop genuinely never
+ * needs a token, EVEN if Remote Access happens to be on for a tunnel elsewhere: tools/run_https.py deliberately
+ * exempts its own dedicated :8443 process from the token gate, since cloudflared's ingress can only ever target
+ * the plain HTTP dev port (never :8443 — see cloudflared-config.yml's own warning). If a fetch ever DOES come
+ * back 401 anyway (e.g. this page wasn't served via run_https.py, or the tunnel was misconfigured), the token
+ * section reveals itself reactively as a fallback (inc 510) — that's a signal something's off, not the normal
+ * flow, but it keeps desktop workable rather than silently broken in that edge case.
  * Architecture B (Word-on-the-web, SP4): Word Online can't reach localhost at all, so this same page is instead
  * loaded through callosum's existing cloudflared cite-only tunnel (adapters/googledocs/cloudflared-config.yml,
  * extended to also relay these task-pane files) at a public hostname. Every fetch is still same-origin (relative
  * paths — no separate "server URL" setting, unlike the Google Docs add-on, which runs in a genuinely different
  * origin) but now needs the Remote-access Bearer token, since the tunnel forwards to callosum with that gate on.
- * `authToken()` reads any saved token regardless of origin; the tunnel section is always shown up front, and
- * (inc 510) it also reveals itself reactively on desktop the moment a fetch actually comes back 401 — no need
- * to guess up front whether Remote Access happens to be on. Every fetch below is wrapped with
- * `CallosumCore.authHeaders(...)`.
+ * `authToken()` reads any saved token regardless of origin; the tunnel section is always shown up front here.
+ * Every fetch below is wrapped with `CallosumCore.authHeaders(...)`.
  *
  * The add-in is a thin field-placer:
  *   • Add     — a search/suggest row click fetches the paper's CSL-JSON (/papers/export) and adds it to the

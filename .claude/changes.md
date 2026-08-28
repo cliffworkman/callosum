@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 511: desktop Word structurally exempt from Remote Access (supersedes inc 510's workaround)
+- **Files:** `tools/run_https.py`, `app/backend/app_settings.py`, `app/backend/api/access_control.py`,
+  `adapters/googledocs/cloudflared-config.yml`, `adapters/word/README.md`, `adapters/word/taskpane.js`, new
+  `tests/test_run_https.py`, `.claude/docs/increment-notes/INCREMENT-511-NOTES.md`.
+- **What:** Cliff pushed back on inc 510's manual-token-paste fix as bad UX for a real end user. Root-caused a
+  better fix: desktop Word (`:8443`, `tools/run_https.py`) and the tunnel (`:8888`, confirmed against the real
+  `cloudflared` config) already run as separate OS processes — so `run_https.py` now sets
+  `CALLOSUM_DISABLE_REMOTE_ACCESS=1` in its OWN environment, exempting only that dedicated desktop process from
+  the token gate. Zero changes to `access_control.py`'s actual logic; the tunnel-facing process stays exactly
+  as strict as before. Desktop Word and an active tunnel now work simultaneously with no manual step.
+- **Why:** a process that's structurally never the tunnel's target is a sound trust claim; IP-based "trust
+  loopback" (the originally-approved framing) is not — cloudflared's local forward makes tunnel and local
+  traffic indistinguishable by IP, already documented in `access_control.py`'s own docstring.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 510: desktop Word carries the Remote Access token too (real bug, found live)
 - **Files:** `adapters/word/taskpane.js`, `adapters/word/README.md`,
   `.claude/docs/increment-notes/INCREMENT-510-NOTES.md`.

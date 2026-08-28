@@ -17,6 +17,15 @@ users (and the whole existing test suite). The flag + token are read fresh per r
 Settings toggle takes effect live. Recovery if the token is lost: the in-app lockout screen
 (``POST /access/recover``, inc 254 — proves local possession via a local-file code, then disables the gate),
 ``CALLOSUM_DISABLE_REMOTE_ACCESS=1`` (a local-only hatch), or edit the settings file.
+
+**inc 511 — a second, legitimate caller of that same hatch.** Desktop Word talks to a dedicated HTTPS process
+(``tools/run_https.py``, :8443) that is architecturally never the port a cloudflared tunnel targets (the
+checked-in ``adapters/googledocs/cloudflared-config.yml`` only ever forwards to the plain HTTP dev port, with an
+explicit warning against pointing it at :8443). That script sets ``CALLOSUM_DISABLE_REMOTE_ACCESS=1`` in its OWN
+process before starting, so desktop Word never needs a token even while Remote Access is on for a Google Docs/
+Word-on-the-web collaborator elsewhere — a genuinely different, separately-running process keeps enforcing the
+gate for the tunnel-facing port unaffected. This is NOT the same as trusting loopback origin in general (still
+unsafe — see above); it is trusting a specific process that structurally never receives tunnel-relayed traffic.
 """
 
 from __future__ import annotations

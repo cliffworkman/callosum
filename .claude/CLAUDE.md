@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 510** (see Increment workflow) with **2561 root-suite pytest tests
+It is currently at **Increment 511** (see Increment workflow) with **2563 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -512,10 +512,20 @@ the full per-increment narrative for all other increments now lives in the reloc
   desktop Word's API calls started 401ing because Remote Access was still on from the Word-on-the-web tunnel
   setup, and `AccessControlMiddleware` gates every origin uniformly once it's on (deliberately — cloudflared's
   local forward makes tunnel and desktop traffic indistinguishable at the TCP layer, so trusting "loopback" was
-  considered and correctly rejected, per `access_control.py`'s own docstring). Fixed by letting desktop's task
-  pane also carry the same Bearer token the tunnel path already uses, revealed reactively the moment a fetch
-  actually 401s — zero backend/security-boundary changes, so Remote Access can stay on for a tunnel while
-  desktop Word is used at the same time. See `INCREMENT-510-NOTES.md`.
+  considered and correctly rejected, per `access_control.py`'s own docstring). Fixed first by letting desktop's
+  task pane also carry the same Bearer token the tunnel path already uses, revealed reactively on a 401.
+  **Inc 511 supersedes that workaround with the real fix**, after Cliff flagged manual token-pasting as
+  unworkable end-user UX: desktop Word (`tools/run_https.py`, `:8443`) and the tunnel (whatever port
+  `cloudflared`'s ingress actually targets, confirmed `:8888` against the real config) already run as separate
+  OS processes — so `run_https.py` now sets the existing `CALLOSUM_DISABLE_REMOTE_ACCESS` recovery-hatch env
+  var in its **own** process only, unconditionally, before starting uvicorn. `stored_remote_access()` reads
+  `os.environ` fresh per call, and env vars are process-local, so this exempts only desktop's dedicated HTTPS
+  server — the tunnel-facing process stays exactly as strict as the Remote Access setting says. **Zero changes
+  to `access_control.py`'s actual logic.** This is a fundamentally different, sound claim from "trust
+  loopback": it trusts one specific process that structurally can never receive tunnel-relayed traffic (the
+  cloudflared config now carries an explicit warning never to point at `:8443`), not the connection's apparent
+  origin. Desktop Word and an active Google Docs/Word-on-the-web tunnel now coexist with zero manual steps on
+  the desktop side. See `INCREMENT-510-NOTES.md` + `INCREMENT-511-NOTES.md`.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,

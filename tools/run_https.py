@@ -10,6 +10,18 @@ HTTP on :8080 remains the default for normal use; HTTPS is only needed while usi
     python tools/run_https.py              # serves https://localhost:8443
 
 Override the port with CALLOSUM_HTTPS_PORT (the manifest expects 8443).
+
+**inc 511 — desktop Word never needs the Remote Access token, even when it's on for a tunnel.** This process
+sets ``CALLOSUM_DISABLE_REMOTE_ACCESS=1`` in its OWN environment before starting uvicorn — a real, already-
+shipped recovery hatch (``app_settings.stored_remote_access()``, inc 168/254) that force-disables the token gate
+for whichever process has it set. Since ``run_https.py`` runs as a genuinely separate OS process from whichever
+one serves ``cloudflared``'s tunnel target (the checked-in ``adapters/googledocs/cloudflared-config.yml``
+ingress only ever forwards to the plain HTTP dev port, never :8443 — see that file's own warning comment),
+setting this here affects ONLY desktop Word's dedicated HTTPS server; the tunnel-facing process, running
+separately with its own environment, stays exactly as strict as the Remote Access setting says. This is safe
+specifically BECAUSE this port structurally can't receive tunnel-relayed traffic — trusting loopback origin in
+general is NOT safe (see access_control.py's own docstring: cloudflared's local forward makes tunnel and local
+traffic indistinguishable by IP), but a process that's never the tunnel's target is a different, sound claim.
 """
 
 from __future__ import annotations
@@ -46,6 +58,10 @@ def main() -> int:
         )
         return 1
     port = int(os.environ.get("CALLOSUM_HTTPS_PORT", "8443"))
+    # This process is dedicated to desktop Word and is never the port cloudflared's ingress targets (see the
+    # module docstring) -- unconditionally exempt it from the Remote Access token gate in its OWN environment
+    # only, so desktop Word works regardless of whether Remote Access happens to be on for a tunnel elsewhere.
+    os.environ["CALLOSUM_DISABLE_REMOTE_ACCESS"] = "1"
     import uvicorn
 
     print(f"Serving callosum over HTTPS at https://localhost:{port}  (Ctrl-C to stop)")
