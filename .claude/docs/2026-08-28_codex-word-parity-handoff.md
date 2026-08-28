@@ -196,6 +196,22 @@ comments before assuming, don't just trust this list):
   not trash-aware. Use the shared `checkPaperExistence(ids)` helper in `taskpane.js`.
 - **Office.js has no `saveAs`** and **no `enterUndoContext`-equivalent**. Both confirmed via research this
   arc. Don't design a feature that silently assumes either exists.
+- **An unresolved, previously-flagged architectural gap, found while writing this handoff (not addressed this
+  arc — flag it to Cliff, don't just quietly carry it forward):** a prior session (2026-08-18, before inc 508)
+  approved a citation-storage redesign for Word specifically *because* grouped citations were coming —
+  `ContentControl.tag` should hold only a short stable id, with the actual CSL-JSON payload moved to a Custom
+  XML Part keyed by that id, instead of base64-encoding the full CSL-JSON directly into the tag (the same
+  scaling risk the LibreOffice roadmap doc flags for ReferenceMark names). **That redesign was never applied.**
+  `encodeCitationTag()` in `taskpane_core.js` (confirmed by reading it just now) still does
+  `CITATION_PREFIX + " " + b64encode(JSON.stringify({items}))` — the original, simpler-but-unbounded pattern —
+  and inc 509 built the full grouped-citation composer on top of it unchanged. No hard Word `ContentControl.tag`
+  length limit was found via research (searched; Microsoft doesn't document one plainly), so this may not be
+  an active bug today, but a citation grouping many works (each with a full CSL-JSON record: title, all
+  authors, abstract if present, DOI, etc.) produces a correspondingly large base64 tag, and every note-style/
+  bibliography-category feature you're about to build will add more citations using the same pattern. **Ask
+  Cliff whether he wants the Custom-XML-Part refactor done before continuing, or whether it's fine to keep
+  building on the current pattern for now** — don't silently pick one, this was already a real design decision
+  someone made and then didn't follow through on; a second silent decision compounds the drift.
 - **The correlated-objects pattern** (`.track()`/`.untrack()` + `Word.run(object, callback)`) is how Edit
   Citation holds a `ContentControl` reference across separate `Word.run` calls — reuse this pattern (see
   `editCitationAtCursor`/`insertOrUpdateCitation` in `taskpane.js`) for anything else that needs to act on a
