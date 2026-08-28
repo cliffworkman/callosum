@@ -8,7 +8,7 @@
 
 const FEED_ORCID_RE = /^(?:https?:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/i;
 
-function FeedPane({ onSaved, active, embedded }) {
+function FeedPane({ onSaved, onFilterToAuthorPapers, active, embedded }) {
   const [subs, setSubs] = useState([]);
   const [sourceMeta, setSourceMeta] = useState([]); // [{kind,label,placeholder,suggestions}] — drives the Follow picker
   const [selKind, setSelKind] = useState("");
@@ -93,16 +93,19 @@ function FeedPane({ onSaved, active, embedded }) {
   // real followed_author kind stays user_addable=False (a raw OpenAlex id is never something to type), so
   // following by name/ORCID goes through the SAME resolve endpoint the former standalone tab used, and the
   // matching feed_subscriptions row appears via the backend's existing dual-write (loadSubs() alone surfaces it).
+  // Returns true only on a genuine follow (status "followed"/"already-following"), false on any failure --
+  // callers (e.g. the Suggest modal's Author tab) must never show a success state without checking this.
   const followAuthor = useCallback(async (raw) => {
     const trimmed = (raw || "").trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
     setAuthorFollowErr("");
     const value = trimmed.replace(/^https?:\/\/orcid\.org\//i, "");
     const body = FEED_ORCID_RE.test(trimmed) ? { orcid: value } : { name: value };
     const r = await apiPost("/followed-authors", body);
-    if (!r.ok) { setAuthorFollowErr(r.error || "Couldn't follow that author."); return; }
-    if (r.data.status === "no-match") { setAuthorFollowErr("No OpenAlex author matched that name/ORCID."); return; }
+    if (!r.ok) { setAuthorFollowErr(r.error || "Couldn't follow that author."); return false; }
+    if (r.data.status === "no-match") { setAuthorFollowErr("No OpenAlex author matched that name/ORCID."); return false; }
     setCat(""); loadSubs();
+    return true;
   }, [loadSubs]);
 
   const follow = useCallback(async () => {
@@ -336,6 +339,7 @@ function FeedPane({ onSaved, active, embedded }) {
         ? <FeedSuggestModal
             subs={subs} libJournals={libJournals} sourceMeta={sourceMeta}
             onFollow={followFromSuggest} onFollowAuthor={followAuthor}
+            onFilterToAuthorPapers={onFilterToAuthorPapers}
             onClose={() => setSuggestOpen(false)}
           />
         : null}

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import gzip
+
 import httpx
 import pytest
 
@@ -60,6 +62,25 @@ def test_bounded_post_raises_when_over_cap() -> None:
     client = _client_returning(b"y" * 2000)
     with pytest.raises(ResponseTooLargeError):
         bounded_post("http://example.test/x", max_bytes=1024, client=client)
+
+
+def test_bounded_get_handles_a_compressed_origin_response() -> None:
+    """A real bug caught live (not by any prior test, since MockTransport responses here never carried a real
+    Content-Encoding before): response.iter_bytes() already transparently decompresses the wire body, so the
+    reconstructed Response must not still carry the original Content-Encoding/Content-Length headers, or a
+    second decode is attempted against already-plain bytes on the caller's first .json()/.text/.content access
+    -- this reproduced against a real Brotli-compressing origin (OpenAlex) and broke every affected metadata
+    lookup, not just a rare/transient one."""
+    payload = b'{"ok": true, "count": 3}'
+    compressed = gzip.compress(payload)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-encoding": "gzip"}, content=compressed)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    response = bounded_get("http://example.test/x", max_bytes=1024, client=client)
+    assert "content-encoding" not in response.headers  # stale compression metadata must not survive
+    assert response.json() == {"ok": True, "count": 3}  # decodes on first access without a double-decode error
 
 
 def test_bounded_get_closes_the_client_it_creates_when_none_supplied(monkeypatch) -> None:

@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-27 — Increment 506: Feed Author-follow bug fixes (closes backlog #61) + co-author exclusion, axis scoping, library-filter link
+- **Files:** `integrations/openalex/author.py`, `integrations/http_bounds.py`,
+  `app/backend/clustering/followed_authors.py`, `app/backend/api/routers/feed.py`,
+  `app/frontend/js/{30e_feed,30g_feed_suggest,03_library,10_pdf_layer,40_app,04b_workspaces}.jsx`,
+  `tests/{test_my_publications,test_feed,test_http_bounds,test_frontend_assembly}.py`.
+- **What:** fixed a frontend bug (false "✓ Following" shown alongside a real error) and a backend caching bug
+  (backlog #61 — a transient fetch failure permanently poisoned an author's resolution); live verification
+  during the fix surfaced the *actual* root cause of the reported symptom — a real, wider bug in the shared
+  `bounded_get`/`bounded_post` response-cap helper (inc 480) that double-decoded already-decompressed bodies
+  against any Brotli/gzip-compressing origin, silently breaking every affected metadata lookup across 15
+  integration files. Also added an "Exclude Your Co-Authors" toggle (default on), an axis-scoped suggestions
+  dropdown, and turned each suggested author's paper count into a Library-filter link.
+- **Why:** Cliff hit the bug live right after inc 505 shipped and asked for the three UX gaps in the same
+  session, since they all touch the same Feed Author-suggestion surface.
+- **Revert:** `git revert` this commit, or restore individual files from the prior commit.
+
 ## 2026-08-27 — Increment 505: Feed-suggestion bug fixes + Title-Case/control-height retrospective sweeps (backlog #59/#60)
 - **Files:** `app/frontend/js/30g_feed_suggest.jsx`, `app/backend/clustering/followed_authors.py`,
   `tests/test_feed.py`, ~50 `app/frontend/js/*.jsx` files (Title-Case control-label sweep, incl. two files

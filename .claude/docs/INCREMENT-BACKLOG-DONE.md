@@ -664,3 +664,12 @@ appended here.)*
   `.grim-form`, `.es-form`); `.credit-author-head` and two native-file-input rows (`.scan-row`) audited and
   deliberately left alone (documented exceptions, not gaps). See `INCREMENT-505-NOTES.md` and
   `.claude/DESIGN.md`'s "Everyday form-row controls".
+- [x] **#61 `OpenAlexAuthorClient` caches a failed fetch as a permanent "no result"** (inc 506, 2026-08-27) — fixed
+  by treating a `status_code=NULL` cached row as non-authoritative in `_fetch`'s read branch, so a transient
+  failure self-heals on the next attempt instead of poisoning that name/ORCID forever. Live verification while
+  fixing this also found the ACTUAL root cause of the "Brotli decompression error" symptom: a real, separate,
+  wider-reaching bug in `integrations/http_bounds.py::_bounded_request` (backlog #56's response-size-cap
+  helper, used by 16 call sites across 15 integration files) — it reconstructed a `Response` with the original
+  (compression-implying) headers around already-decompressed `content`, so httpx double-decoded on first
+  access and raised. Fixed alongside; the backslash-vs-forward-slash sub-note did not reproduce (already
+  correct). See `INCREMENT-506-NOTES.md`.

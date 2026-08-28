@@ -53,10 +53,21 @@ def _bounded_request(
                 if total > max_bytes:
                     raise ResponseTooLargeError(url, max_bytes)
                 chunks.append(chunk)
+            content = b"".join(chunks)
+            # response.iter_bytes() already transparently decompressed the wire body (gzip/br/etc) -- the
+            # reconstructed Response below must NOT carry the original Content-Encoding/Content-Length headers,
+            # or httpx tries to decompress this already-plain `content` a second time on first .read()/.json()/
+            # .text access and raises (observed live: a real, reproducible httpx.DecodingError against a
+            # brotli-compressing origin, e.g. OpenAlex -- this silently broke every affected metadata lookup,
+            # not just a transient/rare failure).
+            headers = httpx.Headers(response.headers)
+            for stale in ("content-encoding", "content-length"):
+                if stale in headers:
+                    del headers[stale]
             return httpx.Response(
                 response.status_code,
-                headers=response.headers,
-                content=b"".join(chunks),
+                headers=headers,
+                content=content,
                 request=response.request,
             )
     finally:

@@ -181,8 +181,12 @@ class OpenAlexAuthorClient:
 
     def _fetch(self, conn, provider, key, url, params) -> dict[str, Any] | None:
         cached = get_cached(conn, provider, key)
-        if cached is not None:
-            status = int(cached["status_code"]) if cached["status_code"] is not None else None
+        # A cached row with status_code=None means the LAST attempt raised (transport/decode failure), not that
+        # OpenAlex ever actually answered -- never treat that as authoritative (backlog #61: previously this
+        # permanently "poisoned" a name/ORCID after one transient failure, since retries always short-circuited
+        # here). Only a real prior response (any status code) short-circuits the fetch below.
+        if cached is not None and cached["status_code"] is not None:
+            status = int(cached["status_code"])
             return cached["response_json"] if status == 200 and isinstance(cached["response_json"], dict) else None
         try:
             status, body = self.fetcher(

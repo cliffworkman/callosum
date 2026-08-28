@@ -204,7 +204,7 @@ registerWorkspace({ id: "work", label: "Work", order: 50 });
 
 registerWorkspaceTab({ id: "discover" }, {
   id: "feed", label: "Feed", order: 10, hideInReadOnly: true,
-  render: (ctx, active) => <FeedPane onSaved={ctx.onDiscoverSaved} active={active} />,
+  render: (ctx, active) => <FeedPane onSaved={ctx.onDiscoverSaved} onFilterToAuthorPapers={ctx.onFilterToAuthorPapers} active={active} />,
 });
 registerWorkspaceTab({ id: "discover" }, {
   id: "search", label: "Search", order: 20, hideInReadOnly: true,

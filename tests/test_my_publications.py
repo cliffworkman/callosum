@@ -364,6 +364,31 @@ def test_author_client_fails_closed(temp_db_url):
         assert client.resolve_author(conn, orcid="0000-x") is None  # never raises
 
 
+def test_author_client_retries_after_a_transient_fetch_failure(temp_db_url):
+    """Backlog #61: a transient fetch failure (network/decode error, not a real "no such author" answer) must
+    NOT permanently poison that name/ORCID's resolution -- the next attempt should retry, not replay the same
+    cached error forever."""
+
+    class _FlakyThenGood:
+        def __init__(self):
+            self.calls = 0
+
+        def __call__(self, url, *, params, headers, timeout):
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("transient decode error")
+            return 200, {"id": "https://openalex.org/A1", "display_name": "Ada", "orcid": "https://orcid.org/0000-x"}
+
+    fetcher = _FlakyThenGood()
+    client = OpenAlexAuthorClient(fetcher=fetcher)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        assert client.resolve_author(conn, orcid="0000-x") is None  # first attempt: fails closed
+    with engine.begin() as conn:
+        author = client.resolve_author(conn, orcid="0000-x")  # second attempt: retries rather than replaying
+    assert author is not None and author.author_id == "A1" and fetcher.calls == 2
+
+
 # --- endpoints -------------------------------------------------------------------------------------------
 
 

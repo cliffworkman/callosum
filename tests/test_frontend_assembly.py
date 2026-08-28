@@ -202,7 +202,10 @@ def test_workspace_menubar_structure_present():
     assert "function HelpView(" in raw and "function SettingsView(" in raw
     assert "function HelpModal(" not in raw and "function SettingsModal(" not in raw
     # inc 297: library discovery modals stay in Discover Search; Feed is its own Discover tab again.
-    assert "<FeedPane onSaved={ctx.onDiscoverSaved} active={active} />" in raw
+    assert (
+        "<FeedPane onSaved={ctx.onDiscoverSaved} onFilterToAuthorPapers={ctx.onFilterToAuthorPapers} active={active} />"
+        in raw
+    )
     assert "<FeedPane onSaved={onSaved} active={active} embedded />" not in raw
     assert "onOpenWanted={ctx.onOpenWanted}" in raw and "onOpenGaps={ctx.onOpenGaps}" in raw
     assert "onOpenOverlooked={ctx.onOpenOverlooked}" in raw
@@ -1140,7 +1143,7 @@ def test_followed_authors_tab_removed_and_consolidated_into_feed():
     assert "FollowedAuthorsPane" not in raw
     assert '"followed-authors"' not in raw
     assert "function FeedSuggestAuthors(" in raw  # the Suggest modal's replacement Author tab
-    assert 'api("/feed/suggest-authors")' in raw
+    assert "api(`/feed/suggest-authors?${qs.toString()}`)" in raw
 
 
 def test_feed_subs_row_caps_to_one_line_with_overflow_modal():

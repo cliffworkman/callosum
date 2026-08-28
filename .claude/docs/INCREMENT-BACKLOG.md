@@ -30,16 +30,6 @@
 
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
-- **#61 `OpenAlexAuthorClient` caches a failed fetch as a permanent "no result."** Found live (2026-08-27) while
-  verifying Feed's Author-follow flow: a transient `httpx`/Brotli decompression error on one real OpenAlex
-  response got written to `external_api_cache` with `status_code=NULL`, and `_fetch()`'s cache-read branch
-  (`integrations/openalex/author.py`) treats ANY cached row — success or error — as authoritative, so that
-  author's name/ORCID can never resolve again without a manual cache-row delete. Needs a fix that only caches
-  genuine 2xx responses (or a bounded TTL/retry on error rows), not a workaround at the call site. Separately
-  noticed but unconfirmed: `_fetch_by_orcid`'s URL literally uses backslashes
-  (`f"{OPENALEX_ROOT}\authors\orcid:{orcid.strip()}"`) instead of forward slashes — worth checking whether this
-  is a live bug or an escaping/display artifact when this item is picked up.
-
 ---
 
 ## 2. Needs a design decision from Cliff (not destructive/security — just your call)

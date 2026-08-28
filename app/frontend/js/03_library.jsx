@@ -28,6 +28,7 @@ function useLibrary(opts) {
   const [librarySignalFilter, setLibrarySignalFilter] = useState(null);  // inc-97: a Methods-signal view, e.g. "statcheck-inconsistent"
   const [libraryTextHealthFilter, setLibraryTextHealthFilter] = useState(null);  // local-only PDF text-health view: {key,label,paperIds}
   const [libraryReferenceFilter, setLibraryReferenceFilter] = useState(null);  // local-only refs triage view: {label,paperIds}
+  const [libraryAuthorFilter, setLibraryAuthorFilter] = useState(null);  // local-only "this author's papers" view (from Feed's Suggest > Author tab): {label,paperIds}
   const [libraryReading, setLibraryReading] = useState({ read: "", priority: "" });  // inc-221: read/priority facet ("" = no filter)
   const [libraryMissingPdf, setLibraryMissingPdf] = useState(false);  // inc-301: only papers with no local PDF
   const [statcheckFlagged, setStatcheckFlagged] = useState(0);  // inc-100: # papers the last statcheck run flagged → header chip
@@ -130,7 +131,7 @@ function useLibrary(opts) {
       if (ids.length) {
         setLibraryReferenceFilter({ label: `${ids.length} papers with active signals`, paperIds: ids });
         setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false);
-        setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setPage(0);
+        setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryAuthorFilter(null); setPage(0);
       }
     }
     setReferenceWarningsRefresh(n => n + 1);
@@ -158,7 +159,7 @@ function useLibrary(opts) {
   const toggleTrash = useCallback(() => {
     setTrashView(v => !v);
     setSelectedLibraryIds(new Set());
-    setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null);
+    setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null);
     setPage(0);
   }, []);
 
@@ -166,13 +167,13 @@ function useLibrary(opts) {
   const filterToAxis = useCallback((axis) => {
     setLibraryAxisFilter({ id: axis.id, label: axis.label, hideUncertain: !!axis.hideUncertain });
     setLibraryTagFilter(null); setActiveTab("library"); setPage(0); setSelectedLibraryIds(new Set());
-    setTrashView(false); setLibraryNeedsReview(false); setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setTrashView(false); setLibraryNeedsReview(false); setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null); cancelFocus();
   }, [setActiveTab, cancelFocus]);
   const clearAxisFilter = useCallback(() => { setLibraryAxisFilter(null); setPage(0); }, []);
   const filterToTag = useCallback((tag) => {
     setLibraryTagFilter({ id: tag.id, name: tag.name });
     setLibraryAxisFilter(null); setActiveTab("library"); setPage(0); setSelectedLibraryIds(new Set());
-    setTrashView(false); setLibraryNeedsReview(false); setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setTrashView(false); setLibraryNeedsReview(false); setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null); cancelFocus();
   }, [setActiveTab, cancelFocus]);
   const clearTagFilter = useCallback(() => { setLibraryTagFilter(null); setPage(0); }, []);
   const changeSort = useCallback((s) => {  // inc-69: re-sort from page 1; inc-94: persist the choice
@@ -185,7 +186,7 @@ function useLibrary(opts) {
   const toggleNeedsReview = useCallback(() => {
     setLibraryNeedsReview(v => {
       const next = !v;
-      if (next) { setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus(); }
+      if (next) { setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null); cancelFocus(); }
       return next;
     });
     setSelectedLibraryIds(new Set()); setPage(0);
@@ -193,13 +194,13 @@ function useLibrary(opts) {
   const clearNeedsReview = useCallback(() => { setLibraryNeedsReview(false); setPage(0); }, []);
   const showNeedsReview = useCallback(() => {
     setLibraryNeedsReview(true);
-    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null); cancelFocus();
     setSelectedLibraryIds(new Set()); setPage(0);
   }, [cancelFocus]);
 
   const showStatcheckFlagged = useCallback(() => {
     setLibrarySignalFilter("statcheck-inconsistent");
-    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null); cancelFocus();
     setSelectedLibraryIds(new Set());
     pendingSelectTopRef.current = true;  // inc-140: select the top of the freshly-loaded FLAGGED list
     setSettingsOpen(false); setActiveTab("library"); setMethodsOpen("statcheck"); setPage(0);
@@ -207,44 +208,52 @@ function useLibrary(opts) {
   const clearSignalFilter = useCallback(() => { setLibrarySignalFilter(null); setPage(0); }, []);
   const showRetractionFlagged = useCallback(() => {
     setLibrarySignalFilter("retraction-retracted");
-    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null); cancelFocus();
     setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
   }, [cancelFocus, setSettingsOpen, setActiveTab]);
   // inc-251: jump to a transparency review queue (the chip → data-availability; the panel's per-disclosure links pass
   // each of the 7 keys). A review queue ("not detected — go look"), never a "hides data" verdict.
   const showTransparencyReview = useCallback((signalKey = "transparency-data-not-detected") => {
     setLibrarySignalFilter(signalKey);
-    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null); cancelFocus();
     setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
   }, [cancelFocus, setSettingsOpen, setActiveTab]);
   // backlog #23 (F1): jump to the library's "incomplete LMM reporting" queue — mirrors showRetractionFlagged.
   const showLmmFlagged = useCallback(() => {
     setLibrarySignalFilter("lmm-incomplete");
-    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null); cancelFocus();
     setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
   }, [cancelFocus, setSettingsOpen, setActiveTab]);
   const showMetaFlagged = useCallback(() => {
     setLibrarySignalFilter("meta-incomplete");
-    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null); cancelFocus();
     setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
   }, [cancelFocus, setSettingsOpen, setActiveTab]);
   const showBayesFlagged = useCallback(() => {
     setLibrarySignalFilter("bayes-flagged");
-    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null); cancelFocus();
     setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
   }, [cancelFocus, setSettingsOpen, setActiveTab]);
   const showTextHealthFilter = useCallback((filter) => {
     const paperIds = [...new Set((filter.paperIds || []).map(Number).filter(Boolean))];
     if (!paperIds.length) return;
     setLibraryTextHealthFilter({ key: filter.key || filter.flag || "text-health", label: filter.label || "Text Health", paperIds });
-    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibrarySignalFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibrarySignalFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null); cancelFocus();
     setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
   }, [cancelFocus, setSettingsOpen, setActiveTab]);
   const clearTextHealthFilter = useCallback(() => { setLibraryTextHealthFilter(null); setPage(0); }, []);
   const clearReferenceFilter = useCallback(() => { setLibraryReferenceFilter(null); setPage(0); }, []);
+  const filterToAuthorPapers = useCallback((filter) => {
+    const paperIds = [...new Set((filter.paperIds || []).map(Number).filter(Boolean))];
+    if (!paperIds.length) return;
+    setLibraryAuthorFilter({ label: filter.label || "This author", paperIds });
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
+  }, [cancelFocus, setSettingsOpen, setActiveTab]);
+  const clearAuthorFilter = useCallback(() => { setLibraryAuthorFilter(null); setPage(0); }, []);
 
   // Clear just the view filters — wired to useFocusMode's onEnterClearFilters (breaks the focus↔library cycle).
-  const clearViewFilters = useCallback(() => { setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); }, []);
+  const clearViewFilters = useCallback(() => { setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibrarySignalFilter(null); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null); }, []);
 
   // --- the statcheck / retraction "N flagged" header chips (cache-only counts) ---
   const refreshStatcheckChip = useCallback(() => {
@@ -286,7 +295,7 @@ function useLibrary(opts) {
   const findingsToReview = Object.values(findingsByPaper).filter(o => o.unreviewed_count > 0).length;
   const showFindingsToReview = useCallback(() => {
     setLibrarySignalFilter("needs-review");
-    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); setLibraryAuthorFilter(null); cancelFocus();
     setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
   }, [cancelFocus, setSettingsOpen, setActiveTab]);
 
@@ -318,6 +327,7 @@ function useLibrary(opts) {
     setLibrarySignalFilter(p.signal || null);
     setLibraryTextHealthFilter(null);
     setLibraryReferenceFilter(null);
+    setLibraryAuthorFilter(null);
     setLibrarySort(p.sort || "added");
     try { localStorage.setItem("callosum.librarySort", p.sort || "added"); } catch (e) { /* ignore */ }
     setTrashView(false); setActiveTab("library"); setPage(0); setSelectedLibraryIds(new Set());
@@ -441,7 +451,7 @@ function useLibrary(opts) {
   useEffect(() => {
     let live = true;
     setListState(s => ({ ...s, status: "loading" }));
-    const localPaperFilter = libraryTextHealthFilter || libraryReferenceFilter;
+    const localPaperFilter = libraryTextHealthFilter || libraryReferenceFilter || libraryAuthorFilter;
     if (localPaperFilter) {
       const wanted = new Set(localPaperFilter.paperIds || []);
       (async () => {
@@ -478,7 +488,7 @@ function useLibrary(opts) {
       else setListState({ status: "error", error: r.error, authRequired: r.authRequired, papers: [] });  // inc 254: 401 → honest lockout copy
     });
     return () => { live = false; };
-  }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, libraryTextHealthFilter, libraryReferenceFilter, libraryReading, libraryMissingPdf, librarySort, findingsRefresh, setSelected, buildFilterQs, addCommonParams]);
+  }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, libraryTextHealthFilter, libraryReferenceFilter, libraryAuthorFilter, libraryReading, libraryMissingPdf, librarySort, findingsRefresh, setSelected, buildFilterQs, addCommonParams]);
 
   // --- reveal the selected paper in the library list (inc 319) ---
   // Keyed ONLY on `selected` -- a filter changing on its own must never trigger a jump, only `selected` changing
@@ -541,6 +551,7 @@ function useLibrary(opts) {
     librarySignalFilter, onClearSignalFilter: clearSignalFilter,
     libraryTextHealthFilter, onClearTextHealthFilter: clearTextHealthFilter,
     libraryReferenceFilter, onClearReferenceFilter: clearReferenceFilter,
+    libraryAuthorFilter, onClearAuthorFilter: clearAuthorFilter,
     statcheckFlagged, onShowStatcheckFlagged: showStatcheckFlagged,
     retractionFlagged, onShowRetractionFlagged: showRetractionFlagged,
     openDataDetected, onShowTransparencyReview: showTransparencyReview,
@@ -561,7 +572,7 @@ function useLibrary(opts) {
     pendingSummarize, summarizePaperIds,
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
     showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged, showMetaFlagged, showBayesFlagged,
-    refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, refreshBayesChip, findingsRefresh, setFindingsRefresh, setReferenceWarningsRefresh, showTextHealthFilter,
+    refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, refreshBayesChip, findingsRefresh, setFindingsRefresh, setReferenceWarningsRefresh, showTextHealthFilter, filterToAuthorPapers,
     pcurvePapers, setPcurvePapers, zcurvePapers, setZcurvePapers, mergeIds, setMergeIds, onMerged,
     critSetIds, setCritSetIds, sharePaperIds, setSharePaperIds,
   };

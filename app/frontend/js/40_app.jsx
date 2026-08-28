@@ -115,7 +115,7 @@ function App() {
   const {
     libraryBits, setLibRefresh, pendingSummarize, summarizePaperIds,
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
-    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged, showMetaFlagged, showBayesFlagged, showTextHealthFilter, refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, refreshBayesChip, findingsRefresh, setFindingsRefresh, setReferenceWarningsRefresh,
+    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged, showMetaFlagged, showBayesFlagged, showTextHealthFilter, filterToAuthorPapers, refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, refreshBayesChip, findingsRefresh, setFindingsRefresh, setReferenceWarningsRefresh,
     pcurvePapers, setPcurvePapers, zcurvePapers, setZcurvePapers, mergeIds, setMergeIds, onMerged,
     critSetIds, setCritSetIds, sharePaperIds, setSharePaperIds,
   } = lib;
@@ -362,6 +362,7 @@ function App() {
     onUpdateWip: wip.updateManuscript, onReloadWip: wip.reload, wipRefresh: wip.refresh,
     onOpenCitation: openCitation, onSaveHighlight: saveCitationHighlight,
     onFilterToTag: filterToTag, onFilterToAxis: filterToAxis, onEnterFocus: enterFocus,
+    onFilterToAuthorPapers: filterToAuthorPapers,
     onTagsChanged: () => setTagRefresh(n => n + 1),
     // inc 294: a queue change (drag/add/remove) also reloads the library list so each card's priority control
     // re-syncs from the new papers.priority — keeps the Queue strata and the cards showing one source of truth.

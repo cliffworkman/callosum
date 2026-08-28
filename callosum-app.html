@@ -4049,6 +4049,7 @@
     const [librarySignalFilter, setLibrarySignalFilter] = useState(null);
     const [libraryTextHealthFilter, setLibraryTextHealthFilter] = useState(null);
     const [libraryReferenceFilter, setLibraryReferenceFilter] = useState(null);
+    const [libraryAuthorFilter, setLibraryAuthorFilter] = useState(null);
     const [libraryReading, setLibraryReading] = useState({ read: "", priority: "" });
     const [libraryMissingPdf, setLibraryMissingPdf] = useState(false);
     const [statcheckFlagged, setStatcheckFlagged] = useState(0);
@@ -4157,6 +4158,7 @@
           setLibraryNeedsReview(false);
           setLibrarySignalFilter(null);
           setLibraryTextHealthFilter(null);
+          setLibraryAuthorFilter(null);
           setPage(0);
         }
       }
@@ -4191,6 +4193,7 @@
       setLibrarySignalFilter(null);
       setLibraryTextHealthFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
       setPage(0);
     }, []);
     const filterToAxis = useCallback((axis) => {
@@ -4204,6 +4207,7 @@
       setLibrarySignalFilter(null);
       setLibraryTextHealthFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
       cancelFocus();
     }, [setActiveTab, cancelFocus]);
     const clearAxisFilter = useCallback(() => {
@@ -4221,6 +4225,7 @@
       setLibrarySignalFilter(null);
       setLibraryTextHealthFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
       cancelFocus();
     }, [setActiveTab, cancelFocus]);
     const clearTagFilter = useCallback(() => {
@@ -4249,6 +4254,7 @@
           setLibrarySignalFilter(null);
           setLibraryTextHealthFilter(null);
           setLibraryReferenceFilter(null);
+          setLibraryAuthorFilter(null);
           cancelFocus();
         }
         return next;
@@ -4268,6 +4274,7 @@
       setLibrarySignalFilter(null);
       setLibraryTextHealthFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
       cancelFocus();
       setSelectedLibraryIds(/* @__PURE__ */ new Set());
       setPage(0);
@@ -4280,6 +4287,7 @@
       setLibraryNeedsReview(false);
       setLibraryTextHealthFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
       cancelFocus();
       setSelectedLibraryIds(/* @__PURE__ */ new Set());
       pendingSelectTopRef.current = true;
@@ -4300,6 +4308,7 @@
       setLibraryNeedsReview(false);
       setLibraryTextHealthFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
       cancelFocus();
       setSelectedLibraryIds(/* @__PURE__ */ new Set());
       setSettingsOpen(false);
@@ -4314,6 +4323,7 @@
       setLibraryNeedsReview(false);
       setLibraryTextHealthFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
       cancelFocus();
       setSelectedLibraryIds(/* @__PURE__ */ new Set());
       setSettingsOpen(false);
@@ -4328,6 +4338,7 @@
       setLibraryNeedsReview(false);
       setLibraryTextHealthFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
       cancelFocus();
       setSelectedLibraryIds(/* @__PURE__ */ new Set());
       setSettingsOpen(false);
@@ -4342,6 +4353,7 @@
       setLibraryNeedsReview(false);
       setLibraryTextHealthFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
       cancelFocus();
       setSelectedLibraryIds(/* @__PURE__ */ new Set());
       setSettingsOpen(false);
@@ -4356,6 +4368,7 @@
       setLibraryNeedsReview(false);
       setLibraryTextHealthFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
       cancelFocus();
       setSelectedLibraryIds(/* @__PURE__ */ new Set());
       setSettingsOpen(false);
@@ -4372,6 +4385,7 @@
       setLibraryNeedsReview(false);
       setLibrarySignalFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
       cancelFocus();
       setSelectedLibraryIds(/* @__PURE__ */ new Set());
       setSettingsOpen(false);
@@ -4386,12 +4400,34 @@
       setLibraryReferenceFilter(null);
       setPage(0);
     }, []);
+    const filterToAuthorPapers = useCallback((filter) => {
+      const paperIds = [...new Set((filter.paperIds || []).map(Number).filter(Boolean))];
+      if (!paperIds.length) return;
+      setLibraryAuthorFilter({ label: filter.label || "This author", paperIds });
+      setTrashView(false);
+      setLibraryAxisFilter(null);
+      setLibraryTagFilter(null);
+      setLibraryNeedsReview(false);
+      setLibrarySignalFilter(null);
+      setLibraryTextHealthFilter(null);
+      setLibraryReferenceFilter(null);
+      cancelFocus();
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setSettingsOpen(false);
+      setActiveTab("library");
+      setPage(0);
+    }, [cancelFocus, setSettingsOpen, setActiveTab]);
+    const clearAuthorFilter = useCallback(() => {
+      setLibraryAuthorFilter(null);
+      setPage(0);
+    }, []);
     const clearViewFilters = useCallback(() => {
       setLibraryAxisFilter(null);
       setLibraryTagFilter(null);
       setLibrarySignalFilter(null);
       setLibraryTextHealthFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
     }, []);
     const refreshStatcheckChip = useCallback(() => {
       api("/methods/statcheck/summary").then((r) => {
@@ -4456,6 +4492,7 @@
       setLibraryNeedsReview(false);
       setLibraryTextHealthFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
       cancelFocus();
       setSelectedLibraryIds(/* @__PURE__ */ new Set());
       setSettingsOpen(false);
@@ -4492,6 +4529,7 @@
       setLibrarySignalFilter(p.signal || null);
       setLibraryTextHealthFilter(null);
       setLibraryReferenceFilter(null);
+      setLibraryAuthorFilter(null);
       setLibrarySort(p.sort || "added");
       try {
         localStorage.setItem("callosum.librarySort", p.sort || "added");
@@ -4627,7 +4665,7 @@
     useEffect(() => {
       let live = true;
       setListState((s) => ({ ...s, status: "loading" }));
-      const localPaperFilter = libraryTextHealthFilter || libraryReferenceFilter;
+      const localPaperFilter = libraryTextHealthFilter || libraryReferenceFilter || libraryAuthorFilter;
       if (localPaperFilter) {
         const wanted = new Set(localPaperFilter.paperIds || []);
         (async () => {
@@ -4667,7 +4705,7 @@
       return () => {
         live = false;
       };
-    }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, libraryTextHealthFilter, libraryReferenceFilter, libraryReading, libraryMissingPdf, librarySort, findingsRefresh, setSelected, buildFilterQs, addCommonParams]);
+    }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, libraryTextHealthFilter, libraryReferenceFilter, libraryAuthorFilter, libraryReading, libraryMissingPdf, librarySort, findingsRefresh, setSelected, buildFilterQs, addCommonParams]);
     useEffect(() => {
       if (selected == null) return;
       if (listState.papers.some((p) => p.id === selected)) return;
@@ -4764,6 +4802,8 @@
       onClearTextHealthFilter: clearTextHealthFilter,
       libraryReferenceFilter,
       onClearReferenceFilter: clearReferenceFilter,
+      libraryAuthorFilter,
+      onClearAuthorFilter: clearAuthorFilter,
       statcheckFlagged,
       onShowStatcheckFlagged: showStatcheckFlagged,
       retractionFlagged,
@@ -4821,6 +4861,7 @@
       setFindingsRefresh,
       setReferenceWarningsRefresh,
       showTextHealthFilter,
+      filterToAuthorPapers,
       pcurvePapers,
       setPcurvePapers,
       zcurvePapers,
@@ -5123,7 +5164,7 @@
     label: "Feed",
     order: 10,
     hideInReadOnly: true,
-    render: (ctx, active) => /* @__PURE__ */ React.createElement(FeedPane, { onSaved: ctx.onDiscoverSaved, active })
+    render: (ctx, active) => /* @__PURE__ */ React.createElement(FeedPane, { onSaved: ctx.onDiscoverSaved, onFilterToAuthorPapers: ctx.onFilterToAuthorPapers, active })
   });
   registerWorkspaceTab({ id: "discover" }, {
     id: "search",
@@ -10357,6 +10398,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     onClearTextHealthFilter,
     libraryReferenceFilter,
     onClearReferenceFilter,
+    libraryAuthorFilter,
+    onClearAuthorFilter,
     statcheckFlagged,
     onShowStatcheckFlagged,
     retractionFlagged,
@@ -10416,7 +10459,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     }, []);
     const textHealthShown = libraryTextHealthFilter && state.status === "ready" ? `${state.total == null ? state.papers.length : state.total} shown` : "";
     const referenceShown = libraryReferenceFilter && state.status === "ready" ? `${state.total == null ? state.papers.length : state.total} shown` : "";
-    const hasLocalPaperFilter = libraryTextHealthFilter || libraryReferenceFilter;
+    const authorFilterShown = libraryAuthorFilter && state.status === "ready" ? `${state.total == null ? state.papers.length : state.total} shown` : "";
+    const hasLocalPaperFilter = libraryTextHealthFilter || libraryReferenceFilter || libraryAuthorFilter;
     const hasNextPage = hasLocalPaperFilter && state.total != null ? (page + 1) * PAGE_SIZE < state.total : state.papers.length === PAGE_SIZE;
     const showStatcheckChip = !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent";
     const showRetractionChip = !trashView && retractionFlagged > 0 && librarySignalFilter !== "retraction-retracted";
@@ -10571,7 +10615,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         path: "/papers?deleted=true",
         message: "The curated demo contains no deleted paper. Trash, restore, and permanent deletion require persistent local library state."
       }
-    ) : /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onToggleTrash, title: trashView ? "Back to the library" : "View deleted papers" }, trashView ? "\u2190 Library" : "Trash"))), focusAxis && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Adding to ", /* @__PURE__ */ React.createElement("b", null, focusAxis.label), " \u2014 click ", /* @__PURE__ */ React.createElement("b", null, "+ Add"), " on the papers below."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, pendingAdd || pendingRemove ? `+${pendingAdd} \u2212${pendingRemove} staged` : "no changes yet"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !(pendingAdd || pendingRemove), onClick: onSaveFocus }, "Save"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onCancelFocus }, "Cancel"))), libraryAxisFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to axis ", /* @__PURE__ */ React.createElement("b", null, libraryAxisFilter.label), libraryAxisFilter.hideUncertain ? " \xB7 assigned only" : ""), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearAxisFilter }, "Clear"))), libraryTagFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to tag ", /* @__PURE__ */ React.createElement("b", null, libraryTagFilter.name)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearTagFilter }, "Clear"))), libraryNeedsReview && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Unsorted \u2014 papers whose metadata still needs review (raw imports, unresolved DOIs)"), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearNeedsReview }, "Clear"))), libraryTextHealthFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Text Health: ", /* @__PURE__ */ React.createElement("b", null, libraryTextHealthFilter.label)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, textHealthShown), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearTextHealthFilter }, "Clear"))), libraryReferenceFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Reference checks: ", /* @__PURE__ */ React.createElement("b", null, libraryReferenceFilter.label)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, referenceShown), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearReferenceFilter }, "Clear"))), librarySignalFilter === "statcheck-inconsistent" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Reporting inconsistencies \u2014 papers where a reported p-value didn't recompute (statcheck). Usually innocent (typos, rounding); a list to review, not a verdict."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "Clear"))), librarySignalFilter === "retraction-retracted" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Retracted \u2014 papers a registry (Crossref / OpenAlex) records as retracted. Verify before citing; open each paper's Review section for the notice."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "Clear"))), librarySignalFilter === "transparency-data-detected" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Open Data \u2014 papers where the transparency auditor detected a data-availability disclosure in the extracted text."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "Clear"))), librarySignalFilter === "needs-review" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "To review \u2014 papers with findings you haven't reviewed yet. Open each paper's Review section (METHODS) to Confirm or Note each one."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "Clear"))), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
+    ) : /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onToggleTrash, title: trashView ? "Back to the library" : "View deleted papers" }, trashView ? "\u2190 Library" : "Trash"))), focusAxis && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Adding to ", /* @__PURE__ */ React.createElement("b", null, focusAxis.label), " \u2014 click ", /* @__PURE__ */ React.createElement("b", null, "+ Add"), " on the papers below."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, pendingAdd || pendingRemove ? `+${pendingAdd} \u2212${pendingRemove} staged` : "no changes yet"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !(pendingAdd || pendingRemove), onClick: onSaveFocus }, "Save"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onCancelFocus }, "Cancel"))), libraryAxisFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to axis ", /* @__PURE__ */ React.createElement("b", null, libraryAxisFilter.label), libraryAxisFilter.hideUncertain ? " \xB7 assigned only" : ""), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearAxisFilter }, "Clear"))), libraryTagFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to tag ", /* @__PURE__ */ React.createElement("b", null, libraryTagFilter.name)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearTagFilter }, "Clear"))), libraryNeedsReview && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Unsorted \u2014 papers whose metadata still needs review (raw imports, unresolved DOIs)"), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearNeedsReview }, "Clear"))), libraryTextHealthFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Text Health: ", /* @__PURE__ */ React.createElement("b", null, libraryTextHealthFilter.label)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, textHealthShown), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearTextHealthFilter }, "Clear"))), libraryReferenceFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Reference checks: ", /* @__PURE__ */ React.createElement("b", null, libraryReferenceFilter.label)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, referenceShown), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearReferenceFilter }, "Clear"))), libraryAuthorFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Author: ", /* @__PURE__ */ React.createElement("b", null, libraryAuthorFilter.label)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, authorFilterShown), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearAuthorFilter }, "Clear"))), librarySignalFilter === "statcheck-inconsistent" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Reporting inconsistencies \u2014 papers where a reported p-value didn't recompute (statcheck). Usually innocent (typos, rounding); a list to review, not a verdict."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "Clear"))), librarySignalFilter === "retraction-retracted" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Retracted \u2014 papers a registry (Crossref / OpenAlex) records as retracted. Verify before citing; open each paper's Review section for the notice."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "Clear"))), librarySignalFilter === "transparency-data-detected" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Open Data \u2014 papers where the transparency auditor detected a data-availability disclosure in the extracted text."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "Clear"))), librarySignalFilter === "needs-review" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "To review \u2014 papers with findings you haven't reviewed yet. Open each paper's Review section (METHODS) to Confirm or Note each one."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "Clear"))), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
       "input",
       {
         placeholder: fulltextMode || librarySearchField === "fulltext" ? "search inside your PDFs\u2026" : "Search title, author, journal\u2026",
@@ -17612,7 +17656,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     ))));
   }
   const FEED_ORCID_RE = /^(?:https?:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/i;
-  function FeedPane({ onSaved, active, embedded }) {
+  function FeedPane({ onSaved, onFilterToAuthorPapers, active, embedded }) {
     const [subs, setSubs] = useState([]);
     const [sourceMeta, setSourceMeta] = useState([]);
     const [selKind, setSelKind] = useState("");
@@ -17685,21 +17729,22 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     }, [loadSubs]);
     const followAuthor = useCallback(async (raw) => {
       const trimmed = (raw || "").trim();
-      if (!trimmed) return;
+      if (!trimmed) return false;
       setAuthorFollowErr("");
       const value = trimmed.replace(/^https?:\/\/orcid\.org\//i, "");
       const body = FEED_ORCID_RE.test(trimmed) ? { orcid: value } : { name: value };
       const r = await apiPost("/followed-authors", body);
       if (!r.ok) {
         setAuthorFollowErr(r.error || "Couldn't follow that author.");
-        return;
+        return false;
       }
       if (r.data.status === "no-match") {
         setAuthorFollowErr("No OpenAlex author matched that name/ORCID.");
-        return;
+        return false;
       }
       setCat("");
       loadSubs();
+      return true;
     }, [loadSubs]);
     const follow = useCallback(async () => {
       if (selKind === "author") {
@@ -17898,6 +17943,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         sourceMeta,
         onFollow: followFromSuggest,
         onFollowAuthor: followAuthor,
+        onFilterToAuthorPapers,
         onClose: () => setSuggestOpen(false)
       }
     ) : null, subsModalOpen ? /* @__PURE__ */ React.createElement(FeedSubsOverflowModal, { subs, sourceMeta, onUnfollow: unfollow, onClose: () => setSubsModalOpen(false) }) : null);
@@ -17990,17 +18036,28 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     { id: "pubmed_query", label: "PubMed Search" },
     { id: "author", label: "Author" }
   ];
-  function FeedSuggestModal({ subs, libJournals, sourceMeta, onFollow, onFollowAuthor, onClose }) {
+  function FeedSuggestModal({ subs, libJournals, sourceMeta, onFollow, onFollowAuthor, onFilterToAuthorPapers, onClose }) {
     const [tab, setTab] = useState("journal");
     const [axes, setAxes] = useState(null);
     const [tags, setTags] = useState(null);
     const [authorSuggestions, setAuthorSuggestions] = useState(null);
+    const [excludeCoauthors, setExcludeCoauthors] = useState(true);
+    const [authorAxisId, setAuthorAxisId] = useState("");
     useEffect(() => {
       if (isDemoMode()) return;
       api("/axes").then((r) => setAxes(r.ok ? r.data.filter((a) => a.kind !== "my_publications") : []));
       api("/tags").then((r) => setTags(r.ok ? r.data : []));
-      api("/feed/suggest-authors").then((r) => setAuthorSuggestions(r.ok ? r.data.authors || [] : []));
     }, []);
+    const loadAuthorSuggestions = React.useCallback(() => {
+      if (isDemoMode()) return;
+      const qs = new URLSearchParams();
+      if (authorAxisId) qs.set("axis_id", authorAxisId);
+      if (excludeCoauthors) qs.set("exclude_coauthors", "true");
+      api(`/feed/suggest-authors?${qs.toString()}`).then((r) => setAuthorSuggestions(r.ok ? r.data.authors || [] : []));
+    }, [authorAxisId, excludeCoauthors]);
+    useEffect(() => {
+      loadAuthorSuggestions();
+    }, [loadAuthorSuggestions]);
     const followedByKind = (kind) => new Set(
       (subs || []).filter((s) => s.kind === kind).map((s) => (s.value || "").toLowerCase())
     );
@@ -18014,7 +18071,20 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         followed: followedByKind(tab),
         onFollow: (v) => onFollow(tab, v)
       }
-    ), tab === "pubmed_query" && /* @__PURE__ */ React.createElement(FeedSuggestQueries, { axes, tags, followed: followedByKind("pubmed_query"), onFollow: (v) => onFollow("pubmed_query", v) }), tab === "author" && /* @__PURE__ */ React.createElement(FeedSuggestAuthors, { authors: authorSuggestions, onFollow: onFollowAuthor }))));
+    ), tab === "pubmed_query" && /* @__PURE__ */ React.createElement(FeedSuggestQueries, { axes, tags, followed: followedByKind("pubmed_query"), onFollow: (v) => onFollow("pubmed_query", v) }), tab === "author" && /* @__PURE__ */ React.createElement(
+      FeedSuggestAuthors,
+      {
+        authors: authorSuggestions,
+        onFollow: onFollowAuthor,
+        axes,
+        axisId: authorAxisId,
+        onAxisChange: setAuthorAxisId,
+        excludeCoauthors,
+        onExcludeCoauthorsChange: setExcludeCoauthors,
+        onFilterToAuthorPapers,
+        onClose
+      }
+    ))));
   }
   function FeedSuggestJournals({ journals, followed, onFollow }) {
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Journals you already have papers from \u2014 ", /* @__PURE__ */ React.createElement("b", null, "Follow"), " one to pull its recent articles into your feed. Ordered by how many papers you have from each (a tally of your own library, not a quality ranking)."), !journals.length ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No journals in your library yet \u2014 import some papers, then their journals show up here.") : journals.map((j) => {
@@ -18068,16 +18138,41 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       return /* @__PURE__ */ React.createElement("div", { key: c.text, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, c.text), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, "from ", c.source))), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, isFollowed ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 Following") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onFollow(c.text) }, "Follow")));
     }));
   }
-  function FeedSuggestAuthors({ authors, onFollow }) {
+  function FeedSuggestAuthors({
+    authors,
+    onFollow,
+    axes,
+    axisId,
+    onAxisChange,
+    excludeCoauthors,
+    onExcludeCoauthorsChange,
+    onFilterToAuthorPapers,
+    onClose
+  }) {
     const [justFollowed, setJustFollowed] = useState(() => /* @__PURE__ */ new Set());
     const loading = authors === null;
     const handleFollow = async (name) => {
-      await onFollow(name);
-      setJustFollowed((prev) => new Set(prev).add(name.toLowerCase()));
+      const ok = await onFollow(name);
+      if (ok) setJustFollowed((prev) => new Set(prev).add(name.toLowerCase()));
     };
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Authors who recur across your library, ranked by paper count \u2014 excluding you and anyone already followed. A plain tally of your own library, never a ranking of the author's work or a recommendation to collaborate."), loading ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Checking your library\u2026") : !authors.length ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No recurring authors found yet.") : authors.map((a) => {
+    const showInLibrary = (a) => {
+      if (onFilterToAuthorPapers) onFilterToAuthorPapers({ label: a.name, paperIds: a.paper_ids || [] });
+      if (onClose) onClose();
+    };
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Authors who recur across your library, ranked by paper count \u2014 excluding you and anyone already followed. A plain tally of your own library, never a ranking of the author's work or a recommendation to collaborate."), /* @__PURE__ */ React.createElement("div", { className: "gaps-controls" }, /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: axisId, onChange: (e) => onAxisChange(e.target.value), title: "Scope to an axis" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All Papers"), (axes || []).map((a) => /* @__PURE__ */ React.createElement("option", { key: a.id, value: a.id }, a.label))), /* @__PURE__ */ React.createElement("label", { className: "settings-check" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: excludeCoauthors, onChange: (e) => onExcludeCoauthorsChange(e.target.checked) }), "Exclude Your Co-Authors")), loading ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Checking your library\u2026") : !authors.length ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No recurring authors found yet.") : authors.map((a) => {
       const isFollowed = justFollowed.has(a.name.toLowerCase());
-      return /* @__PURE__ */ React.createElement("div", { key: a.name, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, a.name), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, a.paper_count, " paper", a.paper_count === 1 ? "" : "s", " in your library"))), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, isFollowed ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 Following") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => handleFollow(a.name) }, "Follow")));
+      return /* @__PURE__ */ React.createElement("div", { key: a.name, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, a.name), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "gap-count axis-link",
+          onClick: () => showInLibrary(a),
+          title: "Show this author's papers in your Library"
+        },
+        a.paper_count,
+        " paper",
+        a.paper_count === 1 ? "" : "s",
+        " in your library"
+      ))), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, isFollowed ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 Following") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => handleFollow(a.name) }, "Follow")));
     }));
   }
   function FeedSubsOverflowModal({ subs, sourceMeta, onUnfollow, onClose }) {
@@ -22373,6 +22468,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       showMetaFlagged,
       showBayesFlagged,
       showTextHealthFilter,
+      filterToAuthorPapers,
       refreshStatcheckChip,
       refreshRetractionChip,
       refreshTransparencyChip,
@@ -22642,6 +22738,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       onFilterToTag: filterToTag,
       onFilterToAxis: filterToAxis,
       onEnterFocus: enterFocus,
+      onFilterToAuthorPapers: filterToAuthorPapers,
       onTagsChanged: () => setTagRefresh((n) => n + 1),
       // inc 294: a queue change (drag/add/remove) also reloads the library list so each card's priority control
       // re-syncs from the new papers.priority — keeps the Queue strata and the cards showing one source of truth.

@@ -193,6 +193,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
                     libraryTextHealthFilter, onClearTextHealthFilter,
                     libraryReferenceFilter, onClearReferenceFilter,
+                    libraryAuthorFilter, onClearAuthorFilter,
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
                     openDataDetected, onShowTransparencyReview, lmmFlagged, onShowLmmFlagged, metaFlagged, onShowMetaFlagged, bayesFlagged, onShowBayesFlagged,
                     findingsToReview, onShowFindingsToReview, findingsByPaper, referenceWarningsByPaper,
@@ -223,7 +224,10 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
   const referenceShown = libraryReferenceFilter && state.status === "ready"
     ? `${state.total == null ? state.papers.length : state.total} shown`
     : "";
-  const hasLocalPaperFilter = libraryTextHealthFilter || libraryReferenceFilter;
+  const authorFilterShown = libraryAuthorFilter && state.status === "ready"
+    ? `${state.total == null ? state.papers.length : state.total} shown`
+    : "";
+  const hasLocalPaperFilter = libraryTextHealthFilter || libraryReferenceFilter || libraryAuthorFilter;
   const hasNextPage = hasLocalPaperFilter && state.total != null
     ? (page + 1) * PAGE_SIZE < state.total
     : state.papers.length === PAGE_SIZE;
@@ -370,6 +374,14 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <div className="focus-card-foot">
               <span className="focus-count">{referenceShown}</span>
               <button className="axis-link" onClick={onClearReferenceFilter}>Clear</button>
+            </div>
+          </div>}
+        {libraryAuthorFilter &&
+          <div className="focus-card">
+            <div className="focus-card-head">Author: <b>{libraryAuthorFilter.label}</b></div>
+            <div className="focus-card-foot">
+              <span className="focus-count">{authorFilterShown}</span>
+              <button className="axis-link" onClick={onClearAuthorFilter}>Clear</button>
             </div>
           </div>}
         {librarySignalFilter === "statcheck-inconsistent" &&

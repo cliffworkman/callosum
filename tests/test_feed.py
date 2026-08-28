@@ -500,11 +500,64 @@ def test_suggest_authors_endpoint_ranks_by_frequency_excludes_self_and_followed(
 
     client = TestClient(create_app(db_url=temp_db_url))
     authors = client.get("/feed/suggest-authors").json()["authors"]
-    assert authors[0] == {"name": "Alex Popular", "paper_count": 3}
-    assert {"name": "Cody Rare", "paper_count": 2} in authors
+    assert authors[0]["name"] == "Alex Popular" and authors[0]["paper_count"] == 3
+    assert len(authors[0]["paper_ids"]) == 3  # paper_ids backs the "N papers in your library" -> Library link
+    assert any(a["name"] == "Cody Rare" and a["paper_count"] == 2 and len(a["paper_ids"]) == 2 for a in authors)
     assert not any(a["name"] == "Jane Q. User" for a in authors)  # self excluded
     assert not any(a["name"].lower() in {"others", "et al."} for a in authors)  # non-name placeholders excluded
 
     client.post("/followed-authors", json={"author_id": "A1", "display_name": "Alex Popular"})
     authors_after_follow = client.get("/feed/suggest-authors").json()["authors"]
     assert not any(a["name"] == "Alex Popular" for a in authors_after_follow)  # already-followed excluded
+
+
+def test_suggest_authors_exclude_coauthors_toggle(temp_db_url):
+    """A real co-author (appears on a confirmed/manual My-Publications paper) is dropped only when
+    exclude_coauthors=true; a same-surname stranger who never shares a paper with the user is unaffected."""
+    from app.backend.clustering.axis_assignments import add_manual_assignment
+    from app.backend.clustering.axis_scoring import create_axis
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        mine = create_paper(conn, title="Mine", csl_json={"title": "Mine", "author": [{"literal": "Real CoAuthor"}]})
+        my_pubs_axis = create_axis(conn, label="Mine", kind="my_publications")
+        add_manual_assignment(conn, axis_id=my_pubs_axis, paper_id=mine)  # confidence=NULL -> "confirmed" mine
+        for i in range(3):
+            create_paper(
+                conn, title=f"S{i}", csl_json={"title": f"S{i}", "author": [{"literal": "Unrelated Stranger"}]}
+            )
+    engine.dispose()
+
+    client = TestClient(create_app(db_url=temp_db_url))
+    default = client.get("/feed/suggest-authors").json()["authors"]
+    assert any(a["name"] == "Real CoAuthor" for a in default)
+
+    excluded = client.get("/feed/suggest-authors?exclude_coauthors=true").json()["authors"]
+    assert not any(a["name"] == "Real CoAuthor" for a in excluded)
+    assert any(a["name"] == "Unrelated Stranger" for a in excluded)  # never co-authored with the user -> kept
+
+
+def test_suggest_authors_axis_scoped(temp_db_url):
+    """axis_id restricts the tally to only that axis's member papers."""
+    from app.backend.clustering.axis_assignments import add_manual_assignment
+    from app.backend.clustering.axis_scoring import create_axis
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        in_axis = create_paper(
+            conn, title="InAxis", csl_json={"title": "InAxis", "author": [{"literal": "Scoped Author"}]}
+        )
+        create_paper(  # not assigned to the axis -- must be excluded from a scoped query
+            conn, title="OutOfAxis", csl_json={"title": "OutOfAxis", "author": [{"literal": "Unscoped Author"}]}
+        )
+        axis_id = create_axis(conn, label="Topic")
+        add_manual_assignment(conn, axis_id=axis_id, paper_id=in_axis)
+    engine.dispose()
+
+    client = TestClient(create_app(db_url=temp_db_url))
+    scoped = client.get(f"/feed/suggest-authors?axis_id={axis_id}").json()["authors"]
+    assert any(a["name"] == "Scoped Author" for a in scoped)
+    assert not any(a["name"] == "Unscoped Author" for a in scoped)
+
+    unscoped = client.get("/feed/suggest-authors").json()["authors"]
+    assert any(a["name"] == "Unscoped Author" for a in unscoped)  # whole-library default still sees it

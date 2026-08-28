@@ -55,11 +55,16 @@ def library_journals(conn: Connection = Depends(get_connection)) -> dict[str, An
 
 
 @router.get("/feed/suggest-authors")
-def suggest_authors(conn: Connection = Depends(get_connection)) -> dict[str, Any]:
+def suggest_authors(
+    axis_id: int | None = Query(default=None),
+    exclude_coauthors: bool = Query(default=False),
+    conn: Connection = Depends(get_connection),
+) -> dict[str, Any]:
     """Authors who recur across the library (paper count, most-frequent first) — powers the Suggest modal's
-    Author tab. Excludes the user's own name and anyone already followed. Read-only, local (no egress); a plain
-    tally of the user's own data, never a ranking or a recommendation of a person."""
-    return {"authors": suggest_authors_to_follow(conn)}
+    Author tab. Excludes the user's own name and anyone already followed; optionally scoped to one axis's
+    papers and/or excluding the user's own co-authors. Read-only, local (no egress); a plain tally of the
+    user's own data, never a ranking or a recommendation of a person."""
+    return {"authors": suggest_authors_to_follow(conn, axis_id=axis_id, exclude_coauthors=exclude_coauthors)}
 
 
 @router.post("/feed/subscriptions")

@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 505** (see Increment workflow) with **2531 root-suite pytest tests
+It is currently at **Increment 506** (see Increment workflow) with **2535 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -546,7 +546,16 @@ the full per-increment narrative for all other increments now lives in the reloc
   (suggested from Discover→Search history + axes + tags), and Author (`GET /feed/suggest-authors`, a new
   library-frequency tally excluding the user's own name and anyone already followed). The followed-sources pill
   row is now capped to one visible line with a measured-overflow "…" button opening a full unfollow-capable
-  list, since an unbounded row was flagged as an unwieldy-proliferation risk.
+  list, since an unbounded row was flagged as an unwieldy-proliferation risk. **Inc 506** extends the Author
+  tab's suggestion tally (`suggest_authors_to_follow`) with two optional query params on the same endpoint:
+  `exclude_coauthors` (drops any name appearing on a confirmed/manual My-Publications paper, checked by
+  default in the UI) and `axis_id` (scopes the tally to one axis's papers, mirroring gap-finder's own
+  `cluster_node_papers`/`cluster_nodes` scoping subquery). Each suggested author's paper count is also now a
+  clickable Library-filter link (`libraryAuthorFilter` in `03_library.jsx`, the same local-only `{label,
+  paperIds}` pattern `libraryTextHealthFilter`/`libraryReferenceFilter` already use). The same increment fixed
+  a real frontend bug (a follow attempt could show "✓ Following" even on failure) and closed backlog #61 (a
+  transient OpenAlex fetch failure permanently poisoning that name's resolution) — see the
+  "Response-size caps on external HTTP reads" entry above for the actual root cause found while fixing it.
 - **Beyond-library saved queue (backlog #30's last open piece, inc 465):** a "Save for later" button on every
   beyond-library suggestion card (`app/backend/citations/beyond_library.py`'s live, per-sentence search — both
   the web Cite pane and the LibreOffice adapter's Suggest dialog) persists the suggestion verbatim into a new
@@ -603,7 +612,18 @@ the full per-increment narrative for all other increments now lives in the reloc
   trusting the summary — left untouched (rule #7, no drive-by refactor of already-correct code). The genuine gap
   was 16 sites across 15 files: 15 metadata `httpx.get()` lookups (arXiv/bioRxiv/CORE/Crossref/DOAJ ×2/Europe
   PMC/NLM/OpenAlex ×3/OSF/SciELO/Semantic Scholar ×2) plus GROBID's one `httpx.post()` call — the latter needed
-  a bespoke catch since it wraps every `httpx.HTTPError` into its own `GrobidError` type.
+  a bespoke catch since it wraps every `httpx.HTTPError` into its own `GrobidError` type. **Inc 506 fixed a real,
+  silent correctness bug in `_bounded_request` itself**, found live (not by inspection) while debugging an
+  unrelated Feed report: it streams + transparently decompresses the wire body via `response.iter_bytes()`,
+  then reconstructs a fresh `httpx.Response` from the already-plain bytes — but kept the *original* response's
+  `Content-Encoding`/`Content-Length` headers, so httpx's `.read()` (auto-triggered when `content=` bytes are
+  passed) tried to decompress the already-decompressed bytes a second time and raised
+  (`httpx.DecodingError`/a raw Brotli decoder error). This broke **every** metadata lookup through
+  `bounded_get`/`bounded_post` against any Brotli/gzip-compressing origin (OpenAlex reproduced it 100% of the
+  time on this machine) — not rare or transient, just never caught because the existing tests' `MockTransport`
+  responses never carried a real `Content-Encoding` header. Fixed by stripping both stale headers before
+  reconstructing; regression test added (`tests/test_http_bounds.py::test_bounded_get_handles_a_compressed_
+  origin_response`, a real gzip-compressed `MockTransport` response — the class of fixture the bug needed).
 - **Local usage instrumentation (backlog #38A, inc 450):** a zero-egress local event log + a personal
   Settings → **Your usage** dashboard — the buildable-now half of the "Research-impact analytics" future track
   (`.claude/docs/future-tracks/opus4.8_future-tracks_researchimpactanalytics.md`; the cross-user Project B stays
