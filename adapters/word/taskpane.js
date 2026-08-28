@@ -3,14 +3,21 @@
  * SP4: Word-on-the-web relay; inc 509: grouped-citation composer with locators/edit/delete).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
- * is a SAME-ORIGIN call to the local API — nothing leaves the machine, no token needed.
+ * is a SAME-ORIGIN call to the local API — nothing leaves the machine. Ordinarily no token is needed either
+ * (Remote Access is off by default), but Remote Access is a single global on/off with no way to tell a tunnel
+ * request from a local one at the network layer (see access_control.py's own docstring — cloudflared's local
+ * forward makes both look identical, so the token stays the ONLY safe boundary, applied uniformly regardless
+ * of origin). So if Cliff/a user also has Remote Access on (e.g. a Google Docs collaborator needs the tunnel
+ * while Word desktop is used at the same time — inc 510), desktop calls need the SAME token too.
  * Architecture B (Word-on-the-web, SP4): Word Online can't reach localhost at all, so this same page is instead
  * loaded through callosum's existing cloudflared cite-only tunnel (adapters/googledocs/cloudflared-config.yml,
  * extended to also relay these task-pane files) at a public hostname. Every fetch is still same-origin (relative
  * paths — no separate "server URL" setting, unlike the Google Docs add-on, which runs in a genuinely different
  * origin) but now needs the Remote-access Bearer token, since the tunnel forwards to callosum with that gate on.
- * `CallosumCore.isLocalOrigin(location.hostname)` decides which mode this load is; `authToken()` reads/prompts
- * for the token only in tunnel mode, and every fetch below is wrapped with `CallosumCore.authHeaders(...)`.
+ * `authToken()` reads any saved token regardless of origin; the tunnel section is always shown up front, and
+ * (inc 510) it also reveals itself reactively on desktop the moment a fetch actually comes back 401 — no need
+ * to guess up front whether Remote Access happens to be on. Every fetch below is wrapped with
+ * `CallosumCore.authHeaders(...)`.
  *
  * The add-in is a thin field-placer:
  *   • Add     — a search/suggest row click fetches the paper's CSL-JSON (/papers/export) and adds it to the
@@ -52,13 +59,29 @@
   var openOptionsIdx = -1; // which assembly row's Options panel is expanded, or -1
 
   function $(id) { return document.getElementById(id); }
+  // Read any saved token regardless of origin (inc 510) -- empty when none is saved, which is a no-op exactly
+  // like before for the common desktop-with-Remote-Access-off case.
   function authToken() {
-    return isTunneled ? (window.localStorage.getItem(TOKEN_KEY) || "") : "";
+    return window.localStorage.getItem(TOKEN_KEY) || "";
   }
-  // Wraps `fetch` with the Bearer header when this page loaded through the tunnel; a no-op on desktop.
+  // Reveal the (usually-hidden, on desktop) token section with an explanatory message -- called reactively the
+  // moment a fetch actually needs a token this session hasn't got, rather than guessing origin alone.
+  function revealTokenSection(message) {
+    $("tunnel").style.display = "block";
+    setStatus(message, true);
+  }
+  // Wraps `fetch` with the Bearer header (attached only when a token is actually saved -- see authHeaders).
+  // A 401 means this callosum instance needs a token this session doesn't have (or it's stale) -- reveal the
+  // token field instead of leaving whichever caller's own generic error message as the only explanation.
   function callosumFetch(url, opts) {
     var o = opts || {};
-    return fetch(url, Object.assign({}, o, { headers: CallosumCore.authHeaders(o.headers, authToken()) }));
+    return fetch(url, Object.assign({}, o, { headers: CallosumCore.authHeaders(o.headers, authToken()) }))
+      .then(function (r) {
+        if (r.status === 401) {
+          revealTokenSection("This callosum instance requires an access token (Settings → Remote access) — paste it below and try again.");
+        }
+        return r;
+      });
   }
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
@@ -473,13 +496,13 @@
     }
   }
 
-  // Word-on-the-web only (SP4): show the token field, pre-filled if one is already saved from a prior visit to
-  // this same origin (localStorage is origin-scoped, so a token saved here never reaches the desktop origin
-  // or vice versa). Desktop never shows this section at all — it needs no token.
+  // Pre-fill the token field from any prior save on THIS origin (localStorage is origin-scoped, so desktop and
+  // the tunnel each remember their own saved token independently — pasting it once per surface is expected).
+  // Word-on-the-web always shows the section up front (it needs a token far more often); desktop only shows it
+  // once a fetch actually 401s (inc 510: Remote Access can be on for the tunnel while desktop is also in use).
   function initTunnelSection() {
-    if (!isTunneled) return;
-    $("tunnel").style.display = "block";
     $("tunnelToken").value = authToken();
+    if (isTunneled) $("tunnel").style.display = "block";
   }
   function saveToken() {
     var val = $("tunnelToken").value.trim();
@@ -507,7 +530,8 @@
     $("refresh").addEventListener("click", function () { refreshDocument(); });
     $("flatten").addEventListener("click", onFlatten);
     $("style").addEventListener("change", onStyleChange);
-    if (isTunneled) $("tunnelSave").addEventListener("click", saveToken);
+    // Unconditional (inc 510): desktop can also need this, once a fetch reveals the section on a 401.
+    $("tunnelSave").addEventListener("click", saveToken);
   }
 
   Office.onReady(function (info) {

@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 510: desktop Word carries the Remote Access token too (real bug, found live)
+- **Files:** `adapters/word/taskpane.js`, `adapters/word/README.md`,
+  `.claude/docs/increment-notes/INCREMENT-510-NOTES.md`.
+- **What:** live-testing inc 509 surfaced a real bug — desktop Word's style dropdown (and every other API
+  call) 401'd because Remote Access was still on from testing the Word-on-the-web tunnel, and
+  `AccessControlMiddleware` gates every origin uniformly once it's on. Considered and rejected trusting
+  loopback-origin requests (cloudflared's local forward makes tunnel and local traffic indistinguishable at the
+  TCP layer — `access_control.py`'s own docstring already explains why that's unsafe). Fixed instead by letting
+  desktop's task pane carry the same Bearer token the tunnel path already uses, revealed reactively the moment
+  a fetch actually 401s — zero backend/security-boundary changes.
+- **Why:** Cliff confirmed the underlying scenario (a Google Docs collaborator needing the tunnel while he uses
+  desktop Word) is real and worth fixing properly, not just toggling Remote Access off.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 509: Word grouped-citation composer + Edit/Delete (backlog #33/#34, parity P0)
 - **Files:** `adapters/word/taskpane_core.js`, `adapters/word/taskpane_core.test.js`, `adapters/word/
   taskpane.{html,css,js}`, `adapters/word/README.md`, `.claude/docs/INCREMENT-BACKLOG.md`,

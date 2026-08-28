@@ -124,6 +124,13 @@ switch, Flatten — works identically to desktop; every fetch just carries the B
 saved. The task-pane files themselves (HTML/JS/CSS/icon) carry no library data, so relaying them through the
 tunnel needs no token — only your `/papers`, `/citations/*` calls do, exactly like the Google Docs add-on.
 
+**Using desktop Word at the same time?** (inc 510) Remote Access is a single global on/off — turning it on for
+this tunnel also means desktop Word's own calls now need the same token (there's no safe way for callosum to
+tell "this request came from the tunnel" apart from "this request came from desktop," since cloudflared's local
+forward makes both look identical at the network layer). Desktop's task pane doesn't show the token field by
+default, but the moment it hits a 401 it reveals the same **Access token** field with an explanation — paste
+the same token, **Save**, and desktop works normally alongside the tunnel from then on.
+
 ## Limitations
 The bibliography lives at the document end (no chapter/section-scoped bibliographies yet — see the LibreOffice
 adapter for that, still Word/Docs-only work); no native footnote/endnote placement yet (every citation is

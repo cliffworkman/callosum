@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 509** (see Increment workflow) with **2561 root-suite pytest tests
+It is currently at **Increment 510** (see Increment workflow) with **2561 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -508,7 +508,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   (`.claude/docs/future-tracks/chatgpt5.6_future-tracks_wordprocessorpluginsroadmap.md`) LibreOffice's own
   build followed. A confirmed real constraint for that future work: **Office.js has no equivalent of UNO's
   `enterUndoContext`/`leaveUndoContext`**, so Word can approximate but never guarantee LibreOffice's
-  verified-one-step-Undo/Redo transaction safety.
+  verified-one-step-Undo/Redo transaction safety. **Inc 510** fixes a real bug live-testing inc 509 surfaced:
+  desktop Word's API calls started 401ing because Remote Access was still on from the Word-on-the-web tunnel
+  setup, and `AccessControlMiddleware` gates every origin uniformly once it's on (deliberately — cloudflared's
+  local forward makes tunnel and desktop traffic indistinguishable at the TCP layer, so trusting "loopback" was
+  considered and correctly rejected, per `access_control.py`'s own docstring). Fixed by letting desktop's task
+  pane also carry the same Bearer token the tunnel path already uses, revealed reactively the moment a fetch
+  actually 401s — zero backend/security-boundary changes, so Remote Access can stay on for a tunnel while
+  desktop Word is used at the same time. See `INCREMENT-510-NOTES.md`.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -1285,7 +1292,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 509). Each increment of real work
+callosum is built in **numbered increments** (currently at 510). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
