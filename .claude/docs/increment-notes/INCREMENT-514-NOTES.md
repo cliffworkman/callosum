@@ -62,14 +62,15 @@ what `run_https.py` itself would actually do.
 
 ## Manual verification script
 
-Live-verified: killed the two stale/drifted processes from earlier in the session, started
+Live-verified end to end, including the failure path (Cliff explicitly granted standing permission to kill/
+start servers as needed for this): killed the two stale/drifted processes from earlier in the session, started
 `CALLOSUM_DB_URL=... python tools/run_dev.py`, confirmed both `:8888/health` and `:8443/health` report the
-same `app_version` (both `dev-60c2083+`), and confirmed both resolve the same library search result (paper id
-2) — the exact drift this increment fixes, now gone. **Not yet live-tested**: killing one child manually to
-confirm the supervisor notices and stops the other (skipped deliberately — the servers were actively serving
-Cliff's live Word/browser session at verification time, and killing one to test the failure path would have
-disrupted that; the poll/stop logic is simple enough to be confident in from code review, but this is flagged
-as a real gap in live verification, not silently claimed as done).
+same `app_version` and resolve the same library search result (paper id 2) — the exact drift this increment
+fixes, now gone. **Then killed only the `:8888` child directly** (found its real PID via its listening socket,
+confirmed both children shared one parent PID first) and confirmed the supervisor noticed
+(`"[run_dev] http exited (code 4294967295) -- stopping the rest."`, that exit code being Windows' encoding of
+a forced kill), tore down the `:8443` child too rather than leaving it orphaned, and the parent process itself
+exited (code 1) — both ports confirmed free afterward. Restarted cleanly afterward for continued use.
 
 ## Pytest / tests
 
