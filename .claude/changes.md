@@ -9,6 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 517: Word add-in accessibility pass (P1, backlog #33/#34)
+- **Files:** `adapters/word/taskpane.js`, `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/increment-notes/INCREMENT-517-NOTES.md`.
+- **What:** the composer's icon-only buttons (↑ ↓ ⋯ ✕) gain `aria-label` alongside their existing `title`;
+  Enter in the search box adds the top result (Zotero's own shortcut); Escape clears an in-progress citation
+  assembly. Confirmed via direct read that tab order and basic keyboard reachability were already correct
+  (plain HTML, no `tabindex` overrides) — the real gaps were icon labeling and the total absence of shortcuts.
+- **Why:** last self-built P1 item before handing the rest of the Word/Docs parity roadmap to Codex — Cliff's
+  Claude usage is maxed out for ~48 hours.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 516: Word "Citations in this document" panel (P1, backlog #33/#34)
 - **Files:** `adapters/word/taskpane_core.js`, `adapters/word/taskpane_core.test.js`,
   `adapters/word/taskpane.{js,html,css}`, `.claude/docs/INCREMENT-BACKLOG.md`,

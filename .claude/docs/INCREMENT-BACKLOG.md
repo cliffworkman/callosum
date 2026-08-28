@@ -179,12 +179,17 @@ the Principles + A-A gates before build.)*
       orphan/retraction badges (reusing the shared `checkPaperExistence()` helper factored out of Document
       diagnostics in the same increment), click-to-navigate, client-side search. Scoped narrower than the
       roadmap's wishlist: "metadata conflicts" and "most recent citation" skipped (disclosed, not silently
-      dropped — see `INCREMENT-516-NOTES.md`). **Still not started:** note-style (footnote/endnote) citation
-      placement (needs Word's own `noteIndex` computation from scratch — no existing infra, unlike
-      LibreOffice's `_note_containers`, and confirmed the biggest remaining lift); bibliography categories/
-      chapter-section blocks; accessibility pass (likely cheaper than LibreOffice's, since the task pane is
-      plain HTML/CSS, not native AWT dialogs). A dedicated style-browser UI is low-value — Word's style
-      dropdown already reflects anything installed via Settings' shared catalog.
+      dropped — see `INCREMENT-516-NOTES.md`). **Accessibility pass shipped inc 517** — icon-button
+      `aria-label`s, Enter-to-add-top-result in search, Escape-to-cancel an in-progress assembly; tab order/
+      keyboard reachability were already correct (confirmed by direct read, plain HTML with no `tabindex`
+      overrides) — see `INCREMENT-517-NOTES.md`.
+      **HANDED OFF TO CODEX 2026-08-28** (Cliff's Claude usage maxed out ~48h) — see
+      `.claude/handoffs/2026-08-28_codex-word-parity-handoff.md` for the exact remaining scope, verification
+      requirements, and known traps. **Still not started:** note-style (footnote/endnote) citation placement
+      (needs Word's own `noteIndex` computation from scratch — no existing infra, unlike LibreOffice's
+      `_note_containers`, and confirmed the biggest remaining lift); bibliography categories/chapter-section
+      blocks. A dedicated style-browser UI is low-value — Word's style dropdown already reflects anything
+      installed via Settings' shared catalog.
     - **P2/leapfrog (not started):** evidence-aware Suggest-Citation details (stance breakdown, weak-evidence
       warning, Open in PDF — mirrors inc 460); citation-coverage/integrity-preflight audits
       (`POST /methods/retraction/check-selected` is already adapter-agnostic, zero backend work — mirrors inc

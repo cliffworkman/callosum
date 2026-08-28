@@ -1,6 +1,7 @@
 /*
  * Callosum Word add-in — the thin Office.js glue (inc 166, SP3: parity — suggest / style-switch / flatten;
- * SP4: Word-on-the-web relay; inc 509: grouped-citation composer with locators/edit/delete).
+ * SP4: Word-on-the-web relay; inc 509: grouped-citation composer with locators/edit/delete; inc 516: Citations
+ * in this document panel; inc 517: accessibility pass -- icon-button aria-labels, Enter-to-add, Escape-to-cancel).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
  * is a SAME-ORIGIN call to the local API — nothing leaves the machine, and (inc 511) desktop genuinely never
@@ -243,11 +244,11 @@
           '<div class="assembly-row-main">' +
             '<span class="assembly-row-label">' + escapeHtml(assemblyRowLabel(row)) + "</span>" +
             '<div class="assembly-row-btns">' +
-              '<button type="button" class="icon-btn" data-act="up" title="Move up">↑</button>' +
-              '<button type="button" class="icon-btn" data-act="down" title="Move down">↓</button>' +
+              '<button type="button" class="icon-btn" data-act="up" title="Move up" aria-label="Move up">↑</button>' +
+              '<button type="button" class="icon-btn" data-act="down" title="Move down" aria-label="Move down">↓</button>' +
               '<button type="button" class="icon-btn" data-act="opts" aria-pressed="' + optionsOpen +
-                '" title="Locator, prefix, suffix…">⋯</button>' +
-              '<button type="button" class="icon-btn" data-act="remove" title="Remove">✕</button>' +
+                '" title="Locator, prefix, suffix…" aria-label="Locator, prefix, suffix options">⋯</button>' +
+              '<button type="button" class="icon-btn" data-act="remove" title="Remove" aria-label="Remove from citation">✕</button>' +
             "</div>" +
           "</div>" +
           (optionsOpen ? renderOptionsPanel(row) : "") +
@@ -721,8 +722,23 @@
     if (val) loadStyles();
   }
 
+  // inc 517 (accessibility, backlog #33/#34 P1): Enter in the search box adds the top result (Zotero's own
+  // shortcut, cited precedent from the LibreOffice adapter's own accessibility increment 474) -- reuses the
+  // existing click handling verbatim via a real .click() rather than duplicating onPick's logic.
+  function onSearchKeydown(ev) {
+    if (ev.key !== "Enter") return;
+    var first = $("results").querySelector("button.row");
+    if (first) first.click();
+  }
+  // Escape clears an in-progress citation assembly -- a pure UI-state reset, never a document mutation either
+  // way, so there's nothing unsafe about firing it broadly rather than scoping it to one element's focus.
+  function onGlobalKeydown(ev) {
+    if (ev.key === "Escape" && assembly.length) resetAssembly();
+  }
   function wire() {
     $("q").addEventListener("input", debounce(search, 250));
+    $("q").addEventListener("keydown", onSearchKeydown);
+    document.addEventListener("keydown", onGlobalKeydown);
     $("results").addEventListener("click", onPick);
     $("suggestions").addEventListener("click", onPick);
     $("suggest").addEventListener("click", suggestSentence);
