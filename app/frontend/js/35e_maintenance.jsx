@@ -198,11 +198,47 @@ function GrobidSettings() {
   const [msgErr, setMsgErr] = useState(false);
   const [testing, setTesting] = useState(false);
   const [test, setTest] = useState(null);   // { ok, detail } | null
+  // backlog #58: a silent, automatic reachability check (distinct from the manual "Test" button's own `test`
+  // state above) -- decides which Docker-lifecycle UI branch to show, without rendering its own message.
+  const [autoReachable, setAutoReachable] = useState(null);
+  const [dockerStatus, setDockerStatus] = useState(null);  // { docker_installed, docker_daemon_running, container_state, managed_url } | null
+  const [install, setInstall] = useState({ status: "idle" });  // idle | running | done | error
+  const [stopping, setStopping] = useState(false);
 
   const load = () => api("/grobid/status").then(r => {
-    if (r.ok) { setUrl(r.data.url || ""); setUrlInput(r.data.url || ""); }
+    if (r.ok) {
+      setUrl(r.data.url || "");
+      setUrlInput(r.data.url || "");
+      setAutoReachable(null);
+      if (r.data.url) apiPost("/grobid/test-connection", {}).then(t => setAutoReachable(t.ok && t.data.ok));
+    }
   });
-  useEffect(() => { load(); }, []);
+  const loadDockerStatus = () => api("/grobid/docker/status").then(r => { if (r.ok) setDockerStatus(r.data); });
+  useEffect(() => { load(); loadDockerStatus(); }, []);
+
+  const startInstall = async () => {
+    setInstall({ status: "running" });
+    const poll = (jobId) => api(`/grobid/docker/install/${jobId}`).then(r => {
+      if (!r.ok) { setInstall({ status: "error", detail: r.error }); return; }
+      const d = r.data;
+      if (d.status === "done") { setInstall({ status: "done" }); load(); loadDockerStatus(); }
+      else if (d.status === "error") setInstall({ status: "error", detail: d.detail || "Install failed." });
+      else setTimeout(() => poll(jobId), 1500);
+    });
+    const r = await apiPost("/grobid/docker/install", {});
+    if (!r.ok) { setInstall({ status: "error", detail: r.error }); return; }
+    poll(r.data.job_id);
+  };
+
+  const stopManaged = async () => {
+    setStopping(true);
+    const r = await apiPost("/grobid/docker/stop", {});
+    setStopping(false);
+    // Re-check reachability too (not just Docker's own container_state) -- the stopped/removed container was
+    // very likely the thing `autoReachable` last verified was working; leaving it stale here would keep
+    // showing the quiet "already configured" branch for a URL that's now genuinely unreachable (caught live).
+    if (r.ok) { setInstall({ status: "idle" }); load(); loadDockerStatus(); }
+  };
 
   const save = async () => {
     setBusy(true); setMsg(""); setTest(null);
@@ -263,6 +299,14 @@ function GrobidSettings() {
         {msg && <div className={"settings-note" + (msgErr ? " settings-note-err" : "")}>{msg}</div>}
       </div>
 
+      {/* backlog #58: let callosum drive Docker directly instead of requiring the reader to already know
+          Docker CLI commands. Not bundled -- Docker Desktop itself remains a one-time external prerequisite;
+          this only detects it and orchestrates the container. */}
+      <GrobidDockerLifecycle
+        url={url} autoReachable={autoReachable} dockerStatus={dockerStatus}
+        install={install} stopping={stopping} onInstall={startInstall} onStop={stopManaged}
+      />
+
       <div className="settings-field">
         <div className="settings-row settings-maintenance-action">
           <span className="settings-field-label">Parse structure for library</span>
@@ -290,5 +334,66 @@ function GrobidSettings() {
           {s.papers_skipped ? ` · ${s.papers_skipped} skipped` : ""} · {s.sections_found} section{s.sections_found === 1 ? "" : "s"} found · {s.chunks_mapped} chunk{s.chunks_mapped === 1 ? "" : "s"} mapped.
         </div>}
     </>
+  );
+}
+
+const GROBID_DOWNLOAD_LABEL = "~500MB download";
+
+// backlog #58: don't require the reader to already know Docker. `dockerStatus` (GET /grobid/docker/status)
+// decides the branch: not installed -> guide to Docker's own installer (never auto-installed, a deliberate
+// scope boundary); installed + no callosum-managed container -> a primary Install action, explicit about the
+// download before the click (transparency, not an egress-gate dialog -- pulling callosum's own tooling
+// dependency from Docker Hub sends no library content anywhere, unlike the AI-egress gate above, which is why
+// this reuses none of that consent machinery); already running -> Stop. A working, already-configured GROBID
+// (the common case once this has been used once) stays the quiet, secondary path -- never nags to replace a
+// setup that already works.
+function GrobidDockerLifecycle({ url, autoReachable, dockerStatus, install, stopping, onInstall, onStop }) {
+  if (!dockerStatus) return null;
+  const { docker_installed, docker_daemon_running, container_state } = dockerStatus;
+  const hasWorkingUrl = !!url && autoReachable === true;
+  const weManageIt = container_state === "running";
+
+  if (hasWorkingUrl && !weManageIt) {
+    // A working GROBID is already configured (today's existing state) -- don't push a replacement.
+    return docker_installed && docker_daemon_running
+      ? <div className="settings-note">
+          Or let callosum manage a local GROBID instance for you instead —{" "}
+          <button className="btn-link" disabled={install.status === "running"} onClick={onInstall}>
+            {install.status === "running" ? "Installing…" : `install & start (${GROBID_DOWNLOAD_LABEL})`}
+          </button>
+        </div>
+      : null;
+  }
+
+  return (
+    <div className="settings-field">
+      <span className="settings-field-label">Run GROBID for me</span>
+      {!docker_installed &&
+        <div className="settings-note">
+          This needs Docker, which isn't installed on this machine.{" "}
+          <a href="https://www.docker.com/products/docker-desktop/" target="_blank" rel="noopener noreferrer">
+            Install Docker Desktop
+          </a>, then reopen this page. Callosum never installs Docker itself.
+        </div>}
+      {docker_installed && !docker_daemon_running &&
+        <div className="settings-note">Docker is installed but not running. Start Docker Desktop, then reopen this page.</div>}
+      {docker_installed && docker_daemon_running && !weManageIt &&
+        <>
+          <span className="settings-sub">
+            Downloads and runs GROBID's own lightweight, CPU-only Docker image ({GROBID_DOWNLOAD_LABEL}) and points
+            callosum at it — no Docker commands to type. Docker Desktop must already be installed (above).
+          </span>
+          <button className="btn btn-ghost" disabled={install.status === "running"} onClick={onInstall}>
+            {install.status === "running" ? "Installing…" : `Install & Start GROBID (${GROBID_DOWNLOAD_LABEL})`}
+          </button>
+        </>}
+      {weManageIt &&
+        <div className="settings-keyrow">
+          <span className="settings-note">Running (managed by callosum).</span>
+          <button className="btn btn-ghost" disabled={stopping} onClick={onStop}>{stopping ? "Stopping…" : "Stop"}</button>
+        </div>}
+      {install.status === "running" && <ProgressBar label="Installing GROBID (this can take a few minutes)…" managedBy="backend-job" />}
+      {install.status === "error" && <div className="settings-note settings-note-err">{install.detail}</div>}
+    </div>
   );
 }

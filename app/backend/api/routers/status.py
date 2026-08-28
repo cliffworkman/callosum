@@ -77,6 +77,7 @@ JOB_LABELS: dict[str, str] = {
     "metadata_enrich_jobs": "Metadata enrichment",
     "ocr_jobs": "OCR",
     "grobid_parse_jobs": "GROBID structure parsing",
+    "grobid_lifecycle_jobs": "GROBID install (Docker)",
     "text_health_jobs": "Text-health reprocessing",
     "gap_jobs": "Gap-finder",
     "overlooked_jobs": "Overlooked-work remediation",
@@ -144,6 +145,7 @@ JOB_NAV_DEFAULTS: dict[str, dict[str, Any]] = {
     # this destination, once a placeholder, is now exactly where the action lives. paper_id (per-paper jobs
     # only; the bulk /grobid/library/parse job has none) is layered in automatically by _bounded_nav from Job.nav.
     "grobid_parse_jobs": {"pane": "methods", "section": "details"},
+    "grobid_lifecycle_jobs": {"workspace": "settings"},
     "text_health_jobs": {"workspace": "library", "modal": "text-health"},
     "gap_jobs": {"workspace": "discover", "tab": "search", "modal": "gaps"},
     "overlooked_lens_jobs": {"workspace": "discover", "tab": "search", "modal": "overlooked"},
@@ -196,6 +198,7 @@ JOB_COMPUTE_KINDS: dict[str, str] = {
     "metadata_enrich_jobs": "Public metadata",
     "ocr_jobs": "Local AI",
     "grobid_parse_jobs": "Local processing + self-hosted GROBID",
+    "grobid_lifecycle_jobs": "Public container image + local execution",
     "text_health_jobs": "Local AI",
     "gap_jobs": "Public metadata + local analysis",
     "overlooked_jobs": "Local AI + public metadata",

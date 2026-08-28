@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 507: GROBID accessible from Settings (Docker install/start/stop, closes backlog #58)
+- **Files:** new `app/backend/grobid_lifecycle.py`, new `app/backend/api/routers/grobid_docker.py`,
+  `app/backend/api/app.py`, `app/backend/api/routers/status.py`, `app/frontend/js/35e_maintenance.jsx`, new
+  `tests/{test_grobid_lifecycle,test_grobid_docker_endpoints}.py`,
+  `.claude/security-audits/2026-08-28_grobid-docker-lifecycle.md`.
+- **What:** Cliff's call on backlog #58 — don't bundle GROBID into the installer, but let callosum drive Docker
+  on the user's behalf (detect → pull a fixed lightweight ~500MB image → run/stop it → auto-save the resulting
+  URL through the existing `grobid_url` setting). Live-verified end-to-end with a real Docker pull on this
+  machine; caught and fixed a real UI staleness bug during that verification.
+- **Why:** GROBID meaningfully improves synthesis retrieval quality but required Docker CLI knowledge to set
+  up; Cliff asked to close that gap without going as far as bundling it into the installer.
+- **Revert:** `git revert` this commit, or restore individual files from the prior commit.
+
 ## 2026-08-27 — Increment 506: Feed Author-follow bug fixes (closes backlog #61) + co-author exclusion, axis scoping, library-filter link
 - **Files:** `integrations/openalex/author.py`, `integrations/http_bounds.py`,
   `app/backend/clustering/followed_authors.py`, `app/backend/api/routers/feed.py`,

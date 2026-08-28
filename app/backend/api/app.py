@@ -51,6 +51,7 @@ from app.backend.api.routers import (
     funding,
     gaps,
     grobid,
+    grobid_docker,
     health,
     help,
     library,
@@ -272,6 +273,7 @@ def create_app(
     api.state.metadata_enrich_jobs = JobStore()  # inc 217: multi-pass, gap-filling metadata enrichment
     api.state.ocr_jobs = JobStore()  # inc 231 (B3): per-paper OCR of a scanned PDF into a searchable copy
     api.state.grobid_parse_jobs = JobStore()  # backlog #30 Stage 2: per-paper + bulk GROBID structure parsing
+    api.state.grobid_lifecycle_jobs = JobStore()  # backlog #58: Docker-managed GROBID install/start
     api.state.text_health_jobs = JobStore()  # local PDF text-health batch reprocessing
     api.state.citation_context_jobs = JobStore()  # inc 232 (B4): per-paper "how this paper is cited" (scite analogue)
     api.state.publishers_jobs = JobStore()  # #40: PUBLISHERS "where to submit" journal-finder (SP1a)
@@ -470,6 +472,7 @@ def create_app(
     api.include_router(wip_workflow.router)
     api.include_router(library_enrich.router)  # /library/enrich/refresh — split out of library.py (rule #1)
     api.include_router(grobid.router)  # /grobid/* — opt-in GROBID structure parsing (backlog #30 Stage 2)
+    api.include_router(grobid_docker.router)  # /grobid/docker/* — Docker-managed install/start/stop (backlog #58)
     api.include_router(axes.router)
     api.include_router(summaries.router)
     api.include_router(help.router)

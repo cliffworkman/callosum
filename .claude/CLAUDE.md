@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 506** (see Increment workflow) with **2535 root-suite pytest tests
+It is currently at **Increment 507** (see Increment workflow) with **2561 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -603,7 +603,22 @@ the full per-increment narrative for all other increments now lives in the reloc
   confirmed honestly reporting `"grobid"` provenance only where a real overlap was found and `"none"`/
   `"heuristic"` everywhere else — closing a gap the pipeline's own implementation task had explicitly disclosed
   as unverified. See `.claude/security-audits/2026-08-15_grobid-integration.md` and
-  `.claude/docs/increment-notes/INCREMENT-479-NOTES.md`.
+  `.claude/docs/increment-notes/INCREMENT-479-NOTES.md`. **Inc 507 (backlog #58) makes GROBID accessible from
+  Settings without bundling it**: researched GROBID's real distribution options first (no standalone download
+  exists — GitHub releases publish only raw JARs, not the `grobid-home` model bundle; the only non-Docker path
+  is building from source, which GROBID's own docs flag as having "platform-specific issues" on Windows) —
+  Docker is the only realistic path, and GROBID ships a lightweight ~500MB CPU-only `-crf` tag alongside an
+  ~8GB GPU-optional `-full` one. Cliff's call: don't bundle, but let callosum drive Docker on the user's behalf.
+  A new `app/backend/grobid_lifecycle.py` (`docker_available`/`container_state`/`install_and_start`/
+  `stop_and_remove`, every subprocess argv element a fixed constant except the locally-determined bind port —
+  no injection surface) + sibling router `grobid_docker.py` (`GET/POST /grobid/docker/*`, a new
+  `grobid_lifecycle_jobs` JobStore) pulls/runs a fixed `callosum-grobid` container and auto-saves the resulting
+  `http://127.0.0.1:<port>` through the existing `grobid_url` setting — since it's always loopback, the
+  existing egress-gate distinction and parse endpoints needed zero changes. Settings shows the Docker
+  lifecycle only when no working GROBID is already configured (quiet secondary link otherwise, never nagging
+  to replace a setup that already works). Live-verified end-to-end with a real ~500MB pull on this machine
+  (not simulated) — this caught and fixed a real UI staleness bug (`autoReachable` not re-checked after Stop).
+  See `.claude/security-audits/2026-08-28_grobid-docker-lifecycle.md` and `INCREMENT-507-NOTES.md`.
 - **Response-size caps on external HTTP reads (backlog #56, inc 480):** a shared `integrations/http_bounds.py`
   (`bounded_get`/`bounded_post`, streamed + a hard byte cap, fails closed with `ResponseTooLargeError` before
   the rest of a response body is read) wired into every previously-unbounded external fetch. The real gap was

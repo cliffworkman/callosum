@@ -673,3 +673,15 @@ appended here.)*
   (compression-implying) headers around already-decompressed `content`, so httpx double-decoded on first
   access and raised. Fixed alongside; the backslash-vs-forward-slash sub-note did not reproduce (already
   correct). See `INCREMENT-506-NOTES.md`.
+- [x] **#58 GROBID accessible from Settings without bundling** (inc 507, 2026-08-28) — researched GROBID's real
+  distribution options first (no standalone download exists; Docker is the only realistic path, with a
+  lightweight ~500MB CPU-only `-crf` tag vs. an ~8GB GPU-optional `-full` tag). Cliff's call: don't bundle GROBID
+  into the installer, but let callosum drive Docker on the user's behalf — a new `app/backend/grobid_lifecycle.py`
+  + sibling router (`GET/POST /grobid/docker/*`) detects Docker, pulls/runs/stops a fixed `callosum-grobid`
+  container, and auto-saves the resulting loopback URL through the existing `grobid_url` setting (zero changes
+  needed to the existing egress gate or parse endpoints). New Settings UI section, quiet when a working GROBID
+  is already configured. Live-verified end-to-end with a real ~500MB pull on this machine (not simulated); caught
+  and fixed a real UI staleness bug (`autoReachable` not re-checked after Stop) during that verification. See
+  `INCREMENT-507-NOTES.md` and `security-audits/2026-08-28_grobid-docker-lifecycle.md` (PASS). The separate,
+  narrower running-header-pollution fix this item also tracked shipped independently 2026-08-26
+  (`chunk_filtering.py::exclude_repeated_boilerplate_chunks`) and is unaffected by this closure.
