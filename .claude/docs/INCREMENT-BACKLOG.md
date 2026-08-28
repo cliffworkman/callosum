@@ -139,13 +139,18 @@ the Principles + A-A gates before build.)*
   - **Word-on-the-web shipped inc 482 (SP4)** — the same task pane now runs through the existing cloudflared
     relay Google Docs already uses (a real `AccessControlMiddleware` exemption-list bug was found and fixed
     in the same increment; see `INCREMENT-482-NOTES.md` + `security-audits/2026-08-18_word-online-relay.md`).
-    **Desktop live-verified 2026-08-28 (inc 508)** — search-insert, Suggest, Refresh/bibliography, and Flatten
-    all confirmed working in real Word for the first time; found + fixed two real bugs along the way (a
-    `tools/run_https.py` `sys.path` bug and a wrong Trust-Center sideload instruction in the README — see
-    `INCREMENT-508-NOTES.md`). **Immediate next step, not yet done:** the Word-on-the-web relay setup
-    (`adapters/word/README.md`'s "Word on the web" section) still needs its own live verification — before
-    deciding the next concrete increment (grouped citations/locators is the natural next P1 item once that
-    verification lands too).
+    **Both desktop AND Word-on-the-web live-verified 2026-08-28 (inc 508)** — search-insert, Suggest,
+    Refresh/bibliography, and Flatten all confirmed working in real Word (desktop) and real Word on the web
+    (via the tunnel) for the first time; found + fixed three real bugs along the way (a `tools/run_https.py`
+    `sys.path` bug, a wrong Trust-Center sideload instruction in the README, and a `taskpane.js` styles-dropdown
+    race where `loadStyles()` ran before the tunneled user had saved their access token and never retried — see
+    `INCREMENT-508-NOTES.md`). **Next: scoping Word/Docs parity toward LibreOffice's much larger feature set**
+    (grouped citations/locators is the most-named single gap, but not the only one — see the LibreOffice
+    adapter's own inc 362-464 arc for the full surface: note-style footnotes/endnotes, the style catalog/
+    search/install/personal-style editor, section-scoped bibliography blocks + categories, bibliography web
+    links, the grouped-source chooser, Zotero-citation conversion, accessibility wiring). Office.js's Content
+    Control model is far more constrained than UNO, so this needs a feasibility pass per feature before
+    committing to a build order — not all of it will port.
   - AppSource / broader public distribution readiness (design with it in mind; do not build the actual
     submission/review process until there's a real reason to).
 - **#35 My Publications — Layer 4.** Deterministic Layer 4 is complete (`INCREMENT-BACKLOG-DONE.md`). **Still

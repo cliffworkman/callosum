@@ -64,8 +64,42 @@ wasn't touched by this fix). No Python test suite change needed — `tools/run_h
 coverage (it's a thin dev-convenience script, not app logic) and the fix is a two-line `sys.path` addition
 identical to an already-proven pattern elsewhere.
 
+## Word-on-the-web (SP4) — live-verified same day
+
+Following the desktop verification above, the Word-on-the-web relay flow (`adapters/word/README.md`'s "Word
+on the web" section) was set up and live-verified for the first time too:
+
+- The named cloudflared tunnel (`callosum-tunnel.clffwrkmn.net`) already existed from the Google Docs work but
+  had never been run with a real filled-in config — built `~/.cloudflared/config.yml` from the checked-in
+  template (`adapters/googledocs/cloudflared-config.yml`), pointed its `service:` at the actual running dev
+  server (`http://localhost:8888`, not the template's `:8080`), and started it.
+- Remote access + a bearer token were already configured from prior work; sideloaded `manifest.web.xml` into
+  Word on the web via **Insert → Add-ins → Upload My Add-in**.
+- **Found and fixed a real, previously-undiscovered bug** in `adapters/word/taskpane.js`: `loadStyles()` runs
+  once at `Office.onReady`, which in the tunneled case fires *before* the user has pasted+saved their access
+  token. That first call 401s and fails silently (the existing `catch` comment: "styles are optional polish;
+  the default 'apa' still works") — and nothing ever re-triggered `loadStyles()` afterward, so
+  `<select id="style">` (which has no default `<option>` in the HTML) stayed permanently empty even after the
+  token was saved, on every subsequent visit, even though search/insert/suggest/refresh all worked fine (the
+  user only exercises those *after* saving the token, so they were never affected). Fixed by re-running
+  `loadStyles()` inside `saveToken()` once a non-empty token is saved — confirmed working live afterward, the
+  full real style list populated the dropdown.
+- With that fixed, live-verified the complete SP1-3 feature set identically to desktop through the tunnel:
+  search-and-insert, Suggest-from-the-sentence, Refresh/renumber + bibliography, and Flatten all confirmed
+  working (Cliff: "everything else works just fine" even before the styles fix, "woo hoo it works!" after).
+
+The `node --test adapters/word/taskpane_core.test.js` pure-logic suite (13/13) was re-run after the
+`taskpane.js` fix as a sanity baseline — unaffected, since the fix touches only the untested Office.js glue
+layer per the project's own documented "no headless Word" policy.
+
+`~/.cloudflared/config.yml` (the real, filled-in tunnel config) is intentionally **not** committed — it lives
+outside the repo like the rest of this machine's account-identifying local config, consistent with the
+checked-in file staying a template with `<TUNNEL_ID>`/`<HOME>` placeholders.
+
 ## Still open
 
-Word-on-the-web (the SP4 cloudflared-relay flow) has **not** been live-verified yet — that's the next
-immediate step per the backlog's own sequencing, before deciding whether "grouped citations/locators" (the
-backlog's named next P1 item) is really the right next concrete increment.
+Both desktop and Word-on-the-web are now live-verified for the full SP1-3 feature arc. Per the backlog's own
+sequencing, the next concrete increment is scoping **Word/Docs parity toward the LibreOffice adapter's much
+larger P1/P2 feature set** ("grouped citations/locators" being the most-named single gap, but the LibreOffice
+adapter has many more incs of surface area — see the backlog for the running list). That scoping is deliberately
+a separate next step, not pre-built here.

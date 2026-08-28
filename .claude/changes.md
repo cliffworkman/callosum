@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 508 (cont'd): First real live verification of Word-on-the-web (backlog #33/#34)
+- **Files:** `adapters/word/taskpane.js`, `.claude/docs/increment-notes/INCREMENT-508-NOTES.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/CLAUDE.md`.
+- **What:** stood up the real cloudflared tunnel config (outside the repo) and live-verified the SP4 Word-on-
+  the-web relay flow for the first time. Found and fixed a real bug: `loadStyles()` ran once at `Office.onReady`,
+  before a tunneled user had saved their access token, 401'd silently, and never retried — leaving the style
+  dropdown permanently empty even after the token was saved. Fixed by re-running `loadStyles()` when
+  `saveToken()` saves a non-empty token. Full SP1-3 feature set (search-insert, Suggest, Refresh, Flatten)
+  confirmed working identically to desktop through the tunnel.
+- **Why:** completes the backlog's stated prerequisite (both desktop and web verified) before scoping the next
+  concrete increment: Word/Docs parity toward LibreOffice's larger feature set.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 508: First real live verification of the desktop Word add-in (backlog #33/#34)
 - **Files:** `tools/run_https.py`, `adapters/word/README.md`, `.claude/CLAUDE.md`, `.claude/docs/INCREMENT-BACKLOG.md`.
 - **What:** Cliff got Word installed and ran the desktop add-in for real for the first time — search-insert,

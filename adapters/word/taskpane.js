@@ -273,6 +273,11 @@
     var val = $("tunnelToken").value.trim();
     window.localStorage.setItem(TOKEN_KEY, val);
     setStatus(val ? "Access token saved." : "Access token cleared.");
+    // loadStyles() already ran once at Office.onReady, before any token existed to save -- on a first-ever
+    // visit that first call 401s (silently, since styles are treated as optional polish) and nothing else
+    // ever re-triggers it, leaving the dropdown permanently empty even after the token is saved. Re-fetch now
+    // that a real token exists so the dropdown actually populates without requiring a reload.
+    if (val) loadStyles();
   }
 
   function wire() {

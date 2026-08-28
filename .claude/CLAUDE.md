@@ -491,7 +491,16 @@ the full per-increment narrative for all other increments now lives in the reloc
   current Word — the Trust Center's "Trusted Add-in Catalogs" genuinely requires a **network share path**
   (`\\hostname\share`, via right-click folder → Properties → Sharing → Share), not a bare local `C:\...` path,
   confirmed against Microsoft's own current docs and corrected in the README. **Word-on-the-web (the SP4 relay
-  flow) remains not yet live-verified** — a separate next step; see `INCREMENT-508-NOTES.md`.
+  flow) live-verified the same day**, through the real named cloudflared tunnel: search-insert, Suggest,
+  Refresh, and Flatten all confirmed working identically to desktop. This run found and fixed a third real bug —
+  `taskpane.js`'s `loadStyles()` ran once at `Office.onReady`, before a tunneled user had saved their access
+  token, 401'd silently, and never retried, leaving the style dropdown permanently empty even after the token
+  was saved; fixed by re-running `loadStyles()` inside `saveToken()`. See `INCREMENT-508-NOTES.md`. **Both
+  surfaces now verified; the next step is scoping Word/Docs parity toward LibreOffice's much larger P1/P2
+  feature set** (grouped citations/locators, note-style footnotes/endnotes, the style catalog/search/install
+  workflow, section-scoped bibliographies + categories, bibliography web links, the grouped-source chooser,
+  Zotero-citation conversion, accessibility) — Office.js's Content Control model is more constrained than UNO,
+  so this needs a per-feature feasibility pass before a build order is set.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
