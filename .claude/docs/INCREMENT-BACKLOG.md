@@ -193,6 +193,22 @@ the Principles + A-A gates before build.)*
       `.claude/docs/research/2026-08-21_word_citation_migration_formats.md`.
   - AppSource / broader public distribution readiness (design with it in mind; do not build the actual
     submission/review process until there's a real reason to).
+  - **Word support in the packaged desktop (Tauri) app — flagged 2026-08-28, not started.** Confirmed by
+    reading `app/desktop-shell/src-tauri/src/backend.rs`: the packaged app picks a **random free port** per
+    launch (`pick_free_port`) and serves the whole UI over **plain HTTP** — Word has never been wired into this
+    path at all (it's a dev-workflow-only feature today: `python tools/run_dev.py`/`run_https.py`, a fixed
+    `https://localhost:8443`, a cert trusted via `npx office-addin-dev-certs install`). Two real obstacles a
+    real user's installed copy doesn't have: (1) no `office-addin-dev-certs`-equivalent tooling to trust a
+    per-machine cert — the desktop app would need to either generate + prompt the user to trust a real
+    self-signed cert on first Word use (an OS-level trust-store write from an installed app, a real
+    permissions/UX question), or find another mechanism entirely; a single cert baked into every install is a
+    non-starter (the private key would be public, defeating TLS trust). (2) the random-port-per-launch design
+    is incompatible with a static `manifest.xml`'s fixed `SourceLocation` URL — Word's sideloaded manifest
+    can't follow a port that changes every launch, so this would need either a fixed reserved port for the
+    desktop app's HTTPS listener specifically, or a manifest regenerated/re-served per launch (Word doesn't
+    support that cleanly for sideloaded catalog manifests). Needs its own research-first scoping pass (mirroring
+    how every other Word-adapter increment this session verified against real API/vendor behavior rather than
+    assuming) before any implementation.
 - **#35 My Publications — Layer 4.** Deterministic Layer 4 is complete (`INCREMENT-BACKLOG-DONE.md`). **Still
   open:** optional LLM narration over the already-grounded data remains deferred — no need to build it unless
   narration becomes useful.

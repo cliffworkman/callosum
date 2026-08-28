@@ -103,6 +103,9 @@ python tools/build_frontend.py
 uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080
 ```
 
+Also want the Microsoft Word add-in (see `adapters/word/README.md`)? Use `python tools/run_dev.py` instead of
+step 4 above — it runs the same HTTP server plus the HTTPS one Word needs, together, from one command.
+
 **First run downloads models.** Extraction/embedding/verification use local models (`sentence-transformers`
 `all-MiniLM-L6-v2` + a small NLI cross-encoder) pulled from Hugging Face on first use — a few hundred MB, one-time,
 then it works offline. The SQLite database auto-migrates to the latest schema on startup.

@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 513** (see Increment workflow) with **2563 root-suite pytest tests
+It is currently at **Increment 514** (see Increment workflow) with **2563 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -542,7 +542,15 @@ the full per-increment narrative for all other increments now lives in the reloc
   *does* filter trash, confirmed by reading `paper_query_repo.py:399-409`), keying off response presence/count
   rather than the record's own `.id` value (the same correlation problem already solved for citation tags).
   Retraction status is now checked only for confirmed-existing papers. See `INCREMENT-512-NOTES.md` +
-  `INCREMENT-513-NOTES.md`.
+  `INCREMENT-513-NOTES.md`. **Inc 514 fixes the structural problem underneath all three bugs above**: Word's
+  separate HTTPS server (`tools/run_https.py`, required since Office.js refuses plain HTTP) and the main HTTP
+  server were two independently-started processes that could silently drift — different `CALLOSUM_DB_URL`,
+  different code versions (confirmed via mismatched `app_version`), or one simply not running. New
+  `tools/run_dev.py` runs both as supervised subprocesses of one parent sharing one environment, torn down
+  together if either dies — `adapters/word/README.md`'s setup now points at it as the primary path. **Word has
+  never worked in the packaged Tauri desktop app** (confirmed via `backend.rs`: random port per launch, plain
+  HTTP only, no Word wiring) — backlogged as its own item (`INCREMENT-BACKLOG.md` #33/#34), not silently
+  scoped out. See `INCREMENT-514-NOTES.md`.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -1088,6 +1096,7 @@ Run from the project root. The shell is **PowerShell** (Windows).
 | `python -m tach check` | Module-boundary check (`tach.toml`, activated inc 473 — see staged-harnesses/tach.md): `app.backend.persistence` can't import `app.backend.api`; `sync_server`/`mcp_server`/`tui` can't import `app.backend` at all. Run `tach sync` (then review the diff) after a legitimate new cross-module import |
 | `$env:CALLOSUM_DB_URL = "sqlite:///C:/Users/cliff/Dropbox/Dropbox/01_Work/callosum/.local/validation-summarize/validation.sqlite"` | Point the app at a SQLite DB (default if unset: `sqlite:///.local/validation/validation.sqlite`) |
 | `uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080` | Start the FastAPI app; then open `http://127.0.0.1:8080/` |
+| `python tools/run_dev.py` | Start HTTP (normal use) **and** HTTPS (Word add-in) together as one supervised command pair sharing the same `CALLOSUM_DB_URL` — use this instead of the bare `uvicorn` command above whenever you also want Word working (inc 514; prevents the two servers drifting to different DBs/code versions) |
 | `npm install` | Install the build-time frontend toolchain (pinned `esbuild`) — required once before `tools/build_frontend.py` / live assembly (inc 102) |
 | `python tools/build_frontend.py` | Rebuild `callosum-app.html` from `app/frontend/` (esbuild-precompiles the JSX) — run after any `app/frontend/` edit |
 | `pytest tests/test_<area>.py -q` | **Default dev loop — run only the changed area's tests** (seconds, not ~45 min). See the Verification protocol §1. |
@@ -1319,7 +1328,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 513). Each increment of real work
+callosum is built in **numbered increments** (currently at 514). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

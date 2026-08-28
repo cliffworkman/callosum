@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 514: a combined dev launcher so Word's server can't silently drift from the main one
+- **Files:** new `tools/run_dev.py`, `adapters/word/README.md`, `README.md`, `.claude/CLAUDE.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/docs/increment-notes/INCREMENT-514-NOTES.md`.
+- **What:** Cliff called out that today's whole debugging arc (empty styles, wrong token state, stale trash
+  data, add-in errors) traced to one root cause — Word's separate HTTPS server (`run_https.py`) and the main
+  HTTP server were two independently-started processes that silently drifted apart (different DB, different
+  code, one not running). New `tools/run_dev.py` runs both as supervised subprocesses of one parent, sharing
+  one environment, torn down together if either dies. Also backlogged (Cliff's explicit ask): Word has never
+  worked in the packaged Tauri desktop app at all — its random-port-per-launch design and lack of any
+  per-machine cert-trust tooling are real, separate obstacles, recorded in `INCREMENT-BACKLOG.md` #33/#34.
+- **Why:** the operational drift was the actual bug underneath three separate "bug reports" today; fixing it
+  structurally beats another round of manual restart choreography.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 513: Word diagnostics' orphan detection made trash-aware (real bug, found live)
 - **Files:** `adapters/word/taskpane.js`, `adapters/word/taskpane_core.js`,
   `adapters/word/taskpane_core.test.js`, `.claude/docs/increment-notes/INCREMENT-513-NOTES.md`.

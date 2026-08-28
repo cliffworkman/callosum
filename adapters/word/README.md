@@ -29,12 +29,19 @@ below is for (the same tunnel `adapters/googledocs/` already uses, just relaying
    ```
    (Run from anywhere; installs a local CA into your OS trust store. Run via `npx` — it is not a committed
    dependency.)
-2. **Run callosum over HTTPS** on port 8443:
+2. **Run callosum** — use the combined launcher so the HTTP server (normal browser use) and the HTTPS server
+   (Word) are always the same process pair, sharing the same database, started/stopped together (inc 514 —
+   running them as two separately-started commands let them silently drift apart: different `CALLOSUM_DB_URL`,
+   different code versions, or one simply not running with nothing to notice until Word throws "ADD-IN ERROR"):
    ```
-   python tools/run_https.py
+   python tools/run_dev.py
    ```
-   Then open the app at **https://localhost:8443** (the same trusted cert → no browser warning). HTTP on :8080
-   still works for normal use; HTTPS is only needed while using the Word add-in.
+   This serves plain HTTP on :8888 (normal use) **and** HTTPS on :8443 (Word) from one command — HTTPS is
+   skipped with a note if you haven't done step 1 yet. Open the app at **https://localhost:8443** if you want a
+   browser tab too (the same trusted cert → no warning; Chrome/Edge trust the OS cert store, Firefox needs its
+   own one-time trust step). Prefer running the two servers separately? `python tools/run_https.py` still works
+   standalone — just make sure `CALLOSUM_DB_URL` matches whatever your other callosum process is using, or
+   they'll disagree with each other exactly like this did before.
 3. **Sideload the manifest** into Word:
    - In callosum: **Settings → Microsoft Word add-in → Download manifest** (saves `manifest.xml`), or grab it from
      `adapters/word/manifest.xml` (Settings → **Open add-in folder**).
