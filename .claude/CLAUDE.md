@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 508** (see Increment workflow) with **2561 root-suite pytest tests
+It is currently at **Increment 509** (see Increment workflow) with **2561 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -495,12 +495,20 @@ the full per-increment narrative for all other increments now lives in the reloc
   Refresh, and Flatten all confirmed working identically to desktop. This run found and fixed a third real bug —
   `taskpane.js`'s `loadStyles()` ran once at `Office.onReady`, before a tunneled user had saved their access
   token, 401'd silently, and never retried, leaving the style dropdown permanently empty even after the token
-  was saved; fixed by re-running `loadStyles()` inside `saveToken()`. See `INCREMENT-508-NOTES.md`. **Both
-  surfaces now verified; the next step is scoping Word/Docs parity toward LibreOffice's much larger P1/P2
-  feature set** (grouped citations/locators, note-style footnotes/endnotes, the style catalog/search/install
-  workflow, section-scoped bibliographies + categories, bibliography web links, the grouped-source chooser,
-  Zotero-citation conversion, accessibility) — Office.js's Content Control model is more constrained than UNO,
-  so this needs a per-feature feasibility pass before a build order is set.
+  was saved; fixed by re-running `loadStyles()` inside `saveToken()`. See `INCREMENT-508-NOTES.md`. **Inc 509**
+  adds a real citation composer closing the most-named LibreOffice-parity gap: grouped citations (combine
+  several works into one cluster) with per-work locator/label/prefix/suffix/suppress-author/author-only, plus
+  Edit/Delete citation at cursor — mirroring `adapters/libreoffice/composer.py`'s own assembly model. The
+  shared backend (`render_document`/`citeproc_runner.js`) needed **zero changes** — it already forwarded these
+  per-item fields end-to-end, just unused by either adapter's UI until now. The correlated-objects pattern
+  (`.track()`/`.untrack()` + `Word.run(object, callback)`) lets Edit Citation hold a `ContentControl` reference
+  across separate `Word.run` calls. See `INCREMENT-509-NOTES.md`. **The remaining LibreOffice-vs-Word gap is
+  now an explicit phased P0/P1/P2 backlog entry** (`INCREMENT-BACKLOG.md` #33/#34) rather than an unscoped
+  "parity" bullet, pointing at the shared roadmap doc
+  (`.claude/docs/future-tracks/chatgpt5.6_future-tracks_wordprocessorpluginsroadmap.md`) LibreOffice's own
+  build followed. A confirmed real constraint for that future work: **Office.js has no equivalent of UNO's
+  `enterUndoContext`/`leaveUndoContext`**, so Word can approximate but never guarantee LibreOffice's
+  verified-one-step-Undo/Redo transaction safety.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -1277,7 +1285,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 504). Each increment of real work
+callosum is built in **numbered increments** (currently at 509). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

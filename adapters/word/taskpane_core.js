@@ -117,6 +117,71 @@
     }).filter(function (r) { return r.id != null; });
   }
 
+  // ---- citation composer (inc 509, backlog #33/#34 P0 items 1-5): grouped citations + per-occurrence
+  // locator/label/prefix/suffix/suppress-author/author-only. Mirrors adapters/libreoffice/composer.py's
+  // `_item_overrides`/`_format_assembly_row`/`_assembly_item_from_decoded` exactly, so the same mental model
+  // (an ordered "assembly" of {csl, ...overrides} rows, built by search/suggest then inserted as ONE cluster)
+  // applies to both adapters even though the UI shells are unrelated.
+  var LOCATOR_LABELS = [
+    "book", "chapter", "column", "figure", "folio", "issue", "line", "note", "opus", "page",
+    "paragraph", "part", "scene", "section", "sub-verbo", "supplement", "table", "verse", "volume",
+  ]; // MUST match CSL_LOCATOR_LABELS in callosum_cite.py / app/backend/api/routers/citations.py exactly.
+  var ASSEMBLY_OVERRIDE_KEYS = ["locator", "label", "prefix", "suffix", "suppress-author", "author-only"];
+
+  // The per-occurrence override fields on one assembly row, ready to merge into its CSL record -- strips
+  // default/empty/false values so a citation that overrides nothing renders an ordinary bare item (mirrors
+  // composer.py's `_item_overrides`).
+  function itemOverrides(row) {
+    var out = {};
+    ASSEMBLY_OVERRIDE_KEYS.forEach(function (k) {
+      var v = row && row[k];
+      if (v !== null && v !== undefined && v !== "" && v !== false) out[k] = v;
+    });
+    return out;
+  }
+  // Merge every assembly row's CSL record with its own overrides into the final `items` array a citation
+  // cluster's tag carries -- encodeCitationTag already accepts arbitrary per-item keys unchanged.
+  function buildClusterItems(assembly) {
+    return (assembly || []).map(function (row) {
+      return Object.assign({}, row && row.csl, itemOverrides(row));
+    });
+  }
+  // A compact "Author (Year) — Title" row label built from a raw CSL-JSON record (not the /papers search
+  // response shape formatSearchRows expects -- CSL authors are {family, given} objects, not "Last, First").
+  function cslRecordRow(item) {
+    var authors = (item && Array.isArray(item.author)) ? item.author : [];
+    var first = (authors[0] && (authors[0].family || authors[0].literal)) || "Unknown";
+    var authorLbl = authors.length > 1 ? first + " et al." : first;
+    var dateParts = item && item.issued && Array.isArray(item.issued["date-parts"]) ? item.issued["date-parts"][0] : null;
+    var year = (dateParts && dateParts[0]) ? " (" + dateParts[0] + ")" : "";
+    var title = (item && item.title) ? String(item.title) : "Untitled";
+    return authorLbl + year + " — " + title;
+  }
+  // The assembly-list display row: the base label plus a compact "[...]" summary of any active override, so
+  // the user sees at a glance which assembled items carry one without opening its own options (mirrors
+  // composer.py's `_format_assembly_row`).
+  function formatAssemblyRow(row) {
+    var tags = [];
+    if (row.locator) tags.push((row.label || "loc.") + " " + row.locator);
+    if (row.prefix) tags.push('prefix "' + row.prefix + '"');
+    if (row.suffix) tags.push('suffix "' + row.suffix + '"');
+    if (row["suppress-author"]) tags.push("no author");
+    if (row["author-only"]) tags.push("author only");
+    return tags.length ? row.row + "  [" + tags.join(", ") + "]" : row.row;
+  }
+  // Rebuild an assembly row from an EXISTING citation's already-decoded item (Edit Citation) -- separates the
+  // per-occurrence override keys back out from the bare CSL record, so an edited citation's assembly rows have
+  // the identical shape a fresh search-and-add produces (mirrors composer.py's `_assembly_item_from_decoded`).
+  function assemblyRowFromDecodedItem(item) {
+    var bareCsl = Object.assign({}, item);
+    ASSEMBLY_OVERRIDE_KEYS.forEach(function (k) { delete bareCsl[k]; });
+    var row = { csl: bareCsl, row: cslRecordRow(bareCsl) };
+    ASSEMBLY_OVERRIDE_KEYS.forEach(function (k) {
+      if (item && item[k] != null && item[k] !== false) row[k] = item[k];
+    });
+    return row;
+  }
+
   // ---- Word-on-the-web relay (SP4) ----
   // The task pane is served same-origin from callosum on desktop (localhost/127.0.0.1) -- no token needed, the
   // browser/webview never leaves the machine. Word-on-the-web loads the SAME task pane through the cloudflared
@@ -149,6 +214,12 @@
     formatSuggestRows: formatSuggestRows,
     isLocalOrigin: isLocalOrigin,
     authHeaders: authHeaders,
+    LOCATOR_LABELS: LOCATOR_LABELS,
+    itemOverrides: itemOverrides,
+    buildClusterItems: buildClusterItems,
+    cslRecordRow: cslRecordRow,
+    formatAssemblyRow: formatAssemblyRow,
+    assemblyRowFromDecodedItem: assemblyRowFromDecodedItem,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.CallosumCore = api;

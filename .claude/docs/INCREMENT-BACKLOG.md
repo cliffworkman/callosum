@@ -144,13 +144,46 @@ the Principles + A-A gates before build.)*
     (via the tunnel) for the first time; found + fixed three real bugs along the way (a `tools/run_https.py`
     `sys.path` bug, a wrong Trust-Center sideload instruction in the README, and a `taskpane.js` styles-dropdown
     race where `loadStyles()` ran before the tunneled user had saved their access token and never retried — see
-    `INCREMENT-508-NOTES.md`). **Next: scoping Word/Docs parity toward LibreOffice's much larger feature set**
-    (grouped citations/locators is the most-named single gap, but not the only one — see the LibreOffice
-    adapter's own inc 362-464 arc for the full surface: note-style footnotes/endnotes, the style catalog/
-    search/install/personal-style editor, section-scoped bibliography blocks + categories, bibliography web
-    links, the grouped-source chooser, Zotero-citation conversion, accessibility wiring). Office.js's Content
-    Control model is far more constrained than UNO, so this needs a feasibility pass per feature before
-    committing to a build order — not all of it will port.
+    `INCREMENT-508-NOTES.md`).
+  - **Word/Docs parity toward LibreOffice — phased roadmap (scoped 2026-08-28).** LibreOffice's adapter shipped
+    every P0/P1/P2 item in `.claude/docs/future-tracks/chatgpt5.6_future-tracks_wordprocessorpluginsroadmap.md`
+    (the shared, generically-written "word processor plugins" roadmap doc — the right reference for Word's own
+    build-out too, not LibreOffice-specific). Word/Docs only has the thin SP1-4 slice (search-insert, suggest,
+    refresh/renumber, style switch, flatten, web relay). Sequencing for the remaining gap, confirmed against
+    real Office.js API capabilities (WordApi 1.3-1.5: `Range.parentContentControlOrNullObject`,
+    `Range.insertBookmark`/`.hyperlink`, `Word.Footnote`/`Endnote`, `Word.Field.code`) — **Office.js has no
+    UNO-`enterUndoContext`/`leaveUndoContext` equivalent**, so any "verified one-step Undo/Redo" LibreOffice
+    promises can only be approximated (build-before-mutate + explicit manual revert-on-failure), never
+    guaranteed as one native Ctrl+Z entry — flag this honestly wherever it matters, don't silently promise
+    LibreOffice-level safety:
+    - **P0 items 1-5 (grouped citations, locators/prefix/suffix, edit/delete) shipped inc 509** — a real
+      composer mirroring `adapters/libreoffice/composer.py`'s assembly model; the shared backend
+      (`render_document`/`citeproc_runner.js`) needed zero changes, it already supported this. See
+      `INCREMENT-509-NOTES.md`.
+    - **P0 remainder (not started):** a "Document diagnostics" command mirroring inc 459's
+      `diagnose_document` (malformed/duplicate-id/orphaned citations, bibliography health) but walking
+      `context.document.contentControls` instead of UNO ReferenceMarks; a bibliography-bounds safety review
+      (Word's content-control-bounded bibliography may already be safer than the roadmap's LibreOffice-bookmark
+      critique — verify, don't assume); safer Flatten (count summary, optional link-retention).
+    - **P1 (not started):** note-style (footnote/endnote) citation placement (needs Word's own `noteIndex`
+      computation from scratch — no existing infra, unlike LibreOffice's `_note_containers`); a persistent
+      "Citations in this document" panel; bibliography categories/chapter-section blocks; accessibility pass
+      (likely cheaper than LibreOffice's, since the task pane is plain HTML/CSS, not native AWT dialogs). A
+      dedicated style-browser UI is low-value — Word's style dropdown already reflects anything installed via
+      Settings' shared catalog.
+    - **P2/leapfrog (not started):** evidence-aware Suggest-Citation details (stance breakdown, weak-evidence
+      warning, Open in PDF — mirrors inc 460); citation-coverage/integrity-preflight audits
+      (`POST /methods/retraction/check-selected` is already adapter-agnostic, zero backend work — mirrors inc
+      459/463); Citavi-style Insert Evidence (mirrors inc 461, reuses `POST /citations/classify-stance`
+      unchanged); open-science statement insertion (mirrors inc 462, `/statements/pending` is already fully
+      generalized, zero backend work — Word needs its own small canned-phrase table, the web frontend's
+      `38b_statements.jsx` has the reference list); Zotero-field conversion (Zotero's Word integration is
+      documented as using real Word field codes, `ADDIN ZOTERO_ITEM CSL_CITATION {json}` — same convention
+      inc 464 already verified for LibreOffice, `Word.Field.code` since WordApi 1.5 — a promising,
+      research-first-required follow-up mirroring inc 464's own discipline, not to be guessed at). Mendeley
+      Cite / EndNote CWY field conversion stay declined for Word for the identical reason already documented
+      for LibreOffice (no complete vendor payload contract) — see
+      `.claude/docs/research/2026-08-21_word_citation_migration_formats.md`.
   - AppSource / broader public distribution readiness (design with it in mind; do not build the actual
     submission/review process until there's a real reason to).
 - **#35 My Publications — Layer 4.** Deterministic Layer 4 is complete (`INCREMENT-BACKLOG-DONE.md`). **Still

@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 509: Word grouped-citation composer + Edit/Delete (backlog #33/#34, parity P0)
+- **Files:** `adapters/word/taskpane_core.js`, `adapters/word/taskpane_core.test.js`, `adapters/word/
+  taskpane.{html,css,js}`, `adapters/word/README.md`, `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/increment-notes/INCREMENT-509-NOTES.md`.
+- **What:** Cliff asked to work toward parity with the LibreOffice adapter. Research found the shared backend
+  (`render_document`/`citeproc_runner.js`) already fully supports grouped citations + per-item locator/label/
+  prefix/suffix/suppress-author/author-only, unused by either adapter's UI. Built the Word-side composer:
+  search/suggest results now add to an in-progress citation assembly (not immediate insert), each item gets an
+  Options panel for its locator/prefix/suffix, and Insert/Update/Edit-at-cursor/Delete-at-cursor round out the
+  flow, mirroring `adapters/libreoffice/composer.py`'s own model. Restructured the backlog's "Word/Docs P1
+  parity" bullet into an explicit phased checklist for the much larger remaining gap.
+- **Why:** the most-named single gap between Word and LibreOffice's adapters, and the one increment where the
+  backend needed zero changes — pure adapter-side UI work with a proven pattern to mirror.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 508 (cont'd): First real live verification of Word-on-the-web (backlog #33/#34)
 - **Files:** `adapters/word/taskpane.js`, `.claude/docs/increment-notes/INCREMENT-508-NOTES.md`,
   `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/CLAUDE.md`.

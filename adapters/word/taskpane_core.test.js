@@ -117,6 +117,70 @@ test("formatSuggestRows: '[stance] Author Year · match — quote' keyed by pape
   assert.deepStrictEqual(core.formatSuggestRows(null), []);
 });
 
+// ---- citation composer (inc 509): grouped citations + locators/prefix/suffix/suppress-author/author-only ----
+test("LOCATOR_LABELS: the 19-value CSL vocabulary, matching callosum_cite.py's CSL_LOCATOR_LABELS", () => {
+  assert.strictEqual(core.LOCATOR_LABELS.length, 19);
+  assert.ok(core.LOCATOR_LABELS.includes("page"));
+  assert.ok(core.LOCATOR_LABELS.includes("volume"));
+});
+
+test("itemOverrides: strips default/empty/false values; never emits a falsy key", () => {
+  assert.deepStrictEqual(core.itemOverrides({ csl: {}, row: "x" }), {});
+  assert.deepStrictEqual(
+    core.itemOverrides({ locator: "5", label: "page", "suppress-author": false, "author-only": true }),
+    { locator: "5", label: "page", "author-only": true },
+  );
+  assert.deepStrictEqual(core.itemOverrides(null), {});
+});
+
+test("buildClusterItems: merges each row's CSL record with its own overrides, in order", () => {
+  const assembly = [
+    { csl: { id: "callosum-1", title: "A" }, locator: "5", label: "page" },
+    { csl: { id: "callosum-2", title: "B" } },
+  ];
+  assert.deepStrictEqual(core.buildClusterItems(assembly), [
+    { id: "callosum-1", title: "A", locator: "5", label: "page" },
+    { id: "callosum-2", title: "B" },
+  ]);
+  assert.deepStrictEqual(core.buildClusterItems([]), []);
+  assert.deepStrictEqual(core.buildClusterItems(null), []);
+});
+
+test("cslRecordRow: 'Author (Year) — Title' from a raw CSL-JSON record; multi-author → et al.; missing → Unknown/Untitled", () => {
+  assert.strictEqual(
+    core.cslRecordRow({ author: [{ family: "Lovelace" }], issued: { "date-parts": [[1843]] }, title: "Notes" }),
+    "Lovelace (1843) — Notes",
+  );
+  assert.strictEqual(
+    core.cslRecordRow({ author: [{ family: "Turing" }, { family: "Church" }], title: "On Computable Numbers" }),
+    "Turing et al. — On Computable Numbers",
+  );
+  assert.strictEqual(core.cslRecordRow({}), "Unknown — Untitled");
+});
+
+test("formatAssemblyRow: appends a compact '[...]' override summary; no overrides → the bare row", () => {
+  assert.strictEqual(core.formatAssemblyRow({ row: "Lovelace (1843) — Notes" }), "Lovelace (1843) — Notes");
+  assert.strictEqual(
+    core.formatAssemblyRow({ row: "Lovelace (1843) — Notes", locator: "5", label: "page", suffix: "emphasis mine" }),
+    'Lovelace (1843) — Notes  [page 5, suffix "emphasis mine"]',
+  );
+  assert.strictEqual(
+    core.formatAssemblyRow({ row: "X", locator: "3", "suppress-author": true }),
+    "X  [loc. 3, no author]",
+  );
+});
+
+test("assemblyRowFromDecodedItem: round-trips buildClusterItems' output back into an assembly row", () => {
+  const decoded = { id: "callosum-1", title: "Notes", author: [{ family: "Lovelace" }], locator: "5", label: "page" };
+  const row = core.assemblyRowFromDecodedItem(decoded);
+  assert.deepStrictEqual(row.csl, { id: "callosum-1", title: "Notes", author: [{ family: "Lovelace" }] });
+  assert.strictEqual(row.locator, "5");
+  assert.strictEqual(row.label, "page");
+  assert.strictEqual(row.row, "Lovelace — Notes");
+  // Round-trip: building cluster items from the reconstructed row reproduces the original decoded item.
+  assert.deepStrictEqual(core.buildClusterItems([row]), [decoded]);
+});
+
 // ---- Word-on-the-web relay (SP4): local vs. tunneled origin + the Bearer token header ----
 test("isLocalOrigin: localhost/127.0.0.1 are local; a tunnel hostname is not", () => {
   assert.strictEqual(core.isLocalOrigin("localhost"), true);

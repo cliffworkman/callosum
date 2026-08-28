@@ -37,3 +37,24 @@ h1 { font-size: 16px; margin: 0 0 2px; }
 .secondary:hover { border-color: #4338ca; color: #4338ca; }
 .status { margin-top: 12px; font-size: 12px; color: #15803d; min-height: 16px; word-break: break-word; }
 .status.err { color: #b91c1c; }
+
+/* inc 509: the grouped-citation assembly (one or more works being built into a single citation cluster) */
+.assembly { margin: 12px 0; padding: 10px; border: 1px solid #4338ca; border-radius: 6px; background: #f1f0fb; }
+.assembly-list { list-style: none; margin: 0; padding: 0; }
+.assembly-row { margin: 0 0 6px; padding: 6px 8px; border: 1px solid #e6e5ee; border-radius: 6px; background: #fff; }
+.assembly-row-main { display: flex; align-items: center; gap: 6px; }
+.assembly-row-label { flex: 1; font-size: 13px; word-break: break-word; }
+.assembly-row-btns { display: flex; gap: 2px; flex-shrink: 0; }
+.icon-btn {
+  cursor: pointer; width: 24px; height: 24px; line-height: 1; font-size: 13px;
+  border: 1px solid #cdcbd6; border-radius: 4px; background: #fafafe; color: #1c1b22; padding: 0;
+}
+.icon-btn:hover { border-color: #4338ca; color: #4338ca; }
+.icon-btn[aria-pressed="true"] { background: #4338ca; color: #fff; border-color: #4338ca; }
+.assembly-row-options { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e6e5ee; display: grid; gap: 6px; }
+.field-inline { display: block; font-size: 11px; color: #5c5a66; }
+.field-inline select, .field-inline input[type="text"] {
+  display: block; width: 100%; margin-top: 2px; padding: 5px; font: inherit; font-size: 12px;
+  border: 1px solid #cdcbd6; border-radius: 4px;
+}
+.checkbox-inline { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #5c5a66; margin-right: 12px; }

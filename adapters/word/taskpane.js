@@ -1,6 +1,6 @@
 /*
  * Callosum Word add-in — the thin Office.js glue (inc 166, SP3: parity — suggest / style-switch / flatten;
- * SP4: Word-on-the-web relay).
+ * SP4: Word-on-the-web relay; inc 509: grouped-citation composer with locators/edit/delete).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
  * is a SAME-ORIGIN call to the local API — nothing leaves the machine, no token needed.
@@ -13,10 +13,16 @@
  * for the token only in tunnel mode, and every fetch below is wrapped with `CallosumCore.authHeaders(...)`.
  *
  * The add-in is a thin field-placer:
- *   • Insert  — fetch the picked paper's CSL-JSON (/papers/export), wrap a Content Control whose .tag carries it,
- *               at the END of the selection (so Suggest inserts AFTER the sentence), then Refresh.
+ *   • Add     — a search/suggest row click fetches the paper's CSL-JSON (/papers/export) and adds it to the
+ *               "assembly" being built (inc 509) — never inserts immediately, so several works can be combined
+ *               into ONE grouped citation, each with its own locator/label/prefix/suffix/suppress-author.
+ *   • Insert/Update — wraps the assembly's items in a Content Control whose .tag carries them (a NEW citation
+ *               at the END of the selection, so Suggest inserts AFTER the sentence) or retags an existing one
+ *               (Edit mode), then Refresh.
  *   • Suggest — read the sentence (selection, else the paragraph), POST /citations/suggest → ranked candidates
- *               with stance + quote (the reason); pick one to insert.
+ *               with stance + quote (the reason); pick one to add to the assembly.
+ *   • Edit/Delete at cursor — reads the citation Content Control the cursor is inside
+ *               (Range.parentContentControlOrNullObject) to repopulate the composer or remove it outright.
  *   • Refresh — scan every citation Content Control IN DOCUMENT ORDER → /citations/render-document → write back
  *               the position-aware in-text + a managed bibliography block.
  *   • Style   — changing the dropdown re-renders the whole document (one-click) + persists in the doc settings.
@@ -34,6 +40,16 @@
   // different key per browser origin regardless (localStorage is origin-scoped), so no collision risk; kept
   // for naming consistency only.
   var isTunneled = !CallosumCore.isLocalOrigin(window.location.hostname);
+
+  // ---- citation composer state (inc 509) ----
+  // `assembly`: the ordered list of {csl, locator, label, prefix, suffix, "suppress-author", "author-only"}
+  // rows being built into ONE citation cluster (mirrors adapters/libreoffice/composer.py's own `assembly`).
+  // `editingCC`: null when building a NEW citation; a tracked Word.ContentControl (see the correlated-objects
+  // pattern -- .track()/.untrack() -- since a proxy object can't otherwise survive between separate Word.run
+  // calls) when editing an EXISTING one at the cursor.
+  var assembly = [];
+  var editingCC = null;
+  var openOptionsIdx = -1; // which assembly row's Options panel is expanded, or -1
 
   function $(id) { return document.getElementById(id); }
   function authToken() {
@@ -124,15 +140,22 @@
       var data = await r.json();
       var rows = CallosumCore.formatSuggestRows((data && data.suggestions) || []);
       renderRows("suggestions", rows, "No relevant papers in your library.");
-      setStatus(rows.length ? "Pick a paper to cite — ranked by relevance; the quote is the reason." : "");
+      setStatus(rows.length ? "Pick a paper to add — ranked by relevance; the quote is the reason." : "");
     } catch (e) {
       setStatus("Couldn't suggest: " + ((e && e.message) || e), true);
     }
   }
 
-  // Insert a LIVE citation at the END of the selection (so Suggest inserts after the sentence, never replacing it).
-  async function insertCitation(paperId) {
-    setStatus("Inserting…");
+  // ---- citation composer (inc 509): add works to an assembly, set per-item locator/prefix/suffix, then
+  // insert (or update an existing citation) as ONE cluster. Mirrors composer.py's own assembly model.
+
+  // A search/suggest row was clicked: fetch its CSL-JSON and add it to the assembly being built (never
+  // inserts immediately — that's what the Insert/Update button is for, so several works can be combined).
+  async function onPick(ev) {
+    var btn = ev.target.closest("button.row[data-id]");
+    if (!btn) return;
+    var paperId = Number(btn.getAttribute("data-id"));
+    setStatus("Adding…");
     try {
       var r = await callosumFetch("/papers/export", {
         method: "POST",
@@ -142,18 +165,212 @@
       if (!r.ok) throw new Error("export failed (" + r.status + ")");
       var csl = CallosumCore.firstCslRecord(await r.json());
       if (!csl) throw new Error("no CSL-JSON returned");
-      await Word.run(async function (ctx) {
-        var end = ctx.document.getSelection().getRange(Word.RangeLocation.end);
-        var inserted = end.insertText("…", Word.InsertLocation.replace);
-        var cc = inserted.insertContentControl();
-        cc.tag = CallosumCore.encodeCitationTag([csl]);
-        cc.title = "Callosum citation";
-        cc.appearance = Word.ContentControlAppearance.hidden; // a live field, not a visible box
-        await ctx.sync();
-      });
-      await refreshDocument(); // render the new citation + renumber the rest + rebuild the bibliography
+      assembly.push({ csl: csl, row: CallosumCore.cslRecordRow(csl) });
+      openOptionsIdx = -1;
+      renderAssembly();
+      setStatus(assembly.length + " work(s) in this citation — add more, set a locator, or Insert.");
     } catch (e) {
-      setStatus("Couldn't insert: " + ((e && e.message) || e), true);
+      setStatus("Couldn't add: " + ((e && e.message) || e), true);
+    }
+  }
+
+  function assemblyRowLabel(row) {
+    return CallosumCore.formatAssemblyRow(Object.assign({}, row, { row: row.row || CallosumCore.cslRecordRow(row.csl) }));
+  }
+
+  function renderOptionsPanel(row) {
+    var labelOptions = ['<option value="">(none)</option>'].concat(
+      CallosumCore.LOCATOR_LABELS.map(function (l) {
+        return '<option value="' + l + '"' + (row.label === l ? " selected" : "") + ">" + l + "</option>";
+      }),
+    ).join("");
+    return (
+      '<div class="assembly-row-options">' +
+        '<label class="field-inline">Locator label<select data-field="label">' + labelOptions + "</select></label>" +
+        '<label class="field-inline">Locator (e.g. a page number)<input type="text" data-field="locator" value="' +
+          escapeHtml(row.locator || "") + '"/></label>' +
+        '<label class="field-inline">Prefix<input type="text" data-field="prefix" value="' +
+          escapeHtml(row.prefix || "") + '"/></label>' +
+        '<label class="field-inline">Suffix<input type="text" data-field="suffix" value="' +
+          escapeHtml(row.suffix || "") + '"/></label>' +
+        "<div>" +
+          '<label class="checkbox-inline"><input type="checkbox" data-field="suppress-author"' +
+            (row["suppress-author"] ? " checked" : "") + "/> Suppress author</label>" +
+          '<label class="checkbox-inline"><input type="checkbox" data-field="author-only"' +
+            (row["author-only"] ? " checked" : "") + "/> Author only</label>" +
+        "</div>" +
+      "</div>"
+    );
+  }
+
+  function renderAssembly() {
+    var section = $("assemblySection");
+    if (!assembly.length) {
+      section.style.display = "none";
+      $("assembly").innerHTML = "";
+      return;
+    }
+    section.style.display = "block";
+    $("assembly").innerHTML = assembly.map(function (row, i) {
+      var optionsOpen = i === openOptionsIdx;
+      return (
+        '<li class="assembly-row" data-idx="' + i + '">' +
+          '<div class="assembly-row-main">' +
+            '<span class="assembly-row-label">' + escapeHtml(assemblyRowLabel(row)) + "</span>" +
+            '<div class="assembly-row-btns">' +
+              '<button type="button" class="icon-btn" data-act="up" title="Move up">↑</button>' +
+              '<button type="button" class="icon-btn" data-act="down" title="Move down">↓</button>' +
+              '<button type="button" class="icon-btn" data-act="opts" aria-pressed="' + optionsOpen +
+                '" title="Locator, prefix, suffix…">⋯</button>' +
+              '<button type="button" class="icon-btn" data-act="remove" title="Remove">✕</button>' +
+            "</div>" +
+          "</div>" +
+          (optionsOpen ? renderOptionsPanel(row) : "") +
+        "</li>"
+      );
+    }).join("");
+    $("insertCitation").textContent = editingCC ? "Update citation" : "Insert citation";
+  }
+
+  function onAssemblyClick(ev) {
+    var btn = ev.target.closest("button.icon-btn[data-act]");
+    if (!btn) return;
+    var idx = Number(btn.closest(".assembly-row").getAttribute("data-idx"));
+    var act = btn.getAttribute("data-act");
+    if (act === "remove") {
+      assembly.splice(idx, 1);
+      if (openOptionsIdx === idx) openOptionsIdx = -1;
+      else if (openOptionsIdx > idx) openOptionsIdx -= 1;
+    } else if (act === "up" && idx > 0) {
+      var a = assembly[idx - 1]; assembly[idx - 1] = assembly[idx]; assembly[idx] = a;
+      if (openOptionsIdx === idx) openOptionsIdx = idx - 1;
+      else if (openOptionsIdx === idx - 1) openOptionsIdx = idx;
+    } else if (act === "down" && idx < assembly.length - 1) {
+      var b = assembly[idx + 1]; assembly[idx + 1] = assembly[idx]; assembly[idx] = b;
+      if (openOptionsIdx === idx) openOptionsIdx = idx + 1;
+      else if (openOptionsIdx === idx + 1) openOptionsIdx = idx;
+    } else if (act === "opts") {
+      openOptionsIdx = openOptionsIdx === idx ? -1 : idx;
+    }
+    renderAssembly();
+  }
+
+  // Field edits inside an open Options panel. Locator/prefix/suffix/label just patch the row's label text in
+  // place (no full re-render) so typing doesn't lose focus; the mutually-exclusive checkboxes need a full
+  // re-render since the OTHER checkbox's checked state may also have changed.
+  function onAssemblyChange(ev) {
+    var field = ev.target.getAttribute("data-field");
+    var li = ev.target.closest(".assembly-row");
+    if (!field || !li) return;
+    var row = assembly[Number(li.getAttribute("data-idx"))];
+    if (!row) return;
+    if (ev.target.type === "checkbox") {
+      row[field] = ev.target.checked;
+      if (field === "suppress-author" && ev.target.checked) row["author-only"] = false;
+      if (field === "author-only" && ev.target.checked) row["suppress-author"] = false;
+      renderAssembly();
+      return;
+    }
+    row[field] = ev.target.value;
+    var labelEl = li.querySelector(".assembly-row-label");
+    if (labelEl) labelEl.textContent = assemblyRowLabel(row);
+    $("insertCitation").textContent = editingCC ? "Update citation" : "Insert citation";
+  }
+
+  function resetAssembly() {
+    if (editingCC) { try { editingCC.untrack(); } catch (e) { /* already released */ } }
+    editingCC = null;
+    assembly = [];
+    openOptionsIdx = -1;
+    renderAssembly();
+  }
+
+  // Insert the assembly as a NEW citation at the end of the selection (so Suggest inserts after the sentence,
+  // never replacing it), or — when editing an existing one — just retag it; refreshDocument() re-renders every
+  // citation's text from its tag regardless, so an update needs no direct text manipulation of its own.
+  async function insertOrUpdateCitation() {
+    if (!assembly.length) { setStatus("Add at least one work first.", true); return; }
+    var wasEditing = !!editingCC;
+    setStatus(wasEditing ? "Updating…" : "Inserting…");
+    try {
+      var items = CallosumCore.buildClusterItems(assembly);
+      if (wasEditing) {
+        var cc = editingCC;
+        await Word.run(cc, async function (ctx) {
+          cc.tag = CallosumCore.encodeCitationTag(items);
+          await ctx.sync();
+        });
+      } else {
+        await Word.run(async function (ctx) {
+          var end = ctx.document.getSelection().getRange(Word.RangeLocation.end);
+          var inserted = end.insertText("…", Word.InsertLocation.replace);
+          var newCc = inserted.insertContentControl();
+          newCc.tag = CallosumCore.encodeCitationTag(items);
+          newCc.title = "Callosum citation";
+          newCc.appearance = Word.ContentControlAppearance.hidden; // a live field, not a visible box
+          await ctx.sync();
+        });
+      }
+      resetAssembly();
+      await refreshDocument(); // render the citation(s) + renumber the rest + rebuild the bibliography
+    } catch (e) {
+      setStatus("Couldn't " + (wasEditing ? "update" : "insert") + ": " + ((e && e.message) || e), true);
+    }
+  }
+
+  // Populate the composer from the Callosum citation the cursor is currently inside, in Update mode.
+  async function editCitationAtCursor() {
+    setStatus("Looking for a citation at the cursor…");
+    try {
+      var outcome = "none"; // "none" | "malformed" | "found"
+      await Word.run(async function (ctx) {
+        var cc = ctx.document.getSelection().getRange().parentContentControlOrNullObject;
+        cc.load("tag,isNullObject");
+        await ctx.sync();
+        if (cc.isNullObject || !CallosumCore.isCitationTag(cc.tag)) return;
+        var items = CallosumCore.decodeCitationTag(cc.tag);
+        if (!items) { outcome = "malformed"; return; }
+        if (editingCC) { try { editingCC.untrack(); } catch (e) { /* already released */ } }
+        cc.track();
+        await ctx.sync();
+        editingCC = cc;
+        assembly = items.map(CallosumCore.assemblyRowFromDecodedItem);
+        openOptionsIdx = -1;
+        outcome = "found";
+      });
+      if (outcome === "found") {
+        renderAssembly();
+        setStatus("Editing the citation at the cursor — add/remove works or set a locator, then Update.");
+      } else if (outcome === "malformed") {
+        setStatus("This citation looks malformed and can't be edited.", true);
+      } else {
+        setStatus("Place the cursor inside a Callosum citation first.", true);
+      }
+    } catch (e) {
+      setStatus("Couldn't find a citation: " + ((e && e.message) || e), true);
+    }
+  }
+
+  // Fully remove the Callosum citation the cursor is currently inside (unlike Flatten's delete(true), which
+  // keeps the rendered text — this drops it entirely).
+  async function deleteCitationAtCursor() {
+    setStatus("Looking for a citation at the cursor…");
+    try {
+      var found = false;
+      await Word.run(async function (ctx) {
+        var cc = ctx.document.getSelection().getRange().parentContentControlOrNullObject;
+        cc.load("tag,isNullObject");
+        await ctx.sync();
+        if (cc.isNullObject || !CallosumCore.isCitationTag(cc.tag)) return;
+        cc.delete(false);
+        await ctx.sync();
+        found = true;
+      });
+      if (!found) { setStatus("Place the cursor inside a Callosum citation first.", true); return; }
+      await refreshDocument();
+      setStatus("Citation deleted.");
+    } catch (e) {
+      setStatus("Couldn't delete: " + ((e && e.message) || e), true);
     }
   }
 
@@ -256,11 +473,6 @@
     }
   }
 
-  function onPick(ev) {
-    var btn = ev.target.closest("button.row[data-id]");
-    if (btn) insertCitation(Number(btn.getAttribute("data-id")));
-  }
-
   // Word-on-the-web only (SP4): show the token field, pre-filled if one is already saved from a prior visit to
   // this same origin (localStorage is origin-scoped, so a token saved here never reaches the desktop origin
   // or vice versa). Desktop never shows this section at all — it needs no token.
@@ -285,6 +497,13 @@
     $("results").addEventListener("click", onPick);
     $("suggestions").addEventListener("click", onPick);
     $("suggest").addEventListener("click", suggestSentence);
+    $("assembly").addEventListener("click", onAssemblyClick);
+    $("assembly").addEventListener("input", onAssemblyChange);
+    $("assembly").addEventListener("change", onAssemblyChange);
+    $("insertCitation").addEventListener("click", insertOrUpdateCitation);
+    $("cancelAssembly").addEventListener("click", resetAssembly);
+    $("editAtCursor").addEventListener("click", editCitationAtCursor);
+    $("deleteAtCursor").addEventListener("click", deleteCitationAtCursor);
     $("refresh").addEventListener("click", function () { refreshDocument(); });
     $("flatten").addEventListener("click", onFlatten);
     $("style").addEventListener("change", onStyleChange);

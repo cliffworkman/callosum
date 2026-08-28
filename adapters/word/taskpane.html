@@ -22,7 +22,7 @@
       <select id="style" aria-label="Citation style"></select>
     </label>
 
-    <p class="hint">Search to insert a live citation:</p>
+    <p class="hint">Search to add a work to the citation you're building:</p>
     <input id="q" type="search" placeholder="Search author, title, year…" autocomplete="off" aria-label="Search your library"/>
     <ul id="results" class="results"></ul>
 
@@ -31,6 +31,20 @@
       <button id="suggest" type="button" class="secondary">Suggest from the sentence</button>
     </div>
     <ul id="suggestions" class="results"></ul>
+
+    <div id="assemblySection" class="assembly" style="display:none">
+      <p class="hint">Citation you're building — add more works above, reorder, or set a locator/prefix/suffix:</p>
+      <ul id="assembly" class="assembly-list"></ul>
+      <div class="actions">
+        <button id="insertCitation" type="button" class="refresh">Insert citation</button>
+        <button id="cancelAssembly" type="button" class="secondary">Cancel</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="editAtCursor" type="button" class="secondary">Edit citation at cursor</button>
+      <button id="deleteAtCursor" type="button" class="secondary">Delete citation at cursor</button>
+    </div>
 
     <div class="actions">
       <button id="refresh" type="button" class="refresh">Refresh / renumber + bibliography</button>

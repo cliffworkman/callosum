@@ -10,7 +10,10 @@ and inserts what callosum's citation engine renders. **Everything stays on your 
 > style dropdown re-renders everything + is remembered per document), and **Flatten** (live → static text). Built
 > on `/papers/export`, `/citations/render-document`, `/citations/suggest`, `/citations/styles` — all local.
 > **SP4** adds **Word on the web** (see below) — the identical task pane, reached through the same relay tunnel
-> the Google Docs add-on already uses, since Word-on-the-web can't reach your machine directly.
+> the Google Docs add-on already uses, since Word-on-the-web can't reach your machine directly. **Inc 509** adds
+> a real citation composer: **grouped citations** (combine several works into one), per-work **locator/label/
+> prefix/suffix/suppress-author**, and **Edit/Delete citation at cursor** — closing the P0 gap named in
+> callosum's LibreOffice-adapter parity roadmap.
 
 ## Why the setup is different from LibreOffice
 A Word add-in is a **web page** that runs inside Word, and Office requires it to be served over **HTTPS** — it
@@ -55,12 +58,21 @@ below is for (the same tunnel `adapters/googledocs/` already uses, just relaying
 ## Use
 Open Word → **Home → Callosum → Show Citations**. In the task pane (callosum must be running in HTTPS mode):
 
-- **Insert by search** — pick a citation **style**, type an author/title/year, click a result → a **live** citation
-  is inserted at the cursor (a Content Control carrying the work's CSL-JSON).
+- **Add works to a citation** — pick a citation **style**, search (or click **Suggest from the sentence** — see
+  below) and click a result: it's added to the **citation you're building**, not inserted immediately, so several
+  works can be combined into one grouped citation (e.g. `(Smith, 2020; Jones, 2021)`). Each added work gets its
+  own optional **Options…** (⋯): a **locator** (page, chapter, figure, …) + value, **prefix**/**suffix** text, and
+  mutually-exclusive **suppress author**/**author only**. Reorder with ↑/↓, remove with ✕.
+- **Insert citation** — once the assembly has at least one work, inserts it as a **live** citation (a Content
+  Control carrying every work's CSL-JSON plus its own locator/prefix/suffix) at the cursor.
 - **Suggest from the sentence** — place the cursor in (or select) the sentence you're writing, click **Suggest from
   the sentence** → Callosum ranks **your library** by relevance and shows candidates with **stance** (supports /
-  contrasts / mentions) + a **quote** (the reason); pick one to insert *after* the sentence. *(The first run loads
-  the local relevance + stance models, so it can take a few seconds.)*
+  contrasts / mentions) + a **quote** (the reason); pick one to add to the assembly. *(The first run loads the
+  local relevance + stance models, so it can take a few seconds.)*
+- **Edit citation at cursor** — place the cursor inside an existing Callosum citation and click this to reopen the
+  composer pre-populated with its works/locators; **Insert citation** becomes **Update citation**.
+- **Delete citation at cursor** — fully removes the citation at the cursor (unlike Flatten, this drops it — no
+  static text is kept).
 - **Refresh / renumber + bibliography** — re-render every citation in document order + rebuild the **References**
   block at the document end (run after edits/moves; numeric styles renumber by position).
 - **Citation style** — changing the dropdown re-renders the whole document in the new style (the choice is
@@ -72,7 +84,9 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
 The task pane is served by callosum at `https://localhost:8443/integrations/word/taskpane.html` and its API calls
 (`/papers?q=`, `/papers/export`, `/citations/render-document`) are **same-origin** — so they reach your local
 library directly, with **no egress** and no CORS exception. Each citation is a Word **Content Control** whose
-`.tag` carries the cited work's CSL-JSON (base64) — the Zotero/LibreOffice embedded-CSL-JSON pattern. **Refresh**
+`.tag` carries **one or more** cited works' CSL-JSON, each with its own optional locator/label/prefix/suffix/
+suppress-author/author-only (base64) — the Zotero/LibreOffice embedded-CSL-JSON pattern, extended (inc 509) the
+same way LibreOffice's own composer already was. **Refresh**
 scans those controls **in document order**, POSTs them to `/citations/render-document`, and writes back the
 position-aware in-text + a managed **References** Content Control (tagged `CALLOSUM_BIBLIOGRAPHY`) at the document
 end. The only external load is **office.js** from Microsoft's CDN: that is the Office platform SDK every add-in
@@ -111,10 +125,11 @@ saved. The task-pane files themselves (HTML/JS/CSS/icon) carry no library data, 
 tunnel needs no token — only your `/papers`, `/citations/*` calls do, exactly like the Google Docs add-on.
 
 ## Limitations
-One work per citation (no grouped cites / page-locators yet); the bibliography lives at the document end; Suggest
-covers papers **already in your library** (beyond-library discovery is a separate track); desktop requires the
-HTTPS run-mode + the trusted dev cert. Word-on-the-web needs the relay above; Google Docs has its own adapter
-(`adapters/googledocs/`).
+The bibliography lives at the document end (no chapter/section-scoped bibliographies yet — see the LibreOffice
+adapter for that, still Word/Docs-only work); no native footnote/endnote placement yet (every citation is
+in-text); Suggest covers papers **already in your library** (beyond-library discovery is a separate track);
+desktop requires the HTTPS run-mode + the trusted dev cert. Word-on-the-web needs the relay above; Google Docs
+has its own adapter (`adapters/googledocs/`).
 
 Existing **Mendeley Cite** and **EndNote Cite While You Write** fields are not converted. Their vendors document
 the outer Word mechanism (content controls for Mendeley Cite; `ADDIN EN.CITE` fields for EndNote), but not a
