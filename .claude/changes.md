@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 520: native Word footnote/endnote citation placement
+- **Files:** `adapters/word/taskpane.{js,html}`, `adapters/word/taskpane_core.js`,
+  `adapters/word/taskpane_core.test.js`, `adapters/word/README.md`, `.claude/CLAUDE.md`,
+  `.claude/architectural-decisions-log.md`, `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/increment-notes/INCREMENT-520-NOTES.md`.
+- **What:** note CSL styles reveal a per-document Footnotes/Endnotes choice. Insert creates a native Word note or
+  inserts into an existing matching note; Refresh scans every note body and sends Word's real one-based note
+  position through the existing `noteIndex` contract. Ordinary notes leave real gaps and multiple citations in
+  one note share the same index. Mixed/incompatible story placement fails closed and diagnostics explains it.
+  Panel navigation, Delete, and Flatten now use the same all-story scan; deleting a citation-only note removes
+  its native marker. No backend change.
+- **Why:** this was the largest remaining Word P1 parity gap and the prerequisite storage seam was corrected in
+  inc 519. Position-dependent note rendering must use native note order rather than citation count or a fabricated
+  progress/order model.
+- **Verify:** Word pure logic **40/40**; focused Word/access/citation pytest **82 passed**; full suite **2563
+  passed, 3 skipped**; JavaScript syntax, Ruff check/format, Bandit, Tach, line-budget, QA surface, and diff
+  hygiene gates passed. Office.js lifecycle explicitly **not yet live-verified**.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 519: Word citation payloads move behind short Custom XML references
 - **Files:** `adapters/word/taskpane.js`, `adapters/word/taskpane_core.js`,
   `adapters/word/taskpane_core.test.js`, `adapters/word/README.md`, `.claude/CLAUDE.md`,

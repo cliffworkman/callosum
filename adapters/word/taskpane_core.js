@@ -159,15 +159,59 @@
   }
 
   // ---- the document render-document contract (SP2) ----
-  // itemsList is the per-cluster CSL-JSON item arrays in DOCUMENT ORDER (one per citation content control).
-  function buildDocumentRequest(itemsList, style, locale) {
+  // `clusters` is either the legacy per-cluster item arrays or `{items, noteIndex}` records in document/note
+  // order. Positive one-based note indexes let citeproc compute first/subsequent/ibid behavior for note styles.
+  function buildDocumentRequest(clusters, style, locale) {
     return {
-      citations: (itemsList || []).map(function (items, i) {
-        return { citationID: "c" + i, items: items };
+      citations: (clusters || []).map(function (cluster, i) {
+        var record = Array.isArray(cluster) ? { items: cluster } : cluster || { items: [] };
+        var citation = { citationID: "c" + i, items: record.items || [] };
+        if (record.noteIndex != null) citation.noteIndex = record.noteIndex;
+        return citation;
       }),
       style: style || "apa",
       locale: locale || "en-US",
     };
+  }
+
+  function isNoteStyle(citationFormat) {
+    return String(citationFormat || "").toLowerCase() === "note";
+  }
+  function normalizeNotePreference(value) {
+    return String(value || "").toLowerCase() === "endnote" ? "endnote" : "footnote";
+  }
+  function bodyTypeLocation(value) {
+    var bodyType = String(value || "").toLowerCase();
+    if (bodyType === "maindoc") return "inline";
+    if (bodyType === "footnote") return "footnote";
+    if (bodyType === "endnote") return "endnote";
+    return null;
+  }
+  // A note style must contain only native notes of one configured kind; an in-text style must remain in the main
+  // story. Mixing stories has no honest global ordering for numeric/in-text citeproc state, so fail closed instead
+  // of silently emitting plausible-but-wrong numbering or note position behavior.
+  function placementIssue(citations, citationFormat, notePreference) {
+    var locations = (citations || []).map(function (c) { return c && c.location; }).filter(Boolean);
+    if (!locations.length) return null;
+    if (!isNoteStyle(citationFormat)) {
+      return locations.some(function (location) { return location !== "inline"; })
+        ? "This in-text citation style has Callosum citations inside notes. Move them to the main document before refreshing."
+        : null;
+    }
+    if (locations.some(function (location) { return location === "inline"; })) {
+      return "This note citation style has inline Callosum citations. Reinsert them as native notes before refreshing.";
+    }
+    var expected = normalizeNotePreference(notePreference);
+    var actual = {};
+    locations.forEach(function (location) { actual[location] = true; });
+    if (Object.keys(actual).length > 1) {
+      return "Callosum citations are split between footnotes and endnotes. Use one native note type per document.";
+    }
+    if (!actual[expected]) {
+      return "This document's Callosum citations use " + Object.keys(actual)[0] +
+        "s, but new note citations are set to " + expected + "s.";
+    }
+    return null;
   }
   // The rendered in-text strings, in order, from a /citations/render-document response ({citations:[{text}]}).
   function inTextResults(data) {
@@ -407,6 +451,10 @@
     isCitationTag: isCitationTag,
     decodeCitationTag: decodeCitationTag,
     buildDocumentRequest: buildDocumentRequest,
+    isNoteStyle: isNoteStyle,
+    normalizeNotePreference: normalizeNotePreference,
+    bodyTypeLocation: bodyTypeLocation,
+    placementIssue: placementIssue,
     inTextResults: inTextResults,
     bibliographyText: bibliographyText,
     pickQueryText: pickQueryText,

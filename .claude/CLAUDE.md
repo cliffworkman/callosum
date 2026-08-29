@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 519** (see Increment workflow) with **2563 root-suite pytest tests
+It is currently at **Increment 520** (see Increment workflow) with **2563 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -577,7 +577,15 @@ the full per-increment narrative for all other increments now lives in the reloc
   removes an unshared part and Flatten removes all referenced parts; missing/foreign/malformed parts fail closed
   into diagnostics. The item arrays still reach the existing render endpoint unchanged, so this is document
   storage only—no backend/citeproc/scientific-semantic change. Pure logic is 38/38 Node-tested; the Office.js
-  lifecycle is explicitly **not yet live-verified in Word**. See `INCREMENT-519-NOTES.md`.
+  lifecycle is explicitly **not yet live-verified in Word**. See `INCREMENT-519-NOTES.md`. **Inc 520 implements
+  native note-style placement:** selecting a catalog style with `citation_format=note` reveals a per-document
+  Footnotes/Endnotes preference; Insert from main text uses Word's native note API, while insertion inside an
+  existing matching note stays there. Refresh scans every native note body and sends Word's actual one-based
+  collection position as `noteIndex`, preserving gaps from ordinary notes and equal indexes for multiple
+  clusters in one note. Mixed inline/note, footnote/endnote, or preference/existing-type placement fails closed
+  before rendering; the same all-story scan now feeds diagnostics, panel navigation, Delete, and Flatten. The
+  backend note contract was already complete and unchanged. Pure logic is 40/40 Node-tested; Office.js native
+  note lifecycle remains explicitly **not yet live-verified**. See `INCREMENT-520-NOTES.md`.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,

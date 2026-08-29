@@ -1,7 +1,7 @@
 /*
  * Callosum Word add-in — the thin Office.js glue (inc 166, SP3: parity — suggest / style-switch / flatten;
  * SP4: Word-on-the-web relay; inc 509: grouped-citation composer with locators/edit/delete; inc 516: Citations
- * in this document panel; inc 517: accessibility pass -- icon-button aria-labels, Enter-to-add, Escape-to-cancel).
+ * in this document panel; inc 517: accessibility; inc 519: Custom-XML citation storage; inc 520: native notes).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
  * is a SAME-ORIGIN call to the local API — nothing leaves the machine, and (inc 511) desktop genuinely never
@@ -30,8 +30,8 @@
  *               with stance + quote (the reason); pick one to add to the assembly.
  *   • Edit/Delete at cursor — reads the citation Content Control the cursor is inside
  *               (Range.parentContentControlOrNullObject) to repopulate the composer or remove it outright.
- *   • Refresh — scan every citation Content Control IN DOCUMENT ORDER → /citations/render-document → write back
- *               the position-aware in-text + a managed bibliography block.
+ *   • Refresh — scan main + native note-body citation controls; note styles carry Word's native one-based
+ *               noteIndex → /citations/render-document → write back citations + a managed bibliography block.
  *   • Style   — changing the dropdown re-renders the whole document (one-click) + persists in the doc settings.
  *   • Flatten — convert the live citation + bibliography controls to plain text (one-way).
  * All formatting happens in callosum's citeproc engine (this never formats).
@@ -57,6 +57,7 @@
   var assembly = [];
   var editingCC = null;
   var openOptionsIdx = -1; // which assembly row's Options panel is expanded, or -1
+  var styleFormats = Object.create(null); // style id -> CSL citation-format from the shared catalog
 
   // ---- live-citation storage ----
   // Current citations keep CSL-JSON in a Word Custom XML Part (WordApi 1.4) and only an opaque reference in the
@@ -114,6 +115,83 @@
     return records;
   }
 
+  function notesSupported() {
+    return !!(Office.context.requirements && Office.context.requirements.isSetSupported("WordApi", "1.5"));
+  }
+  function requireNotesSupport() {
+    if (!notesSupported()) throw new Error("this Word version does not support native note citations (WordApi 1.5 required)");
+  }
+
+  // Collect main-story controls plus every footnote/endnote body's controls. Native collection position—not
+  // citation count—is the one-based noteIndex: ordinary non-Callosum notes intentionally leave gaps, and two
+  // citation clusters in the same note intentionally share an index.
+  async function loadDocumentControlRecords(ctx) {
+    var bodyControls = ctx.document.body.contentControls;
+    bodyControls.load("items/tag,id,text");
+    var footnotes = null, endnotes = null;
+    var footnoteStories = [], endnoteStories = [];
+    if (notesSupported()) {
+      footnotes = ctx.document.body.footnotes;
+      endnotes = ctx.document.body.endnotes;
+      footnotes.load("items");
+      endnotes.load("items");
+    }
+    await ctx.sync();
+
+    if (footnotes) {
+      footnotes.items.forEach(function (note) {
+        var noteBody = note.body;
+        var controls = noteBody.contentControls;
+        noteBody.load("text");
+        controls.load("items/tag,id,text");
+        footnoteStories.push({ note: note, body: noteBody, controls: controls });
+      });
+      endnotes.items.forEach(function (note) {
+        var noteBody = note.body;
+        var controls = noteBody.contentControls;
+        noteBody.load("text");
+        controls.load("items/tag,id,text");
+        endnoteStories.push({ note: note, body: noteBody, controls: controls });
+      });
+      await ctx.sync();
+    }
+
+    var entries = bodyControls.items.map(function (cc) {
+      return { cc: cc, location: "inline", noteIndex: 0 };
+    });
+    if (footnotes) {
+      footnoteStories.forEach(function (story, index) {
+        story.controls.items.forEach(function (cc) {
+          entries.push({ cc: cc, location: "footnote", noteIndex: index + 1, note: story.note,
+            noteText: story.body.text, noteControlCount: story.controls.items.length });
+        });
+      });
+      endnoteStories.forEach(function (story, index) {
+        story.controls.items.forEach(function (cc) {
+          entries.push({ cc: cc, location: "endnote", noteIndex: index + 1, note: story.note,
+            noteText: story.body.text, noteControlCount: story.controls.items.length });
+        });
+      });
+    }
+    var records = await resolveControlRecords(ctx, entries.map(function (entry) { return entry.cc; }));
+    records.forEach(function (record, index) {
+      record.location = entries[index].location;
+      record.noteIndex = entries[index].noteIndex;
+      record.note = entries[index].note || null;
+      record.noteText = entries[index].noteText || "";
+      record.noteControlCount = entries[index].noteControlCount || 0;
+    });
+    return records;
+  }
+
+  function citationRecords(records) {
+    return (records || []).filter(function (record) { return CallosumCore.isCitationTag(record.tag); });
+  }
+  function assertPlacementCompatible(records) {
+    var issue = CallosumCore.placementIssue(citationRecords(records), currentCitationFormat(), currentNotePreference());
+    if (issue) throw new Error(issue);
+  }
+
   // Refresh is already a document-mutating operation, so it is the safe migration boundary: valid legacy
   // citations get a new part, and duplicate references produced by copy/paste are cloned so later edits remain
   // citation-local. Missing/malformed parts stay untouched and fail closed for Document diagnostics to report.
@@ -161,6 +239,12 @@
     await ctx.sync();
   }
 
+  function configureCitationControl(cc, partId) {
+    cc.tag = CallosumCore.encodeCitationReferenceTag(partId);
+    cc.title = "Callosum citation";
+    cc.appearance = Word.ContentControlAppearance.hidden;
+  }
+
   function $(id) { return document.getElementById(id); }
   // Read any saved token regardless of origin (inc 510) -- empty when none is saved, which is a no-op exactly
   // like before for the common desktop-with-Remote-Access-off case.
@@ -204,6 +288,15 @@
     var sel = $("style");
     return (sel && sel.value) || "apa";
   }
+  function currentCitationFormat() {
+    return styleFormats[currentStyle()] || "in-text";
+  }
+  function currentNotePreference() {
+    return CallosumCore.normalizeNotePreference($("notePlacement").value);
+  }
+  function updateNotePlacementVisibility() {
+    $("notePlacementField").style.display = CallosumCore.isNoteStyle(currentCitationFormat()) ? "block" : "none";
+  }
   function renderRows(ulId, rows, emptyMsg) {
     $(ulId).innerHTML = rows.length
       ? rows.map(function (row) {
@@ -218,6 +311,8 @@
       if (!r.ok) return;
       var data = await r.json();
       var sel = $("style");
+      styleFormats = Object.create(null);
+      ((data && data.styles) || []).forEach(function (s) { styleFormats[s.id] = s.citation_format || s.family; });
       sel.innerHTML = ((data && data.styles) || []).map(function (s) {
         return '<option value="' + escapeHtml(s.id) + '">' + escapeHtml(s.title || s.id) + "</option>";
       }).join("");
@@ -227,7 +322,10 @@
     try {
       var saved = Office.context.document.settings.get("callosumStyle");
       if (saved) $("style").value = saved;
+      var savedNotePlacement = Office.context.document.settings.get("callosumNotePlacement");
+      if (savedNotePlacement) $("notePlacement").value = CallosumCore.normalizeNotePreference(savedNotePlacement);
     } catch (e) { /* settings unavailable → keep the default */ }
+    updateNotePlacementVisibility();
   }
 
   async function search() {
@@ -432,13 +530,41 @@
         });
       } else {
         await Word.run(async function (ctx) {
+          var selection = ctx.document.getSelection();
+          var parentBody = selection.parentBody;
+          parentBody.load("type");
+          var existingRecords = await loadDocumentControlRecords(ctx);
+          assertPlacementCompatible(existingRecords);
+          await ctx.sync();
+
+          var location = CallosumCore.bodyTypeLocation(parentBody.type);
+          var noteStyle = CallosumCore.isNoteStyle(currentCitationFormat());
+          if (!location) throw new Error("place the cursor in the main document, a footnote, or an endnote");
+          if (!noteStyle && location !== "inline") {
+            throw new Error("this in-text citation style inserts citations in the main document, not inside a note");
+          }
+          if (noteStyle) {
+            requireNotesSupport();
+            var expectedLocation = currentNotePreference();
+            if (location !== "inline" && location !== expectedLocation) {
+              throw new Error("new note citations are set to " + expectedLocation + "s; move the cursor there or change the setting");
+            }
+          }
+
           var part = await createCitationPart(ctx, items);
-          var end = ctx.document.getSelection().getRange(Word.RangeLocation.end);
-          var inserted = end.insertText("…", Word.InsertLocation.replace);
+          var insertionRange;
+          if (noteStyle && location === "inline") {
+            var referenceRange = selection.getRange(Word.RangeLocation.end);
+            var note = currentNotePreference() === "endnote"
+              ? referenceRange.insertEndnote()
+              : referenceRange.insertFootnote();
+            insertionRange = note.body.getRange(Word.RangeLocation.start);
+          } else {
+            insertionRange = selection.getRange(Word.RangeLocation.end);
+          }
+          var inserted = insertionRange.insertText("…", Word.InsertLocation.replace);
           var newCc = inserted.insertContentControl();
-          newCc.tag = CallosumCore.encodeCitationReferenceTag(part.id);
-          newCc.title = "Callosum citation";
-          newCc.appearance = Word.ContentControlAppearance.hidden; // a live field, not a visible box
+          configureCitationControl(newCc, part.id);
           await ctx.sync();
         });
       }
@@ -456,7 +582,7 @@
       var outcome = "none"; // "none" | "malformed" | "found"
       await Word.run(async function (ctx) {
         var cc = ctx.document.getSelection().getRange().parentContentControlOrNullObject;
-        cc.load("tag,isNullObject");
+        cc.load("tag,id,text,isNullObject");
         await ctx.sync();
         if (cc.isNullObject || !CallosumCore.isCitationTag(cc.tag)) return;
         var records = await resolveControlRecords(ctx, [cc]);
@@ -492,13 +618,12 @@
       await Word.run(async function (ctx) {
         var cc = ctx.document.getSelection().getRange().parentContentControlOrNullObject;
         cc.load("tag,isNullObject");
-        var allControls = ctx.document.body.contentControls;
-        allControls.load("items/tag");
         await ctx.sync();
         if (cc.isNullObject || !CallosumCore.isCitationTag(cc.tag)) return;
+        var allRecords = await loadDocumentControlRecords(ctx);
         var partId = CallosumCore.citationReferenceId(cc.tag);
         if (partId) {
-          var references = allControls.items.filter(function (other) {
+          var references = allRecords.filter(function (other) {
             return CallosumCore.citationReferenceId(other.tag) === partId;
           }).length;
           if (references === 1) {
@@ -509,7 +634,11 @@
             if (!part.isNullObject) part.delete();
           }
         }
-        cc.delete(false);
+        var currentRecord = allRecords.find(function (record) { return record.cc.id === cc.id; });
+        var noteContainsOnlyCitation = currentRecord && currentRecord.note && currentRecord.noteControlCount === 1 &&
+          String(currentRecord.noteText || "").trim() === String(cc.text || "").trim();
+        if (noteContainsOnlyCitation) currentRecord.note.delete();
+        else cc.delete(false);
         await ctx.sync();
         found = true;
       });
@@ -579,6 +708,7 @@
     if (report.retractionFlagged.length) {
       lines.push("⚠ " + report.retractionFlagged.length + " cited paper(s) flagged (retraction/correction) — see Methods for detail.");
     }
+    if (report.placementIssue) lines.push("⚠ " + report.placementIssue);
     lines.push("Bibliography: " + report.bibliography + ".");
     if (truncated) lines.push("(Only the first " + MAX_EXISTENCE_CHECK_IDS + " distinct cited papers were checked against the library.)");
     $("diagnostics").textContent = lines.join(" ");
@@ -589,10 +719,7 @@
     try {
       var records = [];
       await Word.run(async function (ctx) {
-        var ccs = ctx.document.body.contentControls;
-        ccs.load("items/tag");
-        await ctx.sync();
-        records = await resolveControlRecords(ctx, ccs.items);
+        records = await loadDocumentControlRecords(ctx);
       });
 
       var idSet = {};
@@ -606,8 +733,12 @@
         });
       });
       var existence = await checkPaperExistence(Object.keys(idSet));
+      var report = CallosumCore.summarizeDiagnostics(records, existence.missingIds, existence.checked);
+      report.placementIssue = CallosumCore.placementIssue(
+        citationRecords(records), currentCitationFormat(), currentNotePreference(),
+      );
       renderDiagnosticsReport(
-        CallosumCore.summarizeDiagnostics(records, existence.missingIds, existence.checked),
+        report,
         existence.truncated,
       );
       setStatus("Diagnostics complete.");
@@ -646,10 +777,7 @@
     try {
       var records = [];
       await Word.run(async function (ctx) {
-        var ccs = ctx.document.body.contentControls;
-        ccs.load("items/tag");
-        await ctx.sync();
-        records = await resolveControlRecords(ctx, ccs.items);
+        records = await loadDocumentControlRecords(ctx);
       });
       var entries = CallosumCore.buildCitationsPanelEntries(records);
       var ids = entries.map(function (e) { return e.paperId; }).filter(function (id) { return id != null; });
@@ -674,10 +802,8 @@
     try {
       var found = false;
       await Word.run(async function (ctx) {
-        var ccs = ctx.document.body.contentControls;
-        ccs.load("items/tag");
-        await ctx.sync();
-        var citationCCs = ccs.items.filter(function (cc) { return CallosumCore.isCitationTag(cc.tag); });
+        var records = await loadDocumentControlRecords(ctx);
+        var citationCCs = citationRecords(records).map(function (record) { return record.cc; });
         if (position < 0 || position >= citationCCs.length) return;
         citationCCs[position].select();
         await ctx.sync();
@@ -695,17 +821,17 @@
     try {
       await Word.run(async function (ctx) {
         var body = ctx.document.body;
-        var ccs = body.contentControls;
-        ccs.load("items/tag");
-        await ctx.sync();
-
         var citationCCs = [], itemsList = [], bibCC = null;
-        var records = await resolveControlRecords(ctx, ccs.items);
+        var records = await loadDocumentControlRecords(ctx);
+        assertPlacementCompatible(records);
         await normalizeCitationStorage(ctx, records);
         records.forEach(function (record) {
           if (CallosumCore.isCitationTag(record.tag)) {
             var items = CallosumCore.citationItems(record);
-            if (items) { citationCCs.push(record.cc); itemsList.push(items); }
+            if (items) {
+              citationCCs.push(record.cc);
+              itemsList.push({ items: items, noteIndex: CallosumCore.isNoteStyle(currentCitationFormat()) ? record.noteIndex : 0 });
+            }
           } else if (record.tag === CallosumCore.BIB_TAG) {
             bibCC = record.cc;
           }
@@ -744,11 +870,20 @@
 
   // One-click whole-document style switch: persist the choice (per document) + re-render.
   async function onStyleChange() {
+    updateNotePlacementVisibility();
     try {
       Office.context.document.settings.set("callosumStyle", currentStyle());
       Office.context.document.settings.saveAsync(function () {});
     } catch (e) { /* settings unavailable → still re-render below */ }
     await refreshDocument();
+  }
+  function onNotePlacementChange() {
+    var preference = currentNotePreference();
+    try {
+      Office.context.document.settings.set("callosumNotePlacement", preference);
+      Office.context.document.settings.saveAsync(function () {});
+    } catch (e) { /* insertion still uses the visible choice for this session */ }
+    setStatus("New note citations will use " + preference + "s. Existing notes are not converted.");
   }
 
   // Flatten = convert citation + bibliography Content Controls to plain text (one-way). Two-click confirm — no
@@ -760,12 +895,10 @@
     if (!flattenArmed) {
       var citationCount = 0, hasBib = false;
       await Word.run(async function (ctx) {
-        var ccs = ctx.document.body.contentControls;
-        ccs.load("items/tag");
-        await ctx.sync();
-        ccs.items.forEach(function (cc) {
-          if (CallosumCore.isCitationTag(cc.tag)) citationCount += 1;
-          else if (cc.tag === CallosumCore.BIB_TAG) hasBib = true;
+        var records = await loadDocumentControlRecords(ctx);
+        records.forEach(function (record) {
+          if (CallosumCore.isCitationTag(record.tag)) citationCount += 1;
+          else if (record.tag === CallosumCore.BIB_TAG) hasBib = true;
         });
       });
       flattenArmed = true;
@@ -791,10 +924,7 @@
     try {
       var n = 0, remaining = 0;
       await Word.run(async function (ctx) {
-        var ccs = ctx.document.body.contentControls;
-        ccs.load("items/tag");
-        await ctx.sync();
-        var records = await resolveControlRecords(ctx, ccs.items);
+        var records = await loadDocumentControlRecords(ctx);
         var deletedPartIds = Object.create(null);
         records.forEach(function (record) {
           if (CallosumCore.isCitationTag(record.tag) || record.tag === CallosumCore.BIB_TAG) {
@@ -808,16 +938,15 @@
         });
         await ctx.sync();
         // Post-flatten integrity check: re-scan rather than trust the delete calls above all landed.
-        var after = ctx.document.body.contentControls;
-        after.load("items/tag");
-        await ctx.sync();
-        after.items.forEach(function (cc) {
-          if (CallosumCore.isCitationTag(cc.tag) || cc.tag === CallosumCore.BIB_TAG) remaining += 1;
+        var after = await loadDocumentControlRecords(ctx);
+        after.forEach(function (record) {
+          if (CallosumCore.isCitationTag(record.tag) || record.tag === CallosumCore.BIB_TAG) remaining += 1;
         });
       });
       if ($("flattenClearStyle").checked) {
         try {
           Office.context.document.settings.remove("callosumStyle");
+          Office.context.document.settings.remove("callosumNotePlacement");
           Office.context.document.settings.saveAsync(function () {});
         } catch (e) { /* settings unavailable -- flatten itself already succeeded, not worth failing over */ }
       }
@@ -885,6 +1014,7 @@
     $("refresh").addEventListener("click", function () { refreshDocument(); });
     $("flatten").addEventListener("click", onFlatten);
     $("style").addEventListener("change", onStyleChange);
+    $("notePlacement").addEventListener("change", onNotePlacementChange);
     // Unconditional (inc 510): desktop can also need this, once a fetch reveals the section on a 401.
     $("tunnelSave").addEventListener("click", saveToken);
   }

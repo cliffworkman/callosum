@@ -21,6 +21,12 @@
     <label class="field">Citation style
       <select id="style" aria-label="Citation style"></select>
     </label>
+    <label id="notePlacementField" class="field" style="display:none">New note citations
+      <select id="notePlacement" aria-label="Place new note citations in">
+        <option value="footnote">Footnotes</option>
+        <option value="endnote">Endnotes</option>
+      </select>
+    </label>
 
     <p class="hint">Search to add a work to the citation you're building:</p>
     <input id="q" type="search" placeholder="Search author, title, year…" autocomplete="off" aria-label="Search your library"/>
@@ -51,7 +57,7 @@
       <button id="flatten" type="button" class="secondary">Flatten to static text</button>
     </div>
     <label class="checkbox-inline">
-      <input type="checkbox" id="flattenClearStyle"/> Also clear Callosum's saved style setting
+      <input type="checkbox" id="flattenClearStyle"/> Also clear Callosum's saved citation settings
     </label>
 
     <div class="actions">

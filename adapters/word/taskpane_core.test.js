@@ -121,6 +121,40 @@ test("buildDocumentRequest: positional citationIDs in document order + style/loc
   });
 });
 
+test("buildDocumentRequest: native note clusters preserve one-based noteIndex, including equal indexes", () => {
+  assert.deepStrictEqual(
+    core.buildDocumentRequest([
+      { items: [{ id: "callosum-1" }], noteIndex: 1 },
+      { items: [{ id: "callosum-2" }], noteIndex: 1 },
+      { items: [{ id: "callosum-1" }], noteIndex: 3 },
+    ], "chicago-notes-bibliography", "en-US").citations,
+    [
+      { citationID: "c0", items: [{ id: "callosum-1" }], noteIndex: 1 },
+      { citationID: "c1", items: [{ id: "callosum-2" }], noteIndex: 1 },
+      { citationID: "c2", items: [{ id: "callosum-1" }], noteIndex: 3 },
+    ],
+  );
+});
+
+test("placementIssue: note and in-text styles fail closed on incompatible native placement", () => {
+  assert.strictEqual(core.placementIssue([{ location: "inline" }], "author-date", "footnote"), null);
+  assert.match(core.placementIssue([{ location: "footnote" }], "author-date", "footnote"), /in-text citation style/);
+  assert.strictEqual(core.placementIssue([
+    { location: "footnote" }, { location: "footnote" },
+  ], "note", "footnote"), null);
+  assert.match(core.placementIssue([{ location: "inline" }], "note", "footnote"), /inline Callosum citations/);
+  assert.match(core.placementIssue([
+    { location: "footnote" }, { location: "endnote" },
+  ], "note", "footnote"), /split between footnotes and endnotes/);
+  assert.match(core.placementIssue([{ location: "endnote" }], "note", "footnote"), /set to footnotes/);
+  assert.strictEqual(core.normalizeNotePreference("ENDNOTE"), "endnote");
+  assert.strictEqual(core.normalizeNotePreference("anything"), "footnote");
+  assert.strictEqual(core.bodyTypeLocation("MainDoc"), "inline");
+  assert.strictEqual(core.bodyTypeLocation("Footnote"), "footnote");
+  assert.strictEqual(core.bodyTypeLocation("Endnote"), "endnote");
+  assert.strictEqual(core.bodyTypeLocation("Header"), null);
+});
+
 test("inTextResults: the in-text strings in order; bibliographyText: the joined block", () => {
   const resp = {
     citations: [{ citationID: "c0", text: "[1]" }, { citationID: "c1", text: "[2]" }],

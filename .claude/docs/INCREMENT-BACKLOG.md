@@ -190,12 +190,17 @@ the Principles + A-A gates before build.)*
       citations from making `.tag` grow with full scholarly metadata before native note placement deepens the
       format. Pure logic is Node-tested; the Office.js lifecycle is explicitly not yet live-verified. See
       `INCREMENT-519-NOTES.md`.
+      **Inc 520 ships native note-style placement:** the style catalog's existing `citation_format=note` reveals
+      a per-document Footnotes/Endnotes preference; Insert creates a native Word note or adds to an existing
+      matching note; Refresh scans all native note bodies and passes Word's real one-based position as
+      `noteIndex` (ordinary notes leave gaps; multiple clusters in one note share an index). Mixed inline/note,
+      footnote/endnote, or preference/existing-type placement fails closed and diagnostics explains it. The same
+      all-story scan now covers panel navigation, Delete, and Flatten. Pure rules are tested; Office.js note
+      lifecycle is explicitly not yet live-verified. See `INCREMENT-520-NOTES.md`.
       **HANDED OFF TO CODEX 2026-08-28** (Cliff's Claude usage maxed out ~48h) — see
       `.claude/docs/2026-08-28_codex-word-parity-handoff.md` for the exact remaining scope, verification
-      requirements, and known traps. **Still not started:** note-style (footnote/endnote) citation placement
-      (needs Word's own `noteIndex` computation from scratch — no existing infra, unlike LibreOffice's
-      `_note_containers`, and confirmed the biggest remaining lift); bibliography categories/chapter-section
-      blocks. A dedicated style-browser UI is low-value — Word's style dropdown already reflects anything
+      requirements, and known traps. **Still not started:** bibliography categories/chapter-section blocks. A
+      dedicated style-browser UI is low-value — Word's style dropdown already reflects anything
       installed via Settings' shared catalog.
     - **P2/leapfrog (not started):** evidence-aware Suggest-Citation details (stance breakdown, weak-evidence
       warning, Open in PDF — mirrors inc 460); citation-coverage/integrity-preflight audits

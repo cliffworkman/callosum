@@ -71,8 +71,14 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
   own optional **Options…** (⋯): a **locator** (page, chapter, figure, …) + value, **prefix**/**suffix** text, and
   mutually-exclusive **suppress author**/**author only**. Reorder with ↑/↓, remove with ✕.
 - **Insert citation** — once the assembly has at least one work, inserts it as a **live** citation (a Content
-  Control at the cursor. The control's short tag points to document-local Custom XML storage carrying every
+  Control) at the cursor. The control's short tag points to document-local Custom XML storage carrying every
   work's CSL-JSON plus its own locator/prefix/suffix; scholarly metadata is no longer packed into the tag itself.
+- **Note styles** — choosing a CSL note style reveals **New note citations: Footnotes / Endnotes**. From the main
+  document, Insert creates a real native Word note and places the live citation inside it. From an existing note,
+  Insert adds at the cursor when its type matches the document preference. Refresh uses Word's native one-based
+  note order (ordinary notes leave real gaps; multiple citations in one note share its index), enabling citeproc's
+  first/subsequent/ibid behavior. Callosum deliberately refuses mixed inline/note or footnote/endnote placement;
+  changing style or preference never silently converts existing citations.
 - **Suggest from the sentence** — place the cursor in (or select) the sentence you're writing, click **Suggest from
   the sentence** → Callosum ranks **your library** by relevance and shows candidates with **stance** (supports /
   contrasts / mentions) + a **quote** (the reason); pick one to add to the assembly. *(The first run loads the
@@ -157,10 +163,14 @@ desktop side at all. If desktop's task pane ever *does* show a revealed **Access
 through — e.g. `run_https.py` wasn't used, or the tunnel was ever misconfigured to point at :8443), paste the
 same Remote Access token from Settings and **Save**; that's a signal something's off, not the expected flow.
 
+For note styles, Refresh scans every native footnote/endnote body and passes each citation's actual one-based
+note position as `noteIndex`. Callosum supports one native note type per document and does not auto-convert
+existing inline citations when a note style is selected (or vice versa); incompatible placement fails closed with
+an actionable message rather than producing plausible but incorrect position-dependent output.
+
 ## Limitations
 The bibliography lives at the document end (no chapter/section-scoped bibliographies yet — see the LibreOffice
-adapter for that, still Word/Docs-only work); no native footnote/endnote placement yet (every citation is
-in-text); Suggest covers papers **already in your library** (beyond-library discovery is a separate track);
+adapter for that, still Word/Docs-only work); Suggest covers papers **already in your library** (beyond-library discovery is a separate track);
 desktop requires the HTTPS run-mode + the trusted dev cert. Word-on-the-web needs the relay above; Google Docs
 has its own adapter (`adapters/googledocs/`). Office.js has no `saveAs` — Flatten can't save a copy of your
 document for you before converting it, only tell you to (a real platform limitation, confirmed via Microsoft's
@@ -175,7 +185,8 @@ it are recorded in `.claude/docs/research/2026-08-21_word_citation_migration_for
 
 > **Verification note:** there is no headless Word, so the in-Word behavior of the Office.js parts
 > (`taskpane.js`) is **not exercised by an automated test**. The Custom-XML storage change is therefore **not yet
-> live-verified in Word**; it ships best-effort-correct per the Office.js docs until that manual check occurs.
+> live-verified in Word**; native note insertion/scanning is likewise **not yet live-verified**. It ships
+> best-effort-correct per the Office.js docs until that manual check occurs.
 > The **pure logic** (`taskpane_core.js`: tag/reference/XML encode/decode, the
 > render-document request/response mapping) is unit-tested with `node --test`, and the `/citations/render-document`
 > contract it calls is covered by the Python suite. Treat the in-Word flow as untested until you run it in Word.
