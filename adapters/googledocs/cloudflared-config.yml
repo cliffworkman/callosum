@@ -23,11 +23,12 @@ tunnel: <TUNNEL_ID>
 credentials-file: <HOME>/.cloudflared/<TUNNEL_ID>.json
 
 ingress:
-  # cite-only: GET /papers (search), POST /papers/export, POST /citations/render-document, /citations/suggest,
-  # GET /citations/styles, and Word's exact GET/POST /statements/pending author-draft handoff. Query strings
-  # (e.g. /papers?q=) are not part of the path match. There is deliberately no broader /statements* wildcard.
+  # cite/evidence-only: GET /papers (search), POST /papers/export, exact read-only Word evidence projection,
+  # POST /citations/render-document, /citations/suggest, /citations/classify-stance, GET /citations/styles, and
+  # Word's exact GET/POST /statements/pending author-draft handoff. Query strings (e.g. /papers?q=) are not part
+  # of the path match. There is deliberately no broader /papers/{id}, /citations*, or /statements* wildcard.
   - hostname: callosum-tunnel.clffwrkmn.net
-    path: ^/(papers|papers/export|citations/render-document|citations/suggest|citations/styles|statements/pending)$
+    path: ^/(papers|papers/export|integrations/word/evidence/[0-9]+|citations/render-document|citations/suggest|citations/classify-stance|citations/styles|statements/pending)$
     service: http://localhost:8080
   # Word-on-the-web task-pane assets ONLY (never manifest.xml/manifest-web.xml themselves — those are downloaded
   # directly from the user's own local callosum, never fetched through the tunnel; only Office's own fetch of

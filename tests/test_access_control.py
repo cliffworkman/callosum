@@ -72,6 +72,7 @@ def test_gate_on_exempts_word_taskpane_assets_but_not_the_api(temp_db_url: str) 
         assert client.get(f"/integrations/word/{name}").status_code == 200, name
     # the API these assets call is still gated -- exempting the shell doesn't leak into the data surface
     assert client.get("/papers").status_code == 401
+    assert client.get("/integrations/word/evidence/1").status_code == 401
     # the manifest routes are NOT in this exemption (the user downloads them directly, never through the
     # tunnel -- see cloudflared-config.yml's own comment) -- confirms the exemption is exactly the 5 files
     assert client.get("/integrations/word/manifest.xml").status_code == 401

@@ -82,6 +82,68 @@ test("suggestion details fail soft on missing signals and build only bounded sam
   });
 });
 
+test("saved evidence normalization accepts only identified highlights and preserves display facts", () => {
+  const rows = core.normalizeEvidenceAnnotations([
+    { id: 7, anchor_text: "  Exact\nquoted   passage ", note: " My note ", page: 4, attachment_id: 9 },
+    { id: 0, anchor_text: "bad id" }, { id: 8, anchor_text: "   " }, null,
+  ]);
+  assert.deepStrictEqual(rows, [{
+    id: 7, quote: "Exact quoted passage", note: "My note", page: 4,
+  }]);
+  assert.match(core.evidenceAnnotationRows(rows)[0].label, /^p\.4 — “Exact quoted passage”  \[note: My note\]$/);
+  assert.deepStrictEqual(core.normalizeEvidenceAnnotations({}), []);
+});
+
+test("saved evidence formats keep quote-only uncited and use the author's note only when requested", () => {
+  const annotation = { id: 7, quote: "Exact passage", note: "Author paraphrase", page: 4 };
+  assert.strictEqual(core.evidenceBodyText(annotation, "quote_only"), "“Exact passage”");
+  assert.strictEqual(core.evidenceBodyText(annotation, "quote_cite"), "“Exact passage”");
+  assert.strictEqual(core.evidenceBodyText(annotation, "paraphrase_cite"), "Author paraphrase");
+  assert.strictEqual(core.evidenceBodyText(annotation, "card"), "“Exact passage” — Author paraphrase");
+  assert.strictEqual(
+    core.evidenceBodyText({ id: 8, quote: "Fallback quote", note: "" }, "paraphrase_cite"),
+    "“Fallback quote”",
+  );
+  assert.throws(() => core.evidenceBodyText(annotation, "mystery"), /Unknown evidence insertion format/);
+});
+
+test("saved evidence fails explicitly instead of silently truncating insertion content", () => {
+  const tooLong = { id: 7, quote: "x".repeat(core.EVIDENCE_QUOTE_MAX + 1), note: "" };
+  const detail = core.evidenceAnnotationDetail(tooLong);
+  assert.strictEqual(detail.valid, false);
+  assert.match(detail.reason, /exceeds the 20000-character/);
+  assert.throws(() => core.evidenceBodyText(tooLong, "quote_only"), /exceeds/);
+});
+
+test("saved evidence stance checks are explicit, exact, and bounded", () => {
+  const annotation = { quote: "Observed passage." };
+  assert.deepStrictEqual(core.buildEvidenceStanceRequest("  Draft claim. ", annotation), {
+    sentence: "Draft claim.", passage: "Observed passage.",
+  });
+  assert.strictEqual(core.buildEvidenceStanceRequest("", annotation), null);
+  assert.strictEqual(core.buildEvidenceStanceRequest("Claim", { quote: "" }), null);
+  assert.throws(
+    () => core.buildEvidenceStanceRequest("x".repeat(core.EVIDENCE_STANCE_TEXT_MAX + 1), annotation),
+    /at most 4000/,
+  );
+});
+
+test("saved evidence citation fields retain annotation/page provenance and bound locator/snippet", () => {
+  const fields = core.evidenceAssemblyFields({
+    id: 7, page: 4, quote: "word ".repeat(50).trim(), note: "",
+  }, " 12 ");
+  assert.strictEqual(fields.evidence_annotation_id, 7);
+  assert.strictEqual(fields.evidence_page_start, 4);
+  assert.strictEqual(fields.evidence_page_end, 4);
+  assert.ok(fields.evidence_snippet.endsWith("…"));
+  assert.ok(fields.evidence_snippet.length <= 151);
+  assert.strictEqual(fields.locator, "12");
+  assert.strictEqual(fields.label, "page");
+  const item = core.buildClusterItems([{ csl: { id: "callosum-1" }, ...fields }])[0];
+  assert.strictEqual(item.evidence_annotation_id, 7);
+  assert.strictEqual(core.assemblyRowFromDecodedItem(item).evidence_annotation_id, 7);
+});
+
 test("firstCslRecord: first element of the export array, else null", () => {
   assert.deepStrictEqual(core.firstCslRecord([{ id: "callosum-1" }, { id: "callosum-2" }]), { id: "callosum-1" });
   assert.strictEqual(core.firstCslRecord([]), null);
@@ -926,6 +988,25 @@ test("evidence-aware Suggest exposes detail, editable locator, PDF deep link, an
   assert.match(js, /window\.open\(path, "_blank", "noopener,noreferrer"\)/);
   assert.match(js, /data-evidence-position/);
   assert.match(js, /Evidence recorded when suggested/);
+});
+
+test("Word saved-evidence UI keeps selection, stance, format, and citation semantics author-controlled", () => {
+  const html = fs.readFileSync(path.join(__dirname, "taskpane.html"), "utf8");
+  const js = fs.readFileSync(path.join(__dirname, "taskpane.js"), "utf8");
+  [
+    "evidenceOpen", "evidenceEditor", "evidencePaperQuery", "evidencePaperResults",
+    "evidenceAnnotationResults", "evidenceQuote", "evidenceNote", "evidenceClaim",
+    "evidenceCheckStance", "evidenceFormat", "evidenceLocator", "evidenceInsert", "evidenceCancel",
+  ].forEach((id) => assert.match(html, new RegExp(`id=["']${id}["']`)));
+  assert.match(html, /Callosum never chooses evidence or a stance for you/);
+  assert.match(js, /\/integrations\/word\/evidence\/" \+ encodeURIComponent\(String\(paperId\)\)/);
+  assert.match(js, /callosumFetch\("\/citations\/classify-stance"/);
+  assert.match(js, /This is a model signal, not a verdict/);
+  assert.match(js, /if \(format === "quote_only"\)/);
+  assert.match(js, /saved evidence must be inserted from the main document/);
+  assert.match(js, /insertNewCitation\(ctx, selection, parentBody, existingRecords, items, body, true\)/);
+  assert.match(js, /evidenceAssemblyFields\(selectedEvidenceAnnotation/);
+  assert.match(js, /await refreshDocument\(\)/);
 });
 
 test("open-science statements expose the seven bounded author-controlled kinds", () => {

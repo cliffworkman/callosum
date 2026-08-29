@@ -35,6 +35,16 @@
   var SUGGEST_RETRIEVAL_THRESHOLD = 0.7;
   var SUGGEST_SUPPORT_THRESHOLD = 0.55;
   var EVIDENCE_SNIPPET_MAX = 150;
+  var EVIDENCE_QUOTE_MAX = 20000;
+  var EVIDENCE_NOTE_MAX = 4000;
+  var EVIDENCE_STANCE_TEXT_MAX = 4000;
+  var EVIDENCE_LOCATOR_MAX = 80;
+  var EVIDENCE_FORMATS = [
+    { value: "quote_only", label: "Quote only (no citation)" },
+    { value: "quote_cite", label: "Quote + citation" },
+    { value: "paraphrase_cite", label: "Your saved note + citation" },
+    { value: "card", label: "Structured card (quote + note + citation)" },
+  ];
   var MAX_STATEMENT_LENGTH = 4000;
   // Keep these author-chosen starting phrases aligned with the web workspace's `38b_statements.jsx`. They are
   // deterministic prose aids, not claims inferred or verified by Callosum.
@@ -810,6 +820,82 @@
     return path;
   }
 
+  // ---- Insert saved evidence (inc 529, backlog #33/#34 P2 #20) ----
+  // These helpers keep saved-highlight normalization, four author-chosen formats, stance-request bounds, and
+  // compact citation provenance out of Office.js. Nothing here decides whether evidence supports a claim.
+  function _evidenceText(value) {
+    return String(value == null ? "" : value).replace(/\s+/g, " ").trim();
+  }
+  function normalizeEvidenceAnnotations(value) {
+    if (!Array.isArray(value)) return [];
+    return value.filter(function (item) {
+      return item && Number.isInteger(item.id) && item.id > 0 && !!_evidenceText(item.anchor_text);
+    }).map(function (item) {
+      var page = Number(item.page);
+      return {
+        id: item.id,
+        quote: _evidenceText(item.anchor_text),
+        note: _evidenceText(item.note),
+        page: Number.isInteger(page) && page > 0 ? page : null,
+      };
+    });
+  }
+  function evidenceAnnotationRows(annotations) {
+    return (annotations || []).map(function (annotation, index) {
+      var quote = annotation.quote.length > 70 ? annotation.quote.slice(0, 70).trimEnd() + "…" : annotation.quote;
+      var note = annotation.note.length > 40 ? annotation.note.slice(0, 40).trimEnd() + "…" : annotation.note;
+      return {
+        index: index,
+        label: "p." + (annotation.page || "?") + ' — “' + quote + '”' + (note ? "  [note: " + note + "]" : ""),
+      };
+    });
+  }
+  function evidenceAnnotationDetail(annotation) {
+    var quote = _evidenceText(annotation && annotation.quote);
+    var note = _evidenceText(annotation && annotation.note);
+    var reason = "";
+    if (!quote) reason = "This saved highlight has no quoted text.";
+    else if (quote.length > EVIDENCE_QUOTE_MAX) {
+      reason = "This saved highlight exceeds the " + EVIDENCE_QUOTE_MAX + "-character insertion limit.";
+    } else if (note.length > EVIDENCE_NOTE_MAX) {
+      reason = "This saved note exceeds the " + EVIDENCE_NOTE_MAX + "-character insertion limit.";
+    }
+    return { quote: quote, note: note, page: annotation && annotation.page || null, valid: !reason, reason: reason };
+  }
+  function evidenceBodyText(annotation, format) {
+    var detail = evidenceAnnotationDetail(annotation);
+    if (!detail.valid) throw new Error(detail.reason);
+    var quoted = "“" + detail.quote + "”";
+    if (format === "quote_only" || format === "quote_cite") return quoted;
+    if (format === "paraphrase_cite") return detail.note || quoted;
+    if (format === "card") return detail.note ? quoted + " — " + detail.note : quoted;
+    throw new Error("Unknown evidence insertion format.");
+  }
+  function buildEvidenceStanceRequest(claim, annotation) {
+    var sentence = _evidenceText(claim);
+    var passage = _evidenceText(annotation && annotation.quote);
+    if (!sentence || !passage) return null;
+    if (sentence.length > EVIDENCE_STANCE_TEXT_MAX || passage.length > EVIDENCE_STANCE_TEXT_MAX) {
+      throw new Error("Claim and highlighted passage must each be at most " +
+        EVIDENCE_STANCE_TEXT_MAX + " characters for stance checking.");
+    }
+    return { sentence: sentence, passage: passage };
+  }
+  function evidenceAssemblyFields(annotation, locator) {
+    var detail = evidenceAnnotationDetail(annotation);
+    if (!detail.valid) throw new Error(detail.reason);
+    var out = { evidence_annotation_id: annotation.id };
+    if (detail.page) {
+      out.evidence_page_start = detail.page;
+      out.evidence_page_end = detail.page;
+    }
+    out.evidence_snippet = detail.quote.length > EVIDENCE_SNIPPET_MAX
+      ? detail.quote.slice(0, EVIDENCE_SNIPPET_MAX).trimEnd() + "…" : detail.quote;
+    var boundedLocator = _evidenceText(locator).slice(0, EVIDENCE_LOCATOR_MAX);
+    if (boundedLocator) { out.locator = boundedLocator; out.label = "page"; }
+    return out;
+  }
+
   // ---- citation composer (inc 509, backlog #33/#34 P0 items 1-5): grouped citations + per-occurrence
   // locator/label/prefix/suffix/suppress-author/author-only. Mirrors adapters/libreoffice/composer.py's
   // `_item_overrides`/`_format_assembly_row`/`_assembly_item_from_decoded` exactly, so the same mental model
@@ -821,13 +907,16 @@
   ]; // MUST match CSL_LOCATOR_LABELS in callosum_cite.py / app/backend/api/routers/citations.py exactly.
   var ASSEMBLY_OVERRIDE_KEYS = ["locator", "label", "prefix", "suffix", "suppress-author", "author-only"];
   var ASSEMBLY_EVIDENCE_KEYS = [
-    "evidence_chunk_id", "evidence_page_start", "evidence_page_end", "evidence_snippet",
+    "evidence_chunk_id", "evidence_annotation_id", "evidence_page_start", "evidence_page_end", "evidence_snippet",
   ];
 
   function assemblyEvidenceFields(row) {
     var out = {};
     if (Number.isInteger(row && row.evidence_chunk_id) && row.evidence_chunk_id > 0) {
       out.evidence_chunk_id = row.evidence_chunk_id;
+    }
+    if (Number.isInteger(row && row.evidence_annotation_id) && row.evidence_annotation_id > 0) {
+      out.evidence_annotation_id = row.evidence_annotation_id;
     }
     if (Number.isInteger(row && row.evidence_page_start) && row.evidence_page_start > 0) {
       out.evidence_page_start = row.evidence_page_start;
@@ -1161,6 +1250,15 @@
     suggestionAssemblyFields: suggestionAssemblyFields,
     suggestionDetail: suggestionDetail,
     suggestionOpenPdfPath: suggestionOpenPdfPath,
+    EVIDENCE_FORMATS: EVIDENCE_FORMATS,
+    EVIDENCE_QUOTE_MAX: EVIDENCE_QUOTE_MAX,
+    EVIDENCE_STANCE_TEXT_MAX: EVIDENCE_STANCE_TEXT_MAX,
+    normalizeEvidenceAnnotations: normalizeEvidenceAnnotations,
+    evidenceAnnotationRows: evidenceAnnotationRows,
+    evidenceAnnotationDetail: evidenceAnnotationDetail,
+    evidenceBodyText: evidenceBodyText,
+    buildEvidenceStanceRequest: buildEvidenceStanceRequest,
+    evidenceAssemblyFields: evidenceAssemblyFields,
     MAX_STATEMENT_LENGTH: MAX_STATEMENT_LENGTH,
     STATEMENT_TYPES: STATEMENT_TYPES,
     statementType: statementType,

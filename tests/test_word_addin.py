@@ -7,13 +7,16 @@ verification (no headless Word). The pure task-pane logic is unit-tested separat
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
 from app.backend.api.routers import word as word_router
+from tests.api_helpers import _annotation_body, _seed_library
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -99,9 +102,74 @@ def test_no_egress_from_the_taskpane_assets(client: TestClient) -> None:
         assert forbidden not in html and forbidden not in js
 
 
-def test_word_statement_handoff_is_narrowly_allowed_through_shared_tunnel() -> None:
+def test_word_evidence_projection_is_read_only_and_privacy_minimized(temp_db_url: str) -> None:
+    paper_id = _seed_library(temp_db_url)["facial_paper_id"]
+    client = TestClient(create_app(db_url=temp_db_url))
+    created = client.post(
+        f"/papers/{paper_id}/annotations",
+        json=_annotation_body(note="Author's saved interpretation"),
+    )
+    assert created.status_code == 201
+
+    response = client.get(f"/integrations/word/evidence/{paper_id}")
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": created.json()["id"],
+            "page": 2,
+            "anchor_text": "Compared with typical faces",
+            "note": "Author's saved interpretation",
+        }
+    ]
+    assert client.post(f"/integrations/word/evidence/{paper_id}", json={}).status_code == 405
+    assert client.get("/integrations/word/evidence/999999").status_code == 404
+
+
+def test_word_evidence_projection_fails_instead_of_silently_truncating(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(word_router, "get_paper", lambda _conn, _paper_id: {})
+    row = {"id": 1, "page": 1, "anchor_text": "quote", "note": None}
+    monkeypatch.setattr(
+        word_router,
+        "list_annotations_for_paper",
+        lambda _conn, _paper_id: [row] * (word_router.WORD_EVIDENCE_MAX + 1),
+    )
+    with pytest.raises(HTTPException, match="saved highlights"):
+        word_router.word_evidence(1, object())
+
+    oversize = dict(row, anchor_text="x" * (word_router.WORD_EVIDENCE_QUOTE_MAX + 1))
+    monkeypatch.setattr(word_router, "list_annotations_for_paper", lambda _conn, _paper_id: [oversize])
+    with pytest.raises(HTTPException, match="display limits"):
+        word_router.word_evidence(1, object())
+
+    core = (PROJECT_ROOT / "adapters" / "word" / "taskpane_core.js").read_text(encoding="utf-8")
+    assert f"var EVIDENCE_QUOTE_MAX = {word_router.WORD_EVIDENCE_QUOTE_MAX};" in core
+    assert f"var EVIDENCE_NOTE_MAX = {word_router.WORD_EVIDENCE_NOTE_MAX};" in core
+
+
+def test_word_evidence_and_statement_paths_are_narrowly_allowed_through_shared_tunnel() -> None:
     config = (PROJECT_ROOT / "adapters" / "googledocs" / "cloudflared-config.yml").read_text(encoding="utf-8")
     ingress = next(line.strip() for line in config.splitlines() if line.strip().startswith("path: ^/(papers|"))
+    pattern = ingress.removeprefix("path: ")
+    for allowed in (
+        "/papers",
+        "/papers/export",
+        "/integrations/word/evidence/42",
+        "/citations/render-document",
+        "/citations/suggest",
+        "/citations/classify-stance",
+        "/citations/styles",
+        "/statements/pending",
+    ):
+        assert re.fullmatch(pattern, allowed), allowed
+    for blocked in (
+        "/papers/42",
+        "/papers/42/annotations",
+        "/integrations/word/evidence/not-an-id",
+        "/citations/classify-stance/other",
+        "/statements",
+        "/statements/other",
+    ):
+        assert not re.fullmatch(pattern, blocked), blocked
     assert "statements/pending" in ingress
     assert "statements/" in ingress
     assert "statements/*" not in ingress

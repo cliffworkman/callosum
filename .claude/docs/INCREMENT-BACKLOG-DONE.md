@@ -685,3 +685,4 @@ appended here.)*
   `INCREMENT-507-NOTES.md` and `security-audits/2026-08-28_grobid-docker-lifecycle.md` (PASS). The separate,
   narrower running-header-pollution fix this item also tracked shipped independently 2026-08-26
   (`chunk_filtering.py::exclude_repeated_boilerplate_chunks`) and is unaffected by this closure.
+- [x] **#33/#34 Word saved-evidence insertion** (inc 529) — author-selected highlight/stance/four-format flow with a GET-only relay projection; see `increment-notes/INCREMENT-529-NOTES.md`.

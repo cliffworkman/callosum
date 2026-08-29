@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 528 — Word citation-coverage audit -->
+<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 529 — Word saved-evidence insertion -->
+## 2026-08-29 — Increment 529: Word saved-evidence insertion
+- **Files:** Word task-pane UI/glue/pure logic/tests/README; privacy-minimized Word evidence route; shared tunnel
+  allowlist/README; served Help; security audit; architecture/backlog/change/increment ledgers; QA route 34.
+- **What:** Word now searches any paper's saved highlights, shows the exact quote and author note, optionally runs
+  the existing local stance signal on explicit click, and inserts quote-only, quote + citation, saved note +
+  citation, or a quote/note card + citation. Cited formats reuse Custom XML/native-note placement and retain only
+  bounded annotation/page/snippet provenance.
+- **Why:** closes Writer-parity item #20 without generating prose or turning NLI into a verdict. A dedicated
+  GET-only four-field projection keeps Word-on-the-web read-only for highlights; allowing the existing annotations
+  path would have exposed its POST method because Cloudflare ingress is method-blind.
+- **Verify:** Word pure/static logic **82/82**; focused Word/annotations/stance/access/Help pytest **56 passed**;
+  full suite **2566 passed, 3 skipped** in 1028.49s. Remaining static/security gates are recorded in
+  `INCREMENT-529-NOTES.md` and passed. Office.js remains explicitly not live-verified; the consolidated manual checklist is
+  deferred until the Word arc ends, as requested.
+- **Revert:** `git revert` this increment's commit; existing annotations, stance, citation, and Writer behavior
+  remain unchanged.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-08-29 inc 528 — Word citation-coverage audit -->
 ## 2026-08-29 — Increment 528: Word citation-coverage audit
 - **Files:** Word task-pane UI/glue/pure logic/tests/README; served Help; security audit; architecture/backlog/
   change/increment ledgers; QA route 34; website review receipt.

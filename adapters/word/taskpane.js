@@ -4,7 +4,8 @@
  * in this document panel; inc 517: accessibility; inc 519: Custom-XML storage; inc 520: native notes;
  * inc 521: document-local bibliography categories; inc 522: bounded batch assignment; inc 523: category order;
  * inc 524: heading-scoped bibliography blocks; inc 525: opt-in bibliography title/DOI links;
- * inc 526: evidence-aware Suggest details and audit records; inc 527: open-science statement insertion).
+ * inc 526: evidence-aware Suggest details and audit records; inc 527: open-science statement insertion;
+ * inc 529: author-controlled saved-evidence insertion).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
  * is a SAME-ORIGIN call to the local API — nothing leaves the machine, and (inc 511) desktop genuinely never
@@ -71,6 +72,11 @@
   var stagedStatements = Object.create(null);
   var statementDrafts = Object.create(null);
   var statementInFlight = false;
+  var evidencePaperRows = [];
+  var evidenceAnnotations = [];
+  var selectedEvidencePaperId = null;
+  var selectedEvidenceAnnotation = null;
+  var evidenceInFlight = false;
 
   // ---- live-citation storage ----
   // Current citations keep CSL-JSON in a Word Custom XML Part (WordApi 1.4) and only an opaque reference in the
@@ -537,6 +543,149 @@
     }
   }
 
+  // ---- saved evidence (inc 529): author selects a saved highlight, optionally asks the existing local NLI
+  // scorer for a signal, then explicitly chooses one of four insertion formats. No stance call is automatic.
+  function setEvidenceBusy(busy) {
+    evidenceInFlight = busy;
+    ["evidencePaperQuery", "evidenceFormat", "evidenceLocator", "evidenceCancel"]
+      .forEach(function (id) { $(id).disabled = busy; });
+    $("evidenceCheckStance").disabled = busy || !selectedEvidenceAnnotation;
+    var detail = CallosumCore.evidenceAnnotationDetail(selectedEvidenceAnnotation);
+    $("evidenceInsert").disabled = busy || !selectedEvidenceAnnotation || !detail.valid;
+  }
+  function resetEvidenceSelection() {
+    evidenceAnnotations = [];
+    selectedEvidencePaperId = null;
+    selectedEvidenceAnnotation = null;
+    $("evidenceAnnotationSection").style.display = "none";
+    $("evidenceAnnotationResults").innerHTML = "";
+    $("evidenceConfigure").style.display = "none";
+    $("evidenceQuote").textContent = "";
+    $("evidenceNote").textContent = "";
+    $("evidenceClaim").value = "";
+    $("evidenceStanceState").textContent = "";
+  }
+  function openEvidenceEditor() {
+    if (evidenceInFlight) return;
+    resetEvidenceSelection();
+    evidencePaperRows = [];
+    $("evidencePaperQuery").value = "";
+    $("evidencePaperResults").innerHTML = "";
+    $("evidenceEditor").style.display = "block";
+    setStatus("Search for a paper, then choose one of your saved highlights.");
+    $("evidencePaperQuery").focus();
+  }
+  function closeEvidenceEditor(force) {
+    if (evidenceInFlight && !force) return;
+    $("evidenceEditor").style.display = "none";
+    resetEvidenceSelection();
+  }
+  async function searchEvidencePapers() {
+    var q = $("evidencePaperQuery").value.trim();
+    resetEvidenceSelection();
+    if (!q) { evidencePaperRows = []; $("evidencePaperResults").innerHTML = ""; return; }
+    try {
+      var response = await callosumFetch("/papers?q=" + encodeURIComponent(q) + "&limit=20");
+      if (!response.ok) throw new Error("search failed (" + response.status + ")");
+      evidencePaperRows = CallosumCore.formatSearchRows(await response.json());
+      renderRows("evidencePaperResults", evidencePaperRows, "No matches in your library.");
+    } catch (e) {
+      $("evidencePaperResults").innerHTML = '<li class="err">' +
+        escapeHtml(String((e && e.message) || e)) + "</li>";
+    }
+  }
+  async function chooseEvidencePaper(ev) {
+    var button = ev.target.closest("button.row[data-id]");
+    if (!button || evidenceInFlight) return;
+    var paperId = Number(button.getAttribute("data-id"));
+    if (!Number.isInteger(paperId) || paperId <= 0) return;
+    setEvidenceBusy(true);
+    setStatus("Loading saved highlights…");
+    try {
+      var response = await callosumFetch("/integrations/word/evidence/" + encodeURIComponent(String(paperId)));
+      if (!response.ok) throw new Error("highlight load failed (" + response.status + ")");
+      evidenceAnnotations = CallosumCore.normalizeEvidenceAnnotations(await response.json());
+      selectedEvidencePaperId = paperId;
+      selectedEvidenceAnnotation = null;
+      var paper = evidencePaperRows.find(function (row) { return Number(row.id) === paperId; });
+      $("evidencePaperLabel").textContent = paper ? paper.label : "Selected paper";
+      $("evidenceAnnotationSection").style.display = "block";
+      $("evidenceConfigure").style.display = "none";
+      var rows = CallosumCore.evidenceAnnotationRows(evidenceAnnotations);
+      $("evidenceAnnotationResults").innerHTML = rows.length ? rows.map(function (row) {
+        return '<li><button type="button" class="row" data-evidence-index="' + row.index + '">' +
+          escapeHtml(row.label) + "</button></li>";
+      }).join("") : '<li class="empty">This paper has no saved highlights with quoted text.</li>';
+      setStatus(rows.length ? "Choose the saved highlight you want to use." : "No saved highlights to insert.", !rows.length);
+    } catch (e) {
+      setStatus("Couldn't load saved highlights: " + ((e && e.message) || e), true);
+    } finally {
+      setEvidenceBusy(false);
+    }
+  }
+  function chooseEvidenceAnnotation(ev) {
+    var button = ev.target.closest("button[data-evidence-index]");
+    if (!button || evidenceInFlight) return;
+    var index = Number(button.getAttribute("data-evidence-index"));
+    var annotation = evidenceAnnotations[index];
+    if (!annotation) return;
+    var detail = CallosumCore.evidenceAnnotationDetail(annotation);
+    selectedEvidenceAnnotation = annotation;
+    $("evidenceQuote").textContent = detail.quote;
+    $("evidenceNote").textContent = detail.note;
+    $("evidenceClaim").value = "";
+    $("evidenceStanceState").textContent = "";
+    $("evidenceFormat").value = "quote_cite";
+    $("evidenceLocator").value = detail.page ? String(detail.page) : "";
+    $("evidenceConfigure").style.display = "block";
+    $("evidenceInsert").disabled = !detail.valid;
+    setStatus(detail.valid
+      ? "Review the exact quote and choose how to insert it. Stance checking is optional."
+      : detail.reason, !detail.valid);
+  }
+  async function checkEvidenceStance() {
+    if (!selectedEvidenceAnnotation || evidenceInFlight) return;
+    var request;
+    try {
+      request = CallosumCore.buildEvidenceStanceRequest($("evidenceClaim").value, selectedEvidenceAnnotation);
+    } catch (e) {
+      setStatus((e && e.message) || String(e), true); return;
+    }
+    if (!request) { setStatus("Enter a claim before checking stance.", true); return; }
+    setEvidenceBusy(true);
+    $("evidenceStanceState").textContent = "Checking with Callosum's local stance model…";
+    try {
+      var response = await callosumFetch("/citations/classify-stance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) throw new Error("stance check failed (" + response.status + ")");
+      var stance = await response.json();
+      $("evidenceStanceState").textContent = stance
+        ? CallosumCore.stanceBreakdownText(stance) + " This is a model signal, not a verdict."
+        : "No stance signal is available. Read the evidence directly before inserting it.";
+      setStatus("Stance signal complete; you remain responsible for the evidence choice.");
+    } catch (e) {
+      $("evidenceStanceState").textContent = "";
+      setStatus("Couldn't check stance: " + ((e && e.message) || e), true);
+    } finally {
+      setEvidenceBusy(false);
+    }
+  }
+
+  async function exportPaperCsl(paperId) {
+    var response = await callosumFetch("/papers/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paper_ids: [paperId], format: "csl-json" }),
+    });
+    if (!response.ok) throw new Error("export failed (" + response.status + ")");
+    var exported = CallosumCore.firstCslRecord(await response.json());
+    if (!exported) throw new Error("no CSL-JSON returned");
+    return CallosumCore.stampCallosumId(exported, paperId);
+  }
+
   // ---- citation composer (inc 509): add works to an assembly, set per-item locator/prefix/suffix, then
   // insert (or update an existing citation) as ONE cluster. Mirrors composer.py's own assembly model.
 
@@ -549,17 +698,9 @@
     var suggestion = btn.closest("#suggestions") ? suggestionItems[String(paperId)] : null;
     setStatus("Adding…");
     try {
-      var r = await callosumFetch("/papers/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paper_ids: [paperId], format: "csl-json" }),
-      });
-      if (!r.ok) throw new Error("export failed (" + r.status + ")");
-      var exported = CallosumCore.firstCslRecord(await r.json());
-      if (!exported) throw new Error("no CSL-JSON returned");
       // The stored csl_json.id isn't guaranteed to be the real paper id (inc 512) -- stamp a reliable one
       // (matching callosum_cite.py's own convention) so Document diagnostics can later identify this citation.
-      var csl = CallosumCore.stampCallosumId(exported, paperId);
+      var csl = await exportPaperCsl(paperId);
       var row = { csl: csl, row: CallosumCore.cslRecordRow(csl) };
       if (suggestion) {
         Object.assign(row, CallosumCore.suggestionAssemblyFields(
@@ -688,6 +829,97 @@
     renderAssembly();
   }
 
+  // Shared NEW-citation path. Saved evidence deliberately enters through this same placement/storage seam, so
+  // in-text vs native-note behavior, Custom XML storage, and document-wide placement checks cannot drift.
+  async function insertNewCitation(ctx, selection, parentBody, existingRecords, items, leadingText, mainStoryOnly) {
+    assertPlacementCompatible(existingRecords);
+    var location = CallosumCore.bodyTypeLocation(parentBody.type);
+    var noteStyle = CallosumCore.isNoteStyle(currentCitationFormat());
+    if (!location) throw new Error("place the cursor in the main document, a footnote, or an endnote");
+    if (mainStoryOnly && location !== "inline") {
+      throw new Error("saved evidence must be inserted from the main document, not from inside a note");
+    }
+    if (!noteStyle && location !== "inline") {
+      throw new Error("this in-text citation style inserts citations in the main document, not inside a note");
+    }
+    if (noteStyle) {
+      requireNotesSupport();
+      var expectedLocation = currentNotePreference();
+      if (location !== "inline" && location !== expectedLocation) {
+        throw new Error("new note citations are set to " + expectedLocation + "s; move the cursor there or change the setting");
+      }
+    }
+
+    var part = await createCitationPart(ctx, items);
+    var insertionRange = selection.getRange(Word.RangeLocation.end);
+    if (leadingText) {
+      var body = insertionRange.insertText(leadingText + (!noteStyle ? " " : ""), Word.InsertLocation.replace);
+      insertionRange = body.getRange(Word.RangeLocation.end);
+    }
+    if (noteStyle && location === "inline") {
+      var note = currentNotePreference() === "endnote"
+        ? insertionRange.insertEndnote()
+        : insertionRange.insertFootnote();
+      insertionRange = note.body.getRange(Word.RangeLocation.start);
+    }
+    var inserted = insertionRange.insertText("…", Word.InsertLocation.replace);
+    var newCc = inserted.insertContentControl();
+    configureCitationControl(newCc, part.id);
+    await ctx.sync();
+  }
+
+  async function insertEvidence() {
+    if (!selectedEvidenceAnnotation || !selectedEvidencePaperId || evidenceInFlight) {
+      setStatus("Choose a saved highlight first.", true); return;
+    }
+    var format = $("evidenceFormat").value;
+    var body;
+    try {
+      body = CallosumCore.evidenceBodyText(selectedEvidenceAnnotation, format);
+    } catch (e) {
+      setStatus((e && e.message) || String(e), true); return;
+    }
+    setEvidenceBusy(true);
+    setStatus("Inserting the author-selected evidence…");
+    try {
+      if (format === "quote_only") {
+        await Word.run(async function (ctx) {
+          var selection = ctx.document.getSelection();
+          var parentBody = selection.parentBody;
+          parentBody.load("type");
+          await ctx.sync();
+          if (CallosumCore.bodyTypeLocation(parentBody.type) !== "inline") {
+            throw new Error("saved evidence must be inserted from the main document, not from inside a note");
+          }
+          selection.getRange(Word.RangeLocation.end).insertText(body, Word.InsertLocation.replace);
+          await ctx.sync();
+        });
+        setStatus("Inserted the saved quote as ordinary editable text without a citation, as requested.");
+      } else {
+        var csl = await exportPaperCsl(selectedEvidencePaperId);
+        var row = Object.assign(
+          { csl: csl, row: CallosumCore.cslRecordRow(csl) },
+          CallosumCore.evidenceAssemblyFields(selectedEvidenceAnnotation, $("evidenceLocator").value),
+        );
+        var items = CallosumCore.buildClusterItems([row]);
+        await Word.run(async function (ctx) {
+          var selection = ctx.document.getSelection();
+          var parentBody = selection.parentBody;
+          parentBody.load("type");
+          var existingRecords = await loadDocumentControlRecords(ctx);
+          await ctx.sync();
+          await insertNewCitation(ctx, selection, parentBody, existingRecords, items, body, true);
+        });
+        await refreshDocument();
+      }
+      closeEvidenceEditor(true);
+    } catch (e) {
+      setStatus("Couldn't insert evidence: " + ((e && e.message) || e), true);
+    } finally {
+      setEvidenceBusy(false);
+    }
+  }
+
   // Insert the assembly as a NEW citation at the end of the selection (so Suggest inserts after the sentence,
   // never replacing it), or — when editing an existing one — just retag it; refreshDocument() re-renders every
   // citation's text from its tag regardless, so an update needs no direct text manipulation of its own.
@@ -710,38 +942,8 @@
           var parentBody = selection.parentBody;
           parentBody.load("type");
           var existingRecords = await loadDocumentControlRecords(ctx);
-          assertPlacementCompatible(existingRecords);
           await ctx.sync();
-
-          var location = CallosumCore.bodyTypeLocation(parentBody.type);
-          var noteStyle = CallosumCore.isNoteStyle(currentCitationFormat());
-          if (!location) throw new Error("place the cursor in the main document, a footnote, or an endnote");
-          if (!noteStyle && location !== "inline") {
-            throw new Error("this in-text citation style inserts citations in the main document, not inside a note");
-          }
-          if (noteStyle) {
-            requireNotesSupport();
-            var expectedLocation = currentNotePreference();
-            if (location !== "inline" && location !== expectedLocation) {
-              throw new Error("new note citations are set to " + expectedLocation + "s; move the cursor there or change the setting");
-            }
-          }
-
-          var part = await createCitationPart(ctx, items);
-          var insertionRange;
-          if (noteStyle && location === "inline") {
-            var referenceRange = selection.getRange(Word.RangeLocation.end);
-            var note = currentNotePreference() === "endnote"
-              ? referenceRange.insertEndnote()
-              : referenceRange.insertFootnote();
-            insertionRange = note.body.getRange(Word.RangeLocation.start);
-          } else {
-            insertionRange = selection.getRange(Word.RangeLocation.end);
-          }
-          var inserted = insertionRange.insertText("…", Word.InsertLocation.replace);
-          var newCc = inserted.insertContentControl();
-          configureCitationControl(newCc, part.id);
-          await ctx.sync();
+          await insertNewCitation(ctx, selection, parentBody, existingRecords, items, "", false);
         });
       }
       resetAssembly();
@@ -1868,6 +2070,9 @@
   // Escape clears an in-progress citation assembly -- a pure UI-state reset, never a document mutation either
   // way, so there's nothing unsafe about firing it broadly rather than scoping it to one element's focus.
   function onGlobalKeydown(ev) {
+    if (ev.key === "Escape" && $("evidenceEditor").style.display !== "none" && !evidenceInFlight) {
+      closeEvidenceEditor(); return;
+    }
     if (ev.key === "Escape" && $("statementEditor").style.display !== "none" && !statementInFlight) {
       closeStatementEditor(); return;
     }
@@ -1881,6 +2086,9 @@
   }
   function wire() {
     renderStatementKinds();
+    $("evidenceFormat").innerHTML = CallosumCore.EVIDENCE_FORMATS.map(function (format) {
+      return '<option value="' + escapeHtml(format.value) + '">' + escapeHtml(format.label) + "</option>";
+    }).join("");
     $("q").addEventListener("input", debounce(search, 250));
     $("q").addEventListener("keydown", onSearchKeydown);
     document.addEventListener("keydown", onGlobalKeydown);
@@ -1906,6 +2114,18 @@
       if (id != null) suggestionLocators[id] = ev.target.value;
     });
     $("suggest").addEventListener("click", suggestSentence);
+    $("evidenceOpen").addEventListener("click", openEvidenceEditor);
+    $("evidencePaperQuery").addEventListener("input", debounce(searchEvidencePapers, 250));
+    $("evidencePaperQuery").addEventListener("keydown", function (ev) {
+      if (ev.key !== "Enter") return;
+      var first = $("evidencePaperResults").querySelector("button.row");
+      if (first) first.click();
+    });
+    $("evidencePaperResults").addEventListener("click", chooseEvidencePaper);
+    $("evidenceAnnotationResults").addEventListener("click", chooseEvidenceAnnotation);
+    $("evidenceCheckStance").addEventListener("click", checkEvidenceStance);
+    $("evidenceInsert").addEventListener("click", insertEvidence);
+    $("evidenceCancel").addEventListener("click", function () { closeEvidenceEditor(); });
     $("assembly").addEventListener("click", onAssemblyClick);
     $("assembly").addEventListener("input", onAssemblyChange);
     $("assembly").addEventListener("change", onAssemblyChange);

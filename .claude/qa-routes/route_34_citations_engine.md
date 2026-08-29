@@ -211,6 +211,18 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     citation is required or prose is unsupported. Confirm no backend/model/provider request and no document
     mutation; repeat the core path in Word on the web. WordApi below 1.6 must fail explicitly. This remains MANUAL
     because no available agent can drive Word.
+20g. **Manual Word saved-evidence insertion (inc 529):** save at least two PDF highlights on one paper, including
+    one with a note and one without. In Word choose **Insert saved evidence…**, search the paper, inspect both
+    picker previews, and confirm the configure panel shows the complete exact quote/note. Exercise quote-only,
+    quote + citation, saved note + citation (including quote fallback when no note exists), and structured card.
+    Quote-only must create no Content Control; cited formats must refresh normally, preserve editable page
+    locator plus annotation/page/bounded-snippet audit metadata, and follow the current in-text or native-note
+    style. Enter a claim and click **Check stance**; confirm it runs only on the click, labels the local result a
+    signal rather than a verdict, and unavailable inference fails honestly. Empty claim, over-4,000-character
+    stance input, over-20,000-character quote insertion, insertion from inside a note, Close, and Escape must fail
+    or cancel without a misleading partial result. Confirm no provider request; repeat the core flow in Word on
+    the web and confirm broader `/papers/{id}` paths remain tunnel-blocked. This remains MANUAL because no
+    available agent can drive Word.
 21. **Manual Writer journal abbreviations:** use a short-title CSL style such as Nature with one journal carrying
     library `container-title-short` metadata, one exact NLM/MEDLINE title or ISSN, and one unknown journal. In
     **Journal abbreviations…**, verify **Library abbreviations** uses embedded metadata, **MEDLINE first** prefers

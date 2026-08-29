@@ -14,9 +14,10 @@ http://localhost:8080            ← your callosum, CITE-ONLY ingress + a bearer
 ```
 
 **Two boundaries keep this safe:** (1) the **access token** (Settings → Remote access) — callosum requires it on
-every request; (2) the **cite-only ingress** — the tunnel forwards only `/papers`, `/papers/export`,
-`/citations/render-document`, `/citations/suggest`, `/citations/styles`, plus Word's exact transient
-`/statements/pending` handoff; everything else (your app, `/settings`, the
+every request; (2) the **cite/evidence-only ingress** — the tunnel forwards only `/papers`, `/papers/export`,
+Word's exact read-only `/integrations/word/evidence/{integer}`, `/citations/render-document`, `/citations/suggest`,
+`/citations/classify-stance`, `/citations/styles`, plus Word's exact transient `/statements/pending` handoff;
+everything else (your app, `/settings`, the
 folder-scan routes, `/papers/{id}` edit/delete) returns **404** through the tunnel. Both are verified below.
 
 > **Status:** SP1 (the bridge, steps 1–6) and SP2 (the Google Docs **add-on**, step 7) both ship. The bridge was
@@ -145,9 +146,9 @@ cite endpoints the bridge allows (§6). Formatting happens server-side in citepr
 
 ## Security notes
 - **Outbound-only:** cloudflared dials out from your PC; no inbound port is opened on your machine or router.
-- **Cite-only:** the ingress allowlist (`cloudflared-config.yml`) is validated by
-  `cloudflared tunnel --config … ingress validate` + `ingress rule <url>` — only the five cite paths reach
-  localhost; `/`, `/settings`, scan routes, and `/papers/{id}` return 404.
+- **Cite/evidence-only:** the ingress allowlist (`cloudflared-config.yml`) is validated by
+  `cloudflared tunnel --config … ingress validate` + `ingress rule <url>` — only the explicitly listed paths
+  reach localhost. `/`, `/settings`, scan routes, and the broader `/papers/{id}` route return 404.
 - **Token:** required by callosum on every request (constant-time check); shown once, stored locally, never returned
   by the API. Rotate it any time (Settings → Remote access → Regenerate) and update the add-on.
 - **Egress:** with Remote access on, the cited-paper metadata in your requests transits Cloudflare's edge + Google's

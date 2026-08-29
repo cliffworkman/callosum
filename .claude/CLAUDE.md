@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 528** (see Increment workflow) with **2564 root-suite pytest tests
+It is currently at **Increment 529** (see Increment workflow) with **2566 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -632,6 +632,16 @@ the full per-increment narrative for all other increments now lives in the reloc
   ordinary editable prose. It never infers or verifies funding/ethics/availability/AI-use facts and creates no
   Content Control or provider request. Pure/static logic is Node-tested; live Word interaction remains deferred.
   See `INCREMENT-527-NOTES.md`; security audit `2026-08-29_word-open-science-statements.md` PASS.
+  **Inc 528 adds Word's bounded citation-coverage audit:** a read-only local scan maps inline and native-note
+  citations to main-story paragraphs and reports only runs of 3+ substantive uncited paragraphs, excluding
+  headings, tables, transitions, and managed bibliography blocks. It is a structural review prompt, not a support
+  verdict or citation requirement, and duplicates no existing diagnostics/backend/model work. **Inc 529 adds
+  author-controlled saved-evidence insertion:** search a paper's saved highlights, inspect exact quote/author note,
+  optionally click the unchanged local stance classifier, then explicitly choose one of four formats. Cited forms
+  reuse current Custom-XML/native-note insertion and bounded provenance; quote-only is labelled uncited. A new
+  bearer-gated GET-only Word evidence projection avoids exposing the existing annotations POST through Cloudflare's
+  method-blind path allowlist. Pure/static/integration logic is tested; live Word interaction remains deferred.
+  See `INCREMENT-528-NOTES.md`, `INCREMENT-529-NOTES.md`, and their 2026-08-29 security audits (PASS).
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -1409,7 +1419,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 526). Each increment of real work
+callosum is built in **numbered increments** (currently at 529). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

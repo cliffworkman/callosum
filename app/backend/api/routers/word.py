@@ -3,18 +3,21 @@
 Architecture A: callosum serves the task pane over HTTPS, **same-origin** with its API, so the add-in reaches the
 local library with **no egress and no CORS change**. Desktop Word only (an Office task pane cannot fetch
 ``http://localhost`` and Word-on-the-web can't reach localhost at all). The add-in reuses the existing cite
-contracts (``/papers``, ``/citations/render``); these routes only serve the static task-pane files + the manifest.
+contracts (``/papers``, ``/citations/render``); this router primarily serves the task-pane files + manifests.
 
 **SP4 — Word on the web**: since Word-on-the-web genuinely cannot reach ``localhost``, ``manifest-web.xml`` points
 the SAME task-pane files instead at callosum's existing cloudflared cite-only relay (the one the Google Docs
 add-on already uses, ``adapters/googledocs/cloudflared-config.yml``, extended to also forward the 5 task-pane
-GET routes). The task-pane JS (``taskpane.js``) detects which origin it loaded from and, only when tunneled,
+GET routes). Increment 529 adds one token-gated, GET-only, privacy-minimized saved-highlight projection because
+the tunnel path matcher cannot expose the existing annotations GET without also exposing POST at that path.
+The task-pane JS (``taskpane.js``) detects which origin it loaded from and, only when tunneled,
 attaches the Remote-access Bearer token to every fetch -- these routes themselves are unchanged either way,
 since they still just serve fixed local files.
 
-Local-only: every route serves a **fixed** bundled file from ``adapters/word/`` via an explicit per-filename route
-(no request-derived path → no traversal). office.js loads from Microsoft's CDN (the Office platform SDK), not from
-callosum — no library egress. **Gate before any hosted deployment** (same posture as the libreoffice/scan routes).
+Static assets remain fixed bundled files from ``adapters/word/`` via explicit per-filename routes (no request-
+derived path → no traversal). The evidence route accepts only a FastAPI integer id and returns four allowlisted
+fields. office.js loads from Microsoft's CDN (the Office platform SDK), not from callosum.
+**Gate before any hosted deployment** (same posture as the libreoffice/scan routes).
 """
 
 from __future__ import annotations
@@ -23,15 +26,23 @@ import os
 import subprocess
 import sys
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from sqlalchemy import Connection
+from sqlalchemy.exc import NoResultFound
 
+from app.backend.api.dependencies import get_connection
 from app.backend.api.startup import PROJECT_ROOT
+from app.backend.persistence.annotations_repo import list_annotations_for_paper
+from app.backend.persistence.repository import get_paper
 
 router = APIRouter()
 
 WORD_DIR = PROJECT_ROOT / "adapters" / "word"
+WORD_EVIDENCE_MAX = 200
+WORD_EVIDENCE_QUOTE_MAX = 20_000
+WORD_EVIDENCE_NOTE_MAX = 4_000
 
 # Fixed filename → media-type allowlist. No request input reaches the path (each route passes a constant name),
 # so there is no traversal surface; the allowlist is belt-and-suspenders + sets the content type Word expects.
@@ -85,6 +96,42 @@ def word_taskpane_css() -> FileResponse:
 @router.get("/integrations/word/icon.png")
 def word_icon() -> FileResponse:
     return _serve("icon.png")
+
+
+class WordEvidenceAnnotation(BaseModel):
+    """Privacy-minimized saved-highlight shape for Word's read-only evidence picker."""
+
+    id: int
+    page: int | None = None
+    anchor_text: str
+    note: str | None = None
+
+
+@router.get("/integrations/word/evidence/{paper_id}", response_model=list[WordEvidenceAnnotation])
+def word_evidence(paper_id: int, conn: Connection = Depends(get_connection)) -> list[WordEvidenceAnnotation]:
+    """List author-saved evidence without exposing the annotations endpoint's write-capable tunnel path."""
+    try:
+        get_paper(conn, paper_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Paper not found") from None
+    rows = list_annotations_for_paper(conn, paper_id)
+    if len(rows) > WORD_EVIDENCE_MAX:
+        raise HTTPException(status_code=422, detail=f"At most {WORD_EVIDENCE_MAX} saved highlights can be listed")
+    if any(
+        len(row["anchor_text"] or "") > WORD_EVIDENCE_QUOTE_MAX or len(row["note"] or "") > WORD_EVIDENCE_NOTE_MAX
+        for row in rows
+    ):
+        raise HTTPException(status_code=422, detail="A saved highlight exceeds Word's evidence display limits")
+    return [
+        WordEvidenceAnnotation(
+            id=row["id"],
+            page=row["page"],
+            anchor_text=row["anchor_text"] or "",
+            note=row["note"],
+        )
+        for row in rows
+        if row["anchor_text"]
+    ]
 
 
 @router.get("/integrations/word/manifest.xml")

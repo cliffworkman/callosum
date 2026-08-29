@@ -38,6 +38,44 @@
     </div>
     <ul id="suggestions" class="results"></ul>
 
+    <div class="actions">
+      <button id="evidenceOpen" type="button" class="secondary">Insert saved evidence…</button>
+    </div>
+    <div id="evidenceEditor" class="evidence-editor" style="display:none">
+      <p class="hint">Choose one of your saved highlights. Callosum never chooses evidence or a stance for you.</p>
+      <label class="field">Find a paper
+        <input id="evidencePaperQuery" type="search" placeholder="Search author, title, year…" autocomplete="off" aria-label="Find a paper with saved evidence"/>
+      </label>
+      <ul id="evidencePaperResults" class="results"></ul>
+      <div id="evidenceAnnotationSection" style="display:none">
+        <p id="evidencePaperLabel" class="hint"></p>
+        <ul id="evidenceAnnotationResults" class="results"></ul>
+      </div>
+      <div id="evidenceConfigure" style="display:none">
+        <p class="hint">Saved quote</p>
+        <blockquote id="evidenceQuote" class="evidence-quote"></blockquote>
+        <p class="hint">Your saved note</p>
+        <p id="evidenceNote" class="evidence-note"></p>
+        <label class="field">Claim to check (optional)
+          <textarea id="evidenceClaim" maxlength="4000" rows="3" spellcheck="true" aria-label="Claim to compare with the saved highlight"></textarea>
+        </label>
+        <div class="actions">
+          <button id="evidenceCheckStance" type="button" class="secondary">Check stance</button>
+        </div>
+        <p id="evidenceStanceState" class="hint" role="status" aria-live="polite"></p>
+        <label class="field">Insert as
+          <select id="evidenceFormat" aria-label="Saved evidence insertion format"></select>
+        </label>
+        <label class="field">Page locator
+          <input id="evidenceLocator" type="text" maxlength="80" aria-label="Saved evidence page locator"/>
+        </label>
+        <div class="actions">
+          <button id="evidenceInsert" type="button" class="refresh">Insert evidence</button>
+          <button id="evidenceCancel" type="button" class="secondary">Close</button>
+        </div>
+      </div>
+    </div>
+
     <div id="assemblySection" class="assembly" style="display:none">
       <p class="hint">Citation you're building — add more works above, reorder, or set a locator/prefix/suffix:</p>
       <ul id="assembly" class="assembly-list"></ul>

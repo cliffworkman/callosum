@@ -88,6 +88,12 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
   locator inside the Word document; **Citations in this document… → View evidence…** makes that audit record
   inspectable later. Pick repeatedly to add several suggestions to one grouped assembly. *(The first run loads
   the local relevance + stance models, so it can take a few seconds.)*
+- **Insert saved evidence…** — search any paper, choose one of its saved PDF highlights, review the exact quote
+  and your saved note, and explicitly insert it as quote-only, quote + citation, saved note + citation, or a
+  quote/note card + citation. An optional **Check stance** action compares a claim with the passage through the
+  existing local NLI model and labels the result as a signal, never a verdict; it never runs while you type.
+  Cited formats reuse the same live citation/native-note path and retain only annotation/page identity plus a
+  150-character audit snippet. Quote-only is deliberately labelled **no citation** and inserts ordinary text.
 - **Edit citation at cursor** — place the cursor inside an existing Callosum citation and click this to reopen the
   composer pre-populated with its works/locators; **Insert citation** becomes **Update citation**.
 - **Delete citation at cursor** — fully removes the citation at the cursor (unlike Flatten, this drops it — no
@@ -140,7 +146,9 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
 
 ## How it works (for the curious)
 The task pane is served by callosum at `https://localhost:8443/integrations/word/taskpane.html` and its API calls
-(`/papers?q=`, `/papers/export`, `/citations/render-document`, `/statements/pending`) are **same-origin** — so they reach your local
+(`/papers?q=`, `/papers/export`, exact read-only `/integrations/word/evidence/{id}`,
+`/citations/classify-stance`,
+`/citations/render-document`, `/statements/pending`) are **same-origin** — so they reach your local
 library directly, with **no egress** and no CORS exception. Each citation is a Word **Content Control** whose
 `.tag` carries only a short opaque reference to a document-local **Custom XML Part**. That part carries one or
 more cited works' CSL-JSON, each with its own optional locator/label/prefix/suffix/suppress-author/author-only.
@@ -233,6 +241,6 @@ it are recorded in `.claude/docs/research/2026-08-21_word_citation_migration_for
 > live-verified in Word**; native note insertion/scanning and heading-scoped bibliography controls are likewise
 > **not yet live-verified**. They ship
 > best-effort-correct per the Office.js docs until that manual check occurs.
-> The **pure logic** (`taskpane_core.js`: tag/reference/XML encode/decode, the
+> The **pure logic** (`taskpane_core.js`: tag/reference/XML encode/decode, evidence normalization/bounds, the
 > render-document request/response mapping) is unit-tested with `node --test`, and the `/citations/render-document`
 > contract it calls is covered by the Python suite. Treat the in-Word flow as untested until you run it in Word.

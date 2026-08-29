@@ -195,6 +195,9 @@ categories, producing one bounded bibliography with alphabetized category headin
 references** group for unassigned entries. Ctrl/Shift-select several works to assign or remove a category in one
 transaction; the picker reuses category names already in the document. **Category order…** can move named
 groups into manuscript order or reset them to alphabetical; **Other references** remains last.
+Word can also insert an author-selected saved highlight as an uncited quote or alongside a live citation, preserve
+bounded annotation/page provenance, and optionally show an explicit local stance signal without choosing the
+evidence or claiming a verdict.
 Writer headings can also own live local bibliographies: place the caret where the block belongs and choose
 **Insert current-section bibliography here**. “Current section” means the nearest preceding Writer heading plus
 its nested lower-level headings, not a separately created Writer Section. The block contains only works cited there,

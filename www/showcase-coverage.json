@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-29",
-    "reviewed_rev": "0629011",
-    "source_fingerprint": "5014fc6dae36b5e31797af0311166a15b8754af23d5c4de88e6eb6677885dcf2",
-    "note": "Reviewed Word citation-coverage audit; existing citation/Word claims and screenshots remain accurate, with the new read-only structural scan covered manually in route 34."
+    "reviewed_rev": "b826bea",
+    "source_fingerprint": "2ab79382970cae002bf78475611c9606a794f471004204184347d31a88da52e8",
+    "note": "Reviewed Word saved-evidence insertion, the GET-only bounded relay projection, Help/README claims, and current website figures; no new figure was required."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",
