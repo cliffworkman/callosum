@@ -71,7 +71,8 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
   own optional **Options…** (⋯): a **locator** (page, chapter, figure, …) + value, **prefix**/**suffix** text, and
   mutually-exclusive **suppress author**/**author only**. Reorder with ↑/↓, remove with ✕.
 - **Insert citation** — once the assembly has at least one work, inserts it as a **live** citation (a Content
-  Control carrying every work's CSL-JSON plus its own locator/prefix/suffix) at the cursor.
+  Control at the cursor. The control's short tag points to document-local Custom XML storage carrying every
+  work's CSL-JSON plus its own locator/prefix/suffix; scholarly metadata is no longer packed into the tag itself.
 - **Suggest from the sentence** — place the cursor in (or select) the sentence you're writing, click **Suggest from
   the sentence** → Callosum ranks **your library** by relevance and shows candidates with **stance** (supports /
   contrasts / mentions) + a **quote** (the reason); pick one to add to the assembly. *(The first run loads the
@@ -97,15 +98,18 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
 The task pane is served by callosum at `https://localhost:8443/integrations/word/taskpane.html` and its API calls
 (`/papers?q=`, `/papers/export`, `/citations/render-document`) are **same-origin** — so they reach your local
 library directly, with **no egress** and no CORS exception. Each citation is a Word **Content Control** whose
-`.tag` carries **one or more** cited works' CSL-JSON, each with its own optional locator/label/prefix/suffix/
-suppress-author/author-only (base64) — the Zotero/LibreOffice embedded-CSL-JSON pattern, extended (inc 509) the
-same way LibreOffice's own composer already was. **Refresh**
-scans those controls **in document order**, POSTs them to `/citations/render-document`, and writes back the
-position-aware in-text + a managed **References** Content Control (tagged `CALLOSUM_BIBLIOGRAPHY`) at the document
-end. The only external load is **office.js** from Microsoft's CDN: that is the Office platform SDK every add-in
-must load (it cannot use Subresource Integrity because Microsoft updates it in place); it is not callosum sending
-your data anywhere. All formatting happens in callosum's bundled citeproc engine, so the output matches the in-app
-"Cite as…" and the LibreOffice adapter.
+`.tag` carries only a short opaque reference to a document-local **Custom XML Part**. That part carries one or
+more cited works' CSL-JSON, each with its own optional locator/label/prefix/suffix/suppress-author/author-only.
+This avoids making Word's tag property scale with full titles, author lists, abstracts, and grouped-citation size.
+Older Callosum documents whose tags directly embed base64 CSL-JSON remain readable and migrate on Refresh/Edit;
+duplicate references created by copy/paste are separated on Refresh so later edits stay citation-local. **Refresh**
+scans the controls **in document order**, resolves their XML parts, POSTs them to `/citations/render-document`,
+and writes back the position-aware in-text + a managed **References** Content Control (tagged
+`CALLOSUM_BIBLIOGRAPHY`) at the document end. Delete removes an unshared citation part; Flatten removes all
+referenced citation parts while keeping rendered text. The only external load is **office.js** from Microsoft's
+CDN: that is the Office platform SDK every add-in must load (it cannot use Subresource Integrity because Microsoft
+updates it in place); it is not callosum sending your data anywhere. All formatting happens in callosum's bundled
+citeproc engine, so the output matches the in-app "Cite as…" and the LibreOffice adapter.
 
 **Bibliography-write safety (verified, inc 515):** the References block is a Word Content Control, an
 inherently bounded range — Refresh's `insertText(..., replace)` only ever touches text *inside* that control,
@@ -115,8 +119,9 @@ implementation did (incs 374-384) — Word gets the same safety property for fre
 
 ## Credit
 The live-field / embedded-CSL-JSON cite design follows the **Zotero `CSL_CITATION` field convention** (reused as a
-*pattern*, not code). callosum's rendering is built on **citeproc-js** + the **CSL** project — see the project's
-`THIRD-PARTY-NOTICES.md`. **office.js** is Microsoft's Office Add-ins SDK.
+*pattern*, not code); Word stores that payload in a Custom XML Part behind a short field reference. callosum's
+rendering is built on **citeproc-js** + the **CSL** project — see the project's `THIRD-PARTY-NOTICES.md`.
+**office.js** is Microsoft's Office Add-ins SDK.
 
 ## Word on the web (SP4)
 
@@ -169,7 +174,8 @@ on a document copy; they are not editable citation migration. The evidence bound
 it are recorded in `.claude/docs/research/2026-08-21_word_citation_migration_formats.md`.
 
 > **Verification note:** there is no headless Word, so the in-Word behavior of the Office.js parts
-> (`taskpane.js`) is **not exercised by an automated test** (nor, currently, by the maintainer — it ships
-> best-effort-correct per the Office.js docs). The **pure logic** (`taskpane_core.js`: tag encode/decode, the
+> (`taskpane.js`) is **not exercised by an automated test**. The Custom-XML storage change is therefore **not yet
+> live-verified in Word**; it ships best-effort-correct per the Office.js docs until that manual check occurs.
+> The **pure logic** (`taskpane_core.js`: tag/reference/XML encode/decode, the
 > render-document request/response mapping) is unit-tested with `node --test`, and the `/citations/render-document`
 > contract it calls is covered by the Python suite. Treat the in-Word flow as untested until you run it in Word.

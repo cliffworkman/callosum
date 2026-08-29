@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 518** (see Increment workflow) with **2563 root-suite pytest tests
+It is currently at **Increment 519** (see Increment workflow) with **2563 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -453,7 +453,8 @@ the full per-increment narrative for all other increments now lives in the reloc
   `tools/run_tunnel.py --quick`) skips the Cloudflare-account/domain migration for a throwaway session URL,
   at the cost of losing the ingress allowlist (the bearer token becomes the sole boundary). Both adapters
   ship the same three-stage arc: **SP1** search-and-insert; **SP2** live Content-Control citations
-  (Zotero's embedded-CSL-JSON-in-field-name pattern, reused as a pattern not code) + Refresh/renumber +
+  (Zotero's embedded-CSL-JSON pattern, reused as a pattern not code; Word now stores payloads in document
+  Custom XML Parts behind short field references) + Refresh/renumber +
   bibliography rebuild; **SP3** Suggest-from-the-sentence (the same stance+quote relevance engine as
   LibreOffice's Suggest-Citation) + one-click document-wide style switch + Flatten-to-static-text. Both are
   the first Checklists-adjacent surfaces with **no headless host to test against** — only the pure
@@ -569,7 +570,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   existing `title`; Enter in the search box adds the top result (Zotero's own shortcut); Escape clears an
   in-progress assembly. Confirmed via direct read that tab order/keyboard reachability were already correct
   (plain HTML, no `tabindex` overrides) — the real gaps were icon labeling and the total absence of shortcuts,
-  not broken fundamentals. See `INCREMENT-517-NOTES.md`.
+  not broken fundamentals. See `INCREMENT-517-NOTES.md`. **Inc 519 repairs the Word citation-storage scaling
+  seam before note placement deepens it:** new citations keep their CSL-JSON in a versioned, namespaced Word
+  Custom XML Part (WordApi 1.4) and put only the part's opaque ID in the Content Control tag. Existing base64
+  tags remain readable and migrate on Refresh/Edit; copied duplicate references are cloned on Refresh; Delete
+  removes an unshared part and Flatten removes all referenced parts; missing/foreign/malformed parts fail closed
+  into diagnostics. The item arrays still reach the existing render endpoint unchanged, so this is document
+  storage only—no backend/citeproc/scientific-semantic change. Pure logic is 38/38 Node-tested; the Office.js
+  lifecycle is explicitly **not yet live-verified in Word**. See `INCREMENT-519-NOTES.md`.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,

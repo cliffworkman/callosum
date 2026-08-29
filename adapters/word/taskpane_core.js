@@ -5,9 +5,10 @@
  * matters especially because there is no headless Word to exercise the Office.js glue. The browser uses these as
  * `CallosumCore.*`; the test file `require()`s them in Node. Mirrors the LibreOffice adapter's pure helpers.
  *
- * SP2 (inc 165): each citation is a Word **Content Control** whose `.tag` carries the cited cluster's CSL-JSON
- * (base64), like the Zotero/LibreOffice embedded-CSL-JSON pattern. A Refresh scans those controls in document
- * order, POSTs them to /citations/render-document, and writes back the position-aware in-text + bibliography.
+ * SP2 (inc 165): each citation is a Word **Content Control**. Legacy controls carry base64 CSL-JSON directly in
+ * `.tag`; current controls carry only a short Custom XML Part reference, keeping unbounded scholarly metadata
+ * out of Word's tag property. A Refresh resolves those controls in document order, POSTs them to
+ * /citations/render-document, and writes back the position-aware in-text + bibliography.
  *
  * SP4: Word-on-the-web relay. Desktop Word loads this page same-origin from callosum (no token needed); Word
  * Online instead loads it through the existing cloudflared cite-only tunnel (a different origin), which is
@@ -16,6 +17,9 @@
  */
 (function (root) {
   var CITATION_PREFIX = "CALLOSUM_CITATION"; // content-control tag prefix for a citation cluster
+  var CITATION_REFERENCE_MARKER = "xml:";
+  var MAX_CITATION_REFERENCE_LENGTH = 256;
+  var CITATION_XML_NAMESPACE = "https://callosum.app/schemas/word-citation/1";
   var BIB_TAG = "CALLOSUM_BIBLIOGRAPHY"; // content-control tag for the managed bibliography block
 
   // UTF-8-safe base64 (CSL-JSON has unicode author names). btoa/atob + TextEncoder/TextDecoder are global in both
@@ -53,8 +57,9 @@
     return (Array.isArray(arr) && arr.length) ? arr[0] : null;
   }
 
-  // ---- the live-citation tag (SP2) ----
-  // tag = "CALLOSUM_CITATION <base64 of {items:[csl, ...]}>"  (a cluster = one or more CSL-JSON works).
+  // ---- live-citation storage (SP2; short-reference redesign) ----
+  // Legacy tag = "CALLOSUM_CITATION <base64 of {items:[csl, ...]}>". Kept readable so existing documents can
+  // be migrated without losing citations; no new citation is written in this format.
   function encodeCitationTag(items) {
     return CITATION_PREFIX + " " + b64encode(JSON.stringify({ items: items || [] }));
   }
@@ -62,7 +67,7 @@
     return typeof tag === "string" && tag.indexOf(CITATION_PREFIX + " ") === 0;
   }
   function decodeCitationTag(tag) {
-    if (!isCitationTag(tag)) return null;
+    if (!isCitationTag(tag) || citationReferenceId(tag) != null) return null;
     try {
       var payload = JSON.parse(b64decode(tag.slice((CITATION_PREFIX + " ").length)));
       var items = payload && Array.isArray(payload.items) ? payload.items : [];
@@ -70,6 +75,68 @@
     } catch (e) {
       return null; // malformed → never guess; the caller skips it
     }
+  }
+
+  // Current tag = "CALLOSUM_CITATION xml:<encoded CustomXmlPart.id>". The reference is deliberately bounded;
+  // CSL-JSON lives in the corresponding Custom XML Part, never in the tag. `encodeURIComponent` handles the
+  // braced GUID form Word commonly returns without constraining Word's documented opaque ID representation.
+  function encodeCitationReferenceTag(partId) {
+    var id = String(partId || "").trim();
+    var encodedId = encodeURIComponent(id);
+    if (!id || encodedId.length > MAX_CITATION_REFERENCE_LENGTH) throw new Error("invalid citation XML part id");
+    return CITATION_PREFIX + " " + CITATION_REFERENCE_MARKER + encodedId;
+  }
+  function citationReferenceId(tag) {
+    var prefix = CITATION_PREFIX + " " + CITATION_REFERENCE_MARKER;
+    if (typeof tag !== "string" || tag.indexOf(prefix) !== 0) return null;
+    try {
+      var encodedId = tag.slice(prefix.length);
+      if (encodedId.length > MAX_CITATION_REFERENCE_LENGTH) return null;
+      var id = decodeURIComponent(encodedId).trim();
+      return id || null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function isLegacyCitationTag(tag) {
+    return isCitationTag(tag) && tag.indexOf(CITATION_PREFIX + " " + CITATION_REFERENCE_MARKER) !== 0;
+  }
+
+  // The XML body is intentionally tiny and deterministic. Base64 keeps arbitrary CSL-JSON text out of XML
+  // syntax while retaining exact UTF-8 round trips. Only this exact namespace/schema is accepted; malformed or
+  // foreign parts fail closed rather than being guessed into a citation.
+  function encodeCitationXml(items) {
+    if (!Array.isArray(items) || items.length === 0) throw new Error("citation items are required");
+    return '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<callosumCitation xmlns="' + CITATION_XML_NAMESPACE + '" version="1">' +
+      '<payload encoding="base64">' + b64encode(JSON.stringify({ items: items })) + "</payload>" +
+      "</callosumCitation>";
+  }
+  function decodeCitationXml(xml) {
+    if (typeof xml !== "string") return null;
+    var rootMatch = xml.match(/<callosumCitation\b([^>]*)>([\s\S]*?)<\/callosumCitation>\s*$/);
+    if (!rootMatch) return null;
+    var attrs = rootMatch[1];
+    if (attrs.indexOf('xmlns="' + CITATION_XML_NAMESPACE + '"') === -1 ||
+        !/\bversion="1"/.test(attrs)) return null;
+    var payloadMatch = rootMatch[2].match(/^\s*<payload\s+encoding="base64">([A-Za-z0-9+/=]+)<\/payload>\s*$/);
+    if (!payloadMatch) return null;
+    try {
+      var payload = JSON.parse(b64decode(payloadMatch[1]));
+      return payload && Array.isArray(payload.items) && payload.items.length ? payload.items : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Office.js resolves current tags asynchronously, then passes `{tag, items}` records to the pure diagnostic
+  // and panel helpers. Tests and legacy callers may still pass raw tags; this compatibility seam keeps document
+  // analysis pure while making missing/malformed Custom XML Parts explicit (`items: null`).
+  function citationItems(recordOrTag) {
+    if (typeof recordOrTag === "string") return decodeCitationTag(recordOrTag);
+    if (!recordOrTag || !isCitationTag(recordOrTag.tag)) return null;
+    if (Array.isArray(recordOrTag.items) && recordOrTag.items.length) return recordOrTag.items;
+    return isLegacyCitationTag(recordOrTag.tag) ? decodeCitationTag(recordOrTag.tag) : null;
   }
 
   // ---- reliable paper-id tracking (inc 512) ----
@@ -228,11 +295,12 @@
 
     var citationCount = 0, malformedCount = 0, unresolvableItemCount = 0;
     var resolvedIds = {}, hasBibliography = false;
-    (tags || []).forEach(function (tag) {
+    (tags || []).forEach(function (recordOrTag) {
+      var tag = typeof recordOrTag === "string" ? recordOrTag : recordOrTag && recordOrTag.tag;
       if (tag === BIB_TAG) { hasBibliography = true; return; }
       if (!isCitationTag(tag)) return;
       citationCount += 1;
-      var items = decodeCitationTag(tag);
+      var items = citationItems(recordOrTag);
       if (!items) { malformedCount += 1; return; }
       items.forEach(function (item) {
         var pid = extractPaperId(item && item.id);
@@ -268,10 +336,11 @@
     var entriesByKey = {};
     var order = [];
     var citationIndex = -1;
-    (tags || []).forEach(function (tag) {
+    (tags || []).forEach(function (recordOrTag) {
+      var tag = typeof recordOrTag === "string" ? recordOrTag : recordOrTag && recordOrTag.tag;
       if (!isCitationTag(tag)) return;
       citationIndex += 1;
-      var items = decodeCitationTag(tag);
+      var items = citationItems(recordOrTag);
       if (!items) return; // malformed -- Document diagnostics reports this separately; the panel just skips it
       items.forEach(function (item, i) {
         var pid = extractPaperId(item && item.id);
@@ -323,11 +392,18 @@
 
   var api = {
     CITATION_PREFIX: CITATION_PREFIX,
+    CITATION_XML_NAMESPACE: CITATION_XML_NAMESPACE,
     BIB_TAG: BIB_TAG,
     authorLabel: authorLabel,
     formatSearchRows: formatSearchRows,
     firstCslRecord: firstCslRecord,
     encodeCitationTag: encodeCitationTag,
+    encodeCitationReferenceTag: encodeCitationReferenceTag,
+    citationReferenceId: citationReferenceId,
+    isLegacyCitationTag: isLegacyCitationTag,
+    encodeCitationXml: encodeCitationXml,
+    decodeCitationXml: decodeCitationXml,
+    citationItems: citationItems,
     isCitationTag: isCitationTag,
     decodeCitationTag: decodeCitationTag,
     buildDocumentRequest: buildDocumentRequest,

@@ -23,9 +23,9 @@
  *   • Add     — a search/suggest row click fetches the paper's CSL-JSON (/papers/export) and adds it to the
  *               "assembly" being built (inc 509) — never inserts immediately, so several works can be combined
  *               into ONE grouped citation, each with its own locator/label/prefix/suffix/suppress-author.
- *   • Insert/Update — wraps the assembly's items in a Content Control whose .tag carries them (a NEW citation
- *               at the END of the selection, so Suggest inserts AFTER the sentence) or retags an existing one
- *               (Edit mode), then Refresh.
+ *   • Insert/Update — stores the assembly's items in a Custom XML Part and puts only that part's opaque ID in
+ *               the Content Control tag (a NEW citation at the END of the selection, so Suggest inserts AFTER
+ *               the sentence), or updates the existing part in Edit mode, then Refresh.
  *   • Suggest — read the sentence (selection, else the paragraph), POST /citations/suggest → ranked candidates
  *               with stance + quote (the reason); pick one to add to the assembly.
  *   • Edit/Delete at cursor — reads the citation Content Control the cursor is inside
@@ -57,6 +57,109 @@
   var assembly = [];
   var editingCC = null;
   var openOptionsIdx = -1; // which assembly row's Options panel is expanded, or -1
+
+  // ---- live-citation storage ----
+  // Current citations keep CSL-JSON in a Word Custom XML Part (WordApi 1.4) and only an opaque reference in the
+  // Content Control tag. Legacy base64-in-tag citations remain readable and migrate on the next Refresh/Edit.
+  // This is deliberately Office.js-only glue; serialization/classification stays in the Node-tested core.
+  function requireCustomXmlSupport() {
+    if (!Office.context.requirements || !Office.context.requirements.isSetSupported("WordApi", "1.4")) {
+      throw new Error("this Word version does not support Callosum's live-citation storage (WordApi 1.4 required)");
+    }
+  }
+
+  async function createCitationPart(ctx, items) {
+    requireCustomXmlSupport();
+    var part = ctx.document.customXmlParts.add(CallosumCore.encodeCitationXml(items));
+    part.load("id");
+    await ctx.sync();
+    return part;
+  }
+
+  // Resolve all current short-reference tags in two bounded syncs: first determine which requested XML parts
+  // exist, then fetch XML only for real parts. Legacy records decode locally and do not require WordApi 1.4.
+  async function resolveControlRecords(ctx, controls) {
+    var records = (controls || []).map(function (cc) {
+      return { cc: cc, tag: cc.tag, items: null, partId: null, part: null, xmlResult: null };
+    });
+    var referenced = records.filter(function (record) {
+      record.partId = CallosumCore.citationReferenceId(record.tag);
+      if (!record.partId && CallosumCore.isLegacyCitationTag(record.tag)) {
+        record.items = CallosumCore.decodeCitationTag(record.tag);
+      }
+      return !!record.partId;
+    });
+    if (!referenced.length) return records;
+
+    requireCustomXmlSupport();
+    var partsById = Object.create(null);
+    referenced.forEach(function (record) {
+      if (partsById[record.partId]) return;
+      var part = ctx.document.customXmlParts.getItemOrNullObject(record.partId);
+      part.load("id");
+      partsById[record.partId] = part;
+    });
+    await ctx.sync();
+    referenced.forEach(function (record) {
+      var part = partsById[record.partId];
+      if (!part.isNullObject) {
+        record.part = part;
+        record.xmlResult = part.getXml();
+      }
+    });
+    await ctx.sync();
+    referenced.forEach(function (record) {
+      if (record.xmlResult) record.items = CallosumCore.decodeCitationXml(record.xmlResult.value);
+    });
+    return records;
+  }
+
+  // Refresh is already a document-mutating operation, so it is the safe migration boundary: valid legacy
+  // citations get a new part, and duplicate references produced by copy/paste are cloned so later edits remain
+  // citation-local. Missing/malformed parts stay untouched and fail closed for Document diagnostics to report.
+  async function normalizeCitationStorage(ctx, records) {
+    var seenPartIds = Object.create(null);
+    var additions = [];
+    (records || []).forEach(function (record) {
+      if (!record.items) return;
+      var needsPart = CallosumCore.isLegacyCitationTag(record.tag) ||
+        (record.partId && seenPartIds[record.partId]);
+      if (record.partId) seenPartIds[record.partId] = true;
+      if (!needsPart) return;
+      requireCustomXmlSupport();
+      var part = ctx.document.customXmlParts.add(CallosumCore.encodeCitationXml(record.items));
+      part.load("id");
+      additions.push({ record: record, part: part });
+    });
+    if (!additions.length) return records;
+    await ctx.sync();
+    additions.forEach(function (entry) {
+      entry.record.cc.tag = CallosumCore.encodeCitationReferenceTag(entry.part.id);
+      entry.record.tag = entry.record.cc.tag;
+      entry.record.partId = entry.part.id;
+      entry.record.part = entry.part;
+    });
+    await ctx.sync();
+    return records;
+  }
+
+  async function writeCitationItems(ctx, cc, items) {
+    var partId = CallosumCore.citationReferenceId(cc.tag);
+    if (partId) {
+      requireCustomXmlSupport();
+      var part = ctx.document.customXmlParts.getItemOrNullObject(partId);
+      part.load("id");
+      await ctx.sync();
+      if (part.isNullObject) throw new Error("the citation's Custom XML data is missing");
+      part.setXml(CallosumCore.encodeCitationXml(items));
+      await ctx.sync();
+      return;
+    }
+    if (!CallosumCore.isLegacyCitationTag(cc.tag)) throw new Error("the citation storage reference is malformed");
+    var migratedPart = await createCitationPart(ctx, items);
+    cc.tag = CallosumCore.encodeCitationReferenceTag(migratedPart.id);
+    await ctx.sync();
+  }
 
   function $(id) { return document.getElementById(id); }
   // Read any saved token regardless of origin (inc 510) -- empty when none is saved, which is a no-op exactly
@@ -323,15 +426,17 @@
       if (wasEditing) {
         var cc = editingCC;
         await Word.run(cc, async function (ctx) {
-          cc.tag = CallosumCore.encodeCitationTag(items);
+          cc.load("tag");
           await ctx.sync();
+          await writeCitationItems(ctx, cc, items);
         });
       } else {
         await Word.run(async function (ctx) {
+          var part = await createCitationPart(ctx, items);
           var end = ctx.document.getSelection().getRange(Word.RangeLocation.end);
           var inserted = end.insertText("…", Word.InsertLocation.replace);
           var newCc = inserted.insertContentControl();
-          newCc.tag = CallosumCore.encodeCitationTag(items);
+          newCc.tag = CallosumCore.encodeCitationReferenceTag(part.id);
           newCc.title = "Callosum citation";
           newCc.appearance = Word.ContentControlAppearance.hidden; // a live field, not a visible box
           await ctx.sync();
@@ -354,7 +459,8 @@
         cc.load("tag,isNullObject");
         await ctx.sync();
         if (cc.isNullObject || !CallosumCore.isCitationTag(cc.tag)) return;
-        var items = CallosumCore.decodeCitationTag(cc.tag);
+        var records = await resolveControlRecords(ctx, [cc]);
+        var items = CallosumCore.citationItems(records[0]);
         if (!items) { outcome = "malformed"; return; }
         if (editingCC) { try { editingCC.untrack(); } catch (e) { /* already released */ } }
         cc.track();
@@ -386,8 +492,23 @@
       await Word.run(async function (ctx) {
         var cc = ctx.document.getSelection().getRange().parentContentControlOrNullObject;
         cc.load("tag,isNullObject");
+        var allControls = ctx.document.body.contentControls;
+        allControls.load("items/tag");
         await ctx.sync();
         if (cc.isNullObject || !CallosumCore.isCitationTag(cc.tag)) return;
+        var partId = CallosumCore.citationReferenceId(cc.tag);
+        if (partId) {
+          var references = allControls.items.filter(function (other) {
+            return CallosumCore.citationReferenceId(other.tag) === partId;
+          }).length;
+          if (references === 1) {
+            requireCustomXmlSupport();
+            var part = ctx.document.customXmlParts.getItemOrNullObject(partId);
+            part.load("id");
+            await ctx.sync();
+            if (!part.isNullObject) part.delete();
+          }
+        }
         cc.delete(false);
         await ctx.sync();
         found = true;
@@ -466,18 +587,18 @@
     setStatus("Scanning the document…");
     $("diagnostics").textContent = "";
     try {
-      var tags = [];
+      var records = [];
       await Word.run(async function (ctx) {
         var ccs = ctx.document.body.contentControls;
         ccs.load("items/tag");
         await ctx.sync();
-        tags = ccs.items.map(function (cc) { return cc.tag; });
+        records = await resolveControlRecords(ctx, ccs.items);
       });
 
       var idSet = {};
-      tags.forEach(function (tag) {
-        if (!CallosumCore.isCitationTag(tag)) return;
-        var items = CallosumCore.decodeCitationTag(tag);
+      records.forEach(function (record) {
+        if (!CallosumCore.isCitationTag(record.tag)) return;
+        var items = CallosumCore.citationItems(record);
         if (!items) return;
         items.forEach(function (item) {
           var pid = CallosumCore.extractPaperId(item && item.id);
@@ -486,7 +607,7 @@
       });
       var existence = await checkPaperExistence(Object.keys(idSet));
       renderDiagnosticsReport(
-        CallosumCore.summarizeDiagnostics(tags, existence.missingIds, existence.checked),
+        CallosumCore.summarizeDiagnostics(records, existence.missingIds, existence.checked),
         existence.truncated,
       );
       setStatus("Diagnostics complete.");
@@ -523,14 +644,14 @@
     $("citationsPanel").innerHTML = "";
     $("citationsSearch").style.display = "block"; // revealed on first use, like the tunnel token section
     try {
-      var tags = [];
+      var records = [];
       await Word.run(async function (ctx) {
         var ccs = ctx.document.body.contentControls;
         ccs.load("items/tag");
         await ctx.sync();
-        tags = ccs.items.map(function (cc) { return cc.tag; });
+        records = await resolveControlRecords(ctx, ccs.items);
       });
-      var entries = CallosumCore.buildCitationsPanelEntries(tags);
+      var entries = CallosumCore.buildCitationsPanelEntries(records);
       var ids = entries.map(function (e) { return e.paperId; }).filter(function (id) { return id != null; });
       var existence = await checkPaperExistence(ids);
       citationsPanelEntries = CallosumCore.mergePanelEntryStatus(entries, existence.missingIds, existence.checked);
@@ -579,12 +700,14 @@
         await ctx.sync();
 
         var citationCCs = [], itemsList = [], bibCC = null;
-        ccs.items.forEach(function (cc) {
-          if (CallosumCore.isCitationTag(cc.tag)) {
-            var items = CallosumCore.decodeCitationTag(cc.tag);
-            if (items) { citationCCs.push(cc); itemsList.push(items); }
-          } else if (cc.tag === CallosumCore.BIB_TAG) {
-            bibCC = cc;
+        var records = await resolveControlRecords(ctx, ccs.items);
+        await normalizeCitationStorage(ctx, records);
+        records.forEach(function (record) {
+          if (CallosumCore.isCitationTag(record.tag)) {
+            var items = CallosumCore.citationItems(record);
+            if (items) { citationCCs.push(record.cc); itemsList.push(items); }
+          } else if (record.tag === CallosumCore.BIB_TAG) {
+            bibCC = record.cc;
           }
         });
         if (itemsList.length === 0) { setStatus("No Callosum citations in this document yet."); return; }
@@ -671,10 +794,16 @@
         var ccs = ctx.document.body.contentControls;
         ccs.load("items/tag");
         await ctx.sync();
-        ccs.items.forEach(function (cc) {
-          if (CallosumCore.isCitationTag(cc.tag) || cc.tag === CallosumCore.BIB_TAG) {
-            cc.delete(true); // keep the rendered text, drop the live field
+        var records = await resolveControlRecords(ctx, ccs.items);
+        var deletedPartIds = Object.create(null);
+        records.forEach(function (record) {
+          if (CallosumCore.isCitationTag(record.tag) || record.tag === CallosumCore.BIB_TAG) {
+            record.cc.delete(true); // keep the rendered text, drop the live field
             n++;
+          }
+          if (record.part && !deletedPartIds[record.partId]) {
+            record.part.delete();
+            deletedPartIds[record.partId] = true;
           }
         });
         await ctx.sync();

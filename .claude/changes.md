@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-28 — Increment 519: Word citation payloads move behind short Custom XML references
+- **Files:** `adapters/word/taskpane.js`, `adapters/word/taskpane_core.js`,
+  `adapters/word/taskpane_core.test.js`, `adapters/word/README.md`, `.claude/CLAUDE.md`,
+  `.claude/architectural-decisions-log.md`, `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/increment-notes/INCREMENT-519-NOTES.md`.
+- **What:** new Word citations store full CSL-JSON in a versioned, namespaced document Custom XML Part and put
+  only the part's opaque ID in the Content Control tag. Valid legacy base64 tags remain readable and migrate on
+  Refresh/Edit; copied duplicate references are cloned on Refresh; Delete removes unshared parts; Flatten removes
+  every referenced part; missing/foreign/malformed parts fail closed into existing diagnostics. The resolved item
+  arrays still use the unchanged `/citations/render-document` contract. Pure serialization/compatibility logic is
+  38/38 Node-tested; the Office.js lifecycle is explicitly not yet live-verified in Word.
+- **Why:** grouped citations made the original tag grow with entire author lists, titles, abstracts, and overrides;
+  note-style placement would otherwise deepen that already-approved-but-unfinished storage seam.
+- **Verify:** Word pure layer **38/38**; focused Word/access/citation pytest **82 passed**; full suite **2563
+  passed, 3 skipped**; Ruff, Bandit, Tach, 569-file line budget, targeted pre-commit, QA gated-surface map, JS
+  syntax, and diff hygiene clean. Office.js lifecycle remains explicitly **not yet live-verified in Word**.
+- **Revert:** `git revert` this commit (documents already migrated to XML parts would then need the forward code;
+  do not use a raw revert as a document-format downgrade).
+
 ## 2026-08-28 — Increment 518: fix CI, red since 2026-08-27 (three distinct, unrelated issues)
 - **Files:** `.bandit-baseline.json`, `tests/e2e/test_demo_static.py`, `tests/e2e/test_smoke.py`,
   `www/showcase-coverage.json`, `www/showcase.html`.

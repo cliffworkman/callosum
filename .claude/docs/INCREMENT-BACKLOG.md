@@ -180,9 +180,16 @@ the Principles + A-A gates before build.)*
       diagnostics in the same increment), click-to-navigate, client-side search. Scoped narrower than the
       roadmap's wishlist: "metadata conflicts" and "most recent citation" skipped (disclosed, not silently
       dropped — see `INCREMENT-516-NOTES.md`). **Accessibility pass shipped inc 517** — icon-button
-      `aria-label`s, Enter-to-add-top-result in search, Escape-to-cancel an in-progress assembly; tab order/
-      keyboard reachability were already correct (confirmed by direct read, plain HTML with no `tabindex`
-      overrides) — see `INCREMENT-517-NOTES.md`.
+       `aria-label`s, Enter-to-add-top-result in search, Escape-to-cancel an in-progress assembly; tab order/
+       keyboard reachability were already correct (confirmed by direct read, plain HTML with no `tabindex`
+       overrides) — see `INCREMENT-517-NOTES.md`.
+      **Inc 519 closes the storage prerequisite the 2026-08-18 design decision approved but inc 509 did not
+      carry through:** new Word citations keep CSL-JSON in a versioned document Custom XML Part and put only its
+      opaque ID in the Content Control tag. Legacy base64 tags migrate on Refresh/Edit; duplicate references are
+      de-aliased; delete/Flatten clean their parts; missing/malformed parts fail closed. This prevents grouped
+      citations from making `.tag` grow with full scholarly metadata before native note placement deepens the
+      format. Pure logic is Node-tested; the Office.js lifecycle is explicitly not yet live-verified. See
+      `INCREMENT-519-NOTES.md`.
       **HANDED OFF TO CODEX 2026-08-28** (Cliff's Claude usage maxed out ~48h) — see
       `.claude/docs/2026-08-28_codex-word-parity-handoff.md` for the exact remaining scope, verification
       requirements, and known traps. **Still not started:** note-style (footnote/endnote) citation placement

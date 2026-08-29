@@ -36,12 +36,42 @@ test("firstCslRecord: first element of the export array, else null", () => {
   assert.strictEqual(core.firstCslRecord(null), null);
 });
 
-// ---- live-citation tag round-trip (SP2) ----
-test("encode/decodeCitationTag: round-trips CSL items, including unicode", () => {
+// ---- live-citation storage round-trip (SP2; short-reference redesign) ----
+test("legacy encode/decodeCitationTag: remains readable for migration, including unicode", () => {
   const items = [{ id: "callosum-1", title: "Über Ästhetik", author: [{ family: "Uğurlar" }] }];
   const tag = core.encodeCitationTag(items);
   assert.ok(core.isCitationTag(tag));
   assert.deepStrictEqual(core.decodeCitationTag(tag), items);
+});
+
+test("current citation tag contains only a bounded opaque Custom XML Part reference", () => {
+  const id = "{01234567-89AB-CDEF-0123-456789ABCDEF}";
+  const tag = core.encodeCitationReferenceTag(id);
+  assert.strictEqual(core.isCitationTag(tag), true);
+  assert.strictEqual(core.isLegacyCitationTag(tag), false);
+  assert.strictEqual(core.citationReferenceId(tag), id);
+  assert.ok(tag.length < 100);
+  assert.strictEqual(tag.includes("A very long scholarly title"), false);
+  assert.throws(() => core.encodeCitationReferenceTag(""), /invalid citation XML part id/);
+  assert.throws(() => core.encodeCitationReferenceTag("x".repeat(257)), /invalid citation XML part id/);
+  assert.strictEqual(core.citationReferenceId(core.CITATION_PREFIX + " xml:%"), null);
+});
+
+test("Custom XML citation payload round-trips exact unicode CSL-JSON without putting it in the tag", () => {
+  const items = [{ id: "callosum-1", title: "Über Ästhetik", author: [{ family: "Uğurlar" }] }];
+  const xml = core.encodeCitationXml(items);
+  const tag = core.encodeCitationReferenceTag("part-1");
+  assert.deepStrictEqual(core.decodeCitationXml(xml), items);
+  assert.strictEqual(tag.includes(items[0].title), false);
+  assert.deepStrictEqual(core.citationItems({ tag, items }), items);
+});
+
+test("Custom XML citation decoder fails closed on foreign schema, malformed payload, and empty items", () => {
+  const valid = core.encodeCitationXml([{ id: "callosum-1" }]);
+  assert.strictEqual(core.decodeCitationXml(valid.replace(core.CITATION_XML_NAMESPACE, "https://foreign.test")), null);
+  assert.strictEqual(core.decodeCitationXml(valid.replace('version="1"', 'version="2"')), null);
+  assert.strictEqual(core.decodeCitationXml(valid.replace(/<payload[^>]*>.*<\/payload>/, '<payload encoding="base64">!</payload>')), null);
+  assert.throws(() => core.encodeCitationXml([]), /citation items are required/);
 });
 
 test("isCitationTag: only the prefix; bibliography + arbitrary tags are not citations", () => {
@@ -55,6 +85,7 @@ test("decodeCitationTag: non-citation / malformed / empty-items → null (never 
   assert.strictEqual(core.decodeCitationTag("Heading 1"), null);
   assert.strictEqual(core.decodeCitationTag(core.CITATION_PREFIX + " not-base64!!"), null);
   assert.strictEqual(core.decodeCitationTag(core.encodeCitationTag([])), null);
+  assert.strictEqual(core.decodeCitationTag(core.encodeCitationReferenceTag("part-1")), null);
 });
 
 // ---- reliable paper-id tracking (inc 512) ----
@@ -223,6 +254,20 @@ test("summarizeDiagnostics: malformed tags counted separately; unrelated (non-Ca
   assert.strictEqual(report.bibliography, "missing"); // citations exist, no bibliography tag
 });
 
+test("summarizeDiagnostics: resolved current records work; missing Custom XML data is malformed", () => {
+  const goodTag = core.encodeCitationReferenceTag("part-good");
+  const missingTag = core.encodeCitationReferenceTag("part-missing");
+  const report = core.summarizeDiagnostics([
+    { tag: goodTag, items: [{ id: "callosum-7", title: "Current" }] },
+    { tag: missingTag, items: null },
+    { tag: core.BIB_TAG, items: null },
+  ], [], []);
+  assert.strictEqual(report.citationCount, 2);
+  assert.strictEqual(report.malformedCount, 1);
+  assert.deepStrictEqual(report.distinctPaperIds, ["7"]);
+  assert.strictEqual(report.bibliography, "ok");
+});
+
 test("summarizeDiagnostics: no citations at all → bibliography is n/a, not 'missing'", () => {
   assert.strictEqual(core.summarizeDiagnostics([], [], []).bibliography, "n/a");
   assert.strictEqual(core.summarizeDiagnostics(["Heading 1"], [], []).bibliography, "n/a");
@@ -267,6 +312,16 @@ test("buildCitationsPanelEntries: the same paper cited solo, then again inside a
   assert.strictEqual(lovelace.occurrenceCount, 2);
   assert.deepStrictEqual(lovelace.positions, [0, 1]);
   assert.strictEqual(lovelace.row, "Lovelace — Notes");
+});
+
+test("buildCitationsPanelEntries: resolved current storage records group like legacy tags", () => {
+  const entries = core.buildCitationsPanelEntries([
+    { tag: core.encodeCitationReferenceTag("part-1"), items: [{ id: "callosum-1", title: "A" }] },
+    { tag: core.encodeCitationReferenceTag("part-2"), items: [{ id: "callosum-1", title: "A" }] },
+  ]);
+  assert.strictEqual(entries.length, 1);
+  assert.strictEqual(entries[0].occurrenceCount, 2);
+  assert.deepStrictEqual(entries[0].positions, [0, 1]);
 });
 
 test("buildCitationsPanelEntries: unresolvable (pre-fix) items each get their own singleton entry, never grouped", () => {
