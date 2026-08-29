@@ -343,7 +343,26 @@ the Principles + A-A gates before build.)*
     Mendeley Cite content controls and EndNote `ADDIN EN.CITE` Word fields/Traveling Library, but do not publish
     either complete, versioned payload contract. No converter was built from conflicting third-party reverse
     engineering. Reopen only with a vendor schema/supported API or an explicitly approved, multi-version fixture
-    corpus plus fail-closed preservation safeguards.
+    corpus plus fail-closed preservation safeguards. **Re-verified 2026-08-29 (fresh research, not re-guessed):
+    still correctly gated** — no vendor schema, no open-source reference implementation, and no reverse-
+    engineering write-up exists for Mendeley Cite's Word content-control payload; a well-resourced competitor
+    (Paperpile) independently confirms the same gap as of Feb 2025. **This is NOT the same thing as Phase 2/3
+    below being good enough** — see Phase 6.
+  - **Phase 6 (started 2026-08-29): real Mendeley + EndNote whole-library import (metadata + PDFs + folders),
+    handed to Codex.** Phase 2 (EndNote RIS) and Phase 3 (Mendeley-via-Zotero) turned out to have real gaps a
+    live user hit: RIS import is metadata-only (no PDFs, no folders — confirmed by reading
+    `app/backend/metadata/citation_import.py` directly), and the Zotero bridge requires installing an entire
+    separate application just to leave Mendeley. Research doc:
+    `.claude/docs/research/2026-08-29_mendeley_endnote_native_import.md`. Handoff:
+    `.claude/docs/2026-08-29_codex-mendeley-endnote-import-handoff.md`. Summary: Mendeley gets a real OAuth2
+    importer against the official `dev.mendeley.com` REST API (no Zotero needed — **blocked on the maintainer
+    registering an OAuth app there first**); EndNote gets a `.enlx` Compressed Library importer (metadata + PDFs
+    + groups in one file — **blocked on resolving how to safely read the underlying MyISAM table format**, an
+    open research question the fresh pass explicitly did not resolve, using two real fixture libraries now at
+    `.claude/backups/endnote-fixtures/`); both feed a new shared "imported folders/groups → axis" step that also
+    retroactively surfaces the Zotero importer's own already-populated-but-never-read `collections` table. See
+    §6 below — this does **not** contradict the "folders/collections declined" entry; that decision was about
+    manual folder-creation inside callosum, not imported structure from another tool.
 
 ---
 
@@ -356,7 +375,10 @@ the Principles + A-A gates before build.)*
 ## 6. Declined / will-not-build (recorded so it's not re-proposed)
 
 - **Folders/collections hierarchy** — superseded by axes (a coherent set → axis; an arbitrary flat set → tag;
-  "read this week" → the needs-review filter; the Curated Axis is the manual-container path).
+  "read this week" → the needs-review filter; the Curated Axis is the manual-container path). **Scope note
+  (2026-08-29):** this was a decision about *manual* folder-creation inside callosum's own UI — it does not
+  apply to *imported* folder/collection structure arriving from another tool (Zotero/EndNote/Mendeley), which
+  is a different question with its own scoped feature under #57 Phase 6 (map imported structure onto axes).
 - **Arbitrary manual nesting** — declined; when nesting lands it's recursive *semantic* sub-axes (the My-Pubs
   subheading prototype), not folder-style nesting.
 - **PDF translation** — out of scope.
