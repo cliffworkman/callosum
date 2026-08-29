@@ -266,11 +266,16 @@ the Principles + A-A gates before build.)*
     address with a Copy button; and a one-click "Point LibreOffice at This Instance" button
     (`POST /integrations/libreoffice/set-server-url`, loopback-only, rejects a Remote-Access-tunnel Host) writes
     the adapter's own `~/.callosum/libreoffice.json` sidecar directly — closing the LibreOffice-in-the-packaged-
-    app gap completely. **Still open: Phase 2 (Word desktop add-in — a second, fixed-port HTTPS uvicorn child +
-    a per-machine self-signed cert installed into the OS user trust store, Windows/macOS only, needs a security
-    audit) and Phase 3 (a Quick-Tunnel convenience button for Google Docs/Word-web)** — see the plan doc for the
-    full design (why a second process was chosen over a Rust TLS proxy; the two real obstacles this entry
-    previously described — cert trust + port stability — and how each is resolved).
+    app gap completely. **Phase 2 (Word desktop add-in) picked up by Codex as its own increment 532, in
+    progress as of 2026-08-29** — building on the plan doc's design (a second, fixed-port HTTPS uvicorn child +
+    a per-machine self-signed cert installed into the OS user trust store, Windows/macOS only) with real
+    improvements over the sketch (PowerShell `Import-Certificate` instead of `certutil`, an owner-only Windows
+    ACL restriction on the private key, and an actual OS-trust-store verification step). Claude will not
+    duplicate this work independently — see `app/backend/word_https_lifecycle.py` and
+    `.claude/security-audits/2026-08-29_tauri-word-https.md` (open) for current state. **Still open: Phase 3**
+    (a Quick-Tunnel convenience button for Google Docs/Word-web) — see the plan doc for the full design (why a
+    second process was chosen over a Rust TLS proxy; the two real obstacles this entry previously described —
+    cert trust + port stability — and how each is resolved).
 - **#35 My Publications — Layer 4.** Deterministic Layer 4 is complete (`INCREMENT-BACKLOG-DONE.md`). **Still
   open:** optional LLM narration over the already-grounded data remains deferred — no need to build it unless
   narration becomes useful.
