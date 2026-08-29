@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-28 inc 524 — Word heading-scoped bibliographies -->
+<!-- HELP-DOCS-SYNCED: 2026-08-28 inc 525 — Word bibliography title/DOI links -->
+## 2026-08-28 — Increment 525: Word bibliography title/DOI links
+- **Files:** Word task-pane UI/glue/pure plan/tests/README; served Help; security audit; architecture/backlog/
+  roadmap/change/increment ledgers; QA routes 34/35; website review receipt.
+- **What:** a document-local opt-in makes safe DOI/URL text—or one safe unique-title fallback—clickable in full,
+  categorized, and heading-scoped Word bibliographies without changing visible citeproc text. Unicode offsets are
+  converted explicitly; exact paragraph-local single matching fails plain on ambiguity. Disable touches only
+  managed bibliography blocks.
+- **Why:** closes Writer parity's existing bibliography web-link slice through the already-shipped backend span
+  contract, without HTML insertion, new egress, or a renderer change.
+- **Verify:** Word pure/static logic **62/62**; focused Word/access/citation pytest **82 passed**; Help **14
+  passed**; full repository suite **2563 passed, 3 skipped** in 1195.40s. JS syntax, scoped Ruff, Bandit, Tach,
+  line budget, QA map, website review, pre-commit, secret/path, and diff gates passed. Office.js behavior remains
+  explicitly not yet live-verified. Security audit PASS.
+- **Revert:** `git revert` this commit.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-08-28 inc 524 — Word heading-scoped bibliographies -->
 ## 2026-08-28 — Increment 524: Word heading-scoped bibliographies
 - **Files:** `adapters/word/taskpane.{js,html}`, `adapters/word/taskpane_core.js`,
   `adapters/word/taskpane_core.test.js`, `adapters/word/README.md`, `app/backend/help/help_content.md`,

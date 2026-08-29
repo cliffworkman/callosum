@@ -341,6 +341,13 @@ oversized, and multi-source titles remain plain. No rendered text changes. Full,
 bibliographies retain the bounded links through refresh, placement conversion, and save/reopen. Per-source
 grouped-citation navigation remains.
 
+**Word parity continued in increment 525 (2026-08-28):** Word now exposes the same document-local opt-in over
+the existing backend span contract. Full, categorized, and heading-scoped bibliography render plans retain exact
+entry-local spans; the adapter converts Python code-point offsets explicitly and applies WordApi hyperlinks only
+after an exact paragraph and single anchor match. Unsafe, malformed, shifted, overlapping, or ambiguous spans
+stay plain, while disabling rebuilds only managed bibliography blocks and leaves ordinary manuscript links alone.
+Live Office.js behavior remains scheduled for the consolidated Word-arc manual verification pass.
+
 **Continued in increment 383 (2026-07-25):** Writer now resolves grouped citations through a bounded source
 chooser. **Open cited work in callosum…** deep-links the selected source rather than silently choosing the first;
 **Go to bibliography entry…** navigates to the selected stable target in the full bibliography. Excluded or

@@ -175,6 +175,15 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     insert in one subtree, no preceding heading, a citation-free section, a note body/style, a damaged/duplicate
     pair, and a 51st block must fail before mutation. Diagnostics must distinguish complete and damaged pairs.
     Run in desktop Word and Word on the web; this remains a maintainer MANUAL route because no agent can drive Word.
+20c. **Manual Word bibliography title/DOI links (inc 525):** use a style that prints DOI/URL text, enable **Link
+    bibliography titles/DOIs to the web**, and confirm the identifier becomes clickable in the full bibliography
+    plus every current-section block without changing visible text. Switch to a style that omits identifiers and
+    confirm a uniquely rendered single-source title links to its DOI/URL. Exercise categories/order, Refresh,
+    save/reopen, and section insertion while enabled. Disable and confirm only managed bibliography links vanish;
+    an ordinary-prose hyperlink remains. Unsafe/credentialed/non-HTTP(S), out-of-range, overlapping, transformed,
+    duplicate-anchor, multi-source, malformed-alignment, and astral-Unicode-before-anchor cases must remain plain
+    or land on the exact intended text—never a neighboring range. Repeat the core path in desktop Word and Word
+    on the web; this remains MANUAL because no available agent can drive Word.
 21. **Manual Writer journal abbreviations:** use a short-title CSL style such as Nature with one journal carrying
     library `container-title-short` metadata, one exact NLM/MEDLINE title or ISSN, and one unknown journal. In
     **Journal abbreviations…**, verify **Library abbreviations** uses embedded metadata, **MEDLINE first** prefers

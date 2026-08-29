@@ -104,6 +104,12 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
   citeproc result, and **Remove bibliography for current section** removes only the block owned by that heading.
   This first Word slice requires WordApi 1.6 and an in-text citation style; native note-to-heading membership is
   deliberately refused until Word footnote/endnote anchors can be mapped without guessing.
+- **Link bibliography titles/DOIs to the web** — an opt-in document setting makes DOI/URL text already emitted
+  by the active CSL style clickable. If a style omits the identifier, Callosum may link one uniquely rendered
+  single-source title to that source's DOI (preferred) or URL. Full, categorized, and current-section
+  bibliographies share the setting. It never adds or changes visible text; unsafe, malformed, shifted, or
+  ambiguous metadata remains plain. Clearing the option rebuilds only Callosum-managed bibliography blocks as
+  plain text and leaves hyperlinks in ordinary prose untouched.
 - **Citation style** — changing the dropdown re-renders the whole document in the new style (the choice is
   remembered per document).
 - **Flatten to static text** — convert the live citation + bibliography fields to plain text for hand-off
@@ -113,7 +119,7 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
   add-in to save a copy of your document on your behalf (confirmed, not a missed feature) — the confirm
   message reminds you to use **File → Save As** first if you want to keep the live version too. An optional
   **"Also clear Callosum's saved citation settings"** checkbox removes the style, note-placement preference, and
-  bibliography categories for a cleaner hand-off copy.
+  bibliography categories/link preference for a cleaner hand-off copy.
 
 ## How it works (for the curious)
 The task pane is served by callosum at `https://localhost:8443/integrations/word/taskpane.html` and its API calls
@@ -129,7 +135,9 @@ and writes back the position-aware in-text + a managed **References** Content Co
 `CALLOSUM_BIBLIOGRAPHY`) at the document end. A section bibliography uses a strict pair of Content Controls with
 one random shared identity: a hidden scope control wraps its heading and a second bounded control owns only the
 generated bibliography text. Word's session-local paragraph ids are used only during one Refresh to calculate
-the live outline subtree; they are never persisted. Delete removes an unshared citation part; Flatten removes all
+the live outline subtree; they are never persisted. Bibliography links reuse the renderer's bounded per-entry
+HTTP(S) spans, convert its Unicode code-point offsets explicitly, and apply only to an exact paragraph-local
+single match through WordApi 1.3; citeproc's plain text remains authoritative. Delete removes an unshared citation part; Flatten removes all
 referenced citation parts while keeping rendered text. The only external load is **office.js** from Microsoft's
 CDN: that is the Office platform SDK every add-in must load (it cannot use Subresource Integrity because Microsoft
 updates it in place); it is not callosum sending your data anywhere. All formatting happens in callosum's bundled

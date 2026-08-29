@@ -213,7 +213,13 @@ the Principles + A-A gates before build.)*
       diagnostics, removal, categories, and Flatten understand the pair. It requires WordApi 1.6 and deliberately
       refuses note styles until native note anchors can be mapped to headings without guessing. Pure logic is
       tested; live Word interaction remains deferred. See `INCREMENT-521-NOTES.md` through
-      `INCREMENT-524-NOTES.md`.
+      `INCREMENT-524-NOTES.md`. **Inc 525 adds opt-in bibliography title/DOI links:** the backend's existing
+      validated per-entry spans now survive category/order and section projection, with Unicode code-point
+      conversion and exact paragraph-local single-match checks before WordApi 1.3 applies any hyperlink. One
+      bounded document setting governs full and section blocks; disable restores the same plain generated text
+      without touching ordinary manuscript links. Unsafe, malformed, misaligned, overlapping, or ambiguous
+      metadata remains plain. No backend/citeproc/text change. Pure logic is tested; live Word interaction remains
+      deferred. See `INCREMENT-525-NOTES.md`.
       **HANDED OFF TO CODEX 2026-08-28** (Cliff's Claude usage maxed out ~48h) — see
       `.claude/docs/2026-08-28_codex-word-parity-handoff.md` for the exact remaining scope, verification
       requirements, and known traps. A dedicated style-browser UI is

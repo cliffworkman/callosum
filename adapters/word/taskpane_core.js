@@ -30,6 +30,8 @@
   var MAX_BIBLIOGRAPHY_CATEGORIES = 50;
   var MAX_BIBLIOGRAPHY_CATEGORY_METADATA = 131072;
   var MAX_BIBLIOGRAPHY_CATEGORY_ORDER_METADATA = 8192;
+  var MAX_BIBLIOGRAPHY_LINKS_PER_ENTRY = 20;
+  var MAX_BIBLIOGRAPHY_EXTERNAL_URL = 2048;
 
   // UTF-8-safe base64 (CSL-JSON has unicode author names). btoa/atob + TextEncoder/TextDecoder are global in both
   // modern browsers and Node 16+ (the add-in runs in Word's webview; tests run in Node).
@@ -257,26 +259,32 @@
 
   function projectBibliographyData(data, allowedItemIds) {
     var original = bibliographyText(data);
-    if (!original) return { bibliography_text: "", bibliography_entry_ids: [] };
+    if (!original) return { bibliography_text: "", bibliography_entry_ids: [], bibliography_links: [] };
     var entries = original.split("\n").map(function (entry) { return entry.replace(/\r$/, ""); });
     var entryIds = data && data.bibliography_entry_ids;
     if (!Array.isArray(entryIds) || entryIds.length !== entries.length) {
       throw new Error("Bibliography entry identity is unavailable; a section bibliography was not updated.");
     }
+    var rawLinks = data && data.bibliography_links;
+    if (!Array.isArray(rawLinks) || rawLinks.length !== entries.length) {
+      rawLinks = entries.map(function () { return []; });
+    }
     var allowed = {};
     (allowedItemIds || []).forEach(function (id) { allowed[String(id)] = true; });
-    var keptEntries = [], keptIds = [];
+    var keptEntries = [], keptIds = [], keptLinks = [];
     entryIds.forEach(function (ids, index) {
       var normalizedIds = Array.isArray(ids) ? ids.map(String) : [];
       if (!normalizedIds.some(function (id) { return allowed[id]; })) return;
-      keptEntries.push(entries[index]); keptIds.push(normalizedIds);
+      keptEntries.push(entries[index]); keptIds.push(normalizedIds); keptLinks.push(rawLinks[index]);
     });
-    return { bibliography_text: keptEntries.join("\n"), bibliography_entry_ids: keptIds };
+    return {
+      bibliography_text: keptEntries.join("\n"),
+      bibliography_entry_ids: keptIds,
+      bibliography_links: keptLinks,
+    };
   }
   function sectionBibliographyText(data, allowedItemIds, assignments, configuredOrder) {
-    var projected = projectBibliographyData(data, allowedItemIds);
-    var bibliography = categorizedBibliographyText(projected, assignments, configuredOrder);
-    return "References" + (bibliography ? "\n" + bibliography : "");
+    return sectionBibliographyPlan(data, allowedItemIds, assignments, configuredOrder).text;
   }
 
   // ---- reliable paper-id tracking (inc 512) ----
@@ -523,36 +531,116 @@
     return categories.every(function (category) { return category === categories[0]; }) ? categories[0] : null;
   }
 
-  // Reorders citeproc's already-rendered entries only between user-authored groups. Within each group, the
-  // original citeproc order is untouched. A missing/misaligned entry-id contract fails closed rather than
-  // guessing which rendered line belongs to which work.
-  function categorizedBibliographyText(data, assignments, configuredOrder) {
+  // `/citations/render-document` link offsets are Python Unicode-code-point offsets, not JavaScript UTF-16
+  // indexes. Convert through Array.from so an astral character before a title/DOI cannot move a link onto the
+  // wrong visible text. Malformed metadata is additive and therefore degrades to plain text, never a failed
+  // bibliography refresh.
+  function validatedBibliographyExternalUrl(value) {
+    if (typeof value !== "string" || !value || value.length > MAX_BIBLIOGRAPHY_EXTERNAL_URL ||
+        /[\s\u0000-\u001f\u007f]/.test(value)) return null;
+    try {
+      var parsed = new URL(value);
+      if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || !parsed.hostname ||
+          parsed.username || parsed.password) return null;
+    } catch (e) { return null; }
+    return value;
+  }
+
+  function normalizeBibliographyLinks(entries, rawLinks) {
+    var plain = (entries || []).map(function () { return []; });
+    if (!Array.isArray(rawLinks) || rawLinks.length !== plain.length) return plain;
+    return plain.map(function (_unused, entryIndex) {
+      var entry = String(entries[entryIndex] || "");
+      var codePoints = Array.from(entry);
+      var links = rawLinks[entryIndex];
+      if (!Array.isArray(links)) return [];
+      var accepted = [], previousEnd = 0;
+      links.slice(0, MAX_BIBLIOGRAPHY_LINKS_PER_ENTRY).forEach(function (link) {
+        if (!link || typeof link !== "object") return;
+        var start = link.start, length = link.length;
+        var url = validatedBibliographyExternalUrl(link.url);
+        if (!Number.isInteger(start) || !Number.isInteger(length) || start < previousEnd || length <= 0 ||
+            start + length > codePoints.length || !url) return;
+        var text = codePoints.slice(start, start + length).join("");
+        if (!text) return;
+        accepted.push({ start: start, length: length, text: text, url: url });
+        previousEnd = start + length;
+      });
+      return accepted;
+    });
+  }
+
+  function bibliographyEntryRecords(data, requireIdentity) {
     var original = bibliographyText(data);
-    var normalized = normalizeBibliographyCategories(assignments);
-    if (!Object.keys(normalized).length || !original) return original;
+    if (!original) return [];
     var entries = original.split("\n").map(function (entry) { return entry.replace(/\r$/, ""); });
     var entryIds = data && data.bibliography_entry_ids;
-    if (!Array.isArray(entryIds) || entryIds.length !== entries.length) {
+    if (requireIdentity && (!Array.isArray(entryIds) || entryIds.length !== entries.length)) {
       throw new Error("Bibliography entry identity is unavailable; categories were not applied.");
     }
-    var aligned = entryIds.map(function (ids) {
-      return bibliographyCategoryForIds(Array.isArray(ids) ? ids : [], normalized);
+    var normalizedLinks = normalizeBibliographyLinks(entries, data && data.bibliography_links);
+    return entries.map(function (entry, index) {
+      return {
+        text: entry,
+        itemIds: Array.isArray(entryIds) && Array.isArray(entryIds[index]) ? entryIds[index].map(String) : [],
+        links: normalizedLinks[index],
+      };
+    });
+  }
+
+  // Reorders citeproc's already-rendered entries only between user-authored groups. Within each group, the
+  // original citeproc order is untouched. Each plan also retains exact per-entry link spans and paragraph
+  // indexes after category headings/blank separators are inserted.
+  function bibliographyRenderPlan(data, assignments, configuredOrder) {
+    var normalized = normalizeBibliographyCategories(assignments);
+    var records = bibliographyEntryRecords(data, Object.keys(normalized).length > 0);
+    if (!records.length) return { text: "", entries: [] };
+    var lines = [], plannedEntries = [];
+    function appendEntry(record) {
+      plannedEntries.push({ paragraphIndex: lines.length, text: record.text, links: record.links });
+      lines.push(record.text);
+    }
+    if (!Object.keys(normalized).length) {
+      records.forEach(appendEntry);
+      return { text: lines.join("\n"), entries: plannedEntries };
+    }
+    var aligned = records.map(function (record) {
+      return bibliographyCategoryForIds(record.itemIds, normalized);
     });
     var categoryNames = [];
     aligned.forEach(function (category) {
       if (category && categoryNames.indexOf(category) === -1) categoryNames.push(category);
     });
-    if (!categoryNames.length) return original; // only stale/non-visible assignments exist
+    if (!categoryNames.length) { // only stale/non-visible assignments exist
+      records.forEach(appendEntry);
+      return { text: lines.join("\n"), entries: plannedEntries };
+    }
     categoryNames = orderedBibliographyCategories(categoryNames, configuredOrder);
     var groups = categoryNames.concat([null]);
-    var sections = [];
     groups.forEach(function (category) {
-      var groupEntries = entries.filter(function (_entry, index) { return aligned[index] === category; });
+      var groupEntries = records.filter(function (_entry, index) { return aligned[index] === category; });
       if (groupEntries.length) {
-        sections.push((category || BIBLIOGRAPHY_UNCATEGORIZED) + "\n" + groupEntries.join("\n"));
+        if (lines.length) lines.push("");
+        lines.push(category || BIBLIOGRAPHY_UNCATEGORIZED);
+        groupEntries.forEach(appendEntry);
       }
     });
-    return sections.join("\n\n");
+    return { text: lines.join("\n"), entries: plannedEntries };
+  }
+
+  function sectionBibliographyPlan(data, allowedItemIds, assignments, configuredOrder) {
+    var projected = projectBibliographyData(data, allowedItemIds);
+    var plan = bibliographyRenderPlan(projected, assignments, configuredOrder);
+    return {
+      text: "References" + (plan.text ? "\n" + plan.text : ""),
+      entries: plan.entries.map(function (entry) {
+        return Object.assign({}, entry, { paragraphIndex: entry.paragraphIndex + 1 });
+      }),
+    };
+  }
+
+  function categorizedBibliographyText(data, assignments, configuredOrder) {
+    return bibliographyRenderPlan(data, assignments, configuredOrder).text;
   }
 
   function applyBibliographyCategories(entries, assignments) {
@@ -825,6 +913,10 @@
     normalizeBibliographyCategoryOrder: normalizeBibliographyCategoryOrder,
     serializeBibliographyCategoryOrder: serializeBibliographyCategoryOrder,
     orderedBibliographyCategories: orderedBibliographyCategories,
+    validatedBibliographyExternalUrl: validatedBibliographyExternalUrl,
+    normalizeBibliographyLinks: normalizeBibliographyLinks,
+    bibliographyRenderPlan: bibliographyRenderPlan,
+    sectionBibliographyPlan: sectionBibliographyPlan,
     categorizedBibliographyText: categorizedBibliographyText,
     applyBibliographyCategories: applyBibliographyCategories,
     pickQueryText: pickQueryText,

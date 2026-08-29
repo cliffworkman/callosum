@@ -532,6 +532,69 @@ test("categorizedBibliographyText: multi-id entries group only when every source
   );
 });
 
+test("bibliography links: validates safe web URLs and converts Python code-point spans across astral text", () => {
+  const entries = ["😀 Author. Linked title. https://doi.org/10.1/test"];
+  const start = Array.from(entries[0]).indexOf("L");
+  const links = core.normalizeBibliographyLinks(entries, [[
+    { start, length: Array.from("Linked title").length, url: "https://doi.org/10.1/test" },
+  ]]);
+  assert.deepStrictEqual(links, [[{
+    start,
+    length: 12,
+    text: "Linked title",
+    url: "https://doi.org/10.1/test",
+  }]]);
+  assert.strictEqual(core.validatedBibliographyExternalUrl("https://example.org/a?q=1"), "https://example.org/a?q=1");
+  ["javascript:alert(1)", "file:///tmp/x", "https://user:pass@example.org/x", "https://exa mple.org/x", ""]
+    .forEach((url) => assert.strictEqual(core.validatedBibliographyExternalUrl(url), null));
+});
+
+test("bibliography links: malformed, overlapping, excessive, and misaligned metadata degrades to plain text", () => {
+  const entries = ["0123456789"];
+  const raw = [[
+    { start: 1, length: 3, url: "https://example.org/one" },
+    { start: 2, length: 2, url: "https://example.org/overlap" },
+    { start: 9, length: 2, url: "https://example.org/out" },
+    { start: 5, length: 1, url: "mailto:test@example.org" },
+  ]].concat([]);
+  assert.deepStrictEqual(core.normalizeBibliographyLinks(entries, raw), [[{
+    start: 1, length: 3, text: "123", url: "https://example.org/one",
+  }]]);
+  assert.deepStrictEqual(core.normalizeBibliographyLinks(entries, []), [[]]);
+  assert.deepStrictEqual(
+    core.normalizeBibliographyLinks(entries, [[
+      ...Array.from({ length: 20 }, (_value, index) => ({
+        start: index % 10, length: 1, url: `https://example.org/${index}`,
+      })),
+      { start: 9, length: 1, url: "https://example.org/ignored-21st" },
+    ]])[0].length,
+    10,
+  );
+});
+
+test("bibliographyRenderPlan: categories retain entry links at their exact generated paragraph indexes", () => {
+  const data = {
+    bibliography_text: "Entry 2 DOI\nEntry 1 title\nEntry 3",
+    bibliography_entry_ids: [["callosum-2"], ["callosum-1"], ["callosum-3"]],
+    bibliography_links: [
+      [{ start: 8, length: 3, url: "https://doi.org/10.2/x" }],
+      [{ start: 8, length: 5, url: "https://doi.org/10.1/x" }],
+      [],
+    ],
+  };
+  const plan = core.bibliographyRenderPlan(data, { 1: "Theory", 2: "Methods" }, ["Theory", "Methods"]);
+  assert.strictEqual(
+    plan.text,
+    "Theory\nEntry 1 title\n\nMethods\nEntry 2 DOI\n\nOther references\nEntry 3",
+  );
+  assert.deepStrictEqual(plan.entries.map((entry) => [entry.paragraphIndex, entry.text]), [
+    [1, "Entry 1 title"], [4, "Entry 2 DOI"], [7, "Entry 3"],
+  ]);
+  assert.deepStrictEqual(plan.entries[0].links[0], {
+    start: 8, length: 5, text: "title", url: "https://doi.org/10.1/x",
+  });
+});
+
 test("applyBibliographyCategories: annotates only resolvable document works without mutating panel entries", () => {
   const entries = [{ paperId: "1", row: "A" }, { paperId: null, row: "Legacy" }, { paperId: "2", row: "B" }];
   const applied = core.applyBibliographyCategories(entries, { 1: "Methods" });
@@ -619,12 +682,20 @@ test("sectionBibliographyText: projects full citeproc order before applying docu
   const data = {
     bibliography_text: "Entry 3\nEntry 1\nEntry 2\nEntry 4",
     bibliography_entry_ids: [["callosum-3"], ["callosum-1"], ["callosum-2"], ["callosum-4"]],
+    bibliography_links: [[], [{ start: 0, length: 5, url: "https://example.org/1" }], [], []],
   };
   assert.strictEqual(
     core.sectionBibliographyText(data, ["callosum-1", "callosum-2"], { 1: "Theory", 2: "Methods" }, ["Theory", "Methods"]),
     "References\nTheory\nEntry 1\n\nMethods\nEntry 2",
   );
   assert.strictEqual(core.sectionBibliographyText(data, [], {}, []), "References");
+  const plan = core.sectionBibliographyPlan(data, ["callosum-1"], {}, []);
+  assert.strictEqual(plan.text, "References\nEntry 1");
+  assert.deepStrictEqual(plan.entries, [{
+    paragraphIndex: 1,
+    text: "Entry 1",
+    links: [{ start: 0, length: 5, text: "Entry", url: "https://example.org/1" }],
+  }]);
   assert.throws(
     () => core.sectionBibliographyText({ bibliography_text: "Entry", bibliography_entry_ids: [] }, ["callosum-1"], {}, []),
     /identity is unavailable/,
@@ -652,7 +723,7 @@ test("bibliography category controls are present and wire single/batch edits thr
     "bibliographyCategoryOrderReset", "bibliographyCategoryOrderSave", "bibliographyCategoryOrderCancel",
   ]
     .forEach((id) => assert.match(html, new RegExp(`id=["']${id}["']`)));
-  assert.match(js, /categorizedBibliographyText\(data, bibliographyCategories, bibliographyCategoryOrder\)/);
+  assert.match(js, /bibliographyRenderPlan\(data, bibliographyCategories, bibliographyCategoryOrder\)/);
   assert.match(js, /persistBibliographyCategories\(updated\)/);
   assert.match(js, /updateBibliographyCategories\(previous, paperIds, value\)/);
   assert.match(js, /openCategoryEditor\(selectedCategoryIds\(\), true\)/);
@@ -671,10 +742,23 @@ test("heading-scoped bibliography controls use paired identity, refresh projecti
   assert.match(js, /isSetSupported\("WordApi", "1\.6"\)/);
   assert.match(js, /scopeCC\.appearance = "Hidden"/);
   assert.match(js, /blockParagraph\.styleBuiltIn = "Normal"/);
-  assert.match(js, /sectionBibliographyText\(/);
+  assert.match(js, /sectionBibliographyPlan\(/);
   assert.match(js, /requireHealthySectionBibliographies\(records\)/);
   assert.match(js, /isSectionBibliographyTag\(record\.tag\)/);
   assert.match(js, /native note-to-heading membership is not yet supported/);
+});
+
+test("bibliography web-link opt-in persists and applies only unambiguous paragraph-local ranges", () => {
+  const html = fs.readFileSync(path.join(__dirname, "taskpane.html"), "utf8");
+  const js = fs.readFileSync(path.join(__dirname, "taskpane.js"), "utf8");
+  assert.match(html, /id=["']bibliographyExternalLinks["']/);
+  assert.match(js, /BIBLIOGRAPHY_EXTERNAL_LINKS_SETTING/);
+  assert.match(js, /queueBibliographyWrite\(/);
+  assert.match(js, /paragraph\.search\(link\.text/);
+  assert.match(js, /search\.ranges\.items\.length !== 1/);
+  assert.match(js, /search\.ranges\.items\[0\]\.hyperlink = search\.url/);
+  assert.match(js, /restoreBibliographyExternalLinks\(previousRaw\)/);
+  assert.match(js, /remove\(BIBLIOGRAPHY_EXTERNAL_LINKS_SETTING\)/);
 });
 
 // ---- Word-on-the-web relay (SP4): local vs. tunneled origin + the Bearer token header ----

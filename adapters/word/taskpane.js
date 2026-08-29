@@ -3,7 +3,7 @@
  * SP4: Word-on-the-web relay; inc 509: grouped-citation composer with locators/edit/delete; inc 516: Citations
  * in this document panel; inc 517: accessibility; inc 519: Custom-XML storage; inc 520: native notes;
  * inc 521: document-local bibliography categories; inc 522: bounded batch assignment; inc 523: category order;
- * inc 524: heading-scoped bibliography blocks).
+ * inc 524: heading-scoped bibliography blocks; inc 525: opt-in bibliography title/DOI links).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
  * is a SAME-ORIGIN call to the local API — nothing leaves the machine, and (inc 511) desktop genuinely never
@@ -62,6 +62,7 @@
   var styleFormats = Object.create(null); // style id -> CSL citation-format from the shared catalog
   var BIBLIOGRAPHY_CATEGORY_SETTING = "callosumBibliographyCategories";
   var BIBLIOGRAPHY_CATEGORY_ORDER_SETTING = "callosumBibliographyCategoryOrder";
+  var BIBLIOGRAPHY_EXTERNAL_LINKS_SETTING = "callosumBibliographyExternalLinks";
 
   // ---- live-citation storage ----
   // Current citations keep CSL-JSON in a Word Custom XML Part (WordApi 1.4) and only an opaque reference in the
@@ -364,6 +365,11 @@
       );
     } catch (e) { return []; }
   }
+  function currentBibliographyExternalLinks() {
+    try {
+      return Office.context.document.settings.get(BIBLIOGRAPHY_EXTERNAL_LINKS_SETTING) === "1";
+    } catch (e) { return false; }
+  }
   function saveDocumentSettings() {
     return new Promise(function (resolve, reject) {
       Office.context.document.settings.saveAsync(function (result) {
@@ -388,6 +394,16 @@
   async function restoreBibliographyCategoryOrder(rawValue) {
     if (rawValue == null) Office.context.document.settings.remove(BIBLIOGRAPHY_CATEGORY_ORDER_SETTING);
     else Office.context.document.settings.set(BIBLIOGRAPHY_CATEGORY_ORDER_SETTING, rawValue);
+    await saveDocumentSettings();
+  }
+  async function persistBibliographyExternalLinks(enabled) {
+    if (enabled) Office.context.document.settings.set(BIBLIOGRAPHY_EXTERNAL_LINKS_SETTING, "1");
+    else Office.context.document.settings.remove(BIBLIOGRAPHY_EXTERNAL_LINKS_SETTING);
+    await saveDocumentSettings();
+  }
+  async function restoreBibliographyExternalLinks(rawValue) {
+    if (rawValue == null) Office.context.document.settings.remove(BIBLIOGRAPHY_EXTERNAL_LINKS_SETTING);
+    else Office.context.document.settings.set(BIBLIOGRAPHY_EXTERNAL_LINKS_SETTING, rawValue);
     await saveDocumentSettings();
   }
   function updateNotePlacementVisibility() {
@@ -421,6 +437,7 @@
       var savedNotePlacement = Office.context.document.settings.get("callosumNotePlacement");
       if (savedNotePlacement) $("notePlacement").value = CallosumCore.normalizeNotePreference(savedNotePlacement);
     } catch (e) { /* settings unavailable → keep the default */ }
+    $("bibliographyExternalLinks").checked = currentBibliographyExternalLinks();
     updateNotePlacementVisibility();
   }
 
@@ -1140,12 +1157,54 @@
     }
   }
 
+  // Insert exact plain bibliography text first, then add only backend-approved web links whose generated entry
+  // paragraph and anchor resolve unambiguously in Word. Range.hyperlink is production WordApi 1.3; paragraph-
+  // local search avoids picking the wrong repeated DOI/title elsewhere in a full or section bibliography.
+  function queueBibliographyWrite(cc, plan, linksEnabled) {
+    cc.insertText(plan.text, Word.InsertLocation.replace);
+    if (!linksEnabled || !plan.entries.some(function (entry) { return entry.links.length > 0; })) return null;
+    var paragraphs = cc.paragraphs;
+    paragraphs.load("items/text");
+    return { plan: plan, paragraphs: paragraphs };
+  }
+  function plainWordParagraphText(value) {
+    return String(value == null ? "" : value).replace(/\r$/, "");
+  }
+  async function applyQueuedBibliographyWrites(ctx, writes) {
+    await ctx.sync(); // materialize every plain-text write before resolving paragraph-local anchors
+    var searches = [];
+    (writes || []).filter(Boolean).forEach(function (write) {
+      write.plan.entries.forEach(function (entry) {
+        var paragraph = write.paragraphs.items[entry.paragraphIndex];
+        if (!paragraph || plainWordParagraphText(paragraph.text) !== entry.text) return;
+        entry.links.forEach(function (link) {
+          var ranges = paragraph.search(link.text, {
+            matchCase: true, matchWholeWord: false, matchWildcards: false,
+          });
+          ranges.load("items/text");
+          searches.push({ ranges: ranges, text: link.text, url: link.url });
+        });
+      });
+    });
+    if (!searches.length) return;
+    await ctx.sync();
+    var applied = false;
+    searches.forEach(function (search) {
+      // Zero or multiple matches stay plain. This is stricter than guessing from offsets Word cannot slice.
+      if (search.ranges.items.length !== 1 || search.ranges.items[0].text !== search.text) return;
+      search.ranges.items[0].hyperlink = search.url;
+      applied = true;
+    });
+    if (applied) await ctx.sync();
+  }
+
   // Re-render every Callosum citation in document order + rebuild the bibliography (the Zotero-style loop).
   async function refreshDocument(options) {
     setStatus("Refreshing…");
     try {
       var bibliographyCategories = currentBibliographyCategories();
       var bibliographyCategoryOrder = currentBibliographyCategoryOrder();
+      var bibliographyExternalLinks = currentBibliographyExternalLinks();
       await Word.run(async function (ctx) {
         var body = ctx.document.body;
         var citationCCs = [], itemsList = [], bibCC = null;
@@ -1193,10 +1252,11 @@
           bibCC.tag = CallosumCore.BIB_TAG;
           bibCC.title = "Callosum bibliography";
         }
-        bibCC.insertText(
-          CallosumCore.categorizedBibliographyText(data, bibliographyCategories, bibliographyCategoryOrder),
-          Word.InsertLocation.replace,
-        );
+        var bibliographyWrites = [queueBibliographyWrite(
+          bibCC,
+          CallosumCore.bibliographyRenderPlan(data, bibliographyCategories, bibliographyCategoryOrder),
+          bibliographyExternalLinks,
+        )];
 
         var sectionCitations = citationRecords(records).filter(function (record) {
           return record.location === "inline" && record.items && record.sectionParagraphId;
@@ -1210,15 +1270,16 @@
           var allowedIds = CallosumCore.sectionCitationItemIds(
             sectionContext.paragraphs, section.scope.sectionParagraphId, sectionCitations,
           );
-          section.block.cc.insertText(
-            CallosumCore.sectionBibliographyText(
+          bibliographyWrites.push(queueBibliographyWrite(
+            section.block.cc,
+            CallosumCore.sectionBibliographyPlan(
               data, allowedIds, bibliographyCategories, bibliographyCategoryOrder,
             ),
-            Word.InsertLocation.replace,
-          );
+            bibliographyExternalLinks,
+          ));
         });
 
-        await ctx.sync();
+        await applyQueuedBibliographyWrites(ctx, bibliographyWrites);
         setStatus("Updated " + itemsList.length + " citation(s) + the bibliography" +
           (sectionInventory.complete.length ? " + " + sectionInventory.complete.length + " section block(s)." : "."));
       });
@@ -1282,7 +1343,7 @@
         });
         if (!resp.ok) throw new Error("render failed (" + resp.status + ")");
         var data = await resp.json();
-        var text = CallosumCore.sectionBibliographyText(
+        var plan = CallosumCore.sectionBibliographyPlan(
           data, allowedIds, currentBibliographyCategories(), currentBibliographyCategoryOrder(),
         );
 
@@ -1297,8 +1358,8 @@
         var blockCC = blockParagraph.insertContentControl();
         blockCC.tag = CallosumCore.encodeSectionBibliographyTag("block", insertedId);
         blockCC.title = "Callosum section bibliography";
-        blockCC.insertText(text, Word.InsertLocation.replace);
-        await ctx.sync();
+        var write = queueBibliographyWrite(blockCC, plan, currentBibliographyExternalLinks());
+        await applyQueuedBibliographyWrites(ctx, [write]);
       });
       setStatus("Inserted a live bibliography for the current heading-defined section.");
     } catch (e) {
@@ -1372,6 +1433,30 @@
     } catch (e) { /* insertion still uses the visible choice for this session */ }
     setStatus("New note citations will use " + preference + "s. Existing notes are not converted.");
   }
+  async function onBibliographyExternalLinksChange() {
+    var checkbox = $("bibliographyExternalLinks");
+    var enabled = checkbox.checked;
+    var previousRaw = null;
+    try {
+      previousRaw = Office.context.document.settings.get(BIBLIOGRAPHY_EXTERNAL_LINKS_SETTING);
+    } catch (e) {
+      checkbox.checked = !enabled;
+      setStatus("Word could not read this document's bibliography-link setting.", true);
+      return;
+    }
+    checkbox.disabled = true;
+    try {
+      await persistBibliographyExternalLinks(enabled);
+      await refreshDocument({ throwOnError: true });
+      setStatus("Bibliography title/DOI links " + (enabled ? "enabled." : "disabled."));
+    } catch (e) {
+      try { await restoreBibliographyExternalLinks(previousRaw); } catch (restoreError) { /* preserve first error */ }
+      checkbox.checked = previousRaw === "1";
+      setStatus("Couldn't change bibliography links: " + ((e && e.message) || e), true);
+    } finally {
+      checkbox.disabled = false;
+    }
+  }
 
   // Flatten = convert citation + bibliography Content Controls to plain text (one-way). Two-click confirm — no
   // dialog. Office.js has no saveAs (confirmed by research, not assumed) -- an add-in cannot save a copy on
@@ -1438,6 +1523,7 @@
           Office.context.document.settings.remove("callosumNotePlacement");
           Office.context.document.settings.remove(BIBLIOGRAPHY_CATEGORY_SETTING);
           Office.context.document.settings.remove(BIBLIOGRAPHY_CATEGORY_ORDER_SETTING);
+          Office.context.document.settings.remove(BIBLIOGRAPHY_EXTERNAL_LINKS_SETTING);
           Office.context.document.settings.saveAsync(function () {});
         } catch (e) { /* settings unavailable -- flatten itself already succeeded, not worth failing over */ }
       }
@@ -1562,6 +1648,7 @@
     $("refresh").addEventListener("click", function () { refreshDocument(); });
     $("sectionBibliographyInsert").addEventListener("click", insertSectionBibliography);
     $("sectionBibliographyRemove").addEventListener("click", removeSectionBibliography);
+    $("bibliographyExternalLinks").addEventListener("change", onBibliographyExternalLinksChange);
     $("flatten").addEventListener("click", onFlatten);
     $("style").addEventListener("change", onStyleChange);
     $("notePlacement").addEventListener("change", onNotePlacementChange);

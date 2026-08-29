@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-29",
-    "reviewed_rev": "037aa50",
-    "source_fingerprint": "603a64cdc39608da8053225c4ec65ae9bf4a71881195f8f935d43b28a429ea78",
-    "note": "Reviewed Word heading-scoped bibliography controls; existing citation-engine capability claim and screenshot remain accurate, with detailed manual coverage in route 34."
+    "reviewed_rev": "8d32bea",
+    "source_fingerprint": "bbba9b696a993ab845ca247a8392cb126c4eac0d768a9b6f48e59fa424d09721",
+    "note": "Reviewed Word bibliography title/DOI link controls; existing citation-engine capability claim and screenshot remain accurate, with manual coverage added to route 34."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",
