@@ -2,7 +2,7 @@
  * Callosum Word add-in — the thin Office.js glue (inc 166, SP3: parity — suggest / style-switch / flatten;
  * SP4: Word-on-the-web relay; inc 509: grouped-citation composer with locators/edit/delete; inc 516: Citations
  * in this document panel; inc 517: accessibility; inc 519: Custom-XML storage; inc 520: native notes;
- * inc 521: document-local bibliography categories; inc 522: bounded batch category assignment).
+ * inc 521: document-local bibliography categories; inc 522: bounded batch assignment; inc 523: category order).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
  * is a SAME-ORIGIN call to the local API — nothing leaves the machine, and (inc 511) desktop genuinely never
@@ -60,6 +60,7 @@
   var openOptionsIdx = -1; // which assembly row's Options panel is expanded, or -1
   var styleFormats = Object.create(null); // style id -> CSL citation-format from the shared catalog
   var BIBLIOGRAPHY_CATEGORY_SETTING = "callosumBibliographyCategories";
+  var BIBLIOGRAPHY_CATEGORY_ORDER_SETTING = "callosumBibliographyCategoryOrder";
 
   // ---- live-citation storage ----
   // Current citations keep CSL-JSON in a Word Custom XML Part (WordApi 1.4) and only an opaque reference in the
@@ -303,6 +304,13 @@
       );
     } catch (e) { return {}; }
   }
+  function currentBibliographyCategoryOrder() {
+    try {
+      return CallosumCore.normalizeBibliographyCategoryOrder(
+        Office.context.document.settings.get(BIBLIOGRAPHY_CATEGORY_ORDER_SETTING),
+      );
+    } catch (e) { return []; }
+  }
   function saveDocumentSettings() {
     return new Promise(function (resolve, reject) {
       Office.context.document.settings.saveAsync(function (result) {
@@ -316,6 +324,17 @@
     var encoded = CallosumCore.serializeBibliographyCategories(assignments);
     if (encoded === "{}") Office.context.document.settings.remove(BIBLIOGRAPHY_CATEGORY_SETTING);
     else Office.context.document.settings.set(BIBLIOGRAPHY_CATEGORY_SETTING, encoded);
+    await saveDocumentSettings();
+  }
+  async function persistBibliographyCategoryOrder(order) {
+    var encoded = CallosumCore.serializeBibliographyCategoryOrder(order);
+    if (encoded === "[]") Office.context.document.settings.remove(BIBLIOGRAPHY_CATEGORY_ORDER_SETTING);
+    else Office.context.document.settings.set(BIBLIOGRAPHY_CATEGORY_ORDER_SETTING, encoded);
+    await saveDocumentSettings();
+  }
+  async function restoreBibliographyCategoryOrder(rawValue) {
+    if (rawValue == null) Office.context.document.settings.remove(BIBLIOGRAPHY_CATEGORY_ORDER_SETTING);
+    else Office.context.document.settings.set(BIBLIOGRAPHY_CATEGORY_ORDER_SETTING, rawValue);
     await saveDocumentSettings();
   }
   function updateNotePlacementVisibility() {
@@ -780,6 +799,9 @@
   var categoryEditHasMixedCategories = false;
   var selectedCategoryPaperIds = Object.create(null);
   var categoryEditInFlight = false;
+  var categoryOrderDraft = [];
+  var categoryOrderAlphabetical = [];
+  var categoryOrderInFlight = false;
   function renderCitationsPanelBadges(entry) {
     var badges = [];
     if (entry.category) badges.push('<span class="category-badge">' + escapeHtml(entry.category) + "</span>");
@@ -796,14 +818,23 @@
       : citationsPanelEntries;
   }
   function selectedCategoryIds() { return Object.keys(selectedCategoryPaperIds); }
+  function activeBibliographyCategories() {
+    var labels = {};
+    citationsPanelEntries.forEach(function (entry) {
+      if (entry.category) labels[entry.category.toLowerCase()] = entry.category;
+    });
+    return CallosumCore.orderedBibliographyCategories(Object.keys(labels).map(function (key) { return labels[key]; }), []);
+  }
   function renderBatchControls(visible) {
     var selectable = (visible || []).filter(function (entry) { return entry.paperId != null; });
     var selectedCount = selectedCategoryIds().length;
     $("citationsBatchBar").style.display = citationsPanelEntries.length ? "flex" : "none";
     $("citationsBatchCount").textContent = selectedCount + " selected";
-    $("citationsBatchCategory").disabled = selectedCount === 0 || categoryEditInFlight;
-    $("citationsClearSelection").disabled = selectedCount === 0 || categoryEditInFlight;
-    $("citationsSelectVisible").disabled = selectable.length === 0 || categoryEditInFlight;
+    var busy = categoryEditInFlight || categoryOrderInFlight;
+    $("citationsBatchCategory").disabled = selectedCount === 0 || busy;
+    $("citationsClearSelection").disabled = selectedCount === 0 || busy;
+    $("citationsSelectVisible").disabled = selectable.length === 0 || busy;
+    $("bibliographyCategoryOrderOpen").disabled = activeBibliographyCategories().length < 2 || busy;
   }
   function renderCitationsPanelList() {
     var visible = visibleCitationsPanelEntries();
@@ -832,12 +863,82 @@
     $("bibliographyCategoryEditor").style.display = "none";
     $("bibliographyCategory").value = "";
   }
+  function closeCategoryOrderEditor() {
+    categoryOrderDraft = [];
+    categoryOrderAlphabetical = [];
+    $("bibliographyCategoryOrderEditor").style.display = "none";
+  }
+  function renderCategoryOrderEditor() {
+    $("bibliographyCategoryOrderList").innerHTML = categoryOrderDraft.map(function (label, index) {
+      return '<li class="category-order-item"><span class="category-order-label">' + escapeHtml(label) +
+        '</span><button type="button" class="secondary" data-order-index="' + index + '" data-order-delta="-1"' +
+        (index === 0 || categoryOrderInFlight ? " disabled" : "") + ' aria-label="Move ' + escapeHtml(label) +
+        ' up">↑</button><button type="button" class="secondary" data-order-index="' + index +
+        '" data-order-delta="1"' + (index === categoryOrderDraft.length - 1 || categoryOrderInFlight ? " disabled" : "") +
+        ' aria-label="Move ' + escapeHtml(label) + ' down">↓</button></li>';
+    }).join("");
+    $("bibliographyCategoryOrderReset").disabled = categoryOrderInFlight;
+    $("bibliographyCategoryOrderSave").disabled = categoryOrderInFlight;
+    $("bibliographyCategoryOrderCancel").disabled = categoryOrderInFlight;
+  }
+  function openCategoryOrderEditor() {
+    if (categoryEditInFlight || categoryOrderInFlight) return;
+    var alphabetical = activeBibliographyCategories();
+    if (alphabetical.length < 2) {
+      setStatus("Create at least two bibliography categories before setting a custom order.", true);
+      return;
+    }
+    closeCategoryEditor();
+    categoryOrderAlphabetical = alphabetical;
+    categoryOrderDraft = CallosumCore.orderedBibliographyCategories(alphabetical, currentBibliographyCategoryOrder());
+    $("bibliographyCategoryOrderEditor").style.display = "block";
+    renderCategoryOrderEditor();
+  }
+  function moveCategoryOrder(index, delta) {
+    if (categoryOrderInFlight || index < 0 || index >= categoryOrderDraft.length) return;
+    var destination = index + delta;
+    if (destination < 0 || destination >= categoryOrderDraft.length) return;
+    var moved = categoryOrderDraft[index];
+    categoryOrderDraft[index] = categoryOrderDraft[destination];
+    categoryOrderDraft[destination] = moved;
+    renderCategoryOrderEditor();
+  }
+  async function saveCategoryOrder() {
+    if (categoryOrderInFlight || categoryOrderDraft.length < 2) return;
+    categoryOrderInFlight = true;
+    renderCategoryOrderEditor();
+    renderBatchControls(visibleCitationsPanelEntries());
+    var previousRaw = Office.context.document.settings.get(BIBLIOGRAPHY_CATEGORY_ORDER_SETTING);
+    var alphabetical = categoryOrderDraft.every(function (label, index) {
+      return label === categoryOrderAlphabetical[index];
+    });
+    var savedOrder = alphabetical ? [] : categoryOrderDraft.slice();
+    try {
+      setStatus(alphabetical ? "Restoring alphabetical category order…" : "Saving category order…");
+      await persistBibliographyCategoryOrder(savedOrder);
+      await refreshDocument({ throwOnError: true });
+      closeCategoryOrderEditor();
+      setStatus(alphabetical ? "Alphabetical category order restored." : "Bibliography category order saved.");
+    } catch (e) {
+      try { await restoreBibliographyCategoryOrder(previousRaw); } catch (rollbackError) {
+        setStatus("Couldn't update the category order or restore its setting: " +
+          ((rollbackError && rollbackError.message) || rollbackError), true);
+        return;
+      }
+      setStatus("Couldn't update the bibliography category order: " + ((e && e.message) || e), true);
+    } finally {
+      categoryOrderInFlight = false;
+      if (categoryOrderDraft.length) renderCategoryOrderEditor();
+      renderBatchControls(visibleCitationsPanelEntries());
+    }
+  }
   function updateCategorySaveState() {
     var missingMixedChoice = categoryEditHasMixedCategories && !$("bibliographyCategory").value.trim();
     $("bibliographyCategorySave").disabled = categoryEditInFlight || missingMixedChoice;
   }
   function openCategoryEditor(paperIds, fromBatch) {
-    if (categoryEditInFlight) return;
+    if (categoryEditInFlight || categoryOrderInFlight) return;
+    closeCategoryOrderEditor();
     var requested = Array.isArray(paperIds) ? paperIds : [paperIds];
     var ids = [], selected = [];
     requested.forEach(function (paperId) {
@@ -872,7 +973,7 @@
     $("bibliographyCategory").focus();
   }
   async function applyCategoryEdit(value, explicitRemove) {
-    if (!categoryEditingPaperIds.length || categoryEditInFlight) return;
+    if (!categoryEditingPaperIds.length || categoryEditInFlight || categoryOrderInFlight) return;
     if (categoryEditHasMixedCategories && !String(value || "").trim() && !explicitRemove) {
       setStatus("Choose a category for the mixed selection, or use Remove category.", true);
       return;
@@ -912,9 +1013,10 @@
     }
   }
   async function runCitationsPanel() {
-    if (categoryEditInFlight) return;
+    if (categoryEditInFlight || categoryOrderInFlight) return;
     setStatus("Scanning the document…");
     closeCategoryEditor();
+    closeCategoryOrderEditor();
     selectedCategoryPaperIds = Object.create(null);
     citationsPanelEntries = [];
     $("citationsPanel").innerHTML = "";
@@ -943,7 +1045,7 @@
   function onCitationsPanelClick(ev) {
     var selection = ev.target.closest("input[data-batch-paper-id]");
     if (selection) {
-      if (categoryEditInFlight) return;
+      if (categoryEditInFlight || categoryOrderInFlight) return;
       var selectionId = selection.getAttribute("data-batch-paper-id");
       if (selection.checked && selectedCategoryIds().length >= CallosumCore.MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS) {
         selection.checked = false;
@@ -986,6 +1088,7 @@
     setStatus("Refreshing…");
     try {
       var bibliographyCategories = currentBibliographyCategories();
+      var bibliographyCategoryOrder = currentBibliographyCategoryOrder();
       await Word.run(async function (ctx) {
         var body = ctx.document.body;
         var citationCCs = [], itemsList = [], bibCC = null;
@@ -1026,7 +1129,7 @@
           bibCC.title = "Callosum bibliography";
         }
         bibCC.insertText(
-          CallosumCore.categorizedBibliographyText(data, bibliographyCategories),
+          CallosumCore.categorizedBibliographyText(data, bibliographyCategories, bibliographyCategoryOrder),
           Word.InsertLocation.replace,
         );
 
@@ -1121,6 +1224,7 @@
           Office.context.document.settings.remove("callosumStyle");
           Office.context.document.settings.remove("callosumNotePlacement");
           Office.context.document.settings.remove(BIBLIOGRAPHY_CATEGORY_SETTING);
+          Office.context.document.settings.remove(BIBLIOGRAPHY_CATEGORY_ORDER_SETTING);
           Office.context.document.settings.saveAsync(function () {});
         } catch (e) { /* settings unavailable -- flatten itself already succeeded, not worth failing over */ }
       }
@@ -1165,6 +1269,9 @@
   // Escape clears an in-progress citation assembly -- a pure UI-state reset, never a document mutation either
   // way, so there's nothing unsafe about firing it broadly rather than scoping it to one element's focus.
   function onGlobalKeydown(ev) {
+    if (ev.key === "Escape" && categoryOrderDraft.length && !categoryOrderInFlight) {
+      closeCategoryOrderEditor(); return;
+    }
     if (ev.key === "Escape" && categoryEditingPaperIds.length && !categoryEditInFlight) {
       closeCategoryEditor(); return;
     }
@@ -1189,7 +1296,7 @@
     $("citationsPanel").addEventListener("click", onCitationsPanelClick);
     $("citationsSearch").addEventListener("input", debounce(renderCitationsPanelList, 150));
     $("citationsSelectVisible").addEventListener("click", function () {
-      if (categoryEditInFlight) return;
+      if (categoryEditInFlight || categoryOrderInFlight) return;
       var ids = visibleCitationsPanelEntries().map(function (entry) { return entry.paperId; })
         .filter(function (paperId) { return paperId != null; });
       var combined = selectedCategoryIds().slice();
@@ -1206,13 +1313,27 @@
       renderCitationsPanelList();
     });
     $("citationsClearSelection").addEventListener("click", function () {
-      if (categoryEditInFlight) return;
+      if (categoryEditInFlight || categoryOrderInFlight) return;
       selectedCategoryPaperIds = Object.create(null);
       if (categoryEditFromBatch) closeCategoryEditor();
       renderCitationsPanelList();
     });
     $("citationsBatchCategory").addEventListener("click", function () {
       openCategoryEditor(selectedCategoryIds(), true);
+    });
+    $("bibliographyCategoryOrderOpen").addEventListener("click", openCategoryOrderEditor);
+    $("bibliographyCategoryOrderList").addEventListener("click", function (ev) {
+      var button = ev.target.closest("button[data-order-index]");
+      if (button) moveCategoryOrder(Number(button.getAttribute("data-order-index")), Number(button.getAttribute("data-order-delta")));
+    });
+    $("bibliographyCategoryOrderReset").addEventListener("click", function () {
+      if (categoryOrderInFlight) return;
+      categoryOrderDraft = categoryOrderAlphabetical.slice();
+      renderCategoryOrderEditor();
+    });
+    $("bibliographyCategoryOrderSave").addEventListener("click", saveCategoryOrder);
+    $("bibliographyCategoryOrderCancel").addEventListener("click", function () {
+      if (!categoryOrderInFlight) closeCategoryOrderEditor();
     });
     $("bibliographyCategorySave").addEventListener("click", function () {
       applyCategoryEdit($("bibliographyCategory").value);

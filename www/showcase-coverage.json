@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-28",
-    "reviewed_rev": "ce262c6",
-    "source_fingerprint": "a15b7d1c6803cd9aabbbd3e6ce294f659847a65259f5cb99af243f45729f53ea",
-    "note": "Reviewed Increment 522's Word checkbox and batch bibliography-category controls. The existing public integration copy remains accurate and intentionally does not claim cross-editor feature parity. The showcase does not capture the Word task pane, so this source-only adapter interaction does not require screenshot replacement; live Word behavior remains deferred to the arc-end manual checklist."
+    "reviewed_rev": "c946e7b",
+    "source_fingerprint": "e52dfdbae907f90e0a70ceb579c4dd32403faac59aae437e37460b7a0dfd72a6",
+    "note": "Reviewed Increment 523's staged Word bibliography category-order editor and separate document metadata. Existing public integration copy remains accurate and deliberately does not promise feature parity across editors. No showcase screenshot captures the Word task pane, so no image replacement is needed; live Word ordering remains in the deferred arc-end manual checklist."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

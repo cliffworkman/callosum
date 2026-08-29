@@ -204,12 +204,15 @@ the Principles + A-A gates before build.)*
       prior setting. Pure logic is tested; Office.js settings/UI/layout are not yet live-verified. **Inc 522 adds
       bounded batch assignment:** explicit checkboxes, Select visible/Clear, mixed-selection safety, one atomic map
       update, and one Refresh/rollback for the whole selection. Pure logic is tested; live Word interaction remains
-      deferred. Next: custom category ordering, then heading-scoped bibliography blocks. See
-      `INCREMENT-521-NOTES.md` and `INCREMENT-522-NOTES.md`.
+      deferred. **Inc 523 adds explicit category precedence:** active named groups can move up/down in a staged
+      editor, reset removes the setting, current unranked groups fall back alphabetically, Other remains last, and
+      Save performs one Refresh with exact-property rollback. Pure logic is tested; live Word interaction remains
+      deferred. Next: heading-scoped bibliography blocks. See `INCREMENT-521-NOTES.md` through
+      `INCREMENT-523-NOTES.md`.
       **HANDED OFF TO CODEX 2026-08-28** (Cliff's Claude usage maxed out ~48h) — see
       `.claude/docs/2026-08-28_codex-word-parity-handoff.md` for the exact remaining scope, verification
-      requirements, and known traps. **Still not started:** custom category ordering and chapter/section blocks. A
-      dedicated style-browser UI is low-value — Word's style dropdown already reflects anything
+      requirements, and known traps. **Still not started:** chapter/section blocks. A dedicated style-browser UI is
+      low-value — Word's style dropdown already reflects anything
       installed via Settings' shared catalog.
     - **P2/leapfrog (not started):** evidence-aware Suggest-Citation details (stance breakdown, weak-evidence
       warning, Open in PDF — mirrors inc 460); citation-coverage/integrity-preflight audits

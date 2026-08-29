@@ -477,6 +477,27 @@ test("updateBibliographyCategories: applies one category atomically to a dedupli
   );
 });
 
+test("bibliography category order: bounded read is fail-soft and strict serialization rejects invalid drafts", () => {
+  assert.deepStrictEqual(core.normalizeBibliographyCategoryOrder('["Theory","Methods"]'), ["Theory", "Methods"]);
+  ["not json", '{"Theory":1}', '["Theory","theory"]', '["Other references"]', '[1]']
+    .forEach((value) => assert.deepStrictEqual(core.normalizeBibliographyCategoryOrder(value), []));
+  assert.strictEqual(core.serializeBibliographyCategoryOrder(["Theory", "Methods"]), '["Theory","Methods"]');
+  assert.throws(() => core.serializeBibliographyCategoryOrder(["Theory", "theory"]), /duplicate/);
+  assert.throws(() => core.serializeBibliographyCategoryOrder(["Other references"]), /reserved/);
+  assert.throws(
+    () => core.serializeBibliographyCategoryOrder(Array.from({ length: 51 }, (_value, index) => `Category ${index}`)),
+    /at most 50 bibliography categories/,
+  );
+});
+
+test("orderedBibliographyCategories: configured active labels lead and stale/new labels fall back alphabetically", () => {
+  assert.deepStrictEqual(
+    core.orderedBibliographyCategories(["New", "Methods", "Theory", "Background"], ["Theory", "Stale", "Methods"]),
+    ["Theory", "Methods", "Background", "New"],
+  );
+  assert.deepStrictEqual(core.orderedBibliographyCategories(["Theory", "Methods"], []), ["Methods", "Theory"]);
+});
+
 test("categorizedBibliographyText: alphabetizes groups, preserves citeproc order, and leaves Other last", () => {
   const data = {
     bibliography_text: "Entry 2\nEntry 1\nEntry 3\nEntry 4",
@@ -488,6 +509,10 @@ test("categorizedBibliographyText: alphabetizes groups, preserves citeproc order
   );
   // No visible assignment restores the exact ordinary citeproc text rather than adding an empty group.
   assert.strictEqual(core.categorizedBibliographyText(data, { 99: "Methods" }), data.bibliography_text);
+  assert.strictEqual(
+    core.categorizedBibliographyText(data, { 1: "Theory", 2: "Methods", 3: "Methods" }, ["Theory", "Methods"]),
+    "Theory\nEntry 1\n\nMethods\nEntry 2\nEntry 3\n\nOther references\nEntry 4",
+  );
 });
 
 test("categorizedBibliographyText: multi-id entries group only when every source shares one category", () => {
@@ -518,14 +543,18 @@ test("bibliography category controls are present and wire single/batch edits thr
   [
     "bibliographyCategoryEditor", "bibliographyCategory", "bibliographyCategorySave", "bibliographyCategoryRemove",
     "citationsBatchBar", "citationsSelectVisible", "citationsClearSelection", "citationsBatchCategory",
+    "bibliographyCategoryOrderOpen", "bibliographyCategoryOrderEditor", "bibliographyCategoryOrderList",
+    "bibliographyCategoryOrderReset", "bibliographyCategoryOrderSave", "bibliographyCategoryOrderCancel",
   ]
     .forEach((id) => assert.match(html, new RegExp(`id=["']${id}["']`)));
-  assert.match(js, /categorizedBibliographyText\(data, bibliographyCategories\)/);
+  assert.match(js, /categorizedBibliographyText\(data, bibliographyCategories, bibliographyCategoryOrder\)/);
   assert.match(js, /persistBibliographyCategories\(updated\)/);
   assert.match(js, /updateBibliographyCategories\(previous, paperIds, value\)/);
   assert.match(js, /openCategoryEditor\(selectedCategoryIds\(\), true\)/);
   assert.match(js, /Choose a category for the mixed selection, or use Remove category/);
   assert.match(js, /applyCategoryEdit\("", true\)/);
+  assert.match(js, /persistBibliographyCategoryOrder\(savedOrder\)/);
+  assert.match(js, /restoreBibliographyCategoryOrder\(previousRaw\)/);
   assert.match(js, /refreshDocument\(\{ throwOnError: true \}\)/);
 });
 

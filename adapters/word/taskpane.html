@@ -72,6 +72,7 @@
       <button id="citationsSelectVisible" type="button" class="secondary">Select visible</button>
       <button id="citationsClearSelection" type="button" class="secondary">Clear</button>
       <button id="citationsBatchCategory" type="button" class="refresh" disabled>Set selected category…</button>
+      <button id="bibliographyCategoryOrderOpen" type="button" class="secondary" disabled>Category order…</button>
     </div>
     <ul id="citationsPanel" class="results"></ul>
     <div id="bibliographyCategoryEditor" class="category-editor" style="display:none">
@@ -85,6 +86,15 @@
         <button id="bibliographyCategorySave" type="button" class="refresh">Save category</button>
         <button id="bibliographyCategoryRemove" type="button" class="secondary">Remove category</button>
         <button id="bibliographyCategoryCancel" type="button" class="secondary">Cancel</button>
+      </div>
+    </div>
+    <div id="bibliographyCategoryOrderEditor" class="category-editor" style="display:none">
+      <p class="hint">Move named categories into document order. Other references always remains last.</p>
+      <ol id="bibliographyCategoryOrderList" class="category-order-list"></ol>
+      <div class="actions">
+        <button id="bibliographyCategoryOrderReset" type="button" class="secondary">Reset alphabetical</button>
+        <button id="bibliographyCategoryOrderSave" type="button" class="refresh">Save order</button>
+        <button id="bibliographyCategoryOrderCancel" type="button" class="secondary">Cancel</button>
       </div>
     </div>
 

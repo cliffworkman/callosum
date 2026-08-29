@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-28 inc 522 — Word batch bibliography categories -->
+<!-- HELP-DOCS-SYNCED: 2026-08-28 inc 523 — Word custom bibliography category order -->
+## 2026-08-28 — Increment 523: Word custom bibliography category order
+- **Files:** `adapters/word/taskpane.{js,html,css}`, `adapters/word/taskpane_core.js`,
+  `adapters/word/taskpane_core.test.js`, `adapters/word/README.md`, `app/backend/help/help_content.md`,
+  `.claude/CLAUDE.md`, `.claude/architectural-decisions-log.md`, `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/increment-notes/INCREMENT-523-NOTES.md`, `www/showcase-coverage.json`.
+- **What:** **Category order…** stages active named groups with accessible Move-up/down, Reset alphabetical, Save,
+  and Cancel. A bounded separate setting controls precedence; unranked current groups follow alphabetically and
+  **Other references** remains generated/last. Save refreshes once; failure restores the exact prior raw setting.
+- **Why:** authors can now express manuscript logic without changing citeproc entry text/order or conflating group
+  precedence with category membership.
+- **Verify:** Word pure logic **50/50**; focused Word/access/citation/help pytest **96 passed**; full repository
+  suite **2563 passed, 3 skipped** in 960.77s; JS syntax, scoped Ruff check/format, Bandit, Tach, 569-file
+  line-budget, QA surface map, and website coverage gates passed. Office.js order-editor/settings/layout interaction
+  explicitly not yet live-verified.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 522: Word batch bibliography categories
 - **Files:** `adapters/word/taskpane.{js,html,css}`, `adapters/word/taskpane_core.js`,
   `adapters/word/taskpane_core.test.js`, `adapters/word/README.md`, `app/backend/help/help_content.md`,

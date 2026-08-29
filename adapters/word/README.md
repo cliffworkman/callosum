@@ -94,7 +94,9 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
   intact inside each group; unassigned works remain under **Other references**. Blank or **Remove category**
   clears the assignment. For a batch, check works individually or filter then use **Select visible**, choose **Set
   selected category…**, and save once; **Clear** resets the selection. A mixed-category batch requires an explicit
-  label choice or **Remove category**. Category labels are searchable in the panel and survive save/reopen.
+  label choice or **Remove category**. With at least two active groups, **Category order…** provides Move up/down,
+  Reset alphabetical, Save, and Cancel; new/unranked groups follow configured groups alphabetically and **Other
+  references** remains last. Category labels and order survive save/reopen.
 - **Citation style** — changing the dropdown re-renders the whole document in the new style (the choice is
   remembered per document).
 - **Flatten to static text** — convert the live citation + bibliography fields to plain text for hand-off
@@ -176,8 +178,8 @@ an actionable message rather than producing plausible but incorrect position-dep
 
 ## Limitations
 The bibliography lives at the document end (no chapter/section-scoped bibliographies yet — see the LibreOffice
-adapter for that, still Word/Docs-only work); Word categories do not yet support a custom group order or
-uncited-work membership; Suggest covers papers **already in
+adapter for that, still Word/Docs-only work); Word categories do not yet support uncited-work membership;
+Suggest covers papers **already in
 your library** (beyond-library discovery is a separate track);
 desktop requires the HTTPS run-mode + the trusted dev cert. Word-on-the-web needs the relay above; Google Docs
 has its own adapter (`adapters/googledocs/`). Office.js has no `saveAs` — Flatten can't save a copy of your

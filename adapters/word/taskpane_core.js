@@ -26,6 +26,7 @@
   var MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS = 1000;
   var MAX_BIBLIOGRAPHY_CATEGORIES = 50;
   var MAX_BIBLIOGRAPHY_CATEGORY_METADATA = 131072;
+  var MAX_BIBLIOGRAPHY_CATEGORY_ORDER_METADATA = 8192;
 
   // UTF-8-safe base64 (CSL-JSON has unicode author names). btoa/atob + TextEncoder/TextDecoder are global in both
   // modern browsers and Node 16+ (the add-in runs in Word's webview; tests run in Node).
@@ -323,6 +324,62 @@
     return updateBibliographyCategories(assignments, [id], value);
   }
 
+  function normalizeBibliographyCategoryOrder(value) {
+    var decoded = value;
+    if (typeof value === "string") {
+      if (value.length > MAX_BIBLIOGRAPHY_CATEGORY_ORDER_METADATA) return [];
+      try { decoded = JSON.parse(value); } catch (e) { return []; }
+    }
+    if (!Array.isArray(decoded) || decoded.length > MAX_BIBLIOGRAPHY_CATEGORIES) return [];
+    var order = [], seen = {};
+    for (var i = 0; i < decoded.length; i++) {
+      if (typeof decoded[i] !== "string") return [];
+      var category;
+      try { category = normalizeBibliographyCategory(decoded[i]); } catch (e) { return []; }
+      if (category == null || seen[category.toLowerCase()]) return [];
+      seen[category.toLowerCase()] = true;
+      order.push(category);
+    }
+    return order;
+  }
+
+  function serializeBibliographyCategoryOrder(categories) {
+    if (!Array.isArray(categories)) throw new Error("Bibliography category order must be a list.");
+    if (categories.length > MAX_BIBLIOGRAPHY_CATEGORIES) {
+      throw new Error("A document can order at most " + MAX_BIBLIOGRAPHY_CATEGORIES + " bibliography categories.");
+    }
+    var order = [], seen = {};
+    categories.forEach(function (rawCategory) {
+      if (typeof rawCategory !== "string") throw new Error("Bibliography category order labels must be text.");
+      var category = normalizeBibliographyCategory(rawCategory);
+      if (category == null) throw new Error("Bibliography category order cannot contain a blank label.");
+      var folded = category.toLowerCase();
+      if (seen[folded]) throw new Error("Bibliography category order cannot contain duplicate labels.");
+      seen[folded] = true;
+      order.push(category);
+    });
+    var encoded = JSON.stringify(order);
+    if (encoded.length > MAX_BIBLIOGRAPHY_CATEGORY_ORDER_METADATA) {
+      throw new Error("Bibliography category order metadata is too large for one Word document.");
+    }
+    return encoded;
+  }
+
+  function orderedBibliographyCategories(categories, configuredOrder) {
+    var rank = {};
+    normalizeBibliographyCategoryOrder(configuredOrder).forEach(function (category, index) {
+      rank[category.toLowerCase()] = index;
+    });
+    return (categories || []).slice().sort(function (left, right) {
+      var leftFolded = left.toLowerCase(), rightFolded = right.toLowerCase();
+      var fallback = Object.keys(rank).length;
+      var leftRank = Object.prototype.hasOwnProperty.call(rank, leftFolded) ? rank[leftFolded] : fallback;
+      var rightRank = Object.prototype.hasOwnProperty.call(rank, rightFolded) ? rank[rightFolded] : fallback;
+      if (leftRank !== rightRank) return leftRank - rightRank;
+      return leftFolded < rightFolded ? -1 : leftFolded > rightFolded ? 1 : (left < right ? -1 : left > right ? 1 : 0);
+    });
+  }
+
   function bibliographyCategoryForIds(itemIds, assignments) {
     var categories = (itemIds || []).map(function (itemId) {
       var paperId = extractPaperId(itemId);
@@ -335,7 +392,7 @@
   // Reorders citeproc's already-rendered entries only between user-authored groups. Within each group, the
   // original citeproc order is untouched. A missing/misaligned entry-id contract fails closed rather than
   // guessing which rendered line belongs to which work.
-  function categorizedBibliographyText(data, assignments) {
+  function categorizedBibliographyText(data, assignments, configuredOrder) {
     var original = bibliographyText(data);
     var normalized = normalizeBibliographyCategories(assignments);
     if (!Object.keys(normalized).length || !original) return original;
@@ -352,10 +409,7 @@
       if (category && categoryNames.indexOf(category) === -1) categoryNames.push(category);
     });
     if (!categoryNames.length) return original; // only stale/non-visible assignments exist
-    categoryNames.sort(function (a, b) {
-      var left = a.toLowerCase(), right = b.toLowerCase();
-      return left < right ? -1 : left > right ? 1 : (a < b ? -1 : a > b ? 1 : 0);
-    });
+    categoryNames = orderedBibliographyCategories(categoryNames, configuredOrder);
     var groups = categoryNames.concat([null]);
     var sections = [];
     groups.forEach(function (category) {
@@ -619,6 +673,9 @@
     serializeBibliographyCategories: serializeBibliographyCategories,
     updateBibliographyCategories: updateBibliographyCategories,
     updateBibliographyCategory: updateBibliographyCategory,
+    normalizeBibliographyCategoryOrder: normalizeBibliographyCategoryOrder,
+    serializeBibliographyCategoryOrder: serializeBibliographyCategoryOrder,
+    orderedBibliographyCategories: orderedBibliographyCategories,
     categorizedBibliographyText: categorizedBibliographyText,
     applyBibliographyCategories: applyBibliographyCategories,
     pickQueryText: pickQueryText,
