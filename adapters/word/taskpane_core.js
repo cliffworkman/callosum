@@ -21,6 +21,11 @@
   var MAX_CITATION_REFERENCE_LENGTH = 256;
   var CITATION_XML_NAMESPACE = "https://callosum.app/schemas/word-citation/1";
   var BIB_TAG = "CALLOSUM_BIBLIOGRAPHY"; // content-control tag for the managed bibliography block
+  var BIBLIOGRAPHY_UNCATEGORIZED = "Other references";
+  var BIBLIOGRAPHY_CATEGORY_MAX = 80;
+  var MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS = 1000;
+  var MAX_BIBLIOGRAPHY_CATEGORIES = 50;
+  var MAX_BIBLIOGRAPHY_CATEGORY_METADATA = 131072;
 
   // UTF-8-safe base64 (CSL-JSON has unicode author names). btoa/atob + TextEncoder/TextDecoder are global in both
   // modern browsers and Node 16+ (the add-in runs in Word's webview; tests run in Node).
@@ -220,6 +225,139 @@
   }
   function bibliographyText(data) {
     return (data && data.bibliography_text) || "";
+  }
+
+  // ---- document-local bibliography categories (inc 521; Writer parity inc 377) ----
+  function normalizeBibliographyCategory(value) {
+    var raw = String(value == null ? "" : value);
+    var category = raw.trim();
+    if (!category) return null;
+    if (category.length > BIBLIOGRAPHY_CATEGORY_MAX) {
+      throw new Error("Bibliography categories must be " + BIBLIOGRAPHY_CATEGORY_MAX + " characters or fewer.");
+    }
+    if (/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(raw)) {
+      throw new Error("Bibliography categories must be a single line without control characters.");
+    }
+    if (category.toLowerCase() === BIBLIOGRAPHY_UNCATEGORIZED.toLowerCase()) {
+      throw new Error("\"" + BIBLIOGRAPHY_UNCATEGORIZED + "\" is reserved for entries without a category.");
+    }
+    return category;
+  }
+
+  function normalizeBibliographyCategories(value) {
+    var decoded = value;
+    if (typeof value === "string") {
+      if (value.length > MAX_BIBLIOGRAPHY_CATEGORY_METADATA) return {};
+      try { decoded = JSON.parse(value); } catch (e) { return {}; }
+    }
+    if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) return {};
+    var ids = Object.keys(decoded);
+    if (ids.length > MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS) return {};
+    var normalized = {}, canonical = {};
+    for (var i = 0; i < ids.length; i++) {
+      var paperId = ids[i];
+      if (!/^\d{1,20}$/.test(paperId)) continue;
+      var category;
+      try { category = normalizeBibliographyCategory(decoded[paperId]); } catch (e) { continue; }
+      if (!category) continue;
+      var folded = category.toLowerCase();
+      if (!canonical[folded]) {
+        if (Object.keys(canonical).length >= MAX_BIBLIOGRAPHY_CATEGORIES) return {};
+        canonical[folded] = category;
+      }
+      normalized[paperId] = canonical[folded];
+    }
+    return normalized;
+  }
+
+  function serializeBibliographyCategories(assignments) {
+    var normalized = normalizeBibliographyCategories(assignments);
+    var sorted = {};
+    Object.keys(normalized).sort().forEach(function (paperId) { sorted[paperId] = normalized[paperId]; });
+    var encoded = JSON.stringify(sorted);
+    if (encoded.length > MAX_BIBLIOGRAPHY_CATEGORY_METADATA) {
+      throw new Error("Bibliography category metadata is too large for one Word document.");
+    }
+    return encoded;
+  }
+
+  function updateBibliographyCategory(assignments, paperId, value) {
+    var id = String(paperId == null ? "" : paperId);
+    if (!/^\d{1,20}$/.test(id)) {
+      throw new Error("Bibliography category assignments require a numeric Callosum paper id.");
+    }
+    var updated = Object.assign({}, normalizeBibliographyCategories(assignments));
+    var category = normalizeBibliographyCategory(value);
+    if (category == null) delete updated[id];
+    else {
+      var existing = Object.keys(updated).map(function (key) { return updated[key]; }).find(function (label) {
+        return label.toLowerCase() === category.toLowerCase();
+      });
+      updated[id] = existing || category;
+    }
+    if (Object.keys(updated).length > MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS) {
+      throw new Error("A document can categorize at most " + MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS + " works.");
+    }
+    var categories = {};
+    Object.keys(updated).forEach(function (key) { categories[updated[key].toLowerCase()] = true; });
+    if (Object.keys(categories).length > MAX_BIBLIOGRAPHY_CATEGORIES) {
+      throw new Error("A document can use at most " + MAX_BIBLIOGRAPHY_CATEGORIES + " bibliography categories.");
+    }
+    serializeBibliographyCategories(updated); // final bounded-metadata assertion
+    return updated;
+  }
+
+  function bibliographyCategoryForIds(itemIds, assignments) {
+    var categories = (itemIds || []).map(function (itemId) {
+      var paperId = extractPaperId(itemId);
+      return assignments[paperId || ""] || null;
+    });
+    if (!categories.length || categories[0] == null) return null;
+    return categories.every(function (category) { return category === categories[0]; }) ? categories[0] : null;
+  }
+
+  // Reorders citeproc's already-rendered entries only between user-authored groups. Within each group, the
+  // original citeproc order is untouched. A missing/misaligned entry-id contract fails closed rather than
+  // guessing which rendered line belongs to which work.
+  function categorizedBibliographyText(data, assignments) {
+    var original = bibliographyText(data);
+    var normalized = normalizeBibliographyCategories(assignments);
+    if (!Object.keys(normalized).length || !original) return original;
+    var entries = original.split("\n").map(function (entry) { return entry.replace(/\r$/, ""); });
+    var entryIds = data && data.bibliography_entry_ids;
+    if (!Array.isArray(entryIds) || entryIds.length !== entries.length) {
+      throw new Error("Bibliography entry identity is unavailable; categories were not applied.");
+    }
+    var aligned = entryIds.map(function (ids) {
+      return bibliographyCategoryForIds(Array.isArray(ids) ? ids : [], normalized);
+    });
+    var categoryNames = [];
+    aligned.forEach(function (category) {
+      if (category && categoryNames.indexOf(category) === -1) categoryNames.push(category);
+    });
+    if (!categoryNames.length) return original; // only stale/non-visible assignments exist
+    categoryNames.sort(function (a, b) {
+      var left = a.toLowerCase(), right = b.toLowerCase();
+      return left < right ? -1 : left > right ? 1 : (a < b ? -1 : a > b ? 1 : 0);
+    });
+    var groups = categoryNames.concat([null]);
+    var sections = [];
+    groups.forEach(function (category) {
+      var groupEntries = entries.filter(function (_entry, index) { return aligned[index] === category; });
+      if (groupEntries.length) {
+        sections.push((category || BIBLIOGRAPHY_UNCATEGORIZED) + "\n" + groupEntries.join("\n"));
+      }
+    });
+    return sections.join("\n\n");
+  }
+
+  function applyBibliographyCategories(entries, assignments) {
+    var normalized = normalizeBibliographyCategories(assignments);
+    return (entries || []).map(function (entry) {
+      var out = Object.assign({}, entry);
+      out.category = entry.paperId == null ? null : normalized[String(entry.paperId)] || null;
+      return out;
+    });
   }
 
   // ---- suggest-from-the-sentence (SP3) ----
@@ -457,6 +595,14 @@
     placementIssue: placementIssue,
     inTextResults: inTextResults,
     bibliographyText: bibliographyText,
+    BIBLIOGRAPHY_UNCATEGORIZED: BIBLIOGRAPHY_UNCATEGORIZED,
+    BIBLIOGRAPHY_CATEGORY_MAX: BIBLIOGRAPHY_CATEGORY_MAX,
+    normalizeBibliographyCategory: normalizeBibliographyCategory,
+    normalizeBibliographyCategories: normalizeBibliographyCategories,
+    serializeBibliographyCategories: serializeBibliographyCategories,
+    updateBibliographyCategory: updateBibliographyCategory,
+    categorizedBibliographyText: categorizedBibliographyText,
+    applyBibliographyCategories: applyBibliographyCategories,
     pickQueryText: pickQueryText,
     buildSuggestRequest: buildSuggestRequest,
     formatSuggestRows: formatSuggestRows,

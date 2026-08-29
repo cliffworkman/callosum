@@ -89,6 +89,10 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
   static text is kept).
 - **Refresh / renumber + bibliography** — re-render every citation in document order + rebuild the **References**
   block at the document end (run after edits/moves; numeric styles renumber by position).
+- **Bibliography categories** — open **Citations in this document…**, choose **Set category…** beside a work,
+  and type or reuse a document-local label. Named groups sort alphabetically while the citation style's order stays
+  intact inside each group; unassigned works remain under **Other references**. Blank or **Remove category**
+  clears the assignment. Category labels are searchable in the panel and survive save/reopen.
 - **Citation style** — changing the dropdown re-renders the whole document in the new style (the choice is
   remembered per document).
 - **Flatten to static text** — convert the live citation + bibliography fields to plain text for hand-off
@@ -97,8 +101,8 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
   confirm nothing is left live rather than just assuming the operation worked. Office.js has no way for an
   add-in to save a copy of your document on your behalf (confirmed, not a missed feature) — the confirm
   message reminds you to use **File → Save As** first if you want to keep the live version too. An optional
-  **"Also clear Callosum's saved style setting"** checkbox removes the one piece of Callosum-specific document
-  metadata this add-in stores (your chosen citation style), for a cleaner hand-off copy.
+  **"Also clear Callosum's saved citation settings"** checkbox removes the style, note-placement preference, and
+  bibliography categories for a cleaner hand-off copy.
 
 ## How it works (for the curious)
 The task pane is served by callosum at `https://localhost:8443/integrations/word/taskpane.html` and its API calls
@@ -170,7 +174,9 @@ an actionable message rather than producing plausible but incorrect position-dep
 
 ## Limitations
 The bibliography lives at the document end (no chapter/section-scoped bibliographies yet — see the LibreOffice
-adapter for that, still Word/Docs-only work); Suggest covers papers **already in your library** (beyond-library discovery is a separate track);
+adapter for that, still Word/Docs-only work); Word category assignment is currently one cited work at a time
+(no batch assignment, custom group order, or uncited-work membership yet); Suggest covers papers **already in
+your library** (beyond-library discovery is a separate track);
 desktop requires the HTTPS run-mode + the trusted dev cert. Word-on-the-web needs the relay above; Google Docs
 has its own adapter (`adapters/googledocs/`). Office.js has no `saveAs` — Flatten can't save a copy of your
 document for you before converting it, only tell you to (a real platform limitation, confirmed via Microsoft's

@@ -197,10 +197,16 @@ the Principles + A-A gates before build.)*
       footnote/endnote, or preference/existing-type placement fails closed and diagnostics explains it. The same
       all-story scan now covers panel navigation, Delete, and Flatten. Pure rules are tested; Office.js note
       lifecycle is explicitly not yet live-verified. See `INCREMENT-520-NOTES.md`.
+      **Inc 521 starts bibliography item #11 with safe document-local categories:** each resolvable cited work in
+      the existing document panel can receive one bounded label; the managed bibliography groups named categories
+      alphabetically, preserves citeproc order within them, and leaves unassigned/mixed entries under **Other
+      references**. Storage is bounded and fail-closed on missing entry identity; failed refresh restores the
+      prior setting. Pure logic is tested; Office.js settings/UI/layout are not yet live-verified. Next: batch
+      assignment, custom category ordering, then heading-scoped bibliography blocks. See `INCREMENT-521-NOTES.md`.
       **HANDED OFF TO CODEX 2026-08-28** (Cliff's Claude usage maxed out ~48h) — see
       `.claude/docs/2026-08-28_codex-word-parity-handoff.md` for the exact remaining scope, verification
-      requirements, and known traps. **Still not started:** bibliography categories/chapter-section blocks. A
-      dedicated style-browser UI is low-value — Word's style dropdown already reflects anything
+      requirements, and known traps. **Still not started:** batch category assignment, custom category ordering,
+      and chapter/section blocks. A dedicated style-browser UI is low-value — Word's style dropdown already reflects anything
       installed via Settings' shared catalog.
     - **P2/leapfrog (not started):** evidence-aware Suggest-Citation details (stance breakdown, weak-evidence
       warning, Open in PDF — mirrors inc 460); citation-coverage/integrity-preflight audits

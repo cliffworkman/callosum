@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-08-28 inc 521 — current Word add-in workflow + categorized bibliographies -->
+## 2026-08-28 — Increment 521: Word categorized bibliographies
+- **Files:** `adapters/word/taskpane.{js,html,css}`, `adapters/word/taskpane_core.js`,
+  `adapters/word/taskpane_core.test.js`, `adapters/word/README.md`, `app/backend/help/help_content.md`,
+  `.claude/CLAUDE.md`, `.claude/architectural-decisions-log.md`, `.claude/qa-routes/route_35_settings.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/increment-notes/INCREMENT-521-NOTES.md`, `www/showcase-coverage.json`.
+- **What:** **Citations in this document…** assigns one bounded document-local category to a cited work. Refresh
+  groups citeproc's identity-aligned rendered entries alphabetically, preserves citeproc order inside groups, and
+  keeps unassigned/mixed entries under **Other references**. The panel shows/searches labels; removal restores the
+  ordinary layout when no visible assignment remains. Failed refresh restores the prior setting. No backend change.
+- **Why:** this is the smallest useful bibliography-item #11 slice and follows Writer's proven sequencing before
+  batch assignment, custom ordering, or structurally larger heading-scoped blocks.
+- **Verify:** Word pure logic **47/47**; focused Word/access/citation/help pytest **96 passed**; full repository
+  suite **2563 passed, 3 skipped** in 962.76s; JS syntax, scoped Ruff check/format, Bandit, Tach, 569-file
+  line-budget, QA surface map, and website coverage gates passed. Office.js settings/UI/layout explicitly not yet
+  live-verified.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 520: native Word footnote/endnote citation placement
 - **Files:** `adapters/word/taskpane.{js,html}`, `adapters/word/taskpane_core.js`,
   `adapters/word/taskpane_core.test.js`, `adapters/word/README.md`, `.claude/CLAUDE.md`,

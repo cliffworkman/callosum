@@ -370,24 +370,26 @@ A **Callosum** menu (and toolbar) then appears in Writer:
 Everything is local: the plugin talks only to callosum on your own machine (plus public metadata providers, only if you opt into "Also search beyond my library"), and all formatting is done by callosum's citation engine (so it matches the in-app "Cite as…"). Nothing else leaves your machine.
 
 <!-- section: cite-in-word -->
-## Citing in Microsoft Word (desktop)
-You can also cite from your callosum library inside **desktop Microsoft Word** (Windows/Mac) with a task pane that searches your library and inserts citations. Because a Word add-in is a small web page, Word requires it to be served over HTTPS — so callosum serves it **on your own machine**, and nothing leaves your computer (it can't run in Word-on-the-web, which has no access to your local library).
+## Citing in Microsoft Word
+You can also cite from your callosum library inside **Microsoft Word** (Windows/Mac desktop, with a separately configured Word-on-the-web relay) using a task pane that searches your library and inserts citations. Because a Word add-in is a small web page, Word requires it to be served over HTTPS. Desktop Word loads it directly from callosum **on your own machine**; Word on the web uses the explicit Remote-access relay described in `adapters/word/README.md`.
 
 **Set it up once:**
 
 1. **Trust a local certificate** — run `npx office-addin-dev-certs install` (so Word accepts `https://localhost`).
-2. **Run callosum over HTTPS** — run `python tools/run_https.py`, then open the app at **https://localhost:8443**. (Plain HTTP on :8080 still works for everyday use; HTTPS is only needed while citing in Word.)
+2. **Run callosum for the app and Word together** — set `CALLOSUM_DB_URL`, then run `python tools/run_dev.py`. It launches the ordinary app and Word's HTTPS task pane against the same database/code checkout so they cannot silently drift.
 3. **Add the manifest to Word** — in **Settings → Microsoft Word add-in → Download manifest**, then sideload it (Windows: register the folder as a Trusted Add-in Catalog; Mac: drop it in Word's `wef` folder — see `adapters/word/README.md`).
 
-Then in Word: **Home → Callosum → Show Citations**. The task pane mirrors the LibreOffice plugin:
+Then in Word: **Home → Callosum → Show Citations**.
 
-- **Search → insert** a live citation at the cursor (pick a style, type author/title/year, click a result).
-- **Suggest from the sentence** — place your cursor in the sentence you're writing and Callosum ranks your library by relevance, showing each candidate's stance (supports / contrasts / mentions) and a quote; pick one to insert after the sentence.
-- **Refresh / renumber + bibliography** — re-render every citation in document order and rebuild the **References** list (numeric styles renumber by position, like Zotero).
-- **Citation style** — changing the dropdown re-renders the whole document in the new style (remembered per document).
-- **Flatten to static text** — convert the live citations + bibliography to plain text for hand-off (one-way).
+- **Build and insert a citation** — search repeatedly to assemble one or several works, reorder them, and set each work's locator, prefix, suffix, suppress-author, or author-only option before inserting one live citation. **Suggest from the sentence** remains a separate relevance/stance/quote path into the same assembly.
+- **Edit or delete at the cursor** — reopen a live citation in the same composer or remove it completely. Citation payloads live in document Custom XML behind short Content Control references rather than oversized tags.
+- **Note styles** — choosing a note CSL style reveals a per-document **Footnotes / Endnotes** preference. Insert from the main story creates a native note; insertion from an existing matching note stays there. Refresh uses Word's actual native note order for first/subsequent/ibid behavior and refuses incompatible mixed placement rather than silently converting it.
+- **Refresh / renumber + bibliography** — re-render every citation in document/native-note order and rebuild the **References** list. Numeric styles renumber by position; changing **Citation style** refreshes the whole document and is remembered per document.
+- **Citations in this document…** — list each unique cited work, occurrence count, missing/retraction status, and jump to its first occurrence. **Set category…** assigns one document-local bibliography label; named groups sort alphabetically, citeproc order stays intact within each group, and unassigned entries remain under **Other references**.
+- **Document diagnostics…** — report malformed/unresolvable citations, works no longer in the live library, retraction/correction status, bibliography presence, and incompatible inline/note placement without changing the document.
+- **Flatten to static text** — convert live citations and the bibliography to plain text after a count-specific second confirmation. Word does not let the add-in save a copy for you, so use **File → Save As** first; optional metadata cleanup removes Callosum's saved citation settings.
 
-Everything is local: the task pane talks only to callosum on your own machine, and all formatting is done by callosum's citation engine.
+Desktop use stays local: the task pane talks only to callosum on your machine and formatting uses the bundled citation engine. Word-on-the-web access is explicit, bearer-token gated, and limited to the citation routes documented in the add-in README.
 
 <!-- section: tags -->
 ## Tagging papers

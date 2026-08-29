@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-28",
-    "reviewed_rev": "a2187fb",
-    "source_fingerprint": "25c45794da53491f7a254f9fd7d94ce7b06b20d4ae5bd7fe359229c0e924e546",
-    "note": "Reviewed every commit touching fingerprinted paths since the 2026-08-24 review (14 commits: Feed consolidation/Title-Case sweep, GROBID Docker lifecycle, and the full Word/Docs parity arc incs 508-517). Found and fixed one real drift: the standalone Followed-Authors tab was retired into Feed during the Feed-consolidation commit, orphaning the route_87_followed_authors QA-route mapping and its showcase chip -- removed the stale mapping, folded the capability mention into the existing Feed-subscriptions chip. Checked #cap-word's existing copy against today's substantial Word feature additions (composer, diagnostics, citations panel): no claim needed changing, the copy was already deliberately hedged (\"Word and Google Docs are represented at their actual supported integration level, without implying identical capabilities\") and never claimed feature-level parity to begin with. Confirmed GROBID (inc 507) makes no showcase claims at all (matches its own QA-exclusion reasoning). Did NOT perform a full visual/screenshot re-capture -- no screenshot-affecting UI changed this session (Word's add-in task pane isn't part of this showcase's captured figures), but a human visual spot-check of the live page is still worth doing when convenient."
+    "reviewed_rev": "3792e58",
+    "source_fingerprint": "7d3d5f4537d7c17eb13450f38c7b08f3424d3af27877cd17fa0a9564008db635",
+    "note": "Reviewed the Word integration changes since the prior receipt, including native note citations and document-local bibliography categories (increments 519-521). The existing public copy remains accurate and deliberately avoids claiming feature parity across LibreOffice, Word, and Google Docs. No showcase screenshot displays the Word task pane, so no screenshot recapture is required for this source-only adapter change; live Word lifecycle verification remains deferred to the arc-end manual checklist."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

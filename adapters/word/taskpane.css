@@ -11,7 +11,7 @@ h1 { font-size: 16px; margin: 0 0 2px; }
 .hint { margin: 0 0 12px; color: #5c5a66; font-size: 12px; }
 .field { display: block; font-size: 12px; color: #5c5a66; margin-bottom: 10px; }
 .field select { display: block; width: 100%; margin-top: 4px; padding: 6px; font: inherit; }
-.field input[type="password"] { display: block; width: 100%; margin-top: 4px; padding: 6px; font: inherit; border: 1px solid #cdcbd6; border-radius: 6px; }
+.field input[type="password"], .field input[type="text"] { display: block; width: 100%; margin-top: 4px; padding: 6px; font: inherit; border: 1px solid #cdcbd6; border-radius: 6px; }
 .tunnel { margin: 0 0 14px; padding: 10px; border: 1px solid #e6e5ee; border-radius: 6px; background: #fafafe; }
 #q { width: 100%; padding: 8px; font: inherit; border: 1px solid #cdcbd6; border-radius: 6px; }
 .results { list-style: none; margin: 10px 0 0; padding: 0; }
@@ -66,3 +66,10 @@ h1 { font-size: 16px; margin: 0 0 2px; }
 /* inc 516: the Citations-in-this-document panel */
 #citationsSearch { width: 100%; margin-top: 8px; padding: 8px; font: inherit; border: 1px solid #cdcbd6; border-radius: 6px; }
 .badge-warn { display: inline-block; padding: 1px 6px; font-size: 10px; border-radius: 4px; background: #fef3c7; color: #92400e; }
+
+/* inc 521: document-local bibliography category assignment */
+.citation-panel-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: stretch; }
+.citation-panel-item .row { min-width: 0; }
+.category-action { padding: 6px 8px; font-size: 11px; }
+.category-badge { display: inline-block; padding: 1px 6px; font-size: 10px; border-radius: 4px; background: #f1f0fb; color: #4338ca; }
+.category-editor { margin: 10px 0 0; padding: 10px; border: 1px solid #4338ca; border-radius: 6px; background: #f1f0fb; }

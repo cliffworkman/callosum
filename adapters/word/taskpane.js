@@ -1,7 +1,8 @@
 /*
  * Callosum Word add-in — the thin Office.js glue (inc 166, SP3: parity — suggest / style-switch / flatten;
  * SP4: Word-on-the-web relay; inc 509: grouped-citation composer with locators/edit/delete; inc 516: Citations
- * in this document panel; inc 517: accessibility; inc 519: Custom-XML citation storage; inc 520: native notes).
+ * in this document panel; inc 517: accessibility; inc 519: Custom-XML storage; inc 520: native notes;
+ * inc 521: document-local bibliography categories).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
  * is a SAME-ORIGIN call to the local API — nothing leaves the machine, and (inc 511) desktop genuinely never
@@ -58,6 +59,7 @@
   var editingCC = null;
   var openOptionsIdx = -1; // which assembly row's Options panel is expanded, or -1
   var styleFormats = Object.create(null); // style id -> CSL citation-format from the shared catalog
+  var BIBLIOGRAPHY_CATEGORY_SETTING = "callosumBibliographyCategories";
 
   // ---- live-citation storage ----
   // Current citations keep CSL-JSON in a Word Custom XML Part (WordApi 1.4) and only an opaque reference in the
@@ -293,6 +295,28 @@
   }
   function currentNotePreference() {
     return CallosumCore.normalizeNotePreference($("notePlacement").value);
+  }
+  function currentBibliographyCategories() {
+    try {
+      return CallosumCore.normalizeBibliographyCategories(
+        Office.context.document.settings.get(BIBLIOGRAPHY_CATEGORY_SETTING),
+      );
+    } catch (e) { return {}; }
+  }
+  function saveDocumentSettings() {
+    return new Promise(function (resolve, reject) {
+      Office.context.document.settings.saveAsync(function (result) {
+        if (result && result.status === Office.AsyncResultStatus.Failed) {
+          reject(new Error((result.error && result.error.message) || "Word could not save the document setting"));
+        } else resolve();
+      });
+    });
+  }
+  async function persistBibliographyCategories(assignments) {
+    var encoded = CallosumCore.serializeBibliographyCategories(assignments);
+    if (encoded === "{}") Office.context.document.settings.remove(BIBLIOGRAPHY_CATEGORY_SETTING);
+    else Office.context.document.settings.set(BIBLIOGRAPHY_CATEGORY_SETTING, encoded);
+    await saveDocumentSettings();
   }
   function updateNotePlacementVisibility() {
     $("notePlacementField").style.display = CallosumCore.isNoteStyle(currentCitationFormat()) ? "block" : "none";
@@ -751,8 +775,11 @@
   // badges, click-to-navigate to its first occurrence, and client-side search -- explicit on-demand trigger,
   // matching Document diagnostics' own UX pattern (no auto-refresh, no background work on load).
   var citationsPanelEntries = []; // last-computed entries, re-filtered client-side on every search keystroke
+  var categoryEditingPaperId = null;
+  var categoryEditInFlight = false;
   function renderCitationsPanelBadges(entry) {
     var badges = [];
+    if (entry.category) badges.push('<span class="category-badge">' + escapeHtml(entry.category) + "</span>");
     if (entry.orphaned) badges.push('<span class="badge-warn">not in library</span>');
     if (entry.retraction) badges.push('<span class="badge-warn">' + escapeHtml(entry.retraction.status) + "</span>");
     return badges.join(" ");
@@ -760,18 +787,81 @@
   function renderCitationsPanelList() {
     var filterText = ($("citationsSearch").value || "").trim().toLowerCase();
     var visible = filterText
-      ? citationsPanelEntries.filter(function (e) { return e.row.toLowerCase().indexOf(filterText) !== -1; })
+      ? citationsPanelEntries.filter(function (e) {
+          return (e.row + " " + (e.category || "")).toLowerCase().indexOf(filterText) !== -1;
+        })
       : citationsPanelEntries;
     $("citationsPanel").innerHTML = visible.length
       ? visible.map(function (e) {
-          return '<li><button class="row" data-position="' + e.positions[0] + '">' +
+          var categoryAction = e.paperId == null ? "" :
+            '<button class="secondary category-action" data-category-paper-id="' + e.paperId +
+              '" aria-label="Set bibliography category for ' + escapeHtml(e.row) + '">' +
+              (e.category ? "Change category…" : "Set category…") + "</button>";
+          return '<li class="citation-panel-item"><button class="row" data-position="' + e.positions[0] + '">' +
             escapeHtml(e.row) + " · " + e.occurrenceCount + "×  " + renderCitationsPanelBadges(e) +
-            "</button></li>";
+            "</button>" + categoryAction + "</li>";
         }).join("")
       : '<li class="empty">' + escapeHtml(citationsPanelEntries.length ? "No matches." : "No citations in this document yet.") + "</li>";
   }
+  function closeCategoryEditor() {
+    categoryEditingPaperId = null;
+    $("bibliographyCategoryEditor").style.display = "none";
+    $("bibliographyCategory").value = "";
+  }
+  function openCategoryEditor(paperId) {
+    if (categoryEditInFlight) return;
+    var entry = citationsPanelEntries.find(function (candidate) {
+      return String(candidate.paperId) === String(paperId);
+    });
+    if (!entry || entry.paperId == null) {
+      setStatus("This legacy citation has no reliable Callosum paper id, so it cannot be categorized.", true);
+      return;
+    }
+    categoryEditingPaperId = String(entry.paperId);
+    $("bibliographyCategoryTarget").textContent = entry.row;
+    $("bibliographyCategory").value = entry.category || "";
+    var labels = {}, assignments = currentBibliographyCategories();
+    Object.keys(assignments).forEach(function (id) { labels[assignments[id]] = true; });
+    $("bibliographyCategoryOptions").innerHTML = Object.keys(labels).sort().map(function (label) {
+      return '<option value="' + escapeHtml(label) + '"></option>';
+    }).join("");
+    $("bibliographyCategoryEditor").style.display = "block";
+    $("bibliographyCategory").focus();
+  }
+  async function applyCategoryEdit(value) {
+    if (categoryEditingPaperId == null || categoryEditInFlight) return;
+    categoryEditInFlight = true;
+    $("bibliographyCategorySave").disabled = true;
+    $("bibliographyCategoryRemove").disabled = true;
+    var paperId = categoryEditingPaperId;
+    var previous = currentBibliographyCategories();
+    var updated;
+    try {
+      updated = CallosumCore.updateBibliographyCategory(previous, paperId, value);
+      setStatus("Updating bibliography category…");
+      await persistBibliographyCategories(updated);
+      await refreshDocument({ throwOnError: true });
+      citationsPanelEntries = CallosumCore.applyBibliographyCategories(citationsPanelEntries, updated);
+      renderCitationsPanelList();
+      closeCategoryEditor();
+      setStatus(updated[paperId] ? "Bibliography category saved." : "Bibliography category removed.");
+    } catch (e) {
+      try { await persistBibliographyCategories(previous); } catch (rollbackError) {
+        setStatus("Couldn't update the category or restore its setting: " +
+          ((rollbackError && rollbackError.message) || rollbackError), true);
+        return;
+      }
+      setStatus("Couldn't update the bibliography category: " + ((e && e.message) || e), true);
+    } finally {
+      categoryEditInFlight = false;
+      $("bibliographyCategorySave").disabled = false;
+      $("bibliographyCategoryRemove").disabled = false;
+    }
+  }
   async function runCitationsPanel() {
+    if (categoryEditInFlight) return;
     setStatus("Scanning the document…");
+    closeCategoryEditor();
     $("citationsPanel").innerHTML = "";
     $("citationsSearch").style.display = "block"; // revealed on first use, like the tunnel token section
     try {
@@ -782,7 +872,10 @@
       var entries = CallosumCore.buildCitationsPanelEntries(records);
       var ids = entries.map(function (e) { return e.paperId; }).filter(function (id) { return id != null; });
       var existence = await checkPaperExistence(ids);
-      citationsPanelEntries = CallosumCore.mergePanelEntryStatus(entries, existence.missingIds, existence.checked);
+      citationsPanelEntries = CallosumCore.applyBibliographyCategories(
+        CallosumCore.mergePanelEntryStatus(entries, existence.missingIds, existence.checked),
+        currentBibliographyCategories(),
+      );
       renderCitationsPanelList();
       setStatus(
         entries.length + " unique work(s) cited" + (existence.truncated ? " (only the first " + MAX_EXISTENCE_CHECK_IDS + " checked against the library)" : "") + ".",
@@ -792,6 +885,8 @@
     }
   }
   function onCitationsPanelClick(ev) {
+    var categoryBtn = ev.target.closest("button[data-category-paper-id]");
+    if (categoryBtn) { openCategoryEditor(categoryBtn.getAttribute("data-category-paper-id")); return; }
     var btn = ev.target.closest("button.row[data-position]");
     if (btn) navigateToCitation(Number(btn.getAttribute("data-position")));
   }
@@ -816,9 +911,10 @@
   }
 
   // Re-render every Callosum citation in document order + rebuild the bibliography (the Zotero-style loop).
-  async function refreshDocument() {
+  async function refreshDocument(options) {
     setStatus("Refreshing…");
     try {
+      var bibliographyCategories = currentBibliographyCategories();
       await Word.run(async function (ctx) {
         var body = ctx.document.body;
         var citationCCs = [], itemsList = [], bibCC = null;
@@ -858,13 +954,19 @@
           bibCC.tag = CallosumCore.BIB_TAG;
           bibCC.title = "Callosum bibliography";
         }
-        bibCC.insertText(CallosumCore.bibliographyText(data), Word.InsertLocation.replace);
+        bibCC.insertText(
+          CallosumCore.categorizedBibliographyText(data, bibliographyCategories),
+          Word.InsertLocation.replace,
+        );
 
         await ctx.sync();
         setStatus("Updated " + itemsList.length + " citation(s) + the bibliography.");
       });
+      return true;
     } catch (e) {
       setStatus("Couldn't refresh: " + ((e && e.message) || e), true);
+      if (options && options.throwOnError) throw e;
+      return false;
     }
   }
 
@@ -947,6 +1049,7 @@
         try {
           Office.context.document.settings.remove("callosumStyle");
           Office.context.document.settings.remove("callosumNotePlacement");
+          Office.context.document.settings.remove(BIBLIOGRAPHY_CATEGORY_SETTING);
           Office.context.document.settings.saveAsync(function () {});
         } catch (e) { /* settings unavailable -- flatten itself already succeeded, not worth failing over */ }
       }
@@ -991,6 +1094,9 @@
   // Escape clears an in-progress citation assembly -- a pure UI-state reset, never a document mutation either
   // way, so there's nothing unsafe about firing it broadly rather than scoping it to one element's focus.
   function onGlobalKeydown(ev) {
+    if (ev.key === "Escape" && categoryEditingPaperId != null && !categoryEditInFlight) {
+      closeCategoryEditor(); return;
+    }
     if (ev.key === "Escape" && assembly.length) resetAssembly();
   }
   function wire() {
@@ -1011,6 +1117,16 @@
     $("citationsPanelRun").addEventListener("click", runCitationsPanel);
     $("citationsPanel").addEventListener("click", onCitationsPanelClick);
     $("citationsSearch").addEventListener("input", debounce(renderCitationsPanelList, 150));
+    $("bibliographyCategorySave").addEventListener("click", function () {
+      applyCategoryEdit($("bibliographyCategory").value);
+    });
+    $("bibliographyCategoryRemove").addEventListener("click", function () { applyCategoryEdit(""); });
+    $("bibliographyCategoryCancel").addEventListener("click", function () {
+      if (!categoryEditInFlight) closeCategoryEditor();
+    });
+    $("bibliographyCategory").addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") { ev.preventDefault(); applyCategoryEdit($("bibliographyCategory").value); }
+    });
     $("refresh").addEventListener("click", function () { refreshDocument(); });
     $("flatten").addEventListener("click", onFlatten);
     $("style").addEventListener("change", onStyleChange);

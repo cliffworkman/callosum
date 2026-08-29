@@ -5,6 +5,8 @@
  */
 const test = require("node:test");
 const assert = require("node:assert");
+const fs = require("node:fs");
+const path = require("node:path");
 const core = require("./taskpane_core.js");
 
 // ---- search rows (SP1) ----
@@ -411,6 +413,89 @@ test("mergePanelEntryStatus: flags orphaned + retraction-flagged entries by reso
   assert.strictEqual(merged[2].retraction, null);
   // never mutates the input array's own objects
   assert.strictEqual(entries[0].orphaned, undefined);
+});
+
+// ---- document-local categorized bibliographies (inc 521) ----
+test("normalizeBibliographyCategory: trims valid labels and rejects reserved, multiline, and oversized labels", () => {
+  assert.strictEqual(core.normalizeBibliographyCategory("  Methods  "), "Methods");
+  assert.strictEqual(core.normalizeBibliographyCategory(""), null);
+  assert.throws(() => core.normalizeBibliographyCategory("Other references"), /reserved/);
+  assert.throws(() => core.normalizeBibliographyCategory("Methods\nTheory"), /single line/);
+  assert.throws(() => core.normalizeBibliographyCategory("Methods\u2028Theory"), /single line/);
+  assert.throws(() => core.normalizeBibliographyCategory("x".repeat(81)), /80 characters/);
+});
+
+test("bibliography category metadata: reads fail-soft, canonicalizes case, updates immutably, and removes blank", () => {
+  assert.deepStrictEqual(core.normalizeBibliographyCategories("not json"), {});
+  assert.deepStrictEqual(core.normalizeBibliographyCategories({ nope: "Methods", 1: "Methods" }), { 1: "Methods" });
+  const original = { 1: "Methods" };
+  const added = core.updateBibliographyCategory(original, 2, "methods");
+  assert.deepStrictEqual(original, { 1: "Methods" });
+  assert.deepStrictEqual(added, { 1: "Methods", 2: "Methods" });
+  assert.deepStrictEqual(core.updateBibliographyCategory(added, 1, ""), { 2: "Methods" });
+  assert.strictEqual(core.serializeBibliographyCategories({ 2: "Theory", 1: "Methods" }), '{"1":"Methods","2":"Theory"}');
+  assert.throws(() => core.updateBibliographyCategory({}, "foreign-id", "Methods"), /numeric Callosum paper id/);
+});
+
+test("bibliography category metadata: enforces bounded assignment and category growth", () => {
+  const assignments = {};
+  for (let id = 1; id <= 1000; id += 1) assignments[id] = "Methods";
+  assert.throws(
+    () => core.updateBibliographyCategory(assignments, 1001, "Methods"),
+    /at most 1000 works/,
+  );
+
+  const categories = {};
+  for (let id = 1; id <= 50; id += 1) categories[id] = `Category ${id}`;
+  assert.throws(
+    () => core.updateBibliographyCategory(categories, 51, "Category 51"),
+    /at most 50 bibliography categories/,
+  );
+});
+
+test("categorizedBibliographyText: alphabetizes groups, preserves citeproc order, and leaves Other last", () => {
+  const data = {
+    bibliography_text: "Entry 2\nEntry 1\nEntry 3\nEntry 4",
+    bibliography_entry_ids: [["callosum-2"], ["callosum-1"], ["callosum-3"], ["callosum-4"]],
+  };
+  assert.strictEqual(
+    core.categorizedBibliographyText(data, { 1: "Theory", 2: "Methods", 3: "Methods" }),
+    "Methods\nEntry 2\nEntry 3\n\nTheory\nEntry 1\n\nOther references\nEntry 4",
+  );
+  // No visible assignment restores the exact ordinary citeproc text rather than adding an empty group.
+  assert.strictEqual(core.categorizedBibliographyText(data, { 99: "Methods" }), data.bibliography_text);
+});
+
+test("categorizedBibliographyText: multi-id entries group only when every source shares one category", () => {
+  const data = {
+    bibliography_text: "Shared entry\nMixed entry",
+    bibliography_entry_ids: [["callosum-1", "callosum-2"], ["callosum-2", "callosum-3"]],
+  };
+  assert.strictEqual(
+    core.categorizedBibliographyText(data, { 1: "Methods", 2: "Methods", 3: "Theory" }),
+    "Methods\nShared entry\n\nOther references\nMixed entry",
+  );
+  assert.throws(
+    () => core.categorizedBibliographyText({ bibliography_text: "Entry", bibliography_entry_ids: [] }, { 1: "Methods" }),
+    /identity is unavailable/,
+  );
+});
+
+test("applyBibliographyCategories: annotates only resolvable document works without mutating panel entries", () => {
+  const entries = [{ paperId: "1", row: "A" }, { paperId: null, row: "Legacy" }, { paperId: "2", row: "B" }];
+  const applied = core.applyBibliographyCategories(entries, { 1: "Methods" });
+  assert.deepStrictEqual(applied.map((entry) => entry.category), ["Methods", null, null]);
+  assert.strictEqual(entries[0].category, undefined);
+});
+
+test("bibliography category controls are present and wired through the categorized render path", () => {
+  const html = fs.readFileSync(path.join(__dirname, "taskpane.html"), "utf8");
+  const js = fs.readFileSync(path.join(__dirname, "taskpane.js"), "utf8");
+  ["bibliographyCategoryEditor", "bibliographyCategory", "bibliographyCategorySave", "bibliographyCategoryRemove"]
+    .forEach((id) => assert.match(html, new RegExp(`id=["']${id}["']`)));
+  assert.match(js, /categorizedBibliographyText\(data, bibliographyCategories\)/);
+  assert.match(js, /persistBibliographyCategories\(updated\)/);
+  assert.match(js, /refreshDocument\(\{ throwOnError: true \}\)/);
 });
 
 // ---- Word-on-the-web relay (SP4): local vs. tunneled origin + the Bearer token header ----

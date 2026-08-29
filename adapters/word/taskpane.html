@@ -68,6 +68,19 @@
 
     <input id="citationsSearch" type="search" placeholder="Search cited works…" autocomplete="off" aria-label="Search citations in this document" style="display:none"/>
     <ul id="citationsPanel" class="results"></ul>
+    <div id="bibliographyCategoryEditor" class="category-editor" style="display:none">
+      <p id="bibliographyCategoryTarget" class="hint"></p>
+      <label class="field">Bibliography category
+        <input id="bibliographyCategory" type="text" maxlength="80" list="bibliographyCategoryOptions" autocomplete="off" aria-label="Bibliography category"/>
+        <datalist id="bibliographyCategoryOptions"></datalist>
+      </label>
+      <p class="hint">Choose an existing label or type a new one. Blank removes the category.</p>
+      <div class="actions">
+        <button id="bibliographyCategorySave" type="button" class="refresh">Save category</button>
+        <button id="bibliographyCategoryRemove" type="button" class="secondary">Remove category</button>
+        <button id="bibliographyCategoryCancel" type="button" class="secondary">Cancel</button>
+      </div>
+    </div>
 
     <div id="status" class="status" role="status" aria-live="polite"></div>
   </div>
