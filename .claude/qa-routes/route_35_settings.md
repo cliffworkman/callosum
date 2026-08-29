@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: /settings, /settings/providers, /settings/providers/{pid}, /settings/test-key, /settings/repair-summary-cache, /settings/access-token, /access/recover, /citations/styles*, /integrations/libreoffice/*, /integrations/word/*, /usage/events, /usage/summary, /usage/export, /usage/clear
-fe: 35_settings.jsx, 35b_providers.jsx, 35ca_citation_style_provenance.jsx, 35cb_citation_style_editor.jsx, 35d_citation_styles.jsx, 01_recovery.jsx, 35f_usage.jsx
+fe: 35_settings.jsx, 35b_providers.jsx, 35ca_citation_style_provenance.jsx, 35cb_citation_style_editor.jsx, 35d_citation_styles.jsx, 01_recovery.jsx, 35f_usage.jsx, 35e_maintenance.jsx (LibreOfficeSettings + ServerAddressSettings only — GrobidSettings/LocalMaintenanceSettings in the same file are routes 85/86/91)
 -->
 
 # ROUTE 35 - Settings
@@ -56,6 +56,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
   independent style/canonical id without mutating its source. A dependent copy that still requires its parent,
   hidden background update request, or unlabelled remote source is High.
 - **LibreOffice install is local-only (inc 162).** The plugin install/download builds + opens a FIXED bundled `.oxt`; it must fire **no egress** (no genai/external host) and must degrade gracefully (`{opened:false}` + a download fallback), never 500. A request to any external host from the install path is **Critical**.
+- **Server address + "Point LibreOffice at this instance" are local-only (backlog #33/#34 phase 1).** `POST /integrations/libreoffice/set-server-url` derives the base URL from the request's own Host header and writes it to a local sidecar file — it must reject (**422**) any request whose Host is not loopback (`127.0.0.1`/`localhost`); accepting a non-loopback Host (e.g. a Remote-Access tunnel hostname) and writing it as the LibreOffice adapter's target is **Critical** (it would silently repoint the adapter at a public tunnel). The displayed "Server address" must always equal `window.location.origin` — showing any other value is a bug.
 - **Remote access is OFF by default + token-gated (inc 168).** On a clean instance, `GET /settings` reports
   `remote_access_enabled:false`; the gate is a no-op (the data API works with no token). Enabling without a token →
   **422** (would lock the local UI out). `POST /settings/access-token` returns the token value **once**; `GET
@@ -154,7 +155,17 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    requests; repository/URL operations have only the explicit expected requests and send no library content.
 10. **Local maintenance.** Click **Repair synthesis cache** (`POST /settings/repair-summary-cache`). It must report scanned and removed row counts, fire no external request, and not delete saved summaries, verified citations, chunks, or evidence records. A response that claims to "verify" or improve synthesis quality is a wording bug: this only deletes malformed cached AI draft rows.
 11. **Metadata access (inc 158).** Under **Metadata access**, save a **Contact email** (e.g. `you@example.com`); `GET /settings` reports `contact_email` + `contact_email_source: "ui"`. Submit `not-an-email` → **422**, nothing persisted. The email is NOT a secret (it IS returned by `GET /settings` — it's the polite-pool contact for Crossref/OpenAlex/Retraction Watch), but saving it must fire **no genai request**. Clear it → reverts to empty.
-12. **LibreOffice plugin (inc 162).** Under **LibreOffice plugin**, confirm the section renders (Install plugin button + Download .oxt link + the "restart Writer / app must be running" note). The **Download .oxt** link (`GET /integrations/libreoffice/plugin.oxt`) serves a non-empty `.oxt` (a zip). Clicking **Install** (`POST /integrations/libreoffice/install`) returns 200 with `{opened: …, detail}` and fires **no genai/external request** (it only opens a local file handler); on a headless runner where no handler exists it must report `opened:false` with a download fallback, not crash.
+12. **LibreOffice plugin (inc 162; server-address wiring backlog #33/#34 phase 1).** At the top of the
+   **Integrations** card, confirm a **Server address** line renders showing the current origin (e.g.
+   `http://127.0.0.1:NNNNN`) with a working **Copy** button. Under **LibreOffice plugin**, confirm the section
+   renders (Install plugin button + Download .oxt link + the "restart Writer / app must be running" note). The
+   **Download .oxt** link (`GET /integrations/libreoffice/plugin.oxt`) serves a non-empty `.oxt` (a zip).
+   Clicking **Install** (`POST /integrations/libreoffice/install`) returns 200 with `{opened: …, detail}` and
+   fires **no genai/external request** (it only opens a local file handler); on a headless runner where no
+   handler exists it must report `opened:false` with a download fallback, not crash. Click **Point LibreOffice
+   at This Instance** (`POST /integrations/libreoffice/set-server-url`): confirm a success message names the
+   exact current origin, fires no external request, and (direct API) confirm posting the same request with a
+   non-loopback `Host` header returns **422** with no file written.
 13. **Microsoft Word add-in (inc 164).** Under **Microsoft Word add-in (desktop)**, confirm the section renders (the 3-step one-time setup note + a **Download manifest** link + an **Open add-in folder** button). The **Download manifest** link (`GET /integrations/word/manifest.xml`) serves a non-empty XML manifest whose SourceLocation is `https://localhost:8443/integrations/word/taskpane.html`. `GET /integrations/word/taskpane.html` serves the task pane (its only external reference is Microsoft's office.js — never an AI/library host). Clicking **Open add-in folder** (`POST /integrations/word/install`) returns 200 `{opened, detail}`, fires **no genai/external request**, and on a headless runner reports `opened:false` without crashing. `GET /integrations/word/secrets.txt` → 404 (no traversal). *(The actual in-Word task pane is desktop-Word-only — a documented MANUAL check, not driven here.)*
 14. **Remote access (inc 168).** Under **Remote access (Google Docs)**, confirm the toggle is **OFF** on a clean
    instance. Turn it ON → an access token is shown **once** (a readonly field); `GET /settings` now reports

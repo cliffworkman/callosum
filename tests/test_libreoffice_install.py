@@ -8,6 +8,7 @@ the user's manual check. The full extension (install + dispatcher) is verified t
 from __future__ import annotations
 
 import io
+import json
 import zipfile
 
 from fastapi.testclient import TestClient
@@ -49,3 +50,23 @@ def test_install_degrades_when_no_handler(temp_db_url: str, monkeypatch) -> None
 def test_install_rejects_wrong_method(temp_db_url: str) -> None:
     client = TestClient(create_app(db_url=temp_db_url))
     assert client.get("/integrations/libreoffice/install").status_code == 405
+
+
+def test_set_server_url_writes_sidecar_config(temp_db_url: str, tmp_path, monkeypatch) -> None:
+    """backlog #33/#34 phase 1 — one-click "Point LibreOffice at this instance." Derives the base URL from the
+    request's own Host header, so it must match whatever TestClient's base_url actually is."""
+    config_path = tmp_path / "libreoffice.json"
+    monkeypatch.setattr(lo, "_LIBREOFFICE_CONFIG_PATH", str(config_path))
+    client = TestClient(create_app(db_url=temp_db_url), base_url="http://127.0.0.1:8080")
+    r = client.post("/integrations/libreoffice/set-server-url", json={})
+    assert r.status_code == 200
+    assert r.json()["base"] == "http://127.0.0.1:8080"
+    assert json.loads(config_path.read_text(encoding="utf-8")) == {"base": "http://127.0.0.1:8080"}
+
+
+def test_set_server_url_rejects_non_loopback(temp_db_url: str) -> None:
+    """A request arriving through the Remote-Access tunnel (a public hostname) must never repoint the adapter
+    at that tunnel — TestClient's default base_url (http://testserver) is exactly such a non-loopback host."""
+    client = TestClient(create_app(db_url=temp_db_url))
+    r = client.post("/integrations/libreoffice/set-server-url", json={})
+    assert r.status_code == 422

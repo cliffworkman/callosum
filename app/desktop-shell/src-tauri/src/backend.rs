@@ -25,6 +25,9 @@ pub struct ResolvedPaths {
     pub db_url: String,
     pub library_dir: PathBuf,
     pub log_path: PathBuf,
+    /// Where the last-successful port is remembered across launches (see `pick_port`) — plain text,
+    /// no secrets, just an integer. Missing/unreadable/stale is never an error, only a cache miss.
+    pub port_path: PathBuf,
     pub app_data_dir: PathBuf,
 }
 
@@ -97,6 +100,7 @@ pub fn resolved_paths(app: &AppHandle) -> Result<ResolvedPaths, StartupError> {
         db_url,
         library_dir,
         log_path: data_dir.join("backend.log"),
+        port_path: data_dir.join("last-port.txt"),
         app_data_dir: data_dir,
     })
 }
@@ -108,6 +112,33 @@ fn pick_free_port() -> std::io::Result<u16> {
     Ok(port)
 }
 
+/// Reuse whatever port worked last launch, if anything else hasn't grabbed it in the meantime — this
+/// is what lets external tools that only know a fixed/remembered port (the LibreOffice adapter's own
+/// `~/.callosum/libreoffice.json` sidecar config, a future Word HTTPS companion process) stay pointed
+/// at the right place across ordinary restarts, without changing the actual access-control boundary
+/// (CORS + `AccessControlMiddleware`, not port obscurity, already gate this — see increment notes).
+fn read_preferred_port(path: &Path) -> Option<u16> {
+    std::fs::read_to_string(path).ok()?.trim().parse().ok()
+}
+
+fn write_preferred_port(path: &Path, port: u16) {
+    let _ = std::fs::write(path, port.to_string());
+}
+
+/// Try to bind `preferred` first (if given); fall back to a fresh OS-assigned free port otherwise or
+/// on conflict. Same bind-then-drop-then-launch-uvicorn-on-it approach as `pick_free_port`, just with
+/// an optional specific port to try first.
+fn pick_port(preferred: Option<u16>) -> std::io::Result<u16> {
+    if let Some(p) = preferred {
+        if let Ok(listener) = TcpListener::bind(("127.0.0.1", p)) {
+            let port = listener.local_addr()?.port();
+            drop(listener);
+            return Ok(port);
+        }
+    }
+    pick_free_port()
+}
+
 /// Spawn uvicorn against `paths` on a freshly-picked port, retrying with a new port if the process
 /// exits almost immediately (the classic "address already in use" case on a personal machine where
 /// something else grabbed the port in the gap between `pick_free_port` and uvicorn's own bind).
@@ -117,8 +148,16 @@ pub fn spawn_backend(
     managed_local_ai_descriptor: Option<&std::path::Path>,
 ) -> Result<(BackendHandle, u16), StartupError> {
     let mut last_err = String::new();
-    for _ in 0..MAX_SPAWN_ATTEMPTS {
-        let port = pick_free_port().map_err(|e| StartupError::SpawnFailed(e.to_string()))?;
+    let preferred_port = read_preferred_port(&paths.port_path);
+    for attempt in 0..MAX_SPAWN_ATTEMPTS {
+        // Only the first attempt tries to reuse last launch's port — a retry means that port (or
+        // whatever we picked) just failed, so keep falling back to a fresh random one same as before.
+        let port = if attempt == 0 {
+            pick_port(preferred_port)
+        } else {
+            pick_free_port()
+        }
+        .map_err(|e| StartupError::SpawnFailed(e.to_string()))?;
         let mut cmd = Command::new(&paths.python_exe);
         cmd.args([
             "-m",
@@ -176,6 +215,7 @@ pub fn spawn_backend(
                 continue; // try again with a new port
             }
             Ok(None) => {
+                write_preferred_port(&paths.port_path, port);
                 #[cfg(windows)]
                 {
                     match confine_to_job(&child) {

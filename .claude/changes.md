@@ -9,6 +9,30 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-29 — Increment 531: Tauri packaged-app port stability + one-click LibreOffice wiring (backlog #33/#34 phase 1)
+- **Files:** `app/desktop-shell/src-tauri/src/backend.rs`; `app/backend/api/routers/libreoffice.py`;
+  `app/frontend/js/35_settings.jsx`, `35e_maintenance.jsx`; `tests/test_libreoffice_install.py`;
+  QA route 35; backlog #33/#34 entry.
+- **What:** the packaged Tauri desktop app now persists its last-successful backend port and prefers it on the
+  next launch (falling back to a fresh random pick only on conflict); Settings shows the live server address
+  with a Copy button; a new "Point LibreOffice at This Instance" button
+  (`POST /integrations/libreoffice/set-server-url`) writes the LibreOffice adapter's own
+  `~/.callosum/libreoffice.json` sidecar directly from the running instance's own (loopback-verified) origin.
+- **Why:** everyone who actually uses callosum runs the packaged desktop app, not a manually-launched dev
+  server — but the packaged app spawns its backend on a fresh random port every launch, with no way for
+  LibreOffice's own sidecar config to discover it. This closes that gap for LibreOffice completely (Word/Docs
+  need more — see the backlog entry and `.claude/backups/plans/2026-08-29_tauri-word-libreoffice-googledocs-
+  support.md` for the full phased plan). Built as a separate track from Codex's concurrent Word/Docs-parity
+  handoff arc — confirmed zero file overlap via direct `git diff` against Codex's own commits before starting,
+  and a live increment-number/backlog-entry collision (Codex's own inc 530 landing mid-edit) was caught and
+  resolved by surgically isolating each session's own hunk rather than either side clobbering the other's
+  uncommitted work.
+- **Verify:** `cargo check` (desktop-shell crate) clean; `pytest tests/test_libreoffice_install.py
+  tests/test_frontend_assembly.py -q` → 85 passed; `python tools/build_frontend.py` clean;
+  `python tools/qa/build_surface_map.py check` → 0 uncovered API surfaces.
+- **Revert:** `git log` for the exact commit; the change is additive (a new endpoint + two new frontend
+  controls + a port-preference file) with no schema/migration involved.
+
 <!-- HELP-DOCS-SYNCED: 2026-08-29 inc 529 — Word saved-evidence insertion -->
 ## 2026-08-29 — Increment 529: Word saved-evidence insertion
 - **Files:** Word task-pane UI/glue/pure logic/tests/README; privacy-minimized Word evidence route; shared tunnel

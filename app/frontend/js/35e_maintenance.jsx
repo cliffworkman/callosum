@@ -397,3 +397,59 @@ function GrobidDockerLifecycle({ url, autoReachable, dockerStatus, install, stop
     </div>
   );
 }
+
+// LibreOffice plugin settings (split from 35_settings.jsx, backlog #33/#34 phase 1 — the "Point LibreOffice at
+// this instance" button pushed that file over the 600-line cap; moved whole, matching this file's own existing
+// split precedent). Hoists across the shared IIFE, so 35_settings.jsx calls it directly, unchanged.
+function LibreOfficeSettings() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [urlBusy, setUrlBusy] = useState(false);
+  const [urlMsg, setUrlMsg] = useState("");
+  const install = async () => {
+    setBusy(true); setMsg("");
+    const r = await apiPost("/integrations/libreoffice/install", {});
+    setBusy(false);
+    setMsg(r.ok ? (r.data.detail || "Opening LibreOffice…") : ("Couldn't install: " + (r.error || "error")));
+  };
+  // backlog #33/#34 phase 1: closes the loop instead of asking the user to copy a port into Writer's own
+  // Callosum → Server URL… dialog — the packaged app's port isn't fixed across launches.
+  const pointAtThisInstance = async () => {
+    setUrlBusy(true); setUrlMsg("");
+    const r = await apiPost("/integrations/libreoffice/set-server-url", {});
+    setUrlBusy(false);
+    setUrlMsg(r.ok ? r.data.detail : ("Couldn't set it: " + (r.error || "error")));
+  };
+  return (
+    <>
+      <p className="eyebrow">LibreOffice plugin</p>
+      <button className="btn btn-ghost settings-integration-action" disabled={busy} onClick={install}>{busy ? "Installing…" : "Install Plugin"}</button>
+      <div className="settings-sub">
+        Installs the Callosum extension — a <b>Callosum</b> menu + toolbar in Writer (Add citation, Suggest, Refresh, Style, Flatten). Click Install, confirm in LibreOffice's Extension Manager, then restart Writer. The app must be running for the plugin to reach it. <button className="btn-link" onClick={() => downloadAsset("/integrations/libreoffice/plugin.oxt", "callosum.oxt")}>Download .oxt.</button>
+      </div>
+      {msg && <div className="settings-note">{msg}</div>}
+      <button className="btn btn-ghost settings-integration-action" disabled={urlBusy} onClick={pointAtThisInstance}>{urlBusy ? "Setting…" : "Point LibreOffice at This Instance"}</button>
+      <div className="settings-sub">Only needed if the plugin can't reach Callosum (e.g. after a restart picked a different port).</div>
+      {urlMsg && <div className="settings-note">{urlMsg}</div>}
+    </>
+  );
+}
+
+// Server address (backlog #33/#34, packaged-desktop-app phase 1) — the packaged app spawns its backend on a
+// per-launch port (stable across ordinary restarts once persisted, but not guaranteed), which external tools
+// have no other way to discover: LibreOffice's own sidecar config (Server URL… dialog), a Word HTTPS companion,
+// or a Google Docs tunnel's local target all need this number. `window.location.origin` is exactly it, for
+// free, since this page is served from that same origin. Shown once above the Integrations grid.
+function ServerAddressSettings() {
+  const [copied, setCopied] = useState(false);
+  const base = window.location.origin;
+  const copy = () => {
+    navigator.clipboard.writeText(base).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
+  };
+  return (
+    <div className="settings-keyrow">
+      <span className="settings-note">Server address: <code>{base}</code></span>
+      <button className="btn btn-ghost" onClick={copy}>{copied ? "Copied!" : "Copy"}</button>
+    </div>
+  );
+}

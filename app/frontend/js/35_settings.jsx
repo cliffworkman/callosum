@@ -119,26 +119,9 @@ function PublishersSettings() {
   );
 }
 
-function LibreOfficeSettings() {
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
-  const install = async () => {
-    setBusy(true); setMsg("");
-    const r = await apiPost("/integrations/libreoffice/install", {});
-    setBusy(false);
-    setMsg(r.ok ? (r.data.detail || "Opening LibreOffice…") : ("Couldn't install: " + (r.error || "error")));
-  };
-  return (
-    <>
-      <p className="eyebrow">LibreOffice plugin</p>
-      <button className="btn btn-ghost settings-integration-action" disabled={busy} onClick={install}>{busy ? "Installing…" : "Install Plugin"}</button>
-      <div className="settings-sub">
-        Installs the Callosum extension — a <b>Callosum</b> menu + toolbar in Writer (Add citation, Suggest, Refresh, Style, Flatten). Click Install, confirm in LibreOffice's Extension Manager, then restart Writer. The app must be running for the plugin to reach it. <button className="btn-link" onClick={() => downloadAsset("/integrations/libreoffice/plugin.oxt", "callosum.oxt")}>Download .oxt.</button>
-      </div>
-      {msg && <div className="settings-note">{msg}</div>}
-    </>
-  );
-}
+// LibreOfficeSettings lives in js/35e_maintenance.jsx (split out to stay under the 600-line cap when the
+// backlog #33/#34 phase-1 "Point LibreOffice at this instance" button landed) — hoists across the shared IIFE,
+// so it's called here unchanged.
 
 // Microsoft Word add-in (inc 164, SP1; SP4 web variant). Architecture A: callosum serves the task pane over
 // HTTPS, same-origin with the API — desktop Word only, zero egress. "Install" can't auto-sideload on desktop, so
@@ -567,6 +550,7 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
         </SettingsCard>
 
         <SettingsCard title="Integrations">
+          <ServerAddressSettings />
           <div className="settings-sections-grid settings-sections-grid-3">
             <div className="settings-section"><LibreOfficeSettings /></div>
             <div className="settings-section"><WordSettings /></div>

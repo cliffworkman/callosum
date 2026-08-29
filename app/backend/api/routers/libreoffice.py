@@ -14,15 +14,24 @@ desktop app or serves files is fine on localhost, dangerous when remote). No egr
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from app.backend.llm.providers import is_loopback_url
+
 router = APIRouter()
+
+# Mirrors adapters/libreoffice/callosum_cite.py's own sidecar-config contract exactly (its CONFIG_PATH + the
+# {"base": ...} shape) — kept as a literal here rather than importing that adapter module, since the backend
+# has no business depending on a specific word-processor client's file layout; the two simply must agree on
+# the format, which this comment keeps visible to a future reader of either file.
+_LIBREOFFICE_CONFIG_PATH = os.path.join(os.path.expanduser("~"), ".callosum", "libreoffice.json")
 
 
 def _build_oxt() -> str:
@@ -68,3 +77,28 @@ def install_plugin() -> InstallResult:
         opened=True,
         detail="Opening LibreOffice's Extension Manager — click Install, then restart Writer.",
     )
+
+
+class SetServerUrlResult(BaseModel):
+    base: str
+    detail: str
+
+
+@router.post("/integrations/libreoffice/set-server-url", response_model=SetServerUrlResult)
+def set_libreoffice_server_url(request: Request) -> SetServerUrlResult:
+    """Point the LibreOffice adapter at THIS running instance with one click, instead of asking the user to
+    copy a port number into Writer's Callosum → Server URL… dialog by hand — real friction under the packaged
+    desktop app, whose backend port isn't fixed across launches. Derives the base URL from the request's own
+    Host header (exactly what the browser used to reach this endpoint, so it's always correct regardless of
+    which port this launch actually picked), rejecting anything non-loopback so a call arriving through the
+    Remote-Access tunnel can never repoint the adapter at a public tunnel host."""
+    base = str(request.base_url).rstrip("/")
+    if not is_loopback_url(base):
+        raise HTTPException(
+            status_code=422,
+            detail="Refusing to point LibreOffice at a non-local address — open Callosum directly (not through a tunnel) and try again.",
+        )
+    os.makedirs(os.path.dirname(_LIBREOFFICE_CONFIG_PATH), exist_ok=True)
+    with open(_LIBREOFFICE_CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump({"base": base}, f)
+    return SetServerUrlResult(base=base, detail=f"LibreOffice will now reach Callosum at {base}.")
