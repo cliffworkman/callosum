@@ -71,6 +71,28 @@
       <button id="diagnosticsRun" type="button" class="secondary">Document diagnostics…</button>
       <button id="citationsPanelRun" type="button" class="secondary">Citations in this document…</button>
     </div>
+    <div class="actions">
+      <button id="statementOpen" type="button" class="secondary">Insert open-science statement…</button>
+    </div>
+    <div id="statementEditor" class="statement-editor" style="display:none">
+      <p class="hint">Choose a starting phrase or write your own. You decide what applies—Callosum does not infer or verify facts about your study.</p>
+      <label class="field">Statement type
+        <select id="statementKind" aria-label="Open-science statement type"></select>
+      </label>
+      <label class="field">Starting phrase
+        <select id="statementPhrase" aria-label="Open-science statement starting phrase"></select>
+      </label>
+      <label class="field">Statement text
+        <textarea id="statementText" maxlength="4000" rows="5" spellcheck="true" aria-label="Open-science statement text"></textarea>
+      </label>
+      <p id="statementStageState" class="hint"></p>
+      <div class="actions">
+        <button id="statementInsert" type="button" class="refresh">Insert at cursor</button>
+        <button id="statementStage" type="button" class="secondary">Stage for other editors</button>
+        <button id="statementClear" type="button" class="secondary">Clear staged</button>
+        <button id="statementCancel" type="button" class="secondary">Close</button>
+      </div>
+    </div>
     <div id="diagnostics" class="diagnostics" role="status" aria-live="polite"></div>
 
     <input id="citationsSearch" type="search" placeholder="Search cited works…" autocomplete="off" aria-label="Search citations in this document" style="display:none"/>

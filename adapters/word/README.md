@@ -115,6 +115,12 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
   bibliographies share the setting. It never adds or changes visible text; unsafe, malformed, shifted, or
   ambiguous metadata remains plain. Clearing the option rebuilds only Callosum-managed bibliography blocks as
   plain text and leaves hyperlinks in ordinary prose untouched.
+- **Insert open-science statement…** — choose data/code availability, preregistration, funding, conflict of
+  interest, ethics, or AI-use wording; start from one of the same canned phrases available in **Work →
+  Statements**, then review or edit every word. **Insert at cursor** places exact ordinary editable prose at the
+  end of the current selection—never a citation field and never an AI-generated or Callosum-verified assertion.
+  **Stage for other editors** uses the existing transient local `/statements/pending` handoff shared with
+  LibreOffice and another Word session; **Clear staged** affects only that handoff, not the document.
 - **Citation style** — changing the dropdown re-renders the whole document in the new style (the choice is
   remembered per document).
 - **Flatten to static text** — convert the live citation + bibliography fields to plain text for hand-off
@@ -128,7 +134,7 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
 
 ## How it works (for the curious)
 The task pane is served by callosum at `https://localhost:8443/integrations/word/taskpane.html` and its API calls
-(`/papers?q=`, `/papers/export`, `/citations/render-document`) are **same-origin** — so they reach your local
+(`/papers?q=`, `/papers/export`, `/citations/render-document`, `/statements/pending`) are **same-origin** — so they reach your local
 library directly, with **no egress** and no CORS exception. Each citation is a Word **Content Control** whose
 `.tag` carries only a short opaque reference to a document-local **Custom XML Part**. That part carries one or
 more cited works' CSL-JSON, each with its own optional locator/label/prefix/suffix/suppress-author/author-only.

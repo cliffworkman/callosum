@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-29",
-    "reviewed_rev": "b2e18a1",
-    "source_fingerprint": "473adecd03e3af81e7883b052bdcb41d81d3dfd89fc5fd1116d58e8cf7e0a830",
-    "note": "Reviewed final Word evidence-aware Suggest details after QA surface-map regeneration; existing citation-engine capability claim and screenshot remain accurate, with manual coverage added to routes 34 and 42."
+    "reviewed_rev": "83a6e05",
+    "source_fingerprint": "5c86eee2de1fe5b411244a05fb31f33c235c8697d59ddbd4e4eb724132c1c41e",
+    "note": "Reviewed Word open-science statement insertion; existing statement/integration claims and screenshots remain accurate, with manual Word coverage added to route 34."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

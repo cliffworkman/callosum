@@ -6,7 +6,7 @@
 # task-pane's own static files (Word-on-the-web needs Office itself to fetch these — they carry no library data,
 # just fixed HTML/JS/CSS/icon, matching word.py's own local no-egress posture) to local callosum; everything else
 # → 404. This is the tunnel-side boundary (the bearer token from Settings → Remote access is callosum's own
-# boundary, required on every /papers*, /citations/* request — the task-pane files need no token, they're static
+# boundary, required on every /papers*, /citations/*, /statements/pending request — task-pane files need no token, they're static
 # assets Office loads before any user interaction). The allowlist is what keeps the app shell, /settings, the
 # scan routes, and /papers/{id} edit/delete UNREACHABLE through the tunnel — even though they exist locally.
 #
@@ -24,9 +24,10 @@ credentials-file: <HOME>/.cloudflared/<TUNNEL_ID>.json
 
 ingress:
   # cite-only: GET /papers (search), POST /papers/export, POST /citations/render-document, /citations/suggest,
-  # GET /citations/styles. Query strings (e.g. /papers?q=) are not part of the path match.
+  # GET /citations/styles, and Word's exact GET/POST /statements/pending author-draft handoff. Query strings
+  # (e.g. /papers?q=) are not part of the path match. There is deliberately no broader /statements* wildcard.
   - hostname: callosum-tunnel.clffwrkmn.net
-    path: ^/(papers|papers/export|citations/render-document|citations/suggest|citations/styles)$
+    path: ^/(papers|papers/export|citations/render-document|citations/suggest|citations/styles|statements/pending)$
     service: http://localhost:8080
   # Word-on-the-web task-pane assets ONLY (never manifest.xml/manifest-web.xml themselves — those are downloaded
   # directly from the user's own local callosum, never fetched through the tunnel; only Office's own fetch of

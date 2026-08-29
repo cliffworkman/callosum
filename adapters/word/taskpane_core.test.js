@@ -859,6 +859,62 @@ test("evidence-aware Suggest exposes detail, editable locator, PDF deep link, an
   assert.match(js, /Evidence recorded when suggested/);
 });
 
+test("open-science statements expose the seven bounded author-controlled kinds", () => {
+  assert.deepStrictEqual(core.STATEMENT_TYPES.map((type) => type.kind), [
+    "data_availability", "code_availability", "preregistration", "funding",
+    "conflict_of_interest", "ethics", "ai_use",
+  ]);
+  assert.ok(core.STATEMENT_TYPES.every((type) => type.label && type.phrases.length >= 2));
+  assert.strictEqual(core.statementType("funding").phrases[0].text,
+    "This work was supported by [Funder name] under Grant No. [XXX].");
+  assert.strictEqual(core.statementType("unknown"), null);
+});
+
+test("statement staging normalizes only allowlisted bounded text without mutating input", () => {
+  const raw = {
+    funding: "  Funded by an author-confirmed grant.  ",
+    ethics: "x".repeat(core.MAX_STATEMENT_LENGTH + 25),
+    unknown: "must not cross the adapter boundary",
+    ai_use: 42,
+  };
+  const normalized = core.normalizeStagedStatements(raw);
+  assert.deepStrictEqual(normalized, {
+    funding: "Funded by an author-confirmed grant.",
+    ethics: "x".repeat(core.MAX_STATEMENT_LENGTH),
+  });
+  assert.strictEqual(raw.funding, "  Funded by an author-confirmed grant.  ");
+  assert.deepStrictEqual(core.normalizeStagedStatements(null), {});
+  assert.deepStrictEqual(core.normalizeStagedStatements([]), {});
+});
+
+test("statement stage requests preserve clear semantics and reject unknown kinds", () => {
+  assert.deepStrictEqual(core.buildStatementStageRequest("ethics", "  IRB approved.  "), {
+    kind: "ethics", text: "IRB approved.",
+  });
+  assert.deepStrictEqual(core.buildStatementStageRequest("ethics", "   "), { kind: "ethics", text: "" });
+  assert.strictEqual(core.buildStatementStageRequest("other", "text"), null);
+});
+
+test("Word statement UI stages locally and inserts exact plain text without a Content Control", () => {
+  const html = fs.readFileSync(path.join(__dirname, "taskpane.html"), "utf8");
+  const js = fs.readFileSync(path.join(__dirname, "taskpane.js"), "utf8");
+  [
+    "statementOpen", "statementEditor", "statementKind", "statementPhrase", "statementText",
+    "statementStageState", "statementInsert", "statementStage", "statementClear", "statementCancel",
+  ].forEach((id) => assert.match(html, new RegExp(`id=["']${id}["']`)));
+  assert.match(html, /maxlength=["']4000["']/);
+  assert.match(html, /Callosum does not infer or verify facts about your study/);
+  assert.match(js, /callosumFetch\("\/statements\/pending"\)/);
+  assert.match(js, /method: "POST"/);
+  assert.match(js, /window\.confirm\("Replace the current text/);
+  assert.match(js, /if \(selected === ""\) return/);
+  assert.match(js, /statementDrafts\[\$\("statementKind"\)\.value\]/);
+  assert.match(js, /getSelection\(\)\.getRange\(Word\.RangeLocation\.end\)/);
+  assert.match(js, /insertionPoint\.insertText\(text, Word\.InsertLocation\.replace\)/);
+  const insertBody = js.slice(js.indexOf("async function insertStatementAtCursor"), js.indexOf("// inc 517"));
+  assert.doesNotMatch(insertBody, /insertContentControl|createCitationPart|callosumFetch/);
+});
+
 // ---- Word-on-the-web relay (SP4): local vs. tunneled origin + the Bearer token header ----
 test("isLocalOrigin: localhost/127.0.0.1 are local; a tunnel hostname is not", () => {
   assert.strictEqual(core.isLocalOrigin("localhost"), true);

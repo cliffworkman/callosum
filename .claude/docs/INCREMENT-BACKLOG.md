@@ -232,12 +232,15 @@ the Principles + A-A gates before build.)*
       record to the existing Custom XML payload; Edit preserves it and the document panel exposes **View
       evidence…**. The response, models, prompt, ranking, user-choice boundary, and fully local/no-egress posture
       are unchanged. Pure/static logic is tested; live Word interaction remains deferred. See
-      `INCREMENT-526-NOTES.md`. Remaining: citation-coverage/integrity-preflight audits
+      `INCREMENT-526-NOTES.md`. **Open-science statement insertion closed inc 527:** Word now mirrors the seven
+      existing author-asserted disclosure kinds and canned starting phrases, reads/stages/clears through unchanged
+      `/statements/pending`, and inserts the exact bounded author-reviewed draft as ordinary text at the cursor.
+      No Content Control, AI/provider call, inferred fact, backend contract, or document mutation occurs during
+      staging. Pure/static logic is tested; live Word interaction remains deferred. See `INCREMENT-527-NOTES.md`.
+      Remaining: citation-coverage/integrity-preflight audits
       (`POST /methods/retraction/check-selected` is already adapter-agnostic, zero backend work — mirrors inc
       459/463); Citavi-style Insert Evidence (mirrors inc 461, reuses `POST /citations/classify-stance`
-      unchanged); open-science statement insertion (mirrors inc 462, `/statements/pending` is already fully
-      generalized, zero backend work — Word needs its own small canned-phrase table, the web frontend's
-      `38b_statements.jsx` has the reference list); Zotero-field conversion (Zotero's Word integration is
+      unchanged); Zotero-field conversion (Zotero's Word integration is
       documented as using real Word field codes, `ADDIN ZOTERO_ITEM CSL_CITATION {json}` — same convention
       inc 464 already verified for LibreOffice, `Word.Field.code` since WordApi 1.5 — a promising,
       research-first-required follow-up mirroring inc 464's own discipline, not to be guessed at). Mendeley

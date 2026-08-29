@@ -7,11 +7,15 @@ verification (no headless Word). The pure task-pane logic is unit-tested separat
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
 from app.backend.api.routers import word as word_router
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture
@@ -93,3 +97,12 @@ def test_no_egress_from_the_taskpane_assets(client: TestClient) -> None:
     assert "appsforoffice.microsoft.com" in html  # the Office platform SDK (expected)
     for forbidden in ("generativelanguage", "openai.com", "anthropic.com", "clffwrkmn.net"):
         assert forbidden not in html and forbidden not in js
+
+
+def test_word_statement_handoff_is_narrowly_allowed_through_shared_tunnel() -> None:
+    config = (PROJECT_ROOT / "adapters" / "googledocs" / "cloudflared-config.yml").read_text(encoding="utf-8")
+    ingress = next(line.strip() for line in config.splitlines() if line.strip().startswith("path: ^/(papers|"))
+    assert "statements/pending" in ingress
+    assert "statements/" in ingress
+    assert "statements/*" not in ingress
+    assert "statements)$" not in ingress

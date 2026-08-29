@@ -194,6 +194,13 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     exact highlight, and remain disabled without a PDF attachment. Details alone must not mutate the document;
     ordinary search-added citations carry no evidence badge. Confirm the flow remains local with zero provider
     requests, then repeat in Word on the web. This remains MANUAL because no available agent can drive Word.
+20e. **Manual Word open-science statements (inc 527):** open **Insert open-science statement…** and exercise all
+    seven statement kinds. Confirm staged drafts load per kind; choosing a canned phrase asks before replacing a
+    different draft; editing invalidates the exact-staged indicator; Stage and Clear round-trip through the local
+    handoff without changing the document. Insert a custom draft with selected prose and confirm it lands after
+    the selection as exact ordinary editable text with no Content Control. Empty text must not insert or stage;
+    4,000 characters is the maximum; Escape/Close mutates nothing. Confirm no AI/provider request, then repeat the
+    core load/stage/insert path in Word on the web. This remains MANUAL because no available agent can drive Word.
 21. **Manual Writer journal abbreviations:** use a short-title CSL style such as Nature with one journal carrying
     library `container-title-short` metadata, one exact NLM/MEDLINE title or ISSN, and one unknown journal. In
     **Journal abbreviations…**, verify **Library abbreviations** uses embedded metadata, **MEDLINE first** prefers

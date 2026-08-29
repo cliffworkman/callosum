@@ -35,6 +35,64 @@
   var SUGGEST_RETRIEVAL_THRESHOLD = 0.7;
   var SUGGEST_SUPPORT_THRESHOLD = 0.55;
   var EVIDENCE_SNIPPET_MAX = 150;
+  var MAX_STATEMENT_LENGTH = 4000;
+  // Keep these author-chosen starting phrases aligned with the web workspace's `38b_statements.jsx`. They are
+  // deterministic prose aids, not claims inferred or verified by Callosum.
+  var STATEMENT_TYPES = [
+    { kind: "data_availability", label: "Data availability", phrases: [
+      { label: "Available on request", text: "The data that support the findings of this study are available from the corresponding author upon reasonable request." },
+      { label: "Openly available", text: "The data that support the findings of this study are openly available in [repository name] at [URL/DOI]." },
+      { label: "Restricted (third-party)", text: "The data used in this study are third-party data, and restrictions apply to their availability." },
+      { label: "No new data", text: "No new data were generated in this study." },
+    ] },
+    { kind: "code_availability", label: "Code availability", phrases: [
+      { label: "Openly available", text: "The code that supports the findings of this study is available at [repository URL]." },
+      { label: "Available on request", text: "The code used in this study is available from the corresponding author upon reasonable request." },
+      { label: "No custom code", text: "No custom code was used in this study." },
+    ] },
+    { kind: "preregistration", label: "Preregistration", phrases: [
+      { label: "Preregistered", text: "The study design and analysis plan were preregistered at [registry/URL] prior to data collection." },
+      { label: "Not preregistered", text: "This study was not preregistered." },
+      { label: "Some exploratory analyses", text: "Some analyses reported here were not specified in the preregistration and should be considered exploratory." },
+    ] },
+    { kind: "funding", label: "Funding", phrases: [
+      { label: "Funded", text: "This work was supported by [Funder name] under Grant No. [XXX]." },
+      { label: "No specific funding", text: "This research received no specific grant from any funding agency in the public, commercial, or not-for-profit sectors." },
+    ] },
+    { kind: "conflict_of_interest", label: "Conflict of interest", phrases: [
+      { label: "None declared", text: "The authors declare no competing interests." },
+      { label: "Declared", text: "The authors declare the following competing interests: [describe]." },
+    ] },
+    { kind: "ethics", label: "Ethics", phrases: [
+      { label: "IRB approved", text: "This study was approved by [IRB/Ethics Committee name], protocol #[XXX]." },
+      { label: "Not required", text: "This study did not require ethical approval because [reason]." },
+      { label: "Informed consent", text: "All participants provided informed consent prior to participation." },
+    ] },
+    { kind: "ai_use", label: "AI use", phrases: [
+      { label: "AI used", text: "Generative AI tools were used for [specific purpose]; all AI-assisted content was reviewed and edited by the authors, who take full responsibility for the final manuscript." },
+      { label: "No AI used", text: "No generative AI tools were used in the preparation of this manuscript." },
+    ] },
+  ];
+
+  function statementType(kind) {
+    return STATEMENT_TYPES.find(function (type) { return type.kind === String(kind || ""); }) || null;
+  }
+  function normalizeStatementText(text) {
+    return String(text == null ? "" : text).trim().slice(0, MAX_STATEMENT_LENGTH);
+  }
+  function normalizeStagedStatements(value) {
+    var source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    var normalized = {};
+    STATEMENT_TYPES.forEach(function (type) {
+      var text = typeof source[type.kind] === "string" ? normalizeStatementText(source[type.kind]) : "";
+      if (text) normalized[type.kind] = text;
+    });
+    return normalized;
+  }
+  function buildStatementStageRequest(kind, text) {
+    if (!statementType(kind)) return null;
+    return { kind: String(kind), text: normalizeStatementText(text) };
+  }
 
   // UTF-8-safe base64 (CSL-JSON has unicode author names). btoa/atob + TextEncoder/TextDecoder are global in both
   // modern browsers and Node 16+ (the add-in runs in Word's webview; tests run in Node).
@@ -1044,6 +1102,12 @@
     suggestionAssemblyFields: suggestionAssemblyFields,
     suggestionDetail: suggestionDetail,
     suggestionOpenPdfPath: suggestionOpenPdfPath,
+    MAX_STATEMENT_LENGTH: MAX_STATEMENT_LENGTH,
+    STATEMENT_TYPES: STATEMENT_TYPES,
+    statementType: statementType,
+    normalizeStatementText: normalizeStatementText,
+    normalizeStagedStatements: normalizeStagedStatements,
+    buildStatementStageRequest: buildStatementStageRequest,
     isLocalOrigin: isLocalOrigin,
     authHeaders: authHeaders,
     LOCATOR_LABELS: LOCATOR_LABELS,

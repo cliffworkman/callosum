@@ -4,7 +4,7 @@
  * in this document panel; inc 517: accessibility; inc 519: Custom-XML storage; inc 520: native notes;
  * inc 521: document-local bibliography categories; inc 522: bounded batch assignment; inc 523: category order;
  * inc 524: heading-scoped bibliography blocks; inc 525: opt-in bibliography title/DOI links;
- * inc 526: evidence-aware Suggest details and audit records).
+ * inc 526: evidence-aware Suggest details and audit records; inc 527: open-science statement insertion).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
  * is a SAME-ORIGIN call to the local API — nothing leaves the machine, and (inc 511) desktop genuinely never
@@ -68,6 +68,9 @@
   var BIBLIOGRAPHY_CATEGORY_SETTING = "callosumBibliographyCategories";
   var BIBLIOGRAPHY_CATEGORY_ORDER_SETTING = "callosumBibliographyCategoryOrder";
   var BIBLIOGRAPHY_EXTERNAL_LINKS_SETTING = "callosumBibliographyExternalLinks";
+  var stagedStatements = Object.create(null);
+  var statementDrafts = Object.create(null);
+  var statementInFlight = false;
 
   // ---- live-citation storage ----
   // Current citations keep CSL-JSON in a Word Custom XML Part (WordApi 1.4) and only an opaque reference in the
@@ -1632,6 +1635,141 @@
     if (val) loadStyles();
   }
 
+  // inc 527 (P2 #21): author-controlled disclosure prose. The shared endpoint is local/transient staging only;
+  // Word inserts the exact bounded draft as plain text, never as a citation Content Control or generated fact.
+  function renderStatementKinds() {
+    $("statementKind").innerHTML = CallosumCore.STATEMENT_TYPES.map(function (type) {
+      return '<option value="' + escapeHtml(type.kind) + '">' + escapeHtml(type.label) + "</option>";
+    }).join("");
+  }
+  function renderStatementPhrases() {
+    var type = CallosumCore.statementType($("statementKind").value);
+    var phrases = type ? type.phrases : [];
+    $("statementPhrase").innerHTML = '<option value="">Choose a starting phrase…</option>' +
+      phrases.map(function (phrase, index) {
+        return '<option value="' + index + '">' + escapeHtml(phrase.label) + "</option>";
+      }).join("");
+    $("statementText").value = statementDrafts[$("statementKind").value] || "";
+    updateStatementState();
+  }
+  function updateStatementState() {
+    var kind = $("statementKind").value;
+    var draft = CallosumCore.normalizeStatementText($("statementText").value);
+    var staged = stagedStatements[kind] || "";
+    $("statementInsert").disabled = statementInFlight || !draft;
+    $("statementStage").disabled = statementInFlight || !draft || draft === staged;
+    $("statementClear").disabled = statementInFlight || !staged;
+    $("statementCancel").disabled = statementInFlight;
+    $("statementStageState").textContent = staged ?
+      (draft === staged ? "This exact draft is staged for LibreOffice or another Word session." :
+        "A different draft is staged; stage again to share these edits.") :
+      "Nothing is staged for this statement type.";
+  }
+  function setStatementBusy(busy) {
+    statementInFlight = busy;
+    updateStatementState();
+  }
+  async function openStatementEditor() {
+    $("statementEditor").style.display = "block";
+    setStatementBusy(true);
+    setStatus("Loading staged open-science statements…");
+    try {
+      var response = await callosumFetch("/statements/pending");
+      if (!response.ok) throw new Error("server returned " + response.status);
+      var previousStaged = stagedStatements;
+      var fetched = CallosumCore.normalizeStagedStatements(await response.json());
+      CallosumCore.STATEMENT_TYPES.forEach(function (type) {
+        var kind = type.kind;
+        if (!Object.prototype.hasOwnProperty.call(statementDrafts, kind) ||
+            statementDrafts[kind] === (previousStaged[kind] || "")) {
+          statementDrafts[kind] = fetched[kind] || "";
+        }
+      });
+      stagedStatements = fetched;
+      renderStatementPhrases();
+      setStatus("Choose a statement type and review every word before inserting.");
+      $("statementText").focus();
+    } catch (e) {
+      setStatus("Couldn't load staged statements: " + ((e && e.message) || e), true);
+    } finally {
+      setStatementBusy(false);
+    }
+  }
+  function closeStatementEditor() {
+    if (statementInFlight) return;
+    $("statementEditor").style.display = "none";
+    $("statementPhrase").value = "";
+  }
+  function chooseStatementPhrase() {
+    var type = CallosumCore.statementType($("statementKind").value);
+    var selected = $("statementPhrase").value;
+    if (selected === "") return;
+    var index = Number(selected);
+    if (!type || !Number.isInteger(index) || !type.phrases[index]) return;
+    var next = type.phrases[index].text;
+    var current = $("statementText").value.trim();
+    if (current && current !== next && !window.confirm("Replace the current text with the selected phrase?")) {
+      $("statementPhrase").value = "";
+      return;
+    }
+    $("statementText").value = next;
+    statementDrafts[$("statementKind").value] = next;
+    updateStatementState();
+  }
+  function updateStatementDraft() {
+    statementDrafts[$("statementKind").value] = $("statementText").value;
+    updateStatementState();
+  }
+  async function stageStatement(clear) {
+    var request = CallosumCore.buildStatementStageRequest(
+      $("statementKind").value,
+      clear ? "" : $("statementText").value,
+    );
+    if (!request || (!clear && !request.text)) {
+      setStatus("Write a statement before staging it.", true);
+      return;
+    }
+    setStatementBusy(true);
+    setStatus(clear ? "Clearing staged statement…" : "Staging statement locally…");
+    try {
+      var response = await callosumFetch("/statements/pending", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) throw new Error("server returned " + response.status);
+      stagedStatements = CallosumCore.normalizeStagedStatements(await response.json());
+      updateStatementState();
+      setStatus(clear ? "Cleared the staged statement; document text was unchanged." :
+        "Staged locally for LibreOffice or another Word session.");
+    } catch (e) {
+      setStatus("Couldn't update the staged statement: " + ((e && e.message) || e), true);
+    } finally {
+      setStatementBusy(false);
+    }
+  }
+  async function insertStatementAtCursor() {
+    var text = CallosumCore.normalizeStatementText($("statementText").value);
+    if (!text) {
+      setStatus("Write a statement before inserting it.", true);
+      return;
+    }
+    setStatementBusy(true);
+    setStatus("Inserting the author-reviewed statement…");
+    try {
+      await Word.run(async function (ctx) {
+        var insertionPoint = ctx.document.getSelection().getRange(Word.RangeLocation.end);
+        insertionPoint.insertText(text, Word.InsertLocation.replace);
+        await ctx.sync();
+      });
+      setStatus("Inserted ordinary editable text at the cursor; no live citation field was created.");
+    } catch (e) {
+      setStatus("Couldn't insert the statement: " + ((e && e.message) || e), true);
+    } finally {
+      setStatementBusy(false);
+    }
+  }
+
   // inc 517 (accessibility, backlog #33/#34 P1): Enter in the search box adds the top result (Zotero's own
   // shortcut, cited precedent from the LibreOffice adapter's own accessibility increment 474) -- reuses the
   // existing click handling verbatim via a real .click() rather than duplicating onPick's logic.
@@ -1643,6 +1781,9 @@
   // Escape clears an in-progress citation assembly -- a pure UI-state reset, never a document mutation either
   // way, so there's nothing unsafe about firing it broadly rather than scoping it to one element's focus.
   function onGlobalKeydown(ev) {
+    if (ev.key === "Escape" && $("statementEditor").style.display !== "none" && !statementInFlight) {
+      closeStatementEditor(); return;
+    }
     if (ev.key === "Escape" && categoryOrderDraft.length && !categoryOrderInFlight) {
       closeCategoryOrderEditor(); return;
     }
@@ -1652,6 +1793,7 @@
     if (ev.key === "Escape" && assembly.length) resetAssembly();
   }
   function wire() {
+    renderStatementKinds();
     $("q").addEventListener("input", debounce(search, 250));
     $("q").addEventListener("keydown", onSearchKeydown);
     document.addEventListener("keydown", onGlobalKeydown);
@@ -1746,6 +1888,14 @@
     $("flatten").addEventListener("click", onFlatten);
     $("style").addEventListener("change", onStyleChange);
     $("notePlacement").addEventListener("change", onNotePlacementChange);
+    $("statementOpen").addEventListener("click", openStatementEditor);
+    $("statementKind").addEventListener("change", renderStatementPhrases);
+    $("statementPhrase").addEventListener("change", chooseStatementPhrase);
+    $("statementText").addEventListener("input", updateStatementDraft);
+    $("statementInsert").addEventListener("click", insertStatementAtCursor);
+    $("statementStage").addEventListener("click", function () { stageStatement(false); });
+    $("statementClear").addEventListener("click", function () { stageStatement(true); });
+    $("statementCancel").addEventListener("click", closeStatementEditor);
     // Unconditional (inc 510): desktop can also need this, once a fetch reveals the section on a 401.
     $("tunnelSave").addEventListener("click", saveToken);
   }

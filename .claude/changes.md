@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-28 inc 526 — Word evidence-aware Suggest details -->
+<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 527 — Word open-science statement insertion -->
+## 2026-08-29 — Increment 527: Word open-science statement insertion
+- **Files:** Word task-pane UI/glue/pure logic/tests/README; shared tunnel's exact path allowlist + README; served
+  Help; security audit; architecture/backlog/change/increment ledgers; QA route 34.
+- **What:** Word now offers the existing seven open-science disclosure kinds and audited canned starting phrases,
+  loads/stages/clears exact drafts through unchanged `/statements/pending`, and inserts author-reviewed text after
+  the current selection as ordinary editable prose. Staging is optional, transient, and never mutates Word.
+- **Why:** closes the smallest remaining Word P2 parity item while preserving the crucial authorship boundary:
+  Callosum cannot infer or verify a manuscript's funding, ethics, availability, conflict, preregistration, or AI-
+  use facts. There is no generated text, provider request, Content Control, or new backend contract.
+- **Verify:** Word pure/static logic **71/71**; focused Word/statement/access/Help pytest **42 passed**; full suite
+  **2564 passed, 3 skipped** in 1353.69s. Remaining static results are recorded in `INCREMENT-527-NOTES.md`;
+  Office.js behavior remains explicitly not yet live-verified.
+- **Revert:** `git revert` this increment's commit; the unchanged shared staging endpoint remains available to the
+  web workspace and LibreOffice.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-08-28 inc 526 — Word evidence-aware Suggest details -->
 ## 2026-08-28 — Increment 526: Word evidence-aware Suggest details
 - **Files:** Word task-pane UI/glue/pure logic/tests/README; served Help; security audit; architecture/backlog/
   roadmap/change/increment ledgers; QA routes 34/42; website review receipt.

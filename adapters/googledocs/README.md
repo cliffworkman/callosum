@@ -15,7 +15,8 @@ http://localhost:8080            ← your callosum, CITE-ONLY ingress + a bearer
 
 **Two boundaries keep this safe:** (1) the **access token** (Settings → Remote access) — callosum requires it on
 every request; (2) the **cite-only ingress** — the tunnel forwards only `/papers`, `/papers/export`,
-`/citations/render-document`, `/citations/suggest`, `/citations/styles`; everything else (your app, `/settings`, the
+`/citations/render-document`, `/citations/suggest`, `/citations/styles`, plus Word's exact transient
+`/statements/pending` handoff; everything else (your app, `/settings`, the
 folder-scan routes, `/papers/{id}` edit/delete) returns **404** through the tunnel. Both are verified below.
 
 > **Status:** SP1 (the bridge, steps 1–6) and SP2 (the Google Docs **add-on**, step 7) both ship. The bridge was
