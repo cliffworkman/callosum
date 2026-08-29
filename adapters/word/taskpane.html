@@ -67,6 +67,12 @@
     <div id="diagnostics" class="diagnostics" role="status" aria-live="polite"></div>
 
     <input id="citationsSearch" type="search" placeholder="Search cited works…" autocomplete="off" aria-label="Search citations in this document" style="display:none"/>
+    <div id="citationsBatchBar" class="batch-controls" style="display:none" role="group" aria-label="Batch bibliography categories">
+      <span id="citationsBatchCount" class="hint">0 selected</span>
+      <button id="citationsSelectVisible" type="button" class="secondary">Select visible</button>
+      <button id="citationsClearSelection" type="button" class="secondary">Clear</button>
+      <button id="citationsBatchCategory" type="button" class="refresh" disabled>Set selected category…</button>
+    </div>
     <ul id="citationsPanel" class="results"></ul>
     <div id="bibliographyCategoryEditor" class="category-editor" style="display:none">
       <p id="bibliographyCategoryTarget" class="hint"></p>

@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-28 inc 521 — current Word add-in workflow + categorized bibliographies -->
+<!-- HELP-DOCS-SYNCED: 2026-08-28 inc 522 — Word batch bibliography categories -->
+## 2026-08-28 — Increment 522: Word batch bibliography categories
+- **Files:** `adapters/word/taskpane.{js,html,css}`, `adapters/word/taskpane_core.js`,
+  `adapters/word/taskpane_core.test.js`, `adapters/word/README.md`, `app/backend/help/help_content.md`,
+  `.claude/CLAUDE.md`, `.claude/architectural-decisions-log.md`, `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/increment-notes/INCREMENT-522-NOTES.md`, `www/showcase-coverage.json`.
+- **What:** the document-citations panel now has real per-work checkboxes, **Select visible**, **Clear**, and **Set
+  selected category…**. One deduplicated, bounded selection flows through the same editor, one document-settings
+  save, one Refresh, and whole-map rollback. Mixed current categories require a label choice or explicit Remove.
+- **Why:** this closes the manuscript-scale friction left deliberately open by inc 521 without duplicating writes,
+  renderer calls, or single-work behavior.
+- **Verify:** Word pure logic **48/48**; focused Word/access/citation/help pytest **96 passed**; full repository
+  suite **2563 passed, 3 skipped** in 966.30s; JS syntax, scoped Ruff check/format, Bandit, Tach, 569-file
+  line-budget, QA surface map, and website coverage gates passed. Office.js selection/editor/settings interaction
+  explicitly not yet live-verified.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 521: Word categorized bibliographies
 - **Files:** `adapters/word/taskpane.{js,html,css}`, `adapters/word/taskpane_core.js`,
   `adapters/word/taskpane_core.test.js`, `adapters/word/README.md`, `app/backend/help/help_content.md`,

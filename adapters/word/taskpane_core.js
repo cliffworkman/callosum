@@ -281,20 +281,28 @@
     return encoded;
   }
 
-  function updateBibliographyCategory(assignments, paperId, value) {
-    var id = String(paperId == null ? "" : paperId);
-    if (!/^\d{1,20}$/.test(id)) {
-      throw new Error("Bibliography category assignments require a numeric Callosum paper id.");
+  function updateBibliographyCategories(assignments, paperIds, value) {
+    var ids = [];
+    (paperIds || []).forEach(function (paperId) {
+      var id = String(paperId == null ? "" : paperId);
+      if (!/^\d{1,20}$/.test(id)) {
+        throw new Error("Bibliography category assignments require numeric Callosum paper ids.");
+      }
+      if (ids.indexOf(id) === -1) ids.push(id);
+    });
+    if (ids.length > MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS) {
+      throw new Error("A category can be assigned to at most " +
+        MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS + " works at once.");
     }
+    if (!ids.length) return Object.assign({}, normalizeBibliographyCategories(assignments));
     var updated = Object.assign({}, normalizeBibliographyCategories(assignments));
     var category = normalizeBibliographyCategory(value);
-    if (category == null) delete updated[id];
-    else {
-      var existing = Object.keys(updated).map(function (key) { return updated[key]; }).find(function (label) {
-        return label.toLowerCase() === category.toLowerCase();
-      });
-      updated[id] = existing || category;
-    }
+    var existing = category == null ? null : Object.keys(updated).map(function (key) { return updated[key]; })
+      .find(function (label) { return label.toLowerCase() === category.toLowerCase(); });
+    ids.forEach(function (id) {
+      if (category == null) delete updated[id];
+      else updated[id] = existing || category;
+    });
     if (Object.keys(updated).length > MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS) {
       throw new Error("A document can categorize at most " + MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS + " works.");
     }
@@ -305,6 +313,14 @@
     }
     serializeBibliographyCategories(updated); // final bounded-metadata assertion
     return updated;
+  }
+
+  function updateBibliographyCategory(assignments, paperId, value) {
+    var id = String(paperId == null ? "" : paperId);
+    if (!/^\d{1,20}$/.test(id)) {
+      throw new Error("Bibliography category assignments require a numeric Callosum paper id.");
+    }
+    return updateBibliographyCategories(assignments, [id], value);
   }
 
   function bibliographyCategoryForIds(itemIds, assignments) {
@@ -597,9 +613,11 @@
     bibliographyText: bibliographyText,
     BIBLIOGRAPHY_UNCATEGORIZED: BIBLIOGRAPHY_UNCATEGORIZED,
     BIBLIOGRAPHY_CATEGORY_MAX: BIBLIOGRAPHY_CATEGORY_MAX,
+    MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS: MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS,
     normalizeBibliographyCategory: normalizeBibliographyCategory,
     normalizeBibliographyCategories: normalizeBibliographyCategories,
     serializeBibliographyCategories: serializeBibliographyCategories,
+    updateBibliographyCategories: updateBibliographyCategories,
     updateBibliographyCategory: updateBibliographyCategory,
     categorizedBibliographyText: categorizedBibliographyText,
     applyBibliographyCategories: applyBibliographyCategories,

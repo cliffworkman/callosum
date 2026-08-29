@@ -453,6 +453,30 @@ test("bibliography category metadata: enforces bounded assignment and category g
   );
 });
 
+test("updateBibliographyCategories: applies one category atomically to a deduplicated bounded work batch", () => {
+  const original = { 1: "Methods", 2: "Theory", 4: "methods" };
+  assert.deepStrictEqual(
+    core.updateBibliographyCategories(original, [2, "3", 3], "METHODS"),
+    { 1: "Methods", 2: "Methods", 3: "Methods", 4: "Methods" },
+  );
+  assert.deepStrictEqual(original, { 1: "Methods", 2: "Theory", 4: "methods" });
+  assert.deepStrictEqual(
+    core.updateBibliographyCategories(original, [1, 2], ""),
+    { 4: "Methods" },
+  );
+  assert.deepStrictEqual(core.updateBibliographyCategories(original, [], "Methods"), {
+    1: "Methods", 2: "Theory", 4: "Methods",
+  });
+  assert.throws(
+    () => core.updateBibliographyCategories({}, Array.from({ length: 1001 }, (_value, index) => index + 1), "Methods"),
+    /at most 1000 works at once/,
+  );
+  assert.throws(
+    () => core.updateBibliographyCategories({}, [1, "foreign-id"], "Methods"),
+    /numeric Callosum paper ids/,
+  );
+});
+
 test("categorizedBibliographyText: alphabetizes groups, preserves citeproc order, and leaves Other last", () => {
   const data = {
     bibliography_text: "Entry 2\nEntry 1\nEntry 3\nEntry 4",
@@ -488,13 +512,20 @@ test("applyBibliographyCategories: annotates only resolvable document works with
   assert.strictEqual(entries[0].category, undefined);
 });
 
-test("bibliography category controls are present and wired through the categorized render path", () => {
+test("bibliography category controls are present and wire single/batch edits through one categorized render path", () => {
   const html = fs.readFileSync(path.join(__dirname, "taskpane.html"), "utf8");
   const js = fs.readFileSync(path.join(__dirname, "taskpane.js"), "utf8");
-  ["bibliographyCategoryEditor", "bibliographyCategory", "bibliographyCategorySave", "bibliographyCategoryRemove"]
+  [
+    "bibliographyCategoryEditor", "bibliographyCategory", "bibliographyCategorySave", "bibliographyCategoryRemove",
+    "citationsBatchBar", "citationsSelectVisible", "citationsClearSelection", "citationsBatchCategory",
+  ]
     .forEach((id) => assert.match(html, new RegExp(`id=["']${id}["']`)));
   assert.match(js, /categorizedBibliographyText\(data, bibliographyCategories\)/);
   assert.match(js, /persistBibliographyCategories\(updated\)/);
+  assert.match(js, /updateBibliographyCategories\(previous, paperIds, value\)/);
+  assert.match(js, /openCategoryEditor\(selectedCategoryIds\(\), true\)/);
+  assert.match(js, /Choose a category for the mixed selection, or use Remove category/);
+  assert.match(js, /applyCategoryEdit\("", true\)/);
   assert.match(js, /refreshDocument\(\{ throwOnError: true \}\)/);
 });
 

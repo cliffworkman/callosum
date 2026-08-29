@@ -201,12 +201,15 @@ the Principles + A-A gates before build.)*
       the existing document panel can receive one bounded label; the managed bibliography groups named categories
       alphabetically, preserves citeproc order within them, and leaves unassigned/mixed entries under **Other
       references**. Storage is bounded and fail-closed on missing entry identity; failed refresh restores the
-      prior setting. Pure logic is tested; Office.js settings/UI/layout are not yet live-verified. Next: batch
-      assignment, custom category ordering, then heading-scoped bibliography blocks. See `INCREMENT-521-NOTES.md`.
+      prior setting. Pure logic is tested; Office.js settings/UI/layout are not yet live-verified. **Inc 522 adds
+      bounded batch assignment:** explicit checkboxes, Select visible/Clear, mixed-selection safety, one atomic map
+      update, and one Refresh/rollback for the whole selection. Pure logic is tested; live Word interaction remains
+      deferred. Next: custom category ordering, then heading-scoped bibliography blocks. See
+      `INCREMENT-521-NOTES.md` and `INCREMENT-522-NOTES.md`.
       **HANDED OFF TO CODEX 2026-08-28** (Cliff's Claude usage maxed out ~48h) — see
       `.claude/docs/2026-08-28_codex-word-parity-handoff.md` for the exact remaining scope, verification
-      requirements, and known traps. **Still not started:** batch category assignment, custom category ordering,
-      and chapter/section blocks. A dedicated style-browser UI is low-value — Word's style dropdown already reflects anything
+      requirements, and known traps. **Still not started:** custom category ordering and chapter/section blocks. A
+      dedicated style-browser UI is low-value — Word's style dropdown already reflects anything
       installed via Settings' shared catalog.
     - **P2/leapfrog (not started):** evidence-aware Suggest-Citation details (stance breakdown, weak-evidence
       warning, Open in PDF — mirrors inc 460); citation-coverage/integrity-preflight audits

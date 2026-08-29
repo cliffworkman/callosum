@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 521** (see Increment workflow) with **2563 root-suite pytest tests
+It is currently at **Increment 522** (see Increment workflow) with **2563 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -591,7 +591,11 @@ the full per-increment narrative for all other increments now lives in the reloc
   entries alphabetically while preserving citeproc order inside each group and keeping unassigned/mixed entries
   under **Other references**. Missing alignment fails closed; a failed refresh restores the previous setting.
   No backend/rendering-semantic change. Pure category logic is Node-tested; Office.js settings/UI/layout remain
-  explicitly **not yet live-verified**. See `INCREMENT-521-NOTES.md`.
+  explicitly **not yet live-verified**. See `INCREMENT-521-NOTES.md`. **Inc 522 adds bounded batch assignment:**
+  real checkboxes, **Select visible**, and **Clear** feed the same category editor and one transactional refresh;
+  IDs deduplicate, the 1,000-work cap remains enforced, and mixed current categories require a positive choice or
+  the explicit Remove action. Single-work behavior is unchanged. Pure batch logic is Node-tested; live Office.js
+  interaction remains deferred. See `INCREMENT-522-NOTES.md`.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -1369,7 +1373,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 521). Each increment of real work
+callosum is built in **numbered increments** (currently at 522). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

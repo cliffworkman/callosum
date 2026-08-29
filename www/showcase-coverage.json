@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-28",
-    "reviewed_rev": "3792e58",
-    "source_fingerprint": "7d3d5f4537d7c17eb13450f38c7b08f3424d3af27877cd17fa0a9564008db635",
-    "note": "Reviewed the Word integration changes since the prior receipt, including native note citations and document-local bibliography categories (increments 519-521). The existing public copy remains accurate and deliberately avoids claiming feature parity across LibreOffice, Word, and Google Docs. No showcase screenshot displays the Word task pane, so no screenshot recapture is required for this source-only adapter change; live Word lifecycle verification remains deferred to the arc-end manual checklist."
+    "reviewed_rev": "ce262c6",
+    "source_fingerprint": "a15b7d1c6803cd9aabbbd3e6ce294f659847a65259f5cb99af243f45729f53ea",
+    "note": "Reviewed Increment 522's Word checkbox and batch bibliography-category controls. The existing public integration copy remains accurate and intentionally does not claim cross-editor feature parity. The showcase does not capture the Word task pane, so this source-only adapter interaction does not require screenshot replacement; live Word behavior remains deferred to the arc-end manual checklist."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

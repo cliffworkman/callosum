@@ -2,7 +2,7 @@
  * Callosum Word add-in — the thin Office.js glue (inc 166, SP3: parity — suggest / style-switch / flatten;
  * SP4: Word-on-the-web relay; inc 509: grouped-citation composer with locators/edit/delete; inc 516: Citations
  * in this document panel; inc 517: accessibility; inc 519: Custom-XML storage; inc 520: native notes;
- * inc 521: document-local bibliography categories).
+ * inc 521: document-local bibliography categories; inc 522: bounded batch category assignment).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
  * is a SAME-ORIGIN call to the local API — nothing leaves the machine, and (inc 511) desktop genuinely never
@@ -775,7 +775,10 @@
   // badges, click-to-navigate to its first occurrence, and client-side search -- explicit on-demand trigger,
   // matching Document diagnostics' own UX pattern (no auto-refresh, no background work on load).
   var citationsPanelEntries = []; // last-computed entries, re-filtered client-side on every search keystroke
-  var categoryEditingPaperId = null;
+  var categoryEditingPaperIds = [];
+  var categoryEditFromBatch = false;
+  var categoryEditHasMixedCategories = false;
+  var selectedCategoryPaperIds = Object.create(null);
   var categoryEditInFlight = false;
   function renderCitationsPanelBadges(entry) {
     var badges = [];
@@ -784,67 +787,116 @@
     if (entry.retraction) badges.push('<span class="badge-warn">' + escapeHtml(entry.retraction.status) + "</span>");
     return badges.join(" ");
   }
-  function renderCitationsPanelList() {
+  function visibleCitationsPanelEntries() {
     var filterText = ($("citationsSearch").value || "").trim().toLowerCase();
-    var visible = filterText
+    return filterText
       ? citationsPanelEntries.filter(function (e) {
           return (e.row + " " + (e.category || "")).toLowerCase().indexOf(filterText) !== -1;
         })
       : citationsPanelEntries;
+  }
+  function selectedCategoryIds() { return Object.keys(selectedCategoryPaperIds); }
+  function renderBatchControls(visible) {
+    var selectable = (visible || []).filter(function (entry) { return entry.paperId != null; });
+    var selectedCount = selectedCategoryIds().length;
+    $("citationsBatchBar").style.display = citationsPanelEntries.length ? "flex" : "none";
+    $("citationsBatchCount").textContent = selectedCount + " selected";
+    $("citationsBatchCategory").disabled = selectedCount === 0 || categoryEditInFlight;
+    $("citationsClearSelection").disabled = selectedCount === 0 || categoryEditInFlight;
+    $("citationsSelectVisible").disabled = selectable.length === 0 || categoryEditInFlight;
+  }
+  function renderCitationsPanelList() {
+    var visible = visibleCitationsPanelEntries();
     $("citationsPanel").innerHTML = visible.length
       ? visible.map(function (e) {
+          var selection = e.paperId == null ? '<span></span>' :
+            '<input class="citation-select" type="checkbox" data-batch-paper-id="' + e.paperId +
+              '" aria-label="Select ' + escapeHtml(e.row) + ' for batch category assignment"' +
+              (selectedCategoryPaperIds[String(e.paperId)] ? " checked" : "") + "/>";
           var categoryAction = e.paperId == null ? "" :
             '<button class="secondary category-action" data-category-paper-id="' + e.paperId +
               '" aria-label="Set bibliography category for ' + escapeHtml(e.row) + '">' +
               (e.category ? "Change category…" : "Set category…") + "</button>";
-          return '<li class="citation-panel-item"><button class="row" data-position="' + e.positions[0] + '">' +
+          return '<li class="citation-panel-item">' + selection +
+            '<button class="row" data-position="' + e.positions[0] + '">' +
             escapeHtml(e.row) + " · " + e.occurrenceCount + "×  " + renderCitationsPanelBadges(e) +
             "</button>" + categoryAction + "</li>";
         }).join("")
       : '<li class="empty">' + escapeHtml(citationsPanelEntries.length ? "No matches." : "No citations in this document yet.") + "</li>";
+    renderBatchControls(visible);
   }
   function closeCategoryEditor() {
-    categoryEditingPaperId = null;
+    categoryEditingPaperIds = [];
+    categoryEditFromBatch = false;
+    categoryEditHasMixedCategories = false;
     $("bibliographyCategoryEditor").style.display = "none";
     $("bibliographyCategory").value = "";
   }
-  function openCategoryEditor(paperId) {
+  function updateCategorySaveState() {
+    var missingMixedChoice = categoryEditHasMixedCategories && !$("bibliographyCategory").value.trim();
+    $("bibliographyCategorySave").disabled = categoryEditInFlight || missingMixedChoice;
+  }
+  function openCategoryEditor(paperIds, fromBatch) {
     if (categoryEditInFlight) return;
-    var entry = citationsPanelEntries.find(function (candidate) {
-      return String(candidate.paperId) === String(paperId);
+    var requested = Array.isArray(paperIds) ? paperIds : [paperIds];
+    var ids = [], selected = [];
+    requested.forEach(function (paperId) {
+      var entry = citationsPanelEntries.find(function (candidate) {
+        return String(candidate.paperId) === String(paperId);
+      });
+      if (entry && entry.paperId != null && ids.indexOf(String(entry.paperId)) === -1) {
+        ids.push(String(entry.paperId)); selected.push(entry);
+      }
     });
-    if (!entry || entry.paperId == null) {
+    if (!selected.length) {
       setStatus("This legacy citation has no reliable Callosum paper id, so it cannot be categorized.", true);
       return;
     }
-    categoryEditingPaperId = String(entry.paperId);
-    $("bibliographyCategoryTarget").textContent = entry.row;
-    $("bibliographyCategory").value = entry.category || "";
+    categoryEditingPaperIds = ids;
+    categoryEditFromBatch = Boolean(fromBatch);
+    $("bibliographyCategoryTarget").textContent = selected.length === 1 ? selected[0].row :
+      selected.length + " selected works";
+    var firstCategory = selected[0].category || "";
+    categoryEditHasMixedCategories = !selected.every(function (entry) {
+      return (entry.category || "") === firstCategory;
+    });
+    $("bibliographyCategory").value = categoryEditHasMixedCategories ? "" : firstCategory;
+    $("bibliographyCategory").placeholder = categoryEditHasMixedCategories ? "Choose a category" : "";
     var labels = {}, assignments = currentBibliographyCategories();
     Object.keys(assignments).forEach(function (id) { labels[assignments[id]] = true; });
     $("bibliographyCategoryOptions").innerHTML = Object.keys(labels).sort().map(function (label) {
       return '<option value="' + escapeHtml(label) + '"></option>';
     }).join("");
     $("bibliographyCategoryEditor").style.display = "block";
+    updateCategorySaveState();
     $("bibliographyCategory").focus();
   }
-  async function applyCategoryEdit(value) {
-    if (categoryEditingPaperId == null || categoryEditInFlight) return;
+  async function applyCategoryEdit(value, explicitRemove) {
+    if (!categoryEditingPaperIds.length || categoryEditInFlight) return;
+    if (categoryEditHasMixedCategories && !String(value || "").trim() && !explicitRemove) {
+      setStatus("Choose a category for the mixed selection, or use Remove category.", true);
+      return;
+    }
     categoryEditInFlight = true;
     $("bibliographyCategorySave").disabled = true;
     $("bibliographyCategoryRemove").disabled = true;
-    var paperId = categoryEditingPaperId;
+    renderBatchControls(visibleCitationsPanelEntries());
+    var paperIds = categoryEditingPaperIds.slice();
+    var wasBatch = categoryEditFromBatch;
     var previous = currentBibliographyCategories();
     var updated;
     try {
-      updated = CallosumCore.updateBibliographyCategory(previous, paperId, value);
-      setStatus("Updating bibliography category…");
+      updated = CallosumCore.updateBibliographyCategories(previous, paperIds, value);
+      setStatus("Updating " + paperIds.length + " bibliography categor" + (paperIds.length === 1 ? "y" : "ies") + "…");
       await persistBibliographyCategories(updated);
       await refreshDocument({ throwOnError: true });
       citationsPanelEntries = CallosumCore.applyBibliographyCategories(citationsPanelEntries, updated);
+      if (wasBatch) selectedCategoryPaperIds = Object.create(null);
       renderCitationsPanelList();
       closeCategoryEditor();
-      setStatus(updated[paperId] ? "Bibliography category saved." : "Bibliography category removed.");
+      setStatus(updated[paperIds[0]] ?
+        "Bibliography category saved for " + paperIds.length + " work(s)." :
+        "Bibliography category removed from " + paperIds.length + " work(s).");
     } catch (e) {
       try { await persistBibliographyCategories(previous); } catch (rollbackError) {
         setStatus("Couldn't update the category or restore its setting: " +
@@ -854,15 +906,19 @@
       setStatus("Couldn't update the bibliography category: " + ((e && e.message) || e), true);
     } finally {
       categoryEditInFlight = false;
-      $("bibliographyCategorySave").disabled = false;
       $("bibliographyCategoryRemove").disabled = false;
+      updateCategorySaveState();
+      renderBatchControls(visibleCitationsPanelEntries());
     }
   }
   async function runCitationsPanel() {
     if (categoryEditInFlight) return;
     setStatus("Scanning the document…");
     closeCategoryEditor();
+    selectedCategoryPaperIds = Object.create(null);
+    citationsPanelEntries = [];
     $("citationsPanel").innerHTML = "";
+    $("citationsBatchBar").style.display = "none";
     $("citationsSearch").style.display = "block"; // revealed on first use, like the tunnel token section
     try {
       var records = [];
@@ -885,8 +941,23 @@
     }
   }
   function onCitationsPanelClick(ev) {
+    var selection = ev.target.closest("input[data-batch-paper-id]");
+    if (selection) {
+      if (categoryEditInFlight) return;
+      var selectionId = selection.getAttribute("data-batch-paper-id");
+      if (selection.checked && selectedCategoryIds().length >= CallosumCore.MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS) {
+        selection.checked = false;
+        setStatus("A batch can contain at most " + CallosumCore.MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS + " works.", true);
+        return;
+      }
+      if (selection.checked) selectedCategoryPaperIds[selectionId] = true;
+      else delete selectedCategoryPaperIds[selectionId];
+      if (categoryEditFromBatch) closeCategoryEditor();
+      renderBatchControls(visibleCitationsPanelEntries());
+      return;
+    }
     var categoryBtn = ev.target.closest("button[data-category-paper-id]");
-    if (categoryBtn) { openCategoryEditor(categoryBtn.getAttribute("data-category-paper-id")); return; }
+    if (categoryBtn) { openCategoryEditor(categoryBtn.getAttribute("data-category-paper-id"), false); return; }
     var btn = ev.target.closest("button.row[data-position]");
     if (btn) navigateToCitation(Number(btn.getAttribute("data-position")));
   }
@@ -1094,7 +1165,7 @@
   // Escape clears an in-progress citation assembly -- a pure UI-state reset, never a document mutation either
   // way, so there's nothing unsafe about firing it broadly rather than scoping it to one element's focus.
   function onGlobalKeydown(ev) {
-    if (ev.key === "Escape" && categoryEditingPaperId != null && !categoryEditInFlight) {
+    if (ev.key === "Escape" && categoryEditingPaperIds.length && !categoryEditInFlight) {
       closeCategoryEditor(); return;
     }
     if (ev.key === "Escape" && assembly.length) resetAssembly();
@@ -1117,16 +1188,43 @@
     $("citationsPanelRun").addEventListener("click", runCitationsPanel);
     $("citationsPanel").addEventListener("click", onCitationsPanelClick);
     $("citationsSearch").addEventListener("input", debounce(renderCitationsPanelList, 150));
+    $("citationsSelectVisible").addEventListener("click", function () {
+      if (categoryEditInFlight) return;
+      var ids = visibleCitationsPanelEntries().map(function (entry) { return entry.paperId; })
+        .filter(function (paperId) { return paperId != null; });
+      var combined = selectedCategoryIds().slice();
+      ids.forEach(function (paperId) {
+        var id = String(paperId);
+        if (combined.indexOf(id) === -1) combined.push(id);
+      });
+      if (combined.length > CallosumCore.MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS) {
+        setStatus("A batch can contain at most " + CallosumCore.MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS + " works.", true);
+        return;
+      }
+      combined.forEach(function (paperId) { selectedCategoryPaperIds[paperId] = true; });
+      if (categoryEditFromBatch) closeCategoryEditor();
+      renderCitationsPanelList();
+    });
+    $("citationsClearSelection").addEventListener("click", function () {
+      if (categoryEditInFlight) return;
+      selectedCategoryPaperIds = Object.create(null);
+      if (categoryEditFromBatch) closeCategoryEditor();
+      renderCitationsPanelList();
+    });
+    $("citationsBatchCategory").addEventListener("click", function () {
+      openCategoryEditor(selectedCategoryIds(), true);
+    });
     $("bibliographyCategorySave").addEventListener("click", function () {
       applyCategoryEdit($("bibliographyCategory").value);
     });
-    $("bibliographyCategoryRemove").addEventListener("click", function () { applyCategoryEdit(""); });
+    $("bibliographyCategoryRemove").addEventListener("click", function () { applyCategoryEdit("", true); });
     $("bibliographyCategoryCancel").addEventListener("click", function () {
       if (!categoryEditInFlight) closeCategoryEditor();
     });
     $("bibliographyCategory").addEventListener("keydown", function (ev) {
       if (ev.key === "Enter") { ev.preventDefault(); applyCategoryEdit($("bibliographyCategory").value); }
     });
+    $("bibliographyCategory").addEventListener("input", updateCategorySaveState);
     $("refresh").addEventListener("click", function () { refreshDocument(); });
     $("flatten").addEventListener("click", onFlatten);
     $("style").addEventListener("change", onStyleChange);
