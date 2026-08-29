@@ -9,7 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-28 inc 525 — Word bibliography title/DOI links -->
+<!-- HELP-DOCS-SYNCED: 2026-08-28 inc 526 — Word evidence-aware Suggest details -->
+## 2026-08-28 — Increment 526: Word evidence-aware Suggest details
+- **Files:** Word task-pane UI/glue/pure logic/tests/README; served Help; security audit; architecture/backlog/
+  roadmap/change/increment ledgers; QA routes 34/42; website review receipt.
+- **What:** every existing in-library Word suggestion now has full evidence Details, the complete three-way local
+  stance signal, a retrieval explanation, shared-threshold weak-evidence warning, editable auto page locator, and
+  region-precision Open in PDF. An inserted result embeds one bounded snippet/page/chunk audit record in the existing
+  document Custom XML; Edit preserves it and the document panel exposes it later.
+- **Why:** starts Word's P2/leapfrog parity through the already-shipped local response, making the model-backed
+  signal cheaper to inspect without changing rank, scientific semantics, provider behavior, or the user-choice
+  boundary.
+- **Verify:** Word pure/static logic **67/67**; focused Word/access/citation pytest **82 passed**; Help **14
+  passed**; full repository suite **2563 passed, 3 skipped** in 1298.42s. JS syntax, Bandit, Tach, line budget,
+  QA map, website review, pre-commit, secret/path, and diff gates passed. Office.js behavior remains explicitly
+  not yet live-verified. Security audit PASS.
+- **Revert:** `git revert` this commit.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-08-28 inc 525 — Word bibliography title/DOI links -->
 ## 2026-08-28 — Increment 525: Word bibliography title/DOI links
 - **Files:** Word task-pane UI/glue/pure plan/tests/README; served Help; security audit; architecture/backlog/
   roadmap/change/increment ledgers; QA routes 34/35; website review receipt.

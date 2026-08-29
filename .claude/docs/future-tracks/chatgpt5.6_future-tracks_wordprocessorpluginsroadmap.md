@@ -473,6 +473,16 @@ Record the evidence passage associated with the citation for later auditing
 
 The critical design principle should remain: no source is inserted merely because a model ranked it highly.
 
+**Word parity completed in increment 526 (2026-08-28):** Word now consumes the unchanged local Suggest response
+through a per-row **Details…** panel: full matched passage, page/range, complete support/mention/contrast signal,
+semantic-retrieval explanation, shared-threshold weak-evidence warning, editable confirmed page locator, and the
+existing region-precision PDF deep link. Repeated row picks already feed Word's grouped-citation assembly. A
+inserted suggestion stores one bounded evidence snippet/page/chunk record in the citation's document Custom XML;
+Edit preserves it and **Citations in this document…** exposes it later. Filters remain outside this slice for the
+same reason documented by Writer inc 460: Callosum has no general study-type field to filter, and the handoff did
+not authorize inventing one. The engine, ranking, and user-choice boundary did not change. Live Office.js
+behavior remains scheduled for the consolidated Word-arc manual verification pass.
+
 18. Manuscript-level citation coverage analysis
 
 Add an optional scan that identifies:

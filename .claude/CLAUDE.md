@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 525** (see Increment workflow) with **2563 root-suite pytest tests
+It is currently at **Increment 526** (see Increment workflow) with **2563 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -618,6 +618,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   backend/citeproc contract changed. Pure logic is Node-tested; Office.js range-link behavior remains explicitly
   not yet live-verified. See `INCREMENT-525-NOTES.md`; security audit
   `2026-08-28_word-bibliography-links.md` PASS.
+  **Inc 526 starts Word's P2/leapfrog track with evidence-aware Suggest details:** the unchanged, fully local
+  `/citations/suggest` response now has an inspectable full-quote panel, complete support/mention/contrast signal,
+  semantic-retrieval explanation, shared-threshold weak-evidence warning, editable auto page locator, and the
+  existing same-origin `open_paper` deep link at region precision. Inserting a suggestion persists only a bounded
+  150-character evidence snippet plus page/chunk locator in the document's Custom XML; citation Edit preserves
+  it and the document panel exposes it later. Search-added citations remain unchanged. No backend, egress,
+  citeproc, prompt, model, or automatic-insert behavior changed; the user still chooses. Pure/static logic is
+  Node-tested; live Word interaction remains deferred. See `INCREMENT-526-NOTES.md`.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -1395,7 +1403,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 525). Each increment of real work
+callosum is built in **numbered increments** (currently at 526). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

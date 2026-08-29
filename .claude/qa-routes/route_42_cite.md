@@ -22,6 +22,10 @@ change to the endpoint itself, so this route's API coverage is unaffected. The L
 scope for this browser-driven route** (no LibreOffice in this harness); it's verified via the adapter's own
 real-UNO harness (`python adapters/libreoffice/run_roundtrip.py`) and duck-typed pytest coverage
 (`tests/test_libreoffice_adapter.py`), per CLAUDE.md's Verification protocol §4.
+**Inc 526 consumes the same unchanged response in Word:** Details exposes the full quote, three-way signal,
+retrieval explanation, weak-evidence warning, editable auto locator, region-precision PDF deep link, and a bounded
+document-local audit snippet. The Word UI remains outside this browser route and is covered by its Node/static
+suite plus the maintainer-manual Word step in route 34; the endpoint/no-egress assertions here remain unchanged.
 **Inc 465** adds a **"Save for later"** button to every beyond-library card (backlog #30's last open piece) —
 `POST /citations/beyond-library/save` persists the suggestion verbatim into a review queue (never auto-added,
 never auto-accumulated — explicit per-card action only), reviewed/added/dismissed from a new modal opened via

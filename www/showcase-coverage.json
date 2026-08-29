@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-29",
-    "reviewed_rev": "8d32bea",
-    "source_fingerprint": "bbba9b696a993ab845ca247a8392cb126c4eac0d768a9b6f48e59fa424d09721",
-    "note": "Reviewed Word bibliography title/DOI link controls; existing citation-engine capability claim and screenshot remain accurate, with manual coverage added to route 34."
+    "reviewed_rev": "b2e18a1",
+    "source_fingerprint": "473adecd03e3af81e7883b052bdcb41d81d3dfd89fc5fd1116d58e8cf7e0a830",
+    "note": "Reviewed final Word evidence-aware Suggest details after QA surface-map regeneration; existing citation-engine capability claim and screenshot remain accurate, with manual coverage added to routes 34 and 42."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

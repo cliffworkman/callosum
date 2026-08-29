@@ -81,8 +81,13 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
   changing style or preference never silently converts existing citations.
 - **Suggest from the sentence** — place the cursor in (or select) the sentence you're writing, click **Suggest from
   the sentence** → Callosum ranks **your library** by relevance and shows candidates with **stance** (supports /
-  contrasts / mentions) + a **quote** (the reason); pick one to add to the assembly. *(The first run loads the
-  local relevance + stance models, so it can take a few seconds.)*
+  contrasts / mentions) + a **quote** (the reason). **Details…** shows the complete matched passage, full
+  support/mention/contrast breakdown, why it surfaced, a warning when neither signal is strong, and an editable
+  page locator pre-filled from the match. **Open in PDF** jumps to the source page at honest region precision.
+  Inserting a suggestion stores only a whitespace-normalized 150-character evidence snippet plus its page/chunk
+  locator inside the Word document; **Citations in this document… → View evidence…** makes that audit record
+  inspectable later. Pick repeatedly to add several suggestions to one grouped assembly. *(The first run loads
+  the local relevance + stance models, so it can take a few seconds.)*
 - **Edit citation at cursor** — place the cursor inside an existing Callosum citation and click this to reopen the
   composer pre-populated with its works/locators; **Insert citation** becomes **Update citation**.
 - **Delete citation at cursor** — fully removes the citation at the cursor (unlike Flatten, this drops it — no

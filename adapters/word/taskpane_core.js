@@ -32,6 +32,9 @@
   var MAX_BIBLIOGRAPHY_CATEGORY_ORDER_METADATA = 8192;
   var MAX_BIBLIOGRAPHY_LINKS_PER_ENTRY = 20;
   var MAX_BIBLIOGRAPHY_EXTERNAL_URL = 2048;
+  var SUGGEST_RETRIEVAL_THRESHOLD = 0.7;
+  var SUGGEST_SUPPORT_THRESHOLD = 0.55;
+  var EVIDENCE_SNIPPET_MAX = 150;
 
   // UTF-8-safe base64 (CSL-JSON has unicode author names). btoa/atob + TextEncoder/TextDecoder are global in both
   // modern browsers and Node 16+ (the add-in runs in Word's webview; tests run in Node).
@@ -677,6 +680,78 @@
     }).filter(function (r) { return r.id != null; });
   }
 
+  function _boundedProbability(value) {
+    var number = Number(value);
+    return Number.isFinite(number) ? Math.max(0, Math.min(1, number)) : 0;
+  }
+  function stanceBreakdownText(stance) {
+    if (!stance || typeof stance !== "object") return "No stance signal for this passage.";
+    var probs = stance.probs && typeof stance.probs === "object" ? stance.probs : {};
+    function percent(key) { return Math.round(_boundedProbability(probs[key]) * 100); }
+    return "Stance signal: " + percent("support") + "% support · " + percent("mention") +
+      "% mention · " + percent("contrast") + "% contrast";
+  }
+  function suggestionIsWeakEvidence(item) {
+    var match = _boundedProbability(item && item.match_score);
+    var probs = item && item.stance && item.stance.probs;
+    var support = _boundedProbability(probs && probs.support);
+    return !(match >= SUGGEST_RETRIEVAL_THRESHOLD || support >= SUGGEST_SUPPORT_THRESHOLD);
+  }
+  function suggestionAutoLocator(item) {
+    var start = item && item.page_start;
+    var end = item && item.page_end;
+    if (!Number.isInteger(start) || start <= 0) return "";
+    return Number.isInteger(end) && end > start ? start + "-" + end : String(start);
+  }
+  function suggestionEvidenceFields(item) {
+    var quote = String(item && item.quote || "").replace(/\s+/g, " ").trim();
+    if (!quote) return {};
+    var snippet = quote.length > EVIDENCE_SNIPPET_MAX
+      ? quote.slice(0, EVIDENCE_SNIPPET_MAX).trimEnd() + "…"
+      : quote;
+    var out = { evidence_snippet: snippet };
+    if (Number.isInteger(item.chunk_id) && item.chunk_id > 0) out.evidence_chunk_id = item.chunk_id;
+    if (Number.isInteger(item.page_start) && item.page_start > 0) {
+      out.evidence_page_start = item.page_start;
+      if (Number.isInteger(item.page_end) && item.page_end >= item.page_start) {
+        out.evidence_page_end = item.page_end;
+      }
+    }
+    return out;
+  }
+  function suggestionAssemblyFields(item, locatorOverride, hasLocatorOverride) {
+    var locator = hasLocatorOverride ? String(locatorOverride || "").slice(0, 80).trim() : suggestionAutoLocator(item);
+    var out = suggestionEvidenceFields(item);
+    if (locator) { out.locator = locator; out.label = "page"; }
+    return out;
+  }
+  function suggestionDetail(item, locatorOverride, hasLocatorOverride) {
+    var match = Math.round(_boundedProbability(item && item.match_score) * 100);
+    var start = item && item.page_start, end = item && item.page_end;
+    var page = Number.isInteger(start) && start > 0
+      ? (Number.isInteger(end) && end > start ? "Pages " + start + "–" + end : "Page " + start)
+      : "Page unknown";
+    return {
+      quote: String(item && item.quote || ""),
+      page: page,
+      stance: stanceBreakdownText(item && item.stance),
+      reason: "Retrieved by local semantic similarity — approximately " + match + "% match to your selected text.",
+      weak: suggestionIsWeakEvidence(item),
+      locator: hasLocatorOverride ? String(locatorOverride || "").slice(0, 80) : suggestionAutoLocator(item),
+      canOpenPdf: Number.isInteger(item && item.paper_id) && item.paper_id > 0 &&
+        Number.isInteger(item && item.attachment_id) && item.attachment_id > 0,
+    };
+  }
+  function suggestionOpenPdfPath(item) {
+    if (!Number.isInteger(item && item.paper_id) || item.paper_id <= 0 ||
+        !Number.isInteger(item && item.attachment_id) || item.attachment_id <= 0) return null;
+    var path = "/?open_paper=" + encodeURIComponent(String(item.paper_id));
+    if (Number.isInteger(item.page_start) && item.page_start > 0) {
+      path += "&page=" + encodeURIComponent(String(item.page_start)) + "&precision=region";
+    }
+    return path;
+  }
+
   // ---- citation composer (inc 509, backlog #33/#34 P0 items 1-5): grouped citations + per-occurrence
   // locator/label/prefix/suffix/suppress-author/author-only. Mirrors adapters/libreoffice/composer.py's
   // `_item_overrides`/`_format_assembly_row`/`_assembly_item_from_decoded` exactly, so the same mental model
@@ -687,6 +762,29 @@
     "paragraph", "part", "scene", "section", "sub-verbo", "supplement", "table", "verse", "volume",
   ]; // MUST match CSL_LOCATOR_LABELS in callosum_cite.py / app/backend/api/routers/citations.py exactly.
   var ASSEMBLY_OVERRIDE_KEYS = ["locator", "label", "prefix", "suffix", "suppress-author", "author-only"];
+  var ASSEMBLY_EVIDENCE_KEYS = [
+    "evidence_chunk_id", "evidence_page_start", "evidence_page_end", "evidence_snippet",
+  ];
+
+  function assemblyEvidenceFields(row) {
+    var out = {};
+    if (Number.isInteger(row && row.evidence_chunk_id) && row.evidence_chunk_id > 0) {
+      out.evidence_chunk_id = row.evidence_chunk_id;
+    }
+    if (Number.isInteger(row && row.evidence_page_start) && row.evidence_page_start > 0) {
+      out.evidence_page_start = row.evidence_page_start;
+      if (Number.isInteger(row.evidence_page_end) && row.evidence_page_end >= row.evidence_page_start) {
+        out.evidence_page_end = row.evidence_page_end;
+      }
+    }
+    var snippet = String(row && row.evidence_snippet || "").replace(/\s+/g, " ").trim();
+    if (snippet) {
+      out.evidence_snippet = snippet.length > EVIDENCE_SNIPPET_MAX
+        ? snippet.slice(0, EVIDENCE_SNIPPET_MAX).trimEnd() + "…"
+        : snippet;
+    }
+    return out;
+  }
 
   // The per-occurrence override fields on one assembly row, ready to merge into its CSL record -- strips
   // default/empty/false values so a citation that overrides nothing renders an ordinary bare item (mirrors
@@ -703,7 +801,7 @@
   // cluster's tag carries -- encodeCitationTag already accepts arbitrary per-item keys unchanged.
   function buildClusterItems(assembly) {
     return (assembly || []).map(function (row) {
-      return Object.assign({}, row && row.csl, itemOverrides(row));
+      return Object.assign({}, row && row.csl, itemOverrides(row), assemblyEvidenceFields(row));
     });
   }
   // A compact "Author (Year) — Title" row label built from a raw CSL-JSON record (not the /papers search
@@ -735,8 +833,9 @@
   function assemblyRowFromDecodedItem(item) {
     var bareCsl = Object.assign({}, item);
     ASSEMBLY_OVERRIDE_KEYS.forEach(function (k) { delete bareCsl[k]; });
+    ASSEMBLY_EVIDENCE_KEYS.forEach(function (k) { delete bareCsl[k]; });
     var row = { csl: bareCsl, row: cslRecordRow(bareCsl) };
-    ASSEMBLY_OVERRIDE_KEYS.forEach(function (k) {
+    ASSEMBLY_OVERRIDE_KEYS.concat(ASSEMBLY_EVIDENCE_KEYS).forEach(function (k) {
       if (item && item[k] != null && item[k] !== false) row[k] = item[k];
     });
     return row;
@@ -824,7 +923,14 @@
         var key = pid != null ? "id:" + pid : "unresolved:" + citationIndex + ":" + i;
         var entry = entriesByKey[key];
         if (!entry) {
-          entry = { key: key, paperId: pid, row: cslRecordRow(item), occurrenceCount: 0, positions: [] };
+          entry = {
+            key: key,
+            paperId: pid,
+            row: cslRecordRow(item),
+            occurrenceCount: 0,
+            positions: [],
+            evidence: citationEvidenceFromItem(item),
+          };
           entriesByKey[key] = entry;
           order.push(key);
         }
@@ -833,6 +939,15 @@
       });
     });
     return order.map(function (key) { return entriesByKey[key]; });
+  }
+  function citationEvidenceFromItem(item) {
+    var snippet = String(item && item.evidence_snippet || "").trim();
+    if (!snippet) return null;
+    var start = item && item.evidence_page_start, end = item && item.evidence_page_end;
+    var page = Number.isInteger(start) && start > 0
+      ? (Number.isInteger(end) && end > start ? String(start) + "–" + end : String(start))
+      : null;
+    return { page: page, snippet: assemblyEvidenceFields({ evidence_snippet: snippet }).evidence_snippet };
   }
   // Pure augmentation: mark each entry orphaned/retraction-flagged from the same shaped inputs
   // summarizeDiagnostics already consumes (a "missing ids" list + a retraction check-selected `checked` array).
@@ -922,6 +1037,13 @@
     pickQueryText: pickQueryText,
     buildSuggestRequest: buildSuggestRequest,
     formatSuggestRows: formatSuggestRows,
+    stanceBreakdownText: stanceBreakdownText,
+    suggestionIsWeakEvidence: suggestionIsWeakEvidence,
+    suggestionAutoLocator: suggestionAutoLocator,
+    suggestionEvidenceFields: suggestionEvidenceFields,
+    suggestionAssemblyFields: suggestionAssemblyFields,
+    suggestionDetail: suggestionDetail,
+    suggestionOpenPdfPath: suggestionOpenPdfPath,
     isLocalOrigin: isLocalOrigin,
     authHeaders: authHeaders,
     LOCATOR_LABELS: LOCATOR_LABELS,
@@ -934,6 +1056,7 @@
     extractPaperId: extractPaperId,
     summarizeDiagnostics: summarizeDiagnostics,
     buildCitationsPanelEntries: buildCitationsPanelEntries,
+    citationEvidenceFromItem: citationEvidenceFromItem,
     mergePanelEntryStatus: mergePanelEntryStatus,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

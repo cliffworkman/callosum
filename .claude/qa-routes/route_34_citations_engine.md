@@ -184,6 +184,16 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     duplicate-anchor, multi-source, malformed-alignment, and astral-Unicode-before-anchor cases must remain plain
     or land on the exact intended text—never a neighboring range. Repeat the core path in desktop Word and Word
     on the web; this remains MANUAL because no available agent can drive Word.
+20d. **Manual Word evidence-aware Suggest (inc 526):** select a draft sentence and run **Suggest from the
+    sentence**. Confirm ranked order is unchanged and every in-library row has **Details…** with the full quote,
+    page/range, complete support/mention/contrast breakdown, semantic-retrieval explanation, and the weak-evidence
+    warning only when neither shared threshold clears. Edit/remove the auto page locator, add the work, insert,
+    refresh, edit/update the citation, and save/reopen; confirm locator and compact evidence audit survive. In
+    **Citations in this document…**, confirm the evidence badge and **View evidence…** show only the recorded page
+    plus bounded snippet. **Open in PDF** must open the same paper/page at region precision, never fabricate an
+    exact highlight, and remain disabled without a PDF attachment. Details alone must not mutate the document;
+    ordinary search-added citations carry no evidence badge. Confirm the flow remains local with zero provider
+    requests, then repeat in Word on the web. This remains MANUAL because no available agent can drive Word.
 21. **Manual Writer journal abbreviations:** use a short-title CSL style such as Nature with one journal carrying
     library `container-title-short` metadata, one exact NLM/MEDLINE title or ISSN, and one unknown journal. In
     **Journal abbreviations…**, verify **Library abbreviations** uses embedded metadata, **MEDLINE first** prefers

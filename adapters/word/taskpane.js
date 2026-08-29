@@ -3,7 +3,8 @@
  * SP4: Word-on-the-web relay; inc 509: grouped-citation composer with locators/edit/delete; inc 516: Citations
  * in this document panel; inc 517: accessibility; inc 519: Custom-XML storage; inc 520: native notes;
  * inc 521: document-local bibliography categories; inc 522: bounded batch assignment; inc 523: category order;
- * inc 524: heading-scoped bibliography blocks; inc 525: opt-in bibliography title/DOI links).
+ * inc 524: heading-scoped bibliography blocks; inc 525: opt-in bibliography title/DOI links;
+ * inc 526: evidence-aware Suggest details and audit records).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
  * is a SAME-ORIGIN call to the local API — nothing leaves the machine, and (inc 511) desktop genuinely never
@@ -59,6 +60,10 @@
   var assembly = [];
   var editingCC = null;
   var openOptionsIdx = -1; // which assembly row's Options panel is expanded, or -1
+  var suggestionItems = Object.create(null);
+  var suggestionLocators = Object.create(null);
+  var suggestionRows = [];
+  var openSuggestionId = null;
   var styleFormats = Object.create(null); // style id -> CSL citation-format from the shared catalog
   var BIBLIOGRAPHY_CATEGORY_SETTING = "callosumBibliographyCategories";
   var BIBLIOGRAPHY_CATEGORY_ORDER_SETTING = "callosumBibliographyCategoryOrder";
@@ -417,6 +422,39 @@
       : '<li class="empty">' + escapeHtml(emptyMsg) + "</li>";
   }
 
+  function suggestionHasLocatorOverride(paperId) {
+    return Object.prototype.hasOwnProperty.call(suggestionLocators, String(paperId));
+  }
+  function renderSuggestionRows(rows, emptyMsg) {
+    $("suggestions").innerHTML = rows.length ? rows.map(function (row) {
+      var id = String(row.id), item = suggestionItems[id];
+      var expanded = openSuggestionId === id;
+      var detail = CallosumCore.suggestionDetail(
+        item, suggestionLocators[id], suggestionHasLocatorOverride(id),
+      );
+      var detailId = "suggestion-detail-" + id;
+      var detailHtml = expanded ? (
+        '<div class="suggestion-details" id="' + detailId + '">' +
+          '<blockquote class="suggestion-quote">' + escapeHtml(detail.quote || "No matched passage available.") + "</blockquote>" +
+          '<p class="suggestion-meta">' + escapeHtml(detail.page) + "</p>" +
+          '<p class="suggestion-meta">' + escapeHtml(detail.stance) + "</p>" +
+          '<p class="suggestion-meta">' + escapeHtml(detail.reason) + "</p>" +
+          (detail.weak ? '<p class="suggestion-warning">⚠ Weak evidence — neither the match nor the support signal clears Callosum’s verification thresholds. Verify before citing.</p>' : "") +
+          '<p class="suggestion-meta">If you insert this work, Callosum stores a short matched-passage snippet inside this Word document for later audit.</p>' +
+          '<label class="field-inline">Page locator<input type="text" maxlength="80" data-suggestion-locator="' +
+            escapeHtml(id) + '" value="' + escapeHtml(detail.locator) + '"/></label>' +
+          '<div class="actions"><button type="button" class="secondary" data-suggestion-open-pdf="' +
+            escapeHtml(id) + '"' + (detail.canOpenPdf ? "" : " disabled") + ">Open in PDF</button></div>" +
+        "</div>"
+      ) : "";
+      return '<li><div class="suggestion-row-main">' +
+        '<button class="row" data-id="' + escapeHtml(id) + '">' + escapeHtml(row.label) + "</button>" +
+        '<button type="button" class="secondary" data-suggestion-details="' + escapeHtml(id) +
+          '" aria-expanded="' + expanded + '" aria-controls="' + detailId + '">Details…</button>' +
+        "</div>" + detailHtml + "</li>";
+    }).join("") : '<li class="empty">' + escapeHtml(emptyMsg) + "</li>";
+  }
+
   async function loadStyles() {
     try {
       var r = await callosumFetch("/citations/styles");
@@ -457,6 +495,10 @@
   async function suggestSentence() {
     setStatus("Finding relevant papers… (the first run loads the local models)");
     $("suggestions").innerHTML = "";
+    suggestionItems = Object.create(null);
+    suggestionLocators = Object.create(null);
+    suggestionRows = [];
+    openSuggestionId = null;
     try {
       var queryText = "";
       await Word.run(async function (ctx) {
@@ -475,9 +517,13 @@
       });
       if (!r.ok) throw new Error("suggest failed (" + r.status + ")");
       var data = await r.json();
-      var rows = CallosumCore.formatSuggestRows((data && data.suggestions) || []);
-      renderRows("suggestions", rows, "No relevant papers in your library.");
-      setStatus(rows.length ? "Pick a paper to add — ranked by relevance; the quote is the reason." : "");
+      var suggestions = (data && data.suggestions) || [];
+      suggestions.forEach(function (item) {
+        if (item && item.paper_id != null) suggestionItems[String(item.paper_id)] = item;
+      });
+      suggestionRows = CallosumCore.formatSuggestRows(suggestions);
+      renderSuggestionRows(suggestionRows, "No relevant papers in your library.");
+      setStatus(suggestionRows.length ? "Pick a paper to add — ranked by relevance; the quote is the reason." : "");
     } catch (e) {
       setStatus("Couldn't suggest: " + ((e && e.message) || e), true);
     }
@@ -492,6 +538,7 @@
     var btn = ev.target.closest("button.row[data-id]");
     if (!btn) return;
     var paperId = Number(btn.getAttribute("data-id"));
+    var suggestion = btn.closest("#suggestions") ? suggestionItems[String(paperId)] : null;
     setStatus("Adding…");
     try {
       var r = await callosumFetch("/papers/export", {
@@ -505,7 +552,15 @@
       // The stored csl_json.id isn't guaranteed to be the real paper id (inc 512) -- stamp a reliable one
       // (matching callosum_cite.py's own convention) so Document diagnostics can later identify this citation.
       var csl = CallosumCore.stampCallosumId(exported, paperId);
-      assembly.push({ csl: csl, row: CallosumCore.cslRecordRow(csl) });
+      var row = { csl: csl, row: CallosumCore.cslRecordRow(csl) };
+      if (suggestion) {
+        Object.assign(row, CallosumCore.suggestionAssemblyFields(
+          suggestion,
+          suggestionLocators[String(paperId)],
+          suggestionHasLocatorOverride(paperId),
+        ));
+      }
+      assembly.push(row);
       openOptionsIdx = -1;
       renderAssembly();
       setStatus(assembly.length + " work(s) in this citation — add more, set a locator, or Insert.");
@@ -881,6 +936,7 @@
     if (entry.category) badges.push('<span class="category-badge">' + escapeHtml(entry.category) + "</span>");
     if (entry.orphaned) badges.push('<span class="badge-warn">not in library</span>');
     if (entry.retraction) badges.push('<span class="badge-warn">' + escapeHtml(entry.retraction.status) + "</span>");
+    if (entry.evidence) badges.push('<span class="category-badge">evidence</span>');
     return badges.join(" ");
   }
   function visibleCitationsPanelEntries() {
@@ -922,10 +978,16 @@
             '<button class="secondary category-action" data-category-paper-id="' + e.paperId +
               '" aria-label="Set bibliography category for ' + escapeHtml(e.row) + '">' +
               (e.category ? "Change category…" : "Set category…") + "</button>";
+          var evidenceAction = e.evidence ? '<button class="secondary category-action" data-evidence-position="' +
+            e.positions[0] + '" aria-label="View recorded suggestion evidence for ' + escapeHtml(e.row) +
+            '">View evidence…</button>' : "";
+          var actions = categoryAction || evidenceAction
+            ? '<div class="citation-panel-actions">' + categoryAction + evidenceAction + "</div>"
+            : "";
           return '<li class="citation-panel-item">' + selection +
             '<button class="row" data-position="' + e.positions[0] + '">' +
             escapeHtml(e.row) + " · " + e.occurrenceCount + "×  " + renderCitationsPanelBadges(e) +
-            "</button>" + categoryAction + "</li>";
+            "</button>" + actions + "</li>";
         }).join("")
       : '<li class="empty">' + escapeHtml(citationsPanelEntries.length ? "No matches." : "No citations in this document yet.") + "</li>";
     renderBatchControls(visible);
@@ -1094,6 +1156,7 @@
     selectedCategoryPaperIds = Object.create(null);
     citationsPanelEntries = [];
     $("citationsPanel").innerHTML = "";
+    $("citationEvidence").textContent = "";
     $("citationsBatchBar").style.display = "none";
     $("citationsSearch").style.display = "block"; // revealed on first use, like the tunnel token section
     try {
@@ -1134,6 +1197,18 @@
     }
     var categoryBtn = ev.target.closest("button[data-category-paper-id]");
     if (categoryBtn) { openCategoryEditor(categoryBtn.getAttribute("data-category-paper-id"), false); return; }
+    var evidenceBtn = ev.target.closest("button[data-evidence-position]");
+    if (evidenceBtn) {
+      var evidencePosition = Number(evidenceBtn.getAttribute("data-evidence-position"));
+      var evidenceEntry = citationsPanelEntries.find(function (entry) {
+        return entry.positions[0] === evidencePosition;
+      });
+      $("citationEvidence").textContent = evidenceEntry && evidenceEntry.evidence
+        ? "Evidence recorded when suggested" + (evidenceEntry.evidence.page ? " · page " + evidenceEntry.evidence.page : "") +
+          ": “" + evidenceEntry.evidence.snippet + "”"
+        : "No recorded suggestion evidence is available for this citation.";
+      return;
+    }
     var btn = ev.target.closest("button.row[data-position]");
     if (btn) navigateToCitation(Number(btn.getAttribute("data-position")));
   }
@@ -1581,7 +1656,26 @@
     $("q").addEventListener("keydown", onSearchKeydown);
     document.addEventListener("keydown", onGlobalKeydown);
     $("results").addEventListener("click", onPick);
-    $("suggestions").addEventListener("click", onPick);
+    $("suggestions").addEventListener("click", function (ev) {
+      var details = ev.target.closest("button[data-suggestion-details]");
+      if (details) {
+        var detailsId = details.getAttribute("data-suggestion-details");
+        openSuggestionId = openSuggestionId === detailsId ? null : detailsId;
+        renderSuggestionRows(suggestionRows, "No relevant papers in your library.");
+        return;
+      }
+      var openPdf = ev.target.closest("button[data-suggestion-open-pdf]");
+      if (openPdf) {
+        var path = CallosumCore.suggestionOpenPdfPath(suggestionItems[openPdf.getAttribute("data-suggestion-open-pdf")]);
+        if (path) window.open(path, "_blank", "noopener,noreferrer");
+        return;
+      }
+      onPick(ev);
+    });
+    $("suggestions").addEventListener("input", function (ev) {
+      var id = ev.target.getAttribute("data-suggestion-locator");
+      if (id != null) suggestionLocators[id] = ev.target.value;
+    });
     $("suggest").addEventListener("click", suggestSentence);
     $("assembly").addEventListener("click", onAssemblyClick);
     $("assembly").addEventListener("input", onAssemblyChange);

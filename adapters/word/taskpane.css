@@ -24,6 +24,11 @@ h1 { font-size: 16px; margin: 0 0 2px; }
 .results .row:hover { border-color: #4338ca; background: #f1f0fb; }
 .results .empty, .results .err { padding: 8px; color: #5c5a66; font-size: 12px; }
 .results .err { color: #b91c1c; }
+.suggestion-row-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px; align-items: stretch; }
+.suggestion-details { margin-top: 5px; padding: 8px; border: 1px solid #e6e5ee; border-radius: 6px; background: #fafafe; }
+.suggestion-quote { margin: 0 0 7px; white-space: pre-wrap; font-size: 12px; }
+.suggestion-meta { margin: 3px 0; color: #5c5a66; font-size: 11px; }
+.suggestion-warning { margin: 7px 0; color: #92400e; font-size: 11px; }
 .actions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
 .refresh {
   cursor: pointer; padding: 8px 12px; font: inherit;
@@ -66,11 +71,14 @@ h1 { font-size: 16px; margin: 0 0 2px; }
 /* inc 516: the Citations-in-this-document panel */
 #citationsSearch { width: 100%; margin-top: 8px; padding: 8px; font: inherit; border: 1px solid #cdcbd6; border-radius: 6px; }
 .badge-warn { display: inline-block; padding: 1px 6px; font-size: 10px; border-radius: 4px; background: #fef3c7; color: #92400e; }
+.evidence-detail { margin-top: 6px; padding: 8px; border: 1px solid #e6e5ee; border-radius: 6px; background: #fafafe; font-size: 12px; }
+.evidence-detail:empty { display: none; }
 
 /* inc 521-522: document-local single-work and batch bibliography category assignment */
 .citation-panel-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; align-items: stretch; }
 .citation-panel-item .row { min-width: 0; }
 .citation-select { align-self: center; margin: 0; }
+.citation-panel-actions { display: grid; gap: 4px; align-content: start; }
 .category-action { padding: 6px 8px; font-size: 11px; }
 .category-badge { display: inline-block; padding: 1px 6px; font-size: 10px; border-radius: 4px; background: #f1f0fb; color: #4338ca; }
 .category-editor { margin: 10px 0 0; padding: 10px; border: 1px solid #4338ca; border-radius: 6px; background: #f1f0fb; }

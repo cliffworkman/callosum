@@ -32,6 +32,56 @@ test("formatSearchRows: 'Author (Year) — Title' keyed by id; drops id-less; no
   assert.deepStrictEqual(core.formatSearchRows(null), []);
 });
 
+test("suggestion details expose bounded evidence, honest stance/reason, and editable auto locator", () => {
+  const item = {
+    paper_id: 9,
+    attachment_id: 4,
+    chunk_id: 12,
+    quote: `  ${"evidence ".repeat(30)}  `,
+    page_start: 7,
+    page_end: 9,
+    match_score: 0.68,
+    stance: { probs: { support: 0.6, mention: 0.3, contrast: 0.1 } },
+  };
+  assert.strictEqual(core.stanceBreakdownText(item.stance), "Stance signal: 60% support · 30% mention · 10% contrast");
+  assert.strictEqual(core.suggestionIsWeakEvidence(item), false);
+  assert.strictEqual(core.suggestionAutoLocator(item), "7-9");
+  assert.deepStrictEqual(core.suggestionDetail(item, undefined, false), {
+    quote: item.quote,
+    page: "Pages 7–9",
+    stance: "Stance signal: 60% support · 30% mention · 10% contrast",
+    reason: "Retrieved by local semantic similarity — approximately 68% match to your selected text.",
+    weak: false,
+    locator: "7-9",
+    canOpenPdf: true,
+  });
+  const evidence = core.suggestionEvidenceFields(item);
+  assert.strictEqual(evidence.evidence_chunk_id, 12);
+  assert.strictEqual(evidence.evidence_page_start, 7);
+  assert.strictEqual(evidence.evidence_page_end, 9);
+  assert.ok(evidence.evidence_snippet.endsWith("…"));
+  assert.ok(evidence.evidence_snippet.length <= 151);
+  assert.deepStrictEqual(core.suggestionAssemblyFields(item, "42", true), {
+    ...evidence, locator: "42", label: "page",
+  });
+  assert.deepStrictEqual(core.suggestionAssemblyFields(item, "", true), evidence);
+  assert.strictEqual(core.suggestionAssemblyFields(item, "x".repeat(100), true).locator.length, 80);
+});
+
+test("suggestion details fail soft on missing signals and build only bounded same-origin PDF deep links", () => {
+  const weak = { paper_id: 2, attachment_id: 3, page_start: 5, match_score: 0.2 };
+  assert.strictEqual(core.stanceBreakdownText(null), "No stance signal for this passage.");
+  assert.strictEqual(core.suggestionIsWeakEvidence(weak), true);
+  assert.strictEqual(core.suggestionOpenPdfPath(weak), "/?open_paper=2&page=5&precision=region");
+  assert.strictEqual(core.suggestionOpenPdfPath({ paper_id: 2 }), null);
+  assert.strictEqual(core.suggestionOpenPdfPath({ paper_id: "2", attachment_id: 3 }), null);
+  assert.deepStrictEqual(core.suggestionEvidenceFields({ quote: "   " }), {});
+  assert.strictEqual(core.suggestionAutoLocator({ page_start: 9, page_end: 4 }), "9");
+  assert.deepStrictEqual(core.suggestionEvidenceFields({ quote: "x", page_start: 9, page_end: 4 }), {
+    evidence_snippet: "x", evidence_page_start: 9,
+  });
+});
+
 test("firstCslRecord: first element of the export array, else null", () => {
   assert.deepStrictEqual(core.firstCslRecord([{ id: "callosum-1" }, { id: "callosum-2" }]), { id: "callosum-1" });
   assert.strictEqual(core.firstCslRecord([]), null);
@@ -215,17 +265,36 @@ test("itemOverrides: strips default/empty/false values; never emits a falsy key"
   assert.deepStrictEqual(core.itemOverrides(null), {});
 });
 
-test("buildClusterItems: merges each row's CSL record with its own overrides, in order", () => {
+test("buildClusterItems: merges overrides and bounded evidence fields into each CSL record, in order", () => {
   const assembly = [
-    { csl: { id: "callosum-1", title: "A" }, locator: "5", label: "page" },
+    {
+      csl: { id: "callosum-1", title: "A" }, locator: "5", label: "page",
+      evidence_chunk_id: 7, evidence_snippet: "Matched evidence",
+    },
     { csl: { id: "callosum-2", title: "B" } },
   ];
   assert.deepStrictEqual(core.buildClusterItems(assembly), [
-    { id: "callosum-1", title: "A", locator: "5", label: "page" },
+    {
+      id: "callosum-1", title: "A", locator: "5", label: "page",
+      evidence_chunk_id: 7, evidence_snippet: "Matched evidence",
+    },
     { id: "callosum-2", title: "B" },
   ]);
   assert.deepStrictEqual(core.buildClusterItems([]), []);
   assert.deepStrictEqual(core.buildClusterItems(null), []);
+});
+
+test("buildClusterItems: tampered evidence metadata is bounded and invalid identities are dropped", () => {
+  const [item] = core.buildClusterItems([{
+    csl: { id: "callosum-1" },
+    evidence_chunk_id: -1,
+    evidence_page_start: "2",
+    evidence_snippet: `  ${"word ".repeat(80)}  `,
+    evidence_unrecognized: "not copied",
+  }]);
+  assert.deepStrictEqual(Object.keys(item).sort(), ["evidence_snippet", "id"]);
+  assert.ok(item.evidence_snippet.endsWith("…"));
+  assert.ok(item.evidence_snippet.length <= 151);
 });
 
 test("cslRecordRow: 'Author (Year) — Title' from a raw CSL-JSON record; multi-author → et al.; missing → Unknown/Untitled", () => {
@@ -253,11 +322,16 @@ test("formatAssemblyRow: appends a compact '[...]' override summary; no override
 });
 
 test("assemblyRowFromDecodedItem: round-trips buildClusterItems' output back into an assembly row", () => {
-  const decoded = { id: "callosum-1", title: "Notes", author: [{ family: "Lovelace" }], locator: "5", label: "page" };
+  const decoded = {
+    id: "callosum-1", title: "Notes", author: [{ family: "Lovelace" }], locator: "5", label: "page",
+    evidence_page_start: 5, evidence_snippet: "Matched evidence",
+  };
   const row = core.assemblyRowFromDecodedItem(decoded);
   assert.deepStrictEqual(row.csl, { id: "callosum-1", title: "Notes", author: [{ family: "Lovelace" }] });
   assert.strictEqual(row.locator, "5");
   assert.strictEqual(row.label, "page");
+  assert.strictEqual(row.evidence_page_start, 5);
+  assert.strictEqual(row.evidence_snippet, "Matched evidence");
   assert.strictEqual(row.row, "Lovelace — Notes");
   // Round-trip: building cluster items from the reconstructed row reproduces the original decoded item.
   assert.deepStrictEqual(core.buildClusterItems([row]), [decoded]);
@@ -350,6 +424,16 @@ test("buildCitationsPanelEntries: the same paper cited solo, then again inside a
   assert.strictEqual(lovelace.occurrenceCount, 2);
   assert.deepStrictEqual(lovelace.positions, [0, 1]);
   assert.strictEqual(lovelace.row, "Lovelace — Notes");
+});
+
+test("buildCitationsPanelEntries: first occurrence retains compact Suggest evidence for later audit", () => {
+  const tags = [core.encodeCitationTag([{
+    id: "callosum-7", title: "Evidence",
+    evidence_page_start: 4, evidence_page_end: 5, evidence_snippet: "Matched passage",
+  }])];
+  const entries = core.buildCitationsPanelEntries(tags);
+  assert.deepStrictEqual(entries[0].evidence, { page: "4–5", snippet: "Matched passage" });
+  assert.strictEqual(core.citationEvidenceFromItem({ evidence_snippet: "" }), null);
 });
 
 test("buildCitationsPanelEntries: resolved current storage records group like legacy tags", () => {
@@ -759,6 +843,20 @@ test("bibliography web-link opt-in persists and applies only unambiguous paragra
   assert.match(js, /search\.ranges\.items\[0\]\.hyperlink = search\.url/);
   assert.match(js, /restoreBibliographyExternalLinks\(previousRaw\)/);
   assert.match(js, /remove\(BIBLIOGRAPHY_EXTERNAL_LINKS_SETTING\)/);
+});
+
+test("evidence-aware Suggest exposes detail, editable locator, PDF deep link, and later audit UI", () => {
+  const html = fs.readFileSync(path.join(__dirname, "taskpane.html"), "utf8");
+  const js = fs.readFileSync(path.join(__dirname, "taskpane.js"), "utf8");
+  assert.match(html, /id=["']citationEvidence["']/);
+  assert.match(js, /renderSuggestionRows\(/);
+  assert.match(js, /data-suggestion-details/);
+  assert.match(js, /data-suggestion-locator/);
+  assert.match(js, /suggestionAssemblyFields\(/);
+  assert.match(js, /suggestionOpenPdfPath\(/);
+  assert.match(js, /window\.open\(path, "_blank", "noopener,noreferrer"\)/);
+  assert.match(js, /data-evidence-position/);
+  assert.match(js, /Evidence recorded when suggested/);
 });
 
 // ---- Word-on-the-web relay (SP4): local vs. tunneled origin + the Bearer token header ----

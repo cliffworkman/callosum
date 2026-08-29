@@ -225,8 +225,14 @@ the Principles + A-A gates before build.)*
       requirements, and known traps. A dedicated style-browser UI is
       low-value — Word's style dropdown already reflects anything
       installed via Settings' shared catalog.
-    - **P2/leapfrog (not started):** evidence-aware Suggest-Citation details (stance breakdown, weak-evidence
-      warning, Open in PDF — mirrors inc 460); citation-coverage/integrity-preflight audits
+    - **P2/leapfrog (started inc 526):** **evidence-aware Suggest-Citation details closed inc 526** — the full
+      matched passage, complete support/mention/contrast signal, plain-language retrieval reason, shared-threshold
+      weak-evidence warning, editable auto page locator, and region-precision **Open in PDF** now sit behind each
+      Word suggestion's **Details…** action. An inserted suggestion adds one bounded evidence snippet/page/chunk
+      record to the existing Custom XML payload; Edit preserves it and the document panel exposes **View
+      evidence…**. The response, models, prompt, ranking, user-choice boundary, and fully local/no-egress posture
+      are unchanged. Pure/static logic is tested; live Word interaction remains deferred. See
+      `INCREMENT-526-NOTES.md`. Remaining: citation-coverage/integrity-preflight audits
       (`POST /methods/retraction/check-selected` is already adapter-agnostic, zero backend work — mirrors inc
       459/463); Citavi-style Insert Evidence (mirrors inc 461, reuses `POST /citations/classify-stance`
       unchanged); open-science statement insertion (mirrors inc 462, `/statements/pending` is already fully
