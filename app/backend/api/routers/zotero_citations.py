@@ -1,8 +1,8 @@
 """Resolve/import Zotero word-processor citations into callosum's library (inc 464, backlog #33/#34 P2 #22).
 
-The LibreOffice adapter's "Convert Zotero citations…" command decodes each Zotero-authored ReferenceMark's
-embedded CSL-JSON locally (nothing but the citation's own bibliographic metadata ever reaches this endpoint's
-request body), then calls this endpoint once with every DISTINCT cited work to resolve each to a callosum
+The LibreOffice and Word adapters' "Convert Zotero citations…" commands decode each Zotero-authored document
+field's embedded CSL-JSON locally (nothing but the citation's own bibliographic metadata ever reaches this
+endpoint's request body), then call this endpoint once with every DISTINCT cited work to resolve each to a callosum
 `paper_id` — matching an existing library paper first (`find_existing_paper_by_identity`, the same identity
 precedence the Zotero *library* importer already uses), or creating a new metadata-only paper straight from the
 citation's own embedded CSL-JSON when no match exists (`normalize_zotero_csl_item`, `importers/zotero.py`) —
@@ -10,8 +10,8 @@ the same `imported_source="zotero"` / `processing_tier="metadata-only"` trust po
 uses, not a new judgment (Principles gate: a faithful format migration, not a claim about the literature).
 
 No egress: every match/create here is a local DB read/write over data already embedded in the open document.
-Bounded by `MAX_ZOTERO_DISTINCT_WORKS` — the ReferenceMark name is untrusted content pulled from an opened
-Writer document (rule #4), so this stays defensively bounded like every other adapter-facing endpoint.
+Bounded by `MAX_ZOTERO_DISTINCT_WORKS` — a ReferenceMark/Word Field is untrusted content pulled from an opened
+document (rule #4), so this stays defensively bounded like every other adapter-facing endpoint.
 """
 
 from __future__ import annotations

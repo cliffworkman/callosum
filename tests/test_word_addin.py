@@ -146,7 +146,7 @@ def test_word_evidence_projection_fails_instead_of_silently_truncating(monkeypat
     assert f"var EVIDENCE_NOTE_MAX = {word_router.WORD_EVIDENCE_NOTE_MAX};" in core
 
 
-def test_word_evidence_and_statement_paths_are_narrowly_allowed_through_shared_tunnel() -> None:
+def test_word_adapter_paths_are_narrowly_allowed_through_shared_tunnel() -> None:
     config = (PROJECT_ROOT / "adapters" / "googledocs" / "cloudflared-config.yml").read_text(encoding="utf-8")
     ingress = next(line.strip() for line in config.splitlines() if line.strip().startswith("path: ^/(papers|"))
     pattern = ingress.removeprefix("path: ")
@@ -157,6 +157,7 @@ def test_word_evidence_and_statement_paths_are_narrowly_allowed_through_shared_t
         "/citations/render-document",
         "/citations/suggest",
         "/citations/classify-stance",
+        "/citations/zotero/resolve",
         "/citations/styles",
         "/statements/pending",
     ):
@@ -166,6 +167,7 @@ def test_word_evidence_and_statement_paths_are_narrowly_allowed_through_shared_t
         "/papers/42/annotations",
         "/integrations/word/evidence/not-an-id",
         "/citations/classify-stance/other",
+        "/citations/zotero/resolve/other",
         "/statements",
         "/statements/other",
     ):

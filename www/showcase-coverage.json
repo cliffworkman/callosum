@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-29",
-    "reviewed_rev": "b826bea",
-    "source_fingerprint": "2ab79382970cae002bf78475611c9606a794f471004204184347d31a88da52e8",
-    "note": "Reviewed Word saved-evidence insertion, the GET-only bounded relay projection, Help/README claims, and current website figures; no new figure was required."
+    "reviewed_rev": "aeb7220",
+    "source_fingerprint": "53ad14cfb307ec6b9b7f813c7431bd24d30f2c268c5e8caa78ae82cd672211cb",
+    "note": "Increment 530 adds bounded, fail-closed Zotero Word-field conversion; served Help and adapter documentation are current, and no public website claim is added before live Word verification."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

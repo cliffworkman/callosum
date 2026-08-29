@@ -243,10 +243,13 @@ the Principles + A-A gates before build.)*
       This is explicitly a neutral review prompt, not a support/citation verdict. The originally grouped
       "integrity-preflight" half required no new control: **Document diagnostics…** already performs the fresh,
       trash-aware existence + `POST /methods/retraction/check-selected` retraction check (incs 512-513), so inc
-      528 did not duplicate it. See `INCREMENT-528-NOTES.md`. Remaining: Zotero-field conversion (Zotero's Word integration is
-      documented as using real Word field codes, `ADDIN ZOTERO_ITEM CSL_CITATION {json}` — same convention
-      inc 464 already verified for LibreOffice, `Word.Field.code` since WordApi 1.5 — a promising,
-      research-first-required follow-up mirroring inc 464's own discipline, not to be guessed at). Mendeley
+      528 did not duplicate it. See `INCREMENT-528-NOTES.md`. **Zotero field conversion closed inc 530:** after
+      verifying Zotero's current first-party Word integration source and WordApi 1.5 field contracts, Word now
+      scans exact `ADDIN ZOTERO_ITEM CSL_CITATION {json}` fields, previews and snapshot-checks a bounded conversion,
+      resolves embedded records through the unchanged local inc-464 endpoint, preserves grouped per-item overrides,
+      and replaces only verified inline fields through the existing Custom-XML/Refresh lifecycle. Note-style,
+      Bookmark-mode, malformed, oversized, and ambiguous material remains untouched; bibliography replacement is
+      conditional. Office.js mutation remains awaiting the consolidated live Word check. Mendeley
       Cite / EndNote CWY field conversion stay declined for Word for the identical reason already documented
       for LibreOffice (no complete vendor payload contract) — see
       `.claude/docs/research/2026-08-21_word_citation_migration_formats.md`.

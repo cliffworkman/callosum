@@ -98,6 +98,15 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
   composer pre-populated with its works/locators; **Insert citation** becomes **Update citation**.
 - **Delete citation at cursor** — fully removes the citation at the cursor (unlike Flatten, this drops it — no
   static text is kept).
+- **Convert Zotero citations…** — scans Zotero's current first-party `ADDIN ZOTERO_ITEM CSL_CITATION` Word
+  fields, previews exact counts, and—only after confirmation—converts verified inline fields through Callosum's
+  existing local resolver, Custom-XML citation storage, parser, and Refresh lifecycle. Grouped citations and
+  per-item locator/prefix/suffix/author overrides survive. Existing papers are matched first; unmatched embedded
+  records become metadata-only local library papers. Note-style fields, Bookmark-mode citations, malformed or
+  oversized fields, and ambiguous bibliographies remain untouched and are disclosed. A lone Zotero bibliography
+  is replaced only when no unsupported Zotero material remains. Use **File → Save As** first: Office.js cannot
+  create a backup or promise one-step rollback, and Word Undo cannot remove any local library rows created before
+  document mutation.
 - **Refresh / renumber + bibliography** — re-render every citation in document order + rebuild the **References**
   block at the document end (run after edits/moves; numeric styles renumber by position).
 - **Bibliography categories** — open **Citations in this document…**, choose **Set category…** beside a work,
@@ -148,7 +157,7 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
 The task pane is served by callosum at `https://localhost:8443/integrations/word/taskpane.html` and its API calls
 (`/papers?q=`, `/papers/export`, exact read-only `/integrations/word/evidence/{id}`,
 `/citations/classify-stance`,
-`/citations/render-document`, `/statements/pending`) are **same-origin** — so they reach your local
+`/citations/render-document`, the bounded `/citations/zotero/resolve`, `/statements/pending`) are **same-origin** — so they reach your local
 library directly, with **no egress** and no CORS exception. Each citation is a Word **Content Control** whose
 `.tag` carries only a short opaque reference to a document-local **Custom XML Part**. That part carries one or
 more cited works' CSL-JSON, each with its own optional locator/label/prefix/suffix/suppress-author/author-only.
@@ -239,7 +248,7 @@ it are recorded in `.claude/docs/research/2026-08-21_word_citation_migration_for
 > **Verification note:** there is no headless Word, so the in-Word behavior of the Office.js parts
 > (`taskpane.js`) is **not exercised by an automated test**. The Custom-XML storage change is therefore **not yet
 > live-verified in Word**; native note insertion/scanning and heading-scoped bibliography controls are likewise
-> **not yet live-verified**. They ship
+> **not yet live-verified**. Zotero field scanning/mutation is also not yet live-verified. They ship
 > best-effort-correct per the Office.js docs until that manual check occurs.
 > The **pure logic** (`taskpane_core.js`: tag/reference/XML encode/decode, evidence normalization/bounds, the
 > render-document request/response mapping) is unit-tested with `node --test`, and the `/citations/render-document`

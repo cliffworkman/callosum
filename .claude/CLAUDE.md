@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 529** (see Increment workflow) with **2566 root-suite pytest tests
+It is currently at **Increment 531** (see Increment workflow) with **2568 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -640,8 +640,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   optionally click the unchanged local stance classifier, then explicitly choose one of four formats. Cited forms
   reuse current Custom-XML/native-note insertion and bounded provenance; quote-only is labelled uncited. A new
   bearer-gated GET-only Word evidence projection avoids exposing the existing annotations POST through Cloudflare's
-  method-blind path allowlist. Pure/static/integration logic is tested; live Word interaction remains deferred.
-  See `INCREMENT-528-NOTES.md`, `INCREMENT-529-NOTES.md`, and their 2026-08-29 security audits (PASS).
+  method-blind path allowlist. **Inc 530 adds exact Zotero inline-field conversion:** current first-party Zotero
+  source and WordApi 1.5 contracts anchor a bounded field/bookmark scan, explicit preview, exact second-snapshot
+  check, unchanged local resolver, grouped-override preservation, current Custom-XML controls, and unchanged
+  Refresh. Note-style, Bookmark-mode, malformed/oversized fields and ambiguous bibliographies remain untouched;
+  the relay exposes only the exact bearer-gated resolver path and no provider egress exists. Office.js cannot
+  save a copy or provide an undo transaction, so the user sees that boundary before mutation. Pure/static/
+  integration logic is tested; live Word interaction remains deferred. See `INCREMENT-528-NOTES.md` through
+  `INCREMENT-530-NOTES.md` and their 2026-08-29 security audits (PASS).
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,

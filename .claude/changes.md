@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 530 — Word Zotero field conversion -->
+## 2026-08-29 — Increment 530: Word Zotero field conversion
+- **Files:** Word task-pane UI/glue/pure logic/tests/README; existing local Zotero resolver documentation; shared
+  tunnel exact-path allowlist/README; served Help; security audit; architecture/backlog/change/increment ledgers;
+  QA route 34; website review receipt.
+- **What:** Word now scans Zotero's exact current first-party inline citation fields, previews and snapshot-checks
+  a bounded conversion, preserves grouped per-item overrides, resolves embedded CSL metadata locally, converts
+  only verified fields to existing Custom-XML citation controls, and runs unchanged Refresh. Unsupported note,
+  Bookmark-mode, malformed, oversized, and ambiguous material remains untouched; bibliography replacement is
+  conditional.
+- **Why:** closes the last selected Word parity lift without guessing at undocumented formats or changing citation
+  semantics. The reused resolver matches existing works before creating metadata-only local rows and makes no
+  provider call. Exact relay exposure remains bearer-gated. Save-As/Undo limits are disclosed before mutation.
+- **Verify:** Word pure/static logic **90/90**; focused Word/Zotero/access/Help/health pytest **55 passed**; full
+  suite **2568 passed, 3 skipped** in 993.85s. Ruff, Bandit, Tach, JavaScript syntax, 569-file line budget,
+  QA map (432/432 gated API surfaces), website review, changed-file pre-commit, secret/path, and diff gates passed.
+  Office.js remains explicitly not live-verified; QA route 34 carries this into Cliff's consolidated checklist.
+- **Revert:** `git revert` this increment's commit; existing Zotero, Writer, citation rendering, and provider
+  behavior remain unchanged.
+
 ## 2026-08-29 — Increment 531: Tauri packaged-app port stability + one-click LibreOffice wiring (backlog #33/#34 phase 1)
 - **Files:** `app/desktop-shell/src-tauri/src/backend.rs`; `app/backend/api/routers/libreoffice.py`;
   `app/frontend/js/35_settings.jsx`, `35e_maintenance.jsx`; `tests/test_libreoffice_install.py`;
@@ -33,7 +53,7 @@ are the design diary; this is the chronological "what & why" record.
 - **Revert:** `git log` for the exact commit; the change is additive (a new endpoint + two new frontend
   controls + a port-preference file) with no schema/migration involved.
 
-<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 529 — Word saved-evidence insertion -->
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-08-29 inc 529 — Word saved-evidence insertion -->
 ## 2026-08-29 — Increment 529: Word saved-evidence insertion
 - **Files:** Word task-pane UI/glue/pure logic/tests/README; privacy-minimized Word evidence route; shared tunnel
   allowlist/README; served Help; security audit; architecture/backlog/change/increment ledgers; QA route 34.

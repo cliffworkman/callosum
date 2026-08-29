@@ -5,7 +5,7 @@
  * inc 521: document-local bibliography categories; inc 522: bounded batch assignment; inc 523: category order;
  * inc 524: heading-scoped bibliography blocks; inc 525: opt-in bibliography title/DOI links;
  * inc 526: evidence-aware Suggest details and audit records; inc 527: open-science statement insertion;
- * inc 529: author-controlled saved-evidence insertion).
+ * inc 529: author-controlled saved-evidence insertion; inc 530: Zotero Word-field conversion).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
  * is a SAME-ORIGIN call to the local API — nothing leaves the machine, and (inc 511) desktop genuinely never
@@ -77,6 +77,7 @@
   var selectedEvidencePaperId = null;
   var selectedEvidenceAnnotation = null;
   var evidenceInFlight = false;
+  var zoteroConversionInFlight = false;
 
   // ---- live-citation storage ----
   // Current citations keep CSL-JSON in a Word Custom XML Part (WordApi 1.4) and only an opaque reference in the
@@ -950,6 +951,180 @@
       await refreshDocument(); // render the citation(s) + renumber the rest + rebuild the bibliography
     } catch (e) {
       setStatus("Couldn't " + (wasEditing ? "update" : "insert") + ": " + ((e && e.message) || e), true);
+    }
+  }
+
+  // Zotero Word-field conversion (inc 530): read current first-party ADDIN fields through WordApi 1.5, resolve
+  // their self-contained CSL records through the same local endpoint as Writer, then replace only verified
+  // inline fields with Callosum's existing Custom-XML citation controls. The read-only scan + explicit confirm
+  // happen before the single mutation batch. Office.js has no saveAs or undo-context API, so the dialog tells
+  // the author to save a copy; unsupported/malformed/note/bookmark material remains owned by Zotero.
+  function requireZoteroFieldSupport() {
+    if (!Office.context.requirements || !Office.context.requirements.isSetSupported("WordApi", "1.5")) {
+      throw new Error("Zotero field conversion requires WordApi 1.5 on this Word version");
+    }
+  }
+
+  async function loadZoteroFieldScan(ctx) {
+    requireZoteroFieldSupport();
+    var body = ctx.document.body;
+    var bodyFields = body.fields;
+    var footnotes = body.footnotes;
+    var endnotes = body.endnotes;
+    var bookmarkResult = body.getRange(Word.RangeLocation.whole).getBookmarks(true, true);
+    bodyFields.load("items/code,items/type");
+    footnotes.load("items");
+    endnotes.load("items");
+    await ctx.sync();
+
+    var footnoteFields = [], endnoteFields = [];
+    footnotes.items.forEach(function (note) {
+      var fields = note.body.fields;
+      fields.load("items/code,items/type");
+      footnoteFields.push(fields);
+    });
+    endnotes.items.forEach(function (note) {
+      var fields = note.body.fields;
+      fields.load("items/code,items/type");
+      endnoteFields.push(fields);
+    });
+    await ctx.sync();
+
+    var entries = bodyFields.items.map(function (field) {
+      return { field: field, code: field.code, type: field.type, location: "inline" };
+    });
+    footnoteFields.forEach(function (fields, noteIndex) {
+      fields.items.forEach(function (field) {
+        entries.push({ field: field, code: field.code, type: field.type, location: "footnote", noteIndex: noteIndex + 1 });
+      });
+    });
+    endnoteFields.forEach(function (fields, noteIndex) {
+      fields.items.forEach(function (field) {
+        entries.push({ field: field, code: field.code, type: field.type, location: "endnote", noteIndex: noteIndex + 1 });
+      });
+    });
+    return { entries: entries, scan: CallosumCore.zoteroConversionScan(entries, bookmarkResult.value || []) };
+  }
+
+  function zoteroConversionMessage(scan, plan) {
+    var lines = [
+      "Convert " + scan.convertible.length + " inline Zotero citation field(s) (" +
+        plan.items.length + " distinct work(s)) to live Callosum citations.",
+    ];
+    if (scan.noteStyleCount) {
+      lines.push(scan.noteStyleCount + " footnote/endnote Zotero citation(s) will remain unchanged (not supported yet).");
+    }
+    if (scan.bookmarkCount) {
+      lines.push(scan.bookmarkCount + " Zotero Bookmark-mode citation(s) will remain unchanged (their payload is not self-contained).");
+    }
+    if (scan.malformedCount) {
+      lines.push(scan.malformedCount + " Zotero-named field(s) could not be verified and will remain unchanged.");
+    }
+    if (scan.bibliographies.length === 1 && !scan.noteStyleCount && !scan.bookmarkCount && !scan.malformedCount) {
+      lines.push("Zotero's bibliography field will be replaced with Callosum's managed bibliography.");
+    } else if (scan.bibliographies.length) {
+      lines.push("Zotero bibliography field(s) will remain unchanged because unsupported or ambiguous Zotero content remains.");
+    }
+    lines.push("Any unmatched works are added to your local Callosum library before Word changes the document; Word Undo does not remove those library records.");
+    lines.push("Word cannot make a backup or guarantee one-step rollback for an add-in. Use File → Save As first.");
+    return lines.join("\n\n");
+  }
+
+  async function convertZoteroCitations() {
+    if (zoteroConversionInFlight) return;
+    zoteroConversionInFlight = true;
+    $("convertZotero").disabled = true;
+    var mutationComplete = false;
+    try {
+      if (CallosumCore.isNoteStyle(currentCitationFormat())) {
+        throw new Error("this first conversion slice requires an in-text citation style; note-style Zotero fields remain untouched");
+      }
+      setStatus("Scanning Zotero fields…");
+      var initial = await Word.run(async function (ctx) { return loadZoteroFieldScan(ctx); });
+      if (!initial.scan.convertible.length) {
+        var remainder = initial.scan.noteStyleCount + initial.scan.bookmarkCount + initial.scan.malformedCount;
+        setStatus(remainder
+          ? "No safely convertible inline Zotero fields found; unsupported or malformed Zotero content was left untouched."
+          : "No Zotero citation fields found in this document.", !!remainder);
+        return;
+      }
+      var plan = CallosumCore.buildZoteroResolutionPlan(initial.scan.convertible);
+      if (!window.confirm(zoteroConversionMessage(initial.scan, plan) + "\n\nProceed?")) {
+        setStatus("Zotero conversion cancelled; the document was not changed.");
+        return;
+      }
+
+      setStatus("Resolving Zotero citations against your local library…");
+      var outcome = await Word.run(async function (ctx) {
+        var existingRecords = await loadDocumentControlRecords(ctx);
+        assertPlacementCompatible(existingRecords);
+        var fresh = await loadZoteroFieldScan(ctx);
+        if (fresh.scan.snapshot !== initial.scan.snapshot) {
+          throw new Error("the Zotero fields changed after the preview; scan again before converting");
+        }
+        var response = await callosumFetch("/citations/zotero/resolve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: plan.items }),
+        });
+        if (!response.ok) throw new Error("Zotero citation resolution failed (" + response.status + ")");
+        var resolved = await response.json();
+        var clusters = CallosumCore.resolveZoteroConversionClusters(plan, resolved);
+
+        requireCustomXmlSupport();
+        var parts = clusters.map(function (items) {
+          var part = ctx.document.customXmlParts.add(CallosumCore.encodeCitationXml(items));
+          part.load("id");
+          return part;
+        });
+        await ctx.sync();
+
+        // Reverse document order prevents a preceding field deletion from shifting a later field's range.
+        for (var index = fresh.scan.convertible.length - 1; index >= 0; index--) {
+          var field = fresh.entries[fresh.scan.convertible[index].index].field;
+          var inserted = field.result.insertText("…", Word.InsertLocation.after);
+          var citation = inserted.insertContentControl();
+          configureCitationControl(citation, parts[index].id);
+          field.delete();
+        }
+
+        var replaceBibliography = fresh.scan.bibliographies.length === 1 &&
+          !fresh.scan.noteStyleCount && !fresh.scan.bookmarkCount && !fresh.scan.malformedCount;
+        if (replaceBibliography) {
+          var bibliographyField = fresh.entries[fresh.scan.bibliographies[0].index].field;
+          var existingBibliography = existingRecords.find(function (record) {
+            return record.tag === CallosumCore.BIB_TAG;
+          });
+          if (!existingBibliography) {
+            var bibliographyRange = bibliographyField.result.insertText(" ", Word.InsertLocation.after);
+            var bibliographyControl = bibliographyRange.insertContentControl();
+            bibliographyControl.tag = CallosumCore.BIB_TAG;
+            bibliographyControl.title = "Callosum bibliography";
+          }
+          bibliographyField.delete();
+        }
+        await ctx.sync();
+        return {
+          converted: clusters.length,
+          distinct: resolved.length,
+          created: resolved.filter(function (row) { return !!row.created; }).length,
+          bibliographyReplaced: replaceBibliography,
+        };
+      });
+      mutationComplete = true;
+      await refreshDocument({ throwOnError: true });
+      setStatus("Converted " + outcome.converted + " Zotero citation(s) (" + outcome.distinct +
+        " distinct work(s), " + outcome.created + " newly added to your library)" +
+        (outcome.bibliographyReplaced ? " and replaced Zotero's bibliography." : "."));
+    } catch (e) {
+      var detail = ((e && e.message) || e);
+      setStatus(mutationComplete
+        ? "Zotero citations were converted, but refresh failed: " + detail + " Click Refresh to retry."
+        : "Couldn't convert Zotero citations: " + detail +
+          " If Word reports a batch error, inspect the document and use Undo or your saved copy before retrying.", true);
+    } finally {
+      zoteroConversionInFlight = false;
+      $("convertZotero").disabled = false;
     }
   }
 
@@ -2194,6 +2369,7 @@
     $("sectionBibliographyRemove").addEventListener("click", removeSectionBibliography);
     $("bibliographyExternalLinks").addEventListener("change", onBibliographyExternalLinksChange);
     $("flatten").addEventListener("click", onFlatten);
+    $("convertZotero").addEventListener("click", convertZoteroCitations);
     $("style").addEventListener("change", onStyleChange);
     $("notePlacement").addEventListener("change", onNotePlacementChange);
     $("statementOpen").addEventListener("click", openStatementEditor);

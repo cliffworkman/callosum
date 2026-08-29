@@ -39,6 +39,14 @@
   var EVIDENCE_NOTE_MAX = 4000;
   var EVIDENCE_STANCE_TEXT_MAX = 4000;
   var EVIDENCE_LOCATOR_MAX = 80;
+  var ZOTERO_CITATION_FIELD_PREFIX = "ADDIN ZOTERO_ITEM CSL_CITATION ";
+  var ZOTERO_BIBLIOGRAPHY_FIELD_PREFIX = "ADDIN ZOTERO_BIBL ";
+  var ZOTERO_BIBLIOGRAPHY_FIELD_SUFFIX = " CSL_BIBLIOGRAPHY";
+  var ZOTERO_BOOKMARK_PREFIX = "ZOTERO_BREF_";
+  var MAX_ZOTERO_FIELD_CODE_BYTES = 1024 * 1024;
+  var MAX_ZOTERO_ITEMS_PER_CITATION = 100;
+  var MAX_ZOTERO_CONVERT_FIELDS = 500;
+  var MAX_ZOTERO_DISTINCT_WORKS = 300;
   var EVIDENCE_FORMATS = [
     { value: "quote_only", label: "Quote only (no citation)" },
     { value: "quote_cite", label: "Quote + citation" },
@@ -988,6 +996,148 @@
     return row;
   }
 
+  // ---- Zotero Word-field conversion (inc 530) ----
+  // Zotero's current first-party Word integrations wrap their inner `ITEM CSL_CITATION {json}` code with the
+  // literal ` ADDIN ZOTERO_` prefix. Word.Field.code exposes the resulting full instruction. Keep this parser
+  // deliberately exact: opened documents are untrusted input, and a foreign/malformed field is safer left live
+  // under Zotero than converted from a guess.
+  function _boundedFieldCode(code) {
+    if (typeof code !== "string") return null;
+    var bytes = new TextEncoder().encode(code);
+    return bytes.length <= MAX_ZOTERO_FIELD_CODE_BYTES ? code.trim() : null;
+  }
+  function _isPlainObject(value) {
+    return !!value && typeof value === "object" && !Array.isArray(value);
+  }
+  function decodeZoteroCitationFieldCode(code) {
+    var normalized = _boundedFieldCode(code);
+    if (!normalized || normalized.indexOf(ZOTERO_CITATION_FIELD_PREFIX) !== 0) return null;
+    try {
+      var payload = JSON.parse(normalized.slice(ZOTERO_CITATION_FIELD_PREFIX.length));
+      var items = _isPlainObject(payload) && payload.citationItems;
+      if (!Array.isArray(items) || !items.length || items.length > MAX_ZOTERO_ITEMS_PER_CITATION) return null;
+      if (!items.every(function (item) {
+        return _isPlainObject(item) && _isPlainObject(item.itemData) && Object.keys(item.itemData).length > 0 &&
+          (item.uris == null || (Array.isArray(item.uris) && item.uris.length <= 16 &&
+            item.uris.every(function (uri) { return typeof uri === "string" && uri.length <= 2048; })));
+      })) return null;
+      return payload;
+    } catch (e) {
+      return null;
+    }
+  }
+  function isZoteroCitationFieldCode(code) {
+    var normalized = _boundedFieldCode(code);
+    return !!normalized && normalized.indexOf(ZOTERO_CITATION_FIELD_PREFIX) === 0;
+  }
+  function decodeZoteroBibliographyFieldCode(code) {
+    var normalized = _boundedFieldCode(code);
+    if (!normalized || normalized.indexOf(ZOTERO_BIBLIOGRAPHY_FIELD_PREFIX) !== 0 ||
+        !normalized.endsWith(ZOTERO_BIBLIOGRAPHY_FIELD_SUFFIX)) return null;
+    var serialized = normalized.slice(
+      ZOTERO_BIBLIOGRAPHY_FIELD_PREFIX.length,
+      -ZOTERO_BIBLIOGRAPHY_FIELD_SUFFIX.length,
+    );
+    try {
+      var payload = JSON.parse(serialized);
+      return _isPlainObject(payload) ? payload : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function isZoteroBibliographyFieldCode(code) {
+    var normalized = _boundedFieldCode(code);
+    return !!normalized && normalized.indexOf(ZOTERO_BIBLIOGRAPHY_FIELD_PREFIX) === 0;
+  }
+  function _canonicalJson(value) {
+    if (Array.isArray(value)) return "[" + value.map(_canonicalJson).join(",") + "]";
+    if (_isPlainObject(value)) {
+      return "{" + Object.keys(value).sort().map(function (key) {
+        return JSON.stringify(key) + ":" + _canonicalJson(value[key]);
+      }).join(",") + "}";
+    }
+    return JSON.stringify(value);
+  }
+  function zoteroConversionScan(entries, bookmarkNames) {
+    var recognized = [], convertible = [], noteStyleCount = 0, malformedCount = 0, bibliographies = [];
+    (entries || []).forEach(function (entry, index) {
+      var code = entry && entry.code;
+      if (isZoteroCitationFieldCode(code)) {
+        recognized.push({ index: index, location: entry.location, code: code });
+        var payload = String(entry.type || "").toLowerCase() === "addin"
+          ? decodeZoteroCitationFieldCode(code) : null;
+        if (!payload) { malformedCount += 1; return; }
+        if (entry.location !== "inline") { noteStyleCount += 1; return; }
+        convertible.push({ index: index, code: code, citationItems: payload.citationItems });
+      } else if (isZoteroBibliographyFieldCode(code)) {
+        recognized.push({ index: index, location: entry.location, code: code });
+        var bibliography = String(entry.type || "").toLowerCase() === "addin"
+          ? decodeZoteroBibliographyFieldCode(code) : null;
+        if (!bibliography || entry.location !== "inline") { malformedCount += 1; return; }
+        bibliographies.push({ index: index, code: code });
+      }
+    });
+    var bookmarks = (bookmarkNames || []).filter(function (name) {
+      return typeof name === "string" && name.indexOf(ZOTERO_BOOKMARK_PREFIX) === 0;
+    }).sort();
+    return {
+      convertible: convertible,
+      noteStyleCount: noteStyleCount,
+      bookmarkCount: bookmarks.length,
+      malformedCount: malformedCount,
+      bibliographies: bibliographies,
+      snapshot: _canonicalJson({ fields: recognized, bookmarks: bookmarks }),
+    };
+  }
+  function buildZoteroResolutionPlan(convertible) {
+    if (!Array.isArray(convertible) || !convertible.length) throw new Error("No Zotero citation fields to convert.");
+    if (convertible.length > MAX_ZOTERO_CONVERT_FIELDS) {
+      throw new Error("A conversion can contain at most " + MAX_ZOTERO_CONVERT_FIELDS + " Zotero citation fields.");
+    }
+    var fingerprints = [], distinct = Object.create(null), clusters = [];
+    convertible.forEach(function (field) {
+      var cluster = [];
+      (field.citationItems || []).forEach(function (item) {
+        var fingerprint = _canonicalJson(item.itemData);
+        if (!distinct[fingerprint]) {
+          distinct[fingerprint] = { item_data: item.itemData, uris: item.uris || [] };
+          fingerprints.push(fingerprint);
+        }
+        var overrides = {};
+        ASSEMBLY_OVERRIDE_KEYS.forEach(function (key) {
+          if (item[key] !== null && item[key] !== undefined && item[key] !== "" && item[key] !== false) {
+            overrides[key] = item[key];
+          }
+        });
+        cluster.push({ fingerprint: fingerprint, itemData: item.itemData, overrides: overrides });
+      });
+      clusters.push(cluster);
+    });
+    if (fingerprints.length > MAX_ZOTERO_DISTINCT_WORKS) {
+      throw new Error("A conversion can contain at most " + MAX_ZOTERO_DISTINCT_WORKS + " distinct Zotero works.");
+    }
+    return { fingerprints: fingerprints, items: fingerprints.map(function (fp) { return distinct[fp]; }), clusters: clusters };
+  }
+  function resolveZoteroConversionClusters(plan, results) {
+    if (!plan || !Array.isArray(plan.fingerprints) || !Array.isArray(plan.clusters) ||
+        !Array.isArray(results) || results.length !== plan.fingerprints.length) {
+      throw new Error("Zotero citation resolution returned an incomplete result.");
+    }
+    var paperIds = Object.create(null);
+    results.forEach(function (result, index) {
+      if (!result || !Number.isInteger(result.paper_id) || result.paper_id <= 0) {
+        throw new Error("Zotero citation resolution returned an invalid paper id.");
+      }
+      paperIds[plan.fingerprints[index]] = result.paper_id;
+    });
+    return plan.clusters.map(function (cluster) {
+      return cluster.map(function (item) {
+        var paperId = paperIds[item.fingerprint];
+        return Object.assign({}, stampCallosumId(item.itemData, paperId), item.overrides);
+      });
+    });
+  }
+
   // ---- Document diagnostics (inc 512, backlog #33/#34 P0 remainder) ----
   // Mirrors adapters/libreoffice/callosum_cite.py's `diagnose_document`/`citation_integrity_preflight` (inc
   // 459), narrowed to what Word's simpler tag model can actually check: Word has no embedded schema-version
@@ -1273,6 +1423,16 @@
     cslRecordRow: cslRecordRow,
     formatAssemblyRow: formatAssemblyRow,
     assemblyRowFromDecodedItem: assemblyRowFromDecodedItem,
+    ZOTERO_CITATION_FIELD_PREFIX: ZOTERO_CITATION_FIELD_PREFIX,
+    ZOTERO_BIBLIOGRAPHY_FIELD_PREFIX: ZOTERO_BIBLIOGRAPHY_FIELD_PREFIX,
+    MAX_ZOTERO_CONVERT_FIELDS: MAX_ZOTERO_CONVERT_FIELDS,
+    MAX_ZOTERO_DISTINCT_WORKS: MAX_ZOTERO_DISTINCT_WORKS,
+    decodeZoteroCitationFieldCode: decodeZoteroCitationFieldCode,
+    isZoteroCitationFieldCode: isZoteroCitationFieldCode,
+    decodeZoteroBibliographyFieldCode: decodeZoteroBibliographyFieldCode,
+    zoteroConversionScan: zoteroConversionScan,
+    buildZoteroResolutionPlan: buildZoteroResolutionPlan,
+    resolveZoteroConversionClusters: resolveZoteroConversionClusters,
     stampCallosumId: stampCallosumId,
     extractPaperId: extractPaperId,
     summarizeDiagnostics: summarizeDiagnostics,

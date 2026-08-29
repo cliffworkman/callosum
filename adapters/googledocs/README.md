@@ -16,7 +16,8 @@ http://localhost:8080            ← your callosum, CITE-ONLY ingress + a bearer
 **Two boundaries keep this safe:** (1) the **access token** (Settings → Remote access) — callosum requires it on
 every request; (2) the **cite/evidence-only ingress** — the tunnel forwards only `/papers`, `/papers/export`,
 Word's exact read-only `/integrations/word/evidence/{integer}`, `/citations/render-document`, `/citations/suggest`,
-`/citations/classify-stance`, `/citations/styles`, plus Word's exact transient `/statements/pending` handoff;
+`/citations/classify-stance`, Word's exact bounded `/citations/zotero/resolve` conversion seam,
+`/citations/styles`, plus Word's exact transient `/statements/pending` handoff;
 everything else (your app, `/settings`, the
 folder-scan routes, `/papers/{id}` edit/delete) returns **404** through the tunnel. Both are verified below.
 

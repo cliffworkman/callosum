@@ -686,3 +686,4 @@ appended here.)*
   narrower running-header-pollution fix this item also tracked shipped independently 2026-08-26
   (`chunk_filtering.py::exclude_repeated_boilerplate_chunks`) and is unaffected by this closure.
 - [x] **#33/#34 Word saved-evidence insertion** (inc 529) — author-selected highlight/stance/four-format flow with a GET-only relay projection; see `increment-notes/INCREMENT-529-NOTES.md`.
+- [x] **#33/#34 Word Zotero field conversion** (inc 530) — exact first-party inline field parsing, bounded local resolution, grouped-override preservation, snapshot preflight, fail-closed unsupported modes, and conditional bibliography replacement; see `increment-notes/INCREMENT-530-NOTES.md`.

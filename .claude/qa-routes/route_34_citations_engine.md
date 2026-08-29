@@ -223,6 +223,19 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     or cancel without a misleading partial result. Confirm no provider request; repeat the core flow in Word on
     the web and confirm broader `/papers/{id}` paths remain tunnel-blocked. This remains MANUAL because no
     available agent can drive Word.
+20h. **Manual Word Zotero citation conversion (inc 530):** in a saved copy of a real Zotero-authored `.docx`,
+    include one grouped inline citation with per-item locator/prefix/suffix overrides, one unmatched cited work,
+    one Zotero note citation, one Bookmark-mode citation if available, one deliberately malformed Zotero-named
+    field, and Zotero's generated bibliography. With an in-text Callosum style choose **Convert Zotero
+    citations…**. Confirm the preview names exact convertible/distinct/unsupported counts and warns that new local
+    library rows are outside Word Undo; Cancel must change neither document nor library. After confirming, verify
+    existing works retain identity, the unmatched work becomes metadata-only, grouped order/overrides survive,
+    converted fields become editable Callosum Content Controls and Refresh correctly, and unsupported fields stay
+    byte-for-byte under Zotero's control. The Zotero bibliography may be replaced only when no unsupported Zotero
+    content remains. Change a field between preview and conversion and confirm snapshot mismatch fails before
+    mutation. Exercise wrong/missing relay token in Word on the web, confirm no provider request, and verify a
+    normal Word shutdown/reopen preserves both converted and untouched content. This remains MANUAL because no
+    available agent can drive Word; it belongs in the consolidated end-of-arc checklist requested by Cliff.
 21. **Manual Writer journal abbreviations:** use a short-title CSL style such as Nature with one journal carrying
     library `container-title-short` metadata, one exact NLM/MEDLINE title or ISSN, and one unknown journal. In
     **Journal abbreviations…**, verify **Library abbreviations** uses embedded metadata, **MEDLINE first** prefers

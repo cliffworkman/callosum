@@ -1020,6 +1020,115 @@ test("open-science statements expose the seven bounded author-controlled kinds",
   assert.strictEqual(core.statementType("unknown"), null);
 });
 
+// ---- Zotero Word-field conversion (inc 530) ----
+function zoteroCode(items, extra) {
+  return " ADDIN ZOTERO_ITEM CSL_CITATION " + JSON.stringify(Object.assign({ citationItems: items }, extra || {})) + " ";
+}
+
+test("Zotero field decoder accepts the current exact ADDIN contract and preserves grouped overrides", () => {
+  const code = zoteroCode([
+    { id: 1, uris: ["http://zotero.org/users/7/items/A"], itemData: { id: "A", title: "Alpha" }, locator: "9", label: "page" },
+    { id: 2, itemData: { id: "B", title: "Beta" }, prefix: "see", "suppress-author": true },
+  ], { citationID: "cluster-1" });
+  const decoded = core.decodeZoteroCitationFieldCode(code);
+  assert.strictEqual(decoded.citationID, "cluster-1");
+  assert.strictEqual(decoded.citationItems.length, 2);
+  assert.strictEqual(decoded.citationItems[0].locator, "9");
+  assert.strictEqual(decoded.citationItems[1]["suppress-author"], true);
+});
+
+test("Zotero field decoder fails closed on foreign, malformed, oversized, and incomplete fields", () => {
+  assert.strictEqual(core.decodeZoteroCitationFieldCode("ADDIN EN.CITE {}"), null);
+  assert.strictEqual(core.decodeZoteroCitationFieldCode("ADDIN ZOTERO_ITEM CSL_CITATION nope"), null);
+  assert.strictEqual(core.decodeZoteroCitationFieldCode(zoteroCode([])), null);
+  assert.strictEqual(core.decodeZoteroCitationFieldCode(zoteroCode([{ id: 1 }])), null);
+  assert.strictEqual(core.decodeZoteroCitationFieldCode("x".repeat(1024 * 1024 + 1)), null);
+});
+
+test("Zotero bibliography decoder requires the exact current BIBL wrapper", () => {
+  assert.deepStrictEqual(
+    core.decodeZoteroBibliographyFieldCode(' ADDIN ZOTERO_BIBL {"uncited":[]} CSL_BIBLIOGRAPHY '),
+    { uncited: [] },
+  );
+  assert.strictEqual(core.decodeZoteroBibliographyFieldCode("ADDIN ZOTERO_BIBL {}"), null);
+  assert.strictEqual(core.decodeZoteroBibliographyFieldCode("ADDIN ZOTERO_BIBL [] CSL_BIBLIOGRAPHY"), null);
+});
+
+test("Zotero conversion scan separates inline, note, bookmark, bibliography, and malformed material", () => {
+  const good = zoteroCode([{ itemData: { title: "Good" } }]);
+  const scan = core.zoteroConversionScan([
+    { type: "Addin", code: good, location: "inline" },
+    { type: "Addin", code: good, location: "footnote" },
+    { type: "Addin", code: "ADDIN ZOTERO_ITEM CSL_CITATION nope", location: "inline" },
+    { type: "Citation", code: good, location: "inline" },
+    { type: "Addin", code: 'ADDIN ZOTERO_BIBL {"uncited":[]} CSL_BIBLIOGRAPHY', location: "inline" },
+    { type: "Addin", code: "ADDIN EN.CITE {}", location: "inline" },
+  ], ["ZOTERO_BREF_abc", "USER_MARK"]);
+  assert.strictEqual(scan.convertible.length, 1);
+  assert.strictEqual(scan.noteStyleCount, 1);
+  assert.strictEqual(scan.bookmarkCount, 1);
+  assert.strictEqual(scan.malformedCount, 2);
+  assert.strictEqual(scan.bibliographies.length, 1);
+  assert.match(scan.snapshot, /ZOTERO_BREF_abc/);
+});
+
+test("Zotero conversion snapshot is deterministic but detects a changed Zotero field", () => {
+  const a = { type: "Addin", code: zoteroCode([{ itemData: { title: "A" } }]), location: "inline" };
+  const first = core.zoteroConversionScan([a], ["ZOTERO_BREF_z", "ZOTERO_BREF_a"]);
+  const same = core.zoteroConversionScan([a], ["ZOTERO_BREF_a", "ZOTERO_BREF_z"]);
+  const changed = core.zoteroConversionScan([
+    { type: "Addin", code: zoteroCode([{ itemData: { title: "B" } }]), location: "inline" },
+  ], ["ZOTERO_BREF_a", "ZOTERO_BREF_z"]);
+  assert.strictEqual(first.snapshot, same.snapshot);
+  assert.notStrictEqual(first.snapshot, changed.snapshot);
+});
+
+test("Zotero resolution plan deduplicates metadata canonically and restores grouped Callosum identity", () => {
+  const one = { id: "z1", title: "One", author: [{ family: "A" }] };
+  const sameDifferentOrder = { author: [{ family: "A" }], title: "One", id: "z1" };
+  const two = { id: "z2", title: "Two" };
+  const plan = core.buildZoteroResolutionPlan([
+    { citationItems: [{ itemData: one, uris: ["u1"], locator: "4", label: "page" }, { itemData: two }] },
+    { citationItems: [{ itemData: sameDifferentOrder, suffix: ", appendix" }] },
+  ]);
+  assert.strictEqual(plan.items.length, 2);
+  assert.deepStrictEqual(plan.items[0], { item_data: one, uris: ["u1"] });
+  const clusters = core.resolveZoteroConversionClusters(plan, [{ paper_id: 8 }, { paper_id: 9 }]);
+  assert.deepStrictEqual(clusters[0].map((item) => item.id), ["callosum-8", "callosum-9"]);
+  assert.deepStrictEqual({ locator: clusters[0][0].locator, label: clusters[0][0].label }, { locator: "4", label: "page" });
+  assert.strictEqual(clusters[1][0].id, "callosum-8");
+  assert.strictEqual(clusters[1][0].suffix, ", appendix");
+});
+
+test("Zotero resolution plan rejects caps and incomplete or invalid resolver results", () => {
+  assert.throws(() => core.buildZoteroResolutionPlan([]), /No Zotero/);
+  const fields = Array.from({ length: core.MAX_ZOTERO_CONVERT_FIELDS + 1 }, (_v, i) => ({
+    citationItems: [{ itemData: { title: `T${i}` } }],
+  }));
+  assert.throws(() => core.buildZoteroResolutionPlan(fields), /at most 500/);
+  const plan = core.buildZoteroResolutionPlan([{ citationItems: [{ itemData: { title: "One" } }] }]);
+  assert.throws(() => core.resolveZoteroConversionClusters(plan, []), /incomplete/);
+  assert.throws(() => core.resolveZoteroConversionClusters(plan, [{ paper_id: 0 }]), /invalid paper id/);
+});
+
+test("Word Zotero conversion UI is preflighted, snapshot-checked, field-based, and refreshes existing semantics", () => {
+  const html = fs.readFileSync(path.join(__dirname, "taskpane.html"), "utf8");
+  const js = fs.readFileSync(path.join(__dirname, "taskpane.js"), "utf8");
+  assert.match(html, /id=["']convertZotero["']/);
+  assert.match(js, /isSetSupported\("WordApi", "1\.5"\)/);
+  assert.match(js, /body\.fields/);
+  assert.match(js, /note\.body\.fields/);
+  assert.match(js, /getBookmarks\(true, true\)/);
+  assert.match(js, /\/citations\/zotero\/resolve/);
+  assert.match(js, /fresh\.scan\.snapshot !== initial\.scan\.snapshot/);
+  assert.match(js, /field\.result\.insertText\("…", Word\.InsertLocation\.after\)/);
+  assert.match(js, /field\.delete\(\)/);
+  assert.match(js, /customXmlParts\.add\(CallosumCore\.encodeCitationXml\(items\)\)/);
+  assert.match(js, /Word Undo does not remove those library records/);
+  assert.match(js, /await refreshDocument\(\{ throwOnError: true \}\)/);
+  assert.doesNotMatch(js, /convertZotero[\s\S]{0,2500}(gemini|openai|anthropic)/i);
+});
+
 test("statement staging normalizes only allowlisted bounded text without mutating input", () => {
   const raw = {
     funding: "  Funded by an author-confirmed grant.  ",
