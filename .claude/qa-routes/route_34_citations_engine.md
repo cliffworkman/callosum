@@ -201,6 +201,16 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     the selection as exact ordinary editable text with no Content Control. Empty text must not insert or stage;
     4,000 characters is the maximum; Escape/Close mutates nothing. Confirm no AI/provider request, then repeat the
     core load/stage/insert path in Word on the web. This remains MANUAL because no available agent can drive Word.
+20f. **Manual Word citation coverage (inc 528):** build one document with a two-paragraph uncited stretch and
+    another with exactly three consecutive 15+-word uncited prose paragraphs. Add an inline Callosum citation to
+    one otherwise qualifying paragraph and confirm it breaks the stretch. Repeat with an all-note-style document
+    and confirm a citation inside a native footnote/endnote counts at that note's main-text reference paragraph.
+    Headings, short transitions, table-cell prose, the full managed bibliography, and current-section bibliography
+    blocks must not be flagged. Run **Citation coverage audit…** and confirm paragraph numbers/previews are correct,
+    results above 20 disclose truncation, and the copy says this is a structural review prompt—not a claim that a
+    citation is required or prose is unsupported. Confirm no backend/model/provider request and no document
+    mutation; repeat the core path in Word on the web. WordApi below 1.6 must fail explicitly. This remains MANUAL
+    because no available agent can drive Word.
 21. **Manual Writer journal abbreviations:** use a short-title CSL style such as Nature with one journal carrying
     library `container-title-short` metadata, one exact NLM/MEDLINE title or ISSN, and one unknown journal. In
     **Journal abbreviations…**, verify **Library abbreviations** uses embedded metadata, **MEDLINE first** prefers

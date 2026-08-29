@@ -121,6 +121,12 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
   end of the current selection—never a citation field and never an AI-generated or Callosum-verified assertion.
   **Stage for other editors** uses the existing transient local `/statements/pending` handoff shared with
   LibreOffice and another Word session; **Clear staged** affects only that handoff, not the document.
+- **Citation coverage audit…** — locally scan the main document for stretches of three or more consecutive
+  substantive paragraphs (15+ words each) without a Callosum citation anchor. Inline citations and native
+  footnote/endnote references count at their actual main-text paragraph; headings, short transitions, tables,
+  and Callosum-managed bibliography blocks break a stretch. The report is a structural prompt to review, never
+  a claim that a citation is required or that prose is unsupported. It is read-only, makes no backend/model call,
+  and requires WordApi 1.6 for session-local paragraph correlation.
 - **Citation style** — changing the dropdown re-renders the whole document in the new style (the choice is
   remembered per document).
 - **Flatten to static text** — convert the live citation + bibliography fields to plain text for hand-off

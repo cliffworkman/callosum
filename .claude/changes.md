@@ -9,7 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 527 — Word open-science statement insertion -->
+<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 528 — Word citation-coverage audit -->
+## 2026-08-29 — Increment 528: Word citation-coverage audit
+- **Files:** Word task-pane UI/glue/pure logic/tests/README; served Help; security audit; architecture/backlog/
+  change/increment ledgers; QA route 34; website review receipt.
+- **What:** Word now locally flags stretches of 3+ consecutive 15+-word prose paragraphs without a Callosum
+  citation anchor. Inline and native-note citations map to main-text paragraphs; headings, short transitions,
+  tables, and managed bibliography blocks break runs. Reports are bounded and read-only.
+- **Why:** closes the actual remaining citation-coverage gap without duplicating Document diagnostics' already-
+  shipped fresh trash-aware existence/retraction preflight. It is explicitly a structural prompt, not a claim
+  that prose is unsupported or a citation is required; no model/backend/provider call was added.
+- **Verify:** Word pure/static logic **76/76**; focused Word/Help/access pytest **35 passed**; full suite **2564
+  passed, 3 skipped** in 1414.25s. JavaScript syntax, Ruff, Bandit, Tach, line budget, QA map, website review,
+  changed-file pre-commit, secret/path, and diff gates passed. Office.js remains explicitly not live-verified.
+- **Revert:** `git revert` this increment's commit; existing diagnostics and citation workflows remain unchanged.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-08-29 inc 527 — Word open-science statement insertion -->
 ## 2026-08-29 — Increment 527: Word open-science statement insertion
 - **Files:** Word task-pane UI/glue/pure logic/tests/README; shared tunnel's exact path allowlist + README; served
   Help; security audit; architecture/backlog/change/increment ledgers; QA route 34.

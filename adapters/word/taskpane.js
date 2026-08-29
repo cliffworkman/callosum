@@ -143,6 +143,11 @@
       throw new Error("heading-scoped bibliographies require WordApi 1.6 on this Word version");
     }
   }
+  function requireParagraphIdentitySupport() {
+    if (!sectionBibliographiesSupported()) {
+      throw new Error("citation coverage requires WordApi 1.6 on this Word version");
+    }
+  }
   function newSectionBibliographyId() {
     var bytes = new Uint8Array(16);
     window.crypto.getRandomValues(bytes);
@@ -919,6 +924,88 @@
       setStatus("Diagnostics complete.");
     } catch (e) {
       setStatus("Couldn't run diagnostics: " + ((e && e.message) || e), true);
+    }
+  }
+
+  // Citation coverage (inc 528): one local, read-only structural scan. WordApi 1.6's session-local paragraph
+  // identity lets us correlate inline controls and WordApi 1.5 note references without quadratic range
+  // comparisons. Managed bibliography paragraphs and tables are excluded; no text leaves Word and no model or
+  // backend endpoint is called. The pure helper owns the neutral 15-word / 3-paragraph rule.
+  async function loadCitationCoverageRows(ctx, records) {
+    requireParagraphIdentitySupport();
+    var paragraphs = ctx.document.body.paragraphs;
+    paragraphs.load("items/uniqueLocalId,items/text,items/outlineLevel,items/tableNestingLevel");
+    var anchors = [], exclusions = [];
+    (records || []).forEach(function (record) {
+      var collection = null;
+      if (CallosumCore.isCitationTag(record.tag)) {
+        collection = record.location === "inline"
+          ? record.cc.paragraphs
+          : record.note && record.note.reference.paragraphs;
+        if (collection) anchors.push(collection);
+      } else if (record.tag === CallosumCore.BIB_TAG ||
+        String(record.tag || "").indexOf(CallosumCore.SECTION_BIB_BLOCK_PREFIX) === 0) {
+        collection = record.cc.paragraphs;
+        exclusions.push(collection);
+      }
+      if (collection) collection.load("items/uniqueLocalId");
+    });
+    await ctx.sync();
+
+    var citedIds = {}, excludedIds = {};
+    anchors.forEach(function (collection) {
+      collection.items.forEach(function (paragraph) { citedIds[paragraph.uniqueLocalId] = true; });
+    });
+    exclusions.forEach(function (collection) {
+      collection.items.forEach(function (paragraph) { excludedIds[paragraph.uniqueLocalId] = true; });
+    });
+    return paragraphs.items.map(function (paragraph, index) {
+      return {
+        paragraphNumber: index + 1,
+        text: paragraph.text,
+        outlineLevel: paragraph.outlineLevel,
+        tableNestingLevel: paragraph.tableNestingLevel,
+        hasCitation: !!citedIds[paragraph.uniqueLocalId],
+        excluded: !!excludedIds[paragraph.uniqueLocalId],
+      };
+    });
+  }
+
+  function renderCitationCoverageReport(report) {
+    var lines = [
+      "Scanned " + report.paragraphCount + " main-document paragraph(s); " +
+        report.substantiveParagraphCount + " counted as substantive prose.",
+    ];
+    if (!report.stretchCount) {
+      lines.push("No stretch of " + CallosumCore.UNCITED_STRETCH_MIN_PARAGRAPHS +
+        "+ consecutive substantive paragraphs without a Callosum citation anchor was found.");
+    } else {
+      lines.push("Review " + report.stretchCount + " structural citation-free stretch(es):");
+      report.stretches.forEach(function (stretch) {
+        lines.push("Paragraphs " + stretch.startParagraph + "–" + stretch.endParagraph + " (" +
+          stretch.paragraphCount + "): “" + stretch.preview + "”");
+      });
+      if (report.stretchesTruncated) {
+        lines.push("Only the first " + CallosumCore.MAX_COVERAGE_STRETCHES + " stretches are shown.");
+      }
+    }
+    lines.push("This is a structural review prompt, not a finding that a citation is required or that prose is unsupported.");
+    $("diagnostics").textContent = lines.join("\n");
+  }
+
+  async function runCitationCoverageAudit() {
+    setStatus("Scanning citation coverage…");
+    $("diagnostics").textContent = "";
+    try {
+      var rows = [];
+      await Word.run(async function (ctx) {
+        var records = await loadDocumentControlRecords(ctx);
+        rows = await loadCitationCoverageRows(ctx, records);
+      });
+      renderCitationCoverageReport(CallosumCore.summarizeCitationCoverage(rows));
+      setStatus("Citation coverage audit complete.");
+    } catch (e) {
+      setStatus("Couldn't audit citation coverage: " + ((e && e.message) || e), true);
     }
   }
 
@@ -1827,6 +1914,7 @@
     $("editAtCursor").addEventListener("click", editCitationAtCursor);
     $("deleteAtCursor").addEventListener("click", deleteCitationAtCursor);
     $("diagnosticsRun").addEventListener("click", runDiagnostics);
+    $("citationCoverageRun").addEventListener("click", runCitationCoverageAudit);
     $("citationsPanelRun").addEventListener("click", runCitationsPanel);
     $("citationsPanel").addEventListener("click", onCitationsPanelClick);
     $("citationsSearch").addEventListener("input", debounce(renderCitationsPanelList, 150));

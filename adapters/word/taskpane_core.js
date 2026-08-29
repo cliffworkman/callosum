@@ -960,6 +960,65 @@
     };
   }
 
+  // ---- Citation-coverage audit (inc 528, backlog #33/#34 P2) ----
+  // Pure structural signal only: three or more consecutive substantive main-story paragraphs without a
+  // Callosum citation anchor. This deliberately does not infer claims, support, or whether a citation is
+  // required. Headings, short transitions, table prose, and Callosum-managed bibliography blocks break a run.
+  var UNCITED_STRETCH_MIN_PARAGRAPHS = 3;
+  var UNCITED_STRETCH_MIN_WORDS = 15;
+  var UNCITED_STRETCH_PREVIEW_MAX = 150;
+  var MAX_COVERAGE_STRETCHES = 20;
+
+  function coverageParagraphText(row) {
+    return String(row && row.text || "").trim().replace(/\s+/g, " ");
+  }
+  function summarizeCitationCoverage(paragraphs) {
+    var rows = paragraphs || [], stretches = [], stretchCount = 0, run = [];
+    var substantiveParagraphCount = 0, citationAnchoredParagraphCount = 0;
+
+    function flush() {
+      if (run.length >= UNCITED_STRETCH_MIN_PARAGRAPHS) {
+        stretchCount += 1;
+        if (stretches.length < MAX_COVERAGE_STRETCHES) {
+          var preview = run[0].text;
+          if (preview.length > UNCITED_STRETCH_PREVIEW_MAX) {
+            preview = preview.slice(0, UNCITED_STRETCH_PREVIEW_MAX).trimEnd() + "…";
+          }
+          stretches.push({
+            startParagraph: run[0].paragraphNumber,
+            endParagraph: run[run.length - 1].paragraphNumber,
+            paragraphCount: run.length,
+            preview: preview,
+          });
+        }
+      }
+      run = [];
+    }
+
+    rows.forEach(function (row, index) {
+      var text = coverageParagraphText(row);
+      var substantive = text ? text.split(/\s+/).length >= UNCITED_STRETCH_MIN_WORDS : false;
+      var eligible = substantive && !isHeadingOutlineLevel(row && row.outlineLevel) &&
+        !(row && row.excluded) && !(row && Number(row.tableNestingLevel) > 0);
+      if (eligible) substantiveParagraphCount += 1;
+      if (row && row.hasCitation) citationAnchoredParagraphCount += 1;
+      if (eligible && !(row && row.hasCitation)) {
+        run.push({ paragraphNumber: Number(row.paragraphNumber) || index + 1, text: text });
+      } else {
+        flush();
+      }
+    });
+    flush();
+    return {
+      paragraphCount: rows.length,
+      substantiveParagraphCount: substantiveParagraphCount,
+      citationAnchoredParagraphCount: citationAnchoredParagraphCount,
+      stretchCount: stretchCount,
+      stretches: stretches,
+      stretchesTruncated: stretchCount > stretches.length,
+    };
+  }
+
   // ---- Citations-in-this-document panel (inc 516, backlog #33/#34 P1) ----
   // Groups repeated citations of the SAME library paper into one entry with an occurrence count + every
   // occurrence's position (an index into the document-order list of citation-tagged controls -- the same
@@ -1119,6 +1178,10 @@
     stampCallosumId: stampCallosumId,
     extractPaperId: extractPaperId,
     summarizeDiagnostics: summarizeDiagnostics,
+    UNCITED_STRETCH_MIN_PARAGRAPHS: UNCITED_STRETCH_MIN_PARAGRAPHS,
+    UNCITED_STRETCH_MIN_WORDS: UNCITED_STRETCH_MIN_WORDS,
+    MAX_COVERAGE_STRETCHES: MAX_COVERAGE_STRETCHES,
+    summarizeCitationCoverage: summarizeCitationCoverage,
     buildCitationsPanelEntries: buildCitationsPanelEntries,
     citationEvidenceFromItem: citationEvidenceFromItem,
     mergePanelEntryStatus: mergePanelEntryStatus,

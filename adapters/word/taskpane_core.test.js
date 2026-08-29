@@ -412,6 +412,64 @@ test("summarizeDiagnostics: retraction-flagged papers surface by distinct id; 'n
   assert.deepStrictEqual(report.retractionFlagged, [checked[0]]);
 });
 
+// ---- Citation-coverage audit (inc 528) ----
+const coverageProse = (label, words = 15) => Array.from({ length: words }, (_value, i) => `${label}${i}`).join(" ");
+
+test("summarizeCitationCoverage: flags exactly three consecutive substantive uncited paragraphs", () => {
+  const report = core.summarizeCitationCoverage([
+    { text: coverageProse("a"), outlineLevel: 10 },
+    { text: coverageProse("b"), outlineLevel: 10 },
+    { text: coverageProse("c"), outlineLevel: 10 },
+  ]);
+  assert.strictEqual(report.paragraphCount, 3);
+  assert.strictEqual(report.substantiveParagraphCount, 3);
+  assert.strictEqual(report.stretchCount, 1);
+  assert.deepStrictEqual(report.stretches[0], {
+    startParagraph: 1, endParagraph: 3, paragraphCount: 3, preview: coverageProse("a"),
+  });
+});
+
+test("summarizeCitationCoverage: citation anchors and short transitions break a run", () => {
+  const report = core.summarizeCitationCoverage([
+    { text: coverageProse("a") }, { text: coverageProse("b") },
+    { text: coverageProse("c"), hasCitation: true },
+    { text: coverageProse("d") }, { text: "Short transition." }, { text: coverageProse("e") },
+  ]);
+  assert.strictEqual(report.citationAnchoredParagraphCount, 1);
+  assert.strictEqual(report.stretchCount, 0);
+});
+
+test("summarizeCitationCoverage: headings, tables, and managed bibliography rows never count as prose", () => {
+  const report = core.summarizeCitationCoverage([
+    { text: coverageProse("heading"), outlineLevel: 1 },
+    { text: coverageProse("table"), outlineLevel: 10, tableNestingLevel: 1 },
+    { text: coverageProse("bib"), outlineLevel: 10, excluded: true },
+    { text: coverageProse("a"), outlineLevel: 10 },
+    { text: coverageProse("b"), outlineLevel: 10 },
+  ]);
+  assert.strictEqual(report.substantiveParagraphCount, 2);
+  assert.strictEqual(report.stretchCount, 0);
+});
+
+test("summarizeCitationCoverage: reports document paragraph numbers and bounds stored previews/results", () => {
+  const rows = [];
+  for (let run = 0; run < 22; run += 1) {
+    const long = `${coverageProse(`run${run}`, 20)} ${"x".repeat(200)}`;
+    rows.push({ paragraphNumber: run * 4 + 2, text: long });
+    rows.push({ paragraphNumber: run * 4 + 3, text: coverageProse("b") });
+    rows.push({ paragraphNumber: run * 4 + 4, text: coverageProse("c") });
+    rows.push({ paragraphNumber: run * 4 + 5, text: "Break." });
+  }
+  const report = core.summarizeCitationCoverage(rows);
+  assert.strictEqual(report.stretchCount, 22);
+  assert.strictEqual(report.stretches.length, core.MAX_COVERAGE_STRETCHES);
+  assert.strictEqual(report.stretchesTruncated, true);
+  assert.deepStrictEqual(
+    [report.stretches[0].startParagraph, report.stretches[0].endParagraph], [2, 4],
+  );
+  assert.ok(report.stretches[0].preview.length <= 151);
+});
+
 // ---- Citations-in-this-document panel (inc 516) ----
 test("buildCitationsPanelEntries: the same paper cited solo, then again inside a grouped citation, is one entry", () => {
   const tags = [
@@ -843,6 +901,17 @@ test("bibliography web-link opt-in persists and applies only unambiguous paragra
   assert.match(js, /search\.ranges\.items\[0\]\.hyperlink = search\.url/);
   assert.match(js, /restoreBibliographyExternalLinks\(previousRaw\)/);
   assert.match(js, /remove\(BIBLIOGRAPHY_EXTERNAL_LINKS_SETTING\)/);
+});
+
+test("citation coverage UI maps inline and native-note citations to main-story paragraphs without a backend call", () => {
+  const html = fs.readFileSync(path.join(__dirname, "taskpane.html"), "utf8");
+  const js = fs.readFileSync(path.join(__dirname, "taskpane.js"), "utf8");
+  assert.match(html, /id=["']citationCoverageRun["']/);
+  assert.match(js, /isSetSupported\("WordApi", "1\.6"\)/);
+  assert.match(js, /record\.note && record\.note\.reference\.paragraphs/);
+  assert.match(js, /record\.cc\.paragraphs/);
+  assert.match(js, /CallosumCore\.summarizeCitationCoverage\(rows\)/);
+  assert.doesNotMatch(js, /citationCoverage[\s\S]{0,500}callosumFetch/);
 });
 
 test("evidence-aware Suggest exposes detail, editable locator, PDF deep link, and later audit UI", () => {

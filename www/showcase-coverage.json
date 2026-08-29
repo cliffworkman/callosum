@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-29",
-    "reviewed_rev": "83a6e05",
-    "source_fingerprint": "5c86eee2de1fe5b411244a05fb31f33c235c8697d59ddbd4e4eb724132c1c41e",
-    "note": "Reviewed Word open-science statement insertion; existing statement/integration claims and screenshots remain accurate, with manual Word coverage added to route 34."
+    "reviewed_rev": "0629011",
+    "source_fingerprint": "5014fc6dae36b5e31797af0311166a15b8754af23d5c4de88e6eb6677885dcf2",
+    "note": "Reviewed Word citation-coverage audit; existing citation/Word claims and screenshots remain accurate, with the new read-only structural scan covered manually in route 34."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

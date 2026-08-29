@@ -237,9 +237,14 @@ the Principles + A-A gates before build.)*
       `/statements/pending`, and inserts the exact bounded author-reviewed draft as ordinary text at the cursor.
       No Content Control, AI/provider call, inferred fact, backend contract, or document mutation occurs during
       staging. Pure/static logic is tested; live Word interaction remains deferred. See `INCREMENT-527-NOTES.md`.
-      Remaining: citation-coverage/integrity-preflight audits
-      (`POST /methods/retraction/check-selected` is already adapter-agnostic, zero backend work — mirrors inc
-      459/463); Citavi-style Insert Evidence (mirrors inc 461, reuses `POST /citations/classify-stance`
+      **Citation coverage closed inc 528:** Word now performs the same local structural scan for 3+ consecutive
+      substantive paragraphs without a Callosum citation anchor, counting inline and native-note anchors at the
+      main-text paragraph while excluding headings, short transitions, tables, and managed bibliography blocks.
+      This is explicitly a neutral review prompt, not a support/citation verdict. The originally grouped
+      "integrity-preflight" half required no new control: **Document diagnostics…** already performs the fresh,
+      trash-aware existence + `POST /methods/retraction/check-selected` retraction check (incs 512-513), so inc
+      528 did not duplicate it. See `INCREMENT-528-NOTES.md`. Remaining: Citavi-style Insert Evidence (mirrors
+      inc 461, reuses `POST /citations/classify-stance`
       unchanged); Zotero-field conversion (Zotero's Word integration is
       documented as using real Word field codes, `ADDIN ZOTERO_ITEM CSL_CITATION {json}` — same convention
       inc 464 already verified for LibreOffice, `Word.Field.code` since WordApi 1.5 — a promising,
