@@ -20,6 +20,8 @@ def client(temp_db_url: str) -> TestClient:
 
 
 def _paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, Path]:
+    # Exercise the supported Windows lifecycle consistently even when the test suite runs on Linux CI.
+    monkeypatch.setattr(lifecycle.sys, "platform", "win32")
     monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "app-settings.json"))
     monkeypatch.setenv(lifecycle.WORD_HTTPS_DIR_ENV, str(tmp_path / "word-https"))
     monkeypatch.setattr(lifecycle, "_restrict_windows_acl", lambda _path: None)
@@ -101,6 +103,7 @@ def test_powershell_value_uses_child_environment_not_command_or_parent(monkeypat
     captured = {}
     variable = "CALLOSUM_WORD_HTTPS_PS_ARG_0"
     monkeypatch.delenv(variable, raising=False)
+    monkeypatch.setenv("WINDIR", r"C:\Windows")
 
     def fake_run(args, **kwargs):
         captured.update(args=args, kwargs=kwargs)
@@ -112,7 +115,9 @@ def test_powershell_value_uses_child_environment_not_command_or_parent(monkeypat
     assert captured["args"][-1] == "fixed-command"
     assert "path with ' punctuation" not in captured["args"]
     assert captured["kwargs"]["env"][variable] == "path with ' punctuation"
-    assert captured["kwargs"]["env"]["PSModulePath"].endswith("WindowsPowerShell\\v1.0\\Modules")
+    assert captured["kwargs"]["env"]["PSModulePath"] == str(
+        Path(r"C:\Windows") / "System32" / "WindowsPowerShell" / "v1.0" / "Modules"
+    )
     assert variable not in os.environ
 
 
