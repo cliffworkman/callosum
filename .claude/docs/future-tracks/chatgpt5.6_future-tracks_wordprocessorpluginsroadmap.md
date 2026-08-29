@@ -321,6 +321,13 @@ independently. Section blocks deliberately do not duplicate full-bibliography in
 conversion currently refuses while section blocks exist; verified multi-range conversion Undo/Redo,
 bibliography-title links, and per-source grouped navigation remain.
 
+**Word parity continued in increment 524 (2026-08-28):** Word now offers the same nearest-heading-subtree
+insertion/removal mental model using a strict random-id Content Control pair: a hidden heading scope plus one
+bounded generated block. Refresh projects the existing full-document citeproc result onto each block, so full and
+section bibliographies coexist and categories/order remain shared. Diagnostics, duplicate/damaged-pair refusal,
+the 50-block cap, save/reopen identity, and Flatten are represented. This Word slice requires WordApi 1.6 and
+fails closed for note styles because native note anchors are not yet safely mapped back to heading subtrees.
+
 **Continued in increment 381 (2026-07-25):** placement conversion now updates the full bibliography plus every
 non-empty heading-scoped block inside one Writer Undo transaction. It retains each section's native boundary
 objects and replaces only the safe interior, so Undo/Redo, injected rollback, converted-copy isolation, and

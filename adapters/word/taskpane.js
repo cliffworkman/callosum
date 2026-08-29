@@ -2,7 +2,8 @@
  * Callosum Word add-in — the thin Office.js glue (inc 166, SP3: parity — suggest / style-switch / flatten;
  * SP4: Word-on-the-web relay; inc 509: grouped-citation composer with locators/edit/delete; inc 516: Citations
  * in this document panel; inc 517: accessibility; inc 519: Custom-XML storage; inc 520: native notes;
- * inc 521: document-local bibliography categories; inc 522: bounded batch assignment; inc 523: category order).
+ * inc 521: document-local bibliography categories; inc 522: bounded batch assignment; inc 523: category order;
+ * inc 524: heading-scoped bibliography blocks).
  *
  * Architecture A (desktop): this page is served by callosum over HTTPS (https://localhost:8443), so every fetch
  * is a SAME-ORIGIN call to the local API — nothing leaves the machine, and (inc 511) desktop genuinely never
@@ -125,6 +126,20 @@
     if (!notesSupported()) throw new Error("this Word version does not support native note citations (WordApi 1.5 required)");
   }
 
+  function sectionBibliographiesSupported() {
+    return !!(Office.context.requirements && Office.context.requirements.isSetSupported("WordApi", "1.6"));
+  }
+  function requireSectionBibliographiesSupport() {
+    if (!sectionBibliographiesSupported()) {
+      throw new Error("heading-scoped bibliographies require WordApi 1.6 on this Word version");
+    }
+  }
+  function newSectionBibliographyId() {
+    var bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    return CallosumCore.sectionBibliographyIdFromBytes(bytes);
+  }
+
   // Collect main-story controls plus every footnote/endnote body's controls. Native collection position—not
   // citation count—is the one-based noteIndex: ordinary non-Callosum notes intentionally leave gaps, and two
   // citation clusters in the same note intentionally share an index.
@@ -185,6 +200,44 @@
       record.noteControlCount = entries[index].noteControlCount || 0;
     });
     return records;
+  }
+
+  // Paragraph ids are session-local by design: they correlate the main-story controls with Word's current
+  // outline only inside this Word.run batch. Persistent identity lives solely in the strict paired tags.
+  async function loadSectionParagraphContext(ctx, records, selection) {
+    requireSectionBibliographiesSupport();
+    var paragraphs = ctx.document.body.paragraphs;
+    paragraphs.load("items/uniqueLocalId,items/outlineLevel");
+    var relevant = (records || []).filter(function (record) {
+      return record.location === "inline" &&
+        (CallosumCore.isCitationTag(record.tag) || CallosumCore.isSectionBibliographyTag(record.tag));
+    });
+    relevant.forEach(function (record) {
+      record.sectionParagraph = record.cc.paragraphs.getFirst();
+      record.sectionParagraph.load("uniqueLocalId,outlineLevel");
+    });
+    var selectionParagraph = null;
+    if (selection) {
+      selectionParagraph = selection.paragraphs.getFirst();
+      selectionParagraph.load("uniqueLocalId,outlineLevel");
+    }
+    await ctx.sync();
+    relevant.forEach(function (record) { record.sectionParagraphId = record.sectionParagraph.uniqueLocalId; });
+    return {
+      paragraphs: paragraphs.items.map(function (paragraph) {
+        return { id: paragraph.uniqueLocalId, outlineLevel: paragraph.outlineLevel };
+      }),
+      selectionParagraphId: selectionParagraph ? selectionParagraph.uniqueLocalId : null,
+    };
+  }
+
+  function requireHealthySectionBibliographies(records) {
+    var inventory = CallosumCore.sectionBibliographyInventory(records);
+    if (inventory.damaged.length) {
+      throw new Error("Document diagnostics found damaged section bibliography controls. " +
+        "Remove or repair them before continuing.");
+    }
+    return inventory;
   }
 
   function citationRecords(records) {
@@ -753,6 +806,10 @@
     }
     if (report.placementIssue) lines.push("⚠ " + report.placementIssue);
     lines.push("Bibliography: " + report.bibliography + ".");
+    lines.push("Section bibliographies: " + report.sectionBibliographyCount + ".");
+    if (report.damagedSectionBibliographyCount) {
+      lines.push("⚠ " + report.damagedSectionBibliographyCount + " damaged section bibliography block(s).");
+    }
     if (truncated) lines.push("(Only the first " + MAX_EXISTENCE_CHECK_IDS + " distinct cited papers were checked against the library.)");
     $("diagnostics").textContent = lines.join(" ");
   }
@@ -1094,6 +1151,14 @@
         var citationCCs = [], itemsList = [], bibCC = null;
         var records = await loadDocumentControlRecords(ctx);
         assertPlacementCompatible(records);
+        var sectionInventory = requireHealthySectionBibliographies(records);
+        if (sectionInventory.complete.length && CallosumCore.isNoteStyle(currentCitationFormat())) {
+          throw new Error("Heading-scoped bibliographies currently require an in-text citation style; " +
+            "native note-to-heading membership is not yet supported.");
+        }
+        var sectionContext = sectionInventory.complete.length
+          ? await loadSectionParagraphContext(ctx, records, null)
+          : null;
         await normalizeCitationStorage(ctx, records);
         records.forEach(function (record) {
           if (CallosumCore.isCitationTag(record.tag)) {
@@ -1133,14 +1198,160 @@
           Word.InsertLocation.replace,
         );
 
+        var sectionCitations = citationRecords(records).filter(function (record) {
+          return record.location === "inline" && record.items && record.sectionParagraphId;
+        }).map(function (record) {
+          return { paragraphId: record.sectionParagraphId, items: CallosumCore.citationItems(record) || [] };
+        });
+        sectionInventory.complete.forEach(function (section) {
+          if (section.scope.location !== "inline" || section.block.location !== "inline") {
+            throw new Error("Section bibliography controls must remain in the main document.");
+          }
+          var allowedIds = CallosumCore.sectionCitationItemIds(
+            sectionContext.paragraphs, section.scope.sectionParagraphId, sectionCitations,
+          );
+          section.block.cc.insertText(
+            CallosumCore.sectionBibliographyText(
+              data, allowedIds, bibliographyCategories, bibliographyCategoryOrder,
+            ),
+            Word.InsertLocation.replace,
+          );
+        });
+
         await ctx.sync();
-        setStatus("Updated " + itemsList.length + " citation(s) + the bibliography.");
+        setStatus("Updated " + itemsList.length + " citation(s) + the bibliography" +
+          (sectionInventory.complete.length ? " + " + sectionInventory.complete.length + " section block(s)." : "."));
       });
       return true;
     } catch (e) {
       setStatus("Couldn't refresh: " + ((e && e.message) || e), true);
       if (options && options.throwOnError) throw e;
       return false;
+    }
+  }
+
+  async function insertSectionBibliography() {
+    setStatus("Inserting the current-section bibliography…");
+    var insertedId = null;
+    try {
+      requireSectionBibliographiesSupport();
+      if (CallosumCore.isNoteStyle(currentCitationFormat())) {
+        throw new Error("Heading-scoped bibliographies currently require an in-text citation style.");
+      }
+      await Word.run(async function (ctx) {
+        var selection = ctx.document.getSelection();
+        var parentBody = selection.parentBody;
+        parentBody.load("type");
+        var records = await loadDocumentControlRecords(ctx);
+        await ctx.sync();
+        if (CallosumCore.bodyTypeLocation(parentBody.type) !== "inline") {
+          throw new Error("Section bibliographies must be inserted in the main document, not inside a note.");
+        }
+        assertPlacementCompatible(records);
+        var inventory = requireHealthySectionBibliographies(records);
+        if (inventory.complete.length >= CallosumCore.MAX_SECTION_BIBLIOGRAPHIES) {
+          throw new Error("A Word document can contain at most " +
+            CallosumCore.MAX_SECTION_BIBLIOGRAPHIES + " section bibliographies.");
+        }
+        var context = await loadSectionParagraphContext(ctx, records, selection);
+        var bounds = CallosumCore.sectionParagraphBounds(context.paragraphs, context.selectionParagraphId);
+        if (!bounds) throw new Error("Callosum could not find a preceding heading for the current section.");
+        if (inventory.complete.some(function (section) {
+          return section.scope.sectionParagraphId === bounds.headingId;
+        })) {
+          throw new Error("This heading-defined section already has a Callosum bibliography.");
+        }
+        var sectionCitations = citationRecords(records).filter(function (record) {
+          return record.location === "inline" && record.items && record.sectionParagraphId;
+        }).map(function (record) {
+          return { paragraphId: record.sectionParagraphId, items: CallosumCore.citationItems(record) || [] };
+        });
+        var allowedIds = CallosumCore.sectionCitationItemIds(
+          context.paragraphs, bounds.headingId, sectionCitations,
+        );
+        if (!allowedIds.length) {
+          throw new Error("No live Callosum citations were found in this heading-defined section.");
+        }
+        var itemsList = citationRecords(records).filter(function (record) { return record.items; }).map(function (record) {
+          return { items: CallosumCore.citationItems(record), noteIndex: 0 };
+        });
+        var resp = await callosumFetch("/citations/render-document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(CallosumCore.buildDocumentRequest(itemsList, currentStyle(), "en-US")),
+        });
+        if (!resp.ok) throw new Error("render failed (" + resp.status + ")");
+        var data = await resp.json();
+        var text = CallosumCore.sectionBibliographyText(
+          data, allowedIds, currentBibliographyCategories(), currentBibliographyCategoryOrder(),
+        );
+
+        insertedId = newSectionBibliographyId();
+        var heading = ctx.document.body.paragraphs.items[bounds.start];
+        var scopeCC = heading.insertContentControl();
+        scopeCC.tag = CallosumCore.encodeSectionBibliographyTag("scope", insertedId);
+        scopeCC.title = "Callosum section scope";
+        scopeCC.appearance = "Hidden";
+        var blockParagraph = selection.insertParagraph("", Word.InsertLocation.after);
+        blockParagraph.styleBuiltIn = "Normal"; // never let insertion inside a heading create a false outline boundary
+        var blockCC = blockParagraph.insertContentControl();
+        blockCC.tag = CallosumCore.encodeSectionBibliographyTag("block", insertedId);
+        blockCC.title = "Callosum section bibliography";
+        blockCC.insertText(text, Word.InsertLocation.replace);
+        await ctx.sync();
+      });
+      setStatus("Inserted a live bibliography for the current heading-defined section.");
+    } catch (e) {
+      if (insertedId) {
+        try {
+          await Word.run(async function (ctx) {
+            var records = await loadDocumentControlRecords(ctx);
+            records.forEach(function (record) {
+              var decoded = CallosumCore.decodeSectionBibliographyTag(record.tag);
+              if (decoded && decoded.id === insertedId) record.cc.delete(decoded.kind === "scope");
+            });
+            await ctx.sync();
+          });
+        } catch (cleanupError) {
+          setStatus("Section bibliography insertion failed and cleanup could not be verified. " +
+            "Close without saving and reopen the document.", true);
+          return;
+        }
+      }
+      setStatus("Couldn't insert the section bibliography: " + ((e && e.message) || e), true);
+    }
+  }
+
+  async function removeSectionBibliography() {
+    setStatus("Removing the current-section bibliography…");
+    try {
+      requireSectionBibliographiesSupport();
+      var removed = false;
+      await Word.run(async function (ctx) {
+        var selection = ctx.document.getSelection();
+        var parentBody = selection.parentBody;
+        parentBody.load("type");
+        var records = await loadDocumentControlRecords(ctx);
+        await ctx.sync();
+        if (CallosumCore.bodyTypeLocation(parentBody.type) !== "inline") {
+          throw new Error("Place the cursor in the main document section whose bibliography should be removed.");
+        }
+        var inventory = requireHealthySectionBibliographies(records);
+        var context = await loadSectionParagraphContext(ctx, records, selection);
+        var bounds = CallosumCore.sectionParagraphBounds(context.paragraphs, context.selectionParagraphId);
+        if (!bounds) throw new Error("Callosum could not find a preceding heading for the current section.");
+        var target = inventory.complete.find(function (section) {
+          return section.scope.sectionParagraphId === bounds.headingId;
+        });
+        if (!target) throw new Error("This heading-defined section has no Callosum bibliography.");
+        target.block.cc.delete(false);
+        target.scope.cc.delete(true);
+        await ctx.sync();
+        removed = true;
+      });
+      if (removed) setStatus("Removed the bibliography for the current section; citations were unchanged.");
+    } catch (e) {
+      setStatus("Couldn't remove the section bibliography: " + ((e && e.message) || e), true);
     }
   }
 
@@ -1174,7 +1385,7 @@
         var records = await loadDocumentControlRecords(ctx);
         records.forEach(function (record) {
           if (CallosumCore.isCitationTag(record.tag)) citationCount += 1;
-          else if (record.tag === CallosumCore.BIB_TAG) hasBib = true;
+          else if (record.tag === CallosumCore.BIB_TAG || CallosumCore.isSectionBibliographyTag(record.tag)) hasBib = true;
         });
       });
       flattenArmed = true;
@@ -1203,7 +1414,8 @@
         var records = await loadDocumentControlRecords(ctx);
         var deletedPartIds = Object.create(null);
         records.forEach(function (record) {
-          if (CallosumCore.isCitationTag(record.tag) || record.tag === CallosumCore.BIB_TAG) {
+          if (CallosumCore.isCitationTag(record.tag) || record.tag === CallosumCore.BIB_TAG ||
+              CallosumCore.isSectionBibliographyTag(record.tag)) {
             record.cc.delete(true); // keep the rendered text, drop the live field
             n++;
           }
@@ -1216,7 +1428,8 @@
         // Post-flatten integrity check: re-scan rather than trust the delete calls above all landed.
         var after = await loadDocumentControlRecords(ctx);
         after.forEach(function (record) {
-          if (CallosumCore.isCitationTag(record.tag) || record.tag === CallosumCore.BIB_TAG) remaining += 1;
+          if (CallosumCore.isCitationTag(record.tag) || record.tag === CallosumCore.BIB_TAG ||
+              CallosumCore.isSectionBibliographyTag(record.tag)) remaining += 1;
         });
       });
       if ($("flattenClearStyle").checked) {
@@ -1347,6 +1560,8 @@
     });
     $("bibliographyCategory").addEventListener("input", updateCategorySaveState);
     $("refresh").addEventListener("click", function () { refreshDocument(); });
+    $("sectionBibliographyInsert").addEventListener("click", insertSectionBibliography);
+    $("sectionBibliographyRemove").addEventListener("click", removeSectionBibliography);
     $("flatten").addEventListener("click", onFlatten);
     $("style").addEventListener("change", onStyleChange);
     $("notePlacement").addEventListener("change", onNotePlacementChange);

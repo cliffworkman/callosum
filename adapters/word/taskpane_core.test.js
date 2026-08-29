@@ -278,6 +278,8 @@ test("summarizeDiagnostics: a clean document — citations resolve, bibliography
     distinctPaperIds: ["1", "2", "3"],
     orphanedPaperIds: [],
     bibliography: "ok",
+    sectionBibliographyCount: 0,
+    damagedSectionBibliographyCount: 0,
     retractionFlagged: [],
   });
 });
@@ -537,6 +539,109 @@ test("applyBibliographyCategories: annotates only resolvable document works with
   assert.strictEqual(entries[0].category, undefined);
 });
 
+// ---- heading-scoped bibliographies (inc 524) ----
+test("section bibliography identity: 16 bytes become a strict deterministic pair of 32-hex tags", () => {
+  const id = core.sectionBibliographyIdFromBytes(Uint8Array.from([
+    0, 1, 2, 3, 4, 5, 6, 7, 248, 249, 250, 251, 252, 253, 254, 255,
+  ]));
+  assert.strictEqual(id, "0001020304050607f8f9fafbfcfdfeff");
+  const scope = core.encodeSectionBibliographyTag("scope", id);
+  const block = core.encodeSectionBibliographyTag("block", id);
+  assert.deepStrictEqual(core.decodeSectionBibliographyTag(scope), { id, kind: "scope" });
+  assert.deepStrictEqual(core.decodeSectionBibliographyTag(block), { id, kind: "block" });
+  assert.strictEqual(core.decodeSectionBibliographyTag(`${core.SECTION_BIB_SCOPE_PREFIX}${id.toUpperCase()}`), null);
+  assert.throws(() => core.sectionBibliographyIdFromBytes(new Uint8Array(15)), /16 random bytes/);
+  assert.throws(() => core.encodeSectionBibliographyTag("scope", "abc"), /32 lowercase/);
+  assert.throws(() => core.encodeSectionBibliographyTag("other", id), /scope or block/);
+});
+
+test("sectionBibliographyInventory: complete pairs survive order; missing, duplicate, and malformed controls fail closed", () => {
+  const a = "a".repeat(32), b = "b".repeat(32), c = "c".repeat(32);
+  const records = [
+    { tag: core.encodeSectionBibliographyTag("block", a), marker: "a-block" },
+    { tag: core.encodeSectionBibliographyTag("scope", b), marker: "b-scope" },
+    { tag: core.encodeSectionBibliographyTag("scope", a), marker: "a-scope" },
+    { tag: core.encodeSectionBibliographyTag("scope", b), marker: "duplicate-b-scope" },
+    { tag: `${core.SECTION_BIB_BLOCK_PREFIX}not-an-id` },
+    { tag: core.encodeSectionBibliographyTag("block", c), marker: "c-block-only" },
+  ];
+  const inventory = core.sectionBibliographyInventory(records);
+  assert.deepStrictEqual(inventory.complete.map((row) => row.id), [a]);
+  assert.strictEqual(inventory.complete[0].scope.marker, "a-scope");
+  assert.strictEqual(inventory.complete[0].block.marker, "a-block");
+  assert.deepStrictEqual(inventory.damaged, ["malformed-4", b, c]);
+});
+
+test("sectionBibliographyInventory: more than 50 distinct ids is rejected", () => {
+  const records = Array.from({ length: 51 }, (_value, index) => ({
+    tag: core.encodeSectionBibliographyTag("scope", index.toString(16).padStart(32, "0")),
+  }));
+  assert.throws(() => core.sectionBibliographyInventory(records), /at most 50/);
+});
+
+test("sectionParagraphBounds: nearest heading owns nested headings through the next peer or ancestor", () => {
+  const paragraphs = [
+    { id: "preamble", outlineLevel: 10 },
+    { id: "methods", outlineLevel: 1 },
+    { id: "m1", outlineLevel: 10 },
+    { id: "sub", outlineLevel: 2 },
+    { id: "m2", outlineLevel: 10 },
+    { id: "results", outlineLevel: 1 },
+    { id: "r1", outlineLevel: 10 },
+  ];
+  assert.deepStrictEqual(core.sectionParagraphBounds(paragraphs, "m2"), {
+    start: 3, end: 5, headingId: "sub", outlineLevel: 2,
+  });
+  assert.deepStrictEqual(core.sectionParagraphBounds(paragraphs, "methods"), {
+    start: 1, end: 5, headingId: "methods", outlineLevel: 1,
+  });
+  assert.strictEqual(core.sectionParagraphBounds(paragraphs, "preamble"), null);
+  assert.strictEqual(core.sectionParagraphBounds(paragraphs, "missing"), null);
+});
+
+test("sectionCitationItemIds: exact heading subtree includes nested citations and deduplicates grouped works", () => {
+  const paragraphs = [
+    { id: "h1", outlineLevel: 1 }, { id: "a", outlineLevel: 10 },
+    { id: "h2", outlineLevel: 2 }, { id: "b", outlineLevel: 10 },
+    { id: "peer", outlineLevel: 1 }, { id: "c", outlineLevel: 10 },
+  ];
+  const citations = [
+    { paragraphId: "a", items: [{ id: "callosum-1" }, { id: "callosum-2" }] },
+    { paragraphId: "b", items: [{ id: "callosum-2" }, { id: "foreign" }] },
+    { paragraphId: "c", items: [{ id: "callosum-3" }] },
+  ];
+  assert.deepStrictEqual(core.sectionCitationItemIds(paragraphs, "h1", citations), ["callosum-1", "callosum-2"]);
+  assert.deepStrictEqual(core.sectionCitationItemIds(paragraphs, "h2", citations), ["callosum-2"]);
+  assert.throws(() => core.sectionCitationItemIds(paragraphs, "a", citations), /no longer wraps a heading/);
+});
+
+test("sectionBibliographyText: projects full citeproc order before applying document categories", () => {
+  const data = {
+    bibliography_text: "Entry 3\nEntry 1\nEntry 2\nEntry 4",
+    bibliography_entry_ids: [["callosum-3"], ["callosum-1"], ["callosum-2"], ["callosum-4"]],
+  };
+  assert.strictEqual(
+    core.sectionBibliographyText(data, ["callosum-1", "callosum-2"], { 1: "Theory", 2: "Methods" }, ["Theory", "Methods"]),
+    "References\nTheory\nEntry 1\n\nMethods\nEntry 2",
+  );
+  assert.strictEqual(core.sectionBibliographyText(data, [], {}, []), "References");
+  assert.throws(
+    () => core.sectionBibliographyText({ bibliography_text: "Entry", bibliography_entry_ids: [] }, ["callosum-1"], {}, []),
+    /identity is unavailable/,
+  );
+});
+
+test("diagnostics count complete and damaged section bibliography controls separately", () => {
+  const good = "1".repeat(32), bad = "2".repeat(32);
+  const report = core.summarizeDiagnostics([
+    core.encodeCitationTag([{ id: "callosum-1" }]), core.BIB_TAG,
+    core.encodeSectionBibliographyTag("scope", good), core.encodeSectionBibliographyTag("block", good),
+    core.encodeSectionBibliographyTag("scope", bad),
+  ], [], []);
+  assert.strictEqual(report.sectionBibliographyCount, 1);
+  assert.strictEqual(report.damagedSectionBibliographyCount, 1);
+});
+
 test("bibliography category controls are present and wire single/batch edits through one categorized render path", () => {
   const html = fs.readFileSync(path.join(__dirname, "taskpane.html"), "utf8");
   const js = fs.readFileSync(path.join(__dirname, "taskpane.js"), "utf8");
@@ -556,6 +661,20 @@ test("bibliography category controls are present and wire single/batch edits thr
   assert.match(js, /persistBibliographyCategoryOrder\(savedOrder\)/);
   assert.match(js, /restoreBibliographyCategoryOrder\(previousRaw\)/);
   assert.match(js, /refreshDocument\(\{ throwOnError: true \}\)/);
+});
+
+test("heading-scoped bibliography controls use paired identity, refresh projection, diagnostics, and flatten", () => {
+  const html = fs.readFileSync(path.join(__dirname, "taskpane.html"), "utf8");
+  const js = fs.readFileSync(path.join(__dirname, "taskpane.js"), "utf8");
+  ["sectionBibliographyInsert", "sectionBibliographyRemove"]
+    .forEach((id) => assert.match(html, new RegExp(`id=["']${id}["']`)));
+  assert.match(js, /isSetSupported\("WordApi", "1\.6"\)/);
+  assert.match(js, /scopeCC\.appearance = "Hidden"/);
+  assert.match(js, /blockParagraph\.styleBuiltIn = "Normal"/);
+  assert.match(js, /sectionBibliographyText\(/);
+  assert.match(js, /requireHealthySectionBibliographies\(records\)/);
+  assert.match(js, /isSectionBibliographyTag\(record\.tag\)/);
+  assert.match(js, /native note-to-heading membership is not yet supported/);
 });
 
 // ---- Word-on-the-web relay (SP4): local vs. tunneled origin + the Bearer token header ----

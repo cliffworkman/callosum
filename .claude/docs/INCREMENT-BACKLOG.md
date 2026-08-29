@@ -207,11 +207,16 @@ the Principles + A-A gates before build.)*
       deferred. **Inc 523 adds explicit category precedence:** active named groups can move up/down in a staged
       editor, reset removes the setting, current unranked groups fall back alphabetically, Other remains last, and
       Save performs one Refresh with exact-property rollback. Pure logic is tested; live Word interaction remains
-      deferred. Next: heading-scoped bibliography blocks. See `INCREMENT-521-NOTES.md` through
-      `INCREMENT-523-NOTES.md`.
+      deferred. **Inc 524 adds heading-scoped bibliography blocks:** strict hidden-heading/generated-block Content
+      Control pairs share a random bounded identity; semantic membership is the nearest heading subtree; the full
+      citeproc result is projected without changing prompts/rendering; multiple/full blocks coexist; Refresh,
+      diagnostics, removal, categories, and Flatten understand the pair. It requires WordApi 1.6 and deliberately
+      refuses note styles until native note anchors can be mapped to headings without guessing. Pure logic is
+      tested; live Word interaction remains deferred. See `INCREMENT-521-NOTES.md` through
+      `INCREMENT-524-NOTES.md`.
       **HANDED OFF TO CODEX 2026-08-28** (Cliff's Claude usage maxed out ~48h) — see
       `.claude/docs/2026-08-28_codex-word-parity-handoff.md` for the exact remaining scope, verification
-      requirements, and known traps. **Still not started:** chapter/section blocks. A dedicated style-browser UI is
+      requirements, and known traps. A dedicated style-browser UI is
       low-value — Word's style dropdown already reflects anything
       installed via Settings' shared catalog.
     - **P2/leapfrog (not started):** evidence-aware Suggest-Citation details (stance breakdown, weak-evidence

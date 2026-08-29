@@ -9,7 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-28 inc 523 — Word custom bibliography category order -->
+<!-- HELP-DOCS-SYNCED: 2026-08-28 inc 524 — Word heading-scoped bibliographies -->
+## 2026-08-28 — Increment 524: Word heading-scoped bibliographies
+- **Files:** `adapters/word/taskpane.{js,html}`, `adapters/word/taskpane_core.js`,
+  `adapters/word/taskpane_core.test.js`, `adapters/word/README.md`, `app/backend/help/help_content.md`,
+  `.claude/CLAUDE.md`, `.claude/architectural-decisions-log.md`, `.claude/docs/INCREMENT-BACKLOG.md`,
+  `.claude/docs/increment-notes/INCREMENT-524-NOTES.md`, QA routes 34/35, and website coverage metadata.
+- **What:** **Insert current-section bibliography here** creates one bounded live block for the nearest Word
+  heading subtree; multiple blocks coexist with the full bibliography and update through the ordinary Refresh.
+  Strict paired Content Controls, diagnostics, independent removal, category/order projection, and Flatten cover
+  the full first lifecycle. WordApi 1.6 + in-text styles only; note membership fails closed.
+- **Why:** closes the remaining bibliography-item architecture gap without preview bookmark APIs, changed citeproc
+  semantics, or a mutable heading-label identity.
+- **Verify:** Word pure logic **58/58**; focused Word/citation pytest **113 passed**; Help **14 passed**; full
+  repository suite **2563 passed, 3 skipped** in 1021.05s; JS syntax, scoped Ruff format/check, Bandit, Tach,
+  569-file line budget, QA surface map, website review, targeted pre-commit, and diff hygiene passed. Office.js
+  lifecycle explicitly not yet live-verified.
+- **Revert:** `git revert` this commit.
+
 ## 2026-08-28 — Increment 523: Word custom bibliography category order
 - **Files:** `adapters/word/taskpane.{js,html,css}`, `adapters/word/taskpane_core.js`,
   `adapters/word/taskpane_core.test.js`, `adapters/word/README.md`, `app/backend/help/help_content.md`,

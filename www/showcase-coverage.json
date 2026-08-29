@@ -10,10 +10,10 @@
     "audit"
   ],
   "review": {
-    "reviewed_at": "2026-08-28",
-    "reviewed_rev": "c946e7b",
-    "source_fingerprint": "e52dfdbae907f90e0a70ceb579c4dd32403faac59aae437e37460b7a0dfd72a6",
-    "note": "Reviewed Increment 523's staged Word bibliography category-order editor and separate document metadata. Existing public integration copy remains accurate and deliberately does not promise feature parity across editors. No showcase screenshot captures the Word task pane, so no image replacement is needed; live Word ordering remains in the deferred arc-end manual checklist."
+    "reviewed_at": "2026-08-29",
+    "reviewed_rev": "037aa50",
+    "source_fingerprint": "603a64cdc39608da8053225c4ec65ae9bf4a71881195f8f935d43b28a429ea78",
+    "note": "Reviewed Word heading-scoped bibliography controls; existing citation-engine capability claim and screenshot remain accurate, with detailed manual coverage in route 34."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",
@@ -103,140 +103,140 @@
       "width": 1600,
       "height": 1000,
       "sha256": "360d47d8e0a5ba67f70adcaeea84d39cd925c6264461e83651cfdd4c956972b2",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/feed_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "cf393130f7b828215ba3889c5b26c53888468ad9a22455e6be709ee59ac4683f",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/my_publications_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "ece1ac824801112f558d1ec429023ab118b6b1165a9070e37b7afc4939f2b184",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/gaps_current.png": {
       "captured_at": "2026-08-10",
       "width": 540,
       "height": 860,
       "sha256": "0afe95542e1a9ded82d86158d558325ccfc8c310f6890d7dcf3bdbe448cbae19",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/publishers_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "762374ef119dddebce960825d8fecbbef074786198ade27ddb1fbc863829d9ee",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/reader_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "6ee06e2acbdd885fc3390d373119c3645e78da34b4998bb21db1db25de82c220",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/saved_note_current.png": {
       "captured_at": "2026-08-10",
       "width": 290,
       "height": 861,
       "sha256": "a84ed919074620b656ed7546e6c80c26aac6aa8f204890a3eb940ca461af750b",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/citation_evidence_current.png": {
       "captured_at": "2026-08-10",
       "width": 796,
       "height": 222,
       "sha256": "91e15b6686189c6f3c24358d04a7ddbc8de954ac3c5490210d2d26266a52d03e",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/methods_data_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "54ceed7f78c792ae7a04a1a24d8fba778fd287d91a35840eb6b03ae1438aa157",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/statcheck_current.png": {
       "captured_at": "2026-08-10",
       "width": 387,
       "height": 2803,
       "sha256": "d4ee10cf6f8c94a62777c571c459dfbd643f47235be8e3f0d249c2f16095d874",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/metaanalysis_current.png": {
       "captured_at": "2026-08-10",
       "width": 387,
       "height": 1641,
       "sha256": "1e41fbb3b1b5ea8ea5221769a6562268bb00e9353d6929fefce02642d397b9f9",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/synthesis_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "3563070aa7da9bab7429f737b6bf7c68916f6ff7264bbc34180e61a6603c8367",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/meta_preregistration.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "de660525aa16c6594edfd75db403c78a98c74aca9d32ab909661c9037a1fb035",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/wip_workspace_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "6a3133206e598d864577f529ab1557001f68fecb3df2cc78e26b6c64743c1102",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/statements_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "4d90a79f172c06814aced3bb37c9f2ac4a08ab5a0ed282dc87a17f082695f6ad",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/cite_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "a100e0532d1e08f3d80c9334ec72f36156d10508bd44a1942fa47a4ec56d77a6",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/usage_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "1792bf79f0bddbac57263c16b80e6ffe89e7438b2d04dcf83275ae867e6ac754",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/meta_reference_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "7dc767ad009550fa19efccc33008f1ecd311d7a84d8f77b45dd33572c758a7c2",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/status_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "0c0a607247a245a5c46b401a41ae750b74221eb2ca4f7d58bb034cbd05dbf982",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     },
     "shots/dark_mode_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "673ab97655a9ed9311dc7d524c8a4be64b2edc41884ae41a95cff5ec82e7fb2b",
-      "reviewed_at": "2026-08-28"
+      "reviewed_at": "2026-08-29"
     }
   },
   "index_links": [

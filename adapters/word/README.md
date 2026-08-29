@@ -97,6 +97,13 @@ Open Word → **Home → Callosum → Show Citations**. In the task pane (callos
   label choice or **Remove category**. With at least two active groups, **Category order…** provides Move up/down,
   Reset alphabetical, Save, and Cancel; new/unranked groups follow configured groups alphabetically and **Other
   references** remains last. Category labels and order survive save/reopen.
+- **Current-section bibliographies** — place the cursor anywhere under a Word heading and choose **Insert
+  current-section bibliography here**. The live block contains works cited from the nearest preceding heading
+  through its nested lower-level headings, stopping before the next peer/ancestor heading. Multiple section
+  blocks can coexist with the full bibliography; Refresh updates all of them from the same full-document
+  citeproc result, and **Remove bibliography for current section** removes only the block owned by that heading.
+  This first Word slice requires WordApi 1.6 and an in-text citation style; native note-to-heading membership is
+  deliberately refused until Word footnote/endnote anchors can be mapped without guessing.
 - **Citation style** — changing the dropdown re-renders the whole document in the new style (the choice is
   remembered per document).
 - **Flatten to static text** — convert the live citation + bibliography fields to plain text for hand-off
@@ -119,7 +126,10 @@ Older Callosum documents whose tags directly embed base64 CSL-JSON remain readab
 duplicate references created by copy/paste are separated on Refresh so later edits stay citation-local. **Refresh**
 scans the controls **in document order**, resolves their XML parts, POSTs them to `/citations/render-document`,
 and writes back the position-aware in-text + a managed **References** Content Control (tagged
-`CALLOSUM_BIBLIOGRAPHY`) at the document end. Delete removes an unshared citation part; Flatten removes all
+`CALLOSUM_BIBLIOGRAPHY`) at the document end. A section bibliography uses a strict pair of Content Controls with
+one random shared identity: a hidden scope control wraps its heading and a second bounded control owns only the
+generated bibliography text. Word's session-local paragraph ids are used only during one Refresh to calculate
+the live outline subtree; they are never persisted. Delete removes an unshared citation part; Flatten removes all
 referenced citation parts while keeping rendered text. The only external load is **office.js** from Microsoft's
 CDN: that is the Office platform SDK every add-in must load (it cannot use Subresource Integrity because Microsoft
 updates it in place); it is not callosum sending your data anywhere. All formatting happens in callosum's bundled
@@ -177,8 +187,8 @@ existing inline citations when a note style is selected (or vice versa); incompa
 an actionable message rather than producing plausible but incorrect position-dependent output.
 
 ## Limitations
-The bibliography lives at the document end (no chapter/section-scoped bibliographies yet — see the LibreOffice
-adapter for that, still Word/Docs-only work); Word categories do not yet support uncited-work membership;
+The full bibliography lives at the document end; heading-scoped blocks require WordApi 1.6 and currently support
+in-text citation styles only. Word categories do not yet support uncited-work membership;
 Suggest covers papers **already in
 your library** (beyond-library discovery is a separate track);
 desktop requires the HTTPS run-mode + the trusted dev cert. Word-on-the-web needs the relay above; Google Docs
@@ -195,7 +205,8 @@ it are recorded in `.claude/docs/research/2026-08-21_word_citation_migration_for
 
 > **Verification note:** there is no headless Word, so the in-Word behavior of the Office.js parts
 > (`taskpane.js`) is **not exercised by an automated test**. The Custom-XML storage change is therefore **not yet
-> live-verified in Word**; native note insertion/scanning is likewise **not yet live-verified**. It ships
+> live-verified in Word**; native note insertion/scanning and heading-scoped bibliography controls are likewise
+> **not yet live-verified**. They ship
 > best-effort-correct per the Office.js docs until that manual check occurs.
 > The **pure logic** (`taskpane_core.js`: tag/reference/XML encode/decode, the
 > render-document request/response mapping) is unit-tested with `node --test`, and the `/citations/render-document`

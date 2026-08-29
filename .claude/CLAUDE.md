@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 523** (see Increment workflow) with **2563 root-suite pytest tests
+It is currently at **Increment 524** (see Increment workflow) with **2563 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -600,6 +600,15 @@ the full per-increment narrative for all other increments now lives in the reloc
   Cancel controls. One bounded setting leads current groups; stale/new groups fall back alphabetically and **Other
   references** remains generated/last. Save refreshes once and restores the exact prior setting on failure. Pure
   order/render logic is Node-tested; live Office.js layout remains deferred. See `INCREMENT-523-NOTES.md`.
+  **Inc 524 adds heading-scoped Word bibliographies:** one hidden Content Control wraps the owning heading and a
+  second bounded control owns generated text; a random 128-bit identity pairs them across save/reopen. Word's
+  session-local paragraph ids are used only inside one refresh to calculate the nearest-heading subtree, and the
+  existing full-document citeproc response is projected onto cited ids without a second renderer or changed
+  semantics. Multiple section blocks coexist with the full bibliography; Refresh, categories/order, diagnostics,
+  independent removal, and Flatten understand the pairs. Damaged/duplicate pairs fail closed, blocks cap at 50,
+  and generated paragraphs are forced to Normal style so insertion from a heading cannot create a false boundary.
+  WordApi 1.6 and an in-text style are required; native note-to-heading membership remains explicitly unsupported.
+  Pure logic is Node-tested; the Office.js lifecycle remains not yet live-verified. See `INCREMENT-524-NOTES.md`.
 - **My Publications grounded prospection:** **inc 386** starts Layer 4 with an explicit-refresh, LLM-free
   co-citation gap scan. It follows reference anchors shared by at least two confirmed own publications to
   bounded OpenAlex candidates, excludes directly cited/already-held works, stores atomic local snapshots,
@@ -1377,7 +1386,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 523). Each increment of real work
+callosum is built in **numbered increments** (currently at 524). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

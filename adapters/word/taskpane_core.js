@@ -21,6 +21,9 @@
   var MAX_CITATION_REFERENCE_LENGTH = 256;
   var CITATION_XML_NAMESPACE = "https://callosum.app/schemas/word-citation/1";
   var BIB_TAG = "CALLOSUM_BIBLIOGRAPHY"; // content-control tag for the managed bibliography block
+  var SECTION_BIB_SCOPE_PREFIX = "CALLOSUM_SECTION_BIBLIOGRAPHY_SCOPE ";
+  var SECTION_BIB_BLOCK_PREFIX = "CALLOSUM_SECTION_BIBLIOGRAPHY_BLOCK ";
+  var MAX_SECTION_BIBLIOGRAPHIES = 50;
   var BIBLIOGRAPHY_UNCATEGORIZED = "Other references";
   var BIBLIOGRAPHY_CATEGORY_MAX = 80;
   var MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS = 1000;
@@ -143,6 +146,137 @@
     if (!recordOrTag || !isCitationTag(recordOrTag.tag)) return null;
     if (Array.isArray(recordOrTag.items) && recordOrTag.items.length) return recordOrTag.items;
     return isLegacyCitationTag(recordOrTag.tag) ? decodeCitationTag(recordOrTag.tag) : null;
+  }
+
+  // ---- heading-scoped bibliography identity (inc 524) ----
+  // Word has no stable production bookmark-creation API, so each block is a strict pair of Content Controls:
+  // one hidden control wrapping the owning heading and one bounded generated-text control. The shared random
+  // id survives save/reopen; paragraph uniqueLocalId is used only within one Office.js batch to calculate the
+  // current outline subtree and is never persisted.
+  function sectionBibliographyIdFromBytes(bytes) {
+    if (!bytes || bytes.length !== 16) throw new Error("Section bibliography ids require 16 random bytes.");
+    return Array.prototype.map.call(bytes, function (value) {
+      if (!Number.isInteger(value) || value < 0 || value > 255) {
+        throw new Error("Section bibliography id bytes must be integers from 0 through 255.");
+      }
+      return value.toString(16).padStart(2, "0");
+    }).join("");
+  }
+  function encodeSectionBibliographyTag(kind, identifier) {
+    var id = String(identifier || "");
+    if (!/^[0-9a-f]{32}$/.test(id)) {
+      throw new Error("Section bibliography ids must be 32 lowercase hexadecimal characters.");
+    }
+    if (kind === "scope") return SECTION_BIB_SCOPE_PREFIX + id;
+    if (kind === "block") return SECTION_BIB_BLOCK_PREFIX + id;
+    throw new Error("Section bibliography tag kind must be scope or block.");
+  }
+  function decodeSectionBibliographyTag(tag) {
+    if (typeof tag !== "string") return null;
+    var kind = null, value = "";
+    if (tag.indexOf(SECTION_BIB_SCOPE_PREFIX) === 0) {
+      kind = "scope"; value = tag.slice(SECTION_BIB_SCOPE_PREFIX.length);
+    } else if (tag.indexOf(SECTION_BIB_BLOCK_PREFIX) === 0) {
+      kind = "block"; value = tag.slice(SECTION_BIB_BLOCK_PREFIX.length);
+    } else {
+      return null;
+    }
+    return /^[0-9a-f]{32}$/.test(value) ? { id: value, kind: kind } : null;
+  }
+  function isSectionBibliographyTag(tag) {
+    return typeof tag === "string" &&
+      (tag.indexOf(SECTION_BIB_SCOPE_PREFIX) === 0 || tag.indexOf(SECTION_BIB_BLOCK_PREFIX) === 0);
+  }
+  function sectionBibliographyInventory(records) {
+    var grouped = {}, malformed = [];
+    (records || []).forEach(function (recordOrTag, index) {
+      var tag = typeof recordOrTag === "string" ? recordOrTag : recordOrTag && recordOrTag.tag;
+      if (!isSectionBibliographyTag(tag)) return;
+      var decoded = decodeSectionBibliographyTag(tag);
+      if (!decoded) { malformed.push("malformed-" + index); return; }
+      var group = grouped[decoded.id] || (grouped[decoded.id] = { id: decoded.id, scope: [], block: [] });
+      group[decoded.kind].push(recordOrTag);
+    });
+    var ids = Object.keys(grouped).sort();
+    if (ids.length > MAX_SECTION_BIBLIOGRAPHIES) {
+      throw new Error("A Word document can contain at most " + MAX_SECTION_BIBLIOGRAPHIES +
+        " section bibliographies.");
+    }
+    var complete = [], damaged = malformed.slice();
+    ids.forEach(function (id) {
+      var group = grouped[id];
+      if (group.scope.length === 1 && group.block.length === 1) {
+        complete.push({ id: id, scope: group.scope[0], block: group.block[0] });
+      } else {
+        damaged.push(id);
+      }
+    });
+    return { complete: complete, damaged: damaged };
+  }
+
+  function isHeadingOutlineLevel(value) {
+    return Number.isInteger(value) && value >= 1 && value <= 9;
+  }
+  // `anchorParagraphId` may be any paragraph in the section (insertion/removal) or the scope heading itself
+  // (refresh). The semantic section is the nearest preceding heading plus all lower-ranked headings until the
+  // next peer/ancestor, exactly matching Writer's established contract.
+  function sectionParagraphBounds(paragraphs, anchorParagraphId) {
+    var rows = paragraphs || [], anchor = -1;
+    for (var i = 0; i < rows.length; i++) {
+      if (String(rows[i] && rows[i].id) === String(anchorParagraphId)) { anchor = i; break; }
+    }
+    if (anchor < 0) return null;
+    var start = anchor;
+    while (start >= 0 && !isHeadingOutlineLevel(rows[start] && rows[start].outlineLevel)) start -= 1;
+    if (start < 0) return null;
+    var level = rows[start].outlineLevel, end = rows.length;
+    for (var j = start + 1; j < rows.length; j++) {
+      var candidate = rows[j] && rows[j].outlineLevel;
+      if (isHeadingOutlineLevel(candidate) && candidate <= level) { end = j; break; }
+    }
+    return { start: start, end: end, headingId: String(rows[start].id), outlineLevel: level };
+  }
+  function sectionCitationItemIds(paragraphs, headingParagraphId, citations) {
+    var bounds = sectionParagraphBounds(paragraphs, headingParagraphId);
+    if (!bounds || bounds.headingId !== String(headingParagraphId)) {
+      throw new Error("A section bibliography scope no longer wraps a heading.");
+    }
+    var indexById = {};
+    (paragraphs || []).forEach(function (row, index) { indexById[String(row && row.id)] = index; });
+    var allowed = {};
+    (citations || []).forEach(function (citation) {
+      var index = indexById[String(citation && citation.paragraphId)];
+      if (!Number.isInteger(index) || index < bounds.start || index >= bounds.end) return;
+      (citation.items || []).forEach(function (item) {
+        var id = String(item && item.id || "");
+        if (id.indexOf(CALLOSUM_ID_PREFIX) === 0) allowed[id] = true;
+      });
+    });
+    return Object.keys(allowed);
+  }
+
+  function projectBibliographyData(data, allowedItemIds) {
+    var original = bibliographyText(data);
+    if (!original) return { bibliography_text: "", bibliography_entry_ids: [] };
+    var entries = original.split("\n").map(function (entry) { return entry.replace(/\r$/, ""); });
+    var entryIds = data && data.bibliography_entry_ids;
+    if (!Array.isArray(entryIds) || entryIds.length !== entries.length) {
+      throw new Error("Bibliography entry identity is unavailable; a section bibliography was not updated.");
+    }
+    var allowed = {};
+    (allowedItemIds || []).forEach(function (id) { allowed[String(id)] = true; });
+    var keptEntries = [], keptIds = [];
+    entryIds.forEach(function (ids, index) {
+      var normalizedIds = Array.isArray(ids) ? ids.map(String) : [];
+      if (!normalizedIds.some(function (id) { return allowed[id]; })) return;
+      keptEntries.push(entries[index]); keptIds.push(normalizedIds);
+    });
+    return { bibliography_text: keptEntries.join("\n"), bibliography_entry_ids: keptIds };
+  }
+  function sectionBibliographyText(data, allowedItemIds, assignments, configuredOrder) {
+    var projected = projectBibliographyData(data, allowedItemIds);
+    var bibliography = categorizedBibliographyText(projected, assignments, configuredOrder);
+    return "References" + (bibliography ? "\n" + bibliography : "");
   }
 
   // ---- reliable paper-id tracking (inc 512) ----
@@ -567,6 +701,7 @@
       .filter(function (id) { return flaggedByPaperId[id]; })
       .map(function (id) { return flaggedByPaperId[id]; });
 
+    var sectionInventory = sectionBibliographyInventory(tags);
     return {
       citationCount: citationCount,
       malformedCount: malformedCount,
@@ -574,6 +709,8 @@
       distinctPaperIds: distinctPaperIds,
       orphanedPaperIds: orphanedPaperIds,
       bibliography: citationCount === 0 ? "n/a" : (hasBibliography ? "ok" : "missing"),
+      sectionBibliographyCount: sectionInventory.complete.length,
+      damagedSectionBibliographyCount: sectionInventory.damaged.length,
       retractionFlagged: retractionFlagged,
     };
   }
@@ -646,6 +783,9 @@
     CITATION_PREFIX: CITATION_PREFIX,
     CITATION_XML_NAMESPACE: CITATION_XML_NAMESPACE,
     BIB_TAG: BIB_TAG,
+    SECTION_BIB_SCOPE_PREFIX: SECTION_BIB_SCOPE_PREFIX,
+    SECTION_BIB_BLOCK_PREFIX: SECTION_BIB_BLOCK_PREFIX,
+    MAX_SECTION_BIBLIOGRAPHIES: MAX_SECTION_BIBLIOGRAPHIES,
     authorLabel: authorLabel,
     formatSearchRows: formatSearchRows,
     firstCslRecord: firstCslRecord,
@@ -656,6 +796,15 @@
     encodeCitationXml: encodeCitationXml,
     decodeCitationXml: decodeCitationXml,
     citationItems: citationItems,
+    sectionBibliographyIdFromBytes: sectionBibliographyIdFromBytes,
+    encodeSectionBibliographyTag: encodeSectionBibliographyTag,
+    decodeSectionBibliographyTag: decodeSectionBibliographyTag,
+    isSectionBibliographyTag: isSectionBibliographyTag,
+    sectionBibliographyInventory: sectionBibliographyInventory,
+    sectionParagraphBounds: sectionParagraphBounds,
+    sectionCitationItemIds: sectionCitationItemIds,
+    projectBibliographyData: projectBibliographyData,
+    sectionBibliographyText: sectionBibliographyText,
     isCitationTag: isCitationTag,
     decodeCitationTag: decodeCitationTag,
     buildDocumentRequest: buildDocumentRequest,

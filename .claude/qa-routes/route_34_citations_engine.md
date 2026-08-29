@@ -168,6 +168,13 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     every section block is removed in one Writer Undo step. Undo/Redo must restore/remove exact text, bookmarks,
     and managed DOI/title links. Inject failure on the second removal and confirm the runtime recovery restores
     both blocks exactly. A damaged triple must be reported, omitted from the list, and disable bulk removal.
+20b. **Manual Word section bibliographies (inc 524):** with an in-text style, make two peer Heading 1 sections
+    plus a nested Heading 2 and distinct Callosum citations. Insert a current-section bibliography in each peer;
+    confirm subtree-only membership, nested-heading inclusion, full-bibliography coexistence, category/order
+    preservation, independent removal, save/reopen identity, refresh repair, and Flatten retaining text. A second
+    insert in one subtree, no preceding heading, a citation-free section, a note body/style, a damaged/duplicate
+    pair, and a 51st block must fail before mutation. Diagnostics must distinguish complete and damaged pairs.
+    Run in desktop Word and Word on the web; this remains a maintainer MANUAL route because no agent can drive Word.
 21. **Manual Writer journal abbreviations:** use a short-title CSL style such as Nature with one journal carrying
     library `container-title-short` metadata, one exact NLM/MEDLINE title or ISSN, and one unknown journal. In
     **Journal abbreviations…**, verify **Library abbreviations** uses embedded metadata, **MEDLINE first** prefers
