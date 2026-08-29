@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 531** (see Increment workflow) with **2568 root-suite pytest tests
+It is currently at **Increment 532** (see Increment workflow) with **2584 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -443,8 +443,11 @@ the full per-increment narrative for all other increments now lives in the reloc
   local UNO-style macro: a Word add-in is a **web page** Office loads over **HTTPS only** (it cannot reach
   `http://localhost`), and a Google Docs add-on runs entirely in **Google's cloud**, with no access to the
   user's machine at all. **Word** (`adapters/word/`, Office.js, desktop Windows/Mac): callosum serves the
-  add-in's task pane over **HTTPS on the same origin as its own API** (`tools/run_https.py`, a trusted local
-  dev cert via `office-addin-dev-certs`), so the add-in's calls stay same-origin, local-only, no egress.
+  add-in's task pane over **HTTPS on the same origin as its own API**. Source checkouts use
+  `tools/run_https.py` plus a trusted `office-addin-dev-certs` certificate. In the packaged app (inc 532), an
+  explicit Settings action creates/trusts a localhost-only leaf for the current OS user and Tauri alone owns a
+  fixed `127.0.0.1:8443` companion process; disable removes trust/material, and normal app/backend behavior is
+  unchanged while the opt-in is off. Both paths keep calls same-origin, local-only, and no-egress.
   **Google Docs** (`adapters/googledocs/`, Apps Script): since a cloud add-on categorically cannot reach
   `localhost`, a small opt-in bridge exposes **only the five cite endpoints** through a **`cloudflared`
   tunnel** (outbound-only, no inbound port) at a bearer-token-gated, cite-only ingress — reusing the existing

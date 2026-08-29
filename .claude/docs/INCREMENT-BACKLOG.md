@@ -266,13 +266,14 @@ the Principles + A-A gates before build.)*
     address with a Copy button; and a one-click "Point LibreOffice at This Instance" button
     (`POST /integrations/libreoffice/set-server-url`, loopback-only, rejects a Remote-Access-tunnel Host) writes
     the adapter's own `~/.callosum/libreoffice.json` sidecar directly — closing the LibreOffice-in-the-packaged-
-    app gap completely. **Phase 2 (Word desktop add-in) picked up by Codex as its own increment 532, in
-    progress as of 2026-08-29** — building on the plan doc's design (a second, fixed-port HTTPS uvicorn child +
-    a per-machine self-signed cert installed into the OS user trust store, Windows/macOS only) with real
-    improvements over the sketch (PowerShell `Import-Certificate` instead of `certutil`, an owner-only Windows
-    ACL restriction on the private key, and an actual OS-trust-store verification step). Claude will not
-    duplicate this work independently — see `app/backend/word_https_lifecycle.py` and
-    `.claude/security-audits/2026-08-29_tauri-word-https.md` (open) for current state. **Still open: Phase 3**
+    app gap completely. **Phase 2 shipped inc 532:** an explicit packaged-Settings action creates a localhost-
+    only end-entity certificate, restricts its private key, installs/verifies per-user OS trust, and enables a
+    Tauri-supervised fixed `127.0.0.1:8443` HTTPS Uvicorn companion against the same DB/library/version as the
+    main app. Trust mutations are loopback + Settings-header gated; the companion gets Remote access disabled
+    only in its own environment; disable removes trust/material; browser/source workflows retain the separate
+    dev-certificate launcher. Windows uses PowerShell `Import-Certificate` (not `certutil`); macOS targets the
+    login keychain but awaits live hardware QA. See `INCREMENT-532-NOTES.md` and
+    `.claude/security-audits/2026-08-29_tauri-word-https.md`. **Still open: Phase 3**
     (a Quick-Tunnel convenience button for Google Docs/Word-web) — see the plan doc for the full design (why a
     second process was chosen over a Rust TLS proxy; the two real obstacles this entry previously described —
     cert trust + port stability — and how each is resolved).

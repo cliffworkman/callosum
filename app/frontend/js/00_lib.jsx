@@ -121,12 +121,12 @@ async function api(path, options) {
   }
 }
 
-async function apiPost(path, body) {
+async function apiPost(path, body, extraHeaders) {
   const tracked = _startTrackedApiOperation("POST", path); const finish = result => { _finishTrackedApiOperation(tracked, result); return result; };
   try {
     const res = await callosumFetch(API_BASE + path, {
       method: "POST",
-      headers: { "Accept": "application/json", "Content-Type": "application/json" },
+      headers: { "Accept": "application/json", "Content-Type": "application/json", ...(extraHeaders || {}) },
       body: JSON.stringify(body)
     });
     const data = await res.json().catch(() => null);

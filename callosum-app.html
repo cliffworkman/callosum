@@ -3442,7 +3442,7 @@
       return finish({ ok: false, error: `Could not reach the ${API_LABEL}. Is uvicorn running?` });
     }
   }
-  async function apiPost(path, body) {
+  async function apiPost(path, body, extraHeaders) {
     const tracked = _startTrackedApiOperation("POST", path);
     const finish = (result) => {
       _finishTrackedApiOperation(tracked, result);
@@ -3451,7 +3451,7 @@
     try {
       const res = await callosumFetch(API_BASE + path, {
         method: "POST",
-        headers: { "Accept": "application/json", "Content-Type": "application/json" },
+        headers: { "Accept": "application/json", "Content-Type": "application/json", ...extraHeaders || {} },
         body: JSON.stringify(body)
       });
       const data = await res.json().catch(() => null);
@@ -19450,18 +19450,6 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const bId = status ? status.publisher_breadth : null;
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Discover: Journals"), /* @__PURE__ */ React.createElement("div", { className: "settings-publisher-controls" }, /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Open-science weighting", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "How much a journal's openness moves the ranking in Discover \u2192 Journals. Neither on nor off is a neutral default \u2014 you choose. Stored locally, never transmitted.")), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_WEIGHTS, value: wId, onChange: setW, ariaLabel: "Open-science weighting" })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Result breadth", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "How many candidate journals to shortlist.")), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_BREADTHS, value: bId, onChange: setB, ariaLabel: "Result breadth" }))));
   }
-  function WordSettings() {
-    const [busy, setBusy] = useState(false);
-    const [msg, setMsg] = useState("");
-    const openFolder = async () => {
-      setBusy(true);
-      setMsg("");
-      const r = await apiPost("/integrations/word/install", {});
-      setBusy(false);
-      setMsg(r.ok ? r.data.detail || "Opened the add-in folder." : "Couldn't open: " + (r.error || "error"));
-    };
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Microsoft Word add-in (desktop)"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost settings-integration-action", disabled: busy, onClick: openFolder }, busy ? "Opening\u2026" : "Open Add-in Folder"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "A task pane in ", /* @__PURE__ */ React.createElement("b", null, "desktop"), " Word (Windows/Mac) that searches your library and inserts citations \u2014 everything stays on your machine. One-time setup: ", /* @__PURE__ */ React.createElement("b", null, "1)"), " trust a local certificate, run ", /* @__PURE__ */ React.createElement("code", null, "npx office-addin-dev-certs install"), "; ", /* @__PURE__ */ React.createElement("b", null, "2)"), " run Callosum over HTTPS, ", /* @__PURE__ */ React.createElement("code", null, "python tools/run_https.py"), ", then open ", /* @__PURE__ */ React.createElement("code", null, "https://localhost:8443"), "; ", /* @__PURE__ */ React.createElement("b", null, "3)"), " download the manifest and sideload it in Word (see the adapter README). ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => downloadAsset("/integrations/word/manifest.xml", "callosum-word-manifest.xml") }, "Download manifest.")), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Microsoft Word add-in (web)"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "The same task pane in ", /* @__PURE__ */ React.createElement("b", null, "Word on the web"), " (office.com), reached through the cloudflared relay the Google Docs add-on already uses \u2014 Word-on-the-web can't reach your machine directly. Requires", /* @__PURE__ */ React.createElement("b", null, " Remote access"), ` (below) turned on + your tunnel running, and pastes your access token into the task pane once (see the adapter README's "Word on the web" section for the one-time tunnel setup).`, " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => downloadAsset("/integrations/word/manifest-web.xml", "callosum-word-manifest-web.xml") }, "Download web manifest.")), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
-  }
   function RemoteAccessSettings() {
     const [status, setStatus] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -21417,6 +21405,59 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       });
     };
     return /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("span", { className: "settings-note" }, "Server address: ", /* @__PURE__ */ React.createElement("code", null, base)), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: copy }, copied ? "Copied!" : "Copy"));
+  }
+  function WordSettings() {
+    const packaged = "__TAURI__" in window;
+    const [status, setStatus] = useState(null);
+    const [busy, setBusy] = useState("");
+    const [msg, setMsg] = useState("");
+    const refresh = () => packaged && api("/word-https/status").then((r) => {
+      if (r.ok) setStatus(r.data);
+      else setMsg("Couldn't check Word support: " + (r.error || "error"));
+    });
+    useEffect(() => {
+      refresh();
+    }, []);
+    const changeManaged = async (enabled2) => {
+      setBusy("lifecycle");
+      setMsg("");
+      if (!enabled2) {
+        try {
+          await window.__TAURI__.core.invoke("stop_word_https_companion");
+        } catch (e) {
+          setBusy("");
+          setMsg(`Couldn't stop the Word companion (${String(e)}). Restart Callosum and try again.`);
+          return;
+        }
+      }
+      const r = await apiPost(
+        `/word-https/${enabled2 ? "enable" : "disable"}`,
+        {},
+        { "X-Callosum-Local-Action": "settings-ui-v1" }
+      );
+      if (!r.ok) {
+        setBusy("");
+        setMsg("Couldn't change Word support: " + (r.error || "error"));
+        return;
+      }
+      try {
+        if (enabled2) await window.__TAURI__.core.invoke("start_word_https_companion");
+        setMsg(enabled2 ? "Word support is ready at https://localhost:8443." : "Word support is off and its certificate trust was removed.");
+      } catch (e) {
+        setMsg(enabled2 ? `The certificate is enabled, but the companion didn't start (${String(e)}). Restart Callosum and try again.` : `Certificate trust was removed; the companion will also stop when Callosum exits (${String(e)}).`);
+      }
+      setBusy("");
+      refresh();
+    };
+    const openFolder = async () => {
+      setBusy("folder");
+      setMsg("");
+      const r = await apiPost("/integrations/word/install", {});
+      setBusy("");
+      setMsg(r.ok ? r.data.detail || "Opened the add-in folder." : "Couldn't open: " + (r.error || "error"));
+    };
+    const enabled = !!(status && status.enabled);
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Microsoft Word add-in (desktop)"), packaged ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Everything stays on this machine. Enable once to trust a localhost-only certificate for your account and let Callosum supervise the HTTPS companion. You can remove that trust here at any time."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost settings-integration-action", disabled: !!busy || !status || !status.supported, onClick: () => changeManaged(!enabled) }, busy === "lifecycle" ? "Working\u2026" : !status ? "Checking\u2026" : enabled ? "Disable Word Support" : "Enable Word Support"), status && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, status.detail)) : /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Developer setup: trust a local certificate with ", /* @__PURE__ */ React.createElement("code", null, "npx office-addin-dev-certs install"), ", run ", /* @__PURE__ */ React.createElement("code", null, "python tools/run_https.py"), ", then open ", /* @__PURE__ */ React.createElement("code", null, "https://localhost:8443"), "."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost settings-integration-action", disabled: !!busy, onClick: openFolder }, busy === "folder" ? "Opening\u2026" : "Open Add-in Folder"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Sideload the desktop manifest in Word once. ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => downloadAsset("/integrations/word/manifest.xml", "callosum-word-manifest.xml") }, "Download manifest.")), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Microsoft Word add-in (web)"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Word on the web cannot reach localhost. It uses the separate, explicit Remote access tunnel below. ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => downloadAsset("/integrations/word/manifest-web.xml", "callosum-word-manifest-web.xml") }, "Download web manifest.")), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
   function UsageSettings() {
     const [summary, setSummary] = useState(null);

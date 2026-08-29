@@ -453,3 +453,69 @@ function ServerAddressSettings() {
     </div>
   );
 }
+
+// Desktop Word stays same-origin over a fixed local HTTPS listener. In the packaged Tauri app, certificate
+// trust is an explicit user action and Tauri alone owns the companion process. Browser/dev use retains the
+// existing developer-certificate instructions; Word-on-the-web remains a distinct, opt-in tunnel workflow.
+function WordSettings() {
+  const packaged = "__TAURI__" in window;
+  const [status, setStatus] = useState(null);
+  const [busy, setBusy] = useState("");
+  const [msg, setMsg] = useState("");
+  const refresh = () => packaged && api("/word-https/status").then(r => {
+    if (r.ok) setStatus(r.data);
+    else setMsg("Couldn't check Word support: " + (r.error || "error"));
+  });
+  useEffect(() => { refresh(); }, []);
+  const changeManaged = async (enabled) => {
+    setBusy("lifecycle"); setMsg("");
+    if (!enabled) {
+      try {
+        await window.__TAURI__.core.invoke("stop_word_https_companion");
+      } catch (e) {
+        setBusy(""); setMsg(`Couldn't stop the Word companion (${String(e)}). Restart Callosum and try again.`); return;
+      }
+    }
+    const r = await apiPost(
+      `/word-https/${enabled ? "enable" : "disable"}`, {}, { "X-Callosum-Local-Action": "settings-ui-v1" }
+    );
+    if (!r.ok) {
+      setBusy(""); setMsg("Couldn't change Word support: " + (r.error || "error")); return;
+    }
+    try {
+      if (enabled) await window.__TAURI__.core.invoke("start_word_https_companion");
+      setMsg(enabled ? "Word support is ready at https://localhost:8443." : "Word support is off and its certificate trust was removed.");
+    } catch (e) {
+      setMsg(enabled
+        ? `The certificate is enabled, but the companion didn't start (${String(e)}). Restart Callosum and try again.`
+        : `Certificate trust was removed; the companion will also stop when Callosum exits (${String(e)}).`);
+    }
+    setBusy(""); refresh();
+  };
+  const openFolder = async () => {
+    setBusy("folder"); setMsg("");
+    const r = await apiPost("/integrations/word/install", {});
+    setBusy("");
+    setMsg(r.ok ? (r.data.detail || "Opened the add-in folder.") : ("Couldn't open: " + (r.error || "error")));
+  };
+  const enabled = !!(status && status.enabled);
+  return (
+    <>
+      <p className="eyebrow">Microsoft Word add-in (desktop)</p>
+      {packaged
+        ? <>
+            <div className="settings-sub">Everything stays on this machine. Enable once to trust a localhost-only certificate for your account and let Callosum supervise the HTTPS companion. You can remove that trust here at any time.</div>
+            <button className="btn btn-ghost settings-integration-action" disabled={!!busy || !status || !status.supported} onClick={() => changeManaged(!enabled)}>
+              {busy === "lifecycle" ? "Working…" : (!status ? "Checking…" : (enabled ? "Disable Word Support" : "Enable Word Support"))}
+            </button>
+            {status && <div className="settings-note">{status.detail}</div>}
+          </>
+        : <div className="settings-sub">Developer setup: trust a local certificate with <code>npx office-addin-dev-certs install</code>, run <code>python tools/run_https.py</code>, then open <code>https://localhost:8443</code>.</div>}
+      <button className="btn btn-ghost settings-integration-action" disabled={!!busy} onClick={openFolder}>{busy === "folder" ? "Opening…" : "Open Add-in Folder"}</button>
+      <div className="settings-sub">Sideload the desktop manifest in Word once. <button className="btn-link" onClick={() => downloadAsset("/integrations/word/manifest.xml", "callosum-word-manifest.xml")}>Download manifest.</button></div>
+      <p className="eyebrow">Microsoft Word add-in (web)</p>
+      <div className="settings-sub">Word on the web cannot reach localhost. It uses the separate, explicit Remote access tunnel below. <button className="btn-link" onClick={() => downloadAsset("/integrations/word/manifest-web.xml", "callosum-word-manifest-web.xml")}>Download web manifest.</button></div>
+      {msg && <div className="settings-note">{msg}</div>}
+    </>
+  );
+}

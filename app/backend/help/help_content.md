@@ -375,9 +375,10 @@ You can also cite from your callosum library inside **Microsoft Word** (Windows/
 
 **Set it up once:**
 
-1. **Trust a local certificate** — run `npx office-addin-dev-certs install` (so Word accepts `https://localhost`).
-2. **Run callosum for the app and Word together** — set `CALLOSUM_DB_URL`, then run `python tools/run_dev.py`. It launches the ordinary app and Word's HTTPS task pane against the same database/code checkout so they cannot silently drift.
-3. **Add the manifest to Word** — in **Settings → Microsoft Word add-in → Download manifest**, then sideload it (Windows: register the folder as a Trusted Add-in Catalog; Mac: drop it in Word's `wef` folder — see `adapters/word/README.md`).
+1. **Enable Word support** — in the packaged app, open **Settings → Microsoft Word add-in (desktop)** and click **Enable Word Support**. Callosum trusts one localhost-only certificate for your account and starts/stops the HTTPS companion with the app. You can remove that trust from the same place at any time.
+2. **Add the manifest to Word** — click **Download manifest**, then sideload it (Windows: register the add-in folder as a Trusted Add-in Catalog; Mac: put the manifest in Word's `wef` folder — see `adapters/word/README.md`).
+
+If you run Callosum from a source checkout instead of the packaged app, use the developer workflow: `npx office-addin-dev-certs install`, then `python tools/run_dev.py`. Both servers share the same database and checkout.
 
 Then in Word: **Home → Callosum → Show Citations**.
 

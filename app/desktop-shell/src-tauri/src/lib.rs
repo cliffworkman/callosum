@@ -2,8 +2,14 @@ mod backend;
 mod managed_local_ai;
 mod updater;
 
-use backend::{kill_backend, resolved_paths, spawn_backend, wait_for_health, BackendState};
+use backend::{
+    kill_backend, kill_word_https, resolved_paths, spawn_backend, spawn_word_https,
+    wait_for_health, wait_for_word_https_health, word_https_configured, BackendState,
+    WordHttpsState,
+};
 use managed_local_ai::{shutdown as shutdown_local_ai, start_if_enabled, ManagedLocalAiState};
+use std::sync::atomic::Ordering;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use updater::UpdateState;
 
@@ -18,7 +24,11 @@ async fn start_backend_and_show_main(app: AppHandle) {
         }
     };
 
-    emit_status(&app, "starting", "Starting Callosum… this can take a minute the first time.");
+    emit_status(
+        &app,
+        "starting",
+        "Starting Callosum… this can take a minute the first time.",
+    );
 
     let local_ai_state = app.state::<ManagedLocalAiState>().inner().clone();
     let descriptor = match start_if_enabled(&paths.app_data_dir, &local_ai_state).await {
@@ -50,7 +60,9 @@ async fn start_backend_and_show_main(app: AppHandle) {
 
     *app.state::<BackendState>().0.lock().unwrap() = Some(handle);
 
-    let url = format!("http://127.0.0.1:{port}").parse().expect("valid loopback URL");
+    let url = format!("http://127.0.0.1:{port}")
+        .parse()
+        .expect("valid loopback URL");
     if WebviewWindowBuilder::new(&app, "main", WebviewUrl::External(url))
         .title("Callosum")
         .inner_size(1200.0, 900.0)
@@ -61,6 +73,17 @@ async fn start_backend_and_show_main(app: AppHandle) {
         if let Some(splash) = app.get_webview_window("splash") {
             let _ = splash.close();
         }
+    }
+
+    // The main UI is usable as soon as its HTTP backend is healthy. The optional Word companion starts in
+    // parallel so an enabled integration never adds a second full app-import delay to ordinary launch.
+    if word_https_configured(&paths) {
+        let word_app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(error) = start_word_https_inner(word_app).await {
+                eprintln!("Word HTTPS companion unavailable: {error}");
+            }
+        });
     }
 }
 
@@ -80,6 +103,69 @@ async fn retry_backend(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+async fn start_word_https_inner(app: AppHandle) -> Result<(), String> {
+    let state = app.state::<WordHttpsState>();
+    if state
+        .handle
+        .lock()
+        .map_err(|_| "Word HTTPS state is unavailable")?
+        .is_some()
+    {
+        return Ok(());
+    }
+
+    if state
+        .starting
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        let deadline = Instant::now() + Duration::from_secs(125);
+        while state.starting.load(Ordering::Acquire) && Instant::now() < deadline {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        return if state
+            .handle
+            .lock()
+            .map_err(|_| "Word HTTPS state is unavailable")?
+            .is_some()
+        {
+            Ok(())
+        } else {
+            Err("The Word HTTPS companion did not become ready".into())
+        };
+    }
+
+    let result = start_word_https_owned(&app, state.inner()).await;
+    state.starting.store(false, Ordering::Release);
+    result
+}
+
+async fn start_word_https_owned(app: &AppHandle, state: &WordHttpsState) -> Result<(), String> {
+    let paths = resolved_paths(app).map_err(|error| error.detail())?;
+    let version = app.package_info().version.to_string();
+    let mut handle = spawn_word_https(&paths, &version).map_err(|error| error.detail())?;
+    if let Err(error) = wait_for_word_https_health(&mut handle, &paths).await {
+        let _ = handle.child.kill();
+        let _ = handle.child.wait();
+        return Err(error.detail());
+    }
+    *state
+        .handle
+        .lock()
+        .map_err(|_| "Word HTTPS state is unavailable")? = Some(handle);
+    Ok(())
+}
+
+#[tauri::command]
+async fn start_word_https_companion(app: AppHandle) -> Result<(), String> {
+    start_word_https_inner(app).await
+}
+
+#[tauri::command]
+fn stop_word_https_companion(state: tauri::State<'_, WordHttpsState>) {
+    kill_word_https(state.inner());
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -93,10 +179,13 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BackendState::default())
+        .manage(WordHttpsState::default())
         .manage(ManagedLocalAiState::default())
         .manage(UpdateState::default())
         .invoke_handler(tauri::generate_handler![
             retry_backend,
+            start_word_https_companion,
+            stop_word_https_companion,
             updater::install_update_now,
             updater::open_release_page,
             updater::check_for_updates_now
@@ -116,6 +205,7 @@ pub fn run() {
                 tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
             ) {
                 kill_backend(app_handle.state::<BackendState>().inner());
+                kill_word_https(app_handle.state::<WordHttpsState>().inner());
                 shutdown_local_ai(app_handle.state::<ManagedLocalAiState>().inner());
             }
         });

@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-29",
-    "reviewed_rev": "aeb7220",
-    "source_fingerprint": "53ad14cfb307ec6b9b7f813c7431bd24d30f2c268c5e8caa78ae82cd672211cb",
-    "note": "Increment 530 adds bounded, fail-closed Zotero Word-field conversion; served Help and adapter documentation are current, and no public website claim is added before live Word verification."
+    "reviewed_rev": "38ba23f",
+    "source_fingerprint": "e7c8513f1b2fabd390a4af5ecef408c7be126a86dd5c4c9f0a077710e316c099",
+    "note": "Increment 532 makes packaged desktop Word HTTPS an explicit local Settings opt-in. Existing public Word-support claims remain accurate; no new website copy or screenshot is added before live OS-trust and Word-host verification."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

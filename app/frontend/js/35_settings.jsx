@@ -119,42 +119,8 @@ function PublishersSettings() {
   );
 }
 
-// LibreOfficeSettings lives in js/35e_maintenance.jsx (split out to stay under the 600-line cap when the
-// backlog #33/#34 phase-1 "Point LibreOffice at this instance" button landed) — hoists across the shared IIFE,
-// so it's called here unchanged.
-
-// Microsoft Word add-in (inc 164, SP1; SP4 web variant). Architecture A: callosum serves the task pane over
-// HTTPS, same-origin with the API — desktop Word only, zero egress. "Install" can't auto-sideload on desktop, so
-// it opens the add-in folder; the manifest is also downloadable. The 3-step one-time setup (cert + HTTPS run +
-// sideload) is spelled out. SP4 adds Word-on-the-web via the same relay tunnel the Google Docs add-on uses.
-function WordSettings() {
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
-  const openFolder = async () => {
-    setBusy(true); setMsg("");
-    const r = await apiPost("/integrations/word/install", {});
-    setBusy(false);
-    setMsg(r.ok ? (r.data.detail || "Opened the add-in folder.") : ("Couldn't open: " + (r.error || "error")));
-  };
-  return (
-    <>
-      <p className="eyebrow">Microsoft Word add-in (desktop)</p>
-      <button className="btn btn-ghost settings-integration-action" disabled={busy} onClick={openFolder}>{busy ? "Opening…" : "Open Add-in Folder"}</button>
-      <div className="settings-sub">
-        A task pane in <b>desktop</b> Word (Windows/Mac) that searches your library and inserts citations — everything stays on your machine. One-time setup: <b>1)</b> trust a local certificate, run <code>npx office-addin-dev-certs install</code>; <b>2)</b> run Callosum over HTTPS, <code>python tools/run_https.py</code>, then open <code>https://localhost:8443</code>; <b>3)</b> download the manifest and sideload it in Word (see the adapter README). <button className="btn-link" onClick={() => downloadAsset("/integrations/word/manifest.xml", "callosum-word-manifest.xml")}>Download manifest.</button>
-      </div>
-      <p className="eyebrow">Microsoft Word add-in (web)</p>
-      <div className="settings-sub">
-        The same task pane in <b>Word on the web</b> (office.com), reached through the cloudflared relay the
-        Google Docs add-on already uses — Word-on-the-web can't reach your machine directly. Requires
-        <b> Remote access</b> (below) turned on + your tunnel running, and pastes your access token into the
-        task pane once (see the adapter README's "Word on the web" section for the one-time tunnel setup).{" "}
-        <button className="btn-link" onClick={() => downloadAsset("/integrations/word/manifest-web.xml", "callosum-word-manifest-web.xml")}>Download web manifest.</button>
-      </div>
-      {msg && <div className="settings-note">{msg}</div>}
-    </>
-  );
-}
+// WordSettings + LibreOfficeSettings live in js/35e_maintenance.jsx (split out to preserve this file's
+// 600-line budget). Both hoist across the shared IIFE and are called here unchanged.
 
 // Remote access (inc 168) — the opt-in, default-OFF gate that lets the Google Docs add-on reach your library through
 // a tunnel you run. Enabling mints an access token (shown once → copy into the add-on) + saves it locally so the

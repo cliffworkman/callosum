@@ -109,6 +109,7 @@ from app.backend.api.routers import (
     wip_reference_integrity,
     wip_workflow,
     word,
+    word_https,
     workbench,
     zotero_citations,
 )
@@ -473,6 +474,7 @@ def create_app(
     api.include_router(library_enrich.router)  # /library/enrich/refresh — split out of library.py (rule #1)
     api.include_router(grobid.router)  # /grobid/* — opt-in GROBID structure parsing (backlog #30 Stage 2)
     api.include_router(grobid_docker.router)  # /grobid/docker/* — Docker-managed install/start/stop (backlog #58)
+    api.include_router(word_https.router)  # /word-https/* — local-only packaged Word TLS lifecycle
     api.include_router(axes.router)
     api.include_router(summaries.router)
     api.include_router(help.router)

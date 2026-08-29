@@ -28,6 +28,8 @@ dependencies = [
     # Optional-account sign-in (ORCID via OIDC): id-token verification (JWKS signature + iss/aud/exp).
     # Lazy-imported in app/backend/api/auth/oidc.py — the app + hermetic suite run without it.
     "pyjwt[crypto]>=2.8,<3",
+    # Packaged desktop Word: local-only X.509 leaf generation (trust-store mutation remains explicit/OS-owned).
+    "cryptography>=46,<51",
 ]
 
 [project.optional-dependencies]

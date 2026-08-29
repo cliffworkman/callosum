@@ -23,6 +23,8 @@ uvicorn[standard]>=0.30,<1
 # new dep — JWT verification is exactly what must NOT be hand-rolled. Lazy-imported in app/backend/api/auth/oidc.py,
 # so the app + the hermetic suite run without it; required only for the LIVE sign-in path.
 PyJWT[crypto]>=2.8,<3
+# Packaged desktop Word: local-only X.509 leaf generation (trust-store mutation remains explicit/OS-owned).
+cryptography>=46,<51
 
 # Optional (inc 152): `pip install keyring` to store BYOK provider API keys in your OS keychain
 # (Windows Credential Manager / macOS Keychain / Linux Secret Service) instead of the local settings file.

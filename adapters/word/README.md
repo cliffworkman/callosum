@@ -23,7 +23,17 @@ runs in Microsoft's cloud and can't reach your machine at all** — that's what 
 below is for (the same tunnel `adapters/googledocs/` already uses, just relaying more than one add-in's assets).
 
 ## One-time setup
-1. **Trust a local certificate** (so Word accepts `https://localhost`):
+
+### Packaged Callosum app (recommended)
+
+1. In **Settings → Microsoft Word add-in (desktop)**, click **Enable Word Support**. Callosum creates and trusts
+   one localhost-only certificate for your OS account, then supervises the fixed `127.0.0.1:8443` HTTPS companion
+   whenever the app runs. Disable it from the same place to remove that trust and the local key material.
+2. **Sideload the manifest** using step 3 below. No terminal or certificate tooling is needed.
+
+### Source/developer checkout
+
+1. **Trust a development certificate** (so Word accepts `https://localhost`):
    ```
    npx office-addin-dev-certs install
    ```
@@ -42,6 +52,8 @@ below is for (the same tunnel `adapters/googledocs/` already uses, just relaying
    own one-time trust step). Prefer running the two servers separately? `python tools/run_https.py` still works
    standalone — just make sure `CALLOSUM_DB_URL` matches whatever your other callosum process is using, or
    they'll disagree with each other exactly like this did before.
+### Sideload the manifest (both workflows)
+
 3. **Sideload the manifest** into Word:
    - In callosum: **Settings → Microsoft Word add-in → Download manifest** (saves `manifest.xml`), or grab it from
      `adapters/word/manifest.xml` (Settings → **Open add-in folder**).

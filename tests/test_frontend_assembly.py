@@ -1578,6 +1578,17 @@ def test_static_demo_exposes_library_scope_and_locks_personal_reader_mutations_p
     assert "if (/^\\/papers\\/\\d+\\/(read|priority)$/.test(path))" in runtime
 
 
+def test_packaged_word_support_is_explicit_tauri_owned_and_reversible():
+    raw = assemble_jsx()
+    assert 'api("/word-https/status")' in raw
+    assert '`/word-https/${enabled ? "enable" : "disable"}`' in raw
+    assert '"start_word_https_companion"' in raw and '"stop_word_https_companion"' in raw
+    assert "trust a localhost-only certificate for your account" in raw
+    assert "You can remove that trust here at any time" in raw
+    assert "Word on the web cannot reach localhost" in raw
+    assert "npx office-addin-dev-certs install" in raw  # non-Tauri developer fallback remains available
+
+
 def test_built_artifact_is_in_sync():
     """callosum-app.html must equal the live assembly — i.e. it was rebuilt after the last source
     edit (CLAUDE.md: re-run tools/build_frontend.py after editing app/frontend/)."""

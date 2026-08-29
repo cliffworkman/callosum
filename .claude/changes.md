@@ -9,7 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 530 — Word Zotero field conversion -->
+<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 532 — packaged Word HTTPS setup -->
+## 2026-08-29 — Increment 532: packaged Word HTTPS companion (backlog #33/#34 phase 2)
+- **Files:** Python certificate/trust lifecycle and local-only API; Tauri process ownership/readiness/cleanup;
+  packaged Settings UI; direct cryptography dependency; served Help and Word README; security/QA/architecture/
+  backlog/increment ledgers; lifecycle/frontend tests.
+- **What:** packaged Windows/macOS users can explicitly enable desktop Word support without Node or a terminal.
+  Callosum generates a localhost-only end-entity certificate, restricts its key, installs/verifies current-user
+  trust, and Tauri supervises a fixed `127.0.0.1:8443` HTTPS Uvicorn child against the same DB/library/version.
+  Disable stops the child, removes/rechecks trust, deletes material, and clears the opt-in. Source/dev and
+  Word-web workflows remain separate and unchanged.
+- **Why:** the static Office manifest requires stable HTTPS, while the packaged app previously offered only its
+  random-port HTTP backend. This closes the packaged desktop Word connectivity gap without broadening egress or
+  changing any citation/document semantics. Trust mutations are loopback/no-forwarding + Settings-header gated.
+- **Verify:** isolated live Windows TLS/ACL/process smoke passed without trust-store mutation; focused affected
+  suite **118 passed**; full Python **2584 passed, 3 skipped** in 1261.80s; cargo check + strict Clippy clean;
+  complete serial Rust **27 passed, 3 ignored** (the unrelated managed-local readiness test remains a documented
+  parallel-only flake and passed twice alone); Bandit, Tach, line budget, QA map, website review, pre-commit,
+  secret/path, and diff gates passed. OS trust UI, macOS, and Word-host behavior remain manual—not claimed live.
+- **Revert:** revert this increment commit; no schema migration, provider change, or document-format change.
+
 ## 2026-08-29 — Increment 530: Word Zotero field conversion
 - **Files:** Word task-pane UI/glue/pure logic/tests/README; existing local Zotero resolver documentation; shared
   tunnel exact-path allowlist/README; served Help; security audit; architecture/backlog/change/increment ledgers;

@@ -18,6 +18,10 @@ Callosum is a working local-first MVP at Increment 73. It runs as a localhost Fa
 - Retrieval and clustering: local embedding retrieval plus scikit-learn agglomerative clustering, axis scoring, duplicate detection, and c-TF-IDF tag/axis suggestions.
 - Summarization: Gemini `gemini-2.5-flash-lite` is optional, off by default, and used only to propose summary sentences/candidate citations. Local verification is authoritative.
 - Frontend: `app/frontend/` contains `index.html`, `styles.css`, and ordered `js/*.jsx` React chunks. `app/backend/api/frontend.py` assembles them for FastAPI; `tools/build_frontend.py` rebuilds `callosum-app.html`.
+- Packaged desktop: Tauri owns the Python/Uvicorn process tree. The main UI backend uses its remembered successful
+  loopback port; an explicitly enabled Word integration uses a separate fixed `127.0.0.1:8443` HTTPS child.
+  Python owns its per-user localhost leaf-certificate/trust lifecycle, while Tauri alone supervises the child.
+  Browser/source use retains the separate developer-certificate launcher; neither path introduces egress.
 - Static demo: the same assembled frontend calls the centralized `callosumFetch` transport. Normal builds use
   FastAPI; the explicit demo build injects a static provider backed by a validated, versioned public snapshot.
   `tools/demo/build_demo.py` emits a backend-free artifact and leaves normal web/desktop behavior unchanged.
