@@ -129,6 +129,20 @@ def _windows_runtime(root: Path, dll: bytes = b"backend-a") -> Path:
     return executable
 
 
+def _linux_runtime(root: Path, message: bytes = b"messages-a") -> Path:
+    executable = root / "sbin" / "mariadbd"
+    executable.parent.mkdir(parents=True)
+    executable.write_bytes(b"launcher")
+    for relative, content in (
+        ("share/english/errmsg.sys", message),
+        ("share/charsets/Index.xml", b"charsets"),
+    ):
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+    return executable
+
+
 def test_runtime_bundle_manifest_is_deterministic_and_backend_sensitive(tmp_path: Path) -> None:
     first = probe.runtime_manifest(_windows_runtime(tmp_path / "a"), version="Ver test")
     repeated = probe.runtime_manifest(tmp_path / "a/bin/mariadbd.exe", version="Ver test")
@@ -139,6 +153,29 @@ def test_runtime_bundle_manifest_is_deterministic_and_backend_sensitive(tmp_path
     assert first.bundle_manifest_sha256 == relocated.bundle_manifest_sha256
     assert first.bundle_manifest_sha256 != second.bundle_manifest_sha256
     assert all(not Path(entry.relative_path).is_absolute() for entry in first.manifest_entries)
+
+
+def test_linux_runtime_manifest_covers_required_share_data(tmp_path: Path) -> None:
+    first = probe.runtime_manifest(_linux_runtime(tmp_path / "a"), version="Ver test")
+    relocated = probe.runtime_manifest(_linux_runtime(tmp_path / "relocated"), version="Ver test")
+    changed = probe.runtime_manifest(_linux_runtime(tmp_path / "changed", b"messages-b"), version="Ver test")
+
+    assert first.manifest_scope == "linux-bootstrap-files-v1"
+    assert {entry.relative_path for entry in first.manifest_entries} == {
+        "sbin/mariadbd",
+        "share/charsets/Index.xml",
+        "share/english/errmsg.sys",
+    }
+    assert first.bundle_manifest_sha256 == relocated.bundle_manifest_sha256
+    assert first.bundle_manifest_sha256 != changed.bundle_manifest_sha256
+
+
+def test_linux_runtime_manifest_requires_message_and_charset_data(tmp_path: Path) -> None:
+    runtime = _linux_runtime(tmp_path / "runtime")
+    (tmp_path / "runtime/share/english/errmsg.sys").unlink()
+
+    with pytest.raises(probe.ProbeError, match="required message/charset data"):
+        probe.runtime_manifest(runtime, version="Ver test")
 
 
 def test_runtime_bundle_rejects_escape_link(tmp_path: Path) -> None:

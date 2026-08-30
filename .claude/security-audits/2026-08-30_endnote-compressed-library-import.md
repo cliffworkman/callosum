@@ -1,7 +1,7 @@
 # Security audit — EndNote Compressed Library import (backlog #57 Phase 6B)
 
 **Date opened:** 2026-08-30
-**Status:** **OPEN — developer executor POC proven on Windows; production importer not started**
+**Status:** **OPEN — developer executor POC proven on Windows and one Debian host; production importer not started**
 **Planned surface:** untrusted `.enlx`/`.enl` archive ingestion; legacy MyISAM or modern SQLite format detection;
 bibliographic/group/attachment extraction into existing import pipelines.
 
@@ -24,6 +24,13 @@ Windows build has no wsrep option compiled in; the unsupported `--skip-wsrep` fl
 loosening error handling. The process still explicitly disables network, binlog, InnoDB, external locking,
 symbolic links, and local infile. This materially advances—but does not close—the audit.
 
+Increment 544 extracted a 28-file launcher/message/charset bundle from the pinned official MariaDB 10.11.19
+image and ran it directly on Juno's Debian 12 host, outside Docker. All 18 OS-owned dynamic dependencies resolved;
+the public X7 result remained 59 rows/54 columns, source-immutable, network-disabled, and orphan-free. Linux
+identity now hashes all 28 relative-path/size/content entries rather than only the launcher, and an independent
+relocation reproduced the manifest digest. This is one Debian/glibc compatibility point, not a cross-distro or
+shipping-package claim, so the audit remains open.
+
 ## Approved POC boundary
 
 - Developer-supplied pinned runtime only; no bundled binary, downloader, route, UI, or user data write.
@@ -36,9 +43,10 @@ symbolic links, and local infile. This materially advances—but does not close�
   child and temporary job. No dual supervision.
 - Public X7 fixture only until the archive/executor boundary passes adversarial tests.
 
-## Production blockers after increment 542
+## Production blockers after increment 544
 
-- Reproducible Windows/Linux runtime manifests and live standalone Linux dependency proof.
+- Convert the proven developer manifests into signed/pinned shipping artifacts; define and test the supported
+  Linux distro/ABI matrix and explicit OS-package dependency policy.
 - Reproducible macOS arm64/x86_64 build plus signing/notarization/live lifecycle proof; upstream 10.11.19 offers
   no official macOS binary in its current download inventory.
 - GPL-2.0 server aggregation/corresponding-source/notices review alongside Callosum's AGPL-3.0 distribution.

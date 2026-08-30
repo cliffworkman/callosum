@@ -183,9 +183,19 @@ package does not compile/expose wsrep, so `--skip-wsrep` is rejected as unknown.
 flag; bootstrap mode, `--skip-networking`, `--skip-log-bin`, disabled InnoDB, external locking/symlinks/local
 infile restrictions, private datadir, and `--secure-file-priv` remain explicit.
 
-The Debian host still has no standalone `mariadbd`; only the research-only official Docker image is available.
-Increment 541 already proved the same fixed stdin/bootstrap operation inside that image. A standalone portable
-Linux bundle remains a production packaging gate rather than being papered over with Docker.
+## Standalone Linux proof (increment 544)
+
+A 28-file temporary research bundle was extracted from the already-pinned official MariaDB image and run directly
+on Juno's Debian 12 host, outside Docker. It contains `sbin/mariadbd`, English messages, and character-set data;
+the canonical manifest is 25,758,167 bytes with SHA-256
+`4e2c4577f201298bec7dff5e63cdd641e24fd4f38925224d9c0a44e33068d7dc`. A second extraction at a different root
+produced the same digest. The Ubuntu 22.04.5/glibc 2.35 launcher resolved all 18 named OS-owned dependencies on
+Debian 12/glibc 2.36 and reproduced the public fixture's 59 rows/54 columns in 259 ms with no orphan.
+
+The developer manifest now hashes all 28 bundle files as `linux-bootstrap-files-v1`; it no longer presents a
+launcher-only digest as complete runtime identity. This proves one real direct-host compatibility point. It does
+not establish compatibility for every Linux distribution, and it deliberately does not vendor glibc/system
+libraries. A shipping design still needs an explicit distro/ABI support matrix or package-dependency policy.
 
 No route, UI, bundled engine, paper write, PDF ingestion, or production activation was added. The next work is
 not broader parser coding: close the remaining platform/package/license and missing-fixture gates listed above.

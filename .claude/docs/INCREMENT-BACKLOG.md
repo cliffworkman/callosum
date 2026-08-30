@@ -370,9 +370,13 @@ the Principles + A-A gates before build.)*
     was completed in **increment 542**: a developer-only executor now performs bounded archive preflight,
     digest-verified copy-only extraction, deterministic allowlisted runtime identity, fixed SQL/direct argv,
     bounded output/timeout cleanup, and path-free aggregate receipts. A fresh official-Windows live run returned
-    the public fixture's 59 rows/54 columns and left no process. It is not imported by production. Shipping remains gated on reproducible
-    Windows/Linux manifests, macOS build/sign/notarization, GPL aggregate review, a real attached-PDF fixture,
-    and a separate modern SQLite-era fixture; Docker is not an end-user prerequisite. Fixtures remain gitignored
+    the public fixture's 59 rows/54 columns and left no process. **Increment 544 closes the launcher-only Linux
+    identity gap:** a deterministic 28-file launcher/message/charset bundle extracted from the pinned official
+    image ran directly on Debian 12 outside Docker, reproduced the same schema receipt, resolved all 18 OS-owned
+    dependencies, and remained identity-stable after relocation. It is not imported by production. Shipping
+    remains gated on turning these developer manifests into signed/pinned artifacts, a tested Linux distro/ABI
+    policy, macOS build/sign/notarization, GPL aggregate review, a real attached-PDF fixture, and a separate
+    modern SQLite-era fixture; Docker is not an end-user prerequisite. Fixtures remain gitignored
     at `.claude/backups/endnote-fixtures/`. **Increment 537 added the safe, dormant Mendeley transport scaffold:**
     version-pinned/bounded documents, folders, memberships, files, signed-download redirect, and OAuth exchange
     primitives with hermetic tests. It also found the official authorization-code flow still requires a

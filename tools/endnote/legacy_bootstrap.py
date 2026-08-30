@@ -234,13 +234,18 @@ def _manifest_candidates(executable: Path, basedir: Path) -> tuple[list[Path], s
         if not server.is_file():
             raise ProbeError("Windows runtime is missing adjacent server.dll")
         files.append(server)
-        for relative in (Path("share/english"), Path("share/charsets")):
-            root = basedir / relative
-            if not root.is_dir():
-                raise ProbeError("Windows runtime is missing required message/charset data")
-            files.extend(_runtime_tree_files(root, basedir))
-        return files, "windows-bootstrap-files-v1"
-    return files, "launcher-only-development-v1"
+        scope = "windows-bootstrap-files-v1"
+    else:
+        scope = "linux-bootstrap-files-v1"
+    for required in (Path("share/english/errmsg.sys"), Path("share/charsets/Index.xml")):
+        if not (basedir / required).is_file():
+            raise ProbeError("runtime is missing required message/charset data")
+    for relative in (Path("share/english"), Path("share/charsets")):
+        root = basedir / relative
+        if not root.is_dir():
+            raise ProbeError("runtime is missing required message/charset data")
+        files.extend(_runtime_tree_files(root, basedir))
+    return files, scope
 
 
 def runtime_manifest(executable: Path, *, version: str | None = None) -> RuntimeReceipt:

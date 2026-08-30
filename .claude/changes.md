@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-30 — Increment 544: standalone Linux EndNote runtime proof
+- **Files:** EndNote developer probe/tests/README plus research, security, architecture, backlog, and increment
+  ledgers. No production import/runtime/provider surface changed; no MariaDB binary was committed.
+- **What:** replaced Linux's launcher-only developer identity with a deterministic 28-file
+  `linux-bootstrap-files-v1` manifest covering the launcher and required message/charset data. Relocated copies
+  hash identically; changed or missing share data changes identity or fails closed.
+- **Live result:** a bundle extracted from the pinned official MariaDB 10.11.19 image ran directly—not in
+  Docker—on Juno's Debian 12 host. It read the public X7 fixture as 59 rows/54 columns in 259 ms, preserved the
+  source hash, resolved all 18 OS-owned dynamic dependencies, and left no process. Bundle manifest SHA-256:
+  `4e2c4577f201298bec7dff5e63cdd641e24fd4f38925224d9c0a44e33068d7dc`.
+- **Boundary:** this proves one Debian/glibc compatibility point and truthful bundle identity, not every Linux
+  distro or a shippable package. Production, license, macOS, and missing-fixture gates remain open.
+- **Verify:** focused executor **32 passed**; final affected/full/static receipts are in
+  `INCREMENT-544-NOTES.md`.
+- **Revert:** revert this increment; no schema or production behavior depends on it.
+
 ## 2026-08-30 — Increment 542: developer-only EndNote bootstrap executor
 - **Files:** new `tools/endnote/legacy_bootstrap.py` + README; adversarial executor tests; EndNote research,
   security, architecture, backlog, and increment ledgers. No production import/runtime/provider surface changed.

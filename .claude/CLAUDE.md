@@ -22,8 +22,8 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 543** (see Increment workflow) with **2655 tests in the last completed root-suite
-pass and 2655 currently collected** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
+It is currently at **Increment 544** (see Increment workflow) with **2657 tests in the last completed root-suite
+pass and 2657 currently collected** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
 The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
 receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
@@ -878,7 +878,7 @@ the full per-increment narrative for all other increments now lives in the reloc
   until the same path is exercised against a genuine EndNote-created file; the checked-in alias fixture is only
   a contract stand-in. Research: `.claude/docs/research/2026-08-21_endnote_generic_import.md`.
 - **EndNote legacy-MyISAM reader and developer executor proven, production gated (backlog #57 Phase
-  6B, incs 535/541/542):** no
+  6B, incs 535/541/542/544):** no
   maintained pure-language reader was found for the real fixtures' `.frm`/`.MYD`/`.MYI` row data. A disposable,
   network-isolated MariaDB 10.11 experiment using only EndNote's public X7 sample recognized the tables and,
   after the engine-required rebuild on a copy, read all 59 `refs` rows with the expected 54-field schema. This
@@ -890,9 +890,12 @@ the full per-increment narrative for all other increments now lives in the reloc
   hashes the archive, makes a digest-verified private copy, extracts only the allowlisted legacy tables, manifests
   a developer-supplied runtime, executes fixed SQL through direct argv with bounded logs/time/output, and publishes
   only a path-free `DEVELOPER_TEST_ONLY` aggregate receipt. A fresh official-Windows live run returned 59 rows/54
-  columns, preserved the source hash, and left no process. No runtime, route, setting, paper write, PDF ingest, or UI
-  ships. Production remains gated on reproducible Windows/Linux manifests, standalone Linux and macOS lifecycle,
-  GPL aggregate review, and attached-PDF plus modern-SQLite fixtures. Docker remains research-only; RIS/XML
+  columns, preserved the source hash, and left no process. Inc 544 replaced Linux's incomplete launcher-only
+  identity with a 28-file launcher/message/charset manifest and ran that bundle directly on Debian 12, outside
+  Docker: 59 rows/54 columns in 259 ms, all 18 OS dependencies resolved, relocation-stable identity, no orphan.
+  No runtime, route, setting, paper write, PDF ingest, or UI ships. Production remains gated on signed/pinned
+  shipping artifacts, a tested Linux distro/ABI policy, standalone macOS lifecycle, GPL aggregate review, and
+  attached-PDF plus modern-SQLite fixtures. Docker remains research-only; RIS/XML
   fallbacks remain unchanged. Research:
   `.claude/docs/research/2026-08-30_endnote_managed_bootstrap_engine.md`.
 - **Native Mendeley transport scaffolded, OAuth activation gated (backlog #57 Phase 6A, inc 537):** the dormant
