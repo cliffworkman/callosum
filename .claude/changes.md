@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-30 — Increment 542: developer-only EndNote bootstrap executor
+- **Files:** new `tools/endnote/legacy_bootstrap.py` + README; adversarial executor tests; EndNote research,
+  security, architecture, backlog, and increment ledgers. No production import/runtime/provider surface changed.
+- **What:** built the approved proof harness for the legacy X1/X7 MyISAM profile. It bounds and hashes an `.enlx`,
+  copies it byte-for-byte into a private root, manually extracts only the required tables, creates a deterministic
+  allowlisted runtime manifest, and feeds static SQL to one-shot `mariadbd --bootstrap` under direct argv,
+  `--skip-networking`, bounded output, timeout, and process-tree cleanup. Receipts contain hashes/counts only.
+- **Live result:** a fresh checksum-verified official MariaDB 10.11.19 Windows package read the public X7 fixture
+  as 59 rows/54 columns in 1,187 ms, preserved source SHA-256, emitted no source/runtime path, and left no process.
+  The first attempt failed closed because that Windows build does not expose wsrep; removing the unsupported,
+  redundant `--skip-wsrep` flag was evidence-driven and preserved the no-network/bootstrap contract.
+- **Boundary:** developer-only. No runtime is bundled/downloaded by Callosum; no route, UI, token, migration,
+  paper write, PDF ingest, or personal fixture use. Production gates remain open.
+- **Verify:** focused executor **30 passed**; affected import suite **86 passed**; clean full suite **2,655 passed,
+  3 skipped**; final repository/static receipts are recorded in `INCREMENT-542-NOTES.md`.
+- **Revert:** revert this increment; no schema or production behavior depends on it.
+
 ## 2026-08-30 — Increment 541: EndNote one-shot managed-engine decision
 - **Files:** EndNote managed-bootstrap research/design; Phase 6B security audit; architecture/backlog/session
   ledgers. No production code, dependency, runtime bundle, route, UI, or import behavior changed.

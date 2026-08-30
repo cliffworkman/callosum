@@ -47,7 +47,8 @@ Callosum is a working local-first MVP at Increment 73. It runs as a localhost Fa
 - `app/backend/importers/`: Zotero importer; dormant bounded Mendeley snapshot→canonical-paper/collection mapper;
   and the shared imported-folder/group → ordinary-axis snapshot seam. Legacy EndNote `.enlx` remains research-
   only: the approved future seam is a one-shot, no-listener MariaDB bootstrap child over a private copied
-  datadir, not a persistent database service; no EndNote executor or runtime is shipped yet.
+  datadir, not a persistent database service. `tools/endnote/legacy_bootstrap.py` is the adversarially tested
+  developer-only proof of that seam; the backend imports neither it nor a database runtime.
 - `app/backend/metadata/`: DOI enrichment, safe paper edits, abstract display cleanup, and BibTeX/RIS/CSL-JSON export.
 - `app/backend/wip/` plus `persistence/wip_*`: local unpublished-manuscript discovery, bounded primary-file text
   extraction, exact checkpoints, and generic snapshot-bound tool receipts/findings. Deterministic WIP checks reuse

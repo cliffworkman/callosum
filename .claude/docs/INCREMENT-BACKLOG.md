@@ -367,7 +367,10 @@ the Principles + A-A gates before build.)*
     Windows and Debian live tests proved that one-shot `mariadbd --bootstrap` can rebuild/read a private copy,
     write bounded `--secure-file-priv` output, and exit under `--skip-networking`, eliminating a persistent
     service/listener/account. A pruned experimental Windows runtime was 29 files/20.24 MB. The next approved seam
-    is a developer-only executor harness—not a production importer. Shipping remains gated on reproducible
+    was completed in **increment 542**: a developer-only executor now performs bounded archive preflight,
+    digest-verified copy-only extraction, deterministic allowlisted runtime identity, fixed SQL/direct argv,
+    bounded output/timeout cleanup, and path-free aggregate receipts. A fresh official-Windows live run returned
+    the public fixture's 59 rows/54 columns and left no process. It is not imported by production. Shipping remains gated on reproducible
     Windows/Linux manifests, macOS build/sign/notarization, GPL aggregate review, a real attached-PDF fixture,
     and a separate modern SQLite-era fixture; Docker is not an end-user prerequisite. Fixtures remain gitignored
     at `.claude/backups/endnote-fixtures/`. **Increment 537 added the safe, dormant Mendeley transport scaffold:**

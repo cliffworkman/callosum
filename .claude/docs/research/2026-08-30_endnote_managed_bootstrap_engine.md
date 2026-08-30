@@ -168,13 +168,27 @@ attachment references validate should the existing transaction-safe import domai
 | Runtime tampering | deterministic bundle manifest + signature/checksum provenance | production manifest design |
 | License/source omission | GPL aggregate review, notices, corresponding source/build recipe | maintainer/legal sign-off |
 
-## Next bounded increment
+## Developer executor result (increment 542)
 
-Build a **developer-only bootstrap executor harness** using a developer-supplied pinned runtime root and the
-public X7 fixture. It should prove archive preflight, static command/SQL construction, timeout/cleanup,
-listener absence, bounded encoded export, runtime identity, and source immutability on Windows and Linux.
+`tools/endnote/legacy_bootstrap.py` implements the approved developer-only boundary without entering an app
+import path. It performs bounded ZIP preflight, streaming SHA-256, a digest-verified private archive copy,
+allowlisted table extraction, deterministic runtime manifesting, fixed SQL, direct-argv bootstrap execution,
+bounded stdout/stderr/engine log, timeout/process-tree cleanup, encoded aggregate receipt validation, and a final
+source-hash check. Its receipt contains no input/runtime path or bibliographic row.
 
-Do not add a route, UI, bundled engine, paper write, PDF ingestion, or production activation in that increment.
+A fresh Windows acceptance run used the official 10.11.19 archive already pinned above. It returned the public
+X7 sample's 59 rows/54 columns in 1,187 ms, left the source SHA-256 unchanged, emitted a 29-entry runtime manifest,
+and left no `mariadbd` process. The first attempt safely exposed one build-specific assumption: this Windows
+package does not compile/expose wsrep, so `--skip-wsrep` is rejected as unknown. The harness removed that redundant
+flag; bootstrap mode, `--skip-networking`, `--skip-log-bin`, disabled InnoDB, external locking/symlinks/local
+infile restrictions, private datadir, and `--secure-file-priv` remain explicit.
+
+The Debian host still has no standalone `mariadbd`; only the research-only official Docker image is available.
+Increment 541 already proved the same fixed stdin/bootstrap operation inside that image. A standalone portable
+Linux bundle remains a production packaging gate rather than being papered over with Docker.
+
+No route, UI, bundled engine, paper write, PDF ingestion, or production activation was added. The next work is
+not broader parser coding: close the remaining platform/package/license and missing-fixture gates listed above.
 
 ## Authoritative sources checked
 
