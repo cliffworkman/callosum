@@ -366,7 +366,13 @@ the Principles + A-A gates before build.)*
     EndNote's public X7 MyISAM `refs` table from a copy. Phase B is therefore technically feasible but now gated
     on an explicit managed-engine packaging/security design, a real attached-PDF fixture, and a separate modern
     SQLite-era fixture; Docker is not an acceptable end-user prerequisite. Fixtures remain gitignored at
-    `.claude/backups/endnote-fixtures/`. **The shared imported-folder/group → axis seam shipped in increment 536:**
+    `.claude/backups/endnote-fixtures/`. **Increment 537 added the safe, dormant Mendeley transport scaffold:**
+    version-pinned/bounded documents, folders, memberships, files, signed-download redirect, and OAuth exchange
+    primitives with hermetic tests. It also found the official authorization-code flow still requires a
+    confidential secret, documents no PKCE, and pins one redirect URI—a real packaged-desktop blocker beyond
+    merely obtaining credentials. No callback/token persistence/UI is published until registration capabilities
+    and safe secret/redirect ownership are proven live. **The shared imported-folder/group → axis seam shipped in
+    increment 536:**
     Zotero now preserves `parentCollectionID`, previews top-level folders in its existing import dialog, and only
     on explicit action snapshots descendant-inclusive membership into idempotent ordinary axes. Curated is the
     default; the unchecked keyword option keeps exact folder papers as manual anchors and reuses local scoring.

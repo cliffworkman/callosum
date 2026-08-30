@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-30 — Increment 537: bounded Mendeley API transport scaffold
+- **Files:** dormant Mendeley OAuth/library client; hermetic transport/adversarial tests; native-import research,
+  README, architecture, backlog, security, and increment ledgers.
+- **What:** pins the official v1 documents/folders/folder-membership/files contracts, bearer-only auth, bounded
+  same-resource pagination, sanitized failures, and a strict non-following signed-download redirect. The OAuth
+  primitive matches Mendeley's documented confidential authorization-code exchange but publishes no callback.
+- **Why:** safe client behavior can be proven before credentials exist, while current official docs expose a
+  deeper desktop blocker: authorization code requires a confidential secret, documents no PKCE, and pins an
+  exact redirect URI. Embedding a shared secret or guessing a callback-port strategy would be insecure.
+- **Boundary:** no route, UI, token persistence, imported row, provider fallback, or live network request. The
+  existing Zotero bridge/export paths stay authoritative until registration and secret/redirect ownership are
+  validated live.
+- **Verify:** client/HTTP-bounds/acquisition/credential-store affected suite **80 passed**; **2616 tests** collect;
+  Ruff format/check passed. Final security/static/remote receipts follow in increment notes.
+- **Revert:** revert this increment; no database or production behavior changed.
+
 <!-- HELP-DOCS-SYNCED: 2026-08-30 inc 536 — imported folders → axes -->
 ## 2026-08-30 — Increment 536: imported reference-manager folders → axes
 - **Files:** shared collection-axis domain/API/provenance migration; Zotero hierarchy persistence; import-dialog

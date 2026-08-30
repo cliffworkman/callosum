@@ -34,7 +34,8 @@ needs no bridge application:
   *this app* delegated access to *their own* library. This is the same posture as callosum's existing ORCID
   OIDC sign-in (`app/backend/api/auth/`) — the vendor's own sanctioned door, not a protected-store workaround.
   It is the structural opposite of the `.enl`-decryption boundary APPROACH-AVOIDANCE already forbids.
-- **`GET /documents`** — paginated library metadata, filterable by `folder_id`/`group_id`/`modified_since`.
+- **`GET /documents`** — paginated library metadata, filterable by `group_id`/`modified_since`; personal-folder
+  membership is exposed through the separate `/folders/{id}/documents` endpoint, not a `folder_id` filter.
 - **`GET /folders`** — a genuinely hierarchical resource via `parent_id` (distinct from Groups, which are
   shared/collaborative and out of scope here — personal library only, matching the existing Mendeley-bridge
   research's own "personal library only" boundary).
@@ -59,6 +60,39 @@ OAuth client setup — not something an implementing session can do on its own.
 Native Mendeley Reference Manager exports (BibTeX/RIS/EndNote XML/Word XML, via `File > Export`) remain
 metadata-only per Elsevier's own current support documentation — confirmed no different from what was already
 known; the REST API is the only Mendeley path that carries files and real folder structure together.
+
+### Desktop OAuth constraint + safe scaffold (2026-08-30, increment 537)
+
+A fresh official-doc review found an architectural constraint hidden by the earlier high-level feasibility
+result. Mendeley's authorization-code flow authenticates `/oauth/token` with HTTP Basic using the registered
+client ID and **client secret**; its own authorization overview classifies this as a confidential-client flow.
+The official docs expose no PKCE parameter or public-client authorization-code variant. The alternative implicit
+flow avoids a secret but issues one-hour access tokens with no refresh protocol. Registration also pins an exact
+redirect URI. Those facts matter for Callosum's packaged desktop shape:
+
+- embedding one shared application secret in a distributed binary would not keep it confidential;
+- using the ordinary backend callback is not reliable while its port may move on collision;
+- silently switching to implicit flow would lose refresh and would not implement the approved design.
+
+Therefore increment 537 does **not** publish a callback or persist tokens. It retains a reusable, hermetically
+tested client under `integrations/mendeley/client.py`: exact official authorize/token endpoints and versioned
+Accept headers; read-only `/documents?view=all`, `/folders`, `/folders/{id}/documents`, and `/files`; bearer-only
+authorization; 500-item pages with hard page/item/body/URL limits; same-resource pagination with cycle rejection;
+and a non-following `/files/{id}` 303 check allowlisted to the documented `downloads.mendeley.com` host. Provider
+errors are sanitized so tokens/secrets and response bodies do not enter exceptions.
+
+The remaining prerequisite is now more precise than “register an app”: inspect the actual My Applications form
+and/or obtain Mendeley support confirmation for a desktop-safe public-client/PKCE or brokered-confidential-client
+shape, register the exact redirect design, then exercise authorization, refresh, pagination, and signed-download
+behavior live before any user-facing activation. Official sources reviewed 2026-08-30:
+
+- https://dev.mendeley.com/reference/topics/authorization_auth_code.html
+- https://dev.mendeley.com/reference/topics/authorization_implicit.html
+- https://dev.mendeley.com/reference/topics/authorization_overview.html
+- https://dev.mendeley.com/reference/topics/application_registration.html
+- https://dev.mendeley.com/reference/topics/versioning.html
+- https://dev.mendeley.com/reference/topics/pagination.html
+- https://dev.mendeley.com/methods/
 
 ## EndNote: the Compressed Library (`.enlx`), no separate app required
 

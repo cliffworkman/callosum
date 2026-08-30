@@ -53,7 +53,10 @@ Callosum is a working local-first MVP at Increment 73. It runs as a localhost Fa
 
 ## External Adapters
 
-Implemented adapters live under `integrations/`: Zotero, Crossref, and Gemini. OpenAlex, Semantic Scholar, GROBID, and Mendeley currently remain README/stub future or import-coverage surfaces, not active integrations.
+Implemented adapters live under `integrations/`: Zotero, Crossref, and Gemini. Mendeley has a dormant,
+transport-only official-API client (bounded/version-pinned; no OAuth route or token persistence) awaiting a
+desktop-safe registration/redirect design. OpenAlex, Semantic Scholar, and GROBID currently remain README/stub
+future or import-coverage surfaces, not active integrations.
 
 ## Trust Spine
 

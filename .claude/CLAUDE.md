@@ -22,8 +22,8 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 536** (see Increment workflow) with **2590 tests in the last completed root-suite
-pass and 2600 currently collected** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
+It is currently at **Increment 537** (see Increment workflow) with **2590 tests in the last completed root-suite
+pass and 2616 currently collected** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
 The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
 receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
@@ -885,6 +885,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   engine is a separate security/packaging decision, and attached-PDF plus modern-SQLite fixtures are still
   missing. Docker remains research-only, never an end-user prerequisite; RIS/XML fallbacks remain unchanged.
   Research: `.claude/docs/research/2026-08-29_mendeley_endnote_native_import.md`.
+- **Native Mendeley transport scaffolded, OAuth activation gated (backlog #57 Phase 6A, inc 537):** the dormant
+  `integrations/mendeley/client.py` pins Mendeley's v1 media contracts and bounds/sanitizes documents, folders,
+  exact folder membership, files, pagination, and signed-download redirects; no route, token persistence, UI,
+  or live request is active. Fresh official-doc review found authorization code still requires a confidential
+  client secret, documents no PKCE, and pins an exact redirect. A packaged desktop app cannot safely embed that
+  shared secret and its normal backend port can move, so activation now requires app-registration/support
+  evidence plus a defensible secret/redirect owner—not merely receiving credentials. Existing Zotero bridge and
+  export paths remain unchanged. Research: `.claude/docs/research/2026-08-29_mendeley_endnote_native_import.md`.
 - **Mendeley-via-Zotero feasibility confirmed (backlog #57 Phase 3, inc 487):** Zotero currently documents a
   desktop **File → Import → Mendeley Reference Manager (online import)** path that brings a personal Mendeley
   library's data, files, and folder structure into an ordinary Zotero library; Callosum then uses its unchanged
