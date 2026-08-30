@@ -31,6 +31,16 @@ identity now hashes all 28 relative-path/size/content entries rather than only t
 relocation reproduced the manifest digest. This is one Debian/glibc compatibility point, not a cross-distro or
 shipping-package claim, so the audit remains open.
 
+Increment 545 completes the engineering license/provenance review but does not supply legal approval. MariaDB
+Server is GPL-2.0-only and Callosum is AGPL-3.0-or-later; they must not be linked, merged, or presented as one
+relicensed program. The separate process/argv/stdin/file boundary has the technical characteristics of independent
+programs in an aggregate, but the feature-specific dependency still requires qualified review. Official 10.11.19
+Linux binary and source hashes/signatures were verified; both an original signed-bintar candidate and a
+deterministically stripped 31.8 MB candidate reproduced the public fixture receipt and left no process. A future
+release must mirror exact source/notices, record every transform, sign the derived asset, and remain blocked from
+installer/updater/catalog integration until legal sign-off. See
+`.claude/docs/research/2026-08-30_endnote_mariadb_distribution_review.md`.
+
 ## Approved POC boundary
 
 - Developer-supplied pinned runtime only; no bundled binary, downloader, route, UI, or user data write.
@@ -49,7 +59,8 @@ shipping-package claim, so the audit remains open.
   Linux distro/ABI matrix and explicit OS-package dependency policy.
 - Reproducible macOS arm64/x86_64 build plus signing/notarization/live lifecycle proof; upstream 10.11.19 offers
   no official macOS binary in its current download inventory.
-- GPL-2.0 server aggregation/corresponding-source/notices review alongside Callosum's AGPL-3.0 distribution.
+- Qualified legal approval of the GPL-2.0-only server / AGPL-3.0-or-later separate-program aggregate boundary;
+  engineering source/notice/signature/transformation requirements are now specified but not implemented.
 - Real attached-PDF `.enlx` fixture and modern SQLite-era `.enlx` fixture.
 - Full production row/schema/attachment mapping and corrupt-engine-table negative suites beyond the aggregate
   developer receipt; attachment MIME/signature/deduplication cannot close without a real attached-PDF fixture.

@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-30 — Increment 545: EndNote MariaDB distribution review
+- **Files:** new license/provenance research receipt plus EndNote security, architecture-decision, backlog, and
+  increment ledgers. No runtime, dependency, importer, downloader, route, setting, UI, or production behavior.
+- **What:** established that MariaDB Server is GPL-2.0-only while Callosum is AGPL-3.0-or-later. The separate
+  executable/argv/stdin boundary is a technically plausible aggregate, not license compatibility; distribution
+  remains blocked on qualified legal approval and a complete source/notice/signature release kit.
+- **Live result:** official signed 10.11.19 Linux binary/source hashes and signatures verified. The signed bintar
+  candidate and a deterministic 31.8 MB stripped candidate each returned the public X7 fixture's 59 rows/54
+  columns in 259 ms with no orphan. The strip transform reproduced byte-for-byte across two copies.
+- **Boundary:** engineering review complete, legal sign-off still required. No MariaDB material is committed or
+  shipped; `THIRD-PARTY-NOTICES.md` remains unchanged until a component actually distributes.
+- **Verify:** exact receipts and authoritative sources are in `INCREMENT-545-NOTES.md` and the research doc.
+- **Revert:** documentation-only; revert this increment commit.
+
 ## 2026-08-30 — Increment 544: standalone Linux EndNote runtime proof
 - **Files:** EndNote developer probe/tests/README plus research, security, architecture, backlog, and increment
   ledgers. No production import/runtime/provider surface changed; no MariaDB binary was committed.

@@ -374,9 +374,12 @@ the Principles + A-A gates before build.)*
     identity gap:** a deterministic 28-file launcher/message/charset bundle extracted from the pinned official
     image ran directly on Debian 12 outside Docker, reproduced the same schema receipt, resolved all 18 OS-owned
     dependencies, and remained identity-stable after relocation. It is not imported by production. Shipping
-    remains gated on turning these developer manifests into signed/pinned artifacts, a tested Linux distro/ABI
-    policy, macOS build/sign/notarization, GPL aggregate review, a real attached-PDF fixture, and a separate
-    modern SQLite-era fixture; Docker is not an end-user prerequisite. Fixtures remain gitignored
+    **Increment 545 completes the engineering license/provenance review:** MariaDB is GPL-2.0-only and remains a
+    separate optional process; official Linux binary/source hashes and signatures plus a deterministic 31.8 MB
+    stripped candidate are proven. Distribution is still blocked on qualified legal approval of the aggregate
+    boundary and implementation of the specified source/notices/signatures/transformation kit. Shipping also
+    remains gated on a tested Linux distro/ABI policy, macOS build/sign/notarization, a real attached-PDF fixture,
+    and a separate modern SQLite-era fixture; Docker is not an end-user prerequisite. Fixtures remain gitignored
     at `.claude/backups/endnote-fixtures/`. **Increment 537 added the safe, dormant Mendeley transport scaffold:**
     version-pinned/bounded documents, folders, memberships, files, signed-download redirect, and OAuth exchange
     primitives with hermetic tests. It also found the official authorization-code flow still requires a

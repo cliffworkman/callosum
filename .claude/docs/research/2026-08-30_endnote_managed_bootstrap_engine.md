@@ -197,6 +197,12 @@ launcher-only digest as complete runtime identity. This proves one real direct-h
 not establish compatibility for every Linux distribution, and it deliberately does not vendor glibc/system
 libraries. A shipping design still needs an explicit distro/ABI support matrix or package-dependency policy.
 
+Increment 545's separate license/provenance review is authoritative for the distribution boundary:
+`.claude/docs/research/2026-08-30_endnote_mariadb_distribution_review.md`. It verifies the official signed Linux
+binary/source artifacts, proves a deterministic 31.8 MB stripped candidate, and specifies the source/notices/
+signatures/transformation kit. Distribution remains blocked on qualified legal approval because GPL-2.0-only
+MariaDB and AGPL-3.0-or-later Callosum cannot be combined under one license.
+
 No route, UI, bundled engine, paper write, PDF ingestion, or production activation was added. The next work is
 not broader parser coding: close the remaining platform/package/license and missing-fixture gates listed above.
 
