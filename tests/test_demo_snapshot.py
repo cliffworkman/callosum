@@ -383,24 +383,36 @@ def test_saved_demo_synthesis_includes_traceable_generated_overview():
     state = DemoAskOverviewState.model_validate_json(Path("demo/ask-overview-v1.json").read_bytes())
     assert summary.overview == state.overview
     assert state.verified_claims_sha256 == verified_claims_sha256(summary)
-    assert 2 <= len(summary.overview) <= 6
+    # Only 1 of 5 saved sentences is fully verified (see the mixed-status test below) -- the Overview can only
+    # ever narrate that one claim, never the flagged ones, so its length is bounded by the verified count, not
+    # a fixed "several claims" assumption.
+    assert 1 <= len(summary.overview) <= 6
     verified_ordinals = {sentence.ordinal for sentence in summary.sentences or [] if not sentence.flagged}
     assert all(set(item.claim_ordinals) <= verified_ordinals for item in summary.overview)
 
 
-def test_saved_demo_synthesis_is_the_verified_three_paper_sandbox_run():
+def test_saved_demo_synthesis_is_the_verified_and_flagged_three_paper_sandbox_run():
+    # Deliberately a mixed-status summary (backlog: demo/Ask flagged-state gap, 2026-08-30): an all-"verified"
+    # demo is less representative of the app's real verified/flagged behavior than an honest mix -- see
+    # tools/demo/promote_verified_demo_synthesis.py's own docstring for the promotion-gate rationale.
     snapshot = DemoSnapshot.model_validate_json(Path("demo/snapshot-v1.json").read_bytes())
     summary = snapshot.api.summaries[str(snapshot.manifest.initial_summary_id)]
-    assert summary.summary_status == "verified"
+    assert summary.summary_status == "flagged"
     assert len(summary.sentences or []) == 5
-    assert all(not sentence.flagged for sentence in summary.sentences or [])
+    flagged = [sentence.flagged for sentence in summary.sentences or []]
+    assert flagged.count(False) == 1  # exactly one fully-verified claim
+    assert flagged.count(True) == 4  # exactly four flagged (weak-retrieval) claims
     assert {citation.paper_id for sentence in summary.sentences or [] for citation in sentence.citations} == {
         42,
         67,
         88,
     }
     citations = [citation for sentence in summary.sentences or [] for citation in sentence.citations]
-    assert all(citation.status == "verified" for citation in citations)
+    statuses = [citation.status for citation in citations]
+    assert statuses.count("verified") == 1
+    assert statuses.count("weak") == 4
+    # Every quote/support is genuinely strong even on the "weak" citations -- their status comes from
+    # retrieval_confidence alone falling just under threshold, not a fabricated or low-quality match.
     assert all(citation.quote_confidence == pytest.approx(1.0) for citation in citations)
     assert all(citation.support_confidence == pytest.approx(1.0) for citation in citations)
 

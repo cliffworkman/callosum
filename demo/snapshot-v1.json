@@ -38763,12 +38763,12 @@
           "title": "Getting started"
         },
         {
-          "html": "<p>Callosum has three panes, plus a <strong>menu bar</strong> across the top of the center pane that switches <strong>workspaces</strong> (what you&#x27;re doing right now):</p><ul><li><strong>Menu bar (top of the center pane):</strong> switch between <strong>My Publications</strong> (your publications + impact), <strong>Library</strong> (your collection + open PDFs), <strong>Synthesize</strong> (Ask, Critique, and Meta-Preregistration), <strong>Discover</strong> (Feed, Search, Wanted, Gaps, Overlooked, Saved for later, Followed Authors, Journals, Funding), and <strong>Work</strong> (Cite, Meta-Reference, CRediT, Statements, Meta-Analyze — citing, reference-list analysis, credit + open-science statements, and meta-analysis dataset prep). <strong>Help</strong>, <strong>Settings</strong>, <strong>Feedback</strong>, and the <strong>Status</strong> popover sit at the right of the menu bar.</li><li><strong>Left pane:</strong> an <strong>accordion</strong> with <strong>Axes</strong> (plus a <strong>Tags</strong> tab — your labels alongside your conceptual lenses), the reading queue, and review/findings sections — click a section header to open it (one at a time).</li><li><strong>Right pane:</strong> a <strong>Details</strong> accordion — the editable bibliographic info for the paper you&#x27;ve selected (a hint until you select one).</li></ul><p>The three panes stay put; only the center changes as you switch workspaces. On a phone-width screen, the center pane uses a compact <strong>Workspace</strong> dropdown instead of the full desktop tab strip. <strong>Status</strong> remains beside it. Status collects running AI operations—both configured provider calls and installed local tools such as embeddings, semantic retrieval, NLI, OCR, and clustering—plus other lengthy operations that show progress. Routine <strong>Library scans</strong> and <strong>WIP folder scans</strong> are intentionally kept out because they run frequently; their progress remains visible where you started or configured them. Each Status row tells you whether the work is local or provider-backed; shows real completion and an approximate ETA when the operation reports measurable progress, or says those values are not yet measurable; and can be clicked to return directly to the relevant paper, workspace, panel, or dialog. The side panels resize with the vertical grips and collapse with the chevron next to each. Within a side pane the open section is remembered between sessions, and in-progress workspace tasks stay mounted while you switch away.</p><p>Under <strong>Library</strong>, the workspace has a <strong>Library</strong> tab (your list), a temporary tab for the selected-but-unopened paper, and one tab per open PDF. Click the temporary selected-paper tab to open the PDF; once open, it becomes a normal PDF tab. Open PDF tabs can be dragged to reorder them, and switching workspaces keeps those PDFs mounted so you don&#x27;t re-open a document each time. Open papers live under Library; switch to My Publications / Synthesize / Discover / Work and they&#x27;re tucked away until you come back.</p><p>In <strong>Discover → Journals</strong> and <strong>Discover → Funding</strong>, the selected paper appears before the Discover sub-tabs using that same tab language: dashed accent if it is selected but not open, and the normal open-PDF tab style if it is already open. Click the cue to open or return to the reader for that paper.</p><p>Tips:</p><ul><li>Select a paper once to inspect its metadata in <strong>Details</strong> (right pane).</li><li>Double-click a paper in the Library to open its PDF.</li><li>Click paper titles inside an axis to open their PDFs and follow them in Details.</li><li><strong>Help</strong>, <strong>Settings</strong>, and <strong>Feedback</strong> are on the menu bar (top-right of the center pane).</li></ul>",
+          "html": "<p>Callosum has three panes, plus a <strong>menu bar</strong> across the top of the center pane that switches <strong>workspaces</strong> (what you&#x27;re doing right now):</p><ul><li><strong>Menu bar (top of the center pane):</strong> switch between <strong>My Publications</strong> (your publications + impact), <strong>Library</strong> (your collection + open PDFs), <strong>Synthesize</strong> (Ask, Critique, and Meta-Preregistration), <strong>Discover</strong> (Feed, Search, Wanted, Gaps, Overlooked, Saved for later, Journals, Funding), and <strong>Work</strong> (Cite, Meta-Reference, CRediT, Statements, Meta-Analyze — citing, reference-list analysis, credit + open-science statements, and meta-analysis dataset prep). <strong>Help</strong>, <strong>Settings</strong>, <strong>Feedback</strong>, and the <strong>Status</strong> popover sit at the right of the menu bar.</li><li><strong>Left pane:</strong> an <strong>accordion</strong> with <strong>Axes</strong> (plus a <strong>Tags</strong> tab — your labels alongside your conceptual lenses), the reading queue, and review/findings sections — click a section header to open it (one at a time).</li><li><strong>Right pane:</strong> a <strong>Details</strong> accordion — the editable bibliographic info for the paper you&#x27;ve selected (a hint until you select one).</li></ul><p>The three panes stay put; only the center changes as you switch workspaces. On a phone-width screen, the center pane uses a compact <strong>Workspace</strong> dropdown instead of the full desktop tab strip. <strong>Status</strong> remains beside it. Status collects running AI operations—both configured provider calls and installed local tools such as embeddings, semantic retrieval, NLI, OCR, and clustering—plus other lengthy operations that show progress. Routine <strong>Library scans</strong> and <strong>WIP folder scans</strong> are intentionally kept out because they run frequently; their progress remains visible where you started or configured them. Each Status row tells you whether the work is local or provider-backed, what stage it has reached, and how long it has been running. After enough comparable runs on this device, Status may add a cautious recent timing range or remaining-time estimate; sparse or provider-variable work stays elapsed-only, and an overrun is labeled <strong>Taking longer than recent runs</strong> instead of showing a false countdown. These local timing receipts contain duration and coarse configuration/workload shape only—never paper or prompt content—and old estimator versions are ignored. A Status row can be clicked to return directly to the relevant paper, workspace, panel, or dialog. The side panels resize with the vertical grips and collapse with the chevron next to each. Within a side pane the open section is remembered between sessions, and in-progress workspace tasks stay mounted while you switch away.</p><p>Under <strong>Library</strong>, the workspace has a <strong>Library</strong> tab (your list), a temporary tab for the selected-but-unopened paper, and one tab per open PDF. Click the temporary selected-paper tab to open the PDF; once open, it becomes a normal PDF tab. Open PDF tabs can be dragged to reorder them, and switching workspaces keeps those PDFs mounted so you don&#x27;t re-open a document each time. Open papers live under Library; switch to My Publications / Synthesize / Discover / Work and they&#x27;re tucked away until you come back.</p><p>In <strong>Discover → Journals</strong> and <strong>Discover → Funding</strong>, the selected paper appears before the Discover sub-tabs using that same tab language: dashed accent if it is selected but not open, and the normal open-PDF tab style if it is already open. Click the cue to open or return to the reader for that paper.</p><p>Tips:</p><ul><li>Select a paper once to inspect its metadata in <strong>Details</strong> (right pane).</li><li>Double-click a paper in the Library to open its PDF.</li><li>Click paper titles inside an axis to open their PDFs and follow them in Details.</li><li><strong>Help</strong>, <strong>Settings</strong>, and <strong>Feedback</strong> are on the menu bar (top-right of the center pane).</li></ul>",
           "id": "app-layout",
           "title": "Finding your way around"
         },
         {
-          "html": "<p>Zotero import is for bringing your existing reference library into Callosum without turning Callosum into a cloud sync service. The importer reads your local Zotero library data and represents papers, metadata, collections, tags, notes, annotations, and attachments in Callosum.</p><p>During import, Callosum:</p><ul><li>Matches existing papers where it can, instead of blindly duplicating them.</li><li>Records Zotero metadata such as title, authors, year, venue, DOI, citation key, and item type.</li><li>Tracks local PDF attachments when available.</li><li>Extracts PDF text into chunks with page information and bounding boxes.</li><li>Preserves enough source-location information for later citation jumping and verification.</li><li>Keeps URL-only or missing attachments as honest metadata entries rather than pretending the PDF is local.</li></ul><p>Import does not make Gemini calls. Text extraction and local processing stay on your machine.</p><p>Gotchas:</p><ul><li>If a paper says <strong>PDF not available locally</strong>, the imported record may be URL-only, metadata-only, or pointed at a file that is no longer available on disk.</li><li>A paper with <strong>metadata not yet resolved</strong> or <strong>needs DOI</strong> usually came from a raw or sparse record. Add or fix the DOI in Detail, then use the <code>🔎</code> button to re-resolve it from Crossref.</li><li>Imported PDF text quality depends on the PDF. Scanned image-only pages may not produce useful selectable text or exact citation coordinates.</li></ul>",
+          "html": "<p>Zotero import is for bringing your existing reference library into Callosum without turning Callosum into a cloud sync service. The importer reads your local Zotero library data and represents papers, metadata, collections, tags, notes, annotations, and attachments in Callosum.</p><p>During import, Callosum:</p><ul><li>Matches existing papers where it can, instead of blindly duplicating them.</li><li>Records Zotero metadata such as title, authors, year, venue, DOI, citation key, and item type.</li><li>Tracks local PDF attachments when available.</li><li>Extracts PDF text into chunks with page information and bounding boxes.</li><li>Places supported Zotero PDF highlights and underlines over the matching local PDF, with their quoted text, color, and comment intact.</li><li>Preserves Zotero&#x27;s raw annotation location when a position cannot be translated exactly; Callosum leaves those marks undrawn instead of guessing.</li><li>Keeps URL-only or missing attachments as honest metadata entries rather than pretending the PDF is local.</li></ul><p>Import does not make Gemini calls. Text extraction and local processing stay on your machine.</p><h3>Turn imported folders into axes</h3><p>After a Zotero read, the same dialog lists the imported top-level folders. Callosum does <strong>not</strong> create axes silently: choose the explicit action when you want one axis per non-empty top-level folder. Papers in nested folders roll up into their top-level parent.</p><ul><li>The default creates a <strong>curated axis</strong> containing exactly the imported folder papers in a manual order.</li><li>The optional, initially unchecked <strong>keyword axis</strong> choice keeps those exact papers as manual anchors, then uses</li></ul><p>Callosum&#x27;s existing local axis scorer to find other library papers similar to the folder name. This can take a while; its ordinary Axis-scoring jobs remain visible under Status.</p><p>This is a one-time snapshot. Re-reading Zotero refreshes its saved collection hierarchy but never overwrites an axis you have renamed, reordered, or edited. Repeating the create action returns the existing axes instead of making duplicates. If you imported Zotero before this feature existed, read that Zotero library once more first so Callosum can restore nested parent/child relationships that older imports did not retain.</p><p>Gotchas:</p><ul><li>If a paper says <strong>PDF not available locally</strong>, the imported record may be URL-only, metadata-only, or pointed at a file that is no longer available on disk.</li><li>A paper with <strong>metadata not yet resolved</strong> or <strong>needs DOI</strong> usually came from a raw or sparse record. Add or fix the DOI in Detail, then use the <code>🔎</code> button to re-resolve it from Crossref.</li><li>Imported PDF text quality depends on the PDF. Scanned image-only pages may not produce useful selectable text or exact citation coordinates.</li><li>Imported highlights need the same local PDF they were created against. Unsupported annotation types, malformed locations, and rotated pages remain preserved as records but are not drawn at an invented position.</li></ul><h3>Moving a Mendeley library through Zotero</h3><p>For a fuller Mendeley migration than a metadata-only BibTeX/RIS file, use Zotero&#x27;s documented bridge first:</p><p>1. Make sure your personal Mendeley library and files are fully synced online. 2. In the latest Zotero Desktop, choose <strong>File → Import → Mendeley Reference Manager (online import)</strong> and sign in there. Zotero—not Callosum—handles that login; Callosum never receives your Mendeley credentials. 3. Let Zotero finish importing, then in Callosum choose <strong>+ Add → Read Zotero library… (Mendeley bridge)</strong> and enter Zotero&#x27;s data directory.</p><p>Zotero documents that this carries the personal library&#x27;s data, files, and folder structure into Zotero. It cannot directly import Mendeley group libraries; copy those items into a collection in your personal Mendeley library first. This route also does not convert citations already embedded by <strong>Mendeley Cite</strong> in Word documents. Callosum does not read or decrypt Mendeley&#x27;s protected local database.</p>",
           "id": "importing-from-zotero",
           "title": "Importing your library from Zotero"
         },
@@ -38783,7 +38783,7 @@
           "title": "Making a scanned PDF searchable (OCR)"
         },
         {
-          "html": "<p>To bring in references from another reference manager, open <strong>+ Add → Import file…</strong> at the top of the Library and choose a <strong>BibTeX</strong> (<code>.bib</code>), <strong>RIS</strong> (<code>.ris</code>), or <strong>CSL-JSON</strong> (<code>.json</code>) file. Zotero, Mendeley, EndNote, and Callosum itself can all export one of these formats. This is the mirror image of <strong>Exporting citations</strong> — what you export, you can re-import.</p><p>Each entry in the file becomes a metadata-only library paper (title, authors, year, journal, DOI, type, …). Entries already in your library are skipped (matched by DOI, or by title + year + first author when there&#x27;s no DOI), so re-importing the same file is safe and creates no duplicates. Anything the parser can&#x27;t read is skipped and counted rather than failing the whole import; the summary reports &quot;N imported · M already in library · K skipped&quot;.</p><p>Import brings in <strong>metadata only</strong> — no PDF is attached (add PDFs via <strong>Scan folder</strong>, Zotero, or <strong>Acquire OA copy</strong>). It runs <strong>entirely on your machine</strong>: the file is read in your browser and nothing is sent anywhere — no DOI lookup, no other network call. Imported papers are searchable and can be filtered by <strong>type</strong>; because the file is treated as your authoritative metadata, a later batch re-resolve won&#x27;t overwrite it unless you explicitly re-resolve that paper.</p>",
+          "html": "<p>To bring in references from another reference manager, open <strong>+ Add → Import citations file… (EndNote RIS)</strong> at the top of the Library and choose a <strong>BibTeX</strong> (<code>.bib</code>), <strong>RIS</strong> (<code>.ris</code>), or <strong>CSL-JSON</strong> (<code>.json</code>) file. Zotero, Mendeley, EndNote, and Callosum itself can all export one of these formats. This is the mirror image of <strong>Exporting citations</strong> — what you export, you can re-import.</p><p><strong>From EndNote:</strong> select the references you want (or <strong>All References</strong>), choose <strong>File → Export</strong>, use a plain-text file, and select the <strong>RefMan (RIS) Export</strong> output style. EndNote&#x27;s own documentation recommends this transfer style when the destination format is uncertain. EndNote may give the RIS export a <code>.txt</code> name; Callosum accepts <code>.txt</code> directly and detects the RIS tags, so you do not need to rename it. This route transfers citation metadata only — EndNote&#x27;s export does not include PDFs or images.</p><p>Each entry in the file becomes a metadata-only library paper (title, authors, year, journal, DOI, type, …). Entries already in your library are skipped (matched by DOI, or by title + year + first author when there&#x27;s no DOI), so re-importing the same file is safe and creates no duplicates. Anything the parser can&#x27;t read is skipped and counted rather than failing the whole import; the summary reports &quot;N imported · M already in library · K skipped&quot;.</p><p>Import brings in <strong>metadata only</strong> — no PDF is attached (add PDFs via <strong>Scan folder</strong>, Zotero, or <strong>Acquire OA copy</strong>). It runs <strong>entirely on your machine</strong>: the file is read in your browser and nothing is sent anywhere — no DOI lookup, no other network call. Imported papers are searchable and can be filtered by <strong>type</strong>; because the file is treated as your authoritative metadata, a later batch re-resolve won&#x27;t overwrite it unless you explicitly re-resolve that paper.</p>",
           "id": "importing-citations",
           "title": "Importing a citation file (BibTeX, RIS, CSL-JSON)"
         },
@@ -38838,9 +38838,9 @@
           "title": "Citing in LibreOffice Writer"
         },
         {
-          "html": "<p>You can also cite from your callosum library inside <strong>desktop Microsoft Word</strong> (Windows/Mac) with a task pane that searches your library and inserts citations. Because a Word add-in is a small web page, Word requires it to be served over HTTPS — so callosum serves it <strong>on your own machine</strong>, and nothing leaves your computer (it can&#x27;t run in Word-on-the-web, which has no access to your local library).</p><p><strong>Set it up once:</strong></p><p>1. <strong>Trust a local certificate</strong> — run <code>npx office-addin-dev-certs install</code> (so Word accepts <code>https://localhost</code>). 2. <strong>Run callosum over HTTPS</strong> — run <code>python tools/run_https.py</code>, then open the app at <strong>the local loopback address shown by Callosum</strong>. (Plain HTTP on :8080 still works for everyday use; HTTPS is only needed while citing in Word.) 3. <strong>Add the manifest to Word</strong> — in <strong>Settings → Microsoft Word add-in → Download manifest</strong>, then sideload it (Windows: register the folder as a Trusted Add-in Catalog; Mac: drop it in Word&#x27;s <code>wef</code> folder — see <code>adapters/word/README.md</code>).</p><p>Then in Word: <strong>Home → Callosum → Show Citations</strong>. The task pane mirrors the LibreOffice plugin:</p><ul><li><strong>Search → insert</strong> a live citation at the cursor (pick a style, type author/title/year, click a result).</li><li><strong>Suggest from the sentence</strong> — place your cursor in the sentence you&#x27;re writing and Callosum ranks your library by relevance, showing each candidate&#x27;s stance (supports / contrasts / mentions) and a quote; pick one to insert after the sentence.</li><li><strong>Refresh / renumber + bibliography</strong> — re-render every citation in document order and rebuild the <strong>References</strong> list (numeric styles renumber by position, like Zotero).</li><li><strong>Citation style</strong> — changing the dropdown re-renders the whole document in the new style (remembered per document).</li><li><strong>Flatten to static text</strong> — convert the live citations + bibliography to plain text for hand-off (one-way).</li></ul><p>Everything is local: the task pane talks only to callosum on your own machine, and all formatting is done by callosum&#x27;s citation engine.</p>",
+          "html": "<p>You can also cite from your callosum library inside <strong>Microsoft Word</strong> (Windows/Mac desktop, with a separately configured Word-on-the-web relay) using a task pane that searches your library and inserts citations. Because a Word add-in is a small web page, Word requires it to be served over HTTPS. Desktop Word loads it directly from callosum <strong>on your own machine</strong>; Word on the web uses the explicit Remote-access relay described in <code>adapters/word/README.md</code>.</p><p><strong>Set it up once:</strong></p><p>1. <strong>Enable Word support</strong> — in the packaged app, open <strong>Settings → Microsoft Word add-in (desktop)</strong> and click <strong>Enable Word Support</strong>. Callosum trusts one localhost-only certificate for your account and starts/stops the HTTPS companion with the app. On Windows, confirm the standard certificate Security Warning; this is not an administrator/elevation prompt. Disabling shows the matching Root-store removal confirmation and then removes the certificate files. 2. <strong>Add the manifest to Word</strong> — click <strong>Download manifest</strong>, then sideload it (Windows: register the add-in folder as a Trusted Add-in Catalog; Mac: put the manifest in Word&#x27;s <code>wef</code> folder — see <code>adapters/word/README.md</code>).</p><p>If you run Callosum from a source checkout instead of the packaged app, use the developer workflow: <code>npx office-addin-dev-certs install</code>, then <code>python tools/run_dev.py</code>. Both servers share the same database and checkout.</p><p>Then in Word: <strong>Home → Callosum → Show Citations</strong>.</p><ul><li><strong>Build and insert a citation</strong> — search repeatedly to assemble one or several works, reorder them, and set each work&#x27;s locator, prefix, suffix, suppress-author, or author-only option before inserting one live citation. <strong>Suggest from the sentence</strong> remains a separate, fully local relevance/stance/quote path into the same assembly. Open <strong>Details…</strong> for the full matched passage, support/mention/contrast breakdown, plain-language retrieval reason, weak-evidence warning, editable auto page locator, and <strong>Open in PDF</strong>. Inserting a suggested work keeps only a 150-character matched-passage snippet plus page/chunk locator inside the Word document; inspect it later with <strong>Citations in this document… → View evidence…</strong>.</li><li><strong>Insert saved evidence…</strong> — search for any library paper, choose one of its saved highlights, and review the exact quote and your own saved note. You explicitly choose quote-only (clearly labelled <strong>no citation</strong>), quote + live citation, saved note + citation, or a quote/note card + citation. <strong>Check stance</strong> is optional and runs only when clicked through Callosum&#x27;s local model; its support/mention/contrast result is a signal, not a verdict. Cited formats reuse the normal live citation and native-note behavior and retain only annotation/page identity plus a bounded audit snippet.</li><li><strong>Edit or delete at the cursor</strong> — reopen a live citation in the same composer or remove it completely. Citation payloads live in document Custom XML behind short Content Control references rather than oversized tags.</li><li><strong>Convert Zotero citations…</strong> — scan Zotero&#x27;s current inline Word fields, inspect exact counts, and explicitly convert verified fields through the existing local citation resolver and Refresh path. Grouped citations and per-work locators/overrides survive; known existing papers are reused and unmatched embedded records become metadata-only local papers. Note-style, Bookmark-mode, malformed, oversized, or ambiguous Zotero material is reported and left under Zotero&#x27;s control. A Zotero bibliography is replaced only when no unsupported Zotero material remains. Use <strong>File → Save As</strong> first: Word add-ins cannot make a backup or guarantee one-step rollback, and Word Undo does not remove local library records created before document mutation.</li><li><strong>Note styles</strong> — choosing a note CSL style reveals a per-document <strong>Footnotes / Endnotes</strong> preference. Insert from the main story creates a native note; insertion from an existing matching note stays there. Refresh uses Word&#x27;s actual native note order for first/subsequent/ibid behavior and refuses incompatible mixed placement rather than silently converting it.</li><li><strong>Refresh / renumber + bibliography</strong> — re-render every citation in document/native-note order and rebuild the <strong>References</strong> list. Numeric styles renumber by position; changing <strong>Citation style</strong> refreshes the whole document and is remembered per document.</li><li><strong>Citations in this document…</strong> — list each unique cited work, occurrence count, missing/retraction status, and jump to its first occurrence. <strong>Set category…</strong> assigns one document-local bibliography label; check several works (or filter and <strong>Select visible</strong>) to set or remove one category across the batch with a single refresh. With at least two groups, <strong>Category order…</strong> moves groups up/down or resets them alphabetically. Citeproc order stays intact within each group, new/unranked groups fall back alphabetically, and unassigned entries remain last under <strong>Other references</strong>.</li><li><strong>Insert current-section bibliography here</strong> — place the cursor under a Word heading to create a bounded live block for that heading plus nested lower-level headings, stopping at the next peer/ancestor. Multiple blocks can coexist with the full bibliography and share the same categories/order; Refresh updates all of them. <strong>Remove bibliography for current section</strong> removes only the current heading&#x27;s block. This first slice requires WordApi 1.6 and an in-text citation style; note-style membership is refused rather than guessed.</li><li><strong>Link bibliography titles/DOIs to the web</strong> — opt in per document to make DOI/URL text already rendered by the active style clickable. When the style omits that identifier, Callosum may instead link one uniquely matched single-source title to its DOI or URL. The full and current-section bibliographies share the setting; no text is added or changed, and unsafe, malformed, shifted, or ambiguous metadata remains plain. Turning it off removes only links inside Callosum-managed bibliography blocks, not hyperlinks in your prose.</li><li><strong>Insert open-science statement…</strong> — choose data/code availability, preregistration, funding, conflict of interest, ethics, or AI use; pick a canned starting phrase or write your own, and review every word. <strong>Insert at cursor</strong> places the exact draft as ordinary editable prose at the end of the selection. Callosum does not infer or verify these author assertions, and creates no citation field. The optional <strong>Stage for other editors</strong> action shares the draft through the same transient local handoff used by Work → Statements and LibreOffice; clearing staged text does not touch the document.</li><li><strong>Document diagnostics…</strong> — report malformed/unresolvable citations, works no longer in the live library, retraction/correction status, bibliography presence, and incompatible inline/note placement without changing the document.</li><li><strong>Citation coverage audit…</strong> — run a local, read-only structural scan for stretches of three or more consecutive substantive paragraphs without a Callosum citation anchor. Inline and native-note citations count at their main-text paragraph; headings, short transitions, tables, and managed bibliographies break a stretch. Treat every result as a prompt to review, not a finding that a citation is required or that prose is unsupported. No model or backend request runs; WordApi 1.6 is required.</li><li><strong>Flatten to static text</strong> — convert live citations and the bibliography to plain text after a count-specific second confirmation. Word does not let the add-in save a copy for you, so use <strong>File → Save As</strong> first; optional metadata cleanup removes Callosum&#x27;s saved citation settings.</li></ul><p>Desktop use stays local: the task pane talks only to callosum on your machine and formatting uses the bundled citation engine. Word-on-the-web access is explicit, bearer-token gated, and limited to the citation routes documented in the add-in README.</p>",
           "id": "cite-in-word",
-          "title": "Citing in Microsoft Word (desktop)"
+          "title": "Citing in Microsoft Word"
         },
         {
           "html": "<p>Tags are lightweight, free-form labels for organizing your library — a quick complement to the semantic <strong>axes</strong>. (If you imported from Zotero, your existing Zotero tags already appear here.)</p><p>To tag a paper:</p><ul><li>Click a paper to open its Details pane.</li><li>In the <strong>Tags</strong> row, type a tag and press Enter. As you type, Callosum suggests tags you&#x27;ve used before. If a tag edit is rejected, the row shows the reason inline.</li><li>A tag can be on as many papers as you like; the same name is shared (not duplicated) across papers.</li></ul><p>To get tag ideas, click <strong>✨ Suggest</strong>: Callosum proposes candidate tags drawn from the words most distinctive of that paper compared to the rest of your library, and you click the ones you want to keep. This runs entirely on your machine — no AI is sent off-device, and nothing is added until you accept it.</p><p>Callosum also imports <strong>author/index keywords</strong> as tags so the authors&#x27; own concept work becomes a first-order set of labels:</p><ul><li><strong>Zotero tags</strong> come in automatically when you import a Zotero library.</li><li><strong>Crossref subject categories</strong> are added whenever a paper is resolved against Crossref — including when you click <strong>🔎</strong> on its DOI. To apply this across an already-imported library in one pass, run <code>python tools/backfill_keyword_tags.py</code> (it reuses cached Crossref data where possible and only adds tags — it never overwrites your edited metadata).</li></ul><p>The <strong>✨ Suggest</strong> pass then fills gaps the authors&#x27; keywords missed (it skips terms you already have).</p><p>Tags you added and tags that were <strong>imported</strong> (Zotero tags, Crossref subject keywords) are distinguished by a subtle visual difference rather than an extra label — imported keyword tags appear in a quieter, muted style, while the ones you typed keep the accent color. Hover any tag to see exactly where it came from. They all behave the same — click to filter, <strong>×</strong> to remove.</p><p><strong>Coloring a tag.</strong> Click the small dot at the left of any tag chip (in a paper&#x27;s Details) to pick a color from a fixed palette — or clear it with <strong>×</strong>. A colored tag stands out across the library (the sidebar Tags tab shows a matching dot). Colors are just a visual aid you choose; Callosum never rates or scores a paper itself — tags (with or without color) are the flexible, multi-dimensional way to judge papers, and there is no single star rating that would flatten a paper to one number.</p><p>To browse and remove:</p><ul><li>The left pane&#x27;s <strong>Tags</strong> tab (the second tab of the <strong>Axes</strong> section) lists every tag with its paper count (it&#x27;s always available — when you have no tags yet it shows a hint pointing you to add them from a paper&#x27;s Details). Click a tag to <strong>filter the library</strong> to it — a quick way to navigate by tag without opening a paper first. When your library has both imported keyword tags and tags you typed, an <strong>All / Yours / Keywords</strong> filter appears at the top of the section to narrow the list by source, and — whenever the visible list spans more than one source — the list itself groups under a small header per source (&quot;Your tags,&quot; &quot;Crossref subjects,&quot; &quot;Zotero import,&quot; …) so you can tell at a glance where each tag came from.</li><li>Click a tag&#x27;s name in a paper&#x27;s <strong>Tags</strong> row to <strong>filter the library</strong> to every paper carrying that tag (a &quot;Filtered to tag …&quot; banner appears; click <strong>clear</strong> to return). The tag filter and the axis filter are mutually exclusive.</li><li>Click the <strong>×</strong> on a tag to remove it from that paper. A tag that ends up on no papers is cleaned up automatically (and disappears from the sidebar panel). Removing an <strong>imported keyword</strong> tag is durable: a later re-resolve or keyword backfill will not silently bring it back. (Re-adding the tag by name lets it return.)</li></ul><p>Tags are stored locally; nothing is sent anywhere.</p>",
@@ -38913,7 +38913,7 @@
           "title": "Synthesize: asking questions and critiquing sources"
         },
         {
-          "html": "<p>Callosum does not trust AI-generated citations by default. The AI proposes summary sentences and candidate citations, then Callosum independently checks each sentence against local source chunks.</p><p>For each cited sentence, Callosum shows:</p><ul><li>The sentence text.</li><li>A <strong>verified</strong> or <strong>flagged</strong> badge.</li><li>One or more citation cards.</li><li>The paper title and page label.</li><li>The evidence quote.</li><li>Retrieval, Quote, and Support confidence scores.</li><li>Coordinate precision: exact, region, or no coordinate claim.</li></ul><p>A sentence is shown as verified when its citations clear the verification checks. A sentence is flagged when it has no citation or at least one citation does not verify cleanly.</p><p><strong>The Overview.</strong> Above the verified claims, a synthesis shows a short <strong>Overview</strong> — a plain-language narration <em>of the verified claims</em>, labeled &quot;Overview — synthesized from the verified claims below&quot;. It is <strong>not</strong> an independent authoritative summary: it restates only what was verified and adds no new facts, and <strong>each Overview line links back to the verified claim(s) it restates</strong> — click a line and the claim(s) it traces to flash below, each carrying its own quote, page, and confidence. The Overview only appears when AI generation is enabled (it requires data-egress consent, like the synthesis itself) and there is at least one verified claim to narrate; with egress off, the verified claims stand on their own.</p><p>The confidence scores are evidence signals, not proof:</p><ul><li><strong>Retrieval</strong> reflects how well the source chunk matched the sentence.</li><li><strong>Quote</strong> reflects how well Callosum located a quote in the PDF text.</li><li><strong>Support</strong> reflects whether the cited source appears to support the sentence.</li></ul><p>Always read the quote and, when needed, open the source. Verification reduces hallucinated citations, but it does not replace scholarly judgment.</p><p>Click an evidence quote to open its source. Exact-coordinate citations draw the passage highlight in the PDF; region-level citations only open the page and show an approximate-location note.</p><h3>Saving verified citations as highlights</h3><p>Use <strong>Save as highlight</strong> when a synthesis citation points to a passage you want to keep in the PDF.</p><p>The button is only available when the citation is:</p><ul><li>verified,</li><li>exact-coordinate,</li><li>attached to a local paper,</li><li>and has usable bounding boxes.</li></ul><p>When saved, the passage appears in the PDF as a durable highlight and shows up in the <strong>Notes</strong> panel. Synthesis-saved highlights use a dashed outline so you can distinguish them from hand-created highlights.</p><p>Gotchas:</p><ul><li>Region-level and page-only citations cannot be saved as precise highlights.</li><li>Flagged citations cannot be saved through this path.</li><li>Saving a highlight does not force-open the PDF; if the PDF is already open, the viewer refreshes its annotations.</li></ul>",
+          "html": "<p>Callosum does not trust AI-generated citations by default. The AI proposes summary sentences and candidate citations, then Callosum independently checks each sentence against local source chunks.</p><p>For each cited sentence, Callosum shows:</p><ul><li>The sentence text.</li><li>A <strong>verified</strong> or <strong>flagged</strong> badge.</li><li>One or more citation cards.</li><li>The paper title and page label.</li><li>The evidence quote.</li><li>Retrieval, Quote, and Support confidence scores.</li><li>Coordinate precision: exact, region, or no coordinate claim.</li></ul><p>A sentence is shown as verified when its citations clear the verification checks. A sentence is flagged when it has no citation or at least one citation does not verify cleanly.</p><p><strong>The Overview.</strong> Above the verified claims, a synthesis shows a short <strong>Overview</strong> — a plain-language narration <em>of the verified claims</em>, labeled &quot;Overview — synthesized from the verified claims below&quot;. It is <strong>not</strong> an independent authoritative summary: it restates only what was verified and adds no new facts, and <strong>each Overview line links back to the verified claim(s) it restates</strong> — click a line and the claim(s) it traces to flash below, each carrying its own quote, page, and confidence. Verified claims appear as soon as their complete evidence graph is saved; the supplementary Overview may briefly say <strong>Generating overview…</strong> and never blocks those claims. If Overview generation fails, the verified synthesis remains available and you can retry only the Overview. The Overview is requested only when AI generation is enabled (it requires data-egress consent, like the synthesis itself) and there is at least one verified claim to narrate; with egress off, the verified claims stand on their own.</p><p>The confidence scores are evidence signals, not proof:</p><ul><li><strong>Retrieval</strong> reflects how well the source chunk matched the sentence.</li><li><strong>Quote</strong> reflects how well Callosum located a quote in the PDF text.</li><li><strong>Support</strong> reflects whether the cited source appears to support the sentence.</li></ul><p>Always read the quote and, when needed, open the source. Verification reduces hallucinated citations, but it does not replace scholarly judgment.</p><p>Click an evidence quote to open its source. Exact-coordinate citations draw the passage highlight in the PDF; region-level citations only open the page and show an approximate-location note.</p><h3>Saving verified citations as highlights</h3><p>Use <strong>Save as highlight</strong> when a synthesis citation points to a passage you want to keep in the PDF.</p><p>The button is only available when the citation is:</p><ul><li>verified,</li><li>exact-coordinate,</li><li>attached to a local paper,</li><li>and has usable bounding boxes.</li></ul><p>When saved, the passage appears in the PDF as a durable highlight and shows up in the <strong>Notes</strong> panel. Synthesis-saved highlights use a dashed outline so you can distinguish them from hand-created highlights.</p><p>Gotchas:</p><ul><li>Region-level and page-only citations cannot be saved as precise highlights.</li><li>Flagged citations cannot be saved through this path.</li><li>Saving a highlight does not force-open the PDF; if the PDF is already open, the viewer refreshes its annotations.</li></ul>",
           "id": "verifying-synthesis-citations",
           "title": "How synthesis verification works"
         },
@@ -38993,7 +38993,7 @@
           "title": "Finding possible duplicates"
         },
         {
-          "html": "<p>The <strong>Gaps</strong> button in <strong>Discover → Search</strong> finds works <strong>related to several of your papers</strong> that aren&#x27;t in your library yet — in two directions you can toggle between:</p><ul><li><strong>Works you cite</strong> (backward): works that <strong>several of your papers cite</strong> but you don&#x27;t have — often the foundational references your collection leans on.</li><li><strong>Works citing you</strong> (forward): newer works that <strong>cite several of your papers</strong> but you don&#x27;t have — recent work building on your collection.</li></ul><p>You can scope the scan to a single <strong>axis</strong> (the dropdown), or leave it on <strong>All papers</strong>. Click <strong>Refresh</strong> to scan (via OpenAlex); results are then <strong>cached</strong>, so re-opening or switching direction/axis shows them instantly without re-scanning — the &quot;Last refreshed …&quot; line tells you how fresh each scope is.</p><p>Each candidate shows <strong>&quot;cited by N of your papers&quot;</strong> (backward) or <strong>&quot;cites N of your papers&quot;</strong> (forward) — that&#x27;s simply how many of <em>your own</em> papers it relates to, <strong>not</strong> a measure of importance or quality, and never a ranking of what you &quot;should&quot; read. For each one you can <strong>Add</strong> it (imports the metadata into your library — the PDF stays the separate &quot;Acquire OA copy&quot; step) or <strong>Dismiss</strong> it (so it won&#x27;t come back).</p><p>After a Refresh it tells you how many papers it scanned (&quot;scanned M of N — the rest have no DOI&quot;), and the coverage is partial (it depends on what OpenAlex has), so this is a prompt to look, not an exhaustive list. Public metadata only — no AI, and nothing leaves the machine but the OpenAlex/Crossref lookups.</p><p>A third gap source, <strong>works by authors you follow</strong>, lives in its own <strong>Discover → Followed Authors</strong> tab rather than this backward/forward toggle — see <em>Following authors</em>.</p>",
+          "html": "<p>The <strong>Gaps</strong> button in <strong>Discover → Search</strong> finds works <strong>related to several of your papers</strong> that aren&#x27;t in your library yet — in two directions you can toggle between:</p><ul><li><strong>Works you cite</strong> (backward): works that <strong>several of your papers cite</strong> but you don&#x27;t have — often the foundational references your collection leans on.</li><li><strong>Works citing you</strong> (forward): newer works that <strong>cite several of your papers</strong> but you don&#x27;t have — recent work building on your collection.</li></ul><p>You can scope the scan to a single <strong>axis</strong> (the dropdown), or leave it on <strong>All papers</strong>. Click <strong>Refresh</strong> to scan (via OpenAlex); results are then <strong>cached</strong>, so re-opening or switching direction/axis shows them instantly without re-scanning — the &quot;Last refreshed …&quot; line tells you how fresh each scope is.</p><p>Each candidate shows <strong>&quot;cited by N of your papers&quot;</strong> (backward) or <strong>&quot;cites N of your papers&quot;</strong> (forward) — that&#x27;s simply how many of <em>your own</em> papers it relates to, <strong>not</strong> a measure of importance or quality, and never a ranking of what you &quot;should&quot; read. For each one you can <strong>Add</strong> it (imports the metadata into your library — the PDF stays the separate &quot;Acquire OA copy&quot; step) or <strong>Dismiss</strong> it (so it won&#x27;t come back).</p><p>After a Refresh it tells you how many papers it scanned (&quot;scanned M of N — the rest have no DOI&quot;), and the coverage is partial (it depends on what OpenAlex has), so this is a prompt to look, not an exhaustive list. Public metadata only — no AI, and nothing leaves the machine but the OpenAlex/Crossref lookups.</p><p>You can also <strong>follow a specific author</strong> from <strong>Discover → Feed</strong> to see their new work as it&#x27;s published — see <em>Following sources (Feed)</em>. That&#x27;s a chronological stream, not a gap-finder: for &quot;which of this author&#x27;s works am I missing,&quot; use the backward/forward toggle above instead.</p>",
           "id": "finding-gaps",
           "title": "Finding gaps in your library"
         },
@@ -39048,14 +39048,9 @@
           "title": "Finding new papers (Discover)"
         },
         {
-          "html": "<p>The <strong>Discover → Feed</strong> tab is for <em>keeping up</em> rather than searching: you <strong>follow</strong> a source, and Callosum collects its recent items for you to triage. It is <strong>pull-only and opt-in</strong> — nothing subscribes you automatically and nothing notifies you; you add a source, then click <strong>Refresh</strong> to poll it. The only thing that leaves the machine is the poll to the public source (bioRxiv) — this is <strong>not</strong> the AI/Gemini egress.</p><p>To use it:</p><ul><li><strong>Follow a source</strong> — the default source type is <strong>Journal</strong>: type a <strong>journal title</strong> like <code>Nature Neuroscience</code> and, as you type, the box suggests <strong>journals already in your library</strong>. Click <strong>Follow</strong> to add it (Callosum finds the journal&#x27;s recent articles for you). Prefer to browse? Click <strong>Suggest</strong> to open a list of every journal you already have papers from — ranked by how many papers you have from each — and Follow one in a click. You can also switch the source type to <strong>bioRxiv category</strong> / <strong>medRxiv category</strong> (a subject like <code>neuroscience</code>) or <strong>PubMed search</strong> (a query like <code>CRISPR off-target</code>). Each followed source shows as a chip (with its source tag) you can remove with its <strong>×</strong>.</li><li><strong>Refresh</strong> polls every followed source and adds any new items (re-polling never duplicates an item or resets what you&#x27;ve already read).</li><li>Filter by <strong>All / Unread / Starred</strong>; <strong>Mark all read</strong> clears the unread count.</li><li>Each item shows an unread dot, the title, authors, posted date, and journal. <strong>Click a row to mark it read</strong>; <strong>★</strong> stars it for later; <strong>Save</strong> adds its metadata to your library (deduped, no PDF — like Discover); a paper you already have is marked <strong>✓ in library</strong>. <strong>Abstract</strong> expands the summary.</li><li>New works by anyone you follow on <strong>Discover → Followed Authors</strong> flow into this same stream too, badged <strong>Followed</strong> — one combined chronological feed rather than a separate list to check.</li></ul><p>The complete polled list is shown — read/starred are your own state, never an AI judgment about what matters.</p><p><strong>Auto-refresh (optional).</strong> Tick <strong>Auto-refresh on open</strong> to have Callosum refresh your feed automatically when you open the Feed tab and a source hasn&#x27;t been polled in a while (about 6 hours). It&#x27;s off by default and stays pull-first — there&#x27;s no background polling and nothing leaves your machine except the on-demand source lookups.</p>",
+          "html": "<p>The <strong>Discover → Feed</strong> tab is for <em>keeping up</em> rather than searching: you <strong>follow</strong> a source, and Callosum collects its recent items for you to triage. It is <strong>pull-only and opt-in</strong> — nothing subscribes you automatically and nothing notifies you; you add a source, then click <strong>Refresh</strong> to poll it. The only thing that leaves the machine is the poll to the public source (bioRxiv, PubMed, or an author lookup) — this is <strong>not</strong> the AI/Gemini egress.</p><p>To use it:</p><ul><li><strong>Follow a source</strong> — the default source type is <strong>Journal</strong>: type a <strong>journal title</strong> like <code>Nature Neuroscience</code> and, as you type, the box suggests <strong>journals already in your library</strong>. Click <strong>Follow</strong> to add it. You can also switch the source type to <strong>bioRxiv category</strong> / <strong>medRxiv category</strong> (a subject like <code>neuroscience</code>), <strong>PubMed search</strong> (a query like <code>CRISPR off-target</code>), or <strong>Author</strong> — type a name or an ORCID iD (Callosum detects which one you typed) to follow a specific person and see their new work as it&#x27;s published. You can also follow an author directly from <strong>My Publications</strong>, using the one-click quick-action on an already-identified citing-author&#x27;s card. Each followed source shows as a chip (with its source tag) you can remove with its <strong>×</strong>. Once you have enough followed sources to fill more than one row, they&#x27;re capped to a single line with a <strong>…</strong> button that opens the full list.</li><li><strong>Suggest</strong> opens a window with a tab for each source type: <strong>Journal</strong> lists every journal you already have papers from, ranked by how many papers you have from each. <strong>bioRxiv Categories</strong> / <strong>medRxiv Categories</strong> list every category, with any that match one of your axes or tags listed first (the match is named, never a hidden score). <strong>PubMed Search</strong> suggests queries drawn from your recent Search history, your axes, and your tags. <strong>Author</strong> lists authors who recur across your library, ranked by how many papers you have from each — excluding you and anyone you already follow. Every suggestion is a plain, inspectable tally of your own library, never a quality ranking or a recommendation. Click <strong>Follow</strong> on any suggestion to add it in one step.</li><li><strong>Refresh</strong> polls every followed source and adds any new items (re-polling never duplicates an item or resets what you&#x27;ve already read).</li><li>Filter by <strong>All / Unread / Highlighted / Starred</strong> (one at a time). <strong>Highlighted</strong> shows only items that look like a likely match to one of your axes — a hint, not a judgment that the rest are irrelevant. <strong>Mark All Read</strong> clears the unread count.</li><li>Each item shows an unread dot, the title, authors, posted date, and journal. <strong>Click a row to mark it read</strong>; <strong>★</strong> stars it for later; <strong>Save</strong> adds its metadata to your library (deduped, no PDF — like Discover); a paper you already have is marked <strong>✓ in library</strong>. <strong>Abstract</strong> expands the summary. A followed author&#x27;s new works are badged <strong>Followed</strong>, intermixed with your other sources in the same stream, not a separate list.</li></ul><p>The complete polled list is shown — read/starred are your own state, never an AI judgment about what matters.</p><p><strong>Auto-refresh (optional).</strong> Tick <strong>Auto-Refresh</strong> to have Callosum refresh your feed automatically when you open the Feed tab and a source hasn&#x27;t been polled in a while (about 6 hours). It&#x27;s off by default and stays pull-first — there&#x27;s no background polling and nothing leaves your machine except the on-demand source lookups.</p>",
           "id": "following-sources-feed",
           "title": "Following sources (Feed)"
-        },
-        {
-          "html": "<p>The <strong>Discover → Followed Authors</strong> tab is a third gap-finder source (alongside the backward/forward &quot;Finding gaps&quot; toggle), scoped to specific people rather than to your whole library: follow an author, and Callosum surfaces their works that aren&#x27;t in your library yet.</p><p>To use it:</p><ul><li><strong>Follow an author</strong> — search by name or ORCID iD. You can also follow an author directly from <strong>My Publications</strong>, using the one-click quick-action on an already-identified citing-author&#x27;s card — no extra lookup needed.</li><li><strong>Refresh</strong> fetches each followed author&#x27;s works from OpenAlex (cached, capped per author) and lists those you don&#x27;t already have, labeled <strong>&quot;by \\&lt;author\\&gt; (followed)&quot;</strong>. <strong>Add</strong> imports the metadata; <strong>Dismiss</strong> hides a candidate (shared with the same dismissal list the backward/forward gap finder uses, so dismissing a work anywhere keeps it dismissed everywhere).</li><li>Unlike backward/forward gaps, this list is <strong>not</strong> ranked by axis relevance — every followed author&#x27;s missing works are shown together, most-recent first.</li><li>A followed author&#x27;s new works also flow into <strong>Discover → Feed</strong>, badged <strong>Followed</strong>, alongside your other followed sources — see <em>Following sources (Feed)</em>.</li></ul><p>Following an author never sends anything except the lookup itself — public OpenAlex metadata only, no AI.</p>",
-          "id": "following-authors",
-          "title": "Following authors"
         },
         {
           "html": "<p>Trash is for reversible cleanup. Deleting a paper moves it out of the active Library, axes, and duplicate suggestions, but keeps it restorable.</p><p>To move papers to Trash:</p><ul><li>In the Library, check one or more paper boxes.</li><li>Click <strong>delete</strong> in the bulk bar.</li><li>Confirm the move to Trash.</li></ul><p>To restore:</p><ul><li>Click <strong>Trash</strong> in the Library header.</li><li>Find the paper.</li><li>Click <strong>Restore</strong>.</li><li>Click <strong>← Library</strong> to return to the active Library.</li></ul><p>To permanently delete (irreversible):</p><ul><li>Open <strong>Trash</strong>.</li><li>Click <strong>Delete forever</strong> on a single paper to purge just that one, or <strong>Empty Trash</strong> in the header to purge everything in Trash.</li><li>Confirm. This removes the paper, its extracted text, highlights, search index, and attachment files stored in Callosum&#x27;s managed library folder. Files linked from elsewhere on your computer are left in place. Permanent deletion <strong>cannot be undone</strong>.</li><li>Permanent delete is only reachable from Trash — a paper must be moved to Trash first, so a live paper can never be purged in one click.</li></ul><p>Gotchas:</p><ul><li>Permanent delete is final — there is no undo. Restore from Trash if you are unsure.</li><li>Trash selection does not carry back and forth between Library and Trash.</li><li>Trashed papers are excluded from <strong>new</strong> synthesis retrieval, so a paper you move to Trash will not be cited in syntheses you generate afterward. Syntheses you generated <em>before</em> trashing it are a saved record and are left unchanged.</li></ul>",
@@ -39083,7 +39078,7 @@
           "title": "Sending a bug report or feature request"
         },
         {
-          "html": "<p>Callosum is local-first by design. Your PDFs, extracted text, chunks, embeddings, search, axis scoring, duplicate scanning, clustering, and citation verification run on your machine.</p><p>The app remains useful offline after import and processing. You can browse, read PDFs, edit details, score axes, manage highlights, scan duplicates, and inspect saved syntheses without sending library text to a remote service.</p><p>The features that can use an LLM are optional and off by default:</p><ul><li><strong>Synthesis generation:</strong> sends selected source text needed to generate a draft answer.</li><li><strong>Search related terms:</strong> sends axis text so the model can suggest possible terms.</li><li><strong>Suggested axis label polishing:</strong> may send a small set of representative paper titles when egress is enabled; otherwise it falls back locally.</li></ul><p>To enable AI features, pick a provider in <strong>Settings → AI features</strong> (Gemini / OpenAI / Anthropic / a local model) and set its key, then turn on <strong>Allow AI features</strong> — or, equivalently, start Callosum with the environment variables (<code>CALLOSUM_ALLOW_DATA_EGRESS=1</code> plus the provider&#x27;s key env var). A value set in Settings is stored locally (in your home folder, outside the app and any synced folder) and overrides the environment fallback; for a <strong>cloud</strong> provider, AI stays off until you explicitly turn it on. A <strong>local</strong> model (a loopback OpenAI-compatible server) needs no egress consent at all — nothing leaves the machine — and a non-loopback &quot;local&quot; address is refused so that stays true.</p><p>Important distinctions:</p><ul><li>Crossref DOI re-resolve sends only the DOI to Crossref.</li><li>Gemini synthesis can send library text, so it is behind the explicit egress gate.</li><li>Axis term suggestions can send your axis wording, so they are also behind the egress gate.</li><li>Verification of citations runs locally after generation; Gemini is not treated as citation evidence.</li></ul><h3>Remote access (for the Google Docs add-on)</h3><p><strong>Off by default.</strong> Citing from Google Docs requires your library to be reachable from the internet (a Google Docs add-on runs in Google&#x27;s cloud and can&#x27;t reach your computer directly). <strong>Settings → Remote access</strong> is the opt-in: turning it on generates an <strong>access token</strong> (shown once — copy it into the add-on) and requires that token on every request, so only you (and your add-on) can reach your library. You then run a tunnel (<code>python tools/run_tunnel.py</code>, which runs <code>cloudflared</code>) so the add-on can connect — and the tunnel is <strong>cite-only</strong>, forwarding just the citation endpoints (everything else returns 404 over the tunnel). The <strong>Google Docs add-on itself</strong> lives in <code>adapters/googledocs/</code> (a sidebar you add to a Doc via Apps Script); see <code>adapters/googledocs/README.md</code> for the full setup. While Remote access is off, nothing is exposed and local use is unchanged. <strong>If you lose the token and get locked out</strong>, callosum notices the failed requests and shows a <strong>recovery panel</strong> right in the app: paste the token to get straight back in, or choose <em>turn Remote access off</em> — which writes a one-time code to a file on the computer running callosum (proving you&#x27;re at the machine, not reaching in over the tunnel), and you paste that code back to switch Remote access off and return to local-only. As a last resort you can still restart with <code>CALLOSUM_DISABLE_REMOTE_ACCESS=1</code> set.</p><h3>Optional account — sign in (ORCID, Google, or email)</h3><p><strong>Opt-in and additive — Callosum needs no account.</strong> <strong>Settings → Account → Sign in</strong> (via a callosum account service the maintainer configures) lets you sign in with <strong>ORCID, Google, or email</strong> — you pick the method on the account service&#x27;s page. It is <strong>identity-only</strong>: signing in verifies who you are — and signing in with <strong>ORCID</strong> also pre-fills <strong>My Publications</strong> with your authoritative author record — but it does <strong>not</strong> send your library, PDFs, notes, or any text anywhere. The app works fully offline with no account, and signing out clears only the session (your data is untouched). On an instance where the account service hasn&#x27;t been set up, the Account section simply says so and nothing changes. (Cross-device <strong>sync</strong> — the only thing that <em>would</em> move library data off your machine — is a separate, explicitly-consented step; see the next section.)</p><h3>Cross-device sync</h3><p><strong>Opt-in and off by default — the only thing here that moves library data off your machine, and it does so end-to-end encrypted.</strong> <strong>Settings → Cross-device sync</strong> walks through a short setup, in order:</p><p>1. <strong>Choose a passphrase.</strong> It encrypts your synced data end-to-end — Callosum never sees or transmits the passphrase itself, only a key derived from it locally. 2. <strong>Save the recovery code — shown once.</strong> It&#x27;s the only way to unlock your data if you forget your passphrase later. <strong>There is no server-side reset</strong>: losing both the passphrase and the recovery code means the encrypted data can&#x27;t be recovered. Save it somewhere safe before continuing. 3. <strong>Sign in</strong> (see Account, above) — sync is tied to your signed-in identity. 4. <strong>Set a sync server URL</strong> and <strong>turn Sync on.</strong> The server only ever receives opaque, encrypted ciphertext — never your passphrase, your key, or plaintext.</p><p>Once on, <strong>Run sync now</strong> re-encrypts and exchanges changes with the server — you re-enter your passphrase each time (it&#x27;s never remembered between runs, so it&#x27;s never held in memory longer than one sync). <strong>What syncs:</strong> papers, tags, axes, notes, and highlights. <strong>What doesn&#x27;t:</strong> your PDF files (they stay local — only metadata syncs), and anything derived locally (embeddings, search indexes, method-check results), which each device rebuilds on its own.</p><p><strong>Conflicts are never picked for you.</strong> If two devices edited the same thing before syncing, both versions are kept and surfaced under <strong>Conflicts to review</strong> — a &quot;N conflicts to review&quot; link appears whenever any are outstanding. For each one you see <strong>Mine</strong> (what this device had) side by side with <strong>Current</strong> (what&#x27;s already applied, the other device&#x27;s edit) and choose <strong>Keep mine</strong> or <strong>Keep theirs</strong>. Nothing is resolved automatically.</p><h3>Using Callosum from an AI agent (MCP)</h3><p>Callosum ships a small <a href=\"https://modelcontextprotocol.io\" target=\"_blank\" rel=\"noopener noreferrer\">MCP</a> server (<code>mcp_server/</code>) so an AI agent (Claude Desktop, Cursor, etc.) can use your library <strong>through Callosum</strong> — keeping Callosum the source of provenance and grounding rather than letting the agent treat your files as a dumb store. It runs locally as a stdio subprocess the agent host spawns; it has no network listener. <strong>Read tools are always on:</strong> the agent can <strong>search</strong>, <strong>read a paper&#x27;s details</strong>, <strong>search the verbatim text</strong> inside your PDFs, <strong>retrieve grounded passages</strong> (each with its quote and page, so the agent can cite the source), and <strong>format citations</strong>. It reads from the running app, so start Callosum first; see <code>mcp_server/README.md</code> for the host setup.</p><p><strong>Letting an agent edit your library (writes) — off by default.</strong> <strong>Settings → AI agent → Allow agent writes</strong> is the opt-in. While it&#x27;s on, the agent gains four extra tools — <strong>add a tag</strong>, <strong>add a paper to one of your axes</strong> (not My Publications — authorship is yours to assert), <strong>save a reference by DOI</strong> (resolved against Crossref; an unresolvable DOI is refused, never fabricated; metadata only, no PDF), and <strong>add a note</strong>. Every agent write is <strong>additive, reversible, and stamped <code>ai-agent</code></strong>: the AI-agent panel lists recent agent writes with a one-click <strong>Revert</strong> (and <strong>Revert all</strong>), and reverting a saved reference moves a newly-created paper to Trash (a re-found existing paper is left alone). The agent can <strong>never</strong> delete, overwrite, merge, or scan — those stay human-only. Your agent host also shows its own confirmation prompt before each tool call, so nothing happens without you in the loop. Turn the setting off (or set <code>CALLOSUM_DISABLE_AGENT_WRITES=1</code>) and the write tools disappear; reads are unaffected.</p>",
+          "html": "<p>Callosum is local-first by design. Your PDFs, extracted text, chunks, embeddings, search, axis scoring, duplicate scanning, clustering, and citation verification run on your machine.</p><p>The app remains useful offline after import and processing. You can browse, read PDFs, edit details, score axes, manage highlights, scan duplicates, and inspect saved syntheses without sending library text to a remote service.</p><p>The features that can use an LLM are optional and off by default:</p><ul><li><strong>Synthesis generation:</strong> sends selected source text needed to generate a draft answer.</li><li><strong>Search related terms:</strong> sends axis text so the model can suggest possible terms.</li><li><strong>Suggested axis label polishing:</strong> may send a small set of representative paper titles when egress is enabled; otherwise it falls back locally.</li></ul><p>To enable AI features, pick a provider in <strong>Settings → AI features</strong> (Gemini / OpenAI / Anthropic / a local model) and set its key, then turn on <strong>Allow AI features</strong> — or, equivalently, start Callosum with the environment variables (<code>CALLOSUM_ALLOW_DATA_EGRESS=1</code> plus the provider&#x27;s key env var). A value set in Settings is stored locally (in your home folder, outside the app and any synced folder) and overrides the environment fallback; for a <strong>cloud</strong> provider, AI stays off until you explicitly turn it on. A <strong>local</strong> model (a loopback OpenAI-compatible server) needs no egress consent at all — nothing leaves the machine — and a non-loopback &quot;local&quot; address is refused so that stays true.</p><p>Important distinctions:</p><ul><li>Crossref DOI re-resolve sends only the DOI to Crossref.</li><li>Gemini synthesis can send library text, so it is behind the explicit egress gate.</li><li>Axis term suggestions can send your axis wording, so they are also behind the egress gate.</li><li>Verification of citations runs locally after generation; Gemini is not treated as citation evidence.</li></ul><h3>Remote access (for the Google Docs add-on)</h3><p><strong>Off by default.</strong> Citing from Google Docs or Word on the web requires your library to be reachable from the internet (their cloud-hosted add-ons cannot reach your computer directly). <strong>Settings → Remote access</strong> is the opt-in: turning it on generates an <strong>access token</strong> (shown once — copy it into the add-on) and requires that token on every request. In the packaged app, <strong>Start Quick Tunnel</strong> launches an app-owned <code>cloudflared</code> connector and shows its temporary URL; Stop or app exit removes it. A Quick Tunnel exposes every route, so that access token is its sole boundary. Callosum targets a separate fail-closed backend: turning Remote access off closes it even if the connector has not stopped yet. Source checkouts retain <code>python tools/run_tunnel.py --quick</code>; advanced users can configure the stable named tunnel with a cite-only ingress. See <code>adapters/googledocs/README.md</code> for full setup. While Remote access is off, nothing is exposed and local use is unchanged. <strong>If you lose the token and get locked out</strong>, callosum shows a recovery panel: paste the token, or use the one-time local-file code to turn Remote access off. As a last resort you can restart with <code>CALLOSUM_DISABLE_REMOTE_ACCESS=1</code> set.</p><h3>Optional account — sign in (ORCID, Google, or email)</h3><p><strong>Opt-in and additive — Callosum needs no account.</strong> <strong>Settings → Account → Sign in</strong> (via a callosum account service the maintainer configures) lets you sign in with <strong>ORCID, Google, or email</strong> — you pick the method on the account service&#x27;s page. It is <strong>identity-only</strong>: signing in verifies who you are — and signing in with <strong>ORCID</strong> also pre-fills <strong>My Publications</strong> with your authoritative author record — but it does <strong>not</strong> send your library, PDFs, notes, or any text anywhere. The app works fully offline with no account, and signing out clears only the session (your data is untouched). On an instance where the account service hasn&#x27;t been set up, the Account section simply says so and nothing changes. (Cross-device <strong>sync</strong> — the only thing that <em>would</em> move library data off your machine — is a separate, explicitly-consented step; see the next section.)</p><h3>Cross-device sync</h3><p><strong>Opt-in and off by default — the only thing here that moves library data off your machine, and it does so end-to-end encrypted.</strong> <strong>Settings → Cross-device sync</strong> walks through a short setup, in order:</p><p>1. <strong>Choose a passphrase.</strong> It encrypts your synced data end-to-end — Callosum never sees or transmits the passphrase itself, only a key derived from it locally. 2. <strong>Save the recovery code — shown once.</strong> It&#x27;s the only way to unlock your data if you forget your passphrase later. <strong>There is no server-side reset</strong>: losing both the passphrase and the recovery code means the encrypted data can&#x27;t be recovered. Save it somewhere safe before continuing. 3. <strong>Sign in</strong> (see Account, above) — sync is tied to your signed-in identity. 4. <strong>Set a sync server URL</strong> and <strong>turn Sync on.</strong> The server only ever receives opaque, encrypted ciphertext — never your passphrase, your key, or plaintext.</p><p>Once on, <strong>Run sync now</strong> re-encrypts and exchanges changes with the server — you re-enter your passphrase each time (it&#x27;s never remembered between runs, so it&#x27;s never held in memory longer than one sync). <strong>What syncs:</strong> papers, tags, axes, notes, and highlights. <strong>What doesn&#x27;t:</strong> your PDF files (they stay local — only metadata syncs), and anything derived locally (embeddings, search indexes, method-check results), which each device rebuilds on its own.</p><p><strong>Conflicts are never picked for you.</strong> If two devices edited the same thing before syncing, both versions are kept and surfaced under <strong>Conflicts to review</strong> — a &quot;N conflicts to review&quot; link appears whenever any are outstanding. For each one you see <strong>Mine</strong> (what this device had) side by side with <strong>Current</strong> (what&#x27;s already applied, the other device&#x27;s edit) and choose <strong>Keep mine</strong> or <strong>Keep theirs</strong>. Nothing is resolved automatically.</p><h3>Using Callosum from an AI agent (MCP)</h3><p>Callosum ships a small <a href=\"https://modelcontextprotocol.io\" target=\"_blank\" rel=\"noopener noreferrer\">MCP</a> server (<code>mcp_server/</code>) so an AI agent (Claude Desktop, Cursor, etc.) can use your library <strong>through Callosum</strong> — keeping Callosum the source of provenance and grounding rather than letting the agent treat your files as a dumb store. It runs locally as a stdio subprocess the agent host spawns; it has no network listener. <strong>Read tools are always on:</strong> the agent can <strong>search</strong>, <strong>read a paper&#x27;s details</strong>, <strong>search the verbatim text</strong> inside your PDFs, <strong>retrieve grounded passages</strong> (each with its quote and page, so the agent can cite the source), and <strong>format citations</strong>. It reads from the running app, so start Callosum first; see <code>mcp_server/README.md</code> for the host setup.</p><p><strong>Letting an agent edit your library (writes) — off by default.</strong> <strong>Settings → AI agent → Allow agent writes</strong> is the opt-in. While it&#x27;s on, the agent gains four extra tools — <strong>add a tag</strong>, <strong>add a paper to one of your axes</strong> (not My Publications — authorship is yours to assert), <strong>save a reference by DOI</strong> (resolved against Crossref; an unresolvable DOI is refused, never fabricated; metadata only, no PDF), and <strong>add a note</strong>. Every agent write is <strong>additive, reversible, and stamped <code>ai-agent</code></strong>: the AI-agent panel lists recent agent writes with a one-click <strong>Revert</strong> (and <strong>Revert all</strong>), and reverting a saved reference moves a newly-created paper to Trash (a re-found existing paper is left alone). The agent can <strong>never</strong> delete, overwrite, merge, or scan — those stay human-only. Your agent host also shows its own confirmation prompt before each tool call, so nothing happens without you in the loop. Turn the setting off (or set <code>CALLOSUM_DISABLE_AGENT_WRITES=1</code>) and the write tools disappear; reads are unaffected.</p>",
           "id": "privacy-and-data-egress",
           "title": "Privacy and data egress"
         },
@@ -45692,6 +45687,7 @@
     "status": {
       "jobs": [
         {
+          "completed_stages": [],
           "compute_kind": "Provider AI + local verification",
           "job_id": "summary:1",
           "label": "Synthesize · Ask",
@@ -45750,20 +45746,12 @@
         "overview": [
           {
             "claim_ordinals": [
-              0,
-              1,
-              4
+              0
             ],
-            "text": "The \"anomalous-is-bad\" stereotype suggests that negative perceptions of individuals with facial anomalies can foster biases and dehumanizing behaviors."
-          },
-          {
-            "claim_ordinals": [
-              2,
-              3
-            ],
-            "text": "Research confirms the presence of these explicit negative attitudes, although the hypothesized link between disgust and the dehumanization of those with facial differences was not supported by recent findings."
+            "text": "The \"anomalous-is-bad\" stereotype creates negative attitudes toward individuals with facial scars, which can lead to dehumanizing behaviors such as reduced prosocial interactions."
           }
         ],
+        "overview_status": "not_requested",
         "section_filter": [],
         "sentences": [
           {
@@ -45849,56 +45837,86 @@
                 "attachment_id": 67,
                 "bbox_json": [
                   {
-                    "block": 1,
+                    "block": 10,
                     "coordinate_precision": "exact",
                     "line": 0,
-                    "page": 2,
-                    "x0": 52.479000091552734,
-                    "x1": 245.740478515625,
-                    "y0": 55.71025466918945,
-                    "y1": 65.67285919189453
+                    "page": 10,
+                    "x0": 42.52585983276367,
+                    "x1": 95.65840911865234,
+                    "y0": 324.59423828125,
+                    "y1": 334.55682373046875
                   },
                   {
-                    "block": 1,
+                    "block": 11,
+                    "coordinate_precision": "exact",
+                    "line": 0,
+                    "page": 10,
+                    "x0": 42.52585983276367,
+                    "x1": 245.75692749023438,
+                    "y0": 342.86358642578125,
+                    "y1": 352.826171875
+                  },
+                  {
+                    "block": 11,
                     "coordinate_precision": "exact",
                     "line": 1,
-                    "page": 2,
-                    "x0": 42.52537155151367,
-                    "x1": 245.7823486328125,
-                    "y0": 67.66234588623047,
-                    "y1": 77.62494659423828
+                    "page": 10,
+                    "x0": 42.52585983276367,
+                    "x1": 245.75875854492188,
+                    "y0": 353.4040832519531,
+                    "y1": 364.7788391113281
                   },
                   {
-                    "block": 1,
+                    "block": 11,
                     "coordinate_precision": "exact",
                     "line": 2,
-                    "page": 2,
-                    "x0": 42.52537155151367,
-                    "x1": 84.12519836425781,
-                    "y0": 79.61449432373047,
-                    "y1": 89.57709503173828
+                    "page": 10,
+                    "x0": 42.525699615478516,
+                    "x1": 245.74581909179688,
+                    "y0": 366.77734375,
+                    "y1": 376.73992919921875
+                  },
+                  {
+                    "block": 11,
+                    "coordinate_precision": "exact",
+                    "line": 3,
+                    "page": 10,
+                    "x0": 42.525699615478516,
+                    "x1": 245.8086395263672,
+                    "y0": 378.7294616699219,
+                    "y1": 388.6920471191406
+                  },
+                  {
+                    "block": 11,
+                    "coordinate_precision": "exact",
+                    "line": 4,
+                    "page": 10,
+                    "x0": 42.525699615478516,
+                    "x1": 147.81346130371094,
+                    "y0": 390.6816101074219,
+                    "y1": 400.6441955566406
                   }
                 ],
-                "chunk_id": 67002,
+                "chunk_id": 67010,
                 "coordinate_precision": "exact",
                 "evidence_quote_id": 2002,
                 "mapping_id": 1002,
-                "page_end": 2,
-                "page_start": 2,
+                "page_end": 10,
+                "page_start": 10,
                 "paper_id": 67,
                 "paper_title": "Morality is in the eye of the beholder: the neurocognitive basis of the ‘anomalous-is-bad’ stereotype",
-                "quote": "An “anomalous-is-bad” stereotype is hypothe-\nsized to facilitate biases against people with anoma-\nlous faces.",
+                "quote": "Discussion\nMotivated by the well-documented “beauty-is-\ngood” stereotype,7 we tested the hypothesis that\na complementary “anomalous-is-bad” stereotype\nexpresses itself in attitudes, behavior, brain func-\ntioning, and dispositions.",
                 "quote_confidence": 1.0,
-                "retrieval_confidence": 0.7226057946681976,
+                "retrieval_confidence": 0.6850024163722992,
                 "section": "full text",
-                "status": "verified",
-                "support_confidence": 0.9999999999999998
+                "status": "weak",
+                "support_confidence": 1.0
               }
             ],
-            "flagged": false,
+            "flagged": true,
             "ordinal": 1,
             "sentence_id": 102,
-            "text": "An “anomalous-is-bad” stereotype is hypothe-\nsized to facilitate biases against people with anoma-\nlous faces."
+            "text": "Discussion\nMotivated by the well-documented “beauty-is-\ngood” stereotype,7 we tested the hypothesis that\na complementary “anomalous-is-bad” stereotype\nexpresses itself in attitudes, behavior, brain func-\ntioning, and dispositions."
           },
           {
             "citations": [
@@ -45908,62 +45926,62 @@
                   {
                     "block": 11,
                     "coordinate_precision": "exact",
-                    "line": 12,
+                    "line": 4,
                     "page": 10,
-                    "x0": 108.90544891357422,
-                    "x1": 245.7547149658203,
-                    "y0": 486.3248291015625,
-                    "y1": 496.28741455078125
+                    "x0": 152.31854248046875,
+                    "x1": 245.7567901611328,
+                    "y0": 390.6816101074219,
+                    "y1": 400.6441955566406
                   },
                   {
                     "block": 11,
                     "coordinate_precision": "exact",
-                    "line": 13,
+                    "line": 5,
                     "page": 10,
-                    "x0": 42.525638580322266,
-                    "x1": 245.7238006591797,
-                    "y0": 498.28594970703125,
-                    "y1": 508.24853515625
+                    "x0": 42.525699615478516,
+                    "x1": 245.7677459716797,
+                    "y0": 402.6427001953125,
+                    "y1": 412.60528564453125
                   },
                   {
                     "block": 11,
                     "coordinate_precision": "exact",
-                    "line": 14,
+                    "line": 6,
                     "page": 10,
-                    "x0": 42.525638580322266,
-                    "x1": 245.81851196289062,
-                    "y0": 510.238037109375,
-                    "y1": 520.2006225585938
+                    "x0": 42.525699615478516,
+                    "x1": 245.8563690185547,
+                    "y0": 414.5948486328125,
+                    "y1": 424.55743408203125
                   },
                   {
                     "block": 11,
                     "coordinate_precision": "exact",
-                    "line": 15,
+                    "line": 7,
                     "page": 10,
-                    "x0": 42.525638580322266,
-                    "x1": 245.72079467773438,
-                    "y0": 522.190185546875,
-                    "y1": 532.1527709960938
+                    "x0": 42.525699615478516,
+                    "x1": 245.79457092285156,
+                    "y0": 425.13397216796875,
+                    "y1": 436.5095520019531
                   },
                   {
                     "block": 11,
                     "coordinate_precision": "exact",
-                    "line": 16,
+                    "line": 8,
                     "page": 10,
                     "x0": 42.525638580322266,
-                    "x1": 245.76370239257812,
-                    "y0": 534.1513061523438,
-                    "y1": 544.1138916015625
+                    "x1": 245.7646942138672,
+                    "y0": 438.5073547363281,
+                    "y1": 448.4699401855469
                   },
                   {
                     "block": 11,
                     "coordinate_precision": "exact",
-                    "line": 17,
+                    "line": 9,
                     "page": 10,
                     "x0": 42.525638580322266,
-                    "x1": 105.21728515625,
-                    "y0": 546.1033935546875,
-                    "y1": 556.0659790039062
+                    "x1": 194.257080078125,
+                    "y0": 450.45947265625,
+                    "y1": 460.42205810546875
                   }
                 ],
                 "chunk_id": 67010,
@@ -45974,18 +45992,85 @@
                 "page_start": 10,
                 "paper_id": 67,
                 "paper_title": "Morality is in the eye of the beholder: the neurocognitive basis of the ‘anomalous-is-bad’ stereotype",
-                "quote": "Nevertheless, we found evidence\nfor the “anomalous-is-bad” stereotype in explicit\nnegative attitudes about people with facial anoma-\nlies both as individuals (i.e., character inferences)\nand as a group (i.e., scores on the Explicit Bias\nQuestionnaire).",
+                "quote": "Anomalous faces were\nrated less attractive, less content, and more anxious\nthan typical faces, and less trustworthy than beau-\ntiful faces, replicating earlier work.4 Participants\nalso felt more aroused and less happy looking at\nanomalous (relative to typical) faces.",
                 "quote_confidence": 1.0,
-                "retrieval_confidence": 0.7080073058605194,
+                "retrieval_confidence": 0.6788981556892395,
                 "section": "full text",
-                "status": "verified",
+                "status": "weak",
+                "support_confidence": 1.0
+              }
+            ],
+            "flagged": true,
+            "ordinal": 2,
+            "sentence_id": 103,
+            "text": "Anomalous faces were\nrated less attractive, less content, and more anxious\nthan typical faces, and less trustworthy than beau-\ntiful faces, replicating earlier work.4 Participants\nalso felt more aroused and less happy looking at\nanomalous (relative to typical) faces."
+          },
+          {
+            "citations": [
+              {
+                "attachment_id": 67,
+                "bbox_json": [
+                  {
+                    "block": 11,
+                    "coordinate_precision": "exact",
+                    "line": 9,
+                    "page": 10,
+                    "x0": 198.25906372070312,
+                    "x1": 245.80758666992188,
+                    "y0": 450.45947265625,
+                    "y1": 460.42205810546875
+                  },
+                  {
+                    "block": 11,
+                    "coordinate_precision": "exact",
+                    "line": 10,
+                    "page": 10,
+                    "x0": 42.525638580322266,
+                    "x1": 245.7705841064453,
+                    "y0": 462.42059326171875,
+                    "y1": 472.3831787109375
+                  },
+                  {
+                    "block": 11,
+                    "coordinate_precision": "exact",
+                    "line": 11,
+                    "page": 10,
+                    "x0": 42.525638580322266,
+                    "x1": 245.78662109375,
+                    "y0": 474.3727111816406,
+                    "y1": 484.3352966308594
+                  },
+                  {
+                    "block": 11,
+                    "coordinate_precision": "exact",
+                    "line": 12,
+                    "page": 10,
+                    "x0": 42.525638580322266,
+                    "x1": 104.18417358398438,
+                    "y0": 486.3248291015625,
+                    "y1": 496.28741455078125
+                  }
+                ],
+                "chunk_id": 67010,
+                "coordinate_precision": "exact",
+                "evidence_quote_id": 2004,
+                "mapping_id": 1004,
+                "page_end": 10,
+                "page_start": 10,
+                "paper_id": 67,
+                "paper_title": "Morality is in the eye of the beholder: the neurocognitive basis of the ‘anomalous-is-bad’ stereotype",
+                "quote": "Participants\nexpressed explicit biases against people with facial\nanomalies, but their implicit biases were slight and\nnot significant.",
+                "quote_confidence": 1.0,
+                "retrieval_confidence": 0.646359920501709,
+                "section": "full text",
+                "status": "weak",
                 "support_confidence": 0.9999999999999998
               }
             ],
-            "flagged": false,
-            "ordinal": 2,
-            "sentence_id": 103,
-            "text": "Nevertheless, we found evidence\nfor the “anomalous-is-bad” stereotype in explicit\nnegative attitudes about people with facial anoma-\nlies both as individuals (i.e., character inferences)\nand as a group (i.e., scores on the Explicit Bias\nQuestionnaire)."
+            "flagged": true,
+            "ordinal": 3,
+            "sentence_id": 104,
+            "text": "Participants\nexpressed explicit biases against people with facial\nanomalies, but their implicit biases were slight and\nnot significant."
           },
           {
             "citations": [
@@ -45995,160 +46080,63 @@
                   {
                     "block": 0,
                     "coordinate_precision": "exact",
-                    "line": 2,
+                    "line": 6,
                     "page": 6,
-                    "x0": 450.6489562988281,
-                    "x1": 567.2939453125,
-                    "y0": 102.60699462890625,
-                    "y1": 112.60699462890625
+                    "x0": 211.9739227294922,
+                    "x1": 573.3408813476562,
+                    "y0": 154.593994140625,
+                    "y1": 164.593994140625
                   },
                   {
                     "block": 0,
                     "coordinate_precision": "exact",
-                    "line": 3,
-                    "page": 6,
-                    "x0": 200.011962890625,
-                    "x1": 569.5859375,
-                    "y0": 115.58999633789062,
-                    "y1": 125.58999633789062
-                  },
-                  {
-                    "block": 0,
-                    "coordinate_precision": "exact",
-                    "line": 4,
-                    "page": 6,
-                    "x0": 200.011962890625,
-                    "x1": 571.60498046875,
-                    "y0": 128.572998046875,
-                    "y1": 138.572998046875
-                  },
-                  {
-                    "block": 0,
-                    "coordinate_precision": "exact",
-                    "line": 5,
+                    "line": 7,
                     "page": 6,
                     "x0": 200.0119171142578,
-                    "x1": 265.013916015625,
-                    "y0": 141.61199951171875,
-                    "y1": 151.61199951171875
+                    "x1": 320.7879333496094,
+                    "y0": 167.57699584960938,
+                    "y1": 177.57699584960938
                   }
                 ],
                 "chunk_id": 88006,
                 "coordinate_precision": "exact",
-                "evidence_quote_id": 2004,
-                "mapping_id": 1004,
+                "evidence_quote_id": 2005,
+                "mapping_id": 1005,
                 "page_end": 6,
                 "page_start": 6,
                 "paper_id": 88,
                 "paper_title": "Only human after all? a pre-registered study on gaze behavior and humanity attributions to people with facial difference",
-                "quote": "However, given that previous\nresearch on disgust [20] led us assume a dehumanization of people with FD that was not sup-\nported by our data, the impact of disgust on social perceptions of people with FD would merit\nfuture attention.",
+                "quote": "Finally, it is possible that this stigmatizing gaze towards people with FD is not underpinned\nby dehumanizing attributions.",
                 "quote_confidence": 1.0,
-                "retrieval_confidence": 0.756226658821106,
+                "retrieval_confidence": 0.6937016248703003,
                 "section": "full text",
-                "status": "verified",
+                "status": "weak",
                 "support_confidence": 1.0
               }
             ],
-            "flagged": false,
-            "ordinal": 3,
-            "sentence_id": 104,
-            "text": "However, given that previous\nresearch on disgust [20] led us assume a dehumanization of people with FD that was not sup-\nported by our data, the impact of disgust on social perceptions of people with FD would merit\nfuture attention."
-          },
-          {
-            "citations": [
-              {
-                "attachment_id": 42,
-                "bbox_json": [
-                  {
-                    "block": 9,
-                    "coordinate_precision": "exact",
-                    "line": 0,
-                    "page": 3,
-                    "x0": 227.5199432373047,
-                    "x1": 505.1998596191406,
-                    "y0": 239.28013610839844,
-                    "y1": 255.4441375732422
-                  },
-                  {
-                    "block": 10,
-                    "coordinate_precision": "exact",
-                    "line": 0,
-                    "page": 3,
-                    "x0": 89.99993896484375,
-                    "x1": 505.307861328125,
-                    "y0": 262.6801452636719,
-                    "y1": 278.8441467285156
-                  },
-                  {
-                    "block": 11,
-                    "coordinate_precision": "exact",
-                    "line": 0,
-                    "page": 3,
-                    "x0": 89.99993896484375,
-                    "x1": 505.3198547363281,
-                    "y0": 286.0801696777344,
-                    "y1": 302.2441711425781
-                  },
-                  {
-                    "block": 12,
-                    "coordinate_precision": "exact",
-                    "line": 0,
-                    "page": 3,
-                    "x0": 89.99990844726562,
-                    "x1": 505.198486328125,
-                    "y0": 309.4801940917969,
-                    "y1": 325.6441955566406
-                  },
-                  {
-                    "block": 13,
-                    "coordinate_precision": "exact",
-                    "line": 0,
-                    "page": 3,
-                    "x0": 89.99992370605469,
-                    "x1": 161.99993896484375,
-                    "y0": 332.88018798828125,
-                    "y1": 349.044189453125
-                  }
-                ],
-                "chunk_id": 42003,
-                "coordinate_precision": "exact",
-                "evidence_quote_id": 2005,
-                "mapping_id": 1005,
-                "page_end": 3,
-                "page_start": 3,
-                "paper_id": 42,
-                "paper_title": "What is good is beautiful (and what isn’t, isn’t): How moral character affects perceived facial attractiveness.",
-                "quote": "A complementary “anomalous-is-bad” stereotype has also \nbeen described (Griffin & Langlois, 2006), which is expressed in negative attitudes \nabout people with facial anomalies (e.g., scars) that may facilitate dehumanizing \nbehavior (e.g., less prosociality; Hartung et al., 2019; Jamrozik et al., 2019; Workman \net al., 2021b).",
-                "quote_confidence": 1.0,
-                "retrieval_confidence": 0.8146284222602844,
-                "section": "full text",
-                "status": "verified",
-                "support_confidence": 1.0
-              }
-            ],
-            "flagged": false,
+            "flagged": true,
             "ordinal": 4,
             "sentence_id": 105,
-            "text": "A complementary “anomalous-is-bad” stereotype has also \nbeen described (Griffin & Langlois, 2006), which is expressed in negative attitudes \nabout people with facial anomalies (e.g., scars) that may facilitate dehumanizing \nbehavior (e.g., less prosociality; Hartung et al., 2019; Jamrozik et al., 2019; Workman \net al., 2021b)."
+            "text": "Finally, it is possible that this stigmatizing gaze towards people with FD is not underpinned\nby dehumanizing attributions."
           }
         ],
-        "source_chunk_count": 4,
+        "source_chunk_count": 3,
         "status": "done",
         "summary_id": 1,
-        "summary_status": "verified"
+        "summary_status": "flagged"
       }
     },
     "summary_index": [
       {
-        "created_at": "2026-08-14 14:06:44",
-        "flagged_sentence_count": 0,
+        "created_at": "2026-08-14 13:53:32",
+        "flagged_sentence_count": 4,
         "imported": false,
         "scope_label": "What is the anomalous-is-bad bias?",
         "scope_type": "papers",
         "sentence_count": 5,
-        "status": "verified",
+        "status": "flagged",
         "summary_id": 1,
-        "verified_sentence_count": 5
+        "verified_sentence_count": 1
       }
     ],
     "synthesis": {
@@ -49287,6 +49275,11 @@
                 "id": "meta-analysis",
                 "kind": "deterministic-local",
                 "label": "Meta-analysis reporting"
+              },
+              {
+                "id": "analytic-flexibility",
+                "kind": "provider-ai",
+                "label": "Analytic-flexibility surfacing"
               }
             ]
           },
@@ -50714,6 +50707,11 @@
                 "id": "meta-analysis",
                 "kind": "deterministic-local",
                 "label": "Meta-analysis reporting"
+              },
+              {
+                "id": "analytic-flexibility",
+                "kind": "provider-ai",
+                "label": "Analytic-flexibility surfacing"
               }
             ]
           },

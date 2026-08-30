@@ -3,23 +3,14 @@
   "overview": [
     {
       "claim_ordinals": [
-        0,
-        1,
-        4
+        0
       ],
-      "text": "The \"anomalous-is-bad\" stereotype suggests that negative perceptions of individuals with facial anomalies can foster biases and dehumanizing behaviors."
-    },
-    {
-      "claim_ordinals": [
-        2,
-        3
-      ],
-      "text": "Research confirms the presence of these explicit negative attitudes, although the hypothesized link between disgust and the dehumanization of those with facial differences was not supported by recent findings."
+      "text": "The \"anomalous-is-bad\" stereotype creates negative attitudes toward individuals with facial scars, which can lead to dehumanizing behaviors such as reduced prosocial interactions."
     }
   ],
   "prompt_version": "overview-v1",
   "provider_id": "gemini",
   "summary_id": 1,
-  "verified_claim_count": 5,
-  "verified_claims_sha256": "18893ee0d563d61f5c75d1ccffd5016783876db46438099a5ed12a1d622ad19c"
+  "verified_claim_count": 1,
+  "verified_claims_sha256": "6e6c50d10f65ba1ea7884e8d8ea0519f73311d2b04287e5e9cc5b748b5e6a173"
 }

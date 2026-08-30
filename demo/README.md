@@ -186,7 +186,7 @@ saved/disabled status disagrees with the centralized capability map. Current Wav
 |---|---|---|
 | Library | Three corrected records, licensed PDFs, methods, axes, tags, queue, My Publications, annotations, saved searches, GRIM/DEBIT/repeated values, reference state | Deep reader/maintenance parity and lock audit in progress |
 | WIP | Two synthetic drafts; structure, tasks, sources, checkpoints, activity, five deterministic checks, reference state, funding and journal receipts | Provider-dependent WIP graph results only when authentic public evidence can be captured deterministically |
-| Synthesize | Evidence-linked Ask; saved per-paper Critique; saved He et al. OSF source and twelve-row crosswalk | Fresh authentic three-paper Ask, source diversity, bounded registration inspector, and stronger Critique example are open findings |
+| Synthesize | Evidence-linked Ask spanning all three curated papers with a genuine verified + flagged (weak-retrieval) citation mix; saved per-paper Critique; saved He et al. OSF source and twelve-row crosswalk | A single sentence citing more than one paper at once, a real contradicted example, bounded registration inspector, and stronger Critique example are open findings |
 | Discover | Reviewed saved Feed, Search, Journals, Funding with bounded AI fit triage, followed-author identity, plus My Publications prospection | Wanted, library Gaps, axis Overlooked, beyond-library queue, and Crossref search lack authentic saved examples |
 | Work | Saved Cite, Meta-Reference, CRediT, Statements, and Meta-Analyze project/results | Authentic extraction provenance, multi-citation breadth, and editor-only orientation remain under review |
 

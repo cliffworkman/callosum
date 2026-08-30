@@ -3,6 +3,14 @@
 The source must be a dedicated/disposable demo-library database, never an ordinary working
 library. The target must be the dedicated curated demo database. Every citation is rechecked
 against the target chunk identity before the target's single stable summary is replaced.
+
+Any real citation status the app itself displays (verified/weak/unverified/contradicted -- see
+``CITATION_MAPPING_STATUSES``) is eligible for promotion, not only "verified": an all-green demo
+summary is *less* representative of the app's actual verified/flagged/contradicted behavior than
+an honest mix, and the promoted citation's own status/confidence fields travel with it unchanged
+-- this tool never fabricates or upgrades a status, only decides whether the real one is eligible.
+Promotion always reports the exact non-verified sentence/status pairs it accepted, so choosing a
+mixed-status summary is a visible, informed decision at the call site, never a silent default.
 """
 
 from __future__ import annotations
@@ -11,12 +19,18 @@ import argparse
 import hashlib
 import json
 import sqlite3
+import sys
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
+from app.backend.persistence.schema_base import CITATION_MAPPING_STATUSES  # noqa: E402
+
 DEMO_SUMMARY_ID = 1
 CURATED_PAPER_IDS = {42, 67, 88}
+DEMO_SUMMARY_STATUSES = ("verified", "flagged")
 
 
 def _row_dict(row: sqlite3.Row) -> dict[str, Any]:
@@ -42,8 +56,10 @@ def promote(
     target.execute("PRAGMA foreign_keys = ON")
     try:
         summary = source.execute("SELECT * FROM summaries WHERE id = ?", (source_summary_id,)).fetchone()
-        if summary is None or summary["status"] != "verified" or not summary["overview_json"]:
-            raise ValueError("source summary must be verified and contain a traceable Overview")
+        if summary is None or summary["status"] not in DEMO_SUMMARY_STATUSES or not summary["overview_json"]:
+            raise ValueError(
+                f"source summary must have a real status in {DEMO_SUMMARY_STATUSES} and contain a traceable Overview"
+            )
         sentences = source.execute(
             "SELECT * FROM summary_sentences WHERE summary_id = ? ORDER BY ordinal, id",
             (source_summary_id,),
@@ -52,6 +68,7 @@ def promote(
             raise ValueError("source summary must contain four to seven evidence-bearing claims")
         copied: list[tuple[sqlite3.Row, sqlite3.Row, sqlite3.Row]] = []
         paper_ids: set[int] = set()
+        non_verified: list[tuple[int, str]] = []  # (ordinal, citation status) -- reported, never silent
         for sentence in sentences:
             rows = source.execute(
                 """SELECT cm.*, eq.id evidence_id, eq.quote_text, eq.page_start, eq.page_end, eq.bbox_json,
@@ -67,8 +84,10 @@ def promote(
             if not rows:
                 raise ValueError(f"source claim {sentence['ordinal']} has no citation")
             for row in rows:
+                if row["status"] not in CITATION_MAPPING_STATUSES:
+                    raise ValueError(f"source claim {sentence['ordinal']} has an unrecognized citation status")
                 if row["status"] != "verified":
-                    raise ValueError(f"source claim {sentence['ordinal']} contains a non-verified citation")
+                    non_verified.append((int(sentence["ordinal"]), row["status"]))
                 target_chunk = target.execute(
                     "SELECT paper_id, text, chunk_version FROM chunks WHERE id = ?",
                     (row["chunk_id"],),
@@ -90,8 +109,13 @@ def promote(
         if not isinstance(overview, list) or not overview:
             raise ValueError("source Overview is malformed")
         ordinals = {int(sentence["ordinal"]) for sentence in sentences}
-        if any(not set(item.get("claim_ordinals") or []) <= ordinals for item in overview):
-            raise ValueError("source Overview references an unknown claim ordinal")
+        flagged_ordinals = {ordinal for ordinal, _status in non_verified}
+        verified_ordinals = ordinals - flagged_ordinals
+        # Matches app/backend/demo_ask_overview.py's own verified_claims_sha256() exactly: the Overview
+        # narrates only non-flagged (fully-verified) claims -- a flagged sentence has no business being
+        # cited by the Overview's own claim trace, mixed-status summary or not.
+        if any(not set(item.get("claim_ordinals") or []) <= verified_ordinals for item in overview):
+            raise ValueError("source Overview references an unknown or non-verified (flagged) claim ordinal")
 
         if backup_path is not None:
             if backup_path.exists():
@@ -165,14 +189,21 @@ def promote(
         source.close()
         target.close()
 
-    claims = [{"ordinal": int(row["ordinal"]), "text": str(row["text"])} for row in sentences]
+    # Fingerprint ONLY the non-flagged (fully-verified) claims -- must match
+    # app/backend/demo_ask_overview.py::verified_claims_sha256()'s own `if not sentence.flagged` filter exactly,
+    # or the promoted ask-overview-v1.json would carry a fingerprint the live app could never itself reproduce.
+    claims = [
+        {"ordinal": int(row["ordinal"]), "text": str(row["text"])}
+        for row in sentences
+        if int(row["ordinal"]) in verified_ordinals
+    ]
     fingerprint = hashlib.sha256(
         json.dumps(claims, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     ask_overview = {
         "summary_id": DEMO_SUMMARY_ID,
         "overview": overview,
-        "verified_claim_count": len(sentences),
+        "verified_claim_count": len(claims),
         "verified_claims_sha256": fingerprint,
         "provider_id": "gemini",
         "model_id": "gemini-3.1-flash-lite",
@@ -182,6 +213,12 @@ def promote(
         json.dumps(ask_overview, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
+    if non_verified:
+        print(
+            f"NOTE: promoted a mixed-status summary -- {len(non_verified)} of {len(sentences)} sentences are "
+            f"non-verified (flagged): {non_verified}. This is an intentional, disclosed choice (a demo that is "
+            f"100% verified is less representative of the app's real verified/flagged behavior), not an error."
+        )
     return len(sentences), mapping_count
 
 
@@ -197,14 +234,17 @@ def main() -> int:
     args = parser.parse_args()
     if not args.confirm_dedicated_demo_target or not args.confirm_public_source:
         parser.error("both explicit target/public-source confirmations are required")
-    claims, citations = promote(
+    sentence_count, citation_count = promote(
         source_db=args.source_db,
         source_summary_id=args.source_summary_id,
         target_db=args.target_db,
         ask_overview_path=args.ask_overview,
         backup_path=args.backup,
     )
-    print(f"promoted {claims} verified claims with {citations} citations into demo summary {DEMO_SUMMARY_ID}")
+    print(
+        f"promoted {sentence_count} claims with {citation_count} citations into demo summary "
+        f"{DEMO_SUMMARY_ID} (see any NOTE above for the real verified/flagged split)"
+    )
     return 0
 
 
