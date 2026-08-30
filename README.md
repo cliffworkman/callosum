@@ -48,7 +48,9 @@ Prefer to run from source, want a platform not listed above, or planning to cont
 ## What it does today
 
 **Library & metadata**
-- Import from Zotero (metadata + available PDFs), or from **BibTeX / RIS / CSL-JSON** (also covers Mendeley/EndNote).
+- Import from Zotero (metadata + available PDFs), or from **BibTeX / RIS / CSL-JSON** (covers a basic
+  Mendeley/EndNote export today; richer native importers — metadata + PDFs + folders, no bridge app required —
+  are in progress).
 - **Scan / watch a folder** of PDFs — the library folder is watched by default and re-scanned on launch/focus.
 - Metadata enrichment from Crossref/OpenAlex; an editable, Mendeley-style details pane; duplicate detection with
   reviewable reasons; **non-destructive merge**; Trash / restore / permanent delete.
@@ -175,58 +177,28 @@ project root, kept out of git) gives you a one-command start on any OS.
 
 ## Cite from your word processor
 
-Callosum can place live, formatted citations directly in **LibreOffice Writer**, **Microsoft Word** (desktop), and
-**Google Docs** — search your library live as you type, build multi-source citations with locators/prefixes/
-suffixes, edit an existing citation without starting over, and suggest citations for the sentence you're writing
-(optionally reaching beyond your library too). In LibreOffice, large-document controls can pause automatic
-citation formatting and bibliography rebuilding independently, with a persistent pending-refresh bar when either
-surface is stale, and can refresh only the citation at the Writer cursor without touching other citations or the
-bibliography. It can also refresh the current heading-defined section, including nested subsections, without
-rewriting citations elsewhere. Pending state returns as soon as a saved document opens, and native Writer
-citation moves are detected without treating ordinary prose edits as citation changes. Large refreshes show
-native Writer status-bar progress and can be cancelled with **Esc**; a cancellation rolls back the complete
-refresh rather than leaving mixed formatting. Full-document citeproc context is preserved, but Writer now skips
-citation fields and managed bibliography text whose rendered output is already current. An opt-in document
-setting links each unambiguous single-work citation to its managed bibliography entry and survives save/reopen;
-grouped citations remain plain rather than choosing an arbitrary source. A separate opt-in Writer setting makes
-DOI/URL text already rendered by the selected bibliography style clickable, without changing the bibliography
-text or inventing links. The document’s **Citations in this document…** panel can also assign works to named
-categories, producing one bounded bibliography with alphabetized category headings and an explicit **Other
-references** group for unassigned entries. Ctrl/Shift-select several works to assign or remove a category in one
-transaction; the picker reuses category names already in the document. **Category order…** can move named
-groups into manuscript order or reset them to alphabetical; **Other references** remains last.
-Word can also insert an author-selected saved highlight as an uncited quote or alongside a live citation, preserve
-bounded annotation/page provenance, and optionally show an explicit local stance signal without choosing the
-evidence or claiming a verdict.
-Writer headings can also own live local bibliographies: place the caret where the block belongs and choose
-**Insert current-section bibliography here**. “Current section” means the nearest preceding Writer heading plus
-its nested lower-level headings, not a separately created Writer Section. The block contains only works cited there,
-updates with **Refresh bibliography only**, and can coexist with other section blocks and the full bibliography.
-Placement conversion updates every non-empty section block in the same verified Writer Undo step; damaged or empty
-section blocks fail before mutation. **Remove bibliography for current section** removes only the block owned by the
-caret's section. Selecting the bundled
-**Chicago notes and bibliography** style places each new citation in a real Writer footnote and renders
-first/subsequent notes from the complete note sequence. **Note placement…** can instead route new note citations
-to native Writer endnotes, as a setting saved with the document. **Convert citation placement…** deliberately
-converts an eligible document between inline citations, footnotes, and endnotes after previewing the count and
-target style. Apply it as one Writer Undo step or save a separate converted `.odt` copy; ambiguous note content,
-mixed placement, and tracked changes are refused rather than guessed. A shared local citation-style catalog in
-**Settings → Citation styles** lets you search by style, journal, discipline, or acronym; inspect real fixed-example
-previews; keep favorites, recents, locale, and an application default; and install a local `.csl` file. Imported
-styles are validated locally against the official CSL 1.0.2 schema and macro rules plus the real citeproc engine before Callosum
-stores them. Re-importing the same canonical style detects an exact duplicate or asks before applying an update;
-bundled styles cannot be replaced. Personal styles can be downloaded as portable `.csl` backups and explicitly
-removed when they are not the application default or an installed style's parent. New word-processor documents
-inherit the application default, while existing documents keep their embedded style and locale. The
-**Repository** view searches the public CSL/Zotero catalog on demand and installs journal styles with their
-required parent; **Import URL** performs an explicit, HTTPS-only remote import with private-network and size
-guards. Repository queries are matched locally after the fixed catalog download and never include library or
-manuscript text. Personal styles retain visible local/repository/URL/copy provenance; remote update checks run
-only when requested, and **Duplicate** creates a standalone personal copy before editing. Independent personal
-styles open in a local CSL source editor with a rendered draft preview; bundled and dependent styles must first
-be duplicated. Saving preserves the style's canonical identity, revalidates it, and refuses to overwrite a newer
-revision. Documents using that personal style receive the saved formatting on their next refresh. See
-`adapters/`'s per-tool READMEs for setup.
+Callosum places live, formatted citations directly in your document — search your library as you type, build
+multi-source citations with locators/prefixes/suffixes, edit an existing citation without starting over, and
+get citation suggestions for the sentence you're writing (optionally reaching beyond your library too). A
+shared local style catalog (**Settings → Citation styles**) covers APA/MLA/Chicago/IEEE/Nature/Harvard,
+supports search/favorites/recents, and validates any installed custom `.csl` style locally against the CSL
+1.0.2 schema before Callosum trusts it.
+
+- **LibreOffice Writer** — the most complete integration: grouped citations, footnote/endnote placement (with
+  one-step conversion between inline/footnote/endnote), document-local bibliography categories and
+  heading-scoped section bibliographies, clickable bibliography links, and large-document-safe refresh
+  (pause/cancel/rollback, cursor-only or section-only refresh).
+- **Microsoft Word** (desktop and Word on the web) — grouped citations, native footnote/endnote placement,
+  bibliography categories and section blocks, a "Citations in this document" panel, evidence-aware suggestion
+  detail, a citation-coverage structural review, and one-time conversion of existing Zotero-field citations. In
+  the packaged desktop app, turning this on is one click (**Settings → Word integration → Enable Word
+  Support** — a locally-trusted certificate and companion process, no manual setup).
+- **Google Docs** — search-and-insert, suggest-from-sentence, one-click style switching, and flatten-to-static-
+  text, reached through an opt-in local tunnel (see Security note below — the packaged app can start one for
+  you with one click).
+
+See each adapter's own README for setup and the full feature list: `adapters/libreoffice/`, `adapters/word/`,
+`adapters/googledocs/`.
 
 ## Security note
 
