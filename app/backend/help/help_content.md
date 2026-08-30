@@ -51,6 +51,22 @@ During import, Callosum:
 
 Import does not make Gemini calls. Text extraction and local processing stay on your machine.
 
+### Turn imported folders into axes
+
+After a Zotero read, the same dialog lists the imported top-level folders. Callosum does **not** create axes
+silently: choose the explicit action when you want one axis per non-empty top-level folder. Papers in nested
+folders roll up into their top-level parent.
+
+- The default creates a **curated axis** containing exactly the imported folder papers in a manual order.
+- The optional, initially unchecked **keyword axis** choice keeps those exact papers as manual anchors, then uses
+  Callosum's existing local axis scorer to find other library papers similar to the folder name. This can take a
+  while; its ordinary Axis-scoring jobs remain visible under Status.
+
+This is a one-time snapshot. Re-reading Zotero refreshes its saved collection hierarchy but never overwrites an
+axis you have renamed, reordered, or edited. Repeating the create action returns the existing axes instead of
+making duplicates. If you imported Zotero before this feature existed, read that Zotero library once more first
+so Callosum can restore nested parent/child relationships that older imports did not retain.
+
 Gotchas:
 
 - If a paper says **PDF not available locally**, the imported record may be URL-only, metadata-only, or pointed at a file that is no longer available on disk.

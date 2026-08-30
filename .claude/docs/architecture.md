@@ -44,7 +44,7 @@ Callosum is a working local-first MVP at Increment 73. It runs as a localhost Fa
 - `app/backend/summarization/`: summary orchestration, generator protocols, and local citation verification.
 - `app/backend/llm/`: provider-neutral egress gates, content-addressed summary cache, and token usage logging.
 - `app/backend/help/`: shipped help corpus and optional AI help assistant protocol.
-- `app/backend/importers/`: Zotero importer.
+- `app/backend/importers/`: Zotero importer plus the shared imported-folder/group → ordinary-axis snapshot seam.
 - `app/backend/metadata/`: DOI enrichment, safe paper edits, abstract display cleanup, and BibTeX/RIS/CSL-JSON export.
 - `app/backend/wip/` plus `persistence/wip_*`: local unpublished-manuscript discovery, bounded primary-file text
   extraction, exact checkpoints, and generic snapshot-bound tool receipts/findings. Deterministic WIP checks reuse

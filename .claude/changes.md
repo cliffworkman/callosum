@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-08-30 inc 536 — imported folders → axes -->
+## 2026-08-30 — Increment 536: imported reference-manager folders → axes
+- **Files:** shared collection-axis domain/API/provenance migration; Zotero hierarchy persistence; import-dialog
+  UI + assembled app; Help/architecture/backlog/QA/security/increment ledgers; focused regressions.
+- **What:** previews top-level Zotero folders and, only on explicit click, creates one idempotent axis per
+  non-empty folder with nested membership rolled up. Curated is the default. The unchecked keyword option keeps
+  exact imported papers as manual anchors and queues the existing local scorer for the rest of the library.
+- **Why:** Zotero collections were already imported but permanently inert, and their parent relation was dropped.
+  The source-generic seam gives Mendeley/EndNote the same future destination without parallel axis systems.
+- **Safety:** bounded source/kind/collection/membership/axis inputs; cycle/orphan rejection; no egress; re-import
+  never overwrites a user-owned axis; repeat action cannot duplicate it; deletion removes only the provenance link.
+- **Verify:** final combined importer/API/axis/status/migration/access/help/frontend affected suite **239 passed**
+  in 286.81s; Ruff, Bandit, Tach, line-budget, QA surface-map (437/437 gated API), website review, and diff checks
+  passed. Full collection found **2600 tests**; the fresh serial full run hit its fixed one-hour harness bound with
+  no summary. The known isolated `test_summary_overview.py` circular import reproduced and does not traverse any
+  inc-536 module. Browser interaction remains queued honestly in Route 93 for the consolidated manual pass.
+- **Revert:** revert this increment commit; migration is additive and does not delete imported collections/axes.
+
 ## 2026-08-30 — Increment 535: EndNote legacy-MyISAM feasibility spike
 - **Files:** native-import research; Phase A/B open security-audit stubs; backlog/architecture/increment ledgers.
 - **What:** establishes from primary-source review and a live, disposable MariaDB experiment that the legacy
@@ -22,7 +40,7 @@ are the design diary; this is the chronological "what & why" record.
   fixture/table/datadir artifact was removed. See the increment notes for exact runtime identity and receipt.
 - **Revert:** documentation-only; revert this increment commit.
 
-<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 534 — packaged Word trust confirmation -->
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-08-29 inc 534 — packaged Word trust confirmation -->
 ## 2026-08-29 — Increment 534: close packaged Word trust + Tauri ACL gaps
 - **Files:** Windows Word certificate lifecycle; Tauri permissions/capability; packaged Word Settings copy and
   assembled frontend; lifecycle/frontend regressions; Help/Word/QA/security/increment documentation.

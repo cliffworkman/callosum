@@ -1623,6 +1623,18 @@ def test_packaged_quick_tunnel_is_explicit_token_gated_and_reversible():
     assert "Stop Quick Tunnel" in raw and "Copy URL" in raw
 
 
+def test_zotero_imported_folders_offer_explicit_curated_or_local_scored_axes():
+    raw = assemble_jsx()
+    assert 'api("/library/imported-collections/axes?import_source=zotero")' in raw
+    assert 'apiPost("/library/imported-collections/axes"' in raw
+    assert "Imported Zotero folders" in raw
+    assert "Imported folders could not be loaded" in raw
+    assert "one-time snapshot" in raw
+    assert "Create keyword axes instead" in raw
+    assert "folder-paper memberships as manual" in raw and "anchors, then score" in raw
+    assert "score the rest of the library locally" in raw
+
+
 def test_built_artifact_is_in_sync():
     """callosum-app.html must equal the live assembly — i.e. it was rebuilt after the last source
     edit (CLAUDE.md: re-run tools/build_frontend.py after editing app/frontend/)."""

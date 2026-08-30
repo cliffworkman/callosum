@@ -519,7 +519,7 @@ function App() {
           onImported={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }} />}
       {zoteroImportOpen &&
         <ZoteroImportModal onClose={() => setZoteroImportOpen(false)}
-          onImported={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }} />}
+          onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }} />}
       {bundleImportOpen &&
         <BundleImportModal onClose={() => setBundleImportOpen(false)}
           onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }} />}
@@ -532,7 +532,7 @@ function App() {
           onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)}
           onScanned={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }}
           onImported={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }}
-          onImportedZotero={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }}
+          onImportedZotero={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }}
           onImportedBundle={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }}
           onAxisSaved={() => setAxisRefresh(n => n + 1)} />}
       {authLocked && <AccessLockOverlay />}

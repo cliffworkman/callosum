@@ -4,17 +4,28 @@ import sqlite3
 from pathlib import Path
 
 import fitz
+import pytest
 from sqlalchemy import func, select
 
 from alembic import command
 from alembic.config import Config
-from app.backend.importers.zotero import import_zotero_library
+from app.backend.importers.zotero import _upsert_collections, import_zotero_library
 from app.backend.importers.zotero_annotation_position import translate_zotero_position
 from app.backend.pdf_processing.extraction import file_sha256
 from app.backend.pdf_processing.location import locate_quote_for_attachment
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_paper
-from app.backend.persistence.schema import annotations, attachments, chunks, collection_papers, notes, papers, tags
+from app.backend.persistence.schema import (
+    annotations,
+    attachments,
+    chunks,
+    collection_papers,
+    collections,
+    notes,
+    papers,
+    tags,
+)
+from integrations.zotero.adapter import ZoteroCollectionRecord
 
 
 def test_zotero_importer_maps_metadata_attachments_chunks_and_is_idempotent(tmp_path: Path) -> None:
@@ -183,6 +194,35 @@ def test_zotero_importer_reports_created_paper_ids_and_chunk_ids_by_paper(temp_d
             for chunk_id in chunk_ids:
                 row = conn.execute(select(chunks.c.id).where(chunks.c.id == chunk_id)).first()
                 assert row is not None
+
+
+def test_zotero_collection_upsert_preserves_hierarchy_and_repairs_existing_rows(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    child_first = (
+        ZoteroCollectionRecord(collection_id=2, key="CHILD", name="Child", parent_collection_id=1),
+        ZoteroCollectionRecord(collection_id=1, key="ROOT", name="Root", parent_collection_id=None),
+    )
+    with engine.begin() as conn:
+        mapping = _upsert_collections(conn, child_first)
+        child = conn.execute(select(collections).where(collections.c.id == mapping[2])).mappings().one()
+        assert child["parent_id"] == mapping[1]
+
+        repaired = (
+            ZoteroCollectionRecord(collection_id=2, key="CHILD", name="Renamed child", parent_collection_id=None),
+            ZoteroCollectionRecord(collection_id=1, key="ROOT", name="Root", parent_collection_id=None),
+        )
+        second_mapping = _upsert_collections(conn, repaired)
+        renamed = conn.execute(select(collections).where(collections.c.id == mapping[2])).mappings().one()
+    assert second_mapping == mapping
+    assert renamed["name"] == "Renamed child"
+    assert renamed["parent_id"] is None
+
+
+def test_zotero_collection_upsert_rejects_missing_parent(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    orphan = (ZoteroCollectionRecord(collection_id=2, key="CHILD", name="Child", parent_collection_id=99),)
+    with engine.begin() as conn, pytest.raises(ValueError, match="references missing parent 99"):
+        _upsert_collections(conn, orphan)
 
 
 def test_zotero_importer_reports_progress(temp_db_url: str, tmp_path: Path) -> None:

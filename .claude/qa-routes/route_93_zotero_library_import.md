@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /library/zotero/*, /papers/{paper_id}/pdf, /papers/{paper_id}/annotations
+api: /library/zotero/*, /library/imported-collections/*, /papers/{paper_id}/pdf, /papers/{paper_id}/annotations
 fe: 27b_zotero_import.jsx, 10b_libmenus.jsx, 04e_onboarding.jsx, 30_viewer.jsx
 -->
 
@@ -82,6 +82,11 @@ against.
 - **Mendeley bridge honesty.** The onboarding choice and Zotero modal name Zotero's exact
   **Mendeley Reference Manager (online import)** action, disclose that Mendeley data/files must be online and
   that authentication happens in Zotero, and never imply Callosum reads/decrypts Mendeley's protected store.
+- **Folder-to-axis is explicit and idempotent.** Reading Zotero never creates an axis by itself. The modal previews
+  top-level imported folders; nested papers roll up to their top-level parent. Curated is the default. The unchecked
+  keyword option must disclose that it preserves exact members as manual anchors and then runs local scoring. A
+  second create request returns the existing axes rather than duplicates, and a later Zotero read never overwrites
+  axis labels/membership edited by the user.
 
 ## Adversarial checklist
 
@@ -157,6 +162,24 @@ against.
     handled by Zotero rather than Callosum, and the next step is to enter the resulting Zotero data directory.
     Cross-check Help for the personal-library/group-library and Mendeley Cite document boundaries.
 
+### Imported folders → axes
+
+15. Use a Zotero fixture with two top-level collections, one nested child, direct papers at both levels, and one
+    empty top-level collection. Re-read it once. Confirm the modal previews only the two top-level folders, rolls
+    the child's papers into its parent count, and offers no axis action for the empty folder.
+16. Leave the keyword checkbox **off** and click **Create curated axes**. Confirm one curated axis per non-empty
+    top-level folder, exact descendant-inclusive membership, deterministic manual order, and no scoring job.
+17. Repeat the exact POST directly. Confirm `created_axis_ids` is empty and the previous ids appear under
+    `existing_axis_ids`; the Axes pane still has only one axis per source folder.
+18. In a fresh sandbox, check the keyword option and create again. Confirm exact imported members are manual
+    anchors, ordinary local Axis scoring jobs appear in Status, completion adds similarity-scored library papers,
+    and no provider/network request occurs.
+19. Rename or reorder a created axis, then re-read Zotero. Confirm the source `parentCollectionID` hierarchy is
+    refreshed but the user-owned axis is not renamed, reordered, or replaced. Delete it and repeat the explicit
+    create action; confirm the provenance link cascades and permits one clean replacement.
+20. Corrupt a disposable DB fixture with a collection cycle and, separately, a cross-source parent. Preview/create
+    must return a bounded 422 and publish no partial axis. Verify unknown source/kind values also return 422.
+
 ## Pass criteria
 
 - Both entry points (Library "+ Add" menu and the onboarding wizard's import step) reach the same working
@@ -170,6 +193,9 @@ against.
   all-zero summary; a re-run against the same directory is a true no-op.
 - Status findability and nav-click-through hold; the modal accurately explains exact-vs-preserved annotation
   placement, and the supported fixture mark appears only on its owning PDF.
+- Folder axes require an explicit action, nested membership rolls up exactly, repeat creation is idempotent,
+  curated is the default, keyword scoring is local/existing, and malformed hierarchy fails closed without a
+  partial axis.
 - 0 console/page errors; mobile viewport has no horizontal overflow.
 
 ## Deposit

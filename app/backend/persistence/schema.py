@@ -321,6 +321,17 @@ cluster_node_papers = Table(
     ),
 )
 
+# Backlog #57 Phase 6C: the one-time provenance link from an imported reference-manager folder/group to the
+# ordinary user-owned axis created from it. The link prevents duplicate axes on repeated explicit requests;
+# re-import never silently rewrites the axis itself.
+imported_collection_axes = Table(
+    "imported_collection_axes",
+    metadata,
+    Column("collection_id", ForeignKey("collections.id", ondelete="CASCADE"), primary_key=True),
+    Column("axis_id", ForeignKey("axes.id", ondelete="CASCADE"), nullable=False, unique=True),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+)
+
 external_api_cache = Table(
     "external_api_cache",
     metadata,

@@ -16236,11 +16236,22 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       }
     });
     const [imp, setImp] = useState({ status: "idle" });
+    const [folderAxes, setFolderAxes] = useState({ status: "loading", collections: [] });
+    const [scoreFolders, setScoreFolders] = useState(false);
     const _clearJob = () => {
       try {
         localStorage.removeItem(ZOTERO_IMPORT_JOB_KEY);
       } catch (e) {
       }
+    };
+    const loadFolderAxes = () => {
+      api("/library/imported-collections/axes?import_source=zotero").then((r) => {
+        if (!r.ok) {
+          setFolderAxes({ status: "error", error: r.error, collections: [] });
+          return;
+        }
+        setFolderAxes({ status: "ready", collections: r.data.collections || [] });
+      });
     };
     const poll = (jobId) => {
       api(`/library/zotero/import/${jobId}`).then((r) => {
@@ -16253,6 +16264,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         if (d.status === "done") {
           setImp({ status: "done", summary: d.summary });
           _clearJob();
+          loadFolderAxes();
           if (onImported) onImported();
         } else if (d.status === "error") {
           setImp({ status: "error", error: d.detail || "Zotero import failed." });
@@ -16272,7 +16284,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       if (job && job.jobId) {
         setImp({ status: "running" });
         poll(job.jobId);
-      }
+      } else loadFolderAxes();
     }, []);
     const run = () => {
       const path = dir.trim();
@@ -16294,7 +16306,28 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         poll(r.data.job_id);
       });
     };
+    const createFolderAxes = () => {
+      const available = folderAxes.collections.filter((c) => !c.axis_id && c.paper_count > 0);
+      if (!available.length) return;
+      setFolderAxes((v) => ({ ...v, status: "creating" }));
+      apiPost("/library/imported-collections/axes", {
+        import_source: "zotero",
+        axis_kind: scoreFolders ? "standard" : "curated"
+      }).then((r) => {
+        if (!r.ok) {
+          setFolderAxes((v) => ({ ...v, status: "error", error: r.error }));
+          return;
+        }
+        setFolderAxes((v) => ({ ...v, status: "created", result: r.data }));
+        loadFolderAxes();
+        if (onImported) onImported();
+      });
+    };
     const s = imp.summary;
+    const importedFolders = folderAxes.collections || [];
+    const availableFolders = importedFolders.filter((c) => !c.axis_id && c.paper_count > 0);
+    const linkedFolders = importedFolders.filter((c) => c.axis_id);
+    const folderPaperCount = availableFolders.reduce((total, c) => total + c.paper_count, 0);
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Read my Zotero library"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Point this at your ", /* @__PURE__ */ React.createElement("b", null, "Zotero data directory"), " \u2014 the folder containing ", /* @__PURE__ */ React.createElement("code", null, "zotero.sqlite"), " ", "(commonly ", /* @__PURE__ */ React.createElement("code", null, "~/Zotero"), " on Mac/Linux, or under ", /* @__PURE__ */ React.createElement("code", null, "Documents\\Zotero"), " on Windows). Callosum copies that file before reading it \u2014 your live Zotero database is never opened or modified, so this is safe to run while Zotero itself is open. Full fidelity: local PDFs are extracted and chunked, collections, tags, and notes carry over. Zotero PDF highlights and underlines are also placed on the matching local PDF when their stored position can be translated exactly; unsupported or ambiguous positions stay unmarked rather than being drawn at a guessed location. ", /* @__PURE__ */ React.createElement("b", null, "Moving from Mendeley?"), " In current Zotero Desktop, first choose ", /* @__PURE__ */ React.createElement("b", null, "File \u2192 Import \u2192 Mendeley Reference Manager (online import)"), " and let it finish, then enter that Zotero data directory here. That bridge requires your Mendeley data/files online and signs in through Zotero; Callosum never receives your Mendeley credentials."), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement(
       "input",
       {
@@ -16306,7 +16339,15 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           if (e.key === "Enter") run();
         }
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: imp.status === "running" || !dir.trim(), onClick: run }, imp.status === "running" ? "Importing\u2026" : "Read library")), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Reading your Zotero library\u2026", progress: imp.progress, managedBy: "backend-job" }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Import failed: ", imp.error), imp.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.papers_created), " new \xB7 ", s.papers_matched, " already in your library", s.attachments_created ? ` \xB7 ${s.attachments_created} attachment${s.attachments_created === 1 ? "" : "s"}` : "", s.chunks_created ? ` \xB7 ${s.chunks_created} chunk${s.chunks_created === 1 ? "" : "s"} extracted` : "", s.attachment_errors ? ` \xB7 ${s.attachment_errors} attachment${s.attachment_errors === 1 ? "" : "s"} couldn't be read` : "", s.papers_created > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "New papers are in your library \u2014 full fidelity wherever a local PDF was found.")), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")));
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: imp.status === "running" || !dir.trim(), onClick: run }, imp.status === "running" ? "Importing\u2026" : "Read library")), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Reading your Zotero library\u2026", progress: imp.progress, managedBy: "backend-job" }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Import failed: ", imp.error), folderAxes.status === "error" && importedFolders.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Imported folders could not be loaded: ", folderAxes.error), imp.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.papers_created), " new \xB7 ", s.papers_matched, " already in your library", s.attachments_created ? ` \xB7 ${s.attachments_created} attachment${s.attachments_created === 1 ? "" : "s"}` : "", s.chunks_created ? ` \xB7 ${s.chunks_created} chunk${s.chunks_created === 1 ? "" : "s"} extracted` : "", s.attachment_errors ? ` \xB7 ${s.attachment_errors} attachment${s.attachment_errors === 1 ? "" : "s"} couldn't be read` : "", s.papers_created > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "New papers are in your library \u2014 full fidelity wherever a local PDF was found.")), folderAxes.status !== "loading" && importedFolders.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, "Imported Zotero folders"), /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, importedFolders.length, " top-level folder", importedFolders.length === 1 ? "" : "s", "; nested-folder papers roll up into their parent. Creating axes is an explicit one-time snapshot\u2014later Zotero reads never overwrite an axis you own."), availableFolders.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, availableFolders.slice(0, 5).map((c) => `${c.name} (${c.paper_count})`).join(" \xB7 "), availableFolders.length > 5 ? ` \xB7 +${availableFolders.length - 5} more` : ""), /* @__PURE__ */ React.createElement("label", { className: "settings-check" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: scoreFolders, onChange: (e) => setScoreFolders(e.target.checked) }), "Create keyword axes instead: keep the exact ", folderPaperCount, " folder-paper memberships as manual anchors, then score the rest of the library locally by each folder name (may take a while)."), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-secondary",
+        disabled: folderAxes.status === "creating",
+        onClick: createFolderAxes
+      },
+      folderAxes.status === "creating" ? "Creating axes\u2026" : `Create ${availableFolders.length} ${scoreFolders ? "keyword" : "curated"} ${availableFolders.length === 1 ? "axis" : "axes"}`
+    )), !availableFolders.length && linkedFolders.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "All non-empty top-level folders already have axes."), folderAxes.error && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Folder axes failed: ", folderAxes.error), /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Imported before this feature? Read the Zotero library once more before creating axes to restore its nested folder relationships.")), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")));
   }
   function ImportModal({ onClose, onImported }) {
     return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(ImportModalBody, { onClose, onImported })));
@@ -23109,6 +23150,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onClose: () => setZoteroImportOpen(false),
         onImported: () => {
           setLibRefresh((n) => n + 1);
+          setAxisRefresh((n) => n + 1);
           libraryBits.onPage(0);
         }
       }
@@ -23151,6 +23193,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         },
         onImportedZotero: () => {
           setLibRefresh((n) => n + 1);
+          setAxisRefresh((n) => n + 1);
           libraryBits.onPage(0);
         },
         onImportedBundle: () => {

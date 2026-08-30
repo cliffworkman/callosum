@@ -55,6 +55,7 @@ from app.backend.api.routers import (
     health,
     help,
     library,
+    library_collections,
     library_enrich,
     library_zotero,
     libreoffice,
@@ -463,6 +464,7 @@ def create_app(
     api.include_router(saved_searches.router)
     api.include_router(reading_queue.router)  # /reading-queue/* — the to-read Queue tab (inc 219)
     api.include_router(library.router)
+    api.include_router(library_collections.router)  # imported reference-manager folders/groups -> ordinary axes
     api.include_router(library_zotero.router)  # /library/zotero/import — native Zotero library import (#57 Phase 1)
     api.include_router(wip.router)  # /wip/* — local-only unpublished manuscript workspaces
     api.include_router(wip_checks.router)

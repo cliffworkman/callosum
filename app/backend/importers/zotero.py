@@ -384,6 +384,9 @@ def _backfill_zotero_identity(conn: Connection, paper_id: int, item: ZoteroItemR
 
 def _upsert_collections(conn: Connection, zotero_collections: tuple[Any, ...]) -> dict[int, int]:
     mapping: dict[int, int] = {}
+    # First pass establishes every local id. The second can then preserve parent links regardless of source order
+    # (and repairs hierarchy for libraries imported before backlog #57 Phase 6C, when parentCollectionID was read
+    # by the adapter but accidentally discarded here).
     for collection in zotero_collections:
         external_id = collection.key or str(collection.collection_id)
         existing = (
@@ -409,6 +412,21 @@ def _upsert_collections(conn: Connection, zotero_collections: tuple[Any, ...]) -
             )
         ).inserted_primary_key[0]
         mapping[collection.collection_id] = int(collection_id)
+    for collection in zotero_collections:
+        collection_id = mapping[collection.collection_id]
+        parent_id = None
+        if collection.parent_collection_id is not None:
+            parent_id = mapping.get(collection.parent_collection_id)
+            if parent_id is None:
+                raise ValueError(
+                    f"Zotero collection {collection.collection_id} references missing parent "
+                    f"{collection.parent_collection_id}"
+                )
+        conn.execute(
+            update(collections)
+            .where(collections.c.id == collection_id)
+            .values(name=collection.name, parent_id=parent_id)
+        )
     return mapping
 
 

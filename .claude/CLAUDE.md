@@ -22,8 +22,10 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 535** (see Increment workflow) with **2590 root-suite pytest tests
-passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
+It is currently at **Increment 536** (see Increment workflow) with **2590 tests in the last completed root-suite
+pass and 2600 currently collected** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
+The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
+receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
 `tools/qa/check_demo_experience_coverage.py`/`check_website_coverage.py`, plus a new `www/how-it-works.html`
@@ -857,6 +859,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   still missing it, fixed to carry the citation's own `attachment_id` (backlog #57 fixwave). Audits
   `2026-08-20_zotero-library-import.md` and
   `2026-08-21_zotero-annotation-position-fidelity.md` PASS.
+- **Imported reference-manager folders become axes only on explicit action (backlog #57 Phase 6C, inc 536):**
+  Zotero's already-read `parentCollectionID` is now retained/backfilled, and its existing modal previews top-level
+  imported folders. Nested papers roll up to the parent. The default action snapshots exact membership into an
+  ordinary curated axis; an unchecked keyword option retains those papers as manual anchors and reuses the
+  authoritative local Axis scorer for the rest of the library. `imported_collection_axes` makes creation
+  idempotent without putting provenance fields on general axes. Re-import never overwrites a user-owned axis;
+  deletion cascades only the link so one replacement can be created. The bounded, cycle/orphan-rejecting API is
+  source-generic for future Mendeley/EndNote rows, introduces no egress, and changes no existing axis semantics.
 - **EndNote whole-library handoff partially verified (backlog #57 Phase 2, inc 486):** current EndNote 2025
   documentation recommends **RefMan (RIS) Export** for transfer to another program; Callosum's existing local,
   metadata-only `POST /library/import` route already accepts `.ris` and EndNote's possible `.txt` extension.

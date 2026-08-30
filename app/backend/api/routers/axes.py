@@ -256,7 +256,7 @@ def score_axis_start(
         raise HTTPException(status_code=404, detail="Axis not found")
     cutoff = _clamp_cutoff(payload.gain if payload else None, fallback=_axis_cutoff(axis))
     job_id = request.app.state.axis_score_jobs.create()
-    background_tasks.add_task(_run_axis_score_job, request.app, job_id, axis_id, cutoff)
+    background_tasks.add_task(run_axis_score_job, request.app, job_id, axis_id, cutoff)
     return AxisScoreStartResponse(job_id=job_id, status="pending")
 
 
@@ -382,7 +382,8 @@ def set_axis_order(axis_id: int, request: AxisOrderRequest, engine: Engine = Dep
     return run_write(engine, _do)
 
 
-def _run_axis_score_job(app: FastAPI, job_id: str, axis_id: int, cutoff: float = DEFAULT_AXIS_CUTOFF) -> None:
+def run_axis_score_job(app: FastAPI, job_id: str, axis_id: int, cutoff: float = DEFAULT_AXIS_CUTOFF) -> None:
+    """Run the existing authoritative local axis-scoring lifecycle for one already-created axis."""
     jobs: JobStore[AxisScoreJobResponse] = app.state.axis_score_jobs
     jobs.mark_running(job_id)
     try:

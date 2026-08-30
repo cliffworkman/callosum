@@ -366,8 +366,11 @@ the Principles + A-A gates before build.)*
     EndNote's public X7 MyISAM `refs` table from a copy. Phase B is therefore technically feasible but now gated
     on an explicit managed-engine packaging/security design, a real attached-PDF fixture, and a separate modern
     SQLite-era fixture; Docker is not an acceptable end-user prerequisite. Fixtures remain gitignored at
-    `.claude/backups/endnote-fixtures/`. Both sources feed a new shared "imported folders/groups → axis" step that also
-    retroactively surfaces the Zotero importer's own already-populated-but-never-read `collections` table. See
+    `.claude/backups/endnote-fixtures/`. **The shared imported-folder/group → axis seam shipped in increment 536:**
+    Zotero now preserves `parentCollectionID`, previews top-level folders in its existing import dialog, and only
+    on explicit action snapshots descendant-inclusive membership into idempotent ordinary axes. Curated is the
+    default; the unchecked keyword option keeps exact folder papers as manual anchors and reuses local scoring.
+    The generic provenance/API seam already accepts future `mendeley` and `endnote` collection rows. See
     §6 below — this does **not** contradict the "folders/collections declined" entry; that decision was about
     manual folder-creation inside callosum, not imported structure from another tool.
 
