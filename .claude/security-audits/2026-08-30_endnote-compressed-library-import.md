@@ -1,7 +1,7 @@
 # Security audit — EndNote Compressed Library import (backlog #57 Phase 6B)
 
 **Date opened:** 2026-08-30
-**Status:** **OPEN — developer executor POC proven on Windows and one Debian host; production importer not started**
+**Status:** **OPEN — developer executor proven on Windows plus a seven-release Linux matrix; production importer not started**
 **Planned surface:** untrusted `.enlx`/`.enl` archive ingestion; legacy MyISAM or modern SQLite format detection;
 bibliographic/group/attachment extraction into existing import pipelines.
 
@@ -41,6 +41,14 @@ release must mirror exact source/notices, record every transform, sign the deriv
 installer/updater/catalog integration until legal sign-off. See
 `.claude/docs/research/2026-08-30_endnote_mariadb_distribution_review.md`.
 
+Increment 546 closes the runtime-specific Linux ABI/package-policy research gate. The exact stripped candidate
+passed Ubuntu 20.04/22.04/24.04/26.04 and Debian 11/12/13, both as root and uid 1000, under a read-only runtime/
+fixture mount, private writable temp root, 1 GiB/2 CPU/128 PID caps, absent container network plus
+`--skip-networking`, source-hash verification, and orphan checks. The initial supported component envelope is
+Ubuntu 22.04/24.04/26.04 and Debian 12/13 on amd64, never broader than the actual Callosum `.deb`. The future
+package declares five direct OS libraries instead of vendoring system copies. This does not close the audit or
+authorize distribution. See `.claude/docs/research/2026-08-30_endnote_linux_abi_matrix.md`.
+
 ## Approved POC boundary
 
 - Developer-supplied pinned runtime only; no bundled binary, downloader, route, UI, or user data write.
@@ -53,10 +61,11 @@ installer/updater/catalog integration until legal sign-off. See
   child and temporary job. No dual supervision.
 - Public X7 fixture only until the archive/executor boundary passes adversarial tests.
 
-## Production blockers after increment 544
+## Production blockers after increment 546
 
-- Convert the proven developer manifests into signed/pinned shipping artifacts; define and test the supported
-  Linux distro/ABI matrix and explicit OS-package dependency policy.
+- After legal approval permits integration, convert the proven manifest into a signed/pinned optional asset and
+  install/run the actual Callosum `.deb` plus component on every claimed Linux release. The runtime-only matrix
+  and package policy are complete; the integrated package does not exist yet.
 - Reproducible macOS arm64/x86_64 build plus signing/notarization/live lifecycle proof; upstream 10.11.19 offers
   no official macOS binary in its current download inventory.
 - Qualified legal approval of the GPL-2.0-only server / AGPL-3.0-or-later separate-program aggregate boundary;

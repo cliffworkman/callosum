@@ -377,10 +377,14 @@ the Principles + A-A gates before build.)*
     **Increment 545 completes the engineering license/provenance review:** MariaDB is GPL-2.0-only and remains a
     separate optional process; official Linux binary/source hashes and signatures plus a deterministic 31.8 MB
     stripped candidate are proven. Distribution is still blocked on qualified legal approval of the aggregate
-    boundary and implementation of the specified source/notices/signatures/transformation kit. Shipping also
-    remains gated on a tested Linux distro/ABI policy, macOS build/sign/notarization, a real attached-PDF fixture,
-    and a separate modern SQLite-era fixture; Docker is not an end-user prerequisite. Fixtures remain gitignored
-    at `.claude/backups/endnote-fixtures/`. **Increment 537 added the safe, dormant Mendeley transport scaffold:**
+    boundary and implementation of the specified source/notices/signatures/transformation kit. **Increment 546
+    closes the runtime-specific Linux ABI/package-policy gate:** the exact candidate passed seven Ubuntu/Debian
+    releases as root and uid 1000; support is conservatively limited to Ubuntu 22.04/24.04/26.04 and Debian 12/13
+    inside Callosum's amd64 `.deb`, with five declared OS libraries and no vendored system copies. Shipping remains
+    gated on an actual packaged-app install matrix after legal approval, macOS build/sign/notarization, a real
+    attached-PDF fixture, and a separate modern SQLite-era fixture; Docker is not an end-user prerequisite.
+    Fixtures remain gitignored at `.claude/backups/endnote-fixtures/`. **Increment 537 added the safe, dormant
+    Mendeley transport scaffold:**
     version-pinned/bounded documents, folders, memberships, files, signed-download redirect, and OAuth exchange
     primitives with hermetic tests. It also found the official authorization-code flow still requires a
     confidential secret, documents no PKCE, and pins one redirect URI—a real packaged-desktop blocker beyond

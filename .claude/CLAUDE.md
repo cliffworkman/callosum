@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 545** (see Increment workflow) with **2657 tests in the last completed root-suite
+It is currently at **Increment 546** (see Increment workflow) with **2657 tests in the last completed root-suite
 pass and 2657 currently collected** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
 The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
 receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
@@ -878,7 +878,7 @@ the full per-increment narrative for all other increments now lives in the reloc
   until the same path is exercised against a genuine EndNote-created file; the checked-in alias fixture is only
   a contract stand-in. Research: `.claude/docs/research/2026-08-21_endnote_generic_import.md`.
 - **EndNote legacy-MyISAM reader and developer executor proven, production gated (backlog #57 Phase
-  6B, incs 535/541/542/544/545):** no
+  6B, incs 535/541/542/544/545/546):** no
   maintained pure-language reader was found for the real fixtures' `.frm`/`.MYD`/`.MYI` row data. A disposable,
   network-isolated MariaDB 10.11 experiment using only EndNote's public X7 sample recognized the tables and,
   after the engine-required rebuild on a copy, read all 59 `refs` rows with the expected 54-field schema. This
@@ -898,8 +898,11 @@ the full per-increment narrative for all other increments now lives in the reloc
   and cannot be merged/relicensed into AGPL-3.0-or-later Callosum. Engineering source/notice/signature/transform
   requirements are specified, but installer/updater/catalog distribution remains blocked on qualified legal
   approval of the aggregate classification. No runtime, route, setting, paper write, PDF ingest, or UI ships.
-  Other gates remain a tested Linux distro/ABI policy, standalone macOS lifecycle, and attached-PDF plus
-  modern-SQLite fixtures. Docker remains research-only; RIS/XML
+  Inc 546 closes the runtime-specific Linux ABI/package-policy research gate: the exact stripped candidate passed
+  Ubuntu 20.04/22.04/24.04/26.04 and Debian 11/12/13 as root and uid 1000, with the support promise conservatively
+  limited to Ubuntu 22.04/24.04/26.04 and Debian 12/13 inside Callosum's existing amd64 `.deb` envelope. The future
+  package declares five OS libraries rather than vendoring them. Other gates remain standalone macOS lifecycle,
+  attached-PDF and modern-SQLite fixtures, legal approval, and actual packaged-app install tests. Docker remains research-only; RIS/XML
   fallbacks remain unchanged. Research:
   `.claude/docs/research/2026-08-30_endnote_managed_bootstrap_engine.md`.
 - **Native Mendeley transport scaffolded, OAuth activation gated (backlog #57 Phase 6A, inc 537):** the dormant

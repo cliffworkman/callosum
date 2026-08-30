@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-30 — Increment 546: EndNote Linux ABI/package matrix
+- **Files:** new compatibility receipt plus EndNote research/security/decision/backlog/increment ledgers. No code,
+  runtime, dependency, importer, installer, route, setting, UI, or user-visible behavior.
+- **Live result:** the exact stripped 10.11.19 candidate passed Ubuntu 20.04/22.04/24.04/26.04 and Debian 11/12/13,
+  as root and uid/gid 1000. Every run resolved dependencies, returned 59 rows/54 columns, preserved the public
+  fixture hash, and left no process; unprivileged runs took 157–187 ms.
+- **Policy:** initial component support is Ubuntu 22.04/24.04/26.04 LTS and Debian 12/13 on amd64, never broader
+  than Callosum's actual `.deb`. Declare `libc6`, `libcrypt1`, `libgcc-s1`, `libstdc++6`, and `libsystemd0`; do not
+  vendor those system libraries or hand-lower packaging-generated version bounds.
+- **Boundary:** runtime-specific Linux ABI research is closed. Legal approval, release-kit implementation, actual
+  packaged-app install tests, macOS, missing fixtures, and production import/UI remain open.
+- **Verify/revert:** exact receipts are in `INCREMENT-546-NOTES.md` and the research doc; documentation-only revert.
+
 ## 2026-08-30 — Increment 545: EndNote MariaDB distribution review
 - **Files:** new license/provenance research receipt plus EndNote security, architecture-decision, backlog, and
   increment ledgers. No runtime, dependency, importer, downloader, route, setting, UI, or production behavior.

@@ -203,6 +203,13 @@ binary/source artifacts, proves a deterministic 31.8 MB stripped candidate, and 
 signatures/transformation kit. Distribution remains blocked on qualified legal approval because GPL-2.0-only
 MariaDB and AGPL-3.0-or-later Callosum cannot be combined under one license.
 
+Increment 546 closes the runtime-specific Linux ABI/package-policy research gate:
+`.claude/docs/research/2026-08-30_endnote_linux_abi_matrix.md`. The exact stripped candidate passed seven clean
+Ubuntu/Debian releases as root and uid 1000. The initial support policy is Ubuntu 22.04/24.04/26.04 and Debian
+12/13 on amd64, never broader than Callosum's actual `.deb`; `libc6`, `libcrypt1`, `libgcc-s1`, `libstdc++6`, and
+`libsystemd0` remain declared OS dependencies rather than bundled files. The eventual packaged component must
+still install/run on each claimed target after legal approval permits integration.
+
 No route, UI, bundled engine, paper write, PDF ingestion, or production activation was added. The next work is
 not broader parser coding: close the remaining platform/package/license and missing-fixture gates listed above.
 

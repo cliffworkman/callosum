@@ -126,6 +126,15 @@ when a runtime actually ships; adding it now would falsely imply that MariaDB is
 - Do not bundle Linux system libraries without adding their exact licenses and corresponding-source analysis.
 - Do not put the component into installers, updaters, or a managed download catalog before legal sign-off.
 
+## Linux ABI/package follow-up
+
+Increment 546 closes the runtime-specific Linux ABI/package-policy research gate; see
+`.claude/docs/research/2026-08-30_endnote_linux_abi_matrix.md`. The exact stripped candidate passed Ubuntu
+20.04/22.04/24.04/26.04 and Debian 11/12/13 as root and uid 1000. The initial support policy is narrower:
+Ubuntu 22.04/24.04/26.04 and Debian 12/13, amd64 only, within Callosum's existing `.deb` envelope. The component
+must declare `libc6`, `libcrypt1`, `libgcc-s1`, `libstdc++6`, and `libsystemd0` instead of copying those libraries.
+This evidence does not change the legal blocker or authorize installer integration.
+
 ## Decision
 
 **Conditional engineering decision:** keep MariaDB as a separately executed, optional component and prepare a
