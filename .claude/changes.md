@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-30 — Increment 540: a real mobile-view website screenshot (Phase 2 slice)
+- **Files:** `www/showcase.html`, `www/showcase-coverage.json`; new `www/shots/mobile_current.png`.
+- **What:** captured a real, live phone-viewport (390×844) screenshot of the app via Playwright and wired it
+  into showcase.html's Read gallery as `#fig-mobile`, closing a real gap (index.html's "read-only view for your
+  phone" claim had zero visual backing anywhere on the site). Registered it in the coverage ledger properly
+  (confirmed the check failed first, then passed after registration).
+- **Why:** Phase 2 of the website improvement plan — the mobile claim was the cleanest, most clearly-scoped gap
+  the Phase 1 survey found.
+- **Also found, deliberately not fixed:** live-navigating the app surfaced a "New layout" in-app banner
+  confirming `app_current.png` predates a real menu reorganization — not recaptured this increment since
+  showcase.html's hotspot overlay is positioned by hardcoded percentages tied to the old screenshot; swapping
+  the image without re-tuning those risks a worse (misaligned) result. Flagged as its own follow-up.
+- **Verify:** `tools/qa/check_website_coverage.py` → 21 current figures, green; `pytest
+  tests/test_check_website_coverage.py tests/test_website_how_it_works.py -q` → 11 passed.
+- **Revert:** `git log` for the exact commit; additive only, no schema/migration.
+
 ## 2026-08-30 — Increment 539: www/ frontend overhaul (Phase 1 of the website/demo improvement plan)
 - **Files:** `www/index.html`, `www/showcase.html`, `www/how-it-works.html`, `www/site-header.js`; new
   `www/site.css`, `www/site.js`, `www/favicon.png`, `www/assets/logo-mark.png`; 53 deleted `www/shots/*.png`.

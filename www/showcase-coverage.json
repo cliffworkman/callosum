@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-30",
-    "reviewed_rev": "2c3ad0b",
+    "reviewed_rev": "114f2ec",
     "source_fingerprint": "1eb53451770c4baefe654dddbf1cefabab56941b32f4f7aaf09f63add375d704",
-    "note": "Reviewed import capability copy after explicit Zotero folder-to-axis snapshots; existing library-map visual remains representative."
+    "note": "Phase 1/2 of the website improvement pass: fixed cross-page color-token drift, extracted shared site.css/site.js, de-inlined base64 assets, deleted 53 orphaned screenshots, added a new fig-mobile phone-viewport screenshot to the Read chapter closing the previously-empty visual-evidence gap for the mobile/responsive-layout claim. Reviewed all page copy against current app behavior; flagged (not fixed) that app_current.png predates a recent top-menu reorganization (a 'New layout' banner is now shown in-app) -- recapturing it would also require re-tuning the .app-map hotspot percentage overlay, scoped out of this pass as a separate follow-up."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",
@@ -236,6 +236,13 @@
       "width": 1600,
       "height": 1000,
       "sha256": "673ab97655a9ed9311dc7d524c8a4be64b2edc41884ae41a95cff5ec82e7fb2b",
+      "reviewed_at": "2026-08-30"
+    },
+    "shots/mobile_current.png": {
+      "captured_at": "2026-08-30",
+      "width": 390,
+      "height": 844,
+      "sha256": "ae47d41526cda20db4c20402555a2d6b40b78c0e958e92350bc3580a0d87440e",
       "reviewed_at": "2026-08-30"
     }
   },
