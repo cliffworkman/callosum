@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-30 — Increment 541: EndNote one-shot managed-engine decision
+- **Files:** EndNote managed-bootstrap research/design; Phase 6B security audit; architecture/backlog/session
+  ledgers. No production code, dependency, runtime bundle, route, UI, or import behavior changed.
+- **What:** replaced the assumed private MariaDB service with a narrower proven seam: fixed SQL over stdin to
+  one-shot `mariadbd --bootstrap`, operating only on a private archive copy with `--skip-networking` and bounded
+  `--secure-file-priv` output. Live Windows and Debian runs both rebuilt/read EndNote's public X7 `refs` table
+  (59 rows/54 columns) and exited cleanly. Windows also proved a 29-file/20.24 MB experimental runtime subset.
+- **Why:** the service design carried unnecessary listener/auth/readiness/orphan risk. Bootstrap mode preserves
+  real-engine compatibility while reducing the future helper to one bounded child inside Tauri's existing
+  process tree.
+- **Boundary:** conditional approval for a developer-only executor POC. Production remains gated on deterministic
+  per-platform manifests, macOS build/sign/notarization, GPL aggregate review, and attached-PDF/modern-SQLite
+  fixtures. Docker remains research-only.
+- **Verify:** official Windows archive checksum matched; copied public fixture source hash stayed unchanged;
+  Windows and Linux accepted runs exited zero and left no process/container/work material. Documentation/static
+  receipts are in `INCREMENT-541-NOTES.md`.
+- **Revert:** documentation-only; revert this increment commit.
+
 ## 2026-08-30 — Increment 540: a real mobile-view website screenshot (Phase 2 slice)
 - **Files:** `www/showcase.html`, `www/showcase-coverage.json`; new `www/shots/mobile_current.png`.
 - **What:** captured a real, live phone-viewport (390×844) screenshot of the app via Playwright and wired it
