@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-30 — Increment 538: dormant Mendeley snapshot import core
+- **Files:** transport-free Mendeley document/folder mapper/importer; synthetic transactional/adversarial tests;
+  Mendeley research, integration, architecture, backlog, security, and increment ledgers.
+- **What:** validates a complete bounded v1 snapshot, maps documents through the existing CSL/paper contract,
+  deduplicates with canonical identity plus durable `mendeley-document` provenance, and atomically persists
+  source-owned folder hierarchy/exact supplied membership. Duplicate source records sharing a DOI become one
+  Callosum paper, not another merge burden.
+- **Why:** the importer domain can be proven hermetically while OAuth remains gated, and the existing generic
+  external-identifier table closes idempotency for metadata-poor records without a Mendeley-specific schema.
+- **Boundary:** no route, UI, token read/persistence, live request, PDF download, user axis mutation, or product
+  behavior. The gitignored secret now present does not resolve client-ID/redirect/public-client ownership.
+- **Verify:** new suite **9 passed**; affected import/client/persistence suite **73 passed**; full bounded-parallel
+  suite **2625 passed, 3 skipped**; final static/remote receipts follow in increment notes.
+- **Revert:** revert this increment; no migration or active behavior changed.
+
 ## 2026-08-30 — Increment 537: bounded Mendeley API transport scaffold
 - **Files:** dormant Mendeley OAuth/library client; hermetic transport/adversarial tests; native-import research,
   README, architecture, backlog, security, and increment ledgers.

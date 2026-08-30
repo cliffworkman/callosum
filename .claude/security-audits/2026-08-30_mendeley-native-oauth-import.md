@@ -1,7 +1,7 @@
 # Security audit — native Mendeley OAuth library import (backlog #57 Phase 6A)
 
 **Date opened:** 2026-08-30
-**Status:** **OPEN — bounded transport scaffold passed; OAuth activation blocked**
+**Status:** **OPEN — bounded transport/import core passed; OAuth activation blocked**
 **Planned surface:** Mendeley OAuth 2.0 Authorization Code flow; paginated document/folder/file reads; bounded PDF
 download and existing paper/PDF import paths.
 
@@ -39,3 +39,21 @@ Fresh official documentation exposes a blocker requiring design evidence, not a 
 is a confidential-client-secret flow with no documented PKCE, while registration pins one redirect URI. A
 distributed desktop binary cannot keep an embedded shared secret confidential and Callosum's ordinary backend
 port may move. Activation requires app-registration/support evidence plus a defensible secret and redirect owner.
+
+## Increment 538 partial evidence
+
+- The transport-free import domain validates all documents, folders, and exact memberships before a savepoint
+  performs writes. Duplicate IDs, malformed types/strings, missing parents, cycles, unknown membership targets,
+  and configured caps fail closed without partial persistence.
+- Every record checks durable `mendeley-document` provenance and the authoritative DOI/title-year-author matcher.
+  A disagreement between those identities aborts the whole snapshot; same-DOI records converge on one paper.
+- Existing matched paper metadata is not overwritten. Folder names/hierarchy and membership are source-owned;
+  each supplied folder is synchronized atomically while user axes remain separate and untouched.
+- Nine focused synthetic tests plus the 73-test affected suite passed without importing the HTTP client or making
+  egress. No token, private path, raw provider body, PDF, or scholarly content enters an import receipt.
+- A `MENDELEY_SECRET` value is present in the gitignored developer `.env` and was never printed/read by code.
+  Client ID and registered redirect identity remain unavailable under Mendeley-named variables. More importantly,
+  possession of a confidential secret does not make it safe to embed in the packaged desktop client.
+
+The audit remains OPEN: no OAuth callback/state/token lifecycle, live payload, PDF bytes, route, or UI has been
+exercised, and the desktop secret/redirect ownership question remains unresolved.

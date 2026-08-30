@@ -22,8 +22,8 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 537** (see Increment workflow) with **2590 tests in the last completed root-suite
-pass and 2616 currently collected** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
+It is currently at **Increment 538** (see Increment workflow) with **2590 tests in the last completed root-suite
+pass and 2625 currently collected** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
 The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
 receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
@@ -893,6 +893,16 @@ the full per-increment narrative for all other increments now lives in the reloc
   shared secret and its normal backend port can move, so activation now requires app-registration/support
   evidence plus a defensible secret/redirect owner—not merely receiving credentials. Existing Zotero bridge and
   export paths remain unchanged. Research: `.claude/docs/research/2026-08-29_mendeley_endnote_native_import.md`.
+- **Dormant Mendeley snapshot import core proven (backlog #57 Phase 6A, inc 538):** the transport-free
+  `app/backend/importers/mendeley.py` validates complete bounded v1 document/folder/exact-membership snapshots
+  before writes, maps through the existing CSL/paper contract, and deduplicates with both canonical DOI or
+  title/year/author identity and durable generic `mendeley-document` provenance. Same-DOI source records converge
+  on one paper; identity disagreement, malformed data, hierarchy cycles/orphans, and unknown memberships abort
+  the savepoint. Supplied source folders synchronize into existing imported collections while user-owned axes
+  remain untouched. Nine synthetic focused tests and the 73-test affected suite pass without HTTP or credentials.
+  No route, callback, token persistence/use, live request, PDF download, or UI exists. A secret is now present in
+  gitignored `.env`, but no Mendeley-named client ID/redirect exists and the packaged confidential-client boundary
+  remains. Research: `.claude/docs/research/2026-08-29_mendeley_endnote_native_import.md`.
 - **Mendeley-via-Zotero feasibility confirmed (backlog #57 Phase 3, inc 487):** Zotero currently documents a
   desktop **File → Import → Mendeley Reference Manager (online import)** path that brings a personal Mendeley
   library's data, files, and folder structure into an ordinary Zotero library; Callosum then uses its unchanged
@@ -1458,7 +1468,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 529). Each increment of real work
+callosum is built in **numbered increments** (currently at 538). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

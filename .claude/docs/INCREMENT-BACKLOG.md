@@ -371,7 +371,13 @@ the Principles + A-A gates before build.)*
     primitives with hermetic tests. It also found the official authorization-code flow still requires a
     confidential secret, documents no PKCE, and pins one redirect URI—a real packaged-desktop blocker beyond
     merely obtaining credentials. No callback/token persistence/UI is published until registration capabilities
-    and safe secret/redirect ownership are proven live. **The shared imported-folder/group → axis seam shipped in
+    and safe secret/redirect ownership are proven live. **Increment 538 added the dormant snapshot import core:**
+    complete synthetic v1 document/folder/membership snapshots validate before writes, map through the existing
+    CSL paper contract, deduplicate via canonical identity plus stable `mendeley-document` provenance, and
+    atomically populate the existing imported-collection hierarchy. Identity disagreement, orphan/cyclic folders,
+    and unknown memberships fail closed. No route, token use, live request, PDF handling, or UI exists; the newly
+    supplied gitignored secret does not by itself solve client-ID/redirect/desktop-confidentiality. **The shared
+    imported-folder/group → axis seam shipped in
     increment 536:**
     Zotero now preserves `parentCollectionID`, previews top-level folders in its existing import dialog, and only
     on explicit action snapshots descendant-inclusive membership into idempotent ordinary axes. Curated is the

@@ -94,6 +94,32 @@ behavior live before any user-facing activation. Official sources reviewed 2026-
 - https://dev.mendeley.com/reference/topics/pagination.html
 - https://dev.mendeley.com/methods/
 
+### Dormant snapshot import core (2026-08-30, increment 538)
+
+The provider-independent half of native import can be proven without weakening that OAuth gate. Increment 538
+adds `app/backend/importers/mendeley.py`, a transport-free consumer of the already-pinned version-1 payloads. It
+validates the complete document/folder/membership snapshot first, then uses one savepoint to:
+
+- map official document fields through Callosum's existing CSL→paper contract;
+- resolve DOI or title/year/first-author before any paper creation;
+- store stable Mendeley document UUIDs in the existing generic `paper_external_identifiers` table so records
+  without enough metadata for fallback identity remain idempotent on re-import;
+- fail closed if durable source provenance and current canonical metadata point to different papers; and
+- preserve source-owned folder hierarchy and exact supplied membership in the existing imported-collection
+  tables, ready for increment 536's separate explicit axis action.
+
+Document/folder/membership counts and official/local string fields are bounded. Duplicate IDs, missing parents,
+cycles, unknown membership targets, malformed people/identifiers, and identity conflicts abort without partial
+writes. Synthetic tests show that two Mendeley document UUIDs sharing one DOI converge on one Callosum paper and
+one folder membership while retaining both provenance links.
+
+The maintainer has placed a Mendeley secret in the gitignored `.env`; the value was not printed or consumed. No
+Mendeley-named client ID or redirect identity is present there, and a secret alone does not resolve the packaged
+desktop confidential-client problem. The increment adds no route, callback, token persistence, live request,
+PDF download, or UI. Official document/folder contracts were rechecked at
+<https://dev.mendeley.com/methods/> and the versioning requirement at
+<https://dev.mendeley.com/reference/topics/versioning.html> on 2026-08-30.
+
 ## EndNote: the Compressed Library (`.enlx`), no separate app required
 
 Clarivate's current EndNote 2025 documentation confirms `File > Compress Library (.enlx)` is a live, supported

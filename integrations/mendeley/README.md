@@ -1,18 +1,25 @@
 # Mendeley Integration Scope
 
-## Native API status (increment 537)
+## Native API status (increments 537–538)
 
 Callosum now has a **dormant, transport-only** client for Mendeley's official personal-library API in
 `client.py`. It pins v1 media types, keeps bearer tokens in headers, bounds pages/items/body sizes, rejects
 pagination that leaves the exact API resource, and validates the documented `downloads.mendeley.com` file
 redirect without following it. It also models the official authorization-code request/token exchange shape.
 
+The transport now has a separate dormant snapshot-import domain in
+`app/backend/importers/mendeley.py`. It validates documents/folders/exact membership before writes, maps metadata
+through Callosum's existing CSL contract, deduplicates through canonical identity plus stable source UUIDs, and
+persists imported folder hierarchy atomically for the explicit axis seam. Its tests use synthetic payloads only;
+it makes no network request and downloads no file.
+
 This is not user-facing and does not publish an OAuth callback. Current official Mendeley documentation still
 requires a confidential client secret for authorization-code exchange, documents no PKCE support, and requires
 an exact registered redirect URI. A distributed desktop binary cannot make an embedded shared secret
-confidential, while Callosum's backend port may move when occupied. Live app-registration capability and a safe
-redirect/secret ownership design must be proven before the native path can activate. Until then, the supported
-paths below remain the product behavior.
+confidential, while Callosum's backend port may move when occupied. A secret is now present in the gitignored
+developer `.env`, but no Mendeley-named client ID/redirect is configured and secret possession does not solve
+the packaged-client design. Live app-registration capability and a safe redirect/secret ownership design must
+be proven before the native path can activate. Until then, the supported paths below remain product behavior.
 
 ## Supported paths
 
