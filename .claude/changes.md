@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-30 — Increment 539: www/ frontend overhaul (Phase 1 of the website/demo improvement plan)
+- **Files:** `www/index.html`, `www/showcase.html`, `www/how-it-works.html`, `www/site-header.js`; new
+  `www/site.css`, `www/site.js`, `www/favicon.png`, `www/assets/logo-mark.png`; 53 deleted `www/shots/*.png`.
+- **What:** fixed a real cross-page color-token drift bug (showcase.html/how-it-works.html/the shared header
+  used a slightly different palette than index.html and the real app); extracted the genuinely-shared CSS/JS
+  (tokens, reset, `.btn*`, scroll-reveal) into `site.css`/`site.js` instead of triplicated inline blocks;
+  de-inlined ~40KB+ of base64 image data into real files; deleted 53 confirmed-orphaned screenshot files
+  (~4.9MB, a superseded capture batch never cleaned up after the `_current` recapture).
+- **Why:** Cliff asked for a frontend-focused pass over `www/`/`demo/` while Codex works the backend handoff
+  queue — the token bug and duplication were the most concrete, verifiable issues found in the survey.
+- **Verify:** `tools/qa/check_website_coverage.py` green; `pytest tests/test_check_website_coverage.py
+  tests/test_website_how_it_works.py -q` → 11 passed; Playwright-verified all 3 pages live (0 console
+  errors, visual screenshots reviewed, pipeline-tab interaction confirmed working post-refactor).
+- **Revert:** `git log` for the exact commit; all changes are additive/subtractive with no schema/migration.
+
 ## 2026-08-30 — Increment 538: dormant Mendeley snapshot import core
 - **Files:** transport-free Mendeley document/folder mapper/importer; synthetic transactional/adversarial tests;
   Mendeley research, integration, architecture, backlog, security, and increment ledgers.

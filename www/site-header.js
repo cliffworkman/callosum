@@ -15,20 +15,20 @@
         <style>
           :host{display:block;position:sticky;top:0;z-index:100}
           *{box-sizing:border-box}
-          header{background:color-mix(in srgb,#f7f4ed 90%,transparent);backdrop-filter:saturate(1.1) blur(10px);border-bottom:1px solid #ddd7cc;color:#201d18;font-family:"IBM Plex Sans",system-ui,sans-serif}
+          header{background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:saturate(1.1) blur(10px);border-bottom:1px solid var(--line);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif}
           .inner{width:min(100% - 48px,1180px);height:66px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:24px}
           .brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;white-space:nowrap}
           .brand img{width:34px;height:30px;object-fit:contain;display:block}
           .name{font-family:"Newsreader",Georgia,serif;font-size:24px;font-weight:600;letter-spacing:-.02em}
           nav{display:flex;align-items:center;gap:28px}
-          nav a{color:#625d54;text-decoration:none;font-size:14.5px;transition:color .18s,transform .18s}
-          nav a:hover,nav a[aria-current="page"]{color:#37306f}
-          .demo-link{color:#37306f;font-weight:600}
+          nav a{color:var(--ink-2);text-decoration:none;font-size:14.5px;transition:color .18s,transform .18s}
+          nav a:hover,nav a[aria-current="page"]{color:var(--accent)}
+          .demo-link{color:var(--accent);font-weight:600}
           .github{display:inline-flex;align-items:center;gap:7px}
           .github svg{width:16px;height:16px}
-          .download{background:#37306f;color:#fff;padding:9px 15px;border-radius:7px;font-weight:500}
+          .download{background:var(--accent);color:#fff;padding:9px 15px;border-radius:7px;font-weight:500}
           .download:hover{color:#fff;transform:translateY(-1px);background:#26215a}
-          a:focus-visible{outline:2.5px solid #37306f;outline-offset:3px;border-radius:3px}
+          a:focus-visible{outline:2.5px solid var(--accent);outline-offset:3px;border-radius:3px}
           @media(max-width:860px){nav{gap:14px}nav a:not(.demo-link):not(.github):not(.download){display:none}.inner{width:min(100% - 28px,1180px)}}
           @media(max-width:480px){.github{display:none}.inner{height:60px}.name{font-size:22px}}
         </style>

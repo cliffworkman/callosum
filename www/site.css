@@ -1,0 +1,79 @@
+/* Callosum public site — shared tokens + base rules (2026-08-30).
+   Canonicalizes a real cross-page drift: showcase.html/how-it-works.html/site-header.js previously used a
+   second, slightly-off palette (#f7f4ed/#37306f) while index.html alone matched the real app's tokens
+   (app/frontend/styles.css). This file is the one source of truth going forward — every page links it instead
+   of redefining its own :root. Page-specific tokens a single page legitimately needs beyond this base (e.g.
+   how-it-works.html's --accent-2/--local/--local-soft) stay declared in that page's own <style> block. */
+
+:root{
+  --paper:#fbfaf7;
+  --paper-2:#f4f2ec;
+  --card:#ffffff;
+  --ink:#1c1b19;
+  --ink-2:#55514a;
+  --ink-3:#8a8479;
+  --line:#e6e2d8;
+  --line-2:#d8d3c6;
+  --hover:#ece9e0;
+  /* indigo = provenance / verification / primary (the thing that makes Callosum Callosum) */
+  --accent:#2f2a6b;
+  --accent-soft:#ecebf5;
+  --accent-line:#dad8ee;
+  --accent-bright:#5c55b0;
+  /* the fixed verification-status palette — used ONLY for verification states */
+  --verified:#2f6b45; --verified-soft:#e6f0e9;
+  --flag:#9a5b2e;     --flag-soft:#f4ebe2;  --flag-line:#e6cdb4;
+  --danger:#b3261e;   --danger-soft:#f5e7e5; --danger-line:#e3b1ac;
+  /* warm-dark instrument panels */
+  --panel:#1a1611;
+  --panel-2:#231d16;
+  --panel-ink:#f0ece2;
+  --panel-soft:#a99f8e;
+  --rule-panel:#352c20;
+  --maxw:1180px;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+
+/* Base reset + typography, identical across all three pages before this extraction. */
+*{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:17px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+h1,h2,h3,h4{font-family:"Newsreader",Georgia,serif;font-weight:500;line-height:1.1;margin:0;letter-spacing:-.012em;}
+p{margin:0;}
+a{color:inherit;}
+button,input{font:inherit;}
+button{color:inherit;}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ink-2);font-weight:500;}
+
+a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{
+  outline:2.5px solid var(--accent);outline-offset:3px;border-radius:2px;}
+
+/* Shared button recipe — the two variants every page uses (.btn-primary/.btn-ghost on index.html;
+   .btn.primary/.btn.secondary on how-it-works.html; a single .btn on showcase.html's own end-CTA). Each page's
+   own markup convention is preserved as an alias so no HTML needs to change, just the duplicated color/hover
+   values collapse to one definition. */
+.btn,.btn-primary,.btn-ghost{display:inline-flex;align-items:center;gap:9px;text-decoration:none;
+  font-size:15px;font-weight:500;padding:13px 22px;border-radius:7px;
+  transition:transform .18s var(--ease),background .18s,border-color .18s,color .18s;}
+.btn-primary,.btn.primary{background:var(--accent);color:#fff;border:1px solid var(--accent);}
+.btn-primary:hover,.btn.primary:hover{transform:translateY(-2px);background:#26215a;}
+.btn-ghost,.btn.secondary{border:1px solid var(--line-2);color:var(--ink-2);background:transparent;}
+.btn-ghost:hover,.btn.secondary:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-2px);}
+.btn svg{width:17px;height:17px;}
+
+/* Shared scroll-reveal-on-view — one behavior, previously hand-copied per page (see site.js). */
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .7s var(--ease),transform .7s var(--ease);}
+.reveal.in{opacity:1;transform:none;}
+[data-d="1"]{transition-delay:.06s;}[data-d="2"]{transition-delay:.14s;}
+[data-d="3"]{transition-delay:.22s;}[data-d="4"]{transition-delay:.30s;}
+
+@media(prefers-reduced-motion:reduce){
+  *{animation:none !important;}
+  .reveal{opacity:1 !important;transform:none !important;transition:none !important;}
+  html{scroll-behavior:auto;}
+}

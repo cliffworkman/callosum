@@ -5,70 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>How Callosum Works — retrieval, generation, and local verification</title>
   <meta name="description" content="Follow a claim through Callosum: local PDF extraction, semantic retrieval, optional LLM generation, independent NLI and quote verification, and inspectable provenance.">
-  <link rel="icon" type="image/png" href="data:image/png;base64,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" />
+  <link rel="icon" type="image/png" href="favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&amp;display=swap" rel="stylesheet">
   <script>document.documentElement.classList.add("js");</script>
   <script src="site-header.js" defer></script>
+  <link rel="stylesheet" href="site.css">
   <style>
+    /* how-it-works.html-only rules. Tokens, reset/typography, .btn*, .reveal, and prefers-reduced-motion
+       live in the shared site.css — see that file before adding anything here that might already exist there.
+       Page-specific token additions beyond that shared base: --accent-2, --local, --local-soft (used only by
+       this page's own diagrams). */
     :root {
-      --paper: #f7f4ed;
-      --paper-2: #eee9df;
-      --card: #fffdf9;
-      --ink: #201d18;
-      --ink-2: #625d54;
-      --ink-3: #8b8479;
-      --line: #ddd7cc;
-      --line-2: #c9c1b3;
-      --accent: #37306f;
       --accent-2: #5a5195;
-      --accent-soft: #ece9fb;
-      --accent-line: #d5cfee;
-      --verified: #2f6b45;
-      --verified-soft: #e6f0e9;
-      --flag: #9a642b;
-      --flag-soft: #f3eadf;
-      --danger: #a43a32;
-      --danger-soft: #f6e6e4;
-      --panel: #191816;
-      --panel-2: #24211d;
-      --panel-ink: #f3eee4;
-      --panel-soft: #bdb5a8;
       --local: #28635f;
       --local-soft: #e3efed;
-      --maxw: 1180px;
-      --ease: cubic-bezier(.22, .61, .36, 1);
     }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; scroll-padding-top: 88px; }
-    body {
-      margin: 0;
-      background: var(--paper);
-      color: var(--ink);
-      font: 16px/1.62 "IBM Plex Sans", system-ui, sans-serif;
-      -webkit-font-smoothing: antialiased;
-      text-rendering: optimizeLegibility;
-    }
-    h1, h2, h3, h4 { margin: 0; font-family: "Newsreader", Georgia, serif; font-weight: 500; line-height: 1.08; letter-spacing: -.018em; }
-    p { margin: 0; }
-    a { color: inherit; }
-    button, input { font: inherit; }
-    button { color: inherit; }
-    .wrap { width: min(100% - 48px, var(--maxw)); margin-inline: auto; }
-    .eyebrow, .mono, .boundary, .number { font-family: "IBM Plex Mono", ui-monospace, monospace; }
-    .eyebrow { color: var(--ink-3); font-size: 11px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; }
+    html { scroll-padding-top: 88px; }
+    .mono, .boundary, .number { font-family: "IBM Plex Mono", ui-monospace, monospace; }
     .skip-link { position: fixed; top: 8px; left: 8px; z-index: 1000; transform: translateY(-160%); padding: 9px 13px; border-radius: 5px; background: var(--accent); color: white; }
     .skip-link:focus { transform: none; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-    a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 18px; border: 1px solid transparent; border-radius: 7px; text-decoration: none; font-weight: 600; transition: transform .18s var(--ease), background .18s, border-color .18s; }
-    .btn:hover { transform: translateY(-2px); }
-    .btn.primary { background: var(--accent); color: white; }
-    .btn.primary:hover { background: #272151; }
-    .btn.secondary { border-color: var(--line-2); color: var(--accent); background: transparent; }
-    .btn.secondary:hover { border-color: var(--accent); background: var(--accent-soft); }
+    summary:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
 
     .hero { padding: 86px 0 66px; }
     .hero-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: 76px; align-items: end; }
@@ -266,8 +225,6 @@
     .foot { display: flex; justify-content: space-between; gap: 20px; }
     .foot-links { display: flex; flex-wrap: wrap; gap: 16px; }
     .foot a:hover { color: var(--accent); }
-    .reveal { opacity: 0; transform: translateY(16px); transition: opacity .65s var(--ease), transform .65s var(--ease); }
-    .reveal.in { opacity: 1; transform: none; }
 
     @media (max-width: 980px) {
       .pipeline-tabs { grid-template-columns: repeat(4, 1fr); gap: 18px 0; }
@@ -319,9 +276,7 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      html { scroll-behavior: auto; }
       *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
-      .reveal { opacity: 1; transform: none; }
     }
   </style>
 </head>
@@ -600,12 +555,14 @@
     <div class="wrap foot"><span>Callosum · AGPL-3.0-or-later · signal, not a verdict.</span><nav class="foot-links" aria-label="Footer"><a href="index.html">Home</a><a href="showcase.html#tour">Showcase</a><a href="demo/">Demo</a><a href="https://github.com/cliffworkman/callosum" target="_blank" rel="noopener">Source</a></nav></div>
   </footer>
 
+  <script src="site.js" defer></script>
   <script>
     (function () {
       "use strict";
+      // Shared scroll-reveal (the .reveal/.in mechanics) lives in site.js — this script is the
+      // how-it-works.html-only pipeline-tab logic.
       var tabs = Array.prototype.slice.call(document.querySelectorAll(".pipeline-tab"));
       var panels = Array.prototype.slice.call(document.querySelectorAll(".stage-detail"));
-      var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
       function activate(index, focus, updateHash) {
         tabs.forEach(function (tab, i) {
@@ -639,21 +596,6 @@
         if (requestedIndex >= 0) initialIndex = requestedIndex;
       }
       activate(initialIndex, false, false);
-
-      var reveals = document.querySelectorAll(".reveal");
-      if (reduce || !("IntersectionObserver" in window)) {
-        reveals.forEach(function (item) { item.classList.add("in"); });
-      } else {
-        var observer = new IntersectionObserver(function (entries) {
-          entries.forEach(function (entry) {
-            if (entry.isIntersecting) {
-              entry.target.classList.add("in");
-              observer.unobserve(entry.target);
-            }
-          });
-        }, { threshold: .12, rootMargin: "0px 0px -5% 0px" });
-        reveals.forEach(function (item) { observer.observe(item); });
-      }
     })();
   </script>
 </body>
