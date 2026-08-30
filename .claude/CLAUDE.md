@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 532** (see Increment workflow) with **2584 root-suite pytest tests
+It is currently at **Increment 533** (see Increment workflow) with **2588 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -452,9 +452,13 @@ the full per-increment narrative for all other increments now lives in the reloc
   `localhost`, a small opt-in bridge exposes **only the five cite endpoints** through a **`cloudflared`
   tunnel** (outbound-only, no inbound port) at a bearer-token-gated, cite-only ingress — reusing the existing
   Remote-access token gate (inc 168) unmodified, with a `cloudflared`-level path allowlist as defense in
-  depth (verified via `ingress validate`). A zero-setup **Quick Tunnel** mode (inc 193,
-  `tools/run_tunnel.py --quick`) skips the Cloudflare-account/domain migration for a throwaway session URL,
-  at the cost of losing the ingress allowlist (the bearer token becomes the sole boundary). Both adapters
+  depth (verified via `ingress validate`). A zero-setup **Quick Tunnel** mode skips the Cloudflare-account/domain
+  migration for a throwaway session URL, at the cost of losing the ingress allowlist (the bearer token becomes
+  the sole boundary). Source checkouts use `tools/run_tunnel.py --quick` (inc 193); in the packaged app (inc 533),
+  an explicit Settings action makes Tauri own the connector and a separate tunnel-only Uvicorn child. That child
+  fails closed whenever Remote access is off, preventing cloudflared's loopback-forwarded traffic from inheriting
+  ordinary local trust; stop/app exit removes both process trees. Existing cloudflared config is not inherited.
+  Both adapters
   ship the same three-stage arc: **SP1** search-and-insert; **SP2** live Content-Control citations
   (Zotero's embedded-CSL-JSON pattern, reused as a pattern not code; Word now stores payloads in document
   Custom XML Parts behind short field references) + Refresh/renumber +

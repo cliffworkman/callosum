@@ -132,7 +132,7 @@ pub fn resolved_paths(app: &AppHandle) -> Result<ResolvedPaths, StartupError> {
     })
 }
 
-fn pick_free_port() -> std::io::Result<u16> {
+pub(crate) fn pick_free_port() -> std::io::Result<u16> {
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let port = listener.local_addr()?.port();
     drop(listener); // small accepted TOCTOU race; see increment notes — self-healed by the retry loop below
@@ -313,51 +313,11 @@ pub fn spawn_word_https(
     for name in crate::managed_local_ai::OWNER_ONLY_ENV {
         cmd.env_remove(name);
     }
-
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        cmd.process_group(0);
-    }
-
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| StartupError::SpawnFailed(format!("Word HTTPS companion: {e}")))?;
-    drain_output(&mut child, &paths.app_data_dir.join("word-https.log"));
-    std::thread::sleep(SPAWN_RETRY_WINDOW);
-    match child.try_wait() {
-        Ok(Some(status)) => Err(StartupError::SpawnFailed(format!(
-            "Word HTTPS companion exited immediately ({status})"
-        ))),
-        Ok(None) => {
-            #[cfg(windows)]
-            {
-                match confine_to_job(&child) {
-                    Ok(job) => Ok(BackendHandle { child, _job: job }),
-                    Err(error) => {
-                        let _ = child.kill();
-                        Err(StartupError::SpawnFailed(format!(
-                            "Word HTTPS job object: {error}"
-                        )))
-                    }
-                }
-            }
-            #[cfg(not(windows))]
-            {
-                Ok(BackendHandle { child })
-            }
-        }
-        Err(error) => {
-            let _ = child.kill();
-            Err(StartupError::SpawnFailed(error.to_string()))
-        }
-    }
+    spawn_managed_command(
+        cmd,
+        &paths.app_data_dir.join("word-https.log"),
+        "Word HTTPS companion",
+    )
 }
 
 fn word_https_args(paths: &ResolvedPaths) -> Vec<OsString> {
@@ -406,6 +366,58 @@ fn drain_output(child: &mut Child, log_path: &Path) {
                 }
             }
         });
+    }
+}
+
+/// Spawn one app-owned child with the same hidden-window/process-group and process-tree guarantees used by
+/// the primary backend. Callers construct direct argv and a child-only environment before crossing this seam.
+pub(crate) fn spawn_managed_command(
+    mut command: Command,
+    log_path: &Path,
+    label: &str,
+) -> Result<BackendHandle, StartupError> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+    let mut child = command
+        .spawn()
+        .map_err(|error| StartupError::SpawnFailed(format!("{label}: {error}")))?;
+    drain_output(&mut child, log_path);
+    std::thread::sleep(SPAWN_RETRY_WINDOW);
+    match child.try_wait() {
+        Ok(Some(status)) => Err(StartupError::SpawnFailed(format!(
+            "{label} exited immediately ({status})"
+        ))),
+        Ok(None) => {
+            #[cfg(windows)]
+            {
+                match confine_to_job(&child) {
+                    Ok(job) => Ok(BackendHandle { child, _job: job }),
+                    Err(error) => {
+                        let _ = child.kill();
+                        Err(StartupError::SpawnFailed(format!(
+                            "{label} job object: {error}"
+                        )))
+                    }
+                }
+            }
+            #[cfg(not(windows))]
+            {
+                Ok(BackendHandle { child })
+            }
+        }
+        Err(error) => {
+            let _ = child.kill();
+            Err(StartupError::SpawnFailed(error.to_string()))
+        }
     }
 }
 
@@ -518,7 +530,7 @@ pub fn kill_word_https(state: &WordHttpsState) {
     }
 }
 
-fn kill_handle(handle: &mut BackendHandle) {
+pub(crate) fn kill_handle(handle: &mut BackendHandle) {
     #[cfg(windows)]
     {
         let _ = handle.child.kill(); // the retained Job Object also guarantees tree cleanup

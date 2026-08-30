@@ -1,5 +1,6 @@
 mod backend;
 mod managed_local_ai;
+mod quick_tunnel;
 mod updater;
 
 use backend::{
@@ -8,6 +9,7 @@ use backend::{
     WordHttpsState,
 };
 use managed_local_ai::{shutdown as shutdown_local_ai, start_if_enabled, ManagedLocalAiState};
+use quick_tunnel::QuickTunnelState;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -166,6 +168,28 @@ fn stop_word_https_companion(state: tauri::State<'_, WordHttpsState>) {
     kill_word_https(state.inner());
 }
 
+#[tauri::command]
+fn quick_tunnel_status(
+    state: tauri::State<'_, QuickTunnelState>,
+) -> quick_tunnel::QuickTunnelStatus {
+    quick_tunnel::status(state.inner())
+}
+
+#[tauri::command]
+async fn start_quick_tunnel(
+    app: AppHandle,
+    state: tauri::State<'_, QuickTunnelState>,
+) -> Result<quick_tunnel::QuickTunnelStatus, String> {
+    let paths = resolved_paths(&app).map_err(|error| error.detail())?;
+    let version = app.package_info().version.to_string();
+    quick_tunnel::start(&paths, &version, state.inner()).await
+}
+
+#[tauri::command]
+fn stop_quick_tunnel(state: tauri::State<'_, QuickTunnelState>) -> quick_tunnel::QuickTunnelStatus {
+    quick_tunnel::stop(state.inner())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -180,12 +204,16 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BackendState::default())
         .manage(WordHttpsState::default())
+        .manage(QuickTunnelState::default())
         .manage(ManagedLocalAiState::default())
         .manage(UpdateState::default())
         .invoke_handler(tauri::generate_handler![
             retry_backend,
             start_word_https_companion,
             stop_word_https_companion,
+            quick_tunnel_status,
+            start_quick_tunnel,
+            stop_quick_tunnel,
             updater::install_update_now,
             updater::open_release_page,
             updater::check_for_updates_now
@@ -206,6 +234,7 @@ pub fn run() {
             ) {
                 kill_backend(app_handle.state::<BackendState>().inner());
                 kill_word_https(app_handle.state::<WordHttpsState>().inner());
+                quick_tunnel::stop(app_handle.state::<QuickTunnelState>().inner());
                 shutdown_local_ai(app_handle.state::<ManagedLocalAiState>().inner());
             }
         });

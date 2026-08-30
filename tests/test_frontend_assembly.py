@@ -1589,6 +1589,19 @@ def test_packaged_word_support_is_explicit_tauri_owned_and_reversible():
     assert "npx office-addin-dev-certs install" in raw  # non-Tauri developer fallback remains available
 
 
+def test_packaged_quick_tunnel_is_explicit_token_gated_and_reversible():
+    raw = assemble_jsx()
+    assert 'invoke("quick_tunnel_status")' in raw
+    assert 'start ? "start_quick_tunnel" : "stop_quick_tunnel"' in raw
+    assert (
+        'invoke("stop_quick_tunnel")' in raw.split("const disable = async () =>", 1)[1].split("const regenerate", 1)[0]
+    )
+    assert "Quick Tunnels expose every Callosum route" in raw
+    assert "bearer token is the sole boundary" in raw
+    assert 'aria-label="Allow remote access" disabled={busy || tunnelBusy}' in raw
+    assert "Stop Quick Tunnel" in raw and "Copy URL" in raw
+
+
 def test_built_artifact_is_in_sync():
     """callosum-app.html must equal the live assembly — i.e. it was rebuilt after the last source
     edit (CLAUDE.md: re-run tools/build_frontend.py after editing app/frontend/)."""

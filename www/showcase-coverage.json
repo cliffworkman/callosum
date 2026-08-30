@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-29",
-    "reviewed_rev": "38ba23f",
-    "source_fingerprint": "e7c8513f1b2fabd390a4af5ecef408c7be126a86dd5c4c9f0a077710e316c099",
-    "note": "Increment 532 makes packaged desktop Word HTTPS an explicit local Settings opt-in. Existing public Word-support claims remain accurate; no new website copy or screenshot is added before live OS-trust and Word-host verification."
+    "reviewed_rev": "7b38c9a",
+    "source_fingerprint": "6d462a2b30164e398b56592795f3b2df8053b9c647fd17851dca2b37a89b5b78",
+    "note": "Reviewed packaged Quick Tunnel Settings copy and operation-state lock against integration claims and the existing Usage/integrations figure; additive control does not invalidate current public claims or captured workflow."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

@@ -255,7 +255,7 @@ the Principles + A-A gates before build.)*
       `.claude/docs/research/2026-08-21_word_citation_migration_formats.md`.
   - AppSource / broader public distribution readiness (design with it in mind; do not build the actual
     submission/review process until there's a real reason to).
-  - **LibreOffice/Word/Docs support in the packaged desktop (Tauri) app — started 2026-08-29, in progress (a
+  - **LibreOffice/Word/Docs support in the packaged desktop (Tauri) app — completed 2026-08-29 (a
     separate Claude-driven track, NOT part of the Codex Word/Docs-parity handoff above — different files, no
     overlap: `app/desktop-shell/*`, `app/backend/api/routers/libreoffice.py`, Settings UI, confirmed via `git
     diff` against Codex's own commits before starting).** Full plan:
@@ -273,10 +273,14 @@ the Principles + A-A gates before build.)*
     only in its own environment; disable removes trust/material; browser/source workflows retain the separate
     dev-certificate launcher. Windows uses PowerShell `Import-Certificate` (not `certutil`); macOS targets the
     login keychain but awaits live hardware QA. See `INCREMENT-532-NOTES.md` and
-    `.claude/security-audits/2026-08-29_tauri-word-https.md`. **Still open: Phase 3**
-    (a Quick-Tunnel convenience button for Google Docs/Word-web) — see the plan doc for the full design (why a
-    second process was chosen over a Rust TLS proxy; the two real obstacles this entry previously described —
-    cert trust + port stability — and how each is resolved).
+    `.claude/security-audits/2026-08-29_tauri-word-https.md`. **Phase 3 shipped inc 533:** packaged Settings can
+    explicitly start/stop a Tauri-owned Cloudflare Quick Tunnel and copy its temporary URL. The connector targets
+    a separate Uvicorn child whose bearer gate fails closed whenever Remote access is off, so cloudflared's
+    loopback forwarding can never inherit the ordinary local-trust path. Tauri isolates cloudflared from any
+    existing user config, waits for strict URL issuance, owns both process trees, and removes both on stop/exit.
+    Quick Tunnel's bearer-only/no-ingress-allowlist tradeoff remains visible; source and named-tunnel workflows
+    remain available. See `INCREMENT-533-NOTES.md` and
+    `.claude/security-audits/2026-08-29_tauri-quick-tunnel.md`.
 - **#35 My Publications — Layer 4.** Deterministic Layer 4 is complete (`INCREMENT-BACKLOG-DONE.md`). **Still
   open:** optional LLM narration over the already-grounded data remains deferred — no need to build it unless
   narration becomes useful.

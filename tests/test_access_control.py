@@ -38,6 +38,29 @@ def test_gate_off_is_a_no_op(temp_db_url: str) -> None:
     assert client.get("/settings").json()["remote_access_enabled"] is False
 
 
+def test_managed_tunnel_target_fails_closed_when_remote_access_is_off(
+    temp_db_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CALLOSUM_TUNNEL_TARGET", "1")
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    assert client.get("/health").status_code == 200
+    assert client.get("/").status_code == 403
+    assert client.get("/papers").status_code == 403
+
+
+def test_managed_tunnel_target_uses_normal_bearer_gate_when_enabled(
+    temp_db_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CALLOSUM_TUNNEL_TARGET", "1")
+    _enable_remote("right-token")
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    assert client.get("/").status_code == 200
+    assert client.get("/papers").status_code == 401
+    assert client.get("/papers", headers={"Authorization": "Bearer right-token"}).status_code == 200
+
+
 # ── the middleware, ON ────────────────────────────────────────────────────────────────────────────────────
 def _enable_remote(token: str = "s3cret-token") -> None:
     app_settings.set_access_token(token)
@@ -84,6 +107,15 @@ def test_disable_env_hatch_forces_off(temp_db_url: str, monkeypatch: pytest.Monk
     monkeypatch.setenv("CALLOSUM_DISABLE_REMOTE_ACCESS", "1")  # local recovery hatch
     client = TestClient(create_app(db_url=temp_db_url))
     assert client.get("/papers").status_code == 200  # gate forced off → no token needed
+
+
+def test_disable_env_cannot_open_a_managed_tunnel_target(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    _enable_remote()
+    monkeypatch.setenv("CALLOSUM_DISABLE_REMOTE_ACCESS", "1")
+    monkeypatch.setenv("CALLOSUM_TUNNEL_TARGET", "1")
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    assert client.get("/papers").status_code == 403
 
 
 def test_rate_limit_returns_429(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:

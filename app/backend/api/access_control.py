@@ -13,8 +13,10 @@ request from the local browser (both are loopback, and the ``Host`` header is at
 the token is the **only** safe boundary for everything else, applied uniformly.
 
 When remote access is OFF (the default), the middleware is a pure pass-through: **zero change** for localhost-only
-users (and the whole existing test suite). The flag + token are read fresh per request from ``app_settings`` so the
-Settings toggle takes effect live. Recovery if the token is lost: the in-app lockout screen
+users (and the whole existing test suite). The one process-local exception is the Tauri-owned Quick-Tunnel target
+(``CALLOSUM_TUNNEL_TARGET=1``): it keeps only ``GET /health`` reachable and rejects everything else while the
+setting is off, because forwarded traffic is still loopback traffic. The flag + token are read fresh per request
+from ``app_settings`` so the Settings toggle takes effect live. Recovery if the token is lost: the in-app lockout screen
 (``POST /access/recover``, inc 254 — proves local possession via a local-file code, then disables the gate),
 ``CALLOSUM_DISABLE_REMOTE_ACCESS=1`` (a local-only hatch), or edit the settings file.
 
@@ -30,6 +32,7 @@ unsafe — see above); it is trusting a specific process that structurally never
 
 from __future__ import annotations
 
+import os
 import secrets
 import time
 from collections import deque
@@ -40,6 +43,12 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.backend import app_settings
+
+
+def _tunnel_target_mode() -> bool:
+    """Return whether Tauri marked this process as its fail-closed tunnel origin."""
+    return os.getenv("CALLOSUM_TUNNEL_TARGET", "").strip().lower() in {"1", "true", "yes"}
+
 
 # Reachable without a token even when remote access is on — none exposes library data.
 # `/oauth/callback` (SP1) is a browser navigation back from the sign-in provider, so it carries no Authorization
@@ -116,7 +125,15 @@ class AccessControlMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if app_settings.read_only_mode() and request.method not in _READ_METHODS:
             return JSONResponse({"detail": "This callosum instance is read-only."}, status_code=403)
-        if not app_settings.stored_remote_access():
+        remote_access = app_settings.stored_remote_access()
+        if _tunnel_target_mode() and not remote_access:
+            if request.method in {"GET", "HEAD"} and request.url.path == "/health":
+                return await call_next(request)
+            return JSONResponse(
+                {"detail": "The managed tunnel target is closed because Remote access is off."},
+                status_code=403,
+            )
+        if not remote_access:
             return await call_next(request)  # OFF (the default) → no-op
         if request.method == "OPTIONS" or request.url.path in _EXEMPT_PATHS:
             return await call_next(request)  # CORS preflight + the static shell / liveness

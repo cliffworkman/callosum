@@ -33,8 +33,10 @@ If you just want to cite from Docs without the domain migration below, use a **C
 **one-file add-on bundle**. Four steps:
 
 1. **callosum:** run it, then **Settings → Remote access → ON**, copy the **token**.
-2. **Tunnel:** `python tools/run_tunnel.py --quick --port 8888` (use your port). cloudflared prints a
-   `https://<random>.trycloudflare.com` URL — copy it. (Leave it running; the URL changes each launch.)
+2. **Tunnel:** in the packaged app, click **Start Quick Tunnel**, then **Copy URL**. Callosum owns the temporary
+   connector and its fail-closed tunnel target until you click Stop or exit the app. From a source checkout, use
+   `python tools/run_tunnel.py --quick --port 8888` (with your port) instead. Either path yields a
+   `https://<random>.trycloudflare.com` URL that changes each launch and may take a moment to become reachable.
 3. **Add-on (one paste):** `python tools/build_gdocs_addon.py` writes **`adapters/googledocs/callosum-gdocs.gs`**.
    In a Google Doc → **Extensions → Apps Script** → select-all in `Code.gs` and **replace it with that one file** →
    Save → reload the Doc → **Extensions → Callosum → Open Callosum**.
@@ -42,7 +44,8 @@ If you just want to cite from Docs without the domain migration below, use a **C
 
 **Tradeoff vs. the named tunnel below:** the URL is throwaway (re-paste each session), and a quick tunnel can't
 enforce the cite-only ingress allowlist — your **bearer token is the only boundary** (it already is the primary one;
-keep it secret, turn Remote access off when done). For a **stable URL + cite-only ingress**, do the one-time setup
+keep it secret, stop the Quick Tunnel when done). The packaged app stops its managed tunnel before turning Remote
+access off; its dedicated origin also fails closed if the setting changes another way. For a **stable URL + cite-only ingress**, do the one-time setup
 below instead. Either way, the one-file bundle (step 3) replaces the three-file paste in step 7.
 
 ---

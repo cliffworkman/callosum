@@ -9,7 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 532 — packaged Word HTTPS setup -->
+<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 533 — packaged Quick Tunnel setup -->
+## 2026-08-29 — Increment 533: packaged Quick Tunnel convenience (backlog #33/#34 phase 3)
+- **Files:** fail-closed tunnel-target access mode; Tauri cloudflared/Uvicorn lifecycle; Settings UI; assembled
+  frontend; Help/adapter/architecture/backlog/QA/security/increment documentation; Python/Rust/frontend tests.
+- **What:** after explicitly enabling Remote access, packaged users can start/stop an app-owned Cloudflare Quick
+  Tunnel and copy its temporary URL without a terminal. Tauri owns both cloudflared and a separate tunnel-only
+  Uvicorn child; the latter rejects every non-health request whenever Remote access is off and otherwise retains
+  the existing bearer gate. Stop, opt-out, unexpected child exit, and app shutdown all fail closed.
+- **Why:** Google Docs and Word on the web cannot reach localhost. Pointing cloudflared at the ordinary backend
+  would be unsafe during opt-out because forwarded traffic appears loopback; the dedicated target preserves the
+  privacy boundary. Quick Tunnel's bearer-only/no-ingress-allowlist tradeoff remains explicit, while the hardened
+  named-tunnel and source-checkout workflows remain available.
+- **Verify:** real Windows cloudflared acceptance with isolated synthetic state proved URL issuance, local
+  `200 health → 401 bearer gate → 403 opt-out`, config isolation, and process cleanup. One public edge run also
+  reached `200/401`; another demonstrated Cloudflare's documented no-uptime-guarantee variability, so public edge
+  propagation is not represented as a Callosum correctness gate. Focused Python/frontend **193 passed**; full
+  Python **2588 passed, 3 skipped**; serial Rust **29 passed, 4 ignored**; static/policy gates clean. See increment
+  notes for the complete receipt.
+- **Revert:** revert this increment commit; no schema, adapter document semantics, provider, or model change.
+
 ## 2026-08-29 — Increment 532: packaged Word HTTPS companion (backlog #33/#34 phase 2)
 - **Files:** Python certificate/trust lifecycle and local-only API; Tauri process ownership/readiness/cleanup;
   packaged Settings UI; direct cryptography dependency; served Help and Word README; security/QA/architecture/

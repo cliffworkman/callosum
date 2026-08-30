@@ -209,8 +209,8 @@ uses** (`adapters/googledocs/`), extended to also forward the task-pane's own st
 fetch those from somewhere reachable, since Word-on-the-web can't load them from your machine).
 
 **One-time setup** (skip if you've already done this for Google Docs — it's the same tunnel):
-1. Follow `adapters/googledocs/README.md`'s tunnel setup (the Quick Tunnel mode works too, but the URL changes
-   every restart — a **named tunnel** is worth it if you'll use this regularly). You already need this for the
+1. Follow `adapters/googledocs/README.md`'s tunnel setup (the packaged app's **Start Quick Tunnel** mode works
+   too, but its URL changes every launch — a **named tunnel** is worth it if you'll use this regularly). You already need this for the
    Google Docs add-on to work, so if that's set up, you're done with this step.
 2. **callosum:** Settings → **Remote access** → turn it **ON**, copy the access token.
 3. **Sideload the web manifest:** Settings → Microsoft Word add-in (web) → **Download web manifest**, then in

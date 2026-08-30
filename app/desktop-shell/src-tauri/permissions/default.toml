@@ -18,6 +18,21 @@ identifier = "allow-check-for-updates-now"
 description = "Allows checking for updates on demand (Settings > Account & sync > Desktop app)."
 commands.allow = ["check_for_updates_now"]
 
+[[permission]]
+identifier = "allow-quick-tunnel-status"
+description = "Allows the packaged Settings window to inspect its app-owned Quick Tunnel process."
+commands.allow = ["quick_tunnel_status"]
+
+[[permission]]
+identifier = "allow-start-quick-tunnel"
+description = "Allows an explicit packaged Settings action to start an authenticated Quick Tunnel."
+commands.allow = ["start_quick_tunnel"]
+
+[[permission]]
+identifier = "allow-stop-quick-tunnel"
+description = "Allows the packaged Settings window to stop its app-owned Quick Tunnel process."
+commands.allow = ["stop_quick_tunnel"]
+
 [default]
 description = "Default permissions for callosum-shell's own commands: backend retry + the auto-updater's manual-check/install/release-page actions."
 permissions = [
@@ -25,4 +40,7 @@ permissions = [
   "allow-install-update-now",
   "allow-open-release-page",
   "allow-check-for-updates-now",
+  "allow-quick-tunnel-status",
+  "allow-start-quick-tunnel",
+  "allow-stop-quick-tunnel",
 ]

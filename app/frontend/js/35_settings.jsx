@@ -126,12 +126,18 @@ function PublishersSettings() {
 // a tunnel you run. Enabling mints an access token (shown once → copy into the add-on) + saves it locally so the
 // local UI keeps working under the gate. Off by default; local-only use is unaffected.
 function RemoteAccessSettings() {
+  const packaged = "__TAURI__" in window;
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
   const [token, setToken] = useState("");  // shown once, right after minting
   const [msg, setMsg] = useState("");
+  const [tunnel, setTunnel] = useState(null);
+  const [tunnelBusy, setTunnelBusy] = useState(false);
+  const [tunnelMsg, setTunnelMsg] = useState("");
   const refresh = () => api("/settings").then(r => { if (r.ok) setStatus(r.data); });
-  useEffect(() => { refresh(); }, []);
+  const refreshTunnel = () => packaged && window.__TAURI__.core.invoke("quick_tunnel_status")
+    .then(setTunnel).catch(e => setTunnelMsg("Couldn't check Quick Tunnel: " + String(e)));
+  useEffect(() => { refresh(); refreshTunnel(); }, []);
   const on = !!(status && status.remote_access_enabled);
 
   const enable = async () => {
@@ -147,6 +153,14 @@ function RemoteAccessSettings() {
   };
   const disable = async () => {
     setBusy(true); setMsg(""); setToken("");
+    if (packaged) {
+      try {
+        const stopped = await window.__TAURI__.core.invoke("stop_quick_tunnel");
+        setTunnel(stopped); setTunnelMsg("");
+      } catch (e) {
+        setBusy(false); setMsg("Couldn't stop the Quick Tunnel, so Remote access stayed on: " + String(e)); return;
+      }
+    }
     const r = await apiPut("/settings", { remote_access_enabled: false });
     setBusy(false);
     if (r.ok) { setStatus(r.data); setMsg("Remote access is off."); }
@@ -159,6 +173,19 @@ function RemoteAccessSettings() {
     if (m.ok) { setAccessToken(m.data.token); setToken(m.data.token); setMsg("New token — update the add-on; the old one no longer works."); }
     else setMsg("Couldn't regenerate: " + (m.error || "error"));
   };
+  const changeTunnel = async (start) => {
+    setTunnelBusy(true); setTunnelMsg("");
+    try {
+      const result = await window.__TAURI__.core.invoke(start ? "start_quick_tunnel" : "stop_quick_tunnel");
+      setTunnel(result);
+      setTunnelMsg(result.detail || (start ? "Quick Tunnel started." : "Quick Tunnel stopped."));
+    } catch (e) {
+      setTunnelMsg("Couldn't change Quick Tunnel: " + String(e));
+    }
+    setTunnelBusy(false);
+  };
+  const copyTunnelUrl = () => tunnel && tunnel.url && navigator.clipboard.writeText(tunnel.url)
+    .then(() => setTunnelMsg("Tunnel URL copied. Paste it into the add-on with your bearer token."));
 
   return (
     <>
@@ -166,7 +193,7 @@ function RemoteAccessSettings() {
       <div className="settings-row settings-integration-toggle">
         <span className="settings-field-label settings-integration-control-title">Allow Citing from Google Docs</span>
         <button type="button" className={"settings-switch" + (on ? " on" : "")} role="switch" aria-checked={on}
-          aria-label="Allow remote access" disabled={busy} onClick={on ? disable : enable}><span className="settings-knob" /></button>
+          aria-label="Allow remote access" disabled={busy || tunnelBusy} onClick={on ? disable : enable}><span className="settings-knob" /></button>
       </div>
       <span className="settings-sub">
         <b>Off by default.</b> When on, your library is reachable through a tunnel you run (the next setup step) — protected by an access token only you hold. This is the opt-in that lets cited-paper metadata leave your machine; local use is unaffected.
@@ -182,6 +209,19 @@ function RemoteAccessSettings() {
           </label>
           <input className="settings-input" readOnly value={token} onFocus={e => e.target.select()} />
         </div>}
+      {packaged && on && <div className="settings-field">
+        <span className="settings-field-label">Temporary Quick Tunnel</span>
+        <span className="settings-sub">Explicitly starts an app-owned Cloudflare tunnel for Google Docs or Word on the web. Quick Tunnels expose every Callosum route; your bearer token is the sole boundary. Stop the tunnel when you finish.</span>
+        <div className="settings-keyrow">
+          <button className="btn btn-ghost" disabled={tunnelBusy || !tunnel || (!tunnel.available && !tunnel.running)} onClick={() => changeTunnel(!(tunnel && tunnel.running))}>
+            {tunnelBusy ? "Working…" : (tunnel && tunnel.running ? "Stop Quick Tunnel" : "Start Quick Tunnel")}
+          </button>
+          {tunnel && tunnel.running && <button className="btn btn-ghost" disabled={tunnelBusy} onClick={copyTunnelUrl}>Copy URL</button>}
+        </div>
+        {tunnel && tunnel.url && <input className="settings-input" readOnly value={tunnel.url} onFocus={e => e.target.select()} />}
+        {tunnel && !tunnel.available && <span className="settings-sub">Install <code>cloudflared</code> from Cloudflare, restart Callosum, and return here.</span>}
+        {tunnelMsg && <div className="settings-note">{tunnelMsg}</div>}
+      </div>}
       {msg && <div className="settings-note">{msg}</div>}
       <div className="settings-sub">Locked out after losing the token? Just reload — callosum shows a recovery panel that lets you paste the token or turn Remote access back off (a code written to a local file proves you're at this machine). Or restart with <code>CALLOSUM_DISABLE_REMOTE_ACCESS=1</code> set.</div>
     </>

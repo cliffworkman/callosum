@@ -232,8 +232,10 @@ revision. Documents using that personal style receive the saved formatting on th
 
 Callosum binds to **`127.0.0.1`** and ships with **no authentication** — it's designed for single-user, local use.
 **Remote access** (Settings) is an opt-in, default-off bearer-token gate + rate-limiter, intended for the Google
-Docs bridge via a local [cloudflared](https://github.com/cloudflare/cloudflared) tunnel with a **cite-only**
-ingress; it is *not* a hardened multi-tenant deployment. Don't expose Callosum to a network without reviewing the
+Docs/Word-web bridge via local [cloudflared](https://github.com/cloudflare/cloudflared). The packaged app can
+explicitly start a temporary Quick Tunnel; Quick Tunnels have no cite-only ingress, so the bearer token is their
+sole boundary. The advanced named-tunnel setup retains a **cite-only** ingress. This is *not* a hardened
+multi-tenant deployment. Don't expose Callosum to a network without reviewing the
 threat model (the folder-scan / file-serving routes read local files server-side).
 
 There is also an **optional account** (Settings → Account → *Sign in with ORCID*, default-off): it's **opt-in and

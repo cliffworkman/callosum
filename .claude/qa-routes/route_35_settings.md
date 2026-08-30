@@ -63,6 +63,14 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
   /settings` must report `access_token_set` but **never the token value** (the value in the GET body is **Critical**).
   With remote access ON, a data request with no/wrong bearer token → **401** (`GET /health` + `GET /` stay exempt).
   The egress posture is unchanged for everyone who leaves it off.
+- **Packaged Quick Tunnel is explicit, bearer-gated, and fail-closed (inc 533).** The control is packaged-only
+  and unavailable until Remote access is ON. Start must launch cloudflared with direct argv against a separate
+  literal-loopback Uvicorn child carrying `CALLOSUM_TUNNEL_TARGET=1`, never the ordinary UI backend. That child
+  returns **401** without a bearer while enabled and **403** for every non-health request as soon as Remote access
+  turns off. cloudflared must not inherit the user's named-tunnel config/credentials, must run at info (not debug)
+  logging, and must publish only a strict `https://<label>.trycloudflare.com` URL. The UI must stop the tunnel
+  before ordinary opt-out; Tauri stop/exit must remove both process trees. An inherited credential path, surviving
+  process, non-trycloudflare URL, default-on tunnel, or OFF-state data response other than 403 is **Critical**.
 - **Lockout recovery is disable-only + local-possession-gated (inc 254).** With remote access ON and no valid
   token, a data call 401s and the app shows ONE honest recovery overlay (`AccessLockOverlay`), never a "start the
   backend / uvicorn" box. `POST /access/recover` with `{}` writes a one-time code to a LOCAL file and returns
@@ -168,10 +176,15 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    exact current origin, fires no external request, and (direct API) confirm posting the same request with a
    non-loopback `Host` header returns **422** with no file written.
 13. **Microsoft Word add-in (incs 164/532).** In packaged Tauri, confirm **Microsoft Word add-in (desktop)** shows **Enable Word Support**, the local-only trust disclosure, **Download manifest**, and **Open Add-in Folder**. Before enable, `GET /word-https/status` reports `enabled:false`; click Enable and confirm the control becomes **Disable Word Support**, status reports ready/trusted, and `https://127.0.0.1:8443/health` is reachable with the exact generated certificate. Disable and confirm trust/files are removed and the companion stops. Direct API negatives: a forwarded header or missing `X-Callosum-Local-Action: settings-ui-v1` on either mutation → **403**. In browser/source mode, confirm the developer `office-addin-dev-certs` + `tools/run_https.py` instructions appear instead of the packaged claim. The manifest remains non-empty with SourceLocation `https://localhost:8443/integrations/word/taskpane.html`; task pane external references remain limited to Microsoft office.js; Open Add-in Folder remains zero-egress and graceful; undefined files remain 404. *(Actual Office.js document behavior and OS-trust UI are consolidated MANUAL checks; this automated route must not claim them live-verified.)*
-14. **Remote access (inc 168).** Under **Remote access (Google Docs)**, confirm the toggle is **OFF** on a clean
+14. **Remote access + packaged Quick Tunnel (incs 168/533).** Under **Remote access (Google Docs)**, confirm the toggle is **OFF** on a clean
    instance. Turn it ON → an access token is shown **once** (a readonly field); `GET /settings` now reports
    `remote_access_enabled:true` + `access_token_set:true` with **no token value in the body**. Confirm the data API
-   still works in this browser (the token was saved to `localStorage`). Toggle OFF → back to frictionless. (Direct
+   still works in this browser (the token was saved to `localStorage`). In packaged Tauri with cloudflared
+   installed, click **Start Quick Tunnel**: a strict `https://*.trycloudflare.com` URL appears with Copy and Stop;
+   missing/wrong bearer through it returns 401. Turn Remote access off through the recovery path while it is live:
+   the dedicated target must immediately return 403, never local-trust access. Re-enable, start again, then use the
+   normal toggle: Settings must stop both owned processes before changing the flag. App exit must also leave no
+   connector/target orphan. Toggle OFF → back to frictionless. (Direct
    API: `PUT /settings {remote_access_enabled:true}` with no token minted → 422; with remote ON, `GET /papers` with
    no/`wrong` bearer → 401; `GET /health` → 200.) No genai/external request from any of this.
 15. **Lockout recovery (inc 254).** With Remote access ON, clear this browser's token

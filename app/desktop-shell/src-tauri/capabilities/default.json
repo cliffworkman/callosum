@@ -11,6 +11,9 @@
     "allow-retry-backend",
     "allow-install-update-now",
     "allow-open-release-page",
-    "allow-check-for-updates-now"
+    "allow-check-for-updates-now",
+    "allow-quick-tunnel-status",
+    "allow-start-quick-tunnel",
+    "allow-stop-quick-tunnel"
   ]
 }
