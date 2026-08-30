@@ -108,18 +108,26 @@ async fn check_desktop(app: &AppHandle) -> CheckOutcome {
     use tauri::Manager;
     let state = app.state::<UpdateState>();
     if let Some((existing, _)) = state.ready.lock().unwrap().as_ref() {
-        return CheckOutcome::Ready { version: existing.version.clone() };
+        return CheckOutcome::Ready {
+            version: existing.version.clone(),
+        };
     }
     if let Some(version) = state.downloading.lock().unwrap().clone() {
         return CheckOutcome::Downloading { version };
     }
     let Ok(updater) = app.updater() else {
-        return CheckOutcome::Failed { detail: "The updater isn't available on this build.".into() };
+        return CheckOutcome::Failed {
+            detail: "The updater isn't available on this build.".into(),
+        };
     };
     let update = match updater.check().await {
         Ok(Some(update)) => update,
         Ok(None) => return CheckOutcome::UpToDate,
-        Err(e) => return CheckOutcome::Failed { detail: e.to_string() },
+        Err(e) => {
+            return CheckOutcome::Failed {
+                detail: e.to_string(),
+            }
+        }
     };
     let version = update.version.clone();
     *state.downloading.lock().unwrap() = Some(version.clone());
@@ -137,7 +145,12 @@ fn spawn_download(app: AppHandle, update: Update) {
         let state = app.state::<UpdateState>();
         let version = update.version.clone();
         let notes = update.body.clone();
-        let _ = app.emit("update-downloading", DownloadingPayload { version: version.clone() });
+        let _ = app.emit(
+            "update-downloading",
+            DownloadingPayload {
+                version: version.clone(),
+            },
+        );
         let downloaded = Mutex::new(0u64);
         let last_emitted = Mutex::new(0u64);
         const PROGRESS_EMIT_STEP: u64 = 256 * 1024; // coalesce chunk callbacks so the webview isn't flooded
@@ -154,7 +167,11 @@ fn spawn_download(app: AppHandle, update: Update) {
                         *last = *total;
                         let _ = progress_app.emit(
                             "update-progress",
-                            ProgressPayload { version: progress_version.clone(), downloaded: *total, total: content_len },
+                            ProgressPayload {
+                                version: progress_version.clone(),
+                                downloaded: *total,
+                                total: content_len,
+                            },
                         );
                     }
                 },
@@ -166,7 +183,11 @@ fn spawn_download(app: AppHandle, update: Update) {
         *state.ready.lock().unwrap() = Some((update, bytes));
         let _ = app.emit(
             "update-ready",
-            UpdateReadyPayload { version, notes, action: "restart" },
+            UpdateReadyPayload {
+                version,
+                notes,
+                action: "restart",
+            },
         );
     });
 }
@@ -178,9 +199,16 @@ async fn check_linux(app: &AppHandle) -> CheckOutcome {
     if let Some(version) = state.notified.lock().unwrap().clone() {
         return CheckOutcome::Ready { version };
     }
-    let client = match reqwest::Client::builder().timeout(Duration::from_secs(10)).build() {
+    let client = match reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+    {
         Ok(c) => c,
-        Err(e) => return CheckOutcome::Failed { detail: e.to_string() },
+        Err(e) => {
+            return CheckOutcome::Failed {
+                detail: e.to_string(),
+            }
+        }
     };
     let resp = match client
         .get("https://api.github.com/repos/cliffworkman/callosum/releases/latest")
@@ -190,14 +218,24 @@ async fn check_linux(app: &AppHandle) -> CheckOutcome {
     {
         Ok(r) => r,
         // offline — fail closed, no retry storm; the next 6h periodic tick tries again regardless
-        Err(_) => return CheckOutcome::Failed { detail: "Couldn't reach GitHub — check your connection.".into() },
+        Err(_) => {
+            return CheckOutcome::Failed {
+                detail: "Couldn't reach GitHub — check your connection.".into(),
+            }
+        }
     };
     let json: serde_json::Value = match resp.json().await {
         Ok(j) => j,
-        Err(_) => return CheckOutcome::Failed { detail: "Unexpected response from GitHub.".into() },
+        Err(_) => {
+            return CheckOutcome::Failed {
+                detail: "Unexpected response from GitHub.".into(),
+            }
+        }
     };
     let Some(tag) = json.get("tag_name").and_then(|v| v.as_str()) else {
-        return CheckOutcome::Failed { detail: "Unexpected response from GitHub.".into() };
+        return CheckOutcome::Failed {
+            detail: "Unexpected response from GitHub.".into(),
+        };
     };
     let remote = tag.trim_start_matches('v').to_string();
     let current = app.package_info().version.to_string();
@@ -205,7 +243,11 @@ async fn check_linux(app: &AppHandle) -> CheckOutcome {
         *state.notified.lock().unwrap() = Some(remote.clone());
         let _ = app.emit(
             "update-ready",
-            UpdateReadyPayload { version: remote.clone(), notes: None, action: "open-page" },
+            UpdateReadyPayload {
+                version: remote.clone(),
+                notes: None,
+                action: "open-page",
+            },
         );
         CheckOutcome::Ready { version: remote }
     } else {
@@ -223,7 +265,11 @@ fn is_newer(remote: &str, current: &str) -> bool {
 #[cfg(any(test, target_os = "linux"))]
 fn parse_version(v: &str) -> (u32, u32, u32) {
     let mut parts = v.split('.').map(|p| p.parse::<u32>().unwrap_or(0));
-    (parts.next().unwrap_or(0), parts.next().unwrap_or(0), parts.next().unwrap_or(0))
+    (
+        parts.next().unwrap_or(0),
+        parts.next().unwrap_or(0),
+        parts.next().unwrap_or(0),
+    )
 }
 
 /// Windows/macOS: installs the already-downloaded update and restarts. A no-op elsewhere (the
