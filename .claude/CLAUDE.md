@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 534** (see Increment workflow) with **2590 root-suite pytest tests
+It is currently at **Increment 535** (see Increment workflow) with **2590 root-suite pytest tests
 passing** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
@@ -867,6 +867,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   BibTeX EndNote convention, so the parser does not guess at it. The backlog phase remains explicitly partial
   until the same path is exercised against a genuine EndNote-created file; the checked-in alias fixture is only
   a contract stand-in. Research: `.claude/docs/research/2026-08-21_endnote_generic_import.md`.
+- **EndNote legacy-MyISAM reader strategy resolved, implementation gated (backlog #57 Phase 6B, inc 535):** no
+  maintained pure-language reader was found for the real fixtures' `.frm`/`.MYD`/`.MYI` row data. A disposable,
+  network-isolated MariaDB 10.11 experiment using only EndNote's public X7 sample recognized the tables and,
+  after the engine-required rebuild on a copy, read all 59 `refs` rows with the expected 54-field schema. This
+  proves a real-engine strategy is feasible, not that a production importer is ready: bundling/supervising that
+  engine is a separate security/packaging decision, and attached-PDF plus modern-SQLite fixtures are still
+  missing. Docker remains research-only, never an end-user prerequisite; RIS/XML fallbacks remain unchanged.
+  Research: `.claude/docs/research/2026-08-29_mendeley_endnote_native_import.md`.
 - **Mendeley-via-Zotero feasibility confirmed (backlog #57 Phase 3, inc 487):** Zotero currently documents a
   desktop **File → Import → Mendeley Reference Manager (online import)** path that brings a personal Mendeley
   library's data, files, and folder structure into an ordinary Zotero library; Callosum then uses its unchanged

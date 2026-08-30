@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-08-30 — Increment 535: EndNote legacy-MyISAM feasibility spike
+- **Files:** native-import research; Phase A/B open security-audit stubs; backlog/architecture/increment ledgers.
+- **What:** establishes from primary-source review and a live, disposable MariaDB experiment that the legacy
+  EndNote X7 MyISAM tables can be read safely only from a working copy after an engine-controlled upgrade; no
+  maintained pure-language row reader was found. The personal X1 fixture stayed local and no row content logged.
+- **Why:** both available real-format fixtures contradict the modern SQLite assumption. Hand-writing a binary
+  parser or silently requiring Docker would violate the project's evidence and zero-configuration standards.
+- **Boundary:** no production code/dependency/import behavior changed. Phase B now needs a separately audited
+  managed-engine packaging design plus attached-PDF and modern-SQLite fixtures. Existing RIS/XML paths remain.
+- **Verify:** public X7 sample yielded 59 `refs` rows/54 expected columns after copy-only upgrade; every remote
+  fixture/table/datadir artifact was removed. See the increment notes for exact runtime identity and receipt.
+- **Revert:** documentation-only; revert this increment commit.
+
 <!-- HELP-DOCS-SYNCED: 2026-08-29 inc 534 — packaged Word trust confirmation -->
 ## 2026-08-29 — Increment 534: close packaged Word trust + Tauri ACL gaps
 - **Files:** Windows Word certificate lifecycle; Tauri permissions/capability; packaged Word Settings copy and

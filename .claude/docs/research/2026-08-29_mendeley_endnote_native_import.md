@@ -150,20 +150,59 @@ open-source schema docs above are a real reference to build from) or fail closed
 EndNote library version" message — do not assume MyISAM support implies SQLite support or vice versa, they are
 different parsers.
 
-## Open research question this doc does NOT resolve: how to safely read MyISAM table files
+## MyISAM reader feasibility spike (2026-08-30, increment 535)
 
-Given both real fixtures are MyISAM-based (not SQLite), the single most important unresolved technical question
-for implementation is: **how should callosum safely read `.frm`/`.MYD`/`.MYI` MyISAM table files without a
-persistent MySQL/MariaDB server dependency?** This was not researched in this pass (the research above focused
-on confirming the `.enlx`/`.enl` container format and folder/PDF preservation, not on the MyISAM storage-engine
-internals) and should not be guessed at. Before writing any parser, whoever implements Phase B should research
-and choose between real options such as: a pure-language MyISAM table reader (several forensic/data-recovery
-tools exist for this well-documented, legacy format — verify one exists and is trustworthy before depending on
-it, don't assume); an ephemeral/embedded MariaDB instance spun up solely to `LOAD` the table files and query them
-via real SQL before being torn down (heavier, but avoids hand-parsing an undocumented binary format); or, if
-neither is safely achievable, scoping Phase B down to whatever EndNote versions genuinely do use the
-SQLite-based format (untested here — no fixture available) and disclosing MyISAM-era EndNote libraries as
-explicitly unsupported rather than guessed at.
+The open reader question above now has an empirical answer, but not yet a production implementation.
+
+### Maintained-reader review
+
+- No credible maintained pure-Python, Rust, or standalone library was found that accepts the complete legacy
+  `.frm` + `.MYD` + `.MYI` table identity and exposes rows with MySQL-compatible field semantics. Oracle's old
+  `mysql-utilities` `frm_reader.py` reconstructs table definitions from `.frm`; it does not read `.MYD` rows.
+- `myisamchk` is a table check/repair utility, not a row-query API. Repairing the user's original files would
+  violate the copy-first boundary in any case.
+- Current MySQL 8.4 `IMPORT TABLE` requires `.sdi` metadata from a compatible data-dictionary version. These
+  EndNote fixtures have legacy `.frm`, not `.sdi`, so that current import mechanism is not applicable.
+- MySQL 5.7 documents the old raw `.frm`/`.MYD`/`.MYI` data-directory workflow and a Windows `noinstall` ZIP,
+  but it is an entire manually initialized server distribution—not an embeddable table reader.
+
+Primary sources consulted: MySQL 8.4 `IMPORT TABLE` and MyISAM storage-engine manuals; MySQL 5.7 Windows
+`noinstall` archive instructions; MariaDB's `mariadb-upgrade` documentation; Oracle's archived
+`mysql/mysql-utilities` source.
+
+### Disposable-engine live experiment
+
+The only file transferred off the workstation was EndNote's public vendor-shipped X7 sample. The personal X1
+fixture remained local and unread beyond the earlier structure/hash inspection. On the Debian Juno host, a
+disposable, no-published-port `mariadb:10.11` official container (MariaDB `10.11.19`, image digest
+`sha256:ce66c7be32a03aabe7241d0a10993a2db827ef652a35d25727d92a832ac8ef73`) received an extracted **copy** of
+the sample tables in an isolated temporary datadir:
+
+- the engine recognized `csort`, `jterms`, `misc`, `pdf_index`, `refs`, `refs_ext`, and `terms`;
+- `misc` (81 rows), `pdf_index` (59), and `refs_ext` (59) were queryable directly;
+- opening `refs` failed with MariaDB error 1707, `Table rebuild required`;
+- `ALTER TABLE endnote.refs FORCE` on the disposable copy completed, after which `refs` returned 59 rows and
+  exposed the expected 54 bibliographic columns (`id`, `reference_type`, author/year/title/.../access date);
+- the container, extracted tables, temporary datadir, and uploaded archive were removed afterward.
+
+No bibliographic row content was printed or retained. The container image cache contains no fixture content.
+
+### Decision
+
+**Technically feasible through an ephemeral real engine; not safe to implement as an ordinary parser yet.** A
+hand-written MyISAM decoder is rejected. The smallest defensible legacy path is a separately owned, private,
+temporary database-engine helper that operates only on bounded copies, has no network listener, performs an
+explicit schema/version/upgrade preflight, exports parameterized bounded rows, then destroys its datadir.
+
+That helper is a material packaging and security surface: Callosum would have to pin and distribute compatible
+server binaries for Windows/macOS/Linux (or disclose an external prerequisite), supervise cleanup/crashes,
+maintain license/source obligations, and prove both X1 and X7 schemas. Docker was appropriate for this research
+experiment but fails the zero-configuration product goal and must not become the user-facing dependency.
+
+Therefore Phase B moves from **unknown reader strategy** to **strategy proven, production implementation gated**.
+Before code, approve and design the managed-engine packaging increment; obtain an `.enlx` fixture with a real
+attached PDF; and separately obtain a modern SQLite-era fixture. Until then, existing RIS/EndNote XML imports
+remain the safe metadata-only fallbacks, and unknown `.enlx` variants must remain unsupported rather than guessed.
 
 ## Folder/collection preservation, and a related already-inert gap
 

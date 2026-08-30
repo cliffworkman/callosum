@@ -361,9 +361,12 @@ the Principles + A-A gates before build.)*
     `.claude/docs/2026-08-29_codex-mendeley-endnote-import-handoff.md`. Summary: Mendeley gets a real OAuth2
     importer against the official `dev.mendeley.com` REST API (no Zotero needed — **blocked on the maintainer
     registering an OAuth app there first**); EndNote gets a `.enlx` Compressed Library importer (metadata + PDFs
-    + groups in one file — **blocked on resolving how to safely read the underlying MyISAM table format**, an
-    open research question the fresh pass explicitly did not resolve, using two real fixture libraries now at
-    `.claude/backups/endnote-fixtures/`); both feed a new shared "imported folders/groups → axis" step that also
+    + groups in one file). **Increment 535 resolved the reader-strategy question empirically:** no maintained
+    pure-language row reader was found, while a disposable MariaDB 10.11 engine successfully upgraded and read
+    EndNote's public X7 MyISAM `refs` table from a copy. Phase B is therefore technically feasible but now gated
+    on an explicit managed-engine packaging/security design, a real attached-PDF fixture, and a separate modern
+    SQLite-era fixture; Docker is not an acceptable end-user prerequisite. Fixtures remain gitignored at
+    `.claude/backups/endnote-fixtures/`. Both sources feed a new shared "imported folders/groups → axis" step that also
     retroactively surfaces the Zotero importer's own already-populated-but-never-read `collections` table. See
     §6 below — this does **not** contradict the "folders/collections declined" entry; that decision was about
     manual folder-creation inside callosum, not imported structure from another tool.
