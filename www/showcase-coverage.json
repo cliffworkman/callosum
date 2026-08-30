@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-29",
-    "reviewed_rev": "7b38c9a",
-    "source_fingerprint": "6d462a2b30164e398b56592795f3b2df8053b9c647fd17851dca2b37a89b5b78",
-    "note": "Reviewed packaged Quick Tunnel Settings copy and operation-state lock against integration claims and the existing Usage/integrations figure; additive control does not invalidate current public claims or captured workflow."
+    "reviewed_rev": "7db5aa1",
+    "source_fingerprint": "12078101f0eb09b2c4b838b1e0954164c3ac78834036a73dd0281f972eafba50",
+    "note": "Reviewed packaged Word trust-confirmation copy and explicit Tauri command ACL closure; no showcase claim or visual changes required."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

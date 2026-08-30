@@ -17,7 +17,9 @@ from tools import run_https
 
 
 def test_main_sets_the_disable_hatch_before_starting_uvicorn(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("CALLOSUM_DISABLE_REMOTE_ACCESS", raising=False)
+    # Seed a value so monkeypatch records and restores this key after main() mutates os.environ directly.
+    # Deleting an absent key here left no undo entry and leaked the recovery hatch into later serial tests.
+    monkeypatch.setenv("CALLOSUM_DISABLE_REMOTE_ACCESS", "0")
     monkeypatch.setattr(run_https, "_dev_cert_paths", lambda: ("fake.crt", "fake.key"))
     fake_uvicorn = MagicMock()
     monkeypatch.setitem(sys.modules, "uvicorn", fake_uvicorn)

@@ -31,6 +31,7 @@ KEY_FILENAME = "localhost.key"
 WORD_HTTPS_DIR_ENV = "CALLOSUM_WORD_HTTPS_DIR"
 _VALID_DAYS = 365
 _POWERSHELL_TIMEOUT = 30
+_TRUST_PROMPT_TIMEOUT = 120
 _MAC_SECURITY = "/usr/bin/security"
 
 
@@ -92,7 +93,12 @@ def _write_public(path: Path, payload: bytes) -> None:
     os.replace(tmp, path)
 
 
-def _run_powershell(script: str, *args: str) -> subprocess.CompletedProcess[str]:
+def _run_powershell(
+    script: str,
+    *args: str,
+    interactive: bool = False,
+    timeout: int = _POWERSHELL_TIMEOUT,
+) -> subprocess.CompletedProcess[str]:
     child_env = os.environ.copy()
     # A packaged app may itself be launched from PowerShell 7, whose PSModulePath is incompatible with the
     # inbox Windows PowerShell 5 process used here. Pin the inbox module root needed by the fixed PKI/ACL calls.
@@ -102,11 +108,15 @@ def _run_powershell(script: str, *args: str) -> subprocess.CompletedProcess[str]
     for index, value in enumerate(args):
         child_env[f"CALLOSUM_WORD_HTTPS_PS_ARG_{index}"] = value
     # Fixed executable/command; dynamic values exist only in this child's environment.
+    command = [str(powershell_exe), "-NoProfile"]
+    if not interactive:
+        command.append("-NonInteractive")
+    command.extend(["-Command", script])
     return subprocess.run(  # nosec B603
-        [str(powershell_exe), "-NoProfile", "-NonInteractive", "-Command", script],
+        command,
         capture_output=True,
         text=True,
-        timeout=_POWERSHELL_TIMEOUT,
+        timeout=timeout,
         check=False,
         env=child_env,
     )
@@ -255,7 +265,18 @@ def install_certificate_trust(cert_path: Path) -> None:
             "$cert=Import-Certificate -FilePath $p -CertStoreLocation 'Cert:\\CurrentUser\\Root'; "
             "if ($null -eq $cert) { exit 1 }"
         )
-        result = _run_powershell(script, str(cert_path))
+        # Windows protects Root-store additions with its own certificate confirmation. This is a normal
+        # current-user security dialog, not an elevation request; `-NonInteractive` makes Import-Certificate
+        # fail before it can appear. Keep every other fixed PowerShell operation noninteractive.
+        try:
+            result = _run_powershell(
+                script,
+                str(cert_path),
+                interactive=True,
+                timeout=_TRUST_PROMPT_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise WordHttpsError("Windows certificate confirmation timed out; enable Word support again.") from exc
     elif sys.platform == "darwin":
         # Fixed OS executable and direct argv.
         result = subprocess.run(  # nosec B603
@@ -287,7 +308,17 @@ def remove_certificate_trust(cert_path: Path) -> None:
             "$thumbprint=$env:CALLOSUM_WORD_HTTPS_PS_ARG_0; $p='Cert:\\CurrentUser\\Root\\'+$thumbprint; "
             "if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force -ErrorAction Stop }"
         )
-        result = _run_powershell(script, certificate_thumbprint(cert_path))
+        try:
+            result = _run_powershell(
+                script,
+                certificate_thumbprint(cert_path),
+                interactive=True,
+                timeout=_TRUST_PROMPT_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise WordHttpsError(
+                "Windows certificate removal confirmation timed out; disable Word support again."
+            ) from exc
     elif sys.platform == "darwin":
         # Fixed OS executable and direct argv.
         result = subprocess.run(  # nosec B603

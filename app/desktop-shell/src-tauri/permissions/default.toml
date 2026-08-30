@@ -19,6 +19,16 @@ description = "Allows checking for updates on demand (Settings > Account & sync 
 commands.allow = ["check_for_updates_now"]
 
 [[permission]]
+identifier = "allow-start-word-https-companion"
+description = "Allows the packaged Settings window to start its explicitly enabled local Word HTTPS companion."
+commands.allow = ["start_word_https_companion"]
+
+[[permission]]
+identifier = "allow-stop-word-https-companion"
+description = "Allows the packaged Settings window to stop its app-owned local Word HTTPS companion."
+commands.allow = ["stop_word_https_companion"]
+
+[[permission]]
 identifier = "allow-quick-tunnel-status"
 description = "Allows the packaged Settings window to inspect its app-owned Quick Tunnel process."
 commands.allow = ["quick_tunnel_status"]
@@ -40,6 +50,8 @@ permissions = [
   "allow-install-update-now",
   "allow-open-release-page",
   "allow-check-for-updates-now",
+  "allow-start-word-https-companion",
+  "allow-stop-word-https-companion",
   "allow-quick-tunnel-status",
   "allow-start-quick-tunnel",
   "allow-stop-quick-tunnel",

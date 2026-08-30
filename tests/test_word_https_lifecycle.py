@@ -62,10 +62,10 @@ def test_invalid_pair_is_replaced_and_private_write_is_bounded(monkeypatch, tmp_
 def test_windows_trust_uses_fixed_current_user_commands(monkeypatch, tmp_path) -> None:
     cert_path, _ = _paths(monkeypatch, tmp_path)
     lifecycle.ensure_certificate()
-    calls: list[tuple[str, tuple[str, ...]]] = []
+    calls: list[tuple[str, tuple[str, ...], dict]] = []
 
-    def fake_run(script: str, *args: str):
-        calls.append((script, args))
+    def fake_run(script: str, *args: str, **kwargs):
+        calls.append((script, args, kwargs))
         return subprocess.CompletedProcess([], 0, "", "")
 
     monkeypatch.setattr(lifecycle, "_run_powershell", fake_run)
@@ -76,10 +76,12 @@ def test_windows_trust_uses_fixed_current_user_commands(monkeypatch, tmp_path) -
     assert "Import-Certificate" in calls[0][0]
     assert "Cert:\\CurrentUser\\Root" in calls[0][0]
     assert calls[0][1] == (str(cert_path),)
+    assert calls[0][2] == {"interactive": True, "timeout": lifecycle._TRUST_PROMPT_TIMEOUT}
     assert "Test-Path" in calls[1][0]
     assert calls[1][1] == (lifecycle.certificate_thumbprint(cert_path),)
     assert "Remove-Item" in calls[2][0]
-    assert all(str(cert_path) not in script for script, _args in calls)
+    assert calls[2][2] == {"interactive": True, "timeout": lifecycle._TRUST_PROMPT_TIMEOUT}
+    assert all(str(cert_path) not in script for script, _args, _kwargs in calls)
 
 
 def test_windows_private_key_acl_uses_fixed_script_and_separate_path(monkeypatch, tmp_path) -> None:
@@ -97,6 +99,20 @@ def test_windows_private_key_acl_uses_fixed_script_and_separate_path(monkeypatch
     assert str(key_path) not in calls[0][0]
     assert "$env:CALLOSUM_WORD_HTTPS_PS_ARG_0" in calls[0][0]
     assert "SetAccessRuleProtection($true,$false)" in calls[0][0]
+
+
+def test_windows_trust_confirmation_timeouts_are_actionable(monkeypatch, tmp_path) -> None:
+    cert_path, _ = _paths(monkeypatch, tmp_path)
+    lifecycle.ensure_certificate()
+
+    def time_out(*_args, **_kwargs):
+        raise subprocess.TimeoutExpired("powershell", lifecycle._TRUST_PROMPT_TIMEOUT)
+
+    monkeypatch.setattr(lifecycle, "_run_powershell", time_out)
+    with pytest.raises(lifecycle.WordHttpsError, match="confirmation timed out"):
+        lifecycle.install_certificate_trust(cert_path)
+    with pytest.raises(lifecycle.WordHttpsError, match="removal confirmation timed out"):
+        lifecycle.remove_certificate_trust(cert_path)
 
 
 def test_powershell_value_uses_child_environment_not_command_or_parent(monkeypatch) -> None:
@@ -119,6 +135,11 @@ def test_powershell_value_uses_child_environment_not_command_or_parent(monkeypat
         Path(r"C:\Windows") / "System32" / "WindowsPowerShell" / "v1.0" / "Modules"
     )
     assert variable not in os.environ
+
+    lifecycle._run_powershell("interactive-command", interactive=True, timeout=123)
+    assert "-NonInteractive" not in captured["args"]
+    assert captured["args"][-2:] == ["-Command", "interactive-command"]
+    assert captured["kwargs"]["timeout"] == 123
 
 
 def test_macos_trust_is_login_keychain_scoped_without_admin_domain(monkeypatch, tmp_path) -> None:

@@ -1,6 +1,6 @@
 # Security audit — packaged Word HTTPS companion (increment 532)
 
-Status: **PASS — code/static/isolated-live validation complete; OS trust UI + Word host remain manual**
+Status: **PASS — Windows trust/UI and isolated lifecycle live-verified; macOS + Word host remain manual**
 
 ## Scope
 
@@ -26,8 +26,9 @@ or non-loopback network behavior is added.
 
 - Microsoft Office add-in guidance requires/recommends HTTPS and permits a locally trusted self-signed
   certificate for local testing.
-- Microsoft documents `Import-Certificate` into `Cert:\CurrentUser\Root`; `certutil` is explicitly cautioned
-  against for production code and is therefore not used.
+- Microsoft documents `Import-Certificate` into `Cert:\CurrentUser\Root`; live Windows testing proved protected-
+  Root add/remove requires the ordinary certificate confirmation UI, while `-NonInteractive` fails closed.
+  `certutil` remains explicitly avoided for production code.
 - macOS `security` supports per-user `add-trusted-cert` / `remove-trusted-cert`; live macOS behavior remains
   unverified until hardware QA.
 
@@ -39,6 +40,8 @@ or non-loopback network behavior is added.
 | Trusting a localhost CA would let key compromise sign other certificates. | High | Avoided: the generated certificate is an end entity (`BasicConstraints.ca=false`, `keyCertSign=false`) with only `localhost` and `127.0.0.1` SANs and server-auth use. |
 | Another local process can call a predictable fixed port. | Medium | Accepted residual local-process boundary: TLS identity prevents network impersonation, API access control remains authoritative, mutations have the Settings header, and the server binds only literal loopback. Localhost is not represented as a perfect boundary. |
 | Private-key files could inherit broad Windows ACLs. | High | Fixed: atomic owner-readable/writeable creation plus a fixed-script DACL replacement granting only the current user, with a verified protected/one-rule postcondition. Paths are passed in a child-only environment value and never interpolated into PowerShell. The helper pins the inbox Windows PowerShell module root so a PowerShell 7 parent cannot break ACL/PKI module loading. Unix mode is `0600`. |
+| `Import-Certificate` was launched with `-NonInteractive`, so Windows refused protected-Root installation with `UI is not allowed in this operation`. Removal had the same protected-store boundary. | High | Fixed in inc 534. Only exact certificate add/remove omits `-NonInteractive`, under a 120-second bound; every ACL/check operation remains noninteractive. Decline/timeout fails without publishing or clearing state. Live add/remove showed ordinary `Security Warning` / `Root Certificate Store` dialogs and no `consent.exe`, proving no UAC elevation prompt. |
+| Word companion Tauri commands were registered but missing the project's explicit two-axis permission/capability grants. | High | Fixed in inc 534. Start/stop each have a named permission in `permissions/default.toml`, both are granted by `capabilities/default.json` under the existing main-window loopback scope, and a regression test pins Word plus Quick-Tunnel lifecycle commands across both axes. |
 | Launch-time auto-start and a Settings action could race into two children. | Medium | Fixed: one atomic startup owner performs readiness; concurrent callers wait for that result. Tauri remains the only process owner. |
 | A partial disable could claim success while trust remains. | High | Fixed: trust is removed and rechecked before files and opt-in state are removed. Failure preserves enabled/retry state and certificate material. |
 | The HTTPS child could inherit tunnel-facing Remote-access state. | High | Fixed: only that child receives `CALLOSUM_DISABLE_REMOTE_ACCESS=1`; it is strict-loopback and has no cloud/tunnel fallback. |
@@ -46,9 +49,9 @@ or non-loopback network behavior is added.
 
 ## Validation boundary
 
-Automated tests cover certificate constraints/reuse, Windows command/ACL construction, macOS command scope,
-trust publication/removal ordering, API response privacy, loopback/forwarded-header/action-header denial, Tauri
-fixed argv/config gating, and frontend assembly. A local HTTPS smoke uses the generated leaf without installing
-it into the OS store and verifies the endpoint with that exact leaf. No provider call or external request is
-part of the lifecycle. Actual Windows trust-store mutation, macOS trust behavior, and the Office.js host are
-deferred to the consolidated manual verification pass and are not represented as live-verified.
+Automated tests cover certificate constraints/reuse, bounded interactive Windows trust commands, Windows
+command/ACL construction, macOS command scope, trust publication/removal ordering, API response privacy,
+loopback/forwarded-header/action-header denial, Tauri fixed argv/config/ACL gating, and frontend assembly. A
+local HTTPS smoke verifies the endpoint with the exact generated leaf. No provider call or external request is
+part of the lifecycle. Windows CurrentUser trust add/verify/remove is now live-verified; macOS trust behavior and
+the Office.js host remain deferred to the consolidated manual verification pass.

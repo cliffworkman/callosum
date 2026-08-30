@@ -14,7 +14,9 @@ chunk-completeness test checks the raw concatenation, so it needs no toolchain.
 
 from __future__ import annotations
 
+import json
 import re
+import tomllib
 from pathlib import Path
 
 from app.backend.api.frontend import (
@@ -1584,9 +1586,28 @@ def test_packaged_word_support_is_explicit_tauri_owned_and_reversible():
     assert '`/word-https/${enabled ? "enable" : "disable"}`' in raw
     assert '"start_word_https_companion"' in raw and '"stop_word_https_companion"' in raw
     assert "trust a localhost-only certificate for your account" in raw
+    assert "certificate Security Warning; this is not a UAC elevation prompt" in raw
     assert "You can remove that trust here at any time" in raw
     assert "Word on the web cannot reach localhost" in raw
     assert "npx office-addin-dev-certs install" in raw  # non-Tauri developer fallback remains available
+
+
+def test_packaged_lifecycle_commands_have_both_tauri_acl_axes():
+    tauri = PROJECT_ROOT / "app/desktop-shell/src-tauri"
+    manifest = tomllib.loads((tauri / "permissions/default.toml").read_text(encoding="utf-8"))
+    capability = json.loads((tauri / "capabilities/default.json").read_text(encoding="utf-8"))
+    grants = {permission["identifier"]: permission["commands"]["allow"] for permission in manifest["permission"]}
+    expected = {
+        "allow-start-word-https-companion": ["start_word_https_companion"],
+        "allow-stop-word-https-companion": ["stop_word_https_companion"],
+        "allow-quick-tunnel-status": ["quick_tunnel_status"],
+        "allow-start-quick-tunnel": ["start_quick_tunnel"],
+        "allow-stop-quick-tunnel": ["stop_quick_tunnel"],
+    }
+    assert expected.items() <= grants.items()
+    assert expected.keys() <= set(manifest["default"]["permissions"])
+    assert expected.keys() <= set(capability["permissions"])
+    assert capability["remote"]["urls"] == ["http://127.0.0.1:*/*"]
 
 
 def test_packaged_quick_tunnel_is_explicit_token_gated_and_reversible():

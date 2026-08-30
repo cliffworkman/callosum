@@ -28,7 +28,9 @@ below is for (the same tunnel `adapters/googledocs/` already uses, just relaying
 
 1. In **Settings → Microsoft Word add-in (desktop)**, click **Enable Word Support**. Callosum creates and trusts
    one localhost-only certificate for your OS account, then supervises the fixed `127.0.0.1:8443` HTTPS companion
-   whenever the app runs. Disable it from the same place to remove that trust and the local key material.
+   whenever the app runs. Windows shows an ordinary certificate **Security Warning** to confirm the trust; it is
+   not an administrator/UAC elevation prompt. Disable shows the matching Root-store removal confirmation, then
+   removes that trust and the local key material.
 2. **Sideload the manifest** using step 3 below. No terminal or certificate tooling is needed.
 
 ### Source/developer checkout

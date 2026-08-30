@@ -375,7 +375,7 @@ You can also cite from your callosum library inside **Microsoft Word** (Windows/
 
 **Set it up once:**
 
-1. **Enable Word support** — in the packaged app, open **Settings → Microsoft Word add-in (desktop)** and click **Enable Word Support**. Callosum trusts one localhost-only certificate for your account and starts/stops the HTTPS companion with the app. You can remove that trust from the same place at any time.
+1. **Enable Word support** — in the packaged app, open **Settings → Microsoft Word add-in (desktop)** and click **Enable Word Support**. Callosum trusts one localhost-only certificate for your account and starts/stops the HTTPS companion with the app. On Windows, confirm the standard certificate Security Warning; this is not an administrator/elevation prompt. Disabling shows the matching Root-store removal confirmation and then removes the certificate files.
 2. **Add the manifest to Word** — click **Download manifest**, then sideload it (Windows: register the add-in folder as a Trusted Add-in Catalog; Mac: put the manifest in Word's `wef` folder — see `adapters/word/README.md`).
 
 If you run Callosum from a source checkout instead of the packaged app, use the developer workflow: `npx office-addin-dev-certs install`, then `python tools/run_dev.py`. Both servers share the same database and checkout.

@@ -8,6 +8,20 @@ fe: 25_detail.jsx, 35cb_citation_style_editor.jsx, 35d_citation_styles.jsx, 37_c
 **Tier:** 1 local-stateful
 **Goal:** Exhaust citation style listing, single citation rendering, and document bibliography rendering.
 
+## Consolidated manual-host index
+
+Steps 1–12 are browser/API checks. The manual editor debt below is the complete remaining Route 34 host pass;
+reuse one disposable document per host where practical, but preserve the save/reopen and failure-rollback checks.
+No automated agent result substitutes for these editor-host observations.
+
+| Block | Host(s) | Steps | What is owed |
+|---|---|---|---|
+| Writer note integrity | LibreOffice Writer | 13–15 | Multiple fields/prose in one native note, tracked-change-safe placement conversion, and bibliography heading persistence. |
+| Writer links and organization | LibreOffice Writer | 16–20 | Citation targets, title/DOI links, categories, category ordering, and full/current-section bibliography coherence. |
+| Word parity features | Word desktop + Word on the web | 20b–20h | Section bibliographies, managed links, evidence-aware Suggest, open-science statements, coverage audit, saved-evidence insertion, and Zotero conversion. |
+| Writer metadata/conversion | LibreOffice Writer | 21–22 | Journal-abbreviation modes and bounded Zotero citation/bibliography conversion. |
+| Packaged Word connectivity | Windows Word desktop | Route 35 step 13 | Current-user certificate confirmation, fixed HTTPS companion, manifest sideload, disable/removal, and real Office.js use. |
+
 ## Environment
 
 Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Register listeners before navigation.

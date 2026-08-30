@@ -504,7 +504,7 @@ function WordSettings() {
       <p className="eyebrow">Microsoft Word add-in (desktop)</p>
       {packaged
         ? <>
-            <div className="settings-sub">Everything stays on this machine. Enable once to trust a localhost-only certificate for your account and let Callosum supervise the HTTPS companion. You can remove that trust here at any time.</div>
+            <div className="settings-sub">Everything stays on this machine. Enable once to trust a localhost-only certificate for your account and let Callosum supervise the HTTPS companion. Windows may show a certificate Security Warning; this is not a UAC elevation prompt. You can remove that trust here at any time.</div>
             <button className="btn btn-ghost settings-integration-action" disabled={!!busy || !status || !status.supported} onClick={() => changeManaged(!enabled)}>
               {busy === "lifecycle" ? "Working…" : (!status ? "Checking…" : (enabled ? "Disable Word Support" : "Enable Word Support"))}
             </button>

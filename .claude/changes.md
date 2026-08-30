@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 533 — packaged Quick Tunnel setup -->
+<!-- HELP-DOCS-SYNCED: 2026-08-29 inc 534 — packaged Word trust confirmation -->
+## 2026-08-29 — Increment 534: close packaged Word trust + Tauri ACL gaps
+- **Files:** Windows Word certificate lifecycle; Tauri permissions/capability; packaged Word Settings copy and
+  assembled frontend; lifecycle/frontend regressions; Help/Word/QA/security/increment documentation.
+- **What:** protected CurrentUser Root add/remove now permits Windows' ordinary certificate confirmation under a
+  bounded interactive seam, while every lookup/ACL operation remains noninteractive. Word companion start/stop
+  commands now carry the same explicit permission + capability grants as every other app lifecycle command.
+- **Why:** live CurrentUser mutation proved `Import-Certificate -NonInteractive` fails with `UI is not allowed`,
+  and removal has the same protected-store boundary. The closure audit also found Increment 532 had registered
+  its Tauri commands without pinning the project's two-axis ACL contract.
+- **Verify:** a clean live Windows cycle observed Security Warning/Root Certificate Store confirmations with no
+  `consent.exe` (no UAC elevation), verified exact trust after enable, then verified untrust/files/state cleanup.
+  Route 34 now starts with a one-sitting manual-host index. The affected serial suite passed **181 tests**; the
+  fresh full Python suite passed **2590 tests, 3 skipped** in 1808.00s; serial Rust passed **29 tests, 4 ignored**;
+  cargo check/strict Clippy and all Python security/architecture/coverage gates passed. See increment notes for
+  the full receipt and the pre-existing unrelated `updater.rs` rustfmt-only drift.
+- **Revert:** revert this increment commit; the prior noninteractive Windows install will fail closed rather than
+  mutate trust, and the prior implicit custom-command authorization posture returns.
+
 ## 2026-08-29 — Increment 533: packaged Quick Tunnel convenience (backlog #33/#34 phase 3)
 - **Files:** fail-closed tunnel-target access mode; Tauri cloudflared/Uvicorn lifecycle; Settings UI; assembled
   frontend; Help/adapter/architecture/backlog/QA/security/increment documentation; Python/Rust/frontend tests.
