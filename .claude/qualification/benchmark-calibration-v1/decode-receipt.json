@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "receipt_kind": "phase5a_post_decode",
+  "calibration_profile": "benchmark-calibration-v1",
+  "qualification_profile": "synthesis-overview-v1",
+  "task_id": "synthesis_overview",
+  "pre_decode_freeze_commit": "2192642c34f098c3d455074c22f8b25b773ef08a",
+  "pre_decode_freeze_commit_timestamp": "2026-08-31T01:21:34Z",
+  "decode_recorded_at_utc": "2026-08-31T01:41:16Z",
+  "workbook": {
+    "relative_path": ".local/automatic-ai-phase5a-clean/callosum_blinded_local_model_review_final.xlsx",
+    "sha256": "1490784fd34ac8eee0324e3c85fccb06e5cfbd7636b833dcd870913d3be8212e",
+    "tracked": false,
+    "ratings_modified_after_decode": false
+  },
+  "decode_artifact": {
+    "privacy_safe_identifier": "Phase 5A clean-results decode key",
+    "relative_path": ".local/automatic-ai-phase5a-clean/decode-key.json",
+    "sha256": "dbb032707b91c348d92062fde69a9bb7fe2cb76283aef6720a5402cfd23d3fb4",
+    "schema_version": 1,
+    "tracked": false,
+    "packet_sha256": "be16f671b3a3e326344002be82c3f9246fd522c3d4175daa53a776936afdfdbc",
+    "matches_preregistered_receipt": true
+  },
+  "candidate_mapping": {
+    "K-aa465905": {
+      "decode_label": "gemini-incumbent-time-bound",
+      "exact_identity": "Gemini gemini-2.5-flash-lite",
+      "execution_identity": {
+        "kind": "time-bound_hosted_alias",
+        "provider": "gemini",
+        "requested_model": "gemini-2.5-flash-lite",
+        "provider_returned_model": "gemini-2.5-flash-lite",
+        "api_wire": "google-genai models.generate_content",
+        "test_timestamp_utc": "2026-08-26T02:11:26.994063Z",
+        "max_output_tokens": 256,
+        "temperature": 0.0,
+        "seed": 42,
+        "thinking_budget_tokens": 0
+      }
+    },
+    "K-9384d6c5": {
+      "decode_label": "Phase4-C03-stage2-not-qualified-comparator",
+      "exact_identity": "Qwen2.5-1.5B-Instruct Q4_K_M",
+      "execution_identity": {
+        "kind": "exact_local_artifact",
+        "receipt_id": "synthesis-overview-v1-C03-cpu0",
+        "artifact_sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
+        "artifact_bytes": 1117320736,
+        "quantization": "Q4_K_M",
+        "chat_template_sha256": "4e9918361c284a93880606d182d64da6a9fe97cdc1f5c5a78c1c8840444246fc",
+        "runtime": "llama.cpp 0.1.2-dev build 10516 commit b95502ba9",
+        "runtime_bundle_manifest_sha256": "e2792c598c4a6347aad5327a6158651b49f4fa76b6f2a235d41a1f16ab19fbd2",
+        "requested_execution": {
+          "backend": "cpu",
+          "gpu_layers": 0
+        },
+        "observed_execution": {
+          "backend": "cpu",
+          "gpu_layers": 0
+        },
+        "max_output_tokens": 256,
+        "temperature": 0.0,
+        "seed": 42
+      }
+    }
+  },
+  "preservation": {
+    "human_ratings_unchanged": true,
+    "human_notes_unchanged": true,
+    "exploratory_dimensions_status": "intentionally_not_collected_in_this_calibration",
+    "exploratory_dimensions_scored_after_decode": false,
+    "challenge_holdout": "unopened",
+    "model_or_provider_calls": 0,
+    "production_behavior_changes": 0
+  },
+  "decision": "post_decode_analysis_complete"
+}
