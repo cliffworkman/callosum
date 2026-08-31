@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "receipt_kind": "pre_decode_human_adjudication_freeze",
+  "calibration_profile": "benchmark-calibration-v1",
+  "qualification_profile": "synthesis-overview-v1",
+  "task_id": "synthesis_overview",
+  "frozen_at_utc": "2026-08-31T01:20:37Z",
+  "starting_head": "efb0e485c06821cba412495c4630bbf2b4481ee3",
+  "workbook": {
+    "relative_path": ".local/automatic-ai-phase5a-clean/callosum_blinded_local_model_review_final.xlsx",
+    "sha256": "1490784fd34ac8eee0324e3c85fccb06e5cfbd7636b833dcd870913d3be8212e",
+    "tracked": false,
+    "ratings_immutable_after_freeze": true
+  },
+  "candidate_identity_state": "still_blinded",
+  "opaque_candidate_codes": [
+    "K-9384d6c5",
+    "K-aa465905"
+  ],
+  "structure": {
+    "semantic_controls": 9,
+    "opaque_candidates": 2,
+    "candidate_response_slots": 144,
+    "responses_per_candidate": 72,
+    "fixtures_per_candidate": 24,
+    "repetitions_per_candidate_fixture": 3,
+    "candidate_fixture_cells": 48,
+    "unit_hierarchy": [
+      "response/repetition",
+      "candidate_fixture_cell",
+      "fixture/scenario"
+    ],
+    "core_adjudication_complete": true,
+    "candidate_identity_label_scan": "pass",
+    "hidden_sheets": 0,
+    "comments": 0,
+    "hyperlinks": 0,
+    "external_links": 0
+  },
+  "collected_dimensions": [
+    "supported_factual_content",
+    "semantic_reference_adequacy",
+    "unsupported_fact",
+    "inferential_upgrade",
+    "critical_omission",
+    "framing_distortion",
+    "overall_scientific_integrity",
+    "claim_grounded_notes",
+    "downstream_callosum_policy_judgment"
+  ],
+  "intentionally_not_collected": {
+    "dimensions": [
+      "severity",
+      "detectability",
+      "verification_burden",
+      "practical_utility"
+    ],
+    "status": "intentionally_not_collected_in_this_calibration",
+    "reason": "These exploratory dimensions materially increased reviewer burden and were not necessary for the immediate scientific or product decision.",
+    "interpretation": [
+      "do_not_score_post_hoc",
+      "do_not_reconstruct_from_notes",
+      "do_not_treat_as_accidental_missing_data",
+      "do_not_use_absence_to_invalidate_collected_core_adjudication"
+    ]
+  },
+  "semantic_control_validation": {
+    "status": "pass",
+    "known_good_overall_verdicts_correct": 1,
+    "known_bad_overall_verdicts_correct": 8,
+    "interpretation": "The trained reviewer distinguished the intended known-good and known-bad controls under the frozen codebook. The small purposive control set does not support a formal sensitivity or specificity estimate."
+  },
+  "blind_boundary": {
+    "candidate_identities_decoded_when_written": false,
+    "decode_artifact_accessed_when_written": false,
+    "ratings_locked_before_decode": true
+  },
+  "challenge_holdout": "unopened",
+  "model_or_provider_calls": 0,
+  "private_or_scholarly_content_tracked": false
+}
