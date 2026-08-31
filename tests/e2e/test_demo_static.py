@@ -213,7 +213,7 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             expect(page.locator(".synth-overview")).to_be_visible()
             expect(page.locator(".synth-overview .overview-line")).to_have_count(1)
             page.locator(".synth-overview .overview-line").first.click()
-            assert page.locator("#summary-claim-1").evaluate("element => element.classList.contains('claim-flash')")
+            assert page.locator("#summary-claim-0").evaluate("element => element.classList.contains('claim-flash')")
             assert "Generation is unavailable" in page.locator(".demo-synth-note").inner_text()
 
             local_citation = page.locator(".citation").first

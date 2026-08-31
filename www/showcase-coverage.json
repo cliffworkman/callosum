@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-31",
-    "reviewed_rev": "7b8c7ca",
-    "source_fingerprint": "7929b8e70c3f80a04aa77a385e9d710e3fdbfe908e6062e9fb78d05917c61281",
-    "note": "Phase 4: recaptured shots/app_current.png against the real testing library and rebuilt the Navigator image map as 54 precisely-measured, invisible-by-default hotspots (Playwright boundingBox on the live app, converted to percentages) targeting specific cap-*/fig-* ids instead of 6 visibly-bordered, mis-scaled zone boxes."
+    "reviewed_rev": "89af8e6",
+    "source_fingerprint": "3f673d74009714f590033ad5ff0bc397f625f8993f9593dbdb0db3c8c3f162d1",
+    "note": "inc 550: reviewed the corrected My Publications domains note (31_mypubs_dashboard.jsx) after fixing its stale two-paper/hand-curated wording; no other user-facing claim or visual changed."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",
