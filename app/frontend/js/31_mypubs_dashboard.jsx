@@ -319,7 +319,7 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
             ))}
             <datalist id="mypubs-axis-names">{axisNames.map(n => <option key={n} value={n} />)}</datalist>
           </div>}
-        {demoMode && domains.length > 0 && <div className="settings-note">Production domain clustering starts at four confirmed publications. This two-paper demo uses one explicitly saved, hand-curated presentation so it does not fabricate a clustering result; filtering and grouping remain inspectable.</div>}
+        {demoMode && domains.length > 0 && <div className="settings-note">Production domain clustering starts at four confirmed publications. This saved demo run reflects that real computation over four curated publications; filtering and grouping remain inspectable.</div>}
       </div>
 
       <MyPubsCitationGaps domains={domains} onSelectPaper={onSelectPaper} onLibraryChanged={onLibraryChanged} />

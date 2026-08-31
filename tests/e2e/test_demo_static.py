@@ -48,7 +48,7 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             page.on("request", lambda request: requests.append(request.url))
             page.goto(route, wait_until="networkidle")
             page.wait_for_selector(".paper")
-            assert page.locator(".paper:visible").count() == 3
+            assert page.locator(".paper:visible").count() == 5
             expect(page.locator(".paper.sel .paper-title")).to_contain_text("Morality is in the eye")
             assert page.get_by_role("tab", name="Library", exact=True).get_attribute("aria-selected") == "true"
             assert page.locator(".menubar-nav [role=tab]").all_inner_texts() == [
@@ -78,7 +78,7 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             expect(page.locator(".paper:visible")).to_have_count(1)
             assert "Morality is in the eye" in page.locator(".paper-title:visible").inner_text()
             search.fill("")
-            expect(page.locator(".paper:visible")).to_have_count(3)
+            expect(page.locator(".paper:visible")).to_have_count(5)
 
             # WIP is the real Library sub-workspace over two generated synthetic manuscripts, not a parallel UI.
             page.get_by_role("button", name="WIP", exact=True).click()
@@ -93,7 +93,7 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             page.get_by_role("button", name="Structure", exact=True).click()
             expect(page.locator(".workspace-slot:visible .wip-section-row select").first).to_be_disabled()
             page.get_by_role("button", name="References", exact=True).click()
-            expect(page.locator(".wip-reference-row:visible")).to_have_count(3)
+            expect(page.locator(".wip-reference-row:visible")).to_have_count(5)
             expect(page.locator(".wip-reference-row:visible select").first).to_be_disabled()
             page.get_by_role("button", name="Checks", exact=True).click()
             expect(page.locator(".wip-tool-run:visible")).to_have_count(5)
@@ -107,55 +107,89 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             expect(page.get_by_text("Funding searches", exact=True)).to_be_visible()
             expect(page.get_by_text("Journal searches", exact=True)).to_be_visible()
             page.get_by_role("button", name="Library", exact=True).click()
-            expect(page.locator(".paper:visible")).to_have_count(3)
+            expect(page.locator(".paper:visible")).to_have_count(5)
 
             # The saved organizational layer uses the same Axes / Tags / Queue panels as the desktop app.
             page.locator(".acc-header", has_text="Axes").click()
             page.get_by_role("tab", name="Axes", exact=True).click()
             expect(page.locator(".axis-label")).to_have_count(2)
             page.locator(".axis-label", has_text="Anomalous-is-bad bias").click()
-            expect(page.locator(".axis-item:not(.axis-mypubs) .axis-paper")).to_have_count(3)
+            expect(page.locator(".axis-item:not(.axis-mypubs) .axis-paper")).to_have_count(5)
             page.get_by_role("tab", name="Tags", exact=True).click()
-            expect(page.locator(".tags-panel-item")).to_have_count(4)
+            expect(page.locator(".tags-panel-item")).to_have_count(5)
             page.get_by_role("tab", name="Queue", exact=True).click()
-            expect(page.locator(".queue-row")).to_have_count(3)
+            expect(page.locator(".queue-row")).to_have_count(5)
             expect(page.locator(".queue-group-head.pr-high")).to_contain_text("High 1")
             expect(page.locator(".queue-group-head.pr-normal")).to_contain_text("Normal 1")
-            expect(page.locator(".queue-group-head.pr-none")).to_contain_text("Unprioritized 1")
+            expect(page.locator(".queue-group-head.pr-none")).to_contain_text("Unprioritized 3")
 
             # Each paper exposes its authentic saved statcheck response and all four checklist endpoints.
-            expected_statcheck = ("9 checked", "2 checked", "7 checked")
-            for paper_index in range(3):
+            # Papers 0-2 are the original curated set; 3 has no processed PDF at all (a metadata-only
+            # publication); 4 has a processed PDF but nothing statcheck-eligible in it.
+            process_pdf_first = "Process a PDF first — the auditor reads the paper's extracted text."
+            expected_statcheck = (
+                "9 checked",
+                "2 checked",
+                "7 checked",
+                "Process a PDF or supported full-text document first — statcheck needs extracted evidence.",
+                "No eligible APA-format statistics were found in running text or clearly headed table rows.",
+            )
+            for paper_index in range(5):
                 page.locator(".paper:visible").nth(paper_index).click()
                 page.locator(".acc-header", has_text="Statistics").click()
-                expect(page.locator(".detail-statcheck:visible .statcheck-summary")).to_contain_text(
-                    expected_statcheck[paper_index]
-                )
-                expect(page.locator(".detail-statcheck:visible .statcheck-actions button")).to_be_disabled()
+                if paper_index < 3:
+                    expect(page.locator(".detail-statcheck:visible .statcheck-summary")).to_contain_text(
+                        expected_statcheck[paper_index]
+                    )
+                    expect(page.locator(".detail-statcheck:visible .statcheck-actions button")).to_be_disabled()
+                elif paper_index == 3:
+                    expect(page.locator(".detail-statcheck:visible .tag-suggest-empty").first).to_contain_text(
+                        expected_statcheck[paper_index]
+                    )
+                    expect(page.locator(".detail-statcheck:visible .statcheck-actions")).to_have_count(0)
+                else:
+                    expect(page.locator(".detail-statcheck:visible .tag-suggest-empty").first).to_contain_text(
+                        expected_statcheck[paper_index]
+                    )
+                    expect(page.locator(".detail-statcheck:visible .statcheck-actions button")).to_be_disabled()
 
                 page.locator(".acc-header", has_text="Checklists").click()
                 page.get_by_role("tab", name="Transparency signals", exact=True).click()
-                expect(page.locator(".pane-tab.active .lmm-summary").first).to_contain_text("7 checks")
-                expect(page.locator(".pane-tab.active .bayes-check-item")).to_have_count(7)
+                if paper_index == 3:
+                    expect(page.locator(".pane-tab.active .tag-suggest-empty")).to_contain_text(process_pdf_first)
+                else:
+                    expect(page.locator(".pane-tab.active .lmm-summary").first).to_contain_text("7 checks")
+                    expect(page.locator(".pane-tab.active .bayes-check-item")).to_have_count(7)
 
                 page.get_by_role("tab", name="Mixed-model reporting", exact=True).click()
-                if paper_index < 2:
+                if paper_index in (0, 1, 4):
                     expect(page.locator(".pane-tab.active .lmm-summary").first).to_contain_text("7 checks")
-                else:
+                elif paper_index == 2:
                     expect(page.locator(".pane-tab.active .tag-suggest-empty")).to_contain_text(
                         "doesn't appear to use a linear mixed model"
                     )
+                else:
+                    expect(page.locator(".pane-tab.active .tag-suggest-empty")).to_contain_text(process_pdf_first)
 
                 page.get_by_role("tab", name="Bayesian statistics", exact=True).click()
-                expect(page.locator(".pane-tab.active .tag-suggest-empty")).to_contain_text(
-                    "doesn't appear to report a Bayesian analysis"
-                )
+                if paper_index in (0, 1, 2):
+                    expect(page.locator(".pane-tab.active .tag-suggest-empty")).to_contain_text(
+                        "doesn't appear to report a Bayesian analysis"
+                    )
+                elif paper_index == 3:
+                    expect(page.locator(".pane-tab.active .tag-suggest-empty")).to_contain_text(process_pdf_first)
+                else:
+                    expect(page.locator(".pane-tab.active .tag-suggest-empty")).to_contain_text(
+                        "No inline t-test or correlation Bayes factors to recompute"
+                    )
 
                 page.get_by_role("tab", name="Meta-analysis reporting", exact=True).click()
-                if paper_index == 2:
+                if paper_index in (2, 4):
                     expect(page.locator(".pane-tab.active .tag-suggest-empty")).to_contain_text(
                         "doesn't appear to report a meta-analysis"
                     )
+                elif paper_index == 3:
+                    expect(page.locator(".pane-tab.active .tag-suggest-empty")).to_contain_text(process_pdf_first)
                 else:
                     expect(page.locator(".pane-tab.active .lmm-summary").first).to_contain_text("7 checks")
                     expect(page.locator(".pane-tab.active .bayes-check-item")).to_have_count(7)
@@ -175,9 +209,9 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             synthesis_receipt.click()
             page.wait_for_selector(".summary-sentence")
             assert page.locator(".summary-sentence").count() == 5
-            assert page.locator(".summary-sentence.flagged").count() == 0
+            assert page.locator(".summary-sentence.flagged").count() == 4
             expect(page.locator(".synth-overview")).to_be_visible()
-            expect(page.locator(".synth-overview .overview-line")).to_have_count(2)
+            expect(page.locator(".synth-overview .overview-line")).to_have_count(1)
             page.locator(".synth-overview .overview-line").first.click()
             assert page.locator("#summary-claim-1").evaluate("element => element.classList.contains('claim-flash')")
             assert "Generation is unavailable" in page.locator(".demo-synth-note").inner_text()
@@ -194,9 +228,11 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
 
             # Every published-paper Meta-Reference outcome is a real saved result, including honest zero-context rows.
             expected_meta_reference = (
-                (0, 0, 0, 0, 0, 0),
-                (66, 4, 4, 12, 12, 29),
+                (0, 0, 0, 12, 0, 0),
+                (66, 4, 4, 12, 14, 29),
                 (36, 4, 4, 12, 2, 26),
+                (83, 6, 0, 12, 0, 65),
+                (87, 11, 4, 12, 11, 22),
             )
             for paper_index, (
                 checked,
@@ -298,22 +334,22 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
 
             page.get_by_role("tab", name="My Publications", exact=True).click()
             expect(page.locator(".mypubs-head h2")).to_contain_text("Clifford I. Workman")
-            expect(page.locator(".mypubs-pubs-title")).to_have_text("Publications (2)")
-            expect(page.locator(".mypubs-pubs .paper")).to_have_count(2)
+            expect(page.locator(".mypubs-pubs-title")).to_have_text("Publications (4)")
+            expect(page.locator(".mypubs-pubs .paper")).to_have_count(4)
             expect(page.locator(".mypubs-pubs .paper-tier", has_text="METADATA ONLY")).to_have_count(0)
             expect(page.locator(".mypubs-summary-text")).to_contain_text("facial appearance")
             expect(page.locator(".mypubs-summary .settings-note")).to_contain_text("Saved research-summary draft")
-            expect(page.locator(".mypubs-domains .domain-row")).to_have_count(1)
+            expect(page.locator(".mypubs-domains .domain-row")).to_have_count(2)
             expect(page.locator(".mypubs-domains .settings-note")).to_contain_text(
                 "starts at four confirmed publications"
             )
             page.locator(".mypubs-chart-flip").get_by_role("button", name="Citations", exact=True).click()
             citation_chart = page.get_by_role("img", name="Citations by year", exact=True)
             expect(citation_chart).to_be_visible()
-            expect(citation_chart.locator(".pubs-bar")).to_have_count(2)
+            expect(citation_chart.locator(".pubs-bar")).to_have_count(4)
             page.locator(".mypubs-pubs .paper-cite").first.click()
             expect(page.locator(".axis-modal-head")).to_contain_text("Cited by")
-            expect(page.locator(".citing-row")).to_have_count(30)
+            expect(page.locator(".citing-row")).to_have_count(33)
             expect(page.locator(".axis-modal-note:visible")).to_contain_text("saved cited-by result")
             expect(page.locator(".citing-import").first).to_be_disabled()
             page.locator(".citing-close").click()
@@ -321,10 +357,10 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
             expect(gap_panel.locator(".mypubs-gap-card")).to_have_count(25)
             expect(gap_panel.get_by_role("button", name="↻ Refresh gaps", exact=True)).to_be_disabled()
             topic_panel = page.locator('section[aria-labelledby="mypubs-emerging-topics-title"]')
-            expect(topic_panel.locator(".mypubs-topic-card")).to_have_count(4)
+            expect(topic_panel.locator(".mypubs-topic-card")).to_have_count(5)
             expect(topic_panel.get_by_role("button", name="↻ Refresh topics", exact=True)).to_be_disabled()
             author_panel = page.locator('section[aria-labelledby="mypubs-citing-authors-title"]')
-            expect(author_panel.locator(".mypubs-topic-card")).to_have_count(3)
+            expect(author_panel.locator(".mypubs-topic-card")).to_have_count(12)
             expect(author_panel.get_by_role("button", name="↻ Refresh authors", exact=True)).to_be_disabled()
             page.get_by_role("tab", name="Help", exact=True).click()
             expect(page.locator(".help-section").first).to_be_visible()
