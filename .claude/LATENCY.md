@@ -145,6 +145,11 @@ The live implementation is owned by each `create_app()` instance:
 - Compatible support and stance scorers may retain different scientific interpretation while sharing one underlying
   CrossEncoder runtime.
 - `ProviderClientRuntime` owns raw HTTP pools and Gemini clients.
+- The managed Local AI Preview process is Tauri/app-scoped: one readiness-gated llama-server is reused across
+  compatible generative features and survives ordinary provider calls until explicit provider switch or app exit.
+  Python reuses its HTTP pool but never owns or restarts the process. Local requests have a bounded 600-second timeout
+  because the verified CPU baseline can exceed the cloud-oriented 60-second bound; cloud timeout semantics remain
+  unchanged. Slow local work fails locally and never changes provider/privacy scope.
 - FastAPI lifespan shutdown terminally closes both registries before disposing the database engine: closed entries
   cannot reconstruct, model inference rechecks shutdown after acquiring its lock, and provider shutdown waits for
   already-started concurrent calls without serializing them during normal operation.
@@ -462,9 +467,11 @@ Potential prompt-reduction work must preserve answer coverage and correctness.
 
 Do not replace broad context with retrieval merely because retrieval is cheaper without evaluating missed-information risk.
 
-Known live boundary: `integrations/gemini/help_assistant.py` includes the entire public help corpus in every assistant
-prompt. This was an intentional coverage-first design when the corpus was small; current corpus size, provider input
-tokens, latency, and retrieval miss risk must be measured before replacing it with selective retrieval.
+Known live boundary: cloud/manual provider Help requests keep the original whole public corpus. The managed
+4,096-token Local AI target uses a deterministic lexical adapter that selects at most six live Help sections and
+14,000 characters; its identifiers still pass through the unchanged defensive parser/router allowlist. This is a
+provider-capacity adapter, not a scientific claim that selective context is equivalent. Its coverage remains
+**Testing** and must be evaluated before any broader prompt-reduction policy is inferred.
 
 ---
 

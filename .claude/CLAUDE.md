@@ -991,6 +991,15 @@ the full per-increment narrative for all other increments now lives in the reloc
   zero/partial/full GPU-layer requests are always explicit; startup observation separately records actual backend and
   layer count and fails readiness on mismatch; and a canonical allowlisted launcher-plus-library manifest identifies
   backend packages whose launchers are byte-identical. No unqualified target is published from requested intent alone.
+  **Inc 547** ships the bounded Windows-first product tranche: **Local AI** is an explicitly selected first-class
+  provider resolved once at `resolve_llm_config()`, so every compatible existing `complete(config,prompt)` feature
+  uses the same managed Qwen target without a cloud key. Tauri downloads/verifies one pinned publisher GGUF and
+  official llama.cpp bundle, owns authenticated literal-loopback lifecycle, and publishes only a readiness-gated
+  requested=observed descriptor. Missing/corrupt/runtime/parser failures fail locally—there is no cloud fallback.
+  Evidence metadata is separate from availability (`Evaluated` only for formally evaluated provider/task pairs;
+  `Testing` otherwise). The clean default remains Gemini, manual endpoints remain distinct, and specialized local
+  embedding/NLI/OCR paths are unchanged. Exact identities and the provider-gated feature audit are in
+  `INCREMENT-547-NOTES.md`.
 - **Frontend:** modular source under `app/frontend/` (`index.html` shell + `styles.css` +
   ordered `js/*.jsx` React chunks, React/ReactDOM + pdf.js via CDN), assembled by
   `app/backend/api/frontend.py`: the JSX chunks are concatenated and **precompiled to plain JS by

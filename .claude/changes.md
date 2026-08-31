@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED inc-547 2026-08-30 -->
+## 2026-08-30 — Increment 547: managed Local AI Preview provider
+- **Product:** Settings now offers explicit **Local AI → Set up Local AI → Local AI: Ready**. It downloads and
+  verifies one exact Qwen2.5-1.5B-Instruct Q4_K_M artifact plus the pinned Windows llama.cpp runtime; no API key,
+  provider account, endpoint, Ollama, terminal, or manual model work is required. The clean default remains Gemini.
+- **Provider behavior:** managed Local AI resolves at the one provider-config seam, so Overview, primary synthesis,
+  Help, research summaries, extraction, Critical Review generation/triage, analytic-flexibility proposals, axis
+  generation, funding triage, and registration triage all use it when selected. It is not an Overview side channel.
+- **Privacy/security:** strict literal loopback, private bearer auth, Tauri-only ownership, immutable verified install,
+  requested=observed readiness, no prompt/output logs, no frontend token/path, and no cloud fallback. Interrupted/
+  corrupt installs are repaired through fresh verified partial/atomic promotion.
+- **Evidence:** Qwen/Gemini Overview display **Evaluated**; other exposed generative capabilities display **Testing**.
+  Availability and evidence status are independent, and the frozen Phase 5A result is unchanged.
+- **Live check:** isolated Windows CPU/0 smoke with all cloud keys removed completed production Overview, synthesis,
+  and Help in 365.25 seconds, then removed transient descriptor/token state with no orphan. Exact identities, feature
+  inventory, limitations, and manual checks are in `INCREMENT-547-NOTES.md`; security audit/QA route 35 updated.
+
 ## 2026-08-30 — Increment 546: EndNote Linux ABI/package matrix
 - **Files:** new compatibility receipt plus EndNote research/security/decision/backlog/increment ledgers. No code,
   runtime, dependency, importer, installer, route, setting, UI, or user-visible behavior.
