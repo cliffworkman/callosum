@@ -16,6 +16,9 @@
     "allow-stop-word-https-companion",
     "allow-quick-tunnel-status",
     "allow-start-quick-tunnel",
-    "allow-stop-quick-tunnel"
+    "allow-stop-quick-tunnel",
+    "allow-local-ai-status",
+    "allow-setup-local-ai",
+    "allow-stop-local-ai"
   ]
 }

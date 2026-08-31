@@ -1,11 +1,10 @@
-//! Developer-only ownership of a local llama.cpp-style server for synthesis Overview.
+//! Callosum ownership of its local llama.cpp-style generation provider.
 //!
 //! This module owns the child process and secrets. Python receives only a private descriptor path
 //! after model readiness and an authenticated inference probe both succeed.
 
 use serde::Serialize;
 use std::ffi::OsString;
-use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -18,6 +17,15 @@ use files::{
 };
 mod observation;
 use observation::{observe_child_output, SharedRuntimeObservation};
+mod install;
+pub use install::LocalAiInstallState;
+mod preview;
+pub use preview::{local_ai_status, setup_and_start, start_for_startup, LocalAiStatus};
+mod process;
+#[cfg(test)]
+use process::force_shutdown;
+pub use process::shutdown;
+use process::{confine_process, pick_free_port, process_is_running, start_crash_monitor};
 
 const ENABLE_ENV: &str = "CALLOSUM_LOCAL_AI_ENABLED";
 const RUNTIME_ENV: &str = "CALLOSUM_LOCAL_AI_RUNTIME";
@@ -36,9 +44,9 @@ pub const OWNER_ONLY_ENV: [&str; 5] = [
 const HOST: &str = "127.0.0.1";
 const MODEL_ALIAS: &str = "callosum-managed-local";
 const CONTEXT_TOKENS: u32 = 4096;
-const MAX_OUTPUT_TOKENS: u32 = 256;
+const OVERVIEW_OUTPUT_TOKENS: u32 = 256;
+const PREVIEW_OUTPUT_TOKENS: u32 = 2048;
 const READINESS_TIMEOUT: Duration = Duration::from_secs(180);
-const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(4);
 const POLL_INTERVAL: Duration = Duration::from_millis(300);
 
 #[derive(Debug)]
@@ -100,12 +108,17 @@ struct ExecutionState {
 }
 
 #[derive(Debug, Clone)]
-struct DeveloperConfig {
+pub(super) struct DeveloperConfig {
     runtime: PathBuf,
     model: PathBuf,
     declared_build_backend: ExecutionBackend,
     gpu_layers: u32,
     threads: u16,
+    max_output_tokens: u32,
+    qualification_state: &'static str,
+    expected_model_digest: Option<&'static str>,
+    expected_launcher_digest: Option<&'static str>,
+    expected_bundle_digest: Option<&'static str>,
 }
 
 impl DeveloperConfig {
@@ -129,7 +142,33 @@ impl DeveloperConfig {
             declared_build_backend,
             gpu_layers,
             threads,
+            max_output_tokens: OVERVIEW_OUTPUT_TOKENS,
+            qualification_state: "DEVELOPER_TEST_ONLY",
+            expected_model_digest: None,
+            expected_launcher_digest: None,
+            expected_bundle_digest: None,
         }))
+    }
+
+    fn production(paths: install::InstalledPaths) -> Self {
+        Self {
+            runtime: paths.runtime,
+            model: paths.model,
+            declared_build_backend: ExecutionBackend::Cpu,
+            gpu_layers: 0,
+            threads: 4,
+            max_output_tokens: PREVIEW_OUTPUT_TOKENS,
+            qualification_state: "LOCAL_AI_PREVIEW",
+            expected_model_digest: Some(install::MODEL_SHA256),
+            #[cfg(windows)]
+            expected_launcher_digest: Some(install::RUNTIME_LAUNCHER_SHA256),
+            #[cfg(not(windows))]
+            expected_launcher_digest: None,
+            #[cfg(windows)]
+            expected_bundle_digest: Some(install::RUNTIME_BUNDLE_SHA256),
+            #[cfg(not(windows))]
+            expected_bundle_digest: None,
+        }
     }
 
     fn requested_execution(&self) -> ExecutionState {
@@ -187,6 +226,7 @@ pub struct ManagedLocalAiState(Arc<Mutex<Option<ManagedLocalAiHandle>>>);
 
 /// Start the developer runtime when explicitly enabled. Any failure is fail-closed for Overview but
 /// does not prevent the primary Callosum backend from starting.
+#[cfg(test)]
 pub async fn start_if_enabled(
     data_dir: &Path,
     state: &ManagedLocalAiState,
@@ -194,6 +234,14 @@ pub async fn start_if_enabled(
     let Some(config) = DeveloperConfig::from_environment()? else {
         return Ok(None);
     };
+    start_config(data_dir, state, config).await
+}
+
+pub(super) async fn start_config(
+    data_dir: &Path,
+    state: &ManagedLocalAiState,
+    config: DeveloperConfig,
+) -> Result<Option<PathBuf>, ManagedAiError> {
     shutdown(state);
     let private_dir = data_dir.join("managed-local-ai");
     prepare_private_dir(&private_dir)?;
@@ -205,6 +253,20 @@ pub async fn start_if_enabled(
     let port = pick_free_port()?;
     let runtime_identity = runtime_bundle_identity(&config.runtime)?;
     let model_digest = digest_file(&config.model)?;
+    if config
+        .expected_model_digest
+        .is_some_and(|expected| expected != model_digest)
+        || config
+            .expected_launcher_digest
+            .is_some_and(|expected| expected != runtime_identity.launcher_digest)
+        || config
+            .expected_bundle_digest
+            .is_some_and(|expected| expected != runtime_identity.manifest_digest)
+    {
+        return Err(ManagedAiError::Io(
+            "managed Local AI installation identity mismatch",
+        ));
+    }
     let runtime_version = runtime_version(&config.runtime)?;
     let token = random_token()?;
     write_private_file(&token_path, token.as_bytes())?;
@@ -264,12 +326,12 @@ pub async fn start_if_enabled(
         model_artifact_digest: model_digest,
         chat_template_digest: readiness.chat_template_digest,
         context_tokens: CONTEXT_TOKENS,
-        max_output_tokens: MAX_OUTPUT_TOKENS,
+        max_output_tokens: config.max_output_tokens,
         temperature: 0.0,
         seed: 42,
         requested_execution,
         observed_execution: readiness.observed_execution,
-        qualification_state: "DEVELOPER_TEST_ONLY",
+        qualification_state: config.qualification_state,
     };
     let bytes = match serde_json::to_vec_pretty(&descriptor) {
         Ok(bytes) => bytes,
@@ -372,7 +434,7 @@ fn server_args(config: &DeveloperConfig, port: u16, token_path: &Path) -> Vec<Os
         "--ctx-size".into(),
         CONTEXT_TOKENS.to_string().into(),
         "--n-predict".into(),
-        MAX_OUTPUT_TOKENS.to_string().into(),
+        config.max_output_tokens.to_string().into(),
         "--threads".into(),
         config.threads.to_string().into(),
         "--temp".into(),
@@ -515,144 +577,6 @@ async fn authenticated_probe(
         return Err(ManagedAiError::ReadinessProbe);
     }
     Ok(template_digest)
-}
-
-fn process_is_running(state: &ManagedLocalAiState) -> Result<bool, ManagedAiError> {
-    let mut guard = state.0.lock().expect("managed local AI state poisoned");
-    let handle = guard.as_mut().ok_or(ManagedAiError::Exited)?;
-    handle
-        .child
-        .try_wait()
-        .map(|status| status.is_none())
-        .map_err(|_| ManagedAiError::Exited)
-}
-
-fn start_crash_monitor(state: ManagedLocalAiState) {
-    std::thread::spawn(move || loop {
-        std::thread::sleep(Duration::from_millis(500));
-        let exited = {
-            let mut guard = state.0.lock().expect("managed local AI state poisoned");
-            let Some(handle) = guard.as_mut() else { return };
-            matches!(handle.child.try_wait(), Ok(Some(_)) | Err(_))
-        };
-        if exited {
-            if let Some(handle) = state
-                .0
-                .lock()
-                .expect("managed local AI state poisoned")
-                .take()
-            {
-                cleanup_files(&handle);
-            }
-            return;
-        }
-    });
-}
-
-/// Remove eligibility first, request bounded graceful tree shutdown, then force cleanup.
-pub fn shutdown(state: &ManagedLocalAiState) {
-    let Some(mut handle) = state
-        .0
-        .lock()
-        .expect("managed local AI state poisoned")
-        .take()
-    else {
-        return;
-    };
-    cleanup_files(&handle);
-    request_graceful_shutdown(&mut handle);
-    let deadline = Instant::now() + SHUTDOWN_TIMEOUT;
-    while Instant::now() < deadline {
-        if matches!(handle.child.try_wait(), Ok(Some(_))) {
-            return;
-        }
-        std::thread::sleep(Duration::from_millis(80));
-    }
-    force_shutdown(&mut handle);
-}
-
-#[cfg(windows)]
-fn request_graceful_shutdown(handle: &mut ManagedLocalAiHandle) {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    let _ = Command::new("taskkill")
-        .args(["/PID", &handle.child.id().to_string(), "/T"])
-        .creation_flags(CREATE_NO_WINDOW)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status();
-}
-
-#[cfg(unix)]
-fn request_graceful_shutdown(handle: &mut ManagedLocalAiHandle) {
-    unsafe {
-        libc::kill(-(handle.child.id() as i32), libc::SIGTERM);
-    }
-}
-
-#[cfg(windows)]
-fn force_shutdown(handle: &mut ManagedLocalAiHandle) {
-    let _ = handle.child.kill();
-    let _ = handle.child.wait();
-}
-
-#[cfg(unix)]
-fn force_shutdown(handle: &mut ManagedLocalAiHandle) {
-    unsafe {
-        libc::kill(-(handle.child.id() as i32), libc::SIGKILL);
-    }
-    let _ = handle.child.wait();
-}
-
-fn cleanup_files(handle: &ManagedLocalAiHandle) {
-    remove_private_file(&handle.descriptor_path);
-    remove_private_file(&handle.token_path);
-}
-
-fn confine_process(
-    child: Child,
-    descriptor_path: PathBuf,
-    token_path: PathBuf,
-) -> Result<ManagedLocalAiHandle, ManagedAiError> {
-    #[cfg(windows)]
-    {
-        use std::os::windows::io::AsRawHandle;
-        let mut child = child;
-        let job = win32job::Job::create().map_err(|_| ManagedAiError::Spawn)?;
-        let mut info = job
-            .query_extended_limit_info()
-            .map_err(|_| ManagedAiError::Spawn)?;
-        info.limit_kill_on_job_close();
-        job.set_extended_limit_info(&info)
-            .map_err(|_| ManagedAiError::Spawn)?;
-        if job.assign_process(child.as_raw_handle() as isize).is_err() {
-            let _ = child.kill();
-            return Err(ManagedAiError::Spawn);
-        }
-        Ok(ManagedLocalAiHandle {
-            child,
-            descriptor_path,
-            token_path,
-            _job: job,
-        })
-    }
-    #[cfg(not(windows))]
-    {
-        Ok(ManagedLocalAiHandle {
-            child,
-            descriptor_path,
-            token_path,
-        })
-    }
-}
-
-fn pick_free_port() -> Result<u16, ManagedAiError> {
-    let listener = TcpListener::bind((HOST, 0))
-        .map_err(|_| ManagedAiError::Io("loopback port allocation failed"))?;
-    Ok(listener
-        .local_addr()
-        .map_err(|_| ManagedAiError::Io("loopback port allocation failed"))?
-        .port())
 }
 
 #[cfg(test)]

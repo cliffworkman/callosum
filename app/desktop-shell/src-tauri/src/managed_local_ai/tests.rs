@@ -41,6 +41,11 @@ fn fake_config(root: &Path) -> DeveloperConfig {
         declared_build_backend: ExecutionBackend::Cpu,
         gpu_layers: 0,
         threads: 4,
+        max_output_tokens: OVERVIEW_OUTPUT_TOKENS,
+        qualification_state: "DEVELOPER_TEST_ONLY",
+        expected_model_digest: None,
+        expected_launcher_digest: None,
+        expected_bundle_digest: None,
     }
 }
 
@@ -199,7 +204,7 @@ fn tokens_are_strong_random_and_private_descriptor_has_no_secret_or_model_path()
         model_artifact_digest: "b".repeat(64),
         chat_template_digest: Some("c".repeat(64)),
         context_tokens: CONTEXT_TOKENS,
-        max_output_tokens: MAX_OUTPUT_TOKENS,
+        max_output_tokens: OVERVIEW_OUTPUT_TOKENS,
         temperature: 0.0,
         seed: 42,
         requested_execution: ExecutionState {
@@ -242,11 +247,11 @@ fn readiness_probe_requires_alias_auth_and_valid_chat_shape() {
         let (endpoint, server) = fake_readiness_server("correct-token", false);
         let client = reqwest::Client::builder().no_proxy().build().unwrap();
         let mut result = authenticated_probe(&client, &endpoint, "correct-token").await;
-        for _ in 0..2 {
+        for _ in 0..10 {
             if result.is_ok() {
                 break;
             }
-            tokio::time::sleep(Duration::from_millis(20)).await;
+            tokio::time::sleep(Duration::from_millis(50)).await;
             result = authenticated_probe(&client, &endpoint, "correct-token").await;
         }
         let digest = result.unwrap();
@@ -820,6 +825,108 @@ runtime.close()
     assert!(!descriptor.exists());
     assert!(!credential_path.exists());
     std::fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+#[ignore = "downloads the pinned 1.1 GB preview model into CALLOSUM_LOCAL_AI_LIVE_INSTALL_DIR"]
+fn live_pinned_preview_installs_and_runs_three_generation_contracts() {
+    let root = PathBuf::from(
+        std::env::var_os("CALLOSUM_LOCAL_AI_LIVE_INSTALL_DIR")
+            .expect("set CALLOSUM_LOCAL_AI_LIVE_INSTALL_DIR outside the repository"),
+    );
+    std::fs::create_dir_all(&root).unwrap();
+    let python =
+        std::env::var_os("CALLOSUM_LOCAL_AI_PYTHON").unwrap_or_else(|| OsString::from("python"));
+    let state = ManagedLocalAiState::default();
+    let install_state = LocalAiInstallState::default();
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let status = runtime
+        .block_on(setup_and_start(&root, &state, &install_state))
+        .expect("pinned preview setup and readiness");
+    assert_eq!(status.state, "ready");
+
+    let descriptor = root.join("managed-local-ai").join("target.json");
+    let payload: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&descriptor).unwrap()).unwrap();
+    assert_eq!(payload["qualification_state"], "LOCAL_AI_PREVIEW");
+    assert_eq!(payload["model_artifact_digest"], install::MODEL_SHA256);
+    assert_eq!(payload["max_output_tokens"], PREVIEW_OUTPUT_TOKENS);
+    assert_eq!(payload["requested_execution"]["gpu_layers"], 0);
+    assert_eq!(
+        payload["observed_execution"],
+        payload["requested_execution"]
+    );
+
+    let source_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .expect("desktop crate has repository root")
+        .to_path_buf();
+    let python_code = r#"
+from dataclasses import replace
+from app.backend.llm.managed_local import (
+    load_preview_target, managed_summary_generator, with_managed_output_contract,
+)
+from app.backend.llm.providers import requires_egress
+from app.backend.provider_runtime import ProviderClientRuntime
+from app.backend.summarization.generators import SourceChunk
+from integrations.gemini.help_assistant import GeminiHelpAssistant
+from integrations.gemini.overview import GeminiOverviewGenerator
+
+runtime = ProviderClientRuntime()
+config = load_preview_target().config(runtime)
+assert config.provider == "managed_local"
+assert not requires_egress(config)
+claims = [
+    "The randomized study found a lower mean score in the intervention group.",
+    "A second study found no difference between groups.",
+    "Both studies enrolled adults from one city.",
+    "Outcome assessors were blinded in the randomized study.",
+]
+overview_config = with_managed_output_contract(config, "synthesis_overview")
+overview = GeminiOverviewGenerator(config=overview_config).generate(verified_claims=claims, scope_ref={})
+assert overview and all(item.claim_indices for item in overview)
+chunks = [
+    SourceChunk(chunk_id=i, paper_id=i, attachment_id=i, text=text, page_start=1,
+                page_end=1, chunk_version="smoke")
+    for i, text in enumerate(claims, 1)
+]
+summary = managed_summary_generator(config).generate(
+    source_chunks=chunks, scope_ref={"scope_type": "papers", "paper_ids": [1, 2, 3, 4]}
+)
+assert summary and all(item.citations for item in summary)
+help_answer = GeminiHelpAssistant(config=replace(config, help_assistant_enabled=True)).answer(
+    message="How do I create a synthesis?", history=[]
+)
+assert help_answer.answer
+runtime.close()
+"#;
+    let output = Command::new(python)
+        .arg("-c")
+        .arg(python_code)
+        .current_dir(source_root)
+        .env("CALLOSUM_APP_DATA_DIR", &root)
+        .env_remove(ENABLE_ENV)
+        .env_remove(DESCRIPTOR_ENV)
+        .env_remove("GOOGLE_API_KEY")
+        .env_remove("OPENAI_API_KEY")
+        .env_remove("ANTHROPIC_API_KEY")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "preview Python pathways failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_no_content_stdout(&output.stdout, "preview Python pathways");
+
+    shutdown(&state);
+    assert!(!descriptor.exists());
+    assert!(install::installed_paths(&root).unwrap().is_some());
 }
 
 #[test]

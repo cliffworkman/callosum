@@ -43,6 +43,21 @@ identifier = "allow-stop-quick-tunnel"
 description = "Allows the packaged Settings window to stop its app-owned Quick Tunnel process."
 commands.allow = ["stop_quick_tunnel"]
 
+[[permission]]
+identifier = "allow-local-ai-status"
+description = "Allows the packaged Settings window to inspect the app-owned Local AI installation and runtime."
+commands.allow = ["local_ai_status"]
+
+[[permission]]
+identifier = "allow-setup-local-ai"
+description = "Allows an explicit packaged Settings action to acquire, verify, and start pinned Local AI assets."
+commands.allow = ["setup_local_ai"]
+
+[[permission]]
+identifier = "allow-stop-local-ai"
+description = "Allows the packaged Settings window to stop its app-owned Local AI runtime."
+commands.allow = ["stop_local_ai"]
+
 [default]
 description = "Default permissions for callosum-shell's own commands: backend retry + the auto-updater's manual-check/install/release-page actions."
 permissions = [
@@ -55,4 +70,7 @@ permissions = [
   "allow-quick-tunnel-status",
   "allow-start-quick-tunnel",
   "allow-stop-quick-tunnel",
+  "allow-local-ai-status",
+  "allow-setup-local-ai",
+  "allow-stop-local-ai",
 ]

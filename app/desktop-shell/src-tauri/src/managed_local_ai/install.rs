@@ -1,0 +1,459 @@
+//! Pinned Windows acquisition for the Local AI Preview.
+//!
+//! This is deliberately not a model catalog. It installs one exact publisher-owned GGUF and one
+//! exact upstream llama.cpp CPU bundle, verifies both before promotion, and exposes no arbitrary URL
+//! or path input.
+
+use super::files::{digest_file, prepare_private_dir, runtime_bundle_identity};
+use super::ManagedAiError;
+use serde::Serialize;
+use sha2::{Digest, Sha256};
+use std::fs::{File, OpenOptions};
+use std::io::{BufReader, Read, Write};
+use std::path::{Component, Path, PathBuf};
+use std::sync::{Arc, Mutex};
+
+pub(super) const MODEL_SHA256: &str =
+    "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e";
+pub(super) const MODEL_BYTES: u64 = 1_117_320_736;
+pub(super) const MODEL_FILENAME: &str = "qwen2.5-1.5b-instruct-q4_k_m.gguf";
+pub(super) const MODEL_ID: &str = "Qwen2.5-1.5B-Instruct Q4_K_M";
+pub(super) const MODEL_REVISION: &str = "91cad51170dc346986eccefdc2dd33a9da36ead9";
+const MODEL_URL: &str = "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true";
+
+#[cfg(windows)]
+const RUNTIME_ARCHIVE_URL: &str = "https://github.com/ggml-org/llama.cpp/releases/download/b10516/llama-b10516-bin-win-cpu-x64.zip";
+#[cfg(windows)]
+const RUNTIME_ARCHIVE_SHA256: &str =
+    "fbbbc55e0eb2e1b07f9dcb9488616c98ed47d9003b90e15e7c8c7812c4307cd3";
+#[cfg(windows)]
+const RUNTIME_ARCHIVE_BYTES: u64 = 18_506_923;
+#[cfg(windows)]
+pub(super) const RUNTIME_LAUNCHER_SHA256: &str =
+    "5a3cbd5613c45ef2d53d3afc6734fd9e67229c0066c2415626ddc7c18901d36c";
+#[cfg(windows)]
+pub(super) const RUNTIME_BUNDLE_SHA256: &str =
+    "7748201a13dd4e2269a97a8144aa02fc5a0325e10bb777518241ce95e721366c";
+
+const INSTALL_DIR: &str = "managed-local-ai-install";
+const RUNTIME_DIR: &str = "llama-b10516-win-cpu-x64";
+const RECEIPT_FILENAME: &str = "install.json";
+const DOWNLOAD_BUFFER_BYTES: usize = 64 * 1024;
+
+#[derive(Clone, Default)]
+pub struct LocalAiInstallState(Arc<Mutex<InstallProgress>>);
+
+#[derive(Clone, Default)]
+struct InstallProgress {
+    stage: Option<&'static str>,
+    detail: Option<&'static str>,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct InstalledPaths {
+    pub(super) runtime: PathBuf,
+    pub(super) model: PathBuf,
+}
+
+#[derive(Debug, Serialize)]
+struct InstallReceipt<'a> {
+    schema_version: u8,
+    model_id: &'a str,
+    model_revision: &'a str,
+    model_sha256: &'a str,
+    model_bytes: u64,
+    model_source: &'a str,
+    model_license: &'a str,
+    runtime_family: &'a str,
+    runtime_version: &'a str,
+    runtime_archive_sha256: &'a str,
+    runtime_launcher_sha256: &'a str,
+    runtime_bundle_manifest_sha256: &'a str,
+    runtime_source: &'a str,
+    runtime_license: &'a str,
+    declared_build_backend: &'a str,
+}
+
+impl LocalAiInstallState {
+    pub(super) fn set(&self, stage: Option<&'static str>, detail: Option<&'static str>) {
+        *self.0.lock().expect("local AI install state poisoned") =
+            InstallProgress { stage, detail };
+    }
+
+    pub(super) fn snapshot(&self) -> (Option<&'static str>, Option<&'static str>) {
+        let progress = self.0.lock().expect("local AI install state poisoned");
+        (progress.stage, progress.detail)
+    }
+}
+
+pub(super) fn install_root(data_dir: &Path) -> PathBuf {
+    data_dir.join(INSTALL_DIR)
+}
+
+pub(super) fn installed_paths(data_dir: &Path) -> Result<Option<InstalledPaths>, ManagedAiError> {
+    #[cfg(not(windows))]
+    {
+        let _ = data_dir;
+        return Ok(None);
+    }
+    #[cfg(windows)]
+    {
+        let root = install_root(data_dir);
+        let runtime = root.join(RUNTIME_DIR).join("llama-server.exe");
+        let model = root.join(MODEL_FILENAME);
+        let receipt = root.join(RECEIPT_FILENAME);
+        if !runtime.is_file() || !model.is_file() || !receipt.is_file() {
+            return Ok(None);
+        }
+        if model.metadata().map(|meta| meta.len()).unwrap_or(0) != MODEL_BYTES {
+            return Ok(None);
+        }
+        Ok(Some(InstalledPaths { runtime, model }))
+    }
+}
+
+#[cfg(windows)]
+pub(super) fn install_windows(
+    data_dir: &Path,
+    progress: &LocalAiInstallState,
+) -> Result<InstalledPaths, ManagedAiError> {
+    let root = install_root(data_dir);
+    prepare_private_dir(&root)?;
+    let runtime_archive = root.join("runtime.zip.partial");
+    let model_partial = root.join(format!("{MODEL_FILENAME}.partial"));
+
+    progress.set(Some("downloading_runtime"), None);
+    download_exact(
+        RUNTIME_ARCHIVE_URL,
+        &runtime_archive,
+        RUNTIME_ARCHIVE_BYTES,
+        RUNTIME_ARCHIVE_SHA256,
+    )?;
+    progress.set(Some("preparing_runtime"), None);
+    extract_runtime(&root, &runtime_archive)?;
+    let _ = std::fs::remove_file(&runtime_archive);
+
+    progress.set(Some("downloading_model"), None);
+    download_exact(MODEL_URL, &model_partial, MODEL_BYTES, MODEL_SHA256)?;
+    progress.set(Some("verifying"), None);
+    let model = root.join(MODEL_FILENAME);
+    replace_file(&model_partial, &model)?;
+
+    let paths = InstalledPaths {
+        runtime: root.join(RUNTIME_DIR).join("llama-server.exe"),
+        model,
+    };
+    verify_install(&paths)?;
+    write_receipt(&root)?;
+    progress.set(None, None);
+    Ok(paths)
+}
+
+#[cfg(not(windows))]
+pub(super) fn install_windows(
+    _data_dir: &Path,
+    progress: &LocalAiInstallState,
+) -> Result<InstalledPaths, ManagedAiError> {
+    progress.set(
+        None,
+        Some("Local AI Preview setup currently supports Windows x64."),
+    );
+    Err(ManagedAiError::InvalidConfig(
+        "Local AI Preview setup currently supports Windows x64",
+    ))
+}
+
+#[cfg(windows)]
+fn download_exact(
+    url: &str,
+    partial: &Path,
+    expected_bytes: u64,
+    expected_sha256: &str,
+) -> Result<(), ManagedAiError> {
+    if partial.exists() {
+        std::fs::remove_file(partial)
+            .map_err(|_| ManagedAiError::Io("partial Local AI download could not be reset"))?;
+    }
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(3600))
+        .connect_timeout(std::time::Duration::from_secs(20))
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::limited(8))
+        .build()
+        .map_err(|_| ManagedAiError::Io("Local AI download client failed"))?;
+    let mut response = client
+        .get(url)
+        .send()
+        .and_then(reqwest::blocking::Response::error_for_status)
+        .map_err(|_| ManagedAiError::Io("Local AI download failed"))?;
+    let host = response.url().host_str().unwrap_or_default();
+    if !download_host_allowed(host) || response.content_length() != Some(expected_bytes) {
+        return Err(ManagedAiError::Io("Local AI download identity mismatch"));
+    }
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    let mut output = options
+        .open(partial)
+        .map_err(|_| ManagedAiError::Io("Local AI partial download creation failed"))?;
+    let mut hasher = Sha256::new();
+    let mut total = 0_u64;
+    let mut buffer = vec![0_u8; DOWNLOAD_BUFFER_BYTES];
+    loop {
+        let read = response
+            .read(&mut buffer)
+            .map_err(|_| ManagedAiError::Io("Local AI download interrupted"))?;
+        if read == 0 {
+            break;
+        }
+        total = total.saturating_add(read as u64);
+        if total > expected_bytes {
+            return Err(ManagedAiError::Io(
+                "Local AI download exceeded expected size",
+            ));
+        }
+        hasher.update(&buffer[..read]);
+        output
+            .write_all(&buffer[..read])
+            .map_err(|_| ManagedAiError::Io("Local AI download write failed"))?;
+    }
+    output
+        .sync_all()
+        .map_err(|_| ManagedAiError::Io("Local AI download flush failed"))?;
+    let digest = format!("{:x}", hasher.finalize());
+    if total != expected_bytes || digest != expected_sha256 {
+        let _ = std::fs::remove_file(partial);
+        return Err(ManagedAiError::Io("Local AI download checksum mismatch"));
+    }
+    Ok(())
+}
+
+#[cfg(windows)]
+fn download_host_allowed(host: &str) -> bool {
+    host == "github.com"
+        || host == "release-assets.githubusercontent.com"
+        || host == "objects.githubusercontent.com"
+        || host == "huggingface.co"
+        || host.ends_with(".hf.co")
+}
+
+#[cfg(windows)]
+fn extract_runtime(root: &Path, archive_path: &Path) -> Result<(), ManagedAiError> {
+    let staging = root.join(format!("{RUNTIME_DIR}.partial"));
+    if staging.exists() {
+        std::fs::remove_dir_all(&staging)
+            .map_err(|_| ManagedAiError::Io("partial Local AI runtime could not be reset"))?;
+    }
+    std::fs::create_dir(&staging)
+        .map_err(|_| ManagedAiError::Io("Local AI runtime staging failed"))?;
+    let file = File::open(archive_path)
+        .map_err(|_| ManagedAiError::Io("Local AI runtime archive missing"))?;
+    let mut archive = zip::ZipArchive::new(BufReader::new(file))
+        .map_err(|_| ManagedAiError::Io("Local AI runtime archive invalid"))?;
+    let mut launcher_found = false;
+    for index in 0..archive.len() {
+        let mut entry = archive
+            .by_index(index)
+            .map_err(|_| ManagedAiError::Io("Local AI runtime archive invalid"))?;
+        let enclosed = entry
+            .enclosed_name()
+            .ok_or(ManagedAiError::Io("Local AI runtime archive path invalid"))?;
+        let mut components = enclosed.components();
+        let Some(Component::Normal(name)) = components.next() else {
+            return Err(ManagedAiError::Io("Local AI runtime archive path invalid"));
+        };
+        if components.next().is_some() {
+            return Err(ManagedAiError::Io("Local AI runtime archive path invalid"));
+        }
+        let name = name
+            .to_str()
+            .ok_or(ManagedAiError::Io("Local AI runtime archive path invalid"))?;
+        if !runtime_entry_allowed(name) {
+            continue;
+        }
+        launcher_found |= name.eq_ignore_ascii_case("llama-server.exe");
+        let destination = staging.join(name);
+        let mut output = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&destination)
+            .map_err(|_| ManagedAiError::Io("Local AI runtime extraction failed"))?;
+        std::io::copy(&mut entry, &mut output)
+            .map_err(|_| ManagedAiError::Io("Local AI runtime extraction failed"))?;
+        output
+            .sync_all()
+            .map_err(|_| ManagedAiError::Io("Local AI runtime extraction failed"))?;
+    }
+    if !launcher_found {
+        return Err(ManagedAiError::Io("Local AI runtime launcher missing"));
+    }
+    let final_dir = root.join(RUNTIME_DIR);
+    if final_dir.exists() {
+        std::fs::remove_dir_all(&final_dir)
+            .map_err(|_| ManagedAiError::Io("Local AI runtime repair failed"))?;
+    }
+    std::fs::rename(&staging, &final_dir)
+        .map_err(|_| ManagedAiError::Io("Local AI runtime promotion failed"))?;
+    Ok(())
+}
+
+#[cfg(windows)]
+fn runtime_entry_allowed(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower == "llama-server.exe" || lower.ends_with(".dll")
+}
+
+#[cfg(windows)]
+fn replace_file(source: &Path, destination: &Path) -> Result<(), ManagedAiError> {
+    if destination.exists() {
+        std::fs::remove_file(destination)
+            .map_err(|_| ManagedAiError::Io("Local AI model repair failed"))?;
+    }
+    std::fs::rename(source, destination)
+        .map_err(|_| ManagedAiError::Io("Local AI model promotion failed"))
+}
+
+#[cfg(windows)]
+pub(super) fn verify_install(paths: &InstalledPaths) -> Result<(), ManagedAiError> {
+    if !file_identity_matches(&paths.model, MODEL_BYTES, MODEL_SHA256)? {
+        return Err(ManagedAiError::Io(
+            "installed Local AI model identity mismatch",
+        ));
+    }
+    let identity = runtime_bundle_identity(&paths.runtime)?;
+    if identity.launcher_digest != RUNTIME_LAUNCHER_SHA256
+        || identity.manifest_digest != RUNTIME_BUNDLE_SHA256
+    {
+        return Err(ManagedAiError::Io(
+            "installed Local AI runtime identity mismatch",
+        ));
+    }
+    Ok(())
+}
+
+fn file_identity_matches(
+    path: &Path,
+    expected_bytes: u64,
+    expected_sha256: &str,
+) -> Result<bool, ManagedAiError> {
+    if path.metadata().map(|meta| meta.len()).unwrap_or(0) != expected_bytes {
+        return Ok(false);
+    }
+    Ok(digest_file(path)? == expected_sha256)
+}
+
+#[cfg(windows)]
+fn write_receipt(root: &Path) -> Result<(), ManagedAiError> {
+    let receipt = InstallReceipt {
+        schema_version: 1,
+        model_id: MODEL_ID,
+        model_revision: MODEL_REVISION,
+        model_sha256: MODEL_SHA256,
+        model_bytes: MODEL_BYTES,
+        model_source: "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+        model_license: "Apache-2.0",
+        runtime_family: "llama.cpp",
+        runtime_version: "b10516 / b95502ba9",
+        runtime_archive_sha256: RUNTIME_ARCHIVE_SHA256,
+        runtime_launcher_sha256: RUNTIME_LAUNCHER_SHA256,
+        runtime_bundle_manifest_sha256: RUNTIME_BUNDLE_SHA256,
+        runtime_source: "ggml-org/llama.cpp release b10516",
+        runtime_license: "MIT",
+        declared_build_backend: "cpu",
+    };
+    let bytes = serde_json::to_vec_pretty(&receipt)
+        .map_err(|_| ManagedAiError::Io("Local AI install receipt encoding failed"))?;
+    let partial = root.join(format!("{RECEIPT_FILENAME}.partial"));
+    if partial.exists() {
+        let _ = std::fs::remove_file(&partial);
+    }
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&partial)
+        .map_err(|_| ManagedAiError::Io("Local AI install receipt write failed"))?;
+    file.write_all(&bytes)
+        .and_then(|_| file.sync_all())
+        .map_err(|_| ManagedAiError::Io("Local AI install receipt write failed"))?;
+    let destination = root.join(RECEIPT_FILENAME);
+    if destination.exists() {
+        std::fs::remove_file(&destination)
+            .map_err(|_| ManagedAiError::Io("Local AI install receipt repair failed"))?;
+    }
+    std::fs::rename(partial, destination)
+        .map_err(|_| ManagedAiError::Io("Local AI install receipt promotion failed"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_root(label: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "callosum-local-install-{label}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ))
+    }
+
+    #[test]
+    fn pinned_model_identity_is_exact_and_not_mutable_latest() {
+        assert_eq!(MODEL_SHA256.len(), 64);
+        assert!(MODEL_URL.contains(MODEL_REVISION));
+        assert!(MODEL_URL.ends_with("qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true"));
+        assert!(!MODEL_URL.contains("/main/"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn runtime_archive_boundary_allows_only_launcher_and_libraries() {
+        assert!(runtime_entry_allowed("llama-server.exe"));
+        assert!(runtime_entry_allowed("ggml-cpu-x64.dll"));
+        assert!(!runtime_entry_allowed("llama-cli.exe"));
+        assert!(!runtime_entry_allowed("model.gguf"));
+        assert!(!runtime_entry_allowed("target.json"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn download_hosts_are_narrowly_allowlisted() {
+        assert!(download_host_allowed("github.com"));
+        assert!(download_host_allowed(
+            "release-assets.githubusercontent.com"
+        ));
+        assert!(download_host_allowed("us.aws.cdn.hf.co"));
+        assert!(!download_host_allowed("github.com.example.org"));
+        assert!(!download_host_allowed("example.org"));
+    }
+
+    #[test]
+    fn exact_file_identity_rejects_partial_and_wrong_checksum() {
+        let root = test_root("identity");
+        std::fs::create_dir_all(&root).unwrap();
+        let file = root.join("artifact.bin");
+        std::fs::write(&file, b"exact pinned bytes").unwrap();
+        let digest = digest_file(&file).unwrap();
+        assert!(file_identity_matches(&file, 18, &digest).unwrap());
+        assert!(!file_identity_matches(&file, 19, &digest).unwrap());
+        assert!(!file_identity_matches(&file, 18, &"0".repeat(64)).unwrap());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn partial_or_wrong_size_install_is_never_discovered_as_installed() {
+        let data_dir = test_root("partial");
+        let root = install_root(&data_dir);
+        let runtime = root.join(RUNTIME_DIR);
+        std::fs::create_dir_all(&runtime).unwrap();
+        std::fs::write(runtime.join("llama-server.exe"), b"not the pinned runtime").unwrap();
+        std::fs::write(root.join(RECEIPT_FILENAME), b"{}").unwrap();
+        std::fs::write(root.join(format!("{MODEL_FILENAME}.partial")), b"partial").unwrap();
+        assert!(installed_paths(&data_dir).unwrap().is_none());
+        std::fs::write(root.join(MODEL_FILENAME), b"wrong size").unwrap();
+        assert!(installed_paths(&data_dir).unwrap().is_none());
+        std::fs::remove_dir_all(data_dir).unwrap();
+    }
+}

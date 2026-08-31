@@ -199,6 +199,7 @@ pub fn spawn_backend(
         .env("CALLOSUM_DB_URL", &paths.db_url)
         .env("CALLOSUM_LIBRARY_DIR", &paths.library_dir)
         .env("CALLOSUM_APP_VERSION", app_version)
+        .env("CALLOSUM_APP_DATA_DIR", &paths.app_data_dir)
         .env("CALLOSUM_WORD_HTTPS_DIR", &paths.word_https_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

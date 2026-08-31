@@ -8,7 +8,10 @@ use backend::{
     wait_for_health, wait_for_word_https_health, word_https_configured, BackendState,
     WordHttpsState,
 };
-use managed_local_ai::{shutdown as shutdown_local_ai, start_if_enabled, ManagedLocalAiState};
+use managed_local_ai::{
+    local_ai_status as managed_local_ai_status, setup_and_start, shutdown as shutdown_local_ai,
+    start_for_startup, LocalAiInstallState, LocalAiStatus, ManagedLocalAiState,
+};
 use quick_tunnel::QuickTunnelState;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
@@ -33,14 +36,15 @@ async fn start_backend_and_show_main(app: AppHandle) {
     );
 
     let local_ai_state = app.state::<ManagedLocalAiState>().inner().clone();
-    let descriptor = match start_if_enabled(&paths.app_data_dir, &local_ai_state).await {
-        Ok(path) => path,
-        Err(error) => {
-            // Developer-only local AI must fail closed without preventing Callosum or its primary synthesis.
-            eprintln!("Managed local AI unavailable: {}", error.detail());
-            None
-        }
-    };
+    let descriptor =
+        match start_for_startup(&paths.app_data_dir, &paths.settings_path, &local_ai_state).await {
+            Ok(path) => path,
+            Err(error) => {
+                // Developer-only local AI must fail closed without preventing Callosum or its primary synthesis.
+                eprintln!("Managed local AI unavailable: {}", error.detail());
+                None
+            }
+        };
 
     let app_version = app.package_info().version.to_string();
     let (mut handle, port) = match spawn_backend(&paths, &app_version, descriptor.as_deref()) {
@@ -87,6 +91,37 @@ async fn start_backend_and_show_main(app: AppHandle) {
             }
         });
     }
+}
+
+#[tauri::command]
+fn local_ai_status(
+    app: AppHandle,
+    state: tauri::State<'_, ManagedLocalAiState>,
+    install_state: tauri::State<'_, LocalAiInstallState>,
+) -> Result<LocalAiStatus, String> {
+    let paths = resolved_paths(&app).map_err(|error| error.detail())?;
+    Ok(managed_local_ai_status(
+        &paths.app_data_dir,
+        state.inner(),
+        install_state.inner(),
+    ))
+}
+
+#[tauri::command]
+async fn setup_local_ai(
+    app: AppHandle,
+    state: tauri::State<'_, ManagedLocalAiState>,
+    install_state: tauri::State<'_, LocalAiInstallState>,
+) -> Result<LocalAiStatus, String> {
+    let paths = resolved_paths(&app).map_err(|error| error.detail())?;
+    setup_and_start(&paths.app_data_dir, state.inner(), install_state.inner())
+        .await
+        .map_err(|error| error.detail().to_string())
+}
+
+#[tauri::command]
+fn stop_local_ai(state: tauri::State<'_, ManagedLocalAiState>) {
+    shutdown_local_ai(state.inner());
 }
 
 fn emit_status(app: &AppHandle, state: &str, detail: &str) {
@@ -206,6 +241,7 @@ pub fn run() {
         .manage(WordHttpsState::default())
         .manage(QuickTunnelState::default())
         .manage(ManagedLocalAiState::default())
+        .manage(LocalAiInstallState::default())
         .manage(UpdateState::default())
         .invoke_handler(tauri::generate_handler![
             retry_backend,
@@ -214,6 +250,9 @@ pub fn run() {
             quick_tunnel_status,
             start_quick_tunnel,
             stop_quick_tunnel,
+            local_ai_status,
+            setup_local_ai,
+            stop_local_ai,
             updater::install_update_now,
             updater::open_release_page,
             updater::check_for_updates_now
