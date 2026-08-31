@@ -212,6 +212,6 @@ class DemoWipState(_StrictModel):
         for manuscript_id, state in self.by_id.items():
             if state.manuscript.id != int(manuscript_id) or not state.checks.runs:
                 raise ValueError("each demo WIP must have matching detail and saved checks")
-            if {reference.paper_id for reference in state.references} != {42, 67, 88}:
-                raise ValueError("each demo WIP must link all three curated papers")
+            if {reference.paper_id for reference in state.references} != {42, 67, 88, 89, 90}:
+                raise ValueError("each demo WIP must link every curated paper")
         return self

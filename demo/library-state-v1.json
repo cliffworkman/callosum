@@ -1,7 +1,7 @@
 {
   "axes": [
     {
-      "assignment_count": 3,
+      "assignment_count": 5,
       "created_at": "2026-08-13T00:00:00Z",
       "description": "facial difference facial anomalies anomalous-is-bad bias beauty-is-good good-is-beautiful bad-is-ugly stigma dehumanization humanization warmth competence morality attractiveness social perception gaze behavior",
       "id": 9001,
@@ -13,9 +13,9 @@
       "uncertain_count": 0
     },
     {
-      "assignment_count": 2,
+      "assignment_count": 4,
       "created_at": "2026-08-13T00:00:00Z",
-      "description": "Clifford I. Workman's publications in the curated three-paper demo library.",
+      "description": "Clifford I. Workman's publications in the curated demo library.",
       "id": 9002,
       "kind": "my_publications",
       "label": "My Publications",
@@ -30,7 +30,7 @@
       {
         "axis_id": 9001,
         "confidence": null,
-        "description": "Automatically scored against the complete three-paper demo library.",
+        "description": "Automatically scored against the complete curated demo library.",
         "id": 9101,
         "label": "Anomalous-is-bad bias",
         "papers": [
@@ -63,6 +63,26 @@
             "starred": false,
             "status": "assigned",
             "title": "Only human after all? a pre-registered study on gaze behavior and humanity attributions to people with facial difference"
+          },
+          {
+            "confidence": 0.55,
+            "domain": null,
+            "id": 89,
+            "manual": false,
+            "position": null,
+            "starred": false,
+            "status": "assigned",
+            "title": "Changing the narrative: stories reduce biases against anomalous faces"
+          },
+          {
+            "confidence": 0.57,
+            "domain": null,
+            "id": 90,
+            "manual": false,
+            "position": null,
+            "starred": false,
+            "status": "assigned",
+            "title": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers"
           }
         ],
         "parent_id": null
@@ -95,6 +115,26 @@
             "starred": false,
             "status": "manual",
             "title": "Morality is in the eye of the beholder: the neurocognitive basis of the ‘anomalous-is-bad’ stereotype"
+          },
+          {
+            "confidence": null,
+            "domain": "Facial difference and social perception",
+            "id": 89,
+            "manual": true,
+            "position": null,
+            "starred": false,
+            "status": "manual",
+            "title": "Changing the narrative: stories reduce biases against anomalous faces"
+          },
+          {
+            "confidence": null,
+            "domain": "Facial difference and social perception",
+            "id": 90,
+            "manual": true,
+            "position": null,
+            "starred": false,
+            "status": "manual",
+            "title": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers"
           }
         ],
         "parent_id": null
@@ -102,15 +142,15 @@
     ]
   },
   "generated_with": {
-    "automatic_tags": "OpenAlex topics retrieved for the three DOI records on 2026-08-11",
+    "automatic_tags": "OpenAlex topics retrieved for the three original DOI records on 2026-08-11; two more on 2026-08-30",
     "axis": "cosine scoring with all-MiniLM-L6-v2 (all-MiniLM-L6-v2)",
-    "my_publications_dashboard": "fresh dedicated three-paper sandbox; explicit OpenAlex author and works refresh",
+    "my_publications_dashboard": "fresh dedicated five-paper sandbox (four confirmed My Publications); explicit OpenAlex author and works refresh; real /my-publications/domains decomposition",
     "suggested_tags": "Callosum local c-TF-IDF"
   },
   "my_publications_citing": {
     "W3127453023": {
       "capped": false,
-      "total": 43,
+      "total": 44,
       "works": [
         {
           "authors": [
@@ -133,6 +173,18 @@
           "doi": "10.53841/bpscog.2026.1.11.18",
           "in_library": false,
           "title": "The cognitive and social impact of acquired facial differences: From visual salience to dehumanisation",
+          "year": 2026
+        },
+        {
+          "authors": [
+            "Mariola Paruzel‐Czachura",
+            "Clifford I. Workman",
+            "Anjan Chatterjee"
+          ],
+          "cited_by_count": 0,
+          "doi": "10.1007/s12144-026-09964-z",
+          "in_library": false,
+          "title": "The reader in face-reading: viewers’ social dominance orientation impacts the first impressions of anomalous faces",
           "year": 2026
         },
         {
@@ -216,7 +268,7 @@
             "Changfeng Chen",
             "Yunya Song"
           ],
-          "cited_by_count": 5,
+          "cited_by_count": 7,
           "doi": "10.1016/j.chb.2025.108716",
           "in_library": false,
           "title": "Hotbed of stigmatization or source of support: A multimodal analysis of mental health-related videos on Douyin",
@@ -270,7 +322,7 @@
             "Alexander Diel",
             "Michael B. Lewis"
           ],
-          "cited_by_count": 10,
+          "cited_by_count": 11,
           "doi": "10.1016/j.chbr.2024.100430",
           "in_library": false,
           "title": "Deviation from typical organic voices best explains a vocal uncanny valley",
@@ -283,7 +335,7 @@
             "Noha El Toukhy",
             "Anjan Chatterjee"
           ],
-          "cited_by_count": 7,
+          "cited_by_count": 8,
           "doi": "10.1111/bjop.12719",
           "in_library": false,
           "title": "First impressions: Do faces with scars and palsies influence warmth, competence and humanization?",
@@ -496,7 +548,7 @@
           ],
           "cited_by_count": 20,
           "doi": "10.1038/s41598-022-12440-w",
-          "in_library": false,
+          "in_library": true,
           "title": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
           "year": 2022
         },
@@ -571,7 +623,7 @@
             "Heather M. Gardiner",
             "Jacqueline C. Spitzer"
           ],
-          "cited_by_count": 43,
+          "cited_by_count": 46,
           "doi": "10.3389/fpsyg.2022.979574",
           "in_library": false,
           "title": "The psychosocial burden of visible disfigurement following traumatic injury",
@@ -584,7 +636,7 @@
             "Benoît Montalan",
             "Sarah E. Stutterheim"
           ],
-          "cited_by_count": 16,
+          "cited_by_count": 17,
           "doi": "10.1016/j.bodyim.2022.10.011",
           "in_library": false,
           "title": "Towards a better understanding of the social stigma of facial difference",
@@ -594,7 +646,7 @@
           "authors": [
             "Ryan P. Doran"
           ],
-          "cited_by_count": 6,
+          "cited_by_count": 7,
           "doi": "10.3998/ergo.2261",
           "in_library": false,
           "title": "Ugliness Is in the Gut of the Beholder",
@@ -697,10 +749,10 @@
             "Clifford I. Workman",
             "Anjan Chatterjee"
           ],
-          "cited_by_count": 20,
+          "cited_by_count": 21,
           "doi": "10.1016/j.metip.2021.100063",
           "in_library": false,
-          "title": "The Face Image Meta-Database (fIMDb) &amp; ChatLab Facial Anomaly Database (CFAD): Tools for research on face perception and social stigma",
+          "title": "The Face Image Meta-Database (fIMDb) & ChatLab Facial Anomaly Database (CFAD): Tools for research on face perception and social stigma",
           "year": 2021
         },
         {
@@ -724,14 +776,14 @@
           "cited_by_count": 1,
           "doi": "10.31234/osf.io/54utr",
           "in_library": false,
-          "title": "The Face Image Meta-Database (fIMDb) &amp;amp; ChatLab Facial Anomaly Database (CFAD): Tools for research on face perception and social stigma",
+          "title": "The Face Image Meta-Database (fIMDb) & ChatLab Facial Anomaly Database (CFAD): Tools for research on face perception and social stigma",
           "year": 2020
         }
       ]
     },
     "W4220933859": {
       "capped": false,
-      "total": 30,
+      "total": 33,
       "works": [
         {
           "authors": [
@@ -770,6 +822,38 @@
           "doi": "10.1016/j.paid.2026.113748",
           "in_library": false,
           "title": "Not too unlikable but still less attractive: Antagonistic people's tolerance for immoral others ends at evaluating their physical attractiveness",
+          "year": 2026
+        },
+        {
+          "authors": [
+            "Astrid Hopfensitz"
+          ],
+          "cited_by_count": 0,
+          "doi": "10.1007/978-3-032-22762-1_13",
+          "in_library": false,
+          "title": "On the Effects and Usages of Facial Signals in Situations Requiring Trust",
+          "year": 2026
+        },
+        {
+          "authors": [
+            "Eugen Wassiliwizky"
+          ],
+          "cited_by_count": 0,
+          "doi": "10.1016/j.copsyc.2026.102416",
+          "in_library": false,
+          "title": "What are we measuring when we measure attractiveness?",
+          "year": 2026
+        },
+        {
+          "authors": [
+            "Tian Min",
+            "Zhenyu Li",
+            "Sigen Song"
+          ],
+          "cited_by_count": 0,
+          "doi": "10.1108/intr-03-2026-0474",
+          "in_library": false,
+          "title": "When are imperfections beneficial? The impact of aesthetic imperfections in virtual and human influencers on consumer engagement",
           "year": 2026
         },
         {
@@ -944,7 +1028,7 @@
             "Noha El Toukhy",
             "Anjan Chatterjee"
           ],
-          "cited_by_count": 7,
+          "cited_by_count": 8,
           "doi": "10.1111/bjop.12719",
           "in_library": false,
           "title": "First impressions: Do faces with scars and palsies influence warmth, competence and humanization?",
@@ -1120,28 +1204,328 @@
           "year": 2022
         }
       ]
+    },
+    "W4281398376": {
+      "capped": false,
+      "total": 20,
+      "works": [
+        {
+          "authors": [
+            "Cristina Bicchieri",
+            "Eugen Dimant",
+            "Coren Apicella",
+            "Kristopher M Smith",
+            "Duncan Stibbard Hawkes"
+          ],
+          "cited_by_count": 0,
+          "doi": null,
+          "in_library": false,
+          "title": "The 'I' in egalitarianism: Hadza hunter-gatherers averse to inequality primarily when personally unfavorable",
+          "year": 2026
+        },
+        {
+          "authors": [
+            "Kristopher M Smith",
+            "Duncan N E Stibbard−Hawkes",
+            "Eugen Dimant",
+            "Ibrahim A. Mabulla",
+            "Cristina Bicchieri",
+            "Coren L. Apicella"
+          ],
+          "cited_by_count": 0,
+          "doi": "10.1093/pnasnexus/pgaf328",
+          "in_library": false,
+          "title": "The “I” in egalitarianism: Hadza hunter-gatherers averse to inequality primarily when personally unfavorable",
+          "year": 2026
+        },
+        {
+          "authors": [
+            "Mariola Paruzel‐Czachura",
+            "Cillian McHugh"
+          ],
+          "cited_by_count": 0,
+          "doi": "10.1177/00220221261439284",
+          "in_library": false,
+          "title": "Who Cares More About Having Moral Traits? Evidence From 67 Countries",
+          "year": 2026
+        },
+        {
+          "authors": [
+            "Connor S. Wagner",
+            "Mariola Paruzel‐Czachura",
+            "Clifford I. Workman",
+            "Satvika L. Kumar",
+            "Lauren K. Salinero",
+            "Carlos E. Barrero",
+            "Matthew E. Pontell",
+            "Jesse A. Taylor",
+            "Anjan Chatterjee"
+          ],
+          "cited_by_count": 0,
+          "doi": "10.1177/02762374251386302",
+          "in_library": false,
+          "title": "Exploring Film as Popular Art Promoting Scarred Villain Trope",
+          "year": 2025
+        },
+        {
+          "authors": [
+            "Mariola Paruzel‐Czachura",
+            "Clifford I. Workman",
+            "Jesse A. Taylor",
+            "Anjan Chatterjee"
+          ],
+          "cited_by_count": 1,
+          "doi": "10.1007/s11031-025-10141-1",
+          "in_library": false,
+          "title": "Reader in face-reading: viewer’s empathy and sensitivity to disgust impacts the first impressions of anomalous faces",
+          "year": 2025
+        },
+        {
+          "authors": [
+            "Kristopher M. Smith",
+            "Duncan N. E. Stibbard‐Hawkes",
+            "Eugen Dimant",
+            "Ibrahim A. Mabulla",
+            "Cristina Bicchieri",
+            "Coren L. Apicella"
+          ],
+          "cited_by_count": 0,
+          "doi": "10.2139/ssrn.5193882",
+          "in_library": false,
+          "title": "The 'I' in Egalitarianism: Hadza Hunter-Gatherers Averse to Inequality Primarily when Personally Unfavourable",
+          "year": 2025
+        },
+        {
+          "authors": [
+            "Ryuhei Ueda",
+            "Atsunobu Suzuki",
+            "Akira Takagishi",
+            "Chikahiko Suzuki",
+            "Kumiko Nagai"
+          ],
+          "cited_by_count": 0,
+          "doi": "10.1177/03010066251322632",
+          "in_library": false,
+          "title": "Trait judgments of medieval Japanese illustrated portraits",
+          "year": 2025
+        },
+        {
+          "authors": [
+            "Mariola Paruzel‐Czachura",
+            "Clifford I. Workman",
+            "Noha El Toukhy",
+            "Anjan Chatterjee"
+          ],
+          "cited_by_count": 8,
+          "doi": "10.1111/bjop.12719",
+          "in_library": false,
+          "title": "First impressions: Do faces with scars and palsies influence warmth, competence and humanization?",
+          "year": 2024
+        },
+        {
+          "authors": [
+            "Adar B. Eisenbruch",
+            "Kristopher M. Smith",
+            "Clifford I. Workman",
+            "Christopher von Rueden",
+            "Coren L. Apicella"
+          ],
+          "cited_by_count": 9,
+          "doi": "10.1016/j.evolhumbehav.2024.106598",
+          "in_library": false,
+          "title": "US adults accurately assess Hadza and Tsimane men's hunting ability from a single face photograph",
+          "year": 2024
+        },
+        {
+          "authors": [
+            "Kathlyne Leger",
+            "Junzhi Dong",
+            "Lisa M. DeBruine",
+            "Benedict C. Jones",
+            "Victor Kenji Medeiros Shiramizu"
+          ],
+          "cited_by_count": 11,
+          "doi": "10.1038/s41598-023-42990-6",
+          "in_library": false,
+          "title": "Assessing the roles of shape prototypicality and sexual dimorphism in ratings of the trustworthiness of faces",
+          "year": 2023
+        },
+        {
+          "authors": [
+            "Kathlyne Leger",
+            "Junzhi Dong",
+            "Lisa M. DeBruine",
+            "Benedict C. Jones",
+            "Victor Kenji Medeiros Shiramizu"
+          ],
+          "cited_by_count": 0,
+          "doi": "10.31234/osf.io/y57z3",
+          "in_library": false,
+          "title": "Assessing the roles of shape prototypicality and sexual dimorphism in ratings of the trustworthiness of faces",
+          "year": 2023
+        },
+        {
+          "authors": [
+            "Connor S. Wagner",
+            "Clifford I. Workman",
+            "Mariola Paruzel‐Czachura",
+            "Satvika L. Kumar",
+            "Lauren K. Salinero",
+            "Carlos E. Barrero",
+            "Matthew E. Pontell",
+            "Jesse A. Taylor",
+            "Anjan Chatterjee"
+          ],
+          "cited_by_count": 2,
+          "doi": "10.31234/osf.io/92hdx",
+          "in_library": false,
+          "title": "Cinematic Representations of Visible Facial Differences Across Time and Cultures",
+          "year": 2023
+        },
+        {
+          "authors": [
+            "Mariola Paruzel‐Czachura",
+            "Clifford I. Workman",
+            "Noha El Toukhy",
+            "Anjan Chatterjee"
+          ],
+          "cited_by_count": 1,
+          "doi": "10.31234/osf.io/dzb4y",
+          "in_library": false,
+          "title": "First Impressions: Do Faces with Scars and Palsies Influence Warmth, Competence, and Humanization?",
+          "year": 2023
+        },
+        {
+          "authors": [
+            "Joshua Conrad Jackson",
+            "Jamin Halberstadt",
+            "Masanori Takezawa",
+            "Kongmeng Liew",
+            "Kristopher M. Smith",
+            "Coren L. Apicella",
+            "Kurt Gray"
+          ],
+          "cited_by_count": 8,
+          "doi": "10.31234/osf.io/sx4rt",
+          "in_library": false,
+          "title": "Generalized Morality Culturally Evolves as an Adaptive Heuristic in Large Social Networks",
+          "year": 2023
+        },
+        {
+          "authors": [
+            "Kristopher M. Smith",
+            "Ibrahim A. Mabulla",
+            "Coren L. Apicella"
+          ],
+          "cited_by_count": 6,
+          "doi": "10.1007/s12110-023-09444-4",
+          "in_library": false,
+          "title": "Hearing Prosocial Stories Increases Hadza Hunter-Gatherers’ Generosity in an Economic Game",
+          "year": 2023
+        },
+        {
+          "authors": [
+            "Mariola Paruzel‐Czachura",
+            "Artur Domurat",
+            "Marta Nowak"
+          ],
+          "cited_by_count": 5,
+          "doi": "10.1007/s12144-023-04800-0",
+          "in_library": false,
+          "title": "Moral foundations of pro-choice and pro-life women",
+          "year": 2023
+        },
+        {
+          "authors": [
+            "Charlie Siegel",
+            "Clifford I. Workman",
+            "Stacey Humphries",
+            "Anjan Chatterjee"
+          ],
+          "cited_by_count": 0,
+          "doi": "10.31234/osf.io/z8qu2",
+          "in_library": false,
+          "title": "Do attitudes about and behaviors towards people who enhance their cognition depend on their looks?",
+          "year": 2022
+        },
+        {
+          "authors": [
+            "Mariola Paruzel‐Czachura",
+            "Artur Domurat",
+            "Marta Nowak"
+          ],
+          "cited_by_count": 3,
+          "doi": "10.31234/osf.io/bcm75",
+          "in_library": false,
+          "title": "Moral Foundations of Pro-Choice and Pro-Life Women",
+          "year": 2022
+        },
+        {
+          "authors": [
+            "Nadir Bilici",
+            "Clifford I. Workman",
+            "Stacey Humphries",
+            "Mariola Paruzel‐Czachura",
+            "Roy H. Hamilton",
+            "Anjan Chatterjee"
+          ],
+          "cited_by_count": 5,
+          "doi": "10.31234/osf.io/wr5bu",
+          "in_library": false,
+          "title": "Normalizing Anomalies with Mobile Exposure (NAME): Reducing implicit biases against people with facial anomalies",
+          "year": 2022
+        },
+        {
+          "authors": [
+            "Pauline Rasset",
+            "Jessica Mange",
+            "Benoît Montalan",
+            "Sarah E. Stutterheim"
+          ],
+          "cited_by_count": 17,
+          "doi": "10.1016/j.bodyim.2022.10.011",
+          "in_library": false,
+          "title": "Towards a better understanding of the social stigma of facial difference",
+          "year": 2022
+        }
+      ]
+    },
+    "W7164336181": {
+      "capped": false,
+      "total": 0,
+      "works": []
     }
   },
   "my_publications_dashboard": {
     "as_of": "2026-08-13T00:00:00Z",
     "counts_by_year": [
       {
-        "cited_by_count": 43,
+        "cited_by_count": 44,
         "works_count": 1,
         "year": 2021
       },
       {
-        "cited_by_count": 31,
+        "cited_by_count": 20,
+        "works_count": 1,
+        "year": 2022
+      },
+      {
+        "cited_by_count": 34,
         "works_count": 1,
         "year": 2024
+      },
+      {
+        "cited_by_count": 0,
+        "works_count": 1,
+        "year": 2026
       }
     ],
     "dismissed_works": [],
     "domains": [
       {
-        "citation_count": 74,
-        "key": "demo-presentation:facial-social-judgment",
-        "label": "Facial appearance, morality, and social judgment",
+        "citation_count": 78,
+        "key": "domain:959cea81fbaa8ee1916f",
+        "label": "Morality Anomalous",
         "paper_count": 2,
         "paper_ids": [
           42,
@@ -1149,41 +1533,72 @@
         ],
         "paper_years": [
           2021,
-          2024
+          2022
         ],
         "terms": [
-          "facial appearance",
           "morality",
-          "social judgment",
-          "stigma",
-          "attractiveness"
+          "anomalous",
+          "facial",
+          "appearance",
+          "attribution",
+          "competence"
+        ]
+      },
+      {
+        "citation_count": 20,
+        "key": "domain:8de87e3f1301f4db8c05",
+        "label": "Faces Anomalies",
+        "paper_count": 2,
+        "paper_ids": [
+          89,
+          90
+        ],
+        "paper_years": [
+          2022,
+          2026
+        ],
+        "terms": [
+          "faces",
+          "anomalies",
+          "exposure",
+          "hadza",
+          "anomalous",
+          "stereotype"
         ]
       }
     ],
     "gap": 0,
-    "in_library": 2,
-    "indexed_works": 2,
+    "in_library": 4,
+    "indexed_works": 4,
     "metrics": {
-      "cited_by_count": 74,
-      "h_index": 2,
-      "i10_index": 2,
-      "works_count": 2
+      "cited_by_count": 98,
+      "h_index": 3,
+      "i10_index": 3,
+      "works_count": 4
     },
     "missing_works": [],
     "name": "Clifford I. Workman — demo corpus",
     "openalex_extra": {
       "affiliation": "University of Delaware",
       "openalex_author_id": "A5034020375",
-      "two_year_mean_citedness": 3.1
+      "two_year_mean_citedness": 3.2
     },
     "paper_citations": {
       "42": {
-        "cited_by_count": 31,
+        "cited_by_count": 34,
         "openalex_work_id": "W4220933859"
       },
       "67": {
-        "cited_by_count": 43,
+        "cited_by_count": 44,
         "openalex_work_id": "W3127453023"
+      },
+      "89": {
+        "cited_by_count": 0,
+        "openalex_work_id": "W7164336181"
+      },
+      "90": {
+        "cited_by_count": 20,
+        "openalex_work_id": "W4281398376"
       }
     },
     "pubs_by_year": [
@@ -1193,10 +1608,18 @@
       },
       {
         "count": 1,
+        "year": 2022
+      },
+      {
+        "count": 1,
         "year": 2024
+      },
+      {
+        "count": 1,
+        "year": 2026
       }
     ],
-    "research_summary": "My work examines how facial appearance shapes social and moral judgment. Across these two publications, we test complementary directions of that relationship: how visible facial anomalies can elicit an ‘anomalous-is-bad’ stereotype, and how information about moral character changes perceived facial attractiveness. Together, they connect behavioral and neurocognitive evidence to questions about stigma, person perception, morality, and aesthetic judgment.",
+    "research_summary": "My work examines how facial appearance shapes social and moral judgment. Across these four publications, we test complementary directions of that relationship: how visible facial anomalies can elicit an ‘anomalous-is-bad’ stereotype, whether that stereotype is culturally universal or learned, whether it can be reduced through exposure-based storytelling, and how information about moral character changes perceived facial attractiveness. Together, they connect behavioral and neurocognitive evidence to questions about stigma, person perception, morality, and aesthetic judgment.",
     "starred_count": 0,
     "starred_ids": [],
     "status": "ok"
@@ -1215,21 +1638,21 @@
     "42": [
       {
         "color": null,
-        "id": 1003,
+        "id": 1004,
         "locked": false,
         "name": "Psychology of Moral and Emotional Judgment",
         "source": "keyword:openalex"
       },
       {
         "color": null,
-        "id": 1004,
+        "id": 1005,
         "locked": false,
         "name": "Social Perception and Impression Formation",
         "source": "keyword:openalex"
       },
       {
         "color": null,
-        "id": 1002,
+        "id": 1003,
         "locked": false,
         "name": "Face Recognition and Perception",
         "source": "keyword:openalex"
@@ -1238,21 +1661,21 @@
     "67": [
       {
         "color": null,
-        "id": 1003,
+        "id": 1004,
         "locked": false,
         "name": "Psychology of Moral and Emotional Judgment",
         "source": "keyword:openalex"
       },
       {
         "color": null,
-        "id": 1001,
+        "id": 1002,
         "locked": false,
         "name": "Evolutionary Psychology and Human Behavior",
         "source": "keyword:openalex"
       },
       {
         "color": null,
-        "id": 1002,
+        "id": 1003,
         "locked": false,
         "name": "Face Recognition and Perception",
         "source": "keyword:openalex"
@@ -1261,23 +1684,69 @@
     "88": [
       {
         "color": null,
-        "id": 1003,
+        "id": 1004,
         "locked": false,
         "name": "Psychology of Moral and Emotional Judgment",
         "source": "keyword:openalex"
       },
       {
         "color": null,
-        "id": 1001,
+        "id": 1002,
         "locked": false,
         "name": "Evolutionary Psychology and Human Behavior",
         "source": "keyword:openalex"
       },
       {
         "color": null,
-        "id": 1002,
+        "id": 1003,
         "locked": false,
         "name": "Face Recognition and Perception",
+        "source": "keyword:openalex"
+      }
+    ],
+    "89": [
+      {
+        "color": null,
+        "id": 1002,
+        "locked": false,
+        "name": "Evolutionary Psychology and Human Behavior",
+        "source": "keyword:openalex"
+      },
+      {
+        "color": null,
+        "id": 1004,
+        "locked": false,
+        "name": "Psychology of Moral and Emotional Judgment",
+        "source": "keyword:openalex"
+      },
+      {
+        "color": null,
+        "id": 1003,
+        "locked": false,
+        "name": "Face Recognition and Perception",
+        "source": "keyword:openalex"
+      }
+    ],
+    "90": [
+      {
+        "color": null,
+        "id": 1004,
+        "locked": false,
+        "name": "Psychology of Moral and Emotional Judgment",
+        "source": "keyword:openalex"
+      },
+      {
+        "color": null,
+        "id": 1002,
+        "locked": false,
+        "name": "Evolutionary Psychology and Human Behavior",
+        "source": "keyword:openalex"
+      },
+      {
+        "color": null,
+        "id": 1001,
+        "locked": false,
+        "name": "Body Image and Dysmorphia Studies",
         "source": "keyword:openalex"
       }
     ]
@@ -1319,31 +1788,57 @@
       "priority": null,
       "title": "What is good is beautiful (and what isn’t, isn’t): How moral character affects perceived facial attractiveness.",
       "year": 2024
+    },
+    {
+      "authors": [
+        "Nadir Bilici",
+        "Mariola Paruzel-Czachura",
+        "Clifford I. Workman",
+        "Stacey Humphries",
+        "Roy H. Hamilton",
+        "Anjan Chatterjee"
+      ],
+      "id": 89,
+      "priority": null,
+      "title": "Changing the narrative: stories reduce biases against anomalous faces",
+      "year": 2026
+    },
+    {
+      "authors": [
+        "Clifford I. Workman",
+        "Kristopher M. Smith",
+        "Coren L. Apicella",
+        "Anjan Chatterjee"
+      ],
+      "id": 90,
+      "priority": null,
+      "title": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
+      "year": 2022
     }
   ],
   "state_schema_version": 2,
   "suggested_tags": {
     "42": {
       "suggestions": [
-        "moral",
         "attractiveness",
         "good",
-        "faces",
+        "moral",
         "beautiful",
+        "faces",
         "character",
-        "more",
-        "attractive"
+        "attractive",
+        "beauty"
       ]
     },
     "67": {
       "suggestions": [
-        "anomalous",
         "basis",
         "beholder",
         "neurocognitive",
-        "bad",
         "eye",
         "morality",
+        "anomalous",
+        "bad",
         "stereotype"
       ]
     },
@@ -1357,6 +1852,30 @@
         "disgust",
         "elicit",
         "gaze"
+      ]
+    },
+    "89": {
+      "suggestions": [
+        "anomalies",
+        "evaluations",
+        "group",
+        "narratives",
+        "visible",
+        "faces",
+        "exposure",
+        "anomalous"
+      ]
+    },
+    "90": {
+      "suggestions": [
+        "hadza",
+        "stereotype",
+        "byproduct",
+        "anomalous",
+        "bad",
+        "moral",
+        "cultures",
+        "expected"
       ]
     }
   },
@@ -1374,27 +1893,34 @@
     {
       "color": null,
       "id": 1001,
-      "name": "Evolutionary Psychology and Human Behavior",
-      "paper_count": 2,
+      "name": "Body Image and Dysmorphia Studies",
+      "paper_count": 1,
       "source": "keyword:openalex"
     },
     {
       "color": null,
       "id": 1002,
-      "name": "Face Recognition and Perception",
-      "paper_count": 3,
+      "name": "Evolutionary Psychology and Human Behavior",
+      "paper_count": 4,
       "source": "keyword:openalex"
     },
     {
       "color": null,
       "id": 1003,
-      "name": "Psychology of Moral and Emotional Judgment",
-      "paper_count": 3,
+      "name": "Face Recognition and Perception",
+      "paper_count": 4,
       "source": "keyword:openalex"
     },
     {
       "color": null,
       "id": 1004,
+      "name": "Psychology of Moral and Emotional Judgment",
+      "paper_count": 5,
+      "source": "keyword:openalex"
+    },
+    {
+      "color": null,
+      "id": 1005,
       "name": "Social Perception and Impression Formation",
       "paper_count": 1,
       "source": "keyword:openalex"

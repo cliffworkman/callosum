@@ -8,13 +8,13 @@
       "llm_triage": {
         "basis": "LLM triage over one bounded comparison row and its paired evidence.",
         "concerns": [
-          "ambiguous-study-mapping"
+          "The publication title does not exactly match the registration study title."
         ],
         "label": "uncertain",
         "model_id": "gemini-2.5-flash-lite",
         "prompt_version": "registration-comparison-triage-v1",
         "provider_id": "gemini",
-        "rationale": "The study identity in the registration \"What is good is beautiful: perceived moral cues influence facial beauty judgments\" is not clearly mapped to the publication evidence. The publication discusses \"good is beautiful\" stereotype in the context of attractiveness stereotyping but doesn't explicitly identify this as the study title.",
+        "rationale": "The study title in the registration is 'What is good is beautiful: perceived moral cues influence facial beauty judgments', which is not directly stated in the publication. The publication mentions 'GOOD-IS-BEAUTIFUL AND BAD-IS-UGLY 2'.",
         "show_in_triage": true,
         "stale_reasons": [],
         "status": "current"
@@ -30,13 +30,13 @@
       "llm_triage": {
         "basis": "LLM triage over one bounded comparison row and its paired evidence.",
         "concerns": [
-          "ambiguous-study-mapping"
+          "Publication evidence for registration timing is missing."
         ],
         "label": "uncertain",
         "model_id": "gemini-2.5-flash-lite",
         "prompt_version": "registration-comparison-triage-v1",
         "provider_id": "gemini",
-        "rationale": "The registration timing (2020-09-19T16:47:56.097453) is a precise timestamp, while the publication evidence provides manuscript submission, revision, and acceptance dates (April 19, 2021; September 17, 2021; October 5, 2021). There's no clear correspondence.",
+        "rationale": "The registration provides a date '2020-09-19T16:47:56.097453', but the publication has no corresponding date information for comparison.",
         "show_in_triage": true,
         "stale_reasons": [],
         "status": "current"
@@ -52,13 +52,13 @@
       "llm_triage": {
         "basis": "LLM triage over one bounded comparison row and its paired evidence.",
         "concerns": [
-          "ambiguous-study-mapping"
+          "The detailed wording of the hypothesis and its alternative predictions in the registration are not explicitly mirrored in the publication's hypothesis statement."
         ],
         "label": "uncertain",
         "model_id": "gemini-2.5-flash-lite",
         "prompt_version": "registration-comparison-triage-v1",
         "provider_id": "gemini",
-        "rationale": "The registration hypothesis details testing the 'good is beautiful' effect and its variation by face age, predicting specific influences of moral transgressions and goodness on attractiveness. The publication evidence discusses the 'good is beautiful' stereotype and its application to younger faces, noting unexplored interactions with aging, but does not explicitly state the hypotheses tested.",
+        "rationale": "The registration describes testing the hypothesis that a 'good is beautiful' effect exists and how reading about moral transgressions or goodness influences facial beauty perceptions. The publication confirms testing this hypothesis and the 'good-is-beautiful' stereotype, noting that perceived moral character influences perceptions of facial beauty.",
         "show_in_triage": true,
         "stale_reasons": [],
         "status": "current"
@@ -74,13 +74,13 @@
       "llm_triage": {
         "basis": "LLM triage over one bounded comparison row and its paired evidence.",
         "concerns": [
-          "ambiguous-study-mapping"
+          "The publication does not explicitly state whether blinding was used or not, making a direct comparison to the registration's 'no blinding' statement difficult."
         ],
         "label": "uncertain",
         "model_id": "gemini-2.5-flash-lite",
         "prompt_version": "registration-comparison-triage-v1",
         "provider_id": "gemini",
-        "rationale": "The registration states 'No blinding is involved in this study.' The publication describes participant recruitment, exclusion criteria, and sample characteristics but does not mention blinding procedures.",
+        "rationale": "The registration states 'No blinding is involved in this study.' The publication's methods section details participant recruitment, sample size, and exclusion criteria, but does not directly address blinding.",
         "show_in_triage": true,
         "stale_reasons": [],
         "status": "current"
@@ -96,13 +96,13 @@
       "llm_triage": {
         "basis": "LLM triage over one bounded comparison row and its paired evidence.",
         "concerns": [
-          "ambiguous-study-mapping"
+          "The number of vignettes and images mentioned in the registration (72 vignettes, 24 images) are not explicitly detailed in the publication's methods section."
         ],
         "label": "uncertain",
         "model_id": "gemini-2.5-flash-lite",
         "prompt_version": "registration-comparison-triage-v1",
         "provider_id": "gemini",
-        "rationale": "The registration describes an online experiment via Qualtrics with MTurk recruitment, presenting vignettes and faces, and rating scales for attractiveness, friendliness, and confidence, followed by dispositional measures and a socio-demographic questionnaire. The publication details a face rating task with similar stimuli and rating scales, followed by self-report measures, but the full design is not explicitly matched.",
+        "rationale": "The registration describes an online experiment via Qualtrics with MTurk recruitment, vignette/face pairings, attractiveness/friendliness/confidence ratings, and dispositional measures (Three-Domain Disgust Scale, Interpersonal Reactivity Index). The publication details a similar online survey via Qualtrics with MTurk recruitment, attractiveness/confidence/friendliness ratings, and dispositional measures including the IRI and 3DD.",
         "show_in_triage": true,
         "stale_reasons": [],
         "status": "current"
@@ -118,13 +118,13 @@
       "llm_triage": {
         "basis": "LLM triage over one bounded comparison row and its paired evidence.",
         "concerns": [
-          "ambiguous-study-mapping"
+          "The publication does not explicitly state the final sample size after exclusions, making a direct comparison to the registration's target sample size difficult."
         ],
         "label": "uncertain",
         "model_id": "gemini-2.5-flash-lite",
         "prompt_version": "registration-comparison-triage-v1",
         "provider_id": "gemini",
-        "rationale": "The registration targets N = 360 participants. The publication mentions an 'independent sample of n = 27 participants' in one sentence, but the context is unclear and potentially refers to a different part of the study or a previous one, as it is followed by the main study's recruitment and exclusion details.",
+        "rationale": "The registration states a target sample size of N = 360 participants. The publication states 'A total of 442 participants were recruited' and mentions exclusion criteria leading to data from fewer participants.",
         "show_in_triage": true,
         "stale_reasons": [],
         "status": "current"
@@ -140,13 +140,13 @@
       "llm_triage": {
         "basis": "LLM triage over one bounded comparison row and its paired evidence.",
         "concerns": [
-          "ambiguous-study-mapping"
+          "While the calculation for sufficient power (n=322) aligns, the specific details of the power analysis (e.g., specific effect size 'f') are not directly restated in the publication."
         ],
         "label": "uncertain",
         "model_id": "gemini-2.5-flash-lite",
         "prompt_version": "registration-comparison-triage-v1",
         "provider_id": "gemini",
-        "rationale": "The registration states the sample size of N=322 was determined by a power analysis (f=0.157, α=0.05, 1–β=0.8) based on Paunonen (2006), with a recruitment target of N=360 to account for exclusions. The publication mentions recruiting 442 participants, with a minimum required sample of n=322 for power, and details exclusions leading to a final sample size not yet stated.",
+        "rationale": "The registration explains the sample size determination based on a power analysis (f = 0.157, α = 0.05, 1 – β = 0.8) requiring N = 322, with a recruitment target of N = 360. The publication states a minimum sample of n = 322 was expected for sufficient power (80%) based on effect sizes from Paunonen (2006), and reports recruiting 442 participants, with 64 excluded.",
         "show_in_triage": true,
         "stale_reasons": [],
         "status": "current"
@@ -162,13 +162,13 @@
       "llm_triage": {
         "basis": "LLM triage over one bounded comparison row and its paired evidence.",
         "concerns": [
-          "ambiguous-study-mapping"
+          "The registration mentions including 'face age' as a fixed factor in the linear mixed model, but this is not explicitly detailed in the publication's description of the model used f"
         ],
         "label": "uncertain",
         "model_id": "gemini-2.5-flash-lite",
         "prompt_version": "registration-comparison-triage-v1",
         "provider_id": "gemini",
-        "rationale": "The registration specifies linear mixed effect models to examine the relationship between dependent variables (attractiveness, friendliness, confidence) and vignette type, considering face age and random intercepts for items and subjects. The publication states linear mixed-effects analyses were carried out using the lme4 package to examine perceived moral character's influence on judgments, and how this varies by face age, perceiver sex, and face sex, with exploratory analyses on moral disgust and empathic concern. It also mentions using Satterthwaite’s approximation for p-values.",
+        "rationale": "The registration outlines the use of linear mixed effect models with attractiveness, friendliness, and confidence as dependent variables, and vignette type as a fixed factor, including random intercepts for items and subjects. The publication reports using a linear mixed model with attractiveness as the dependent variable and vignette type as a fixed factor, with random intercepts for face stimulus and subject.",
         "show_in_triage": true,
         "stale_reasons": [],
         "status": "current"
@@ -184,13 +184,13 @@
       "llm_triage": {
         "basis": "LLM triage over one bounded comparison row and its paired evidence.",
         "concerns": [
-          "ambiguous-study-mapping"
+          "The publication does not explicitly state whether the Benjamini-Hochberg correction was applied to all reported statistical tests."
         ],
         "label": "uncertain",
         "model_id": "gemini-2.5-flash-lite",
         "prompt_version": "registration-comparison-triage-v1",
         "provider_id": "gemini",
-        "rationale": "The registration mentions significance determined with alpha = 0.05 and Benjamini-Hochberg correction for FDR control. The publication evidence provided is a snippet of statistical results (Confidence 5.21 (1.31) 4.59 (1.57) 4.79 (1.31)) which does not include information about statistical model corrections or significance thresholds.",
+        "rationale": "The registration specifies using an alpha of 0.05 with Benjamini-Hochberg correction for significance. The publication reports p-values and effect sizes but does not explicitly mention the specific statistical correction method used for all analyses.",
         "show_in_triage": true,
         "stale_reasons": [],
         "status": "current"
@@ -206,13 +206,13 @@
       "llm_triage": {
         "basis": "LLM triage over one bounded comparison row and its paired evidence.",
         "concerns": [
-          "ambiguous-study-mapping"
+          "The publication's description of attentional catch trials ('more than two of five') differs from the registration's ('more than 2 of 3'). The exclusion criteria related to particip"
         ],
         "label": "uncertain",
         "model_id": "gemini-2.5-flash-lite",
         "prompt_version": "registration-comparison-triage-v1",
         "provider_id": "gemini",
-        "rationale": "The registration details MTurk sample restrictions (US-based, 18+, high approval ratings, not participated in previous study) and exclusion for failing more than 2 out of 3 attention checks. The publication describes recruiting from MTurk, and then details exclusions for extreme values, poor quality responses, failing attentional catch trials, missing data, and choosing not to report sex, but the specific number of attention checks or criteria for prior study participation are not directly stated as in the registration.",
+        "rationale": "The registration details MTurk participant restrictions (US-based, 18+, high approval ratings, no prior participation in the 'previous study') and the use of attention checks (exclusion for failing >2 of 3). The publication describes recruiting via MTurk and excluding participants for 'reporting that their responses were of poor quality' and 'failing more than two of five attentional catch trials'.",
         "show_in_triage": true,
         "stale_reasons": [],
         "status": "current"
@@ -228,13 +228,13 @@
       "llm_triage": {
         "basis": "LLM triage over one bounded comparison row and its paired evidence.",
         "concerns": [
-          "ambiguous-study-mapping"
+          "The publication does not explicitly detail how missing data due to testing errors were handled, only mentioning '1 for missing data' as one of many exclusion reasons."
         ],
         "label": "uncertain",
         "model_id": "gemini-2.5-flash-lite",
         "prompt_version": "registration-comparison-triage-v1",
         "provider_id": "gemini",
-        "rationale": "The registration states the survey design prevents advancing without response and that missing rating data will be excluded from analyses. The publication details participant recruitment and exclusions, including 'one for missing data,' but does not explicitly describe a procedure for handling missing data as described in the registration.",
+        "rationale": "The registration states that the survey design prevents advancing without responding and that missing data due to testing error or exclusion will result in exclusion from analyses. The publication states that data were excluded from 64 participants, listing reasons including '1 for missing data'.",
         "show_in_triage": true,
         "stale_reasons": [],
         "status": "current"
@@ -250,13 +250,13 @@
       "llm_triage": {
         "basis": "LLM triage over one bounded comparison row and its paired evidence.",
         "concerns": [
-          "ambiguous-study-mapping"
+          "The 'updated response keys' listed in the registration have no clear corresponding information in the publication's provided text."
         ],
         "label": "uncertain",
         "model_id": "gemini-2.5-flash-lite",
         "prompt_version": "registration-comparison-triage-v1",
         "provider_id": "gemini",
-        "rationale": "The registration lists 'Updated response keys' with specific item identifiers. The publication evidence is 'Note. SE = standard error.', which does not appear to relate to response keys or deviations/amendments.",
+        "rationale": "The registration lists 'Updated response keys: q18, q14.question, q10.uploader, q15.question, q10.question, q20, q23, q6.uploader, q7, q16.question, q17.question, q2, q11, q19, q14.uploader, q5, q12, q3, q16.uploader, q17.uploader, q9, q15.uploader, q22, q4, q21, q13, q8, q6.question'. The publication does not contain a section that directly corresponds to or describes these 'updated response keys'.",
         "show_in_triage": true,
         "stale_reasons": [],
         "status": "current"
@@ -269,7 +269,7 @@
     "comparison_run_id": 1,
     "row_mapping": "stable ordinal plus field type and repeated-field occurrence"
   },
-  "public_basis_warning": "These are the exact saved AI-triage annotations from the reviewed Callosum comparison against the published article. The static demo bundles a redistributable preprint, so its displayed publication passages and source locations can differ from that saved run.",
+  "public_basis_warning": null,
   "schema_version": 1,
   "source": {
     "comparison_created_at": "2026-08-01T14:17:48",

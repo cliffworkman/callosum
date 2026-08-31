@@ -13,6 +13,13 @@
   },
   "stages": {
     "discover": {
+      "saved-inspectable": [
+        "cap-beyond-library",
+        "cap-overlooked",
+        "cap-wanted",
+        "cap-literature-gaps",
+        "cap-domains"
+      ],
       "saved-partial": [
         "cap-search",
         "cap-feed",
@@ -31,13 +38,6 @@
         "cap-watch-folder",
         "cap-enrichment",
         "cap-oa"
-      ],
-      "missing-snapshot": [
-        "cap-beyond-library",
-        "cap-overlooked",
-        "cap-wanted",
-        "cap-literature-gaps",
-        "cap-domains"
       ]
     },
     "read": {

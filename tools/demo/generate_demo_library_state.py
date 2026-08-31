@@ -26,7 +26,6 @@ from app.backend.api.routers.my_publications import (
     CitingResponse,
     DashboardMetrics,
     DashboardResponse,
-    Domain,
     OpenAlexExtra,
     PaperCitation,
     ProfileResponse,
@@ -41,7 +40,7 @@ from app.backend.demo_library_state import DemoLibraryState
 from app.backend.embeddings.models import SentenceTransformerEmbeddingModel
 from app.backend.embeddings.pipeline import paper_embedding_text
 from app.backend.persistence.schema import metadata, papers
-from tools.demo.curated_library import CORPUS, CURATED_ON, curated_abstract
+from tools.demo.curated_library import CORPUS, CORPUS_GROWN_ON, CURATED_ON, curated_abstract
 
 AUTOMATED_AXIS_ID = 9001
 MY_PUBLICATIONS_AXIS_ID = 9002
@@ -49,13 +48,20 @@ AXIS_DESCRIPTION = (
     "facial difference facial anomalies anomalous-is-bad bias beauty-is-good good-is-beautiful bad-is-ugly "
     "stigma dehumanization humanization warmth competence morality attractiveness social perception gaze behavior"
 )
-PUBLIC_CITATIONS = {42: (31, "W4220933859"), 67: (43, "W3127453023")}
+PUBLIC_CITATIONS = {
+    42: (31, "W4220933859"),
+    67: (43, "W3127453023"),
+    89: (0, "W7164336181"),
+    90: (20, "W4281398376"),
+}
+MY_PUBLICATIONS_PAPER_IDS = (42, 67, 89, 90)
 RESEARCH_SUMMARY = (
-    "My work examines how facial appearance shapes social and moral judgment. Across these two publications, "
+    "My work examines how facial appearance shapes social and moral judgment. Across these four publications, "
     "we test complementary directions of that relationship: how visible facial anomalies can elicit an "
-    "‘anomalous-is-bad’ stereotype, and how information about moral character changes perceived facial "
-    "attractiveness. Together, they connect behavioral and neurocognitive evidence to questions about stigma, "
-    "person perception, morality, and aesthetic judgment."
+    "‘anomalous-is-bad’ stereotype, whether that stereotype is culturally universal or learned, whether it can "
+    "be reduced through exposure-based storytelling, and how information about moral character changes "
+    "perceived facial attractiveness. Together, they connect behavioral and neurocognitive evidence to "
+    "questions about stigma, person perception, morality, and aesthetic judgment."
 )
 
 
@@ -75,7 +81,7 @@ def _source_rows(source_db: Path) -> dict[int, dict]:
             rows[paper_id] = {
                 "id": paper_id,
                 "title": item["title"],
-                "abstract": curated_abstract(con, paper_id),
+                "abstract": curated_abstract(con, paper_id) or item.get("abstract"),
                 "venue": item["venue"],
                 "year": item["year"],
                 "first_author_family_name": source["first_author_family_name"],
@@ -145,7 +151,7 @@ def _axis_state(rows: dict[int, dict], model) -> tuple[list[AxisResponse], dict[
             description=AXIS_DESCRIPTION,
             scored=True,
             stale=False,
-            assignment_count=3,
+            assignment_count=len(ordered_ids),
             created_at=f"{CURATED_ON}T00:00:00Z",
             scoring_gain=0.35,
             kind="standard",
@@ -153,8 +159,8 @@ def _axis_state(rows: dict[int, dict], model) -> tuple[list[AxisResponse], dict[
         AxisResponse(
             id=MY_PUBLICATIONS_AXIS_ID,
             label="My Publications",
-            description="Clifford I. Workman's publications in the curated three-paper demo library.",
-            assignment_count=2,
+            description="Clifford I. Workman's publications in the curated demo library.",
+            assignment_count=len(MY_PUBLICATIONS_PAPER_IDS),
             created_at=f"{CURATED_ON}T00:00:00Z",
             kind="my_publications",
         ),
@@ -169,7 +175,7 @@ def _axis_state(rows: dict[int, dict], model) -> tuple[list[AxisResponse], dict[
         for paper_id in ordered_ids
     ]
     if any(paper.status != "assigned" for paper in automated_papers):
-        raise ValueError("the generated demo axis no longer comprises all three papers; review its vocabulary")
+        raise ValueError("the generated demo axis no longer comprises every curated paper; review its vocabulary")
     my_papers = [
         ClusterPaperResponse(
             id=paper_id,
@@ -178,7 +184,7 @@ def _axis_state(rows: dict[int, dict], model) -> tuple[list[AxisResponse], dict[
             manual=True,
             domain="Facial difference and social perception",
         )
-        for paper_id in (42, 67)
+        for paper_id in MY_PUBLICATIONS_PAPER_IDS
     ]
     clusters = {
         str(AUTOMATED_AXIS_ID): [
@@ -186,7 +192,7 @@ def _axis_state(rows: dict[int, dict], model) -> tuple[list[AxisResponse], dict[
                 id=9101,
                 axis_id=AUTOMATED_AXIS_ID,
                 label="Anomalous-is-bad bias",
-                description="Automatically scored against the complete three-paper demo library.",
+                description="Automatically scored against the complete curated demo library.",
                 papers=automated_papers,
             )
         ],
@@ -211,7 +217,10 @@ def generate_state(source_db: Path, output: Path, *, model=None) -> DemoLibraryS
     state = DemoLibraryState(
         generated_with={
             "axis": f"cosine scoring with {model.name} ({model.version})",
-            "automatic_tags": "OpenAlex topics retrieved for the three DOI records on 2026-08-11",
+            "automatic_tags": (
+                "OpenAlex topics retrieved for the three original DOI records on 2026-08-11; two more on "
+                f"{CORPUS_GROWN_ON}"
+            ),
             "suggested_tags": "Callosum local c-TF-IDF",
         },
         axes=axes,
@@ -226,9 +235,9 @@ def generate_state(source_db: Path, output: Path, *, model=None) -> DemoLibraryS
                 title=CORPUS[paper_id]["title"],
                 authors=CORPUS[paper_id]["authors"],
                 year=CORPUS[paper_id]["year"],
-                priority={67: "high", 88: "normal", 42: None}[paper_id],
+                priority={67: "high", 88: "normal", 42: None, 89: None, 90: None}[paper_id],
             )
-            for paper_id in (67, 88, 42)
+            for paper_id in (67, 88, 42, 89, 90)
         ],
         my_publications_profile=ProfileResponse(
             display_name="Clifford I. Workman",
@@ -236,31 +245,43 @@ def generate_state(source_db: Path, output: Path, *, model=None) -> DemoLibraryS
             orcid="0000-0002-2206-0325",
             has_author_id=True,
         ),
+        # NOTE: this whole my_publications_dashboard is a transient placeholder -- the documented pipeline
+        # (demo/README.md) always runs tools/demo/capture_demo_prospection.py next, which fully replaces every
+        # field here (including a real, non-fabricated `domains`) with live-endpoint output. It survives only if
+        # someone reads library-state-v1.json before that later step runs.
         my_publications_dashboard=DashboardResponse(
             status="ok",
             name="Clifford I. Workman — demo corpus",
             as_of=f"{CURATED_ON}T00:00:00Z",
-            metrics=DashboardMetrics(works_count=2, cited_by_count=74, h_index=2, i10_index=2),
-            pubs_by_year=[YearCount(year=2021, count=1), YearCount(year=2024, count=1)],
-            counts_by_year=[
-                YearImpact(year=2021, works_count=1, cited_by_count=43),
-                YearImpact(year=2024, works_count=1, cited_by_count=31),
-            ],
-            indexed_works=2,
-            in_library=2,
+            metrics=DashboardMetrics(
+                works_count=len(MY_PUBLICATIONS_PAPER_IDS),
+                cited_by_count=sum(count for count, _work_id in PUBLIC_CITATIONS.values()),
+                h_index=sum(
+                    count >= rank
+                    for rank, count in enumerate(
+                        sorted((c for c, _w in PUBLIC_CITATIONS.values()), reverse=True), start=1
+                    )
+                ),
+                i10_index=sum(count >= 10 for count, _work_id in PUBLIC_CITATIONS.values()),
+            ),
+            pubs_by_year=sorted(
+                (YearCount(year=CORPUS[pid]["year"], count=1) for pid in MY_PUBLICATIONS_PAPER_IDS),
+                key=lambda item: item.year,
+            ),
+            counts_by_year=sorted(
+                (
+                    YearImpact(year=CORPUS[pid]["year"], works_count=1, cited_by_count=PUBLIC_CITATIONS[pid][0])
+                    for pid in MY_PUBLICATIONS_PAPER_IDS
+                ),
+                key=lambda item: item.year,
+            ),
+            indexed_works=len(MY_PUBLICATIONS_PAPER_IDS),
+            in_library=len(MY_PUBLICATIONS_PAPER_IDS),
             gap=0,
             research_summary=RESEARCH_SUMMARY,
-            domains=[
-                Domain(
-                    key="demo-presentation:facial-social-judgment",
-                    label="Facial appearance, morality, and social judgment",
-                    terms=["facial appearance", "morality", "social judgment", "stigma", "attractiveness"],
-                    paper_count=2,
-                    citation_count=74,
-                    paper_years=[2021, 2024],
-                    paper_ids=[42, 67],
-                )
-            ],
+            # Never fabricated -- left empty here; capture_demo_prospection.py fills this from the real
+            # /my-publications/domains job's own output before the artifact is ever exported.
+            domains=[],
             missing_works=[],
             dismissed_works=[],
             openalex_extra=OpenAlexExtra(

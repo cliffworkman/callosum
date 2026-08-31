@@ -1,10 +1,10 @@
-"""Capture public My Publications graph snapshots from a fresh three-paper sandbox.
+"""Capture public My Publications graph snapshots from a fresh five-paper sandbox.
 
 This explicit curation command performs OpenAlex metadata egress. It never reads an
 ordinary Callosum database: it migrates a temporary database, inserts the allowlisted
-demo corpus, confirms the two Workman publications, runs the three production graph
-workflows, validates their live response models, and replaces only those fields in the
-saved extended demo state.
+demo corpus, confirms the four Workman publications, runs the three production graph
+workflows plus the real domain-decomposition job, validates their live response models,
+and replaces only those fields in the saved extended demo state.
 """
 
 # ruff: noqa: E402, I001
@@ -28,6 +28,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from app.backend.api import create_app
+from app.backend.api.routers.beyond_library_saved import SavedBeyondLibraryListResponse
+from app.backend.api.routers.gaps import GapsListResponse
 from app.backend.api.routers.my_publication_citing_authors import CitingAuthorListResponse
 from app.backend.api.routers.my_publication_gaps import CitationGapListResponse
 from app.backend.api.routers.my_publication_topics import EmergingTopicListResponse
@@ -36,17 +38,17 @@ from app.backend.api.routers.my_publications import (
     CitingWorkResponse,
     DashboardMetrics,
     DashboardResponse,
-    Domain,
     PaperCitation,
     ProfileResponse,
     YearCount,
     YearImpact,
 )
+from app.backend.api.routers.overlooked import OverlookedListResponse
 from app.backend.demo_extended_state import DemoExtendedState
 from app.backend.demo_library_state import DemoLibraryState
-from tools.demo.capture_demo_extended_state import _seed_papers
+from tools.demo.capture_demo_extended_state import CITE_CLAIM, _seed_papers
 from tools.demo.curated_library import CORPUS, CURATED_ON
-from tools.demo.generate_demo_library_state import RESEARCH_SUMMARY
+from tools.demo.generate_demo_library_state import AUTOMATED_AXIS_ID, MY_PUBLICATIONS_PAPER_IDS, RESEARCH_SUMMARY
 
 PROFILE = {
     "display_name": "Clifford I. Workman",
@@ -75,7 +77,7 @@ def _curated_publication_state() -> tuple[DashboardResponse, dict[str, CitingRes
     paper_citations: dict[str, PaperCitation] = {}
     citing: dict[str, CitingResponse] = {}
     by_year: dict[int, YearImpact] = {}
-    for paper_id in (42, 67):
+    for paper_id in MY_PUBLICATIONS_PAPER_IDS:
         item = CORPUS[paper_id]
         payload = _openalex_json(
             "/works",
@@ -90,6 +92,12 @@ def _curated_publication_state() -> tuple[DashboardResponse, dict[str, CitingRes
             for work in payload.get("results") or []
             if str(work.get("doi") or "").lower().removeprefix("https://doi.org/") == item["doi"]
         ]
+        expected_work_id = item.get("openalex_work_id")
+        if len(exact) != 1 and expected_work_id:
+            # A very recently indexed work can briefly have two not-yet-merged OpenAlex work records sharing
+            # the same DOI (a real, verified data-quality artifact, not a bug here) -- disambiguate using the
+            # canonical work id already verified when this paper was curated, rather than relaxing to "first".
+            exact = [work for work in exact if str(work.get("id") or "").rsplit("/", 1)[-1] == expected_work_id]
         if len(exact) != 1:
             raise ValueError(f"OpenAlex did not return exactly one exact work for curated DOI {item['doi']}")
         work = exact[0]
@@ -136,34 +144,27 @@ def _curated_publication_state() -> tuple[DashboardResponse, dict[str, CitingRes
         citing[work_id] = CitingResponse(works=works, total=total, capped=total > len(works))
 
     counts = [item.cited_by_count for item in paper_citations.values()]
+    pubs_by_year = [YearCount(year=year, count=impact.works_count) for year, impact in sorted(by_year.items())]
     return (
         DashboardResponse(
             status="ok",
             name="Clifford I. Workman — demo corpus",
             as_of=f"{CURATED_ON}T00:00:00Z",
             metrics=DashboardMetrics(
-                works_count=2,
+                works_count=len(counts),
                 cited_by_count=sum(counts),
                 h_index=sum(count >= rank for rank, count in enumerate(sorted(counts, reverse=True), start=1)),
                 i10_index=sum(count >= 10 for count in counts),
             ),
-            pubs_by_year=[YearCount(year=2021, count=1), YearCount(year=2024, count=1)],
+            pubs_by_year=pubs_by_year,
             counts_by_year=[by_year[year] for year in sorted(by_year)],
-            indexed_works=2,
-            in_library=2,
+            indexed_works=len(counts),
+            in_library=len(counts),
             gap=0,
             research_summary=RESEARCH_SUMMARY,
-            domains=[
-                Domain(
-                    key="demo-presentation:facial-social-judgment",
-                    label="Facial appearance, morality, and social judgment",
-                    terms=["facial appearance", "morality", "social judgment", "stigma", "attractiveness"],
-                    paper_count=2,
-                    citation_count=sum(counts),
-                    paper_years=[2021, 2024],
-                    paper_ids=[42, 67],
-                )
-            ],
+            # domains is populated afterward in capture() from the real /my-publications/domains job output --
+            # never fabricated here (a hardcoded placeholder Domain object previously lived at this exact spot).
+            domains=[],
             missing_works=[],
             dismissed_works=[],
             paper_citations=paper_citations,
@@ -204,9 +205,13 @@ def capture(output: Path, library_output: Path) -> tuple[DemoExtendedState, Demo
             _must(client.put("/my-publications/profile", json=PROFILE), "save demo profile")
             refresh = _job(client, "/my-publications/refresh", "/my-publications/refresh", {})
             summary = refresh.get("summary") or {}
-            if summary.get("status") != "ok" or int(summary.get("in_library") or 0) != 2:
-                raise ValueError(f"demo author resolution did not identify exactly two in-library works: {summary}")
-            for paper_id, decision in ((42, "confirmed"), (67, "confirmed"), (88, "rejected")):
+            expected_in_library = len(MY_PUBLICATIONS_PAPER_IDS)
+            if summary.get("status") != "ok" or int(summary.get("in_library") or 0) != expected_in_library:
+                raise ValueError(
+                    f"demo author resolution did not identify exactly {expected_in_library} in-library works: {summary}"
+                )
+            decisions = [(paper_id, "confirmed") for paper_id in MY_PUBLICATIONS_PAPER_IDS] + [(88, "rejected")]
+            for paper_id, decision in decisions:
                 _must(
                     client.post(
                         "/my-publications/decide",
@@ -235,12 +240,65 @@ def capture(output: Path, library_output: Path) -> tuple[DemoExtendedState, Demo
             profile = ProfileResponse.model_validate(
                 _must(client.get("/my-publications/profile"), "read My Publications profile")
             )
+            # Real domain decomposition (cap-domains, backlog #57-adjacent 2026-08-30 demo-coverage fixwave):
+            # requires MIN_DOMAIN_PAPERS=4 confirmed My-Publications papers, now met above. Never a hardcoded
+            # placeholder -- this is the live job's own output, fetched back via the dashboard read below.
+            _job(client, "/my-publications/domains", "/my-publications/domains", {})
             live_dashboard = DashboardResponse.model_validate(
                 _must(client.get("/my-publications/dashboard"), "read My Publications dashboard")
             )
+            # cap-overlooked (same 2026-08-30 fixwave): the axis-scoped Overlooked-work lens, scored against the
+            # curated axis (not a My-Publications concept) -- was previously hardcoded to {} in
+            # capture_demo_extended_state.py, never a real refresh. compute_overlooked() only needs a real axis
+            # row + label (get_axis(conn, axis_id) -- no local paper-scoring is required), so this sandbox
+            # creates its own throwaway axis rather than reusing the curated snapshot's fixed AUTOMATED_AXIS_ID
+            # (a stable id from a different database that doesn't exist in this temp sandbox). The label must
+            # resolve to a real OpenAlex Topic (compute_overlooked's own external-fetch step) -- the curated
+            # axis's real display label "Anomalous-is-bad bias" is a bespoke in-house construct name that does
+            # NOT resolve (confirmed empirically), so this uses "Face Recognition and Perception", one of the
+            # corpus's own real OpenAlex automatic_topics (curated_library.py), shared by 3 of the 5 papers.
+            sandbox_axis = _must(
+                client.post("/axes", json={"label": "Face Recognition and Perception"}), "create sandbox axis"
+            )
+            sandbox_axis_id = sandbox_axis["id"]
+            _job(client, "/overlooked/refresh", "/overlooked/refresh", {"axis_id": sandbox_axis_id})
+            overlooked = OverlookedListResponse.model_validate(
+                _must(client.get(f"/overlooked?axis_id={sandbox_axis_id}"), "read overlooked-work lens")
+            )
+            # cap-literature-gaps (same fixwave): the whole-library backward gap-finder (works cited by >=
+            # GAP_MIN_CITATIONS=3 of the curated papers, absent from the library) -- previously hardcoded to
+            # {candidates: [], computed_at: null} in demo-runtime.js. Whole-library scope (no axis_id), matching
+            # the "backward" default; the thematically tight 5-paper corpus is likely to share common citations.
+            _job(client, "/gaps/refresh", "/gaps/refresh", {"direction": "backward"})
+            literature_gaps = GapsListResponse.model_validate(
+                _must(client.get("/gaps?direction=backward"), "read literature gaps")
+            )
+            # cap-beyond-library (same fixwave): a real /citations/suggest call (the same live search the web
+            # Cite pane and LibreOffice Suggest dialog already use) against a real claim sentence, explicitly
+            # "Saved for later" via the unchanged save endpoint -- previously hardcoded to {items: []}.
+            suggest_result = _must(
+                client.post(
+                    "/citations/suggest",
+                    json={"text": CITE_CLAIM, "top_k": 3, "include_beyond_library": True, "beyond_top_k": 5},
+                ),
+                "citation suggest (beyond-library)",
+            )
+            beyond_candidates = suggest_result.get("beyond_library_suggestions") or []
+            if beyond_candidates:
+                saved = _must(
+                    client.post(
+                        "/citations/beyond-library/save",
+                        json={k: v for k, v in beyond_candidates[0].items() if k not in ("in_library", "stance")},
+                    ),
+                    "save beyond-library suggestion",
+                )
+                beyond_library_saved = SavedBeyondLibraryListResponse(items=[saved])
+            else:
+                beyond_library_saved = current.discover.beyond_library_saved
 
     dashboard, citing = _curated_publication_state()
     dashboard.openalex_extra = live_dashboard.openalex_extra
+    dashboard.domains = live_dashboard.domains
 
     if not emerging_topics.topics:
         raise ValueError(
@@ -250,19 +308,35 @@ def capture(output: Path, library_output: Path) -> tuple[DemoExtendedState, Demo
         )
     if not citation_gaps.candidates:
         citation_gaps = current.discover.citation_gaps
-    if dashboard.status != "ok" or dashboard.in_library != 2 or not dashboard.counts_by_year:
-        raise ValueError("public My Publications dashboard did not return the expected two-paper chart snapshot")
+    if dashboard.status != "ok" or dashboard.in_library != expected_in_library or not dashboard.counts_by_year:
+        raise ValueError(
+            f"public My Publications dashboard did not return the expected {expected_in_library}-paper chart snapshot"
+        )
+    if not dashboard.domains:
+        raise ValueError(
+            "the real /my-publications/domains job returned no domains against the now-4-paper curated corpus "
+            "-- refusing to silently fall back to a fabricated placeholder"
+        )
+    if not overlooked.candidates:
+        raise ValueError(
+            "the real /overlooked/refresh job returned no candidates for the curated axis -- refusing to "
+            "silently fall back to an empty placeholder"
+        )
     discover = current.discover.model_copy(
         update={
             "citation_gaps": citation_gaps,
             "emerging_topics": emerging_topics,
             "citing_authors": citing_authors,
+            "overlooked_by_axis": {str(AUTOMATED_AXIS_ID): overlooked},
+            "literature_gaps": literature_gaps,
+            "beyond_library_saved": beyond_library_saved,
         }
     )
     generated_with = dict(current.generated_with)
     generated_with["my_publications_prospection"] = (
-        "fresh dedicated three-paper sandbox; explicit bounded OpenAlex metadata refresh; "
-        "saved one-paper citation-gap fallback retained when the two-paper refresh returned no candidates"
+        "fresh dedicated five-paper sandbox (four confirmed My Publications); explicit bounded OpenAlex "
+        "metadata refresh; real /my-publications/domains decomposition; saved one-paper citation-gap fallback "
+        "retained when the four-paper refresh returned no candidates"
     )
     state = DemoExtendedState.model_validate(
         current.model_copy(update={"discover": discover, "generated_with": generated_with}).model_dump(mode="json")
@@ -273,7 +347,8 @@ def capture(output: Path, library_output: Path) -> tuple[DemoExtendedState, Demo
     )
     library_generated_with = dict(library_current.generated_with)
     library_generated_with["my_publications_dashboard"] = (
-        "fresh dedicated three-paper sandbox; explicit OpenAlex author and works refresh"
+        "fresh dedicated five-paper sandbox (four confirmed My Publications); explicit OpenAlex author and "
+        "works refresh; real /my-publications/domains decomposition"
     )
     library_state = DemoLibraryState.model_validate(
         library_current.model_copy(

@@ -393,17 +393,17 @@
           ? textResponse(fundingCsv(fundingCsvReport), "text/csv; charset=utf-8")
           : jsonResponse({ detail: "Saved funding run not found" }, 404);
       }
-      if (path === "/wanted") return jsonResponse({ items: [] });
-      if (path === "/wanted/coverage") return jsonResponse({
+      if (path === "/wanted") return jsonResponse(snapshot.api.extended.discover.wanted || { items: [] });
+      if (path === "/wanted/coverage") return jsonResponse(snapshot.api.extended.discover.wanted_coverage || {
         library_total: snapshot.api.papers.length, with_pdf: snapshot.api.papers.length,
         acquired_oa: { gold: 0, green: 0, bronze: 0 }, wanted_open: 0
       });
-      if (path === "/gaps") return jsonResponse({ candidates: [], computed_at: null });
+      if (path === "/gaps") return jsonResponse(snapshot.api.extended.discover.literature_gaps || { candidates: [], computed_at: null });
       if (path === "/overlooked") {
         var savedOverlooked = snapshot.api.extended.discover.overlooked_by_axis[String(parts.search.get("axis_id") || "")];
         return jsonResponse(savedOverlooked || { candidates: [], computed_at: null });
       }
-      if (path === "/citations/beyond-library/saved") return jsonResponse({ items: [] });
+      if (path === "/citations/beyond-library/saved") return jsonResponse(snapshot.api.extended.discover.beyond_library_saved || { items: [] });
       if (path === "/workbench/projects") return jsonResponse(snapshot.api.extended.work.workbench_projects);
       var workbenchMatch = path.match(/^\/workbench\/projects\/(\d+)$/);
       if (workbenchMatch) {

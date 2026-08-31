@@ -5,7 +5,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-completed",
-          "id": 44,
+          "id": 46,
           "manuscript_id": 1,
           "metadata_json": {
             "snapshot_id": 7,
@@ -19,7 +19,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-created",
-          "id": 43,
+          "id": 45,
           "manuscript_id": 1,
           "metadata_json": {
             "reason": "tool-run",
@@ -32,7 +32,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-started",
-          "id": 42,
+          "id": 44,
           "manuscript_id": 1,
           "metadata_json": null,
           "related_entity_id": null,
@@ -42,7 +42,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-completed",
-          "id": 41,
+          "id": 43,
           "manuscript_id": 1,
           "metadata_json": {
             "snapshot_id": 6,
@@ -56,7 +56,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-created",
-          "id": 40,
+          "id": 42,
           "manuscript_id": 1,
           "metadata_json": {
             "reason": "tool-run",
@@ -69,7 +69,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-started",
-          "id": 39,
+          "id": 41,
           "manuscript_id": 1,
           "metadata_json": null,
           "related_entity_id": null,
@@ -79,7 +79,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-completed",
-          "id": 38,
+          "id": 40,
           "manuscript_id": 1,
           "metadata_json": {
             "snapshot_id": 5,
@@ -93,7 +93,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-created",
-          "id": 37,
+          "id": 39,
           "manuscript_id": 1,
           "metadata_json": {
             "reason": "tool-run",
@@ -106,7 +106,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-started",
-          "id": 36,
+          "id": 38,
           "manuscript_id": 1,
           "metadata_json": null,
           "related_entity_id": null,
@@ -116,7 +116,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-completed",
-          "id": 35,
+          "id": 37,
           "manuscript_id": 1,
           "metadata_json": {
             "snapshot_id": 4,
@@ -130,7 +130,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-created",
-          "id": 34,
+          "id": 36,
           "manuscript_id": 1,
           "metadata_json": {
             "reason": "tool-run",
@@ -143,7 +143,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-started",
-          "id": 33,
+          "id": 35,
           "manuscript_id": 1,
           "metadata_json": null,
           "related_entity_id": null,
@@ -153,7 +153,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-completed",
-          "id": 32,
+          "id": 34,
           "manuscript_id": 1,
           "metadata_json": {
             "snapshot_id": 3,
@@ -167,7 +167,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-created",
-          "id": 31,
+          "id": 33,
           "manuscript_id": 1,
           "metadata_json": {
             "reason": "tool-run",
@@ -180,7 +180,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-started",
-          "id": 30,
+          "id": 32,
           "manuscript_id": 1,
           "metadata_json": null,
           "related_entity_id": null,
@@ -190,7 +190,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-created",
-          "id": 29,
+          "id": 31,
           "manuscript_id": 1,
           "metadata_json": {
             "reason": "manual",
@@ -199,6 +199,26 @@
           "related_entity_id": "2",
           "related_entity_type": "snapshot",
           "summary": "Created manual checkpoint for integrated-review.md"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "reference-linked",
+          "id": 30,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Linked Library paper 90"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "reference-linked",
+          "id": 29,
+          "manuscript_id": 1,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Linked Library paper 89"
         },
         {
           "created_at": "2026-08-11T12:00:00",
@@ -1488,13 +1508,35 @@
       },
       "reference_integrity": {
         "active_count": 0,
-        "checked_count": 3,
+        "checked_count": 5,
         "items": [],
         "last_checked_at": "2026-08-11T12:00:00",
         "manuscript_id": 1,
         "provider_statuses": []
       },
       "references": [
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "id": 4,
+          "manuscript_id": 1,
+          "notes": "Linked from the curated three-paper public demo library.",
+          "paper_id": 89,
+          "paper_title": "Changing the narrative: stories reduce biases against anomalous faces",
+          "paper_year": 2026,
+          "relationship_state": "cited",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "id": 5,
+          "manuscript_id": 1,
+          "notes": "Linked from the curated three-paper public demo library.",
+          "paper_id": 90,
+          "paper_title": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
+          "paper_year": 2022,
+          "relationship_state": "cited",
+          "updated_at": "2026-08-11T12:00:00"
+        },
         {
           "created_at": "2026-08-11T12:00:00",
           "id": 2,
@@ -1910,7 +1952,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-completed",
-          "id": 84,
+          "id": 88,
           "manuscript_id": 2,
           "metadata_json": {
             "snapshot_id": 14,
@@ -1924,7 +1966,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-created",
-          "id": 83,
+          "id": 87,
           "manuscript_id": 2,
           "metadata_json": {
             "reason": "tool-run",
@@ -1937,7 +1979,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-started",
-          "id": 82,
+          "id": 86,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": null,
@@ -1947,7 +1989,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-completed",
-          "id": 81,
+          "id": 85,
           "manuscript_id": 2,
           "metadata_json": {
             "snapshot_id": 13,
@@ -1961,7 +2003,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-created",
-          "id": 80,
+          "id": 84,
           "manuscript_id": 2,
           "metadata_json": {
             "reason": "tool-run",
@@ -1974,7 +2016,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-started",
-          "id": 79,
+          "id": 83,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": null,
@@ -1984,7 +2026,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-completed",
-          "id": 78,
+          "id": 82,
           "manuscript_id": 2,
           "metadata_json": {
             "snapshot_id": 12,
@@ -1998,7 +2040,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-created",
-          "id": 77,
+          "id": 81,
           "manuscript_id": 2,
           "metadata_json": {
             "reason": "tool-run",
@@ -2011,7 +2053,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-started",
-          "id": 76,
+          "id": 80,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": null,
@@ -2021,7 +2063,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-completed",
-          "id": 75,
+          "id": 79,
           "manuscript_id": 2,
           "metadata_json": {
             "snapshot_id": 11,
@@ -2035,7 +2077,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-created",
-          "id": 74,
+          "id": 78,
           "manuscript_id": 2,
           "metadata_json": {
             "reason": "tool-run",
@@ -2048,7 +2090,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-started",
-          "id": 73,
+          "id": 77,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": null,
@@ -2058,7 +2100,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-completed",
-          "id": 72,
+          "id": 76,
           "manuscript_id": 2,
           "metadata_json": {
             "snapshot_id": 10,
@@ -2072,7 +2114,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-created",
-          "id": 71,
+          "id": 75,
           "manuscript_id": 2,
           "metadata_json": {
             "reason": "tool-run",
@@ -2085,7 +2127,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "tool-run-started",
-          "id": 70,
+          "id": 74,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": null,
@@ -2095,7 +2137,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-created",
-          "id": 69,
+          "id": 73,
           "manuscript_id": 2,
           "metadata_json": {
             "reason": "manual",
@@ -2108,7 +2150,27 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "reference-linked",
-          "id": 68,
+          "id": 72,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Linked Library paper 90"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "reference-linked",
+          "id": 71,
+          "manuscript_id": 2,
+          "metadata_json": null,
+          "related_entity_id": null,
+          "related_entity_type": null,
+          "summary": "Linked Library paper 89"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "event_type": "reference-linked",
+          "id": 70,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": null,
@@ -2118,7 +2180,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "reference-linked",
-          "id": 67,
+          "id": 69,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": null,
@@ -2128,7 +2190,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "reference-linked",
-          "id": 66,
+          "id": 68,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": null,
@@ -2138,7 +2200,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "task-created",
-          "id": 65,
+          "id": 67,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "6",
@@ -2148,7 +2210,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "task-created",
-          "id": 64,
+          "id": 66,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "5",
@@ -2158,7 +2220,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "task-created",
-          "id": 63,
+          "id": 65,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "4",
@@ -2168,7 +2230,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "section-status-changed",
-          "id": 62,
+          "id": 64,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "26",
@@ -2178,7 +2240,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "section-status-changed",
-          "id": 61,
+          "id": 63,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "25",
@@ -2188,7 +2250,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "section-status-changed",
-          "id": 60,
+          "id": 62,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "24",
@@ -2198,7 +2260,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "section-status-changed",
-          "id": 59,
+          "id": 61,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "23",
@@ -2208,7 +2270,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "section-status-changed",
-          "id": 58,
+          "id": 60,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "22",
@@ -2218,7 +2280,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "section-status-changed",
-          "id": 57,
+          "id": 59,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "21",
@@ -2228,7 +2290,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "section-status-changed",
-          "id": 56,
+          "id": 58,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "20",
@@ -2238,7 +2300,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "section-status-changed",
-          "id": 55,
+          "id": 57,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "19",
@@ -2248,7 +2310,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "section-status-changed",
-          "id": 54,
+          "id": 56,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "18",
@@ -2258,7 +2320,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "section-status-changed",
-          "id": 53,
+          "id": 55,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "17",
@@ -2268,7 +2330,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "section-status-changed",
-          "id": 52,
+          "id": 54,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "16",
@@ -2278,7 +2340,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "section-status-changed",
-          "id": 51,
+          "id": 53,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "15",
@@ -2288,7 +2350,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "section-status-changed",
-          "id": 50,
+          "id": 52,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "14",
@@ -2298,7 +2360,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-created",
-          "id": 49,
+          "id": 51,
           "manuscript_id": 2,
           "metadata_json": {
             "reason": "primary-file-replacement",
@@ -2311,7 +2373,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "primary-file-changed",
-          "id": 48,
+          "id": 50,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": "2",
@@ -2321,7 +2383,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "checkpoint-skipped",
-          "id": 47,
+          "id": 49,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": null,
@@ -2331,7 +2393,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "manuscript-renamed",
-          "id": 46,
+          "id": 48,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": null,
@@ -2341,7 +2403,7 @@
         {
           "created_at": "2026-08-11T12:00:00",
           "event_type": "stage-changed",
-          "id": 45,
+          "id": 47,
           "manuscript_id": 2,
           "metadata_json": null,
           "related_entity_id": null,
@@ -2986,7 +3048,7 @@
       },
       "reference_integrity": {
         "active_count": 0,
-        "checked_count": 3,
+        "checked_count": 5,
         "items": [],
         "last_checked_at": "2026-08-11T12:00:00",
         "manuscript_id": 2,
@@ -2995,7 +3057,29 @@
       "references": [
         {
           "created_at": "2026-08-11T12:00:00",
-          "id": 5,
+          "id": 9,
+          "manuscript_id": 2,
+          "notes": "Linked from the curated three-paper public demo library.",
+          "paper_id": 89,
+          "paper_title": "Changing the narrative: stories reduce biases against anomalous faces",
+          "paper_year": 2026,
+          "relationship_state": "cited",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "id": 10,
+          "manuscript_id": 2,
+          "notes": "Linked from the curated three-paper public demo library.",
+          "paper_id": 90,
+          "paper_title": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
+          "paper_year": 2022,
+          "relationship_state": "cited",
+          "updated_at": "2026-08-11T12:00:00"
+        },
+        {
+          "created_at": "2026-08-11T12:00:00",
+          "id": 7,
           "manuscript_id": 2,
           "notes": "Linked from the curated three-paper public demo library.",
           "paper_id": 67,
@@ -3006,7 +3090,7 @@
         },
         {
           "created_at": "2026-08-11T12:00:00",
-          "id": 6,
+          "id": 8,
           "manuscript_id": 2,
           "notes": "Linked from the curated three-paper public demo library.",
           "paper_id": 88,
@@ -3017,7 +3101,7 @@
         },
         {
           "created_at": "2026-08-11T12:00:00",
-          "id": 4,
+          "id": 6,
           "manuscript_id": 2,
           "notes": "Linked from the curated three-paper public demo library.",
           "paper_id": 42,

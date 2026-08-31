@@ -1,4 +1,4 @@
-"""Capture authentic saved results from a fresh three-paper public demo sandbox.
+"""Capture authentic saved results from a fresh five-paper public demo sandbox.
 
 This is an explicit curation command, not part of an ordinary build.  It creates a new
 temporary database, runs the real Callosum endpoints, whitelists their public responses,
@@ -36,6 +36,7 @@ from app.backend.api.routers.my_publication_gaps import CitationGapListResponse
 from app.backend.api.routers.my_publication_topics import EmergingTopicListResponse
 from app.backend.api.routers.reference_integrity import ReferenceReportModel
 from app.backend.api.routers.saved_searches import SavedSearch, SavedSearchParams
+from app.backend.api.routers.wanted import CoverageResponse, WantedListResponse
 from app.backend.demo_extended_state import (
     DEMO_EXTENDED_STATE_SCHEMA_VERSION,
     DemoDiscoverState,
@@ -165,6 +166,12 @@ def _annotations(snapshot: dict[str, Any]) -> dict[str, list[AnnotationResponse]
             found.setdefault(int(citation["paper_id"]), citation)
     output: dict[str, list[AnnotationResponse]] = {}
     for paper_id in sorted(CORPUS):
+        if CORPUS[paper_id].get("bundled_material", "complete-pdf") != "complete-pdf":
+            # metadata-and-evidence-only (no bundled PDF, e.g. a CC BY-NC-ND source) -- there is no PDF to
+            # highlight, so it has zero saved annotations. Still a known key (an honest empty list), not an
+            # omitted one -- the snapshot's own validator requires annotations to cover every curated paper.
+            output[str(paper_id)] = []
+            continue
         citation = found.get(paper_id)
         if citation is None and paper_id == 42:
             detail = next(iter(snapshot["api"]["synthesis"]["registration_comparison_details"].values()))
@@ -183,6 +190,16 @@ def _annotations(snapshot: dict[str, Any]) -> dict[str, list[AnnotationResponse]
                 "page_start": 1,
                 "bbox_json": None,
                 "quote": paper["detail"]["abstract"],
+            }
+        if citation is None and paper_id == 90:
+            # Read straight from CORPUS (not the snapshot, unlike paper 88's fallback above) -- this paper's
+            # abstract is already stored directly in curated_library.py, and paper 90 didn't exist in the
+            # previously-committed snapshot yet when this capture step first runs after a corpus growth.
+            citation = {
+                "attachment_id": paper_id,
+                "page_start": 1,
+                "bbox_json": None,
+                "quote": CORPUS[paper_id]["abstract"],
             }
         if citation is None:
             raise ValueError(f"no public evidence anchor is available for demo paper {paper_id}")
@@ -255,8 +272,10 @@ def capture(output: Path) -> DemoExtendedState:
 
             # Resolve and refresh a public author identity through the real endpoints. The resulting reviewed
             # records become immutable only when this curation command's output is committed.
+            # POST /followed-authors resolves inline (no separate refresh job exists post-inc-455 Feed
+            # consolidation) -- the follow call below already fetches the author's works, confirmed via
+            # capture failing with a 405 on the now-removed /followed-authors/refresh before this fix.
             _must(client.post("/followed-authors", json={"orcid": "0000-0002-2206-0325"}), "follow author")
-            _start_job(client, "/followed-authors/refresh", {}, "/followed-authors/refresh")
             print("capture: public followed-author identity resolved", flush=True)
 
             # Configure the same public identity in the sandbox and let the real OpenAlex workflow establish
@@ -337,7 +356,7 @@ def capture(output: Path) -> DemoExtendedState:
                     client.post(
                         f"/papers/{paper_id}/grim-checks",
                         json={
-                            "mean": ["3.45", "2.61", "4.12"][index],
+                            "mean": ["3.45", "2.61", "4.12", "3.10", "2.85"][index],
                             "sd": "1.20",
                             "n": 20 + index,
                             "items": 1,
@@ -416,14 +435,56 @@ def capture(output: Path) -> DemoExtendedState:
                 "ai_use": "Saved AI-assisted outputs are identified with their provenance and remain subject to human review.",
             }
 
+            # cap-wanted (2026-08-30 demo-coverage fixwave): pure local read/write, no egress -- was previously
+            # hardcoded to {items: []} directly in demo-runtime.js, never a real saved example. Seed against a
+            # curated paper (a real wanted-for-OA entry) plus one external DOI-only entry.
+            _must(
+                client.post("/wanted", json={"paper_id": 88, "note": "Check for an OA copy of the published PDF"}),
+                "add wanted item",
+            )
+            _must(
+                client.post(
+                    "/wanted",
+                    json={
+                        "doi": "10.1016/j.paid.2011.08.002",
+                        "title": "A related work not yet in this demo library",
+                        "note": "Seen cited by several papers on this axis",
+                    },
+                ),
+                "add external wanted item",
+            )
+            wanted_items = WantedListResponse.model_validate(_must(client.get("/wanted"), "wanted list"))
+            wanted_coverage = CoverageResponse.model_validate(_must(client.get("/wanted/coverage"), "wanted coverage"))
+            # _seed_papers only inserts `papers` rows (no attachments), so this sandbox's own with_pdf/
+            # without_pdf/library_total would read 0/5/5 regardless of the real curated corpus's actual PDF
+            # coverage. wanted_open/wanted_fulfilled/acquired_oa (driven by the wanted items just added, not
+            # attachment presence) stay from the live sandbox computation; only the corpus-shape fields are
+            # corrected to the real curated library (4 of 5 papers have a bundled PDF; see curated_library.py).
+            with_pdf = sum(
+                1 for item in CORPUS.values() if item.get("bundled_material", "complete-pdf") == "complete-pdf"
+            )
+            wanted_coverage = wanted_coverage.model_copy(
+                update={
+                    "library_total": len(CORPUS),
+                    "with_pdf": with_pdf,
+                    "without_pdf": len(CORPUS) - with_pdf,
+                }
+            )
+            print("capture: wanted list seeded", flush=True)
+
             run_summaries = [DemoFundingRunSummary.model_validate(item) for item in funding_runs_raw]
             state = DemoExtendedState(
                 schema_version=DEMO_EXTENDED_STATE_SCHEMA_VERSION,
                 generated_with={
-                    "source": "fresh dedicated three-paper public-demo database",
+                    "source": "fresh dedicated five-paper public-demo database",
                     "workflow": "real Callosum API jobs and deterministic local tools",
                     "captured_on": CURATED_ON,
                 },
+                # A bare placeholder by design -- tools/demo/export_feed_review.py is a separate, explicitly
+                # human-gated step (see its own docstring: "Nothing enters the public demo until a human
+                # supplies the exact SHA-256... to --approve-digest") that patches the committed
+                # demo/extended-state-v1.json's `feed` field directly, independent of this script's own run.
+                # Re-run it (or restore its prior output) after this script if a real Feed snapshot is needed.
                 feed=DemoFeedState(),
                 discover=DemoDiscoverState(
                     search=DemoSearchSnapshot(
@@ -442,6 +503,8 @@ def capture(output: Path) -> DemoExtendedState:
                     emerging_topics=EmergingTopicListResponse.model_validate(emerging_topics),
                     citing_authors=CitingAuthorListResponse.model_validate(citing_authors),
                     overlooked_by_axis={},
+                    wanted=wanted_items,
+                    wanted_coverage=wanted_coverage,
                 ),
                 work=DemoWorkState(
                     cite_claim=CITE_CLAIM,

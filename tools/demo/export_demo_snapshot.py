@@ -135,6 +135,7 @@ def _paper(
     library_state: DemoLibraryState,
 ) -> DemoPaper:
     curated = CORPUS[paper_id]
+    has_pdf = curated.get("bundled_material", "complete-pdf") == "complete-pdf"
     row = con.execute(
         """SELECT id, abstract, item_type, language, publication_date, first_author_family_name,
                   citation_key, csl_json, processing_tier
@@ -143,30 +144,37 @@ def _paper(
     ).fetchone()
     if row is None:
         raise ValueError(f"curated paper {paper_id} is missing")
-    attachment = con.execute(
-        """SELECT id, resolved_path, checksum, file_size, content_type, attachment_type, role
-           FROM attachments WHERE paper_id = ? AND availability = 'available'
-           ORDER BY CASE WHEN role = 'primary' THEN 0 ELSE 1 END, id LIMIT 1""",
-        (paper_id,),
-    ).fetchone()
-    if attachment is None:
-        raise ValueError(f"curated paper {paper_id} has no available document")
-    source = Path(str(attachment["resolved_path"] or ""))
-    if not source.is_file():
-        raise ValueError(f"curated paper {paper_id} document is unavailable")
-    actual_hash = _sha256(source)
-    if actual_hash != str(attachment["checksum"]):
-        raise ValueError(f"curated paper {paper_id} checksum does not match its source record")
-    if str(attachment["content_type"]) != "application/pdf":
-        raise ValueError(f"curated paper {paper_id} asset is not a PDF")
-    if source.read_bytes()[:5] != b"%PDF-":
-        raise ValueError(f"curated paper {paper_id} asset does not have a PDF signature")
-    asset_dir.mkdir(parents=True, exist_ok=True)
-    destination = asset_dir / curated["filename"]
-    if source.resolve() != destination.resolve():
-        shutil.copyfile(source, destination)
-    if _sha256(destination) != actual_hash:
-        raise ValueError(f"copied asset checksum failed for paper {paper_id}")
+    attachment = None
+    actual_hash = None
+    if has_pdf:
+        attachment = con.execute(
+            """SELECT id, resolved_path, checksum, file_size, content_type, attachment_type, role
+               FROM attachments WHERE paper_id = ? AND availability = 'available'
+               ORDER BY CASE WHEN role = 'primary' THEN 0 ELSE 1 END, id LIMIT 1""",
+            (paper_id,),
+        ).fetchone()
+        if attachment is None:
+            raise ValueError(f"curated paper {paper_id} has no available document")
+        source = Path(str(attachment["resolved_path"] or ""))
+        if not source.is_file():
+            raise ValueError(f"curated paper {paper_id} document is unavailable")
+        actual_hash = _sha256(source)
+        if actual_hash != str(attachment["checksum"]):
+            raise ValueError(f"curated paper {paper_id} checksum does not match its source record")
+        if str(attachment["content_type"]) != "application/pdf":
+            raise ValueError(f"curated paper {paper_id} asset is not a PDF")
+        if source.read_bytes()[:5] != b"%PDF-":
+            raise ValueError(f"curated paper {paper_id} asset does not have a PDF signature")
+        asset_dir.mkdir(parents=True, exist_ok=True)
+        destination = asset_dir / curated["filename"]
+        if source.resolve() != destination.resolve():
+            shutil.copyfile(source, destination)
+        if _sha256(destination) != actual_hash:
+            raise ValueError(f"copied asset checksum failed for paper {paper_id}")
+    elif con.execute(
+        "SELECT 1 FROM attachments WHERE paper_id = ? AND availability = 'available' LIMIT 1", (paper_id,)
+    ).fetchone():
+        raise ValueError(f"curated paper {paper_id} is metadata-and-evidence-only but has a bundled attachment")
 
     csl = _json(row["csl_json"], {})
     csl.update(
@@ -187,6 +195,8 @@ def _paper(
         }
     )
     chunk_count = int(con.execute("SELECT count(*) FROM chunks WHERE paper_id = ?", (paper_id,)).fetchone()[0])
+    attachment_count = 1 if has_pdf else 0
+    priority = next(item.priority for item in library_state.reading_queue if item.id == paper_id)
     list_item = PaperListItem(
         id=paper_id,
         title=curated["title"],
@@ -195,25 +205,29 @@ def _paper(
         venue=curated["venue"],
         citation_key=row["citation_key"],
         processing_tier="fully-chunked" if chunk_count > 0 else row["processing_tier"],
-        attachment_count=1,
+        attachment_count=attachment_count,
         chunk_count=chunk_count,
-        priority=next(item.priority for item in library_state.reading_queue if item.id == paper_id),
+        priority=priority,
     )
-    public_attachment = AttachmentResponse(
-        id=int(attachment["id"]),
-        filename=curated["filename"],
-        storage_mode="bundled-demo",
-        availability="available",
-        checksum=actual_hash,
-        file_size=int(attachment["file_size"]),
-        content_type="application/pdf",
-        import_source="curated-public-demo",
-        attachment_type="pdf",
-        role="primary",
-        oa_license=curated["license_name"],
-        oa_landing_page_url=curated["canonical_url"],
-    )
-    abstract = curated_abstract(con, paper_id) or row["abstract"]
+    public_attachments = []
+    if has_pdf:
+        public_attachments = [
+            AttachmentResponse(
+                id=int(attachment["id"]),
+                filename=curated["filename"],
+                storage_mode="bundled-demo",
+                availability="available",
+                checksum=actual_hash,
+                file_size=int(attachment["file_size"]),
+                content_type="application/pdf",
+                import_source="curated-public-demo",
+                attachment_type="pdf",
+                role="primary",
+                oa_license=curated["license_name"],
+                oa_landing_page_url=curated["canonical_url"],
+            )
+        ]
+    abstract = curated_abstract(con, paper_id) or row["abstract"] or curated.get("abstract")
     detail = PaperDetailResponse(
         id=paper_id,
         title=curated["title"],
@@ -235,11 +249,11 @@ def _paper(
         extra_urls=list(
             dict.fromkeys([curated.get("article_url", curated["canonical_url"]), curated["canonical_url"]])
         ),
-        attachment_count=1,
+        attachment_count=attachment_count,
         chunk_count=chunk_count,
-        attachments=[public_attachment],
+        attachments=public_attachments,
         tags=library_state.paper_tags[str(paper_id)],
-        priority=next(item.priority for item in library_state.reading_queue if item.id == paper_id),
+        priority=priority,
     )
     license_record = DemoLicense(
         work_title=curated["title"],
@@ -252,19 +266,24 @@ def _paper(
         attribution=f"{curated['title']} ({curated['year']}), {', '.join(curated['authors'])}. DOI: {curated['doi']}.",
         verified_via=curated["verified_via"],
         verified_on=CURATED_ON,
-        bundled_material="complete-pdf",
+        bundled_material="complete-pdf" if has_pdf else "metadata-and-evidence-only",
         notice=curated["notice"],
     )
-    return DemoPaper(
-        list_item=list_item,
-        detail=detail,
-        document=DemoDocument(
+    document = (
+        DemoDocument(
             paper_id=paper_id,
             asset_path=f"documents/{curated['filename']}",
             media_type="application/pdf",
             sha256=actual_hash,
             license=license_record,
-        ),
+        )
+        if has_pdf
+        else DemoDocument(paper_id=paper_id, license=license_record)
+    )
+    return DemoPaper(
+        list_item=list_item,
+        detail=detail,
+        document=document,
         methods=methods,
     )
 
@@ -579,7 +598,13 @@ def export_snapshot(
             axis_clusters=library_state.axis_clusters,
             tags=library_state.tags,
             tag_colors=library_state.tag_colors,
-            suggested_tags=library_state.suggested_tags,
+            # Scoped to the exported (browsable) papers only -- a metadata-and-evidence-only paper (no PDF)
+            # never appears as a Library card, so it carries no suggested-tags entry either.
+            suggested_tags={
+                key: value
+                for key, value in library_state.suggested_tags.items()
+                if int(key) in {paper.list_item.id for paper in papers}
+            },
             reading_queue=library_state.reading_queue,
             my_publications_profile=library_state.my_publications_profile,
             my_publications_dashboard=library_state.my_publications_dashboard,

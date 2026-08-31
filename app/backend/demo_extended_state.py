@@ -10,19 +10,26 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 from app.backend.api.routers.annotations import AnnotationResponse
+from app.backend.api.routers.beyond_library_saved import SavedBeyondLibraryListResponse
 from app.backend.api.routers.citation_context import CitationContextReportModel
 from app.backend.api.routers.citation_equity import EquityReportModel, OverlookedReportModel
 from app.backend.api.routers.citation_suggest import SuggestResponse
 from app.backend.api.routers.followed_authors import FollowedAuthorOut
+from app.backend.api.routers.gaps import GapsListResponse
 from app.backend.api.routers.my_publication_citing_authors import CitingAuthorListResponse
 from app.backend.api.routers.my_publication_gaps import CitationGapListResponse
 from app.backend.api.routers.my_publication_topics import EmergingTopicListResponse
+from app.backend.api.routers.overlooked import OverlookedListResponse
 from app.backend.api.routers.publishers import PublishersReportModel
 from app.backend.api.routers.reference_integrity import ReferenceOverviewItem, ReferenceReportModel
 from app.backend.api.routers.saved_searches import SavedSearch
+from app.backend.api.routers.wanted import CoverageResponse, WantedListResponse
 from app.backend.api.routers.workbench import ProjectSummary
 
-DEMO_EXTENDED_STATE_SCHEMA_VERSION = 2  # v2 (2026-08-27): dropped followed_author_candidates -- the Followed
+DEMO_EXTENDED_STATE_SCHEMA_VERSION = 3  # v3 (2026-08-30): added real wanted/wanted_coverage/literature_gaps/
+# beyond_library_saved (demo-coverage fixwave closing cap-wanted/cap-literature-gaps/cap-beyond-library --
+# these were previously hardcoded to empty placeholders directly in demo-runtime.js).
+# v2 (2026-08-27): dropped followed_author_candidates -- the Followed
 # Authors tab's own gap-candidate view was retired when it consolidated into Discover -> Feed.
 
 
@@ -131,7 +138,11 @@ class DemoDiscoverState(_StrictModel):
     citation_gaps: CitationGapListResponse
     emerging_topics: EmergingTopicListResponse
     citing_authors: CitingAuthorListResponse
-    overlooked_by_axis: dict[str, OverlookedReportModel] = Field(default_factory=dict)
+    overlooked_by_axis: dict[str, OverlookedListResponse] = Field(default_factory=dict)
+    wanted: WantedListResponse = Field(default_factory=lambda: WantedListResponse(items=[]))
+    wanted_coverage: CoverageResponse | None = None
+    literature_gaps: GapsListResponse = Field(default_factory=GapsListResponse)
+    beyond_library_saved: SavedBeyondLibraryListResponse = Field(default_factory=SavedBeyondLibraryListResponse)
 
 
 class DemoWorkbenchProject(_StrictModel):
@@ -184,7 +195,7 @@ class DemoExtendedState(_StrictModel):
     def validate_contract(self) -> "DemoExtendedState":
         if self.schema_version != DEMO_EXTENDED_STATE_SCHEMA_VERSION:
             raise ValueError("unsupported extended demo state; regenerate it")
-        paper_ids = {42, 67, 88}
+        paper_ids = {42, 67, 88, 89, 90}
         for mapping in (
             self.work.reference_integrity,
             self.work.citation_equity,

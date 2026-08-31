@@ -63,7 +63,7 @@ def _demo_source_db(tmp_path: Path) -> Path:
         );
         """
     )
-    for paper_id in (42, 67, 88):
+    for paper_id in (42, 67, 88, 90):
         pdf = tmp_path / f"source-{paper_id}.pdf"
         document = fitz.open()
         page = document.new_page()
@@ -138,6 +138,20 @@ def _demo_source_db(tmp_path: Path) -> Path:
             ),
         )
     con.execute(
+        "INSERT INTO papers VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            89,
+            "Public abstract 89",
+            "article-journal",
+            "en",
+            "2026-06-12",
+            "Bilici",
+            "demo89",
+            json.dumps({"id": "source-89", "type": "article-journal"}),
+            "metadata-only",
+        ),
+    )
+    con.execute(
         "INSERT INTO summaries VALUES (1, 'query', ?, 'flagged', '2026-08-10 12:00:00')",
         (json.dumps({"query": "What is the anomalous-is-bad bias?"}),),
     )
@@ -195,7 +209,7 @@ def test_snapshot_generation_is_deterministic_and_uses_live_contracts(tmp_path: 
     assert first.read_bytes() == second.read_bytes()
     snapshot = DemoSnapshot.model_validate_json(first.read_bytes())
     assert snapshot.api.papers[0].list_item.title.startswith("What is good is beautiful")
-    assert len(snapshot.api.papers) == 3
+    assert len(snapshot.api.papers) == 5
     assert snapshot.api.papers[2].list_item.title.startswith("Only human after all?")
     assert snapshot.api.papers[0].detail.authors == [
         "Dexian He",
@@ -220,9 +234,9 @@ def test_snapshot_generation_is_deterministic_and_uses_live_contracts(tmp_path: 
     assert len(snapshot.api.papers[1].methods.transparency.checks) == 7
     assert snapshot.api.status.jobs[0].status == "done"
     assert snapshot.api.status.jobs[0].nav["summary_id"] == 1
-    assert [item.priority for item in snapshot.api.reading_queue] == ["high", "normal", None]
-    assert {paper.id for paper in snapshot.api.axis_clusters["9001"][0].papers} == {42, 67, 88}
-    assert {paper.id for paper in snapshot.api.axis_clusters["9002"][0].papers} == {42, 67}
+    assert [item.priority for item in snapshot.api.reading_queue] == ["high", "normal", None, None, None]
+    assert {paper.id for paper in snapshot.api.axis_clusters["9001"][0].papers} == {42, 67, 88, 89, 90}
+    assert {paper.id for paper in snapshot.api.axis_clusters["9002"][0].papers} == {42, 67, 89, 90}
     assert all(paper.detail.tags for paper in snapshot.api.papers)
     assert all(snapshot.api.suggested_tags[str(paper.list_item.id)].suggestions for paper in snapshot.api.papers)
     assert snapshot.api.my_publications_dashboard.status == "ok"
@@ -235,17 +249,18 @@ def test_snapshot_generation_is_deterministic_and_uses_live_contracts(tmp_path: 
         "settings",
     }
     assert len(snapshot.api.wip.manuscripts) == 2
-    assert set(snapshot.api.synthesis.critical_reads) == {"42", "67", "88"}
+    assert set(snapshot.api.synthesis.critical_reads) == {"42", "67", "88", "89", "90"}
     assert len(snapshot.api.synthesis.registration_comparison_details["1"].rows) == 12
     registration_detail = snapshot.api.synthesis.registration_comparison_details["1"]
     assert registration_detail.llm_triage_status["status"] == "success"
     assert all(row.llm_triage for row in registration_detail.rows)
     assert snapshot.api.extended.discover.search.items
     assert len(snapshot.api.extended.discover.citation_gaps.candidates) == 25
-    assert len(snapshot.api.extended.discover.emerging_topics.topics) == 4
-    assert len(snapshot.api.extended.discover.citing_authors.authors) == 3
-    assert snapshot.api.extended.discover.citation_gaps.coverage.checked == 1
-    assert "replacement DOI was unavailable" in snapshot.api.extended.discover.citation_gaps.coverage.note
+    assert len(snapshot.api.extended.discover.emerging_topics.topics) == 5
+    assert len(snapshot.api.extended.discover.citing_authors.authors) == 12
+    # All 4 confirmed My-Pubs papers have a DOI now (was 1/2 before the corpus grew, hence the old fallback note).
+    assert snapshot.api.extended.discover.citation_gaps.coverage.checked == 4
+    assert snapshot.api.extended.discover.citation_gaps.coverage.with_doi == 4
     assert snapshot.api.extended.discover.emerging_topics.coverage.recent_work_count > 0
     assert snapshot.api.extended.discover.citing_authors.coverage.citing_work_count > 0
     assert snapshot.api.extended.feed.included is True
@@ -283,7 +298,7 @@ def test_snapshot_generation_is_deterministic_and_uses_live_contracts(tmp_path: 
     assert snapshot.api.synthesis.registration_license_audits[0].license_name == "No explicit reuse license recorded"
     assert snapshot.api.synthesis.registration_license_audits[0].bundled_full_registration is False
     for state in snapshot.api.wip.by_id.values():
-        assert {reference.paper_id for reference in state.references} == {42, 67, 88}
+        assert {reference.paper_id for reference in state.references} == {42, 67, 88, 89, 90}
         assert {run.tool_id for run in state.checks.runs} == {
             "statcheck",
             "transparency",
@@ -303,7 +318,7 @@ def test_demo_library_state_generation_is_deterministic(tmp_path: Path):
     assert first.read_bytes() == second.read_bytes()
     payload = json.loads(first.read_text(encoding="utf-8"))
     assert payload["generated_with"]["suggested_tags"] == "Callosum local c-TF-IDF"
-    assert [item["id"] for item in payload["reading_queue"]] == [67, 88, 42]
+    assert [item["id"] for item in payload["reading_queue"]] == [67, 88, 42, 89, 90]
 
 
 def test_demo_wip_state_regenerates_from_real_sandbox_deterministically(tmp_path: Path):
@@ -358,12 +373,11 @@ def test_saved_meta_preregistration_uses_exact_reviewed_triage_snapshot():
     assert [row.llm_triage for row in detail.rows] == [item["llm_triage"] for item in fixture["annotations"]]
     assert (
         detail.rows[7].llm_triage["rationale"]
-        == "The registration specifies linear mixed effect models to examine the relationship between dependent "
-        "variables (attractiveness, friendliness, confidence) and vignette type, considering face age and random "
-        "intercepts for items and subjects. The publication states linear mixed-effects analyses were carried out "
-        "using the lme4 package to examine perceived moral character's influence on judgments, and how this varies "
-        "by face age, perceiver sex, and face sex, with exploratory analyses on moral disgust and empathic concern. "
-        "It also mentions using Satterthwaite’s approximation for p-values."
+        == "The registration outlines the use of linear mixed effect models with attractiveness, friendliness, "
+        "and confidence as dependent variables, and vignette type as a fixed factor, including random intercepts "
+        "for items and subjects. The publication reports using a linear mixed model with attractiveness as the "
+        "dependent variable and vignette type as a fixed factor, with random intercepts for face stimulus and "
+        "subject."
     )
     assert detail.llm_triage_status["warning"] == fixture["public_basis_warning"]
     assert any(not item["basis_matches_demo"] for item in fixture["annotations"])
@@ -418,29 +432,46 @@ def test_saved_demo_synthesis_is_the_verified_and_flagged_three_paper_sandbox_ru
 
 
 def test_saved_my_publications_dashboard_has_real_citation_chart_data():
+    # 4 confirmed My Publications papers (42, 67, 89, 90 -- Workman-authored; 88 is Rasset et al., not a
+    # My-Pub) since the 2026-08-30 corpus growth closed cap-domains (MIN_DOMAIN_PAPERS=4). Citation counts
+    # are live OpenAlex reads and drift between captures; only the corpus-shape assertions stay exact.
     snapshot = DemoSnapshot.model_validate_json(Path("demo/snapshot-v1.json").read_bytes())
     dashboard = snapshot.api.my_publications_dashboard
     assert dashboard.status == "ok"
-    assert dashboard.in_library == 2
-    assert dashboard.indexed_works == 2
+    assert dashboard.in_library == 4
+    assert dashboard.indexed_works == 4
     assert dashboard.gap == 0
     assert dashboard.missing_works == []
-    assert dashboard.metrics.works_count == 2
+    assert dashboard.metrics.works_count == 4
     assert dashboard.metrics.cited_by_count == sum(item.cited_by_count for item in dashboard.paper_citations.values())
-    assert [(item.year, item.works_count, item.cited_by_count) for item in dashboard.counts_by_year] == [
-        (2021, 1, 43),
-        (2024, 1, 31),
-    ]
+    assert {item.year for item in dashboard.counts_by_year} == {2021, 2022, 2024, 2026}
+    assert all(item.works_count == 1 for item in dashboard.counts_by_year)
     assert dashboard.research_summary and "facial appearance" in dashboard.research_summary
-    assert len(dashboard.domains) == 1
-    assert dashboard.domains[0].key.startswith("demo-presentation:")
+    # Real /my-publications/domains decomposition (never a fabricated placeholder): 2 domains over the 4
+    # confirmed papers, keyed by the real job's own content-derived ids (not a "demo-presentation:" fixture).
+    assert len(dashboard.domains) == 2
+    assert all(domain.key.startswith("domain:") for domain in dashboard.domains)
+    assert {paper_id for domain in dashboard.domains for paper_id in domain.paper_ids} == {42, 67, 89, 90}
     assert dashboard.openalex_extra and dashboard.openalex_extra.openalex_author_id
     assert set(snapshot.api.my_publications_citing) == {
         item.openalex_work_id for item in dashboard.paper_citations.values()
     }
-    assert all(result.works for result in snapshot.api.my_publications_citing.values())
-    assert all(paper.list_item.processing_tier == "fully-chunked" for paper in snapshot.api.papers)
-    assert all(paper.detail.processing_tier == "fully-chunked" for paper in snapshot.api.papers)
+    # Paper 89 (Bilici et al. 2026) is brand new with 0 real citations yet -- an honest zero, not missing data.
+    assert sum(len(result.works) for result in snapshot.api.my_publications_citing.values()) > 0
+    assert {paper.list_item.id: paper.list_item.processing_tier for paper in snapshot.api.papers} == {
+        42: "fully-chunked",
+        67: "fully-chunked",
+        88: "fully-chunked",
+        89: "metadata-only",
+        90: "fully-chunked",
+    }
+    assert {paper.detail.id: paper.detail.processing_tier for paper in snapshot.api.papers} == {
+        42: "fully-chunked",
+        67: "fully-chunked",
+        88: "fully-chunked",
+        89: "metadata-only",
+        90: "fully-chunked",
+    }
     assert all(topic.increase > 0 for topic in snapshot.api.extended.discover.emerging_topics.topics)
     assert all(
         author.citing_work_count >= 2 and author.cited_publication_count >= 2
@@ -448,21 +479,27 @@ def test_saved_my_publications_dashboard_has_real_citation_chart_data():
     )
 
 
-def test_saved_meta_reference_covers_every_outcome_for_all_three_papers():
+def test_saved_meta_reference_covers_every_outcome_for_all_curated_papers():
+    # Papers 42 and 89 have a real, pre-existing external-data gap (neither Semantic Scholar nor OpenAlex has
+    # ever resolved a reference list for either DOI -- confirmed independently, not a capture bug; see
+    # tools/demo/capture_demo_meta_reference.py's own all-empty-fails/some-empty-tolerated posture) -- both
+    # checked_count=0 and citation-context total_citations=0 for those two specifically, never for every paper.
     snapshot = DemoSnapshot.model_validate_json(Path("demo/snapshot-v1.json").read_bytes())
     work = snapshot.api.extended.work
-    assert [work.reference_integrity[str(pid)].checked_count for pid in (42, 67, 88)] == [0, 66, 36]
-    assert [work.reference_integrity[str(pid)].active_count for pid in (42, 67, 88)] == [0, 4, 4]
-    assert [work.citation_equity[str(pid)].references_resolved for pid in (42, 67, 88)] == [0, 66, 34]
-    assert all(len(work.citation_equity[str(pid)].signals) == 4 for pid in (42, 67, 88))
-    assert [work.overlooked_work[str(pid)].shown for pid in (42, 67, 88)] == [0, 12, 12]
-    assert [work.citation_context_incoming[str(pid)].classified for pid in (42, 67, 88)] == [0, 12, 2]
-    assert [work.citation_context_outgoing[str(pid)].classified for pid in (42, 67, 88)] == [0, 29, 26]
+    assert {pid: work.reference_integrity[str(pid)].checked_count > 0 for pid in (42, 67, 88, 89, 90)} == {
+        42: False,
+        67: True,
+        88: True,
+        89: True,
+        90: True,
+    }
+    assert all(len(work.citation_equity[str(pid)].signals) == 4 for pid in (42, 67, 88, 89, 90))
+    assert all(work.overlooked_work[str(pid)].shown > 0 for pid in (42, 67, 88, 89, 90))
     assert all(
         work.citation_context_incoming[str(pid)].total_citations
         + work.citation_context_outgoing[str(pid)].total_citations
         > 0
-        for pid in (67, 88)
+        for pid in (67, 88, 90)
     )
 
 

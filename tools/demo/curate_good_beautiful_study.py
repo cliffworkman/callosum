@@ -19,7 +19,7 @@ import fitz
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from tools.demo.curated_library import CORPUS  # noqa: E402
+from tools.demo.curated_library import CORPUS, CORPUS_GROWN_ON  # noqa: E402
 
 PAPER_ID = 42
 ATTACHMENT_ID = 42
@@ -97,21 +97,23 @@ def curate(database: Path, pdf: Path, fixture_path: Path) -> None:
             con.execute("DELETE FROM papers WHERE id = ?", (paper_id,))
         assets = {
             42: pdf,
-            67: ROOT / "demo" / "documents" / CORPUS[67]["filename"],
-            88: ROOT / "demo" / "documents" / CORPUS[88]["filename"],
+            **{
+                paper_id: ROOT / "demo" / "documents" / item["filename"]
+                for paper_id, item in CORPUS.items()
+                if paper_id != 42 and item.get("bundled_material", "complete-pdf") == "complete-pdf"
+            },
         }
         abstracts = {42: ABSTRACT}
-        citation_keys = {42: "he2024good", 67: "workman2021morality", 88: "rasset2023only"}
+        citation_keys = {
+            42: "he2024good",
+            67: "workman2021morality",
+            88: "rasset2023only",
+            89: "bilici2026changing",
+            90: "workman2022evidence",
+        }
         for paper_id, item in sorted(CORPUS.items()):
-            asset = assets[paper_id]
-            if not asset.is_file() or asset.read_bytes()[:5] != b"%PDF-":
-                raise ValueError(f"curated paper {paper_id} asset is unavailable")
-            checksum = _hash(asset)
-            doc = fitz.open(asset)
-            article_pages = [(number + 1, page.get_text("text").strip()) for number, page in enumerate(doc)]
-            doc.close()
-            if not article_pages or sum(len(text) for _, text in article_pages) < 10_000:
-                raise ValueError(f"curated paper {paper_id} did not yield enough public text")
+            has_pdf = item.get("bundled_material", "complete-pdf") == "complete-pdf"
+            created_at = "2026-08-13 00:00:00" if paper_id in (42, 67, 88) else f"{CORPUS_GROWN_ON} 00:00:00"
             csl = {
                 "id": f"demo-{paper_id}",
                 "type": "article-journal",
@@ -136,7 +138,7 @@ def curate(database: Path, pdf: Path, fixture_path: Path) -> None:
                 (
                     paper_id,
                     item["title"],
-                    abstracts.get(paper_id),
+                    item.get("abstract") or abstracts.get(paper_id),
                     item["year"],
                     item["doi"],
                     item["venue"],
@@ -148,10 +150,22 @@ def curate(database: Path, pdf: Path, fixture_path: Path) -> None:
                     citation_keys[paper_id],
                     json.dumps(csl, ensure_ascii=False, sort_keys=True),
                     "metadata-only",
-                    "2026-08-13 00:00:00",
-                    "2026-08-13 00:00:00",
+                    created_at,
+                    created_at,
                 ),
             )
+            if not has_pdf:
+                continue
+            asset = assets[paper_id]
+            if not asset.is_file() or asset.read_bytes()[:5] != b"%PDF-":
+                raise ValueError(f"curated paper {paper_id} asset is unavailable")
+            checksum = _hash(asset)
+            doc = fitz.open(asset)
+            article_pages = [(number + 1, page.get_text("text").strip()) for number, page in enumerate(doc)]
+            doc.close()
+            if not article_pages or sum(len(text) for _, text in article_pages) < 10_000:
+                raise ValueError(f"curated paper {paper_id} did not yield enough public text")
+            oa_color = "gold" if paper_id == 90 else "green"
             con.execute(
                 """INSERT INTO attachments (
                        id, paper_id, storage_mode, availability, resolved_path, checksum, file_size,
@@ -170,13 +184,13 @@ def curate(database: Path, pdf: Path, fixture_path: Path) -> None:
                     "curated-public-demo",
                     "pdf",
                     "primary",
-                    "green",
+                    oa_color,
                     "preprint" if paper_id == 42 else "publishedVersion",
                     "PsyArXiv" if paper_id == 42 else item["publisher"],
                     item["canonical_url"],
                     item["license_name"],
                     0,
-                    "2026-08-13 00:00:00",
+                    created_at,
                 ),
             )
             for page_number, text in article_pages:
@@ -205,7 +219,7 @@ def curate(database: Path, pdf: Path, fixture_path: Path) -> None:
                         "page",
                         f"demo-public-v1:{checksum[:16]}",
                         checksum,
-                        "2026-08-13 00:00:00",
+                        created_at,
                     ),
                 )
         link = fixture["link"]
