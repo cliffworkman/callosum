@@ -111,7 +111,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
     setConvMsg(msg);
   };
 
-  const aiReady = !!aiStatus && (aiStatus.provider === "local" || (aiStatus.data_egress_enabled && aiStatus.api_key_set));
+  const aiReady = !!aiStatus && !!aiStatus.generation_provider_available;
 
   // One shared request primitive for single + batch drafting. It only stores candidates on the row; nothing enters a
   // trusted cell until the human accepts (facts ≠ candidates).

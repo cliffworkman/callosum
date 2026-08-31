@@ -1,4 +1,4 @@
-"""Strict developer-only target descriptor for Tauri-owned local Overview inference.
+"""Strict target descriptor for Tauri-owned local generation.
 
 Normal provider settings never pass through this module. The POC is active only when Tauri launches
 the backend with both the explicit developer gate and a private descriptor path.
@@ -10,16 +10,18 @@ import json
 import logging
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 from app.backend.provider_runtime import ProviderClientRuntime
-from integrations.gemini.generator import LLMConfig
 
 ENABLE_ENV = "CALLOSUM_LOCAL_AI_ENABLED"
 DESCRIPTOR_ENV = "CALLOSUM_MANAGED_LOCAL_AI_DESCRIPTOR"
-QUALIFICATION_STATE = "DEVELOPER_TEST_ONLY"
+DEVELOPER_QUALIFICATION_STATE = "DEVELOPER_TEST_ONLY"
+PREVIEW_QUALIFICATION_STATE = "LOCAL_AI_PREVIEW"
+EXPECTED_PREVIEW_MODEL_DIGEST = "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
 MODEL_ALIAS = "callosum-managed-local"
 _MAX_DESCRIPTOR_BYTES = 16_384
 _MAX_CREDENTIAL_BYTES = 256
@@ -28,6 +30,36 @@ _TOKEN = re.compile(r"[A-Za-z0-9_-]{32,128}")
 _TARGET_ID = re.compile(r"[a-z0-9][a-z0-9._-]{2,127}")
 _EXECUTION_BACKENDS = {"cpu", "cuda"}
 _LOG = logging.getLogger(__name__)
+_MANAGED_HTTP_TIMEOUT = 600.0
+_PRIMARY_SYNTHESIS_CONTRACT = "primary_synthesis"
+_OVERVIEW_CONTRACT = "synthesis_overview"
+_PRIMARY_SYNTHESIS_SCHEMA = {
+    "type": "array",
+    "minItems": 4,
+    "maxItems": 7,
+    "items": {
+        "type": "object",
+        "required": ["text", "citations"],
+        "additionalProperties": False,
+        "properties": {
+            "text": {"type": "string"},
+            "citations": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "items": {
+                    "type": "object",
+                    "required": ["chunk_id", "quote"],
+                    "additionalProperties": False,
+                    "properties": {
+                        "chunk_id": {"type": "integer"},
+                        "quote": {"type": "string"},
+                    },
+                },
+            },
+        },
+    },
+}
 
 
 class ManagedLocalTargetError(ValueError):
@@ -42,6 +74,106 @@ class ManagedLocalTargetError(ValueError):
 class ManagedExecutionState:
     backend: str
     gpu_layers: int
+
+
+@dataclass(frozen=True)
+class ManagedProviderConfig:
+    """Provider-neutral fields consumed by ``complete`` for the managed target.
+
+    This deliberately does not extend the historical ``LLMConfig`` record: the frozen qualification
+    contracts import that class, while the managed preview needs additional request identity (an output cap
+    and, for selected feature contracts, a llama.cpp grammar). Both remain transport/config concerns.
+    """
+
+    provider: str
+    wire_format: str
+    model: str
+    api_key: str = field(repr=False)
+    base_url: str
+    data_egress_enabled: bool
+    provider_runtime: "ManagedProviderRuntime"
+    http_trust_env: bool
+    max_output_tokens: int
+    help_assistant_enabled: bool = False
+    managed_output_contract: str | None = None
+
+    def resolved_api_key(self) -> str:
+        return self.api_key
+
+
+def with_managed_output_contract(config, contract: str):  # type: ignore[no-untyped-def]
+    """Attach a managed-only transport contract without changing cloud/manual provider semantics."""
+    if isinstance(config, ManagedProviderConfig):
+        cap = 256 if contract == _OVERVIEW_CONTRACT else config.max_output_tokens
+        runtime = ManagedProviderRuntime(config.provider_runtime.base_runtime, output_cap=cap, contract=contract)
+        return replace(config, provider_runtime=runtime, max_output_tokens=cap, managed_output_contract=contract)
+    return config
+
+
+@dataclass(frozen=True)
+class ManagedProviderRuntime:
+    """Narrow request adapter around the app-owned client pool.
+
+    The historical provider transport remains byte-for-byte frozen. This adapter changes only requests for the
+    authenticated managed target: it supplies the explicit output cap and the one llama.cpp grammar required by
+    primary synthesis, while retaining the underlying app-scoped connection pool.
+    """
+
+    base_runtime: ProviderClientRuntime = field(repr=False, compare=False)
+    output_cap: int
+    contract: str | None = None
+
+    def run_http(self, *, base_url: str, timeout: float, trust_env: bool, operation):  # type: ignore[no-untyped-def]
+        return self.base_runtime.run_http(
+            base_url=base_url,
+            timeout=_MANAGED_HTTP_TIMEOUT,
+            trust_env=False,
+            operation=lambda client: operation(_ManagedHttpClient(client, self.output_cap, self.contract)),
+        )
+
+
+@dataclass(frozen=True)
+class _ManagedHttpClient:
+    inner: Any = field(repr=False)
+    output_cap: int
+    contract: str | None
+
+    def post(self, url, json=None, headers=None, timeout=None):  # type: ignore[no-untyped-def]
+        payload = dict(json or {})
+        payload["max_tokens"] = self.output_cap
+        if self.contract == _PRIMARY_SYNTHESIS_CONTRACT:
+            payload["json_schema"] = _PRIMARY_SYNTHESIS_SCHEMA
+        return self.inner.post(
+            url,
+            json=payload,
+            headers=headers,
+            timeout=_MANAGED_HTTP_TIMEOUT,
+        )
+
+
+@dataclass(frozen=True)
+class ManagedContractSummaryGenerator:
+    """Give the managed request contract a distinct synthesis-cache identity."""
+
+    inner: Any
+    contract: str = _PRIMARY_SYNTHESIS_CONTRACT
+    name: str = "managed-local-summary-contract"
+
+    @property
+    def cache_signature(self) -> str:
+        return f"{self.inner.cache_signature}|{self.contract}|max-output-2048|schema-v1"
+
+    def generate(self, **kwargs):  # type: ignore[no-untyped-def]
+        return self.inner.generate(**kwargs)
+
+
+def managed_summary_generator(config):  # type: ignore[no-untyped-def]
+    """Build the unchanged production generator with a managed-only request/cache adapter."""
+    from integrations.gemini import GeminiSummaryGenerator
+
+    configured = with_managed_output_contract(config, _PRIMARY_SYNTHESIS_CONTRACT)
+    inner = GeminiSummaryGenerator(config=configured)
+    return ManagedContractSummaryGenerator(inner=inner) if configured is not config else inner
 
 
 @dataclass(frozen=True)
@@ -65,17 +197,21 @@ class ManagedLocalTarget:
     observed_execution: ManagedExecutionState
     qualification_state: str
 
-    def config(self, provider_runtime: ProviderClientRuntime) -> LLMConfig:
+    def config(self, provider_runtime: ProviderClientRuntime) -> ManagedProviderConfig:
         token = _read_credential(self.credential_ref)
-        return LLMConfig(
-            provider="local",
+        return ManagedProviderConfig(
+            provider="managed_local",
             wire_format="chat_completions",
             model=self.model_alias,
             api_key=token,
             base_url=self.endpoint,
             data_egress_enabled=False,
-            provider_runtime=provider_runtime,
+            provider_runtime=ManagedProviderRuntime(
+                provider_runtime,
+                output_cap=self.max_output_tokens,
+            ),
             http_trust_env=False,
+            max_output_tokens=self.max_output_tokens,
         )
 
 
@@ -83,7 +219,7 @@ class ManagedLocalTarget:
 class ManagedLocalOverviewResolution:
     enabled: bool
     target: ManagedLocalTarget | None = None
-    config: LLMConfig | None = None
+    config: ManagedProviderConfig | None = None
 
 
 def resolve_managed_local_overview(provider_runtime: ProviderClientRuntime) -> ManagedLocalOverviewResolution:
@@ -102,11 +238,41 @@ def resolve_managed_local_overview(provider_runtime: ProviderClientRuntime) -> M
         return ManagedLocalOverviewResolution(enabled=True)
 
 
+def resolve_managed_local_provider(provider_runtime: ProviderClientRuntime) -> ManagedProviderConfig:
+    """Resolve the production managed provider or fail closed without consulting another provider."""
+    from app.backend.app_settings import load_settings
+
+    target = load_preview_target()
+    stored = load_settings().get("help_assistant_enabled")
+    env_enabled = os.getenv("CALLOSUM_HELP_ASSISTANT_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+    return replace(
+        target.config(provider_runtime),
+        help_assistant_enabled=stored if isinstance(stored, bool) else env_enabled,
+    )
+
+
+def load_preview_target() -> ManagedLocalTarget:
+    descriptor_path = _preview_descriptor_path()
+    target = _load_target(descriptor_path, {PREVIEW_QUALIFICATION_STATE})
+    _require(target.model_artifact_digest == EXPECTED_PREVIEW_MODEL_DIGEST, "model_artifact_digest")
+    return target
+
+
+def _preview_descriptor_path() -> Path:
+    root = os.getenv("CALLOSUM_APP_DATA_DIR")
+    if not root:
+        raise ManagedLocalTargetError("app_data_missing")
+    return Path(root) / "managed-local-ai" / "target.json"
+
+
 def load_target_from_environment() -> ManagedLocalTarget:
     raw_path = os.getenv(DESCRIPTOR_ENV)
     if not raw_path:
         raise ManagedLocalTargetError("descriptor_missing")
-    descriptor_path = Path(raw_path)
+    return _load_target(Path(raw_path), {DEVELOPER_QUALIFICATION_STATE, PREVIEW_QUALIFICATION_STATE})
+
+
+def _load_target(descriptor_path: Path, qualification_states: set[str]) -> ManagedLocalTarget:
     if descriptor_path.name != "target.json" or descriptor_path.parent.name != "managed-local-ai":
         raise ManagedLocalTargetError("descriptor_location")
     if descriptor_path.is_symlink():
@@ -121,16 +287,19 @@ def load_target_from_environment() -> ManagedLocalTarget:
         raise ManagedLocalTargetError("descriptor_unreadable") from exc
     if not isinstance(payload, dict):
         raise ManagedLocalTargetError("descriptor_shape")
-    return _target_from_payload(payload, descriptor_path)
+    return _target_from_payload(payload, descriptor_path, qualification_states)
 
 
-def _target_from_payload(payload: dict[str, object], descriptor_path: Path) -> ManagedLocalTarget:
+def _target_from_payload(
+    payload: dict[str, object], descriptor_path: Path, qualification_states: set[str]
+) -> ManagedLocalTarget:
     _require(payload.get("schema_version") == 2, "schema_version")
     _require(payload.get("kind") == "device_local", "target_kind")
     _require(payload.get("wire_format") == "chat_completions", "wire_format")
     _require(payload.get("model_alias") == MODEL_ALIAS, "model_alias")
     _require(payload.get("runtime_family") == "llama.cpp", "runtime_family")
-    _require(payload.get("qualification_state") == QUALIFICATION_STATE, "qualification_state")
+    qualification_state = _bounded_string(payload, "qualification_state", 32)
+    _require(qualification_state in qualification_states, "qualification_state")
 
     target_id = _bounded_string(payload, "target_id", 128)
     _require(bool(_TARGET_ID.fullmatch(target_id)), "target_id")
@@ -152,7 +321,8 @@ def _target_from_payload(payload: dict[str, object], descriptor_path: Path) -> M
         "declared_build_backend",
     )
     _require(payload.get("context_tokens") == 4096, "context_tokens")
-    _require(payload.get("max_output_tokens") == 256, "max_output_tokens")
+    expected_output_tokens = 256 if qualification_state == DEVELOPER_QUALIFICATION_STATE else 2048
+    _require(payload.get("max_output_tokens") == expected_output_tokens, "max_output_tokens")
     temperature = payload.get("temperature")
     _require(
         isinstance(temperature, (int, float)) and not isinstance(temperature, bool) and temperature == 0, "temperature"
@@ -171,12 +341,12 @@ def _target_from_payload(payload: dict[str, object], descriptor_path: Path) -> M
         model_artifact_digest=model_digest,
         chat_template_digest=template_digest,
         context_tokens=4096,
-        max_output_tokens=256,
+        max_output_tokens=expected_output_tokens,
         temperature=0.0,
         seed=42,
         requested_execution=requested_execution,
         observed_execution=observed_execution,
-        qualification_state=QUALIFICATION_STATE,
+        qualification_state=qualification_state,
     )
 
 

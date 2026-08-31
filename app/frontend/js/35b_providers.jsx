@@ -137,15 +137,16 @@ function ProviderModelPicker({ p, activeModel, busy, onActivate }) {
 // One provider in the roster. Builtins expose only their key (+ Local its loopback endpoint); custom providers add
 // an "Edit" mode over {name, base_url, wire_format, models}.
 function ProviderRow({ p, active, activeModel, status, busy, testing, test, wireFormats, egressOn,
-  onActivate, onSaveKey, onSaveUrl, onTest, onUpdate, onDelete }) {
+  localAi, onSetupLocalAi, onActivate, onSaveKey, onSaveUrl, onTest, onUpdate, onDelete }) {
   const [keyInput, setKeyInput] = useState("");
   const [urlInput, setUrlInput] = useState(p.base_url || "");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(null);
 
   const isLocal = p.id === "local";
-  const isLoopback = !isLocal && isLoopbackUrl(p.base_url);  // a custom provider pointed at a loopback address
-  const isCloud = !isLocal && !isLoopback;  // sends library text off-machine on generate (gemini's base is the SDK)
+  const isManagedLocal = p.id === "managed_local";
+  const isLoopback = !isLocal && !isManagedLocal && isLoopbackUrl(p.base_url);  // a custom provider pointed at a loopback address
+  const isCloud = !isLocal && !isManagedLocal && !isLoopback;  // sends library text off-machine on generate
   const endpointUrl = p.id === "gemini" ? "https://generativelanguage.googleapis.com" : p.base_url;
   const needsConsent = active && isCloud && !egressOn;  // fully configured but blocked by the egress toggle
   const keyUrl = AI_KEY_URLS[p.id];
@@ -175,7 +176,7 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
         <span className="provider-actions">
           {active
             ? <span className="provider-active">Active</span>
-            : <button className="btn-link" disabled={busy} onClick={() => onActivate(p.id)}>Use</button>}
+            : !isManagedLocal && <button className="btn-link" disabled={busy} onClick={() => onActivate(p.id)}>Use</button>}
           {!p.builtin && <button className="btn-link danger" disabled={busy} onClick={() => onDelete(p.id)}>Delete</button>}
         </span>
       </div>
@@ -188,7 +189,34 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
               Sends to <code>{endpointUrl}</code> — your library text goes there when you generate a summary.
               {isLoopbackUrl(endpointUrl) ? <> This is a loopback address — <b>nothing leaves your machine</b>.</> : null}
             </div>}
-          {isLocal ? (
+          {!editing && (isManagedLocal || p.id === "gemini") &&
+            <div className="settings-sub">Overview — <b>Evaluated</b> · Other generative capabilities — <b>Testing</b></div>}
+          {isManagedLocal ? (
+            <div className="settings-field">
+              <div className="settings-sub"><b>Runs on this device.</b> No API key, provider account, endpoint, Ollama, or terminal required.</div>
+              <div className="settings-sub">
+                Status: <b>{localAi && localAi.state === "ready" ? "Local AI: Ready" :
+                  localAi && localAi.state === "installed" ? "Installed — preparing required" :
+                  localAi && localAi.state ? localAi.state.replaceAll("_", " ") : "Checking…"}</b>
+              </div>
+              {localAi && localAi.detail && <div className="provider-egress-warn">{localAi.detail}</div>}
+              <div className="settings-sub">Formal comparative evaluation is ongoing. Review important claims against the underlying evidence.</div>
+              <details className="settings-details">
+                <summary>Technical details</summary>
+                <div className="settings-sub">
+                  Supported model: <b>{localAi && localAi.model_id ? localAi.model_id : "Qwen2.5-1.5B-Instruct Q4_K_M"}</b>
+                  {localAi && localAi.model_bytes ? <> · {(localAi.model_bytes / (1024 ** 3)).toFixed(2)} GiB model download</> : null}
+                  . The preview uses a pinned, checksum-verified llama.cpp runtime and an explicit CPU-safe execution mode.
+                </div>
+                <div className="settings-sub">If setup is interrupted or an installed file is corrupt, run Set up Local AI again; Callosum verifies and repairs the managed files before starting.</div>
+              </details>
+              <div className="settings-actions">
+                <button className="btn btn-primary" disabled={busy || (localAi && !["ready", "installed", "not_installed", "error"].includes(localAi.state))}
+                  onClick={onSetupLocalAi}>{localAi && localAi.state === "ready" ? (active ? "Ready" : "Use Local AI") :
+                    localAi && localAi.installed ? "Prepare Local AI" : "Set up Local AI"}</button>
+              </div>
+            </div>
+          ) : isLocal ? (
             <div className="settings-field">
               <label className="settings-field-label">Local endpoint (OpenAI-compatible)</label>
               <div className="settings-keyrow">
@@ -228,7 +256,7 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
             </>
           )}
 
-          {active && !editing &&
+          {active && !editing && !isManagedLocal &&
             <div className="provider-model-test-row">
               <ProviderModelPicker p={p} activeModel={activeModel} busy={busy} onActivate={onActivate} />
               {(isLocal ? !!(status && status.local_base_url) : keySet) &&
@@ -249,13 +277,30 @@ function AiSettings({ agentSettings }) {
   const [test, setTest] = useState(null);
   const [testing, setTesting] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [localAi, setLocalAi] = useState(null);
+  const [localSetupBusy, setLocalSetupBusy] = useState(false);
+
+  const refreshLocalAi = async () => {
+    if (!("__TAURI__" in window)) {
+      setLocalAi({ state: "unsupported", installed: false, running: false,
+        detail: "Managed Local AI setup is available in the installed desktop app." });
+      return;
+    }
+    try { setLocalAi(await window.__TAURI__.core.invoke("local_ai_status")); }
+    catch (err) { setLocalAi({ state: "error", detail: String(err), installed: false, running: false }); }
+  };
 
   const reload = async () => {
     const [pr, st] = await Promise.all([api("/settings/providers"), api("/settings")]);
     if (pr.ok) setRoster(pr.data);
     if (st.ok) setStatus(st.data);
   };
-  useEffect(() => { reload(); }, []);
+  useEffect(() => { reload(); refreshLocalAi(); }, []);
+  useEffect(() => {
+    if (!localSetupBusy) return undefined;
+    const timer = setInterval(refreshLocalAi, 1500);
+    return () => clearInterval(timer);
+  }, [localSetupBusy]);
 
   const put = async (body, doneMsg) => {
     setBusy(true); setMsg(""); setTest(null);
@@ -267,7 +312,32 @@ function AiSettings({ agentSettings }) {
 
   // Activating a provider also resets the model override to that provider's default ("") unless a specific model
   // is chosen — so switching providers never carries the previous provider's model name across.
-  const activate = (id, model) => put({ provider: id, set_model: true, model: model || "" });
+  const activate = async (id, model) => {
+    const saved = await put({ provider: id, set_model: true, model: model || "" });
+    if (saved && id !== "managed_local" && roster && roster.active_provider === "managed_local" && "__TAURI__" in window) {
+      try { await window.__TAURI__.core.invoke("stop_local_ai"); await refreshLocalAi(); } catch (_err) { /* app exit still owns cleanup */ }
+    }
+    return saved;
+  };
+  const setupLocalAi = async () => {
+    if (!("__TAURI__" in window)) return;
+    if (localAi && localAi.state === "ready") {
+      await activate("managed_local");
+      return;
+    }
+    setBusy(true); setLocalSetupBusy(true); setMsg("");
+    setLocalAi(prev => ({ ...(prev || {}), state: "downloading_runtime" }));
+    try {
+      const result = await window.__TAURI__.core.invoke("setup_local_ai");
+      setLocalAi(result);
+      await apiPut("/settings", { provider: "managed_local", set_model: true, model: "" });
+      await reload();
+      setMsg("Local AI is ready and active.");
+    } catch (err) {
+      setLocalAi({ state: "error", detail: String(err), installed: false, running: false });
+      setMsg("Local AI setup did not finish. Retry setup or open technical details.");
+    } finally { setLocalSetupBusy(false); setBusy(false); }
+  };
   const saveKey = (id, val) => put({ set_api_key: true, api_key: val, api_key_provider: id }, val.trim() ? "Key saved." : "Key cleared.");
   const saveUrl = (url) => put({ set_local_base_url: true, local_base_url: url }, "Endpoint saved.");
   const toggleEgress = () => status && put({ data_egress_enabled: !status.data_egress_enabled });
@@ -324,7 +394,8 @@ function AiSettings({ agentSettings }) {
         {providers.map(p => (
           <ProviderRow key={p.id} p={p} active={p.id === activeId} activeModel={activeModel} status={status}
             busy={busy} testing={testing} test={p.id === activeId ? test : null} wireFormats={wireFormats}
-            egressOn={egressOn} onActivate={activate} onSaveKey={saveKey} onSaveUrl={saveUrl} onTest={testActive}
+            egressOn={egressOn} localAi={localAi} onSetupLocalAi={setupLocalAi}
+            onActivate={activate} onSaveKey={saveKey} onSaveUrl={saveUrl} onTest={testActive}
             onUpdate={updateProvider} onDelete={deleteProvider} />
         ))}
       </div>

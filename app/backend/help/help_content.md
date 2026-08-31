@@ -4,7 +4,7 @@ Callosum is for working through a scholarly PDF library on your own machine. Use
 
 The most important habit is to treat Callosum as an evidence workbench, not a magic answer box. When it writes a synthesis, the answer is AI-proposed, but each cited sentence is independently checked against the source PDFs. You see the supporting quote, page, confidence scores, and whether the sentence is verified, flagged, or **contradicted** (a cited source actively disagrees).
 
-The app is local-first. After your library has been imported and processed, extraction, search, embeddings, axis scoring, duplicate scanning, and verification run locally. The app remains useful offline. The optional Gemini features are off by default and only run when you explicitly enable data egress.
+The app is local-first. After your library has been imported and processed, extraction, search, embeddings, axis scoring, duplicate scanning, and verification run locally. The app remains useful offline. For generative features, choose either managed **Local AI** (no account or API key) or an explicitly configured cloud provider. Callosum never switches from Local AI to a cloud provider on its own.
 
 Start by:
 
@@ -1468,7 +1468,8 @@ Settings are intentionally small right now. Open **Settings** from the **menu ba
 Available settings include:
 
 - **Dark mode:** switches the app chrome between light and dark themes. The PDF page itself stays light so paper rendering remains readable.
-- **AI features (bring your own key):** the AI section is **one editable list of model providers**. Four are **pre-seeded** — Google Gemini, OpenAI, Anthropic, and a **local model** — and you can **add your own** (the **+ Add provider** button): give it a name, a base URL, an **API format** (*Anthropic messages* `/v1/messages`, *Chat completions* `/v1/chat/completions`, or *Responses* `/v1/responses` — this is how the provider expects the request, e.g. an OpenAI-compatible service like DeepSeek uses *Chat completions*), and a list of model names. Pick the provider you want to use with **Use**, and choose its model. Set each provider's key on its card, instead of editing environment variables. Keys are stored only on this machine — in your **OS keychain** (Windows Credential Manager / macOS Keychain / Linux Secret Service) if you've installed the optional `keyring` package, otherwise in a file in your home folder (outside the app and any synced folder) — and are **never shown back to you** (Settings only reports whether a key is set, per provider). For a cloud provider, **Allow AI features** is **off by default**; turning it on lets summary generation send the relevant library text to that provider (every sentence is still verified locally against your PDFs). Clearing the key or turning the toggle off stops all egress. Whether a provider needs that consent is decided **by its address**: a **local model** (Ollama, LM Studio, or any OpenAI-compatible server at a loopback address like `http://127.0.0.1:11434`) — including a *custom* provider you point at a loopback URL — is the privacy-maximal option (**nothing leaves your machine**, so no data-egress consent is needed; a non-loopback address on the built-in *Local* provider is refused so that promise stays honest), while any custom provider at a real internet address is gated exactly like Gemini. Once a provider is configured, a **Test key / Test connection** button confirms it works (for a cloud provider it only runs when AI is on; it sends only a tiny test request, never your library). Environment variables (`GOOGLE_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`, and `CALLOSUM_ALLOW_DATA_EGRESS=1`) still work as the fallback.
+- **AI features:** the AI section is **one provider list**. Choose **Local AI → Set up Local AI** to download and verify Callosum's supported model, prepare it on this device, and make it the active provider. No API key, provider account, endpoint, Ollama, terminal, or manual model download is required. Once it says **Local AI: Ready**, compatible generative features use that local provider throughout the app. A local failure is reported locally; Callosum never silently sends the request to Gemini, OpenAI, Anthropic, or another cloud provider.
+- **Cloud, manual-local, and advanced providers:** Gemini, OpenAI, Anthropic, and a manual **Local endpoint** are also pre-seeded, and **+ Add provider** supports another compatible endpoint. Cloud keys are stored only on this machine and never shown back; **Allow AI features** is off by default and must be enabled before library text can leave the device. A manual Local endpoint must be loopback-only. **Evaluated** means that provider/capability pair has completed a formal Callosum evaluation; **Testing** means it is available while comparative evaluation continues. Neither label removes the need to verify important claims against the cited evidence.
 - **Metadata access (contact email):** an email address sent as the polite-pool contact for public metadata services — **Crossref**, **OpenAlex**, and the **Retraction Watch** database — so they can reach you about heavy use. It's optional for everyday metadata enrichment but **required to download the Retraction Watch database** (Library → Integrity ↻, or Settings → Local maintenance → Refresh database). It is **not** an AI feature — no library text or PDF is sent — and, unlike an API key, it isn't a secret, so Settings shows it back to you. (The `CALLOSUM_CROSSREF_MAILTO` / `CALLOSUM_OPENALEX_MAILTO` environment variables still work as the fallback.)
 - **Your usage:** a small local, private log of five specific actions — exporting a citation, resolving a duplicate, re-resolving a paper's metadata, locating a quoted passage, and reviewing a flagged reference — counted as timestamps only, never the content of what you did (no PDF text, no queries, no titles). Nothing here ever leaves your machine, so unlike every other toggle in Settings this one is **on by default**; a plain switch turns it off anytime. Read it as a count of actions, not a score — for the tedious ones, doing them *less* is the actual win. **Export usage log** downloads the raw counts as JSON; **Clear usage log** deletes them (your library, PDFs, and citations are never touched by either).
 
@@ -1484,9 +1485,9 @@ If the Library fails to load, the app will show an error and a backend start com
 ## Asking the help assistant
 The help assistant — the **Ask the help assistant…** box at the top of this Help window — answers questions about using Callosum in plain language and links its answer to the relevant help sections. Click a reference chip under an answer to jump to and highlight that section below. It is conversational, so follow-up questions keep the thread.
 
-It is **optional and off by default**, with its **own** switch — separate from the synthesis data-egress gate. That separation is deliberate: the help assistant only ever sends your question and the **public help text** — never your library, PDFs, or metadata — so you can use it even when data egress for your library is turned off. It uses whichever **model provider** you've configured (Gemini / OpenAI / Anthropic / local).
+It is **optional and off by default**, with its **own** switch — separate from the synthesis data-egress gate. That separation is deliberate: the help assistant only ever sends your question and the **public help text** — never your library, PDFs, or metadata. It uses whichever active generative provider you selected, including managed Local AI. With Local AI, Callosum selects only the most relevant Help sections before generation so the fixed local context stays bounded.
 
-To enable it, flip **AI help assistant** in **Settings → AI features** (or set `CALLOSUM_HELP_ASSISTANT_ENABLED=1` in the environment), with a key configured for your chosen provider. When it is off, the box tells you how to turn it on, and the written help below still works normally.
+To enable it, flip **AI help assistant** in **Settings → AI features**. A cloud provider needs its configured key and egress permission; Local AI only needs to be Ready. When the assistant is off, the box tells you how to turn it on, and the written help below still works normally.
 
 Tips:
 
@@ -1623,18 +1624,18 @@ Callosum is local-first by design. Your PDFs, extracted text, chunks, embeddings
 
 The app remains useful offline after import and processing. You can browse, read PDFs, edit details, score axes, manage highlights, scan duplicates, and inspect saved syntheses without sending library text to a remote service.
 
-The features that can use an LLM are optional and off by default:
+Generative features use the active provider you explicitly select:
 
 - **Synthesis generation:** sends selected source text needed to generate a draft answer.
 - **Search related terms:** sends axis text so the model can suggest possible terms.
 - **Suggested axis label polishing:** may send a small set of representative paper titles when egress is enabled; otherwise it falls back locally.
 
-To enable AI features, pick a provider in **Settings → AI features** (Gemini / OpenAI / Anthropic / a local model) and set its key, then turn on **Allow AI features** — or, equivalently, start Callosum with the environment variables (`CALLOSUM_ALLOW_DATA_EGRESS=1` plus the provider's key env var). A value set in Settings is stored locally (in your home folder, outside the app and any synced folder) and overrides the environment fallback; for a **cloud** provider, AI stays off until you explicitly turn it on. A **local** model (a loopback OpenAI-compatible server) needs no egress consent at all — nothing leaves the machine — and a non-loopback "local" address is refused so that stays true.
+For the managed path, choose **Local AI**, click **Set up Local AI**, and wait for **Local AI: Ready**. It requires no key or egress consent. For a cloud provider, save its key and explicitly turn on **Allow AI features**. A manual Local endpoint remains available for advanced users and must be loopback-only. Provider failures never broaden the privacy boundary: Local AI cannot fall back to cloud, and a disabled cloud provider cannot be contacted.
 
 Important distinctions:
 
 - Crossref DOI re-resolve sends only the DOI to Crossref.
-- Gemini synthesis can send library text, so it is behind the explicit egress gate.
+- Cloud-provider synthesis can send library text, so it is behind the explicit egress gate; managed Local AI keeps it on-device.
 - Axis term suggestions can send your axis wording, so they are also behind the egress gate.
 - Verification of citations runs locally after generation; Gemini is not treated as citation evidence.
 
@@ -1687,8 +1688,8 @@ Ordinary hand edits are protected from batch updates, but clicking `🔎` asks C
 ### Why does a paper say PDF not available locally?
 The record may be metadata-only, URL-only, or linked to a file that is not present on disk. The paper can still be managed bibliographically, but PDF reading and exact citation jumps need a local PDF.
 
-### Why does synthesis say it needs data egress?
-Synthesis generation uses Gemini in the shipped app. Enable `CALLOSUM_ALLOW_DATA_EGRESS=1` and `GOOGLE_API_KEY` before starting Callosum if you want to use it.
+### Why does synthesis say my AI provider needs attention?
+Open **Settings → AI features**. For an API-key-free path, choose **Local AI**, click **Set up Local AI**, and wait for **Local AI: Ready**. If it is already selected but unavailable, retry setup or repair the local installation; Callosum will not ask for a cloud key as the required fix. If you deliberately selected a cloud provider, save its key and turn on **Allow AI features**.
 
 ### Why did duplicate scan not delete anything automatically?
 Duplicate detection is flag-only. Callosum shows likely duplicate groups so you can inspect them and decide what to move to Trash.

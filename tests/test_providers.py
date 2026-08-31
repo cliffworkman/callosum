@@ -8,7 +8,9 @@ import pytest
 from app.backend import app_settings
 from app.backend.llm import providers
 from app.backend.llm.egress import DataEgressDisabledError, EgressGatedSummaryGenerator
+from app.backend.llm.managed_local import ManagedProviderRuntime
 from app.backend.llm.providers import ProviderError, complete, is_loopback_url, requires_egress
+from app.backend.provider_runtime import ProviderClientRuntime
 from integrations.gemini.generator import GeminiConfig, GeminiSummaryGenerator
 
 # The autouse conftest fixture isolates CALLOSUM_SETTINGS_PATH per test, so app_settings writes are hermetic.
@@ -41,7 +43,7 @@ class _FakeClient:
         self._data, self.capture = data, capture
 
     def post(self, url, json=None, headers=None, timeout=None):
-        self.capture.update(url=url, json=json, headers=headers)
+        self.capture.update(url=url, json=json, headers=headers, timeout=timeout)
         return _FakeResp(self._data)
 
 
@@ -144,6 +146,19 @@ def test_complete_local_loopback_uses_openai_shape():
     assert res.text == "local-ok"
     assert cap["url"] == "http://127.0.0.1:11434/v1/chat/completions"
     assert "Authorization" not in cap["headers"]  # no key needed for a local server
+
+
+def test_managed_local_gets_bounded_slow_device_timeout_without_changing_cloud():
+    response = {"choices": [{"message": {"content": "ok"}}], "usage": {}}
+    local_cap, cloud_cap = {}, {}
+    base_runtime = ProviderClientRuntime(http_client_factory=lambda _identity: _FakeClient(response, local_cap))
+    local = _Cfg("managed_local", base_url="http://127.0.0.1:1234")
+    local.provider_runtime = ManagedProviderRuntime(base_runtime, output_cap=2048)
+    complete(local, "PROMPT")
+    complete(_Cfg("openai"), "PROMPT", http_client=_FakeClient(response, cloud_cap))
+    assert local_cap["timeout"] == 600.0
+    assert cloud_cap["timeout"] == 60.0
+    base_runtime.close()
 
 
 def test_complete_blocks_before_network_when_no_key_for_cloud_provider():
@@ -282,3 +297,31 @@ def test_local_summary_generates_with_egress_off(monkeypatch: pytest.MonkeyPatch
     gen = GeminiSummaryGenerator(config=cfg)
     # Must NOT raise DataEgressDisabledError — local keeps text on the machine.
     assert gen.generate(source_chunks=[], scope_ref={}) == []
+
+
+def test_managed_primary_synthesis_contract_adds_llama_schema_at_transport_boundary():
+    cap = {}
+    response = {"choices": [{"message": {"content": "[]"}}], "usage": {}}
+    runtime = ProviderClientRuntime(http_client_factory=lambda _identity: _FakeClient(response, cap))
+    cfg = _Cfg("managed_local", api_key="local-token", base_url="http://127.0.0.1:1234")
+    cfg.provider_runtime = ManagedProviderRuntime(runtime, output_cap=2048, contract="primary_synthesis")
+
+    complete(cfg, "UNCHANGED PRODUCTION PROMPT")
+
+    schema = cap["json"]["json_schema"]
+    citation = schema["items"]["properties"]["citations"]["items"]
+    assert citation["required"] == ["chunk_id", "quote"]
+    assert cap["json"]["max_tokens"] == 2048
+    assert cap["json"]["messages"][0]["content"] == "UNCHANGED PRODUCTION PROMPT"
+    runtime.close()
+
+
+def test_cloud_provider_never_inherits_managed_local_schema():
+    cap = {}
+    client = _FakeClient({"choices": [{"message": {"content": "[]"}}], "usage": {}}, cap)
+    cfg = _Cfg("openai", api_key="sk-oai")
+    cfg.managed_output_contract = "primary_synthesis"
+
+    complete(cfg, "PROMPT", http_client=client)
+
+    assert "json_schema" not in cap["json"]

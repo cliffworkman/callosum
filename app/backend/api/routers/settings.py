@@ -47,6 +47,8 @@ class SettingsStatus(BaseModel):
     provider: str
     api_key_set: bool  # is a key available for the ACTIVE provider (UI store OR env)? (local needs none)
     api_key_source: str | None  # "ui" | "env" | None — NEVER the key value itself
+    generation_provider_available: bool = False
+    provider_evidence: dict[str, str] = {}
     data_egress_enabled: bool
     egress_source: str  # "ui" (stored toggle) | "env" (CALLOSUM_ALLOW_DATA_EGRESS fallback)
     local_base_url: str | None = None
@@ -116,6 +118,22 @@ def _status() -> SettingsStatus:
     else:
         egress = os.getenv("CALLOSUM_ALLOW_DATA_EGRESS", "").strip().lower() in {"1", "true", "yes"}
         egress_source = "env"
+    if provider == "managed_local":
+        try:
+            from app.backend.llm.managed_local import load_preview_target
+
+            load_preview_target()
+            provider_available = True
+        except Exception:  # noqa: BLE001 - status is deliberately fail-soft; resolution remains fail-closed
+            provider_available = False
+    else:
+        record = providers_store.get_provider(provider) or {}
+        config_view = type("ProviderConfig", (), record)()
+        provider_available = (
+            (ui_key or env_key) and egress
+            if requires_egress(config_view)
+            else bool(record.get("base_url") and providers_store.active_model())
+        )
     stored_help = stored.get("help_assistant_enabled")
     if isinstance(stored_help, bool):
         help_enabled, help_source = stored_help, "ui"
@@ -133,6 +151,11 @@ def _status() -> SettingsStatus:
         provider=provider,
         api_key_set=ui_key or env_key,
         api_key_source="ui" if ui_key else ("env" if env_key else None),
+        generation_provider_available=provider_available,
+        provider_evidence={
+            "synthesis_overview": "evaluated" if provider in {"managed_local", "gemini"} else "testing",
+            "other_generative_capabilities": "testing",
+        },
         data_egress_enabled=egress,
         egress_source=egress_source,
         local_base_url=(stored.get("local_base_url") or None),
@@ -253,7 +276,15 @@ def test_key(request: Request) -> KeyTestResult:
     no outbound call — the toggle's promise); a loopback local provider runs regardless. Always HTTP 200."""
     from app.backend.llm import providers  # late import so tests can monkeypatch providers.complete
 
-    cfg = resolve_llm_config(request.app)
+    try:
+        cfg = resolve_llm_config(request.app)
+    except Exception as exc:  # noqa: BLE001 - readiness/configuration failures are user-facing status
+        if _status().provider == "managed_local":
+            return KeyTestResult(
+                ok=False,
+                detail="Local AI is not ready. Retry Set up Local AI in Settings; no cloud provider was contacted.",
+            )
+        return KeyTestResult(ok=False, detail=f"Provider configuration failed: {str(exc)[:200]}")
     if requires_egress(cfg) and not cfg.data_egress_enabled:
         return KeyTestResult(
             ok=False, detail="Turn on “Allow AI features” first — Callosum won’t contact a provider while it’s off."

@@ -60,7 +60,6 @@ from app.backend.summarization.overview_lifecycle import (
 )
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
 from app.backend.summarization.reverify import NotImportedError, reverify_imported_summary
-from integrations.gemini import GeminiSummaryGenerator
 
 router = APIRouter()
 router.include_router(overview_router)
@@ -351,7 +350,9 @@ def _summary_generator(api: FastAPI) -> SummaryGenerator:
                 raise RuntimeError("summary generation requires data-egress consent (Settings → AI features)")
             if not config.resolved_api_key():
                 raise RuntimeError("summary generation requires an API key (Settings → AI features)")
-        inner = GeminiSummaryGenerator(config=config)
+        from app.backend.llm.managed_local import managed_summary_generator
+
+        inner = managed_summary_generator(config)
     # Content-addressed cache INSIDE the egress gate (so egress-off still errors before the cache is
     # consulted), then the authoritative egress gate OUTSIDE — covers the injected provider AND the default.
     return EgressGatedSummaryGenerator(

@@ -33,6 +33,12 @@ def get_engine(request: Request) -> Engine:
 
 def resolve_llm_config(app: FastAPI) -> LLMConfig:
     """Resolve current provider settings with this app's reusable client runtime attached."""
+    from app.backend import providers_store
+
+    if providers_store.active_provider()["id"] == "managed_local":
+        from app.backend.llm.managed_local import resolve_managed_local_provider
+
+        return resolve_managed_local_provider(app.state.provider_client_runtime)
     from integrations.gemini.generator import LLMConfig
 
     return LLMConfig.from_environment(provider_runtime=app.state.provider_client_runtime)

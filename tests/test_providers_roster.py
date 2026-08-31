@@ -14,10 +14,10 @@ from integrations.gemini.generator import GeminiConfig
 # --- the synthesized roster (builtins are never persisted; only customs are) ---
 
 
-def test_roster_synthesizes_four_builtins():
+def test_roster_synthesizes_managed_and_manual_local_builtins():
     ids = providers_store.provider_ids()
-    assert ids[:4] == ["gemini", "openai", "anthropic", "local"]  # presets first, in order
-    assert all(providers_store.is_builtin(p) for p in ("gemini", "openai", "anthropic", "local"))
+    assert ids[:5] == ["gemini", "openai", "anthropic", "managed_local", "local"]
+    assert all(providers_store.is_builtin(p) for p in ("gemini", "openai", "anthropic", "managed_local", "local"))
     assert not providers_store.is_builtin("something-custom")
     # nothing was written to the settings file — the presets are pure synthesis
     assert "custom_providers" not in app_settings.load_settings()
@@ -116,7 +116,7 @@ def test_get_providers_roster_shape(temp_db_url: str):
     assert body["active_provider"] == "gemini"
     assert body["wire_formats"] == ["messages", "chat_completions", "responses"]  # gemini SDK not offered
     ids = [p["id"] for p in body["providers"]]
-    assert ids[:4] == ["gemini", "openai", "anthropic", "local"]
+    assert ids[:5] == ["gemini", "openai", "anthropic", "managed_local", "local"]
     gem = next(p for p in body["providers"] if p["id"] == "gemini")
     assert gem["builtin"] is True and gem["active"] is True and gem["wire_format"] == "gemini"
 

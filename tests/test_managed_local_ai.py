@@ -9,13 +9,17 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.backend.api.app import create_app
+from app.backend.api.dependencies import resolve_llm_config
 from app.backend.api.routers.summary_overview import resolve_overview_generator
 from app.backend.llm.managed_local import (
     DESCRIPTOR_ENV,
     ENABLE_ENV,
+    EXPECTED_PREVIEW_MODEL_DIGEST,
     ManagedLocalTargetError,
+    load_preview_target,
     load_target_from_environment,
     resolve_managed_local_overview,
+    with_managed_output_contract,
 )
 from app.backend.provider_runtime import ProviderClientRuntime
 from app.backend.summarization.generators import CandidateCitation, CandidateSummarySentence, FakeSummaryGenerator
@@ -74,6 +78,16 @@ def _enable(monkeypatch: pytest.MonkeyPatch, descriptor: Path | None) -> None:
         monkeypatch.setenv(DESCRIPTOR_ENV, str(descriptor))
 
 
+def _preview_descriptor(tmp_path: Path) -> Path:
+    descriptor = _descriptor(tmp_path)
+    payload = json.loads(descriptor.read_text(encoding="utf-8"))
+    payload["qualification_state"] = "LOCAL_AI_PREVIEW"
+    payload["model_artifact_digest"] = EXPECTED_PREVIEW_MODEL_DIGEST
+    payload["max_output_tokens"] = 2048
+    descriptor.write_text(json.dumps(payload), encoding="utf-8")
+    return descriptor
+
+
 @pytest.mark.parametrize(
     "endpoint",
     [
@@ -119,6 +133,24 @@ def test_descriptor_is_immutable_developer_only_and_secret_safe(
     runtime.close()
 
 
+def test_managed_output_contract_is_immutable_and_changes_transport_contract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable(monkeypatch, _descriptor(tmp_path))
+    runtime = ProviderClientRuntime(http_client_factory=lambda identity: object())
+    base = load_target_from_environment().config(runtime)
+    synthesis = with_managed_output_contract(base, "primary_synthesis")
+
+    assert base.managed_output_contract is None
+    assert synthesis.managed_output_contract == "primary_synthesis"
+    assert base.provider_runtime.output_cap == 256
+    assert synthesis.provider_runtime.output_cap == 256
+    assert synthesis.provider_runtime.contract == "primary_synthesis"
+    with pytest.raises(FrozenInstanceError):
+        synthesis.managed_output_contract = None  # type: ignore[misc]
+    runtime.close()
+
+
 def test_descriptor_and_credential_must_share_private_tauri_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -158,6 +190,64 @@ def test_enabled_missing_or_stale_descriptor_fails_closed_without_cloud(
     _enable(monkeypatch, descriptor)
     descriptor.unlink()
     assert resolve_overview_generator(app) is None
+    app.state.provider_client_runtime.close()
+    app.state.model_runtime_registry.close()
+    app.state.engine.dispose()
+
+
+def test_active_managed_provider_resolves_globally_without_api_key_or_cloud(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _preview_descriptor(tmp_path)
+    monkeypatch.setenv("CALLOSUM_APP_DATA_DIR", str(tmp_path))
+    settings = tmp_path / "settings.json"
+    settings.write_text(json.dumps({"provider": "managed_local"}), encoding="utf-8")
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(settings))
+    monkeypatch.delenv(ENABLE_ENV, raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+
+    runtime = ProviderClientRuntime(http_client_factory=lambda identity: _ManagedEndpointClient())
+    app = create_app(
+        db_url=f"sqlite:///{(tmp_path / 'global.sqlite').as_posix()}",
+        provider_client_runtime=runtime,
+    )
+    target = load_preview_target()
+    config = resolve_llm_config(app)
+
+    assert target.qualification_state == "LOCAL_AI_PREVIEW"
+    assert config.provider == "managed_local"
+    assert config.base_url == "http://127.0.0.1:32123"
+    assert config.resolved_api_key() == TOKEN
+    assert config.data_egress_enabled is False
+    assert app.state.provider_client_runtime is runtime
+    status = TestClient(app).get("/settings").json()
+    assert status["generation_provider_available"] is True
+    assert status["api_key_set"] is False
+    assert status["provider_evidence"] == {
+        "synthesis_overview": "evaluated",
+        "other_generative_capabilities": "testing",
+    }
+    app.state.model_runtime_registry.close()
+    app.state.engine.dispose()
+    runtime.close()
+
+
+def test_active_managed_provider_without_ready_descriptor_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = tmp_path / "settings.json"
+    settings.write_text(json.dumps({"provider": "managed_local", "data_egress_enabled": True}), encoding="utf-8")
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(settings))
+    monkeypatch.setenv("CALLOSUM_APP_DATA_DIR", str(tmp_path))
+    app = create_app(db_url=f"sqlite:///{(tmp_path / 'closed.sqlite').as_posix()}")
+
+    with pytest.raises(ManagedLocalTargetError, match="descriptor_unreadable"):
+        resolve_llm_config(app)
+
+    status = TestClient(app).get("/settings").json()
+    assert status["generation_provider_available"] is False
+    assert status["provider"] == "managed_local"
+
     app.state.provider_client_runtime.close()
     app.state.model_runtime_registry.close()
     app.state.engine.dispose()

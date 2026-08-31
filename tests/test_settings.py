@@ -101,6 +101,11 @@ def test_get_settings_never_returns_the_key(temp_db_url: str) -> None:
     body = resp.json()
     assert body["api_key_set"] is True
     assert body["api_key_source"] == "ui"
+    assert body["generation_provider_available"] is True
+    assert body["provider_evidence"] == {
+        "synthesis_overview": "evaluated",
+        "other_generative_capabilities": "testing",
+    }
     # The key value must NEVER appear in the response — status only.
     assert "sk-super-secret-value" not in resp.text
     assert "api_key" not in body

@@ -64,17 +64,17 @@ def summary_overview_retry(
 
 def resolve_overview_generator(api: FastAPI):
     from app.backend.llm.egress import EgressGatedOverviewGenerator
-    from app.backend.llm.managed_local import resolve_managed_local_overview
+    from app.backend.llm.managed_local import resolve_managed_local_overview, with_managed_output_contract
     from app.backend.llm.providers import requires_egress
     from integrations.gemini.overview import GeminiOverviewGenerator
 
-    # Developer-only Automatic AI POC: explicit activation is exclusive and fail-closed. An absent,
-    # stale, or invalid managed descriptor makes Overview unavailable; it never falls through to cloud.
+    # Preserve the explicit developer-only Phase-2 harness. The production Local AI provider below
+    # resolves through the same global dependency as every other generative capability.
     managed = resolve_managed_local_overview(api.state.provider_client_runtime)
     if managed.enabled:
         if managed.config is None:
             return None
-        config = managed.config
+        config = with_managed_output_contract(managed.config, "synthesis_overview")
         inner = GeminiOverviewGenerator(config=config)
         return EgressGatedOverviewGenerator(
             inner=inner,
@@ -85,6 +85,7 @@ def resolve_overview_generator(api: FastAPI):
         )
 
     config = resolve_llm_config(api)
+    config = with_managed_output_contract(config, "synthesis_overview")
     inner = api.state.overview_generator
     if inner is None:
         # Cloud providers require consent + a key. Loopback providers need neither.

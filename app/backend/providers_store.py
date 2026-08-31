@@ -3,7 +3,7 @@
 Jeff's "Add model provider" request: the fixed gemini/openai/anthropic/local set becomes ONE editable list, and
 a user can add arbitrary, user-named providers ``{name, base_url, wire_format, models[]}`` + a key.
 
-**Storage split (Decision A — no keychain migration).** The four *builtin* presets are **synthesized** on every
+**Storage split (Decision A — no keychain migration).** The five *builtin* presets are **synthesized** on every
 read from module constants + the existing flat inc-149 settings (the per-provider keys, the ``local_base_url``,
 the active ``model`` override). They are never persisted, so today's settings file + key storage are untouched.
 Only *custom* providers are persisted (``custom_providers`` in the settings file), each with an id-keyed secret
@@ -28,15 +28,16 @@ from app.backend import app_settings
 # custom provider (no SDK hijack — a custom provider can never claim ``gemini``).
 CUSTOM_WIRE_FORMATS = ("messages", "chat_completions", "responses")
 
-_BUILTIN_IDS = ("gemini", "openai", "anthropic", "local")
+_BUILTIN_IDS = ("gemini", "openai", "anthropic", "managed_local", "local")
 _DEFAULT_LOCAL_BASE = "http://localhost:11434"
 
 # id -> (display name, wire_format, base_url, default model). ``local`` base_url is overlaid from ``local_base_url``.
 _BUILTIN_META = {
+    "managed_local": ("Local AI", "chat_completions", None, "callosum-managed-local"),
     "gemini": ("Gemini", "gemini", None, "gemini-2.5-flash-lite"),
     "openai": ("OpenAI", "chat_completions", "https://api.openai.com", "gpt-4o-mini"),
     "anthropic": ("Anthropic", "messages", "https://api.anthropic.com", "claude-3-5-haiku-latest"),
-    "local": ("Local", "chat_completions", None, ""),
+    "local": ("Local endpoint", "chat_completions", None, ""),
 }
 
 # Boundary caps (rule #4). The router validates too; the store guards as defense-in-depth.
@@ -92,7 +93,7 @@ def _load_customs(stored: dict) -> list[dict]:
 
 
 def list_providers() -> list[dict]:
-    """Every provider (four synthesized builtins first, then any persisted customs)."""
+    """Every provider (five synthesized builtins first, then any persisted customs)."""
     stored = app_settings.load_settings()
     return _builtin_records(stored) + _load_customs(stored)
 
@@ -103,7 +104,7 @@ def provider_ids() -> list[str]:
 
 
 def is_builtin(pid: str) -> bool:
-    """True for the four synthesized presets (which can't be edited/deleted as custom providers)."""
+    """True for the five synthesized presets (which can't be edited/deleted as custom providers)."""
     return pid in _BUILTIN_IDS
 
 
