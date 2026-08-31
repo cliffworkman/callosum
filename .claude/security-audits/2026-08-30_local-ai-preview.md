@@ -45,4 +45,7 @@ PASS for the bounded Windows x64 Local AI Preview. Focused security/provider/lif
 suite, strict Clippy, Ruff, Bandit, Tach, line-budget, and a live Windows CPU/0 smoke passed. The live smoke removed
 the transient descriptor and bearer-token file and left zero `llama-server` processes. The exact model/runtime
 install remains as verified app data for restart reuse. macOS/Linux acquisition is deliberately unsupported rather
-than falling back to an unverified package, and packaged-UI traffic capture remains an explicit Tuesday QA item.
+than falling back to an unverified package. A production NSIS build and packaged-executable launch/restart/forced-exit
+check passed. In a packaged unavailable-target test, Local AI remained selected, no cloud key was present, the repair
+response explicitly reported that no cloud provider was contacted, the backend had no non-loopback connection, and
+no llama-server or backend child survived close. Visual download/interruption UI checks remain Tuesday QA items.

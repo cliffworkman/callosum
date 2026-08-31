@@ -58,36 +58,35 @@ npx tauri build
 `packaging/smoke_test_backend.py` spawns the bundled interpreter standalone (no Tauri) and confirms
 `/health` — run it after step 3 to catch a broken dependency bundle before touching Rust at all.
 
-## Developer-only managed local AI POC
+## Local AI Preview
 
-The shell can own a developer-supplied `llama-server` and already-downloaded GGUF for the supplementary
-synthesis Overview only. This is qualification infrastructure, not a shipped Automatic AI feature: no runtime or
-model is bundled, no Settings control exists, and normal users cannot enable it accidentally.
+On Windows x64, **Settings → AI features → Local AI → Set up Local AI** installs Callosum's one supported managed
+preview configuration: the publisher-owned Qwen2.5-1.5B-Instruct Q4_K_M GGUF and an official pinned llama.cpp CPU
+runtime. Callosum downloads both from immutable sources, verifies their exact byte sizes and SHA-256 digests, and
+promotes only complete verified files. No API key, provider account, terminal, endpoint, Ollama installation, or
+manual model download is required. macOS/Linux setup currently reports that managed installation is unsupported
+rather than selecting an unvalidated package.
 
-```powershell
-$env:CALLOSUM_LOCAL_AI_ENABLED = "1"
-$env:CALLOSUM_LOCAL_AI_RUNTIME = "C:\path\to\llama-server.exe"
-$env:CALLOSUM_LOCAL_AI_MODEL = "C:\path\to\model.gguf"
-# Required package intent plus test backend controls (not routing policy):
-$env:CALLOSUM_LOCAL_AI_BUILD_BACKEND = "cpu" # or "cuda" for a CUDA package
-$env:CALLOSUM_LOCAL_AI_GPU_LAYERS = "0"
-$env:CALLOSUM_LOCAL_AI_THREADS = "4"
-```
+After setup, Local AI is a first-class generative provider. Compatible features resolve through the same shared
+provider seam as Gemini/OpenAI/Anthropic, but execute through the managed loopback target. A local timeout, crash,
+parse failure, or unavailable model never causes cloud fallback; users must explicitly choose another provider.
+The former advanced user-managed **Local endpoint** remains separate and unchanged.
 
-Tauri canonicalizes both paths, binds the child to literal `127.0.0.1` on an ephemeral port, provisions a
-per-launch bearer token in the app's private data directory, and never persists or surfaces runtime content logs.
-It publishes a private target descriptor to Python only after `/health`, the opaque model alias, an authenticated
-one-token inference probe, and observed backend/offload evidence all succeed. `GPU_LAYERS` is always passed
-explicitly, including `--n-gpu-layers 0`; requested and observed execution are separate immutable descriptor
-fields and must match exactly. Runtime identity covers a deterministic allowlisted manifest of the launcher and
-adjacent execution libraries, not only the launcher executable. Python accepts only that strict descriptor with
-`DEVELOPER_TEST_ONLY` qualification and routes Overview through the existing Chat Completions transport and
-parser. A missing, stale, mismatched, or failed local target disables that Overview attempt; it never falls
-through to a cloud provider. Tauri removes descriptor/token eligibility before bounded shutdown and owns all
-graceful/forced process-tree cleanup.
+Tauri owns the llama-server process for the application lifetime. It binds to literal `127.0.0.1` on an ephemeral
+port, provisions a random bearer token outside argv/frontend, suppresses prompt/output logging, and publishes a
+private descriptor only after authenticated model/inference readiness and requested-versus-observed CPU/offload
+matching. Runtime identity covers a deterministic launcher/shared-library manifest. Shutdown removes transient
+descriptor/token eligibility before graceful or forced process-tree cleanup; the verified installation remains for
+restart reuse and can be repaired by running setup again.
 
-The optional GPU-layer value is a developer experiment, not a recommendation or hardware threshold. The tested
-model is not qualified for scientific/product use.
+Evidence state is separate from availability. Synthesis Overview is **Evaluated** for this exact model under the
+completed Callosum study; other compatible generative features are **Testing** while task-specific comparative
+evaluation continues. Neither label means scientifically qualified or error-free. AI output remains a research aid:
+review important claims against Callosum's cited passages, verified claims, and other available provenance.
+
+The older developer-supplied runtime/GGUF environment variables remain only for qualification and lifecycle tests;
+they are not part of the ordinary setup flow or an arbitrary-GGUF product surface. Automatic provider routing,
+hardware selection, GPU recommendations, and a multi-model catalog remain out of scope for this preview.
 
 ## Known, deliberate limits (see the increment notes for the full writeup)
 

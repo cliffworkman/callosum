@@ -40,7 +40,8 @@ async fn start_backend_and_show_main(app: AppHandle) {
         match start_for_startup(&paths.app_data_dir, &paths.settings_path, &local_ai_state).await {
             Ok(path) => path,
             Err(error) => {
-                // Developer-only local AI must fail closed without preventing Callosum or its primary synthesis.
+                // Local AI fails closed without preventing the rest of Callosum from starting. Python will
+                // preserve the selected provider as unavailable; it never substitutes a cloud target.
                 eprintln!("Managed local AI unavailable: {}", error.detail());
                 None
             }

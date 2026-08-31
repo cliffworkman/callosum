@@ -109,12 +109,29 @@ bytes. Shutdown removed target/token state and left zero `llama-server` processe
 60-second Help timeout; the final managed-only 600-second policy passed without changing cloud semantics. This is
 operational evidence, not a scientific qualification claim or hardware recommendation.
 
+## Packaged Windows acceptance
+
+The production packaging path was exercised after staging the current source into the portable-Python resources.
+The bundled interpreter served `/health` successfully. `npx tauri build` completed its long NSIS compression pass
+and produced unsigned `Callosum_0.4.1_x64-setup.exe`: 242,614,446 bytes, SHA-256
+`4e6ab89732edbd32b4656eba9b9402cb6c4f3040206123211f223497354a879b`. The signature status is intentionally
+`NotSigned`, matching the existing release policy and first-launch documentation.
+
+The packaged release executable then passed fresh launch and restart checks: a real window opened, the bundled
+backend returned loopback `/health` 200, normal window close removed its Python child, and a forced owner exit also
+left no backend child. With an isolated settings file selecting `managed_local`, all cloud-key environment variables
+removed, and no model installed, `/settings` reported `generation_provider_available=false` and `/settings/test-key`
+returned the Local AI repair message. The backend owned only bound/listening or established loopback sockets, started
+zero `llama-server` processes, and left no child after close. This proves packaged fail-closed/no-cloud behavior for
+the unavailable-target path; visual setup progress and interruption recovery remain manual UI checks.
+
 ## Manual Tuesday checks still owed
 
-Run QA route 35's managed Local AI item in the packaged UI: first-install progress, interrupted-download retry,
-same-size corruption repair in an isolated profile, Overview/synthesis/Help, app restart, explicit provider switch,
-and traffic capture proving no cloud. The headless Rust acceptance proves the backend contracts but does not substitute
-for watching the final packaged UI and installer progress on the meeting machine.
+Run QA route 35's remaining visual managed Local AI items in the packaged UI: first-install progress,
+interrupted-download retry, same-size corruption repair in an isolated profile, and explicit provider switching.
+Backend contracts, packaged launch/restart/cleanup, three real generation pathways, and the unavailable-target
+no-cloud path are now directly exercised; those automated checks still do not substitute for watching final setup
+progress and repair copy on the meeting machine.
 
 ## Revert
 
