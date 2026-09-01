@@ -43,6 +43,11 @@ The fix is not an ad-hoc user `pip install`:
   running-app check and immediately before the installer copies fresh immutable resources; and
 - the model/runtime downloaded under app data is outside those directories and remains intact across repair.
 
+The first blocking Linux CI run proved this smoke was useful beyond Windows: the older Linux packager deleted all of
+`torch/bin` to avoid linuxdeploy traversing Torch's internal test executables, which also deleted the required
+`torch_shm_manager`. The packager now deletes only `test_*`/`*Test` files and asserts that helper remains executable
+before the same CrossEncoder smoke. This packaging correction was made before the v0.5.1 tag.
+
 This prevents stale overlay metadata without deleting settings, the library, or the verified 1.04 GiB model.
 
 ## Managed context identity

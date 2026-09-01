@@ -29,3 +29,10 @@ def test_packaged_ml_dependency_trio_is_exact_and_smoke_checked() -> None:
     smoke = (ROOT / "app/desktop-shell/packaging/smoke_test_backend.py").read_text(encoding="utf-8")
     assert "require_version(deps['tokenizers'])" in smoke
     assert "from sentence_transformers import CrossEncoder" in smoke
+
+
+def test_linux_torch_prune_preserves_required_runtime_helper() -> None:
+    script = (ROOT / "app/desktop-shell/packaging/build_python_linux.sh").read_text(encoding="utf-8")
+    assert 'rm -rf "$TORCH_BIN"' not in script
+    assert "-name 'test_*' -o -name '*Test'" in script
+    assert 'test -x "$TORCH_BIN/torch_shm_manager"' in script

@@ -40,16 +40,15 @@ echo "Installing real project dependencies (torch is large)..."
 # no functional code. Pruned here too for consistency with the Windows/macOS builds.
 find "$RUNTIME_DIR" -type d -path "*/dist-info/licenses/third_party" -print -exec rm -rf {} + 2>/dev/null || true
 
-# torch/bin/ ships its own internal C++ test-suite executables (test_api, TCPStoreTest, test_lazy,
-# ...) — never invoked by `import torch`, and Linux-only linuxdeploy insists on resolving every
-# binary's full dynamic-link dependency closure before it'll bundle anything. A real run confirmed
-# one of these test binaries has a broken/relative rpath linuxdeploy can't follow ("ERROR: Could not
-# find dependency: libtorch.so"). Pruned on Linux only — Windows/macOS bundling never walks the
-# dependency graph this way, so it's not a problem there and there's no reason to touch a working build.
+# torch/bin/ ships internal C++ test-suite executables (test_api, TCPStoreTest, test_lazy, ...), but it
+# ALSO contains torch_shm_manager, which `import torch` requires. Linux-only linuxdeploy insists on
+# resolving every test binary's dependency closure; a real run found one test binary's broken/relative
+# rpath. Delete only named test shapes and prove the runtime helper remains — never prune the directory.
 TORCH_BIN=$(find "$RUNTIME_DIR/lib/python3.11/site-packages/torch" -maxdepth 1 -type d -name "bin" || true)
 if [ -n "$TORCH_BIN" ]; then
-  echo "Pruning torch's internal C++ test binaries: $TORCH_BIN"
-  rm -rf "$TORCH_BIN"
+  echo "Pruning torch's internal C++ test binaries while preserving runtime helpers: $TORCH_BIN"
+  find "$TORCH_BIN" -maxdepth 1 -type f \( -name 'test_*' -o -name '*Test' \) -print -delete
+  test -x "$TORCH_BIN/torch_shm_manager"
 fi
 
 echo "Smoke-testing the bundle (required, blocking)..."

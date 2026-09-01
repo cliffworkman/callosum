@@ -379,7 +379,7 @@ dependencies = [
 
 [[package]]
 name = "callosum-shell"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "getrandom 0.3.4",
  "libc",

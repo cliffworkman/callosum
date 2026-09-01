@@ -17,7 +17,8 @@ are the design diary; this is the chronological "what & why" record.
 - **Packaged Python repair:** the exact sentence-transformers/transformers/tokenizers trio is pinned, packaging
   smoke-imports the ML runtime, and the Windows updater replaces only immutable bundled Python/source directories
   before copying the new bundle. This repairs duplicate stale `*.dist-info` left by overlay updates without deleting
-  the app-data Local AI model.
+  the app-data Local AI model. The blocking Linux build also now removes only Torch test executables while preserving
+  its required `torch_shm_manager`; the new import smoke caught the old over-broad prune before v0.5.1 was tagged.
 - **Provider compatibility:** the frozen developer qualification target remains 4,096 context / 256 output; the
   product Preview now declares and validates 12,288 context / 2,048 output. This admits bounded Critical Read and
   Funding prompts while preserving the exact research receipt and never adding cloud fallback.
