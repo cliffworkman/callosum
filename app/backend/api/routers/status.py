@@ -103,7 +103,7 @@ JOB_NAV_DEFAULTS: dict[str, dict[str, Any]] = {
     "summary_jobs": {"workspace": "synthesis", "tab": "ask"},
     "overview_jobs": {"workspace": "synthesis", "tab": "ask"},
     "axis_score_jobs": {"pane": "theory", "section": "axes", "tab": "axes"},
-    "axis_suggest_jobs": {"pane": "theory", "section": "axes", "tab": "axes"},
+    "axis_suggest_jobs": {"pane": "theory", "section": "axes", "tab": "axes", "modal": "suggest-axes"},
     "dedup_jobs": {"workspace": "library", "modal": "duplicates"},
     "library_import_jobs": {"workspace": "library", "modal": "import"},
     "library_bundle_import_jobs": {"workspace": "library", "modal": "bundle-import"},

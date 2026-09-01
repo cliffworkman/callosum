@@ -1563,6 +1563,11 @@ def test_status_tracks_every_progress_bar_and_synchronous_ai_request_with_naviga
     assert "setPaneTabRequest" in raw
     for modal in ("duplicates", "wanted", "text-health", "gaps", "overlooked", "scan", "import", "bundle-import"):
         assert f'nav.modal === "{modal}"' in raw
+    assert "{ ...nav, job_id: job.job_id, nonce:" in raw
+    assert 'paneTabRequest?.modal === "suggest-axes"' in raw
+    assert "setSuggesting({ jobId: paneTabRequest.job_id })" in raw
+    assert "if (resumeJobId) poll(resumeJobId)" in raw
+    assert "<SuggestAxesModal resumeJobId={suggesting.jobId}" in raw
     assert 'invoke("check_for_updates_now")' in raw
     assert '<SettingsCard title="Desktop app">' not in raw
     assert "<DesktopUpdateSettings desktopUpdate={desktopUpdate} />" in raw

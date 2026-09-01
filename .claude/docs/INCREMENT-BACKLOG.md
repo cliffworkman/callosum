@@ -30,20 +30,6 @@
 
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
-- **#63 Clicking an "Axis suggest" row in the Status popover fails to reopen the Suggest-Axes modal.** Found
-  live 2026-08-28 (Cliff). **Root cause, confirmed by reading the code:** `axis_suggest_jobs`' Status nav
-  destination (`app/backend/api/routers/status.py:106`, `{"pane": "theory", "section": "axes", "tab": "axes"}`)
-  correctly opens the Axes pane/tab, but carries no `"modal"` key — and even if it did, there's nothing to
-  consume it: every other Status-navigable modal (`duplicates`, `merge`, `critical-set`, `wanted`,
-  `text-health`, `gaps`, `overlooked`, `scan`, `import`, `zotero-import`, `bundle-import`, `feedback`) is lifted
-  to top-level state in `app/frontend/js/40_app.jsx`'s `onStatusNavigate` (~lines 210-240, one `if (nav.modal
-  === "...") setXOpen(true)` branch per modal), but `SuggestAxesModal`'s own open/close state (`suggesting` in
-  `app/frontend/js/15_axes.jsx:27`, `setSuggesting`) is purely local to `AxesPanel` and was never lifted or
-  wired into that dispatch table — so a Status click can navigate to the right pane but has no way to actually
-  reopen this specific modal. **Fix shape (mirrors the other 12 entries in `onStatusNavigate` exactly):** add
-  `"modal": "suggest-axes"` (or similar) to `axis_suggest_jobs`' nav dict, lift `suggesting` to `40_app.jsx`
-  top-level state (or thread an equivalent "open" signal down into `AxesPanel` via `ctx`/props), and add the
-  matching `if (nav.modal === "suggest-axes") setSuggestAxesOpen(true)` branch.
 ---
 
 ## 2. Needs a design decision from Cliff (not destructive/security — just your call)

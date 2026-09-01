@@ -12,7 +12,7 @@ function MyPubsPrompt() {
   );
 }
 
-function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault, axisCutoffDefault, readOnly }) {
+function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault, axisCutoffDefault, readOnly, paneTabRequest }) {
   const [axes, setAxes] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [details, setDetails] = useState({});     // { axisId: {status, papers} }
@@ -24,7 +24,7 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
   const [filter, setFilter] = useState("");                      // quick filter over the visible axes
   const [selectedIds, setSelectedIds] = useState(() => new Set()); // axes checked for bulk delete / merge
   const [merging, setMerging] = useState(null);                  // selected axis objects when the merge modal is open
-  const [suggesting, setSuggesting] = useState(false);           // suggest-optimal-axes modal open?
+  const [suggesting, setSuggesting] = useState(null);            // null or {jobId}; Status resumes its exact job
   const pollRef = useRef({});
 
   const flash = useCallback((msg) => setNotice(msg), []);
@@ -55,6 +55,9 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
 
   useEffect(() => { loadAxes(); }, [loadAxes]);
   useEffect(() => () => { Object.values(pollRef.current).forEach(clearTimeout); }, []);
+  useEffect(() => {
+    if (paneTabRequest?.modal === "suggest-axes") setSuggesting({ jobId: paneTabRequest.job_id });
+  }, [paneTabRequest]);
 
   // Refresh after a library focus-mode Save (App bumps axisRefresh): update the counts + the open
   // axis's paper list. expandedRef avoids re-running this on every expand/collapse.
@@ -307,7 +310,7 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
             <option value="count">Most Papers</option>
             <option value="recent">Newest</option>
           </select>}
-        {!readOnly && <button className="axis-suggest" title="Suggest axes from your library" onClick={() => setSuggesting(true)}>✨</button>}
+        {!readOnly && <button className="axis-suggest" title="Suggest axes from your library" onClick={() => setSuggesting({ jobId: null })}>✨</button>}
         {!readOnly && <button className="axis-new" title="New curated axis (hand-picked, hand-ordered)" onClick={createCurated}>📌</button>}
         {!readOnly && <button className="axis-new" title={quickName != null ? "Cancel" : "New keyword axis"} onClick={() => { setQuickName(q => q == null ? "" : null); setNotice(null); }}>{quickName != null ? "×" : "+"}</button>}
       </div>
@@ -383,7 +386,7 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
         />}
 
       {suggesting &&
-        <SuggestAxesModal onClose={() => { setSuggesting(false); loadAxes(); }} />}
+        <SuggestAxesModal resumeJobId={suggesting.jobId} onClose={() => { setSuggesting(null); loadAxes(); }} />}
     </div>
   );
 }
@@ -396,5 +399,6 @@ registerPaneTab(
     render: (ctx) => <AxesPanel onSelectPaper={ctx.onSelectPaper} selectedPaper={ctx.selectedPaper}
       onOpenPaper={ctx.onOpenPaper} onEnterFocus={ctx.onEnterFocus} onFilterToAxis={ctx.onFilterToAxis}
       axisRefresh={ctx.axisRefresh} readOnly={ctx.readOnly}
-      hideUncertainDefault={ctx.hideUncertainDefault} axisCutoffDefault={ctx.axisCutoffDefault} /> },
+      hideUncertainDefault={ctx.hideUncertainDefault} axisCutoffDefault={ctx.axisCutoffDefault}
+      paneTabRequest={ctx.paneTabRequest} /> },
 );

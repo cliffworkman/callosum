@@ -156,6 +156,22 @@ def test_critical_review_set_job_nav_reopens_the_modal_not_the_critique_tab(temp
     assert row["nav"] == {"workspace": "synthesis", "modal": "critical-set", "paper_ids": [3, 7]}
 
 
+def test_axis_suggest_job_nav_reopens_the_exact_modal_job(temp_db_url):
+    app = create_app(db_url=temp_db_url)
+    jid = app.state.axis_suggest_jobs.create()
+    app.state.axis_suggest_jobs.mark_running(jid)
+
+    row = TestClient(app).get("/status/jobs").json()["jobs"][0]
+
+    assert row["job_id"] == jid
+    assert row["nav"] == {
+        "pane": "theory",
+        "section": "axes",
+        "tab": "axes",
+        "modal": "suggest-axes",
+    }
+
+
 def test_status_navigation_rejects_free_text_urls_and_destination_overrides(temp_db_url):
     app = create_app(db_url=temp_db_url)
     jid = app.state.summary_jobs.create(

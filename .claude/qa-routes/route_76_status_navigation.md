@@ -69,6 +69,9 @@ Clean seeded instance (`_TEMPLATE.md` → Environment). Egress unset (nothing he
    inline progress bar and confirm automatic registration without adding feature-specific Status code.
 7. Trigger at least three other backend job families (duplicate scan, axis score, OCR, registration comparison).
    Every label must be clickable and land on its exact modal/pane/workspace; none may open an unrelated fallback.
+   For **Axis suggest**, close the Suggested axes modal while the job is running, then click its Status row: the
+   Theory → Axes tab must open and the modal must resume that exact job (no second `POST /axes/suggest`, no duplicate
+   Status row). Repeat after completion and confirm the same saved suggestions reopen.
    Separately trigger Library and WIP folder scans repeatedly: their inline state must work, while Status remains free
    of both running and finished scan rows.
 8. Confirm the pre-existing dismiss `×` and "Clear all finished" still work unaffected by the new click

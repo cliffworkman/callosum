@@ -12709,7 +12709,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   function MyPubsPrompt() {
     return /* @__PURE__ */ React.createElement("div", { className: "axis-mypubs-prompt", title: "Set your name / ORCID in Settings to auto-gather your own papers" }, "\u{1F4C4} ", /* @__PURE__ */ React.createElement("b", null, "My Publications"), " \u2014 set your name / ORCID in Settings (\u2699) to auto-gather your own papers.");
   }
-  function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault, axisCutoffDefault, readOnly }) {
+  function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault, axisCutoffDefault, readOnly, paneTabRequest }) {
     const [axes, setAxes] = useState(null);
     const [expanded, setExpanded] = useState(null);
     const [details, setDetails] = useState({});
@@ -12721,7 +12721,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [filter, setFilter] = useState("");
     const [selectedIds, setSelectedIds] = useState(() => /* @__PURE__ */ new Set());
     const [merging, setMerging] = useState(null);
-    const [suggesting, setSuggesting] = useState(false);
+    const [suggesting, setSuggesting] = useState(null);
     const pollRef = useRef({});
     const flash = useCallback((msg) => setNotice(msg), []);
     const loadAxes = useCallback(() => {
@@ -12748,6 +12748,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     useEffect(() => () => {
       Object.values(pollRef.current).forEach(clearTimeout);
     }, []);
+    useEffect(() => {
+      if (paneTabRequest?.modal === "suggest-axes") setSuggesting({ jobId: paneTabRequest.job_id });
+    }, [paneTabRequest]);
     const expandedRef = useRef(null);
     expandedRef.current = expanded;
     const skipFirstRefresh = useRef(true);
@@ -12990,7 +12993,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const visibleAxes = sortedAxes && filter.trim() ? sortedAxes.filter((a) => ((a.label || "") + " " + (a.description || "")).toLowerCase().includes(filter.trim().toLowerCase())) : sortedAxes;
     const myPubsAxis = (axes || []).find((a) => a.kind === "my_publications") || null;
     const standardVisible = visibleAxes ? visibleAxes.filter((a) => a.kind !== "my_publications") : visibleAxes;
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-group" }, /* @__PURE__ */ React.createElement("div", { className: "axis-controls" }, axes && axes.length > 1 && /* @__PURE__ */ React.createElement("input", { className: "axis-filter", placeholder: "Filter axes\u2026", value: filter, onChange: (e) => setFilter(e.target.value) }), axes && axes.length > 1 && /* @__PURE__ */ React.createElement("select", { className: "axis-sort", value: sortBy, onChange: (e) => setSortBy(e.target.value), title: "Sort axes" }, /* @__PURE__ */ React.createElement("option", { value: "name" }, "A\u2013Z"), /* @__PURE__ */ React.createElement("option", { value: "count" }, "Most Papers"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Newest")), !readOnly && /* @__PURE__ */ React.createElement("button", { className: "axis-suggest", title: "Suggest axes from your library", onClick: () => setSuggesting(true) }, "\u2728"), !readOnly && /* @__PURE__ */ React.createElement("button", { className: "axis-new", title: "New curated axis (hand-picked, hand-ordered)", onClick: createCurated }, "\u{1F4CC}"), !readOnly && /* @__PURE__ */ React.createElement("button", { className: "axis-new", title: quickName != null ? "Cancel" : "New keyword axis", onClick: () => {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-group" }, /* @__PURE__ */ React.createElement("div", { className: "axis-controls" }, axes && axes.length > 1 && /* @__PURE__ */ React.createElement("input", { className: "axis-filter", placeholder: "Filter axes\u2026", value: filter, onChange: (e) => setFilter(e.target.value) }), axes && axes.length > 1 && /* @__PURE__ */ React.createElement("select", { className: "axis-sort", value: sortBy, onChange: (e) => setSortBy(e.target.value), title: "Sort axes" }, /* @__PURE__ */ React.createElement("option", { value: "name" }, "A\u2013Z"), /* @__PURE__ */ React.createElement("option", { value: "count" }, "Most Papers"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Newest")), !readOnly && /* @__PURE__ */ React.createElement("button", { className: "axis-suggest", title: "Suggest axes from your library", onClick: () => setSuggesting({ jobId: null }) }, "\u2728"), !readOnly && /* @__PURE__ */ React.createElement("button", { className: "axis-new", title: "New curated axis (hand-picked, hand-ordered)", onClick: createCurated }, "\u{1F4CC}"), !readOnly && /* @__PURE__ */ React.createElement("button", { className: "axis-new", title: quickName != null ? "Cancel" : "New keyword axis", onClick: () => {
       setQuickName((q) => q == null ? "" : null);
       setNotice(null);
     } }, quickName != null ? "\xD7" : "+")), !readOnly && quickName != null && /* @__PURE__ */ React.createElement("div", { className: "axis-quickname" }, /* @__PURE__ */ React.createElement(
@@ -13070,8 +13073,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           score(keepId);
         }
       }
-    ), suggesting && /* @__PURE__ */ React.createElement(SuggestAxesModal, { onClose: () => {
-      setSuggesting(false);
+    ), suggesting && /* @__PURE__ */ React.createElement(SuggestAxesModal, { resumeJobId: suggesting.jobId, onClose: () => {
+      setSuggesting(null);
       loadAxes();
     } }));
   }
@@ -13092,7 +13095,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           axisRefresh: ctx.axisRefresh,
           readOnly: ctx.readOnly,
           hideUncertainDefault: ctx.hideUncertainDefault,
-          axisCutoffDefault: ctx.axisCutoffDefault
+          axisCutoffDefault: ctx.axisCutoffDefault,
+          paneTabRequest: ctx.paneTabRequest
         }
       )
     }
@@ -13697,15 +13701,16 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       }
     ), /* @__PURE__ */ React.createElement("div", { className: "axis-chips" }, terms.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "axis-hint" }, "No terms \u2014 add some after creating."), terms.map((t, i) => /* @__PURE__ */ React.createElement("button", { key: i, className: "term-chip" + (t.selected ? " on" : ""), disabled: done, onClick: () => toggle(i) }, t.term))), /* @__PURE__ */ React.createElement("div", { className: "suggest-papers" }, suggestion.size, " papers", titles ? " \xB7 e.g. " + titles : ""), err && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, err), /* @__PURE__ */ React.createElement("div", { className: "suggest-item-actions" }, done ? /* @__PURE__ */ React.createElement("span", { className: "suggest-done" }, "\u2713 created") : /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: saving || !label.trim(), onClick: create }, saving ? "Creating\u2026" : "Create axis")));
   }
-  function SuggestAxesModal({ onClose }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(SuggestAxesModalBody, { onClose })));
+  function SuggestAxesModal({ onClose, resumeJobId = null }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(SuggestAxesModalBody, { onClose, resumeJobId })));
   }
-  function SuggestAxesModalBody({ onClose }) {
+  function SuggestAxesModalBody({ onClose, resumeJobId = null }) {
     const [state, setState] = useState({ status: "loading", suggestions: [] });
     const [createdCount, setCreatedCount] = useState(0);
     useEffect(() => {
       let live = true;
       let timer = null;
+      setState({ status: "loading", suggestions: [] });
       const poll = (jobId) => {
         api(`/axes/suggest/${jobId}`).then((r) => {
           if (!live) return;
@@ -13719,19 +13724,22 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           else timer = setTimeout(() => poll(jobId), 1200);
         });
       };
-      apiPost("/axes/suggest", {}).then((r) => {
-        if (!live) return;
-        if (!r.ok) {
-          setState({ status: "error", error: r.error, suggestions: [] });
-          return;
-        }
-        poll(r.data.job_id);
-      });
+      if (resumeJobId) poll(resumeJobId);
+      else {
+        apiPost("/axes/suggest", {}).then((r) => {
+          if (!live) return;
+          if (!r.ok) {
+            setState({ status: "error", error: r.error, suggestions: [] });
+            return;
+          }
+          poll(r.data.job_id);
+        });
+      }
       return () => {
         live = false;
         if (timer) clearTimeout(timer);
       };
-    }, []);
+    }, [resumeJobId]);
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Suggested axes"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Themes discovered in your library that your current axes don't already cover. Curate the terms, rename, and create the ones you want."), state.status === "loading" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Analyzing your library\u2026", managedBy: "backend-job" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't suggest axes: ", state.error), state.status === "ready" && state.suggestions.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No new themes found \u2014 your axes already cover the library, or there aren't enough papers yet."), state.status === "ready" && state.suggestions.map((s, i) => /* @__PURE__ */ React.createElement(SuggestCard, { key: i, suggestion: s, onCreated: () => setCreatedCount((c) => c + 1) })), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, createdCount ? "Done" : "Close")));
   }
   function flashHelpSection(id) {
@@ -22861,7 +22869,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           setTheoryOpen(nav.section || "axes");
           if (mobile) setMobilePane("theory");
         }
-        setPaneTabRequest((prev) => ({ ...nav, nonce: (prev ? prev.nonce : 0) + 1 }));
+        setPaneTabRequest((prev) => ({ ...nav, job_id: job.job_id, nonce: (prev ? prev.nonce : 0) + 1 }));
       }
       if (nav.view === "citations") {
         gotoLibrary("library");
@@ -23031,6 +23039,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       findingsRefresh,
       hideUncertainDefault,
       axisCutoffDefault,
+      paneTabRequest,
       onShowStatcheckFlagged: showStatcheckFlagged,
       onStatcheckRan: refreshStatcheckChip,
       onShowRetractionFlagged: showRetractionFlagged,

@@ -46,11 +46,11 @@ function SuggestCard({ suggestion, onCreated }) {
   );
 }
 
-function SuggestAxesModal({ onClose }) {
+function SuggestAxesModal({ onClose, resumeJobId = null }) {
   return (
     <div className="axis-modal-overlay" onClick={onClose}>
       <div className="axis-modal" onClick={e => e.stopPropagation()}>
-        <SuggestAxesModalBody onClose={onClose} />
+        <SuggestAxesModalBody onClose={onClose} resumeJobId={resumeJobId} />
       </div>
     </div>
   );
@@ -58,13 +58,14 @@ function SuggestAxesModal({ onClose }) {
 
 // inc 416: bare body split out so the onboarding wizard can embed it without a nested overlay —
 // SuggestAxesModal above is now a thin wrapper adding that chrome. Every hook/handler below is unchanged.
-function SuggestAxesModalBody({ onClose }) {
+function SuggestAxesModalBody({ onClose, resumeJobId = null }) {
   const [state, setState] = useState({ status: "loading", suggestions: [] });
   const [createdCount, setCreatedCount] = useState(0);
 
   useEffect(() => {
     let live = true;
     let timer = null;
+    setState({ status: "loading", suggestions: [] });
     const poll = (jobId) => {
       api(`/axes/suggest/${jobId}`).then(r => {
         if (!live) return;
@@ -75,13 +76,16 @@ function SuggestAxesModalBody({ onClose }) {
         else timer = setTimeout(() => poll(jobId), 1200);
       });
     };
-    apiPost("/axes/suggest", {}).then(r => {
-      if (!live) return;
-      if (!r.ok) { setState({ status: "error", error: r.error, suggestions: [] }); return; }
-      poll(r.data.job_id);
-    });
+    if (resumeJobId) poll(resumeJobId);
+    else {
+      apiPost("/axes/suggest", {}).then(r => {
+        if (!live) return;
+        if (!r.ok) { setState({ status: "error", error: r.error, suggestions: [] }); return; }
+        poll(r.data.job_id);
+      });
+    }
     return () => { live = false; if (timer) clearTimeout(timer); };
-  }, []);
+  }, [resumeJobId]);
 
   return (
     <>

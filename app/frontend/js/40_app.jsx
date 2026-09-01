@@ -220,7 +220,7 @@ function App() {
     if (nav.pane) {
       if (nav.pane === "methods") { setMethodsOpen(nav.section || "details"); if (mobile) setMobilePane("methods"); }
       if (nav.pane === "theory") { setTheoryOpen(nav.section || "axes"); if (mobile) setMobilePane("theory"); }
-      setPaneTabRequest(prev => ({ ...nav, nonce: (prev ? prev.nonce : 0) + 1 }));
+      setPaneTabRequest(prev => ({ ...nav, job_id: job.job_id, nonce: (prev ? prev.nonce : 0) + 1 }));
     }
     if (nav.view === "citations") { gotoLibrary("library"); libraryBits.onSortChange("citations_desc"); }
     if (nav.view === "wip") { selectWorkspace("library"); setActiveTab("wip"); if (mobile) setMobilePane("library"); }
@@ -371,7 +371,7 @@ function App() {
     // a Detail-pane edit (field save, re-resolve, fill-metadata, reprocess, acquire) changes what the paper's
     // own Library card shows — reload the list the same way onQueueChanged already does.
     onLibraryChanged: () => setLibRefresh(n => n + 1),
-    pendingSummarize, axisRefresh, tagRefresh, queueRefresh, findingsRefresh, hideUncertainDefault, axisCutoffDefault,
+    pendingSummarize, axisRefresh, tagRefresh, queueRefresh, findingsRefresh, hideUncertainDefault, axisCutoffDefault, paneTabRequest,
     onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
     onShowRetractionFlagged: showRetractionFlagged, onRetractionRan: refreshRetractionChip,
     onShowTransparencyReview: showTransparencyReview, onTransparencyRan: refreshTransparencyChip,  // inc 251
