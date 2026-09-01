@@ -11,10 +11,10 @@
   ],
   "review": {
     "reviewed_at": "2026-09-01",
-    "reviewed_rev": "d560680",
+    "reviewed_rev": "479fa85",
     "reviewed_increment": 556,
-    "source_fingerprint": "7ff6bc3ea26e34e9a51d18ca471b36e34a4cb74ed65a67fcac0a086f17c67227",
-    "note": "Reviewed missing-PDF synthesis resilience and Local AI help wording; no showcase claim or visual change is required for this narrow recovery fix.",
+    "source_fingerprint": "aedb1d80867c0e9f5543c591e733d463adba7b3eb061666cc2c7a3973a4ae297",
+    "note": "Reviewed Synthesize/Ask and Critical Review Local AI fixes ahead of a lab-meeting demo: 19_synthesis_failures.jsx gained a friendly Local-AI-not-ready classification branch; app/backend/api/routers/critical_review.py and summaries.py gained exception handling for provider/Local-AI failures (backend-only, not in this tool's frontend-focused glob).",
     "declined_at": null,
     "declined_rev": null,
     "declined_increment": null,
