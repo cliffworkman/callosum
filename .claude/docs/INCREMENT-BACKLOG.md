@@ -30,26 +30,6 @@
 
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
-- **#62 Duplicate-scan modal starts a brand-new backend job every time it mounts — a direct invariant-#5
-  violation, spams the Status popover.** Found live 2026-08-28 (Cliff): open the Duplicates modal, close it,
-  reopen it via a Status-popover click on that same scan's row → a second scan starts; repeating this piles up
-  a new "Duplicate scan" row in Status every time, instead of resuming/reflecting the one already running or
-  already finished. **Root cause, confirmed by reading the code (not guessed):** `DuplicatesModal`
-  (`app/frontend/js/19_duplicates.jsx`, `useEffect(() => { runScan(); }, [runScan])`, ~line 82) unconditionally
-  calls `runScan()` on every mount, and `runScan()` always does a fresh `apiPost("/papers/duplicates", {})` —
-  there is no check for "is a scan already in flight" and no persistence of the current/last `job_id` across
-  unmount (entirely component-local state, discarded on close). The backend has no guard either:
-  `POST /papers/duplicates` (`app/backend/api/routers/duplicates.py:82-87`, `scan_duplicates_start`)
-  unconditionally calls `request.app.state.dedup_jobs.create()` on every call, with no check of
-  `dedup_jobs.list_all()` for an existing pending/running job first. `dedup_jobs`' own Status nav
-  (`status.py:107`, `{"workspace": "library", "modal": "duplicates"}`) is exactly what reopens this same modal
-  from a Status click, completing the amplifying loop Cliff described. **Fix shape (mirrors a guard already
-  shipped elsewhere this same week, inc 507's `POST /grobid/docker/install`):** the backend endpoint should
-  check for an existing pending/running `dedup_jobs` entry and return it (or 409) instead of always creating a
-  new one; the frontend's `runScan()`/mount effect should check for (and resume polling) an already-in-flight
-  job — via the Status endpoint, or a small "is one running" pre-check — before starting a fresh scan, and
-  should not blindly restart on every remount. **Flagged by Cliff as fix-asap** (a direct, currently-shipping
-  violation of invariant #5's "duplicate rows are impossible" guarantee) — pick up before other near-term work.
 - **#63 Clicking an "Axis suggest" row in the Status popover fails to reopen the Suggest-Axes modal.** Found
   live 2026-08-28 (Cliff). **Root cause, confirmed by reading the code:** `axis_suggest_jobs`' Status nav
   destination (`app/backend/api/routers/status.py:106`, `{"pane": "theory", "section": "axes", "tab": "axes"}`)

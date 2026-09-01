@@ -1601,6 +1601,25 @@ def test_scan_duplicates_empty_when_no_dupes(temp_db_url: str) -> None:
     assert result["status"] == "done" and result["groups"] == []
 
 
+def test_scan_duplicates_reuses_the_existing_active_job(temp_db_url: str) -> None:
+    app = create_app(db_url=temp_db_url, embedding_model=_DistinctEmbedModel())
+    active_id = app.state.dedup_jobs.create()
+    client = TestClient(app)
+
+    resumed = client.post("/papers/duplicates")
+
+    assert resumed.status_code == 202
+    assert resumed.json() == {"job_id": active_id, "status": "pending", "detail": None, "groups": None}
+    assert [job_id for job_id, _job in app.state.dedup_jobs.list_all()] == [active_id]
+
+    app.state.dedup_jobs.mark_running(active_id)
+    resumed_running = client.post("/papers/duplicates")
+    assert resumed_running.status_code == 202
+    assert resumed_running.json()["job_id"] == active_id
+    assert resumed_running.json()["status"] == "running"
+    assert [job_id for job_id, _job in app.state.dedup_jobs.list_all()] == [active_id]
+
+
 def test_dismissed_duplicate_pair_is_not_re_flagged(temp_db_url: str) -> None:
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:

@@ -1184,7 +1184,18 @@ def test_misc_ux_batch_wiring():
     assert "runSearch({ q: last.q, source: last.source" in raw
     # F4: a completed merge drops its duplicate card
     assert "mergedIds={dupMergedIds}" in raw
-    assert "function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge, mergedIds, onMergeDone })" in raw
+    assert (
+        "function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge, mergedIds, onMergeDone, resumeJobId })"
+        in raw
+    )
+
+
+def test_duplicate_modal_resumes_status_job_instead_of_starting_another_scan():
+    raw = assemble_jsx()
+    assert "if (jobId) { poll(jobId); return; }" in raw
+    assert "useEffect(() => { runScan(resumeJobId); }, [runScan, resumeJobId]);" in raw
+    assert "setDuplicatesResumeJobId(job.job_id); setDuplicatesOpen(true);" in raw
+    assert "<DuplicatesModal resumeJobId={duplicatesResumeJobId}" in raw
 
 
 def test_qa_20260719_mobile_batch_and_pdf_404_fix():
@@ -1294,7 +1305,7 @@ def test_qa_retriage_20260702_batch_undismiss_and_scan_recovery_fixes():
     # Route 24: un-dismissing a pair previously only refreshed the "previously dismissed" list, leaving the main
     # scan's `state.groups` stale until the whole modal was closed + reopened. `runScan` is now a reusable
     # function called both on mount and after a successful undismiss.
-    assert "const runScan = useCallback(() => {" in raw
+    assert "const runScan = useCallback((jobId = null) => {" in raw
     assert 'onClick={() => apiPost("/papers/duplicates/undismiss"' in raw
     assert "if (r.ok) { refreshDismissed(); runScan(); }" in raw
     # Route 27: a running scan's {url, jobId} is now persisted so closing + reopening the Watched-folders modal

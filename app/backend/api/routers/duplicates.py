@@ -81,10 +81,14 @@ class DismissedPairsResponse(BaseModel):
 
 @router.post("/papers/duplicates", response_model=DedupJobResponse, status_code=http_status.HTTP_202_ACCEPTED)
 def scan_duplicates_start(background_tasks: BackgroundTasks, request: Request) -> DedupJobResponse:
-    # Async (scanning + embedding the whole library is slow): returns a job id to poll. Local, no egress.
-    job_id = request.app.state.dedup_jobs.create()
-    background_tasks.add_task(_run_dedup_job, request.app, job_id)
-    return DedupJobResponse(job_id=job_id, status="pending")
+    # Async (scanning + embedding the whole library is slow): returns a job id to poll. A remounted modal or
+    # concurrent request resumes the one active scan instead of creating duplicate work/Status rows.
+    jobs: JobStore[DedupJobResponse] = request.app.state.dedup_jobs
+    job_id, created = jobs.create_or_get_active()
+    job = jobs.get(job_id)
+    if created:
+        background_tasks.add_task(_run_dedup_job, request.app, job_id)
+    return DedupJobResponse(job_id=job_id, status=job.status if job is not None else "pending")
 
 
 @router.get("/papers/duplicates/dismissed", response_model=DismissedPairsResponse)

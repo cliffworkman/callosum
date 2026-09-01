@@ -687,3 +687,4 @@ appended here.)*
   (`chunk_filtering.py::exclude_repeated_boilerplate_chunks`) and is unaffected by this closure.
 - [x] **#33/#34 Word saved-evidence insertion** (inc 529) — author-selected highlight/stance/four-format flow with a GET-only relay projection; see `increment-notes/INCREMENT-529-NOTES.md`.
 - [x] **#33/#34 Word Zotero field conversion** (inc 530) — exact first-party inline field parsing, bounded local resolution, grouped-override preservation, snapshot preflight, fail-closed unsupported modes, and conditional bibliography replacement; see `increment-notes/INCREMENT-530-NOTES.md`.
+- [x] **#62 Duplicate scan remount/job deduplication** (inc 551) — atomically reuses the sole active backend scan and lets Status navigation reopen the exact running or finished result instead of spawning another job; see `increment-notes/INCREMENT-551-NOTES.md`.

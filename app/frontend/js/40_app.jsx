@@ -69,6 +69,7 @@ function App() {
   // that open them + onMerged do). Refs break the focus↔library cycle: useLibrary's filter/merge callbacks need
   // cancelFocus + setAxisRefresh, which come from useFocusMode (declared after useLibrary). See below.
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);  // inc-56 duplicate-detection modal
+  const [duplicatesResumeJobId, setDuplicatesResumeJobId] = useState(null);  // Status row → exact scan
   const [dupMergedIds, setDupMergedIds] = useState(null);       // inc-301: last merged group's ids → hide its dup card
   const [wantedOpen, setWantedOpen] = useState(false);          // inc-76 wanted-list / OA re-check modal
   const [textHealthOpen, setTextHealthOpen] = useState(false);  // local PDF text-health maintenance queue
@@ -223,7 +224,7 @@ function App() {
     }
     if (nav.view === "citations") { gotoLibrary("library"); libraryBits.onSortChange("citations_desc"); }
     if (nav.view === "wip") { selectWorkspace("library"); setActiveTab("wip"); if (mobile) setMobilePane("library"); }
-    if (nav.modal === "duplicates") setDuplicatesOpen(true);
+    if (nav.modal === "duplicates") { setDuplicatesResumeJobId(job.job_id); setDuplicatesOpen(true); }
     if (nav.modal === "merge" && Array.isArray(nav.paper_ids) && nav.paper_ids.length > 1) setMergeIds(nav.paper_ids);
     if (nav.modal === "critical-set" && Array.isArray(nav.paper_ids) && nav.paper_ids.length > 1) {
       setCritSetIds(nav.paper_ids);
@@ -432,7 +433,7 @@ function App() {
             selected, onSelect: setSelected,
             focusAxis, focusMembers, focusPending,
             onToggleFocusPaper: toggleFocusPaper, onSaveFocus: saveFocus, onCancelFocus: cancelFocus,
-            onFindDuplicates: () => setDuplicatesOpen(true),
+            onFindDuplicates: () => { setDuplicatesResumeJobId(null); setDuplicatesOpen(true); },
             onOpenTextHealth: () => openTextHealth(),
             onOpenReferenceWarnings: openReferenceWarnings,
             onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
@@ -482,7 +483,8 @@ function App() {
   const modals = (
     <React.Fragment>
       {duplicatesOpen &&
-        <DuplicatesModal onClose={() => setDuplicatesOpen(false)} onOpenPaper={openPdf}
+        <DuplicatesModal resumeJobId={duplicatesResumeJobId}
+          onClose={() => { setDuplicatesOpen(false); setDuplicatesResumeJobId(null); }} onOpenPaper={openPdf}
           onChanged={() => setLibRefresh(n => n + 1)} onMerge={(ids) => setMergeIds(ids)}
           mergedIds={dupMergedIds} onMergeDone={() => setDupMergedIds(null)} />}
       {mergeIds &&

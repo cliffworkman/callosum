@@ -3,8 +3,29 @@
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 from app.backend.api.job_store import Job, JobProgress, JobStore
+
+
+def test_create_or_get_active_is_atomic_and_allows_a_new_job_after_completion() -> None:
+    store: JobStore = JobStore()
+    barrier = Barrier(8)
+
+    def create() -> tuple[str, bool]:
+        barrier.wait()
+        return store.create_or_get_active()
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda _: create(), range(8)))
+
+    assert len({job_id for job_id, _created in results}) == 1
+    assert sum(created for _job_id, created in results) == 1
+    active_id = results[0][0]
+    store.mark_done(active_id, {"ok": True})
+    next_id, created = store.create_or_get_active()
+    assert created is True and next_id != active_id
 
 
 def test_mark_progress_sets_running_with_determinate_progress() -> None:

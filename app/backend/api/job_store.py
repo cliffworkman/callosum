@@ -118,6 +118,21 @@ class JobStore(Generic[R]):
             self._jobs[job_id] = Job(status="pending", nav=nav)
         return job_id
 
+    def create_or_get_active(self, nav: dict[str, Any] | None = None) -> tuple[str, bool]:
+        """Atomically reuse a pending/running job, or create the sole active job.
+
+        The boolean is true only for the caller that created the job and should
+        therefore schedule its worker.  Keeping the lookup and insert under one
+        lock makes duplicate background rows impossible under concurrent POSTs.
+        """
+        with self._lock:
+            for job_id, job in self._jobs.items():
+                if job.status in {"pending", "running"}:
+                    return job_id, False
+            job_id = uuid4().hex
+            self._jobs[job_id] = Job(status="pending", nav=nav)
+            return job_id, True
+
     def mark_running(self, job_id: str) -> None:
         with self._lock:
             previous = self._jobs.get(job_id)

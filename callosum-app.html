@@ -14138,7 +14138,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       "Merge"
     ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onDismiss, title: "Not a duplicate \u2014 won't be flagged again" }, "Dismiss")), papers.map((p) => /* @__PURE__ */ React.createElement("div", { key: p.id, className: "dup-paper" }, /* @__PURE__ */ React.createElement("div", { className: "dup-paper-info" }, /* @__PURE__ */ React.createElement("div", { className: "dup-paper-title" }, p.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "dup-paper-meta" }, fmtAuthors(p.authors) || "\u2014", p.year ? " \xB7 " + p.year : "", p.venue ? " \xB7 " + p.venue : "")), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onOpenPaper && onOpenPaper(p) }, "Open"), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", disabled: busy, onClick: () => del(p) }, "Delete"))));
   }
-  function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge, mergedIds, onMergeDone }) {
+  function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge, mergedIds, onMergeDone, resumeJobId }) {
     const [state, setState] = useState({ status: "loading", groups: [] });
     const [dismissed, setDismissed] = useState(() => /* @__PURE__ */ new Set());
     const [dismissedPairs, setDismissedPairs] = useState([]);
@@ -14153,11 +14153,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     useEffect(() => {
       refreshDismissed();
     }, []);
-    const runScan = useCallback(() => {
+    const runScan = useCallback((jobId = null) => {
       setState({ status: "loading", groups: [] });
       setDismissed(/* @__PURE__ */ new Set());
-      const poll = (jobId) => {
-        api(`/papers/duplicates/${jobId}`).then((r) => {
+      const poll = (jobId2) => {
+        api(`/papers/duplicates/${jobId2}`).then((r) => {
           if (!liveRef.current) return;
           if (!r.ok) {
             setState({ status: "error", error: r.error, groups: [] });
@@ -14166,9 +14166,13 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           const d = r.data;
           if (d.status === "done") setState({ status: "ready", groups: d.groups || [] });
           else if (d.status === "error") setState({ status: "error", error: d.detail || "Scan failed.", groups: [] });
-          else setTimeout(() => poll(jobId), 1200);
+          else setTimeout(() => poll(jobId2), 1200);
         });
       };
+      if (jobId) {
+        poll(jobId);
+        return;
+      }
       apiPost("/papers/duplicates", {}).then((r) => {
         if (!liveRef.current) return;
         if (!r.ok) {
@@ -14179,8 +14183,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       });
     }, []);
     useEffect(() => {
-      runScan();
-    }, [runScan]);
+      runScan(resumeJobId);
+    }, [runScan, resumeJobId]);
     useEffect(() => {
       if (!mergedIds || !mergedIds.length || state.status !== "ready") return;
       const idset = new Set(mergedIds.map(Number));
@@ -22675,6 +22679,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [queueRefresh, setQueueRefresh] = useState(0);
     const [tagRefresh, setTagRefresh] = useState(0);
     const [duplicatesOpen, setDuplicatesOpen] = useState(false);
+    const [duplicatesResumeJobId, setDuplicatesResumeJobId] = useState(null);
     const [dupMergedIds, setDupMergedIds] = useState(null);
     const [wantedOpen, setWantedOpen] = useState(false);
     const [textHealthOpen, setTextHealthOpen] = useState(false);
@@ -22867,7 +22872,10 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setActiveTab("wip");
         if (mobile) setMobilePane("library");
       }
-      if (nav.modal === "duplicates") setDuplicatesOpen(true);
+      if (nav.modal === "duplicates") {
+        setDuplicatesResumeJobId(job.job_id);
+        setDuplicatesOpen(true);
+      }
       if (nav.modal === "merge" && Array.isArray(nav.paper_ids) && nav.paper_ids.length > 1) setMergeIds(nav.paper_ids);
       if (nav.modal === "critical-set" && Array.isArray(nav.paper_ids) && nav.paper_ids.length > 1) {
         setCritSetIds(nav.paper_ids);
@@ -23097,7 +23105,10 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           onToggleFocusPaper: toggleFocusPaper,
           onSaveFocus: saveFocus,
           onCancelFocus: cancelFocus,
-          onFindDuplicates: () => setDuplicatesOpen(true),
+          onFindDuplicates: () => {
+            setDuplicatesResumeJobId(null);
+            setDuplicatesOpen(true);
+          },
           onOpenTextHealth: () => openTextHealth(),
           onOpenReferenceWarnings: openReferenceWarnings,
           onOpenScan: () => setScanOpen(true),
@@ -23155,7 +23166,11 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const modals = /* @__PURE__ */ React.createElement(React.Fragment, null, duplicatesOpen && /* @__PURE__ */ React.createElement(
       DuplicatesModal,
       {
-        onClose: () => setDuplicatesOpen(false),
+        resumeJobId: duplicatesResumeJobId,
+        onClose: () => {
+          setDuplicatesOpen(false);
+          setDuplicatesResumeJobId(null);
+        },
         onOpenPaper: openPdf,
         onChanged: () => setLibRefresh((n) => n + 1),
         onMerge: (ids) => setMergeIds(ids),
