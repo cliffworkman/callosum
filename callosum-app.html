@@ -14273,6 +14273,15 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   function classifySynthesisFailure(error) {
     const detail = String(error || "Summarization failed.");
     const lower = detail.toLowerCase();
+    if (lower.includes("local ai is not ready")) {
+      return {
+        kind: "settings",
+        title: "Local AI isn't ready yet.",
+        message: "Open Settings to check Local AI's setup status, then retry once it shows Ready.",
+        primary: "Open Settings",
+        detail
+      };
+    }
     if (lower.includes("dataegressdisablederror") || lower.includes("data-egress consent")) {
       return {
         kind: "settings",

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 # Bumped whenever ``_prompt`` or candidate parsing semantics change. Model/provider request semantics are
 # independently represented by ``GenerationCacheIdentity`` in app/backend/llm/cache.py.
-SUMMARY_PROMPT_VERSION = "summary-v4"
+SUMMARY_PROMPT_VERSION = "summary-v5"
 
 # ``DataEgressDisabledError`` is re-exported (its canonical home is app/backend/llm/egress.py) so the
 # provider self-checks below and the existing `from integrations.gemini import DataEgressDisabledError`
@@ -123,19 +123,38 @@ class GeminiSummaryGenerator:
 
         if requires_egress(self.config) and not self.config.data_egress_enabled:
             raise DataEgressDisabledError("Summary generation requires explicit data-egress consent.")
-        result = complete(self.config, _prompt(source_chunks=source_chunks, scope_ref=scope_ref))
+        result = complete(
+            self.config,
+            _prompt(source_chunks=source_chunks, scope_ref=scope_ref, provider=getattr(self.config, "provider", None)),
+        )
         log_usage("summary", self.config.model, result)
         return _parse_response_text(str(result.text or "[]"))
 
 
-def _prompt(*, source_chunks: list[SourceChunk], scope_ref: dict[str, object]) -> str:
+# The managed Local AI preview runs a fixed 12,288-token context (2,048 reserved for output — see
+# app/backend/llm/managed_local.py's _PREVIEW_CONTEXT_TOKENS/max_output_tokens), unlike cloud providers'
+# effectively unbounded context. A multi-paper synthesis's top_k scales up to 50 chunks (one per selected
+# paper, app/frontend/js/20_synthesis.jsx's MAX_CHUNKS) with no per-chunk or total character cap today, so a
+# large selection can silently overflow the managed context with no local guard. Truncating each chunk's
+# TEXT (never dropping a chunk) preserves the "every selected paper gets representation" retrieval contract
+# while bounding total prompt size; a truncated prefix remains a genuine substring of the stored chunk, so
+# the #1 verbatim-quote verification bar downstream is unaffected.
+_MANAGED_LOCAL_TOTAL_CHUNK_CHARS = 10_000
+
+
+def _prompt(*, source_chunks: list[SourceChunk], scope_ref: dict[str, object], provider: str | None = None) -> str:
+    per_chunk_limit = (
+        max(200, _MANAGED_LOCAL_TOTAL_CHUNK_CHARS // len(source_chunks))
+        if provider == "managed_local" and source_chunks
+        else None
+    )
     chunks_json = [
         {
             "chunk_id": chunk.chunk_id,
             "paper_id": chunk.paper_id,
             "page_start": chunk.page_start,
             "page_end": chunk.page_end,
-            "text": chunk.text,
+            "text": chunk.text[:per_chunk_limit] if per_chunk_limit is not None else chunk.text,
         }
         for chunk in source_chunks
     ]

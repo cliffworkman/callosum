@@ -26,7 +26,12 @@ from app.backend.persistence.schema import (
     summaries,
     summary_sentences,
 )
-from app.backend.summarization.generators import CandidateCitation, CandidateSummarySentence, FakeSummaryGenerator
+from app.backend.summarization.generators import (
+    CandidateCitation,
+    CandidateSummarySentence,
+    FakeSummaryGenerator,
+    SourceChunk,
+)
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
 from app.backend.summarization.verification import EmbeddingSupportScorer, LocalCitationVerifier, VerificationConfig
 from integrations.gemini import DataEgressDisabledError, GeminiConfig, GeminiSummaryGenerator
@@ -616,13 +621,42 @@ def test_gemini_generator_refuses_data_egress_before_sdk_call() -> None:
 def test_summary_prompt_requests_concise_cross_paper_answer_and_bounded_evidence() -> None:
     prompt = _prompt(source_chunks=[], scope_ref={"paper_ids": [1, 2, 3], "query": "What is the bias?"})
 
-    assert SUMMARY_PROMPT_VERSION == "summary-v4"
+    assert SUMMARY_PROMPT_VERSION == "summary-v5"
     assert "MUST contain 4 to 7" in prompt
     assert "MUST be exactly one complete standalone sentence" in prompt
     assert "qualifications or null findings" in prompt
     assert "across those papers" in prompt
     assert "contain 1 to 3 citations" in prompt
     assert "No quote may exceed 80 words" in prompt
+
+
+def test_prompt_truncates_chunk_text_for_managed_local_but_not_cloud() -> None:
+    """A multi-paper synthesis can retrieve up to 50 chunks (one per selected paper) with no per-chunk cap.
+    Against Gemini's effectively unbounded context that's invisible; against the managed Local AI preview's
+    fixed 12,288-token window it can silently overflow. Each chunk's TEXT is truncated (never dropped) so
+    every selected paper still gets representation, and a truncated prefix stays a genuine substring of the
+    stored chunk so the #1 verbatim-quote verification bar downstream is unaffected."""
+    long_text = "x" * 5000
+    chunks = [
+        SourceChunk(
+            chunk_id=i,
+            paper_id=i,
+            attachment_id=i,
+            text=long_text,
+            page_start=1,
+            page_end=1,
+            chunk_version="v1",
+        )
+        for i in range(10)
+    ]
+
+    cloud_prompt = _prompt(source_chunks=chunks, scope_ref={"paper_ids": list(range(10))}, provider="gemini")
+    managed_prompt = _prompt(source_chunks=chunks, scope_ref={"paper_ids": list(range(10))}, provider="managed_local")
+
+    assert long_text in cloud_prompt  # cloud/manual providers: unchanged, full chunk text
+    assert long_text not in managed_prompt  # managed_local: truncated
+    assert long_text[:1000] in managed_prompt  # 10,000-char budget / 10 chunks = 1,000 chars/chunk
+    assert len(managed_prompt) < len(cloud_prompt)
 
 
 def _migrated_engine(tmp_path: Path):

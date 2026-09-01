@@ -266,6 +266,40 @@ def test_active_managed_provider_without_ready_descriptor_fails_closed(
     app.state.engine.dispose()
 
 
+def test_synthesize_job_reports_managed_local_not_ready_with_a_readable_reason_not_a_bare_code(
+    temp_db_url: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A ManagedLocalTargetError raised inside the synthesize job (Local AI selected but not ready/crashed/
+    stale) must not surface as the bare internal code (e.g. "ManagedLocalTargetError: descriptor_unreadable")
+    in Status/the Ask panel -- Synthesize's own generic classifier (19_synthesis_failures.jsx) recognizes the
+    "Local AI is not ready" wording and routes the user to Settings instead of a dead-end Retry."""
+    db_url = temp_db_url
+    _seed_summarization_library(db_url)
+    settings = tmp_path / "settings.json"
+    settings.write_text(json.dumps({"provider": "managed_local", "data_egress_enabled": True}), encoding="utf-8")
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(settings))
+    monkeypatch.setenv("CALLOSUM_APP_DATA_DIR", str(tmp_path))  # no managed-local-ai/target.json written here
+    app = create_app(
+        db_url=db_url,
+        embedding_model=ApiFakeEmbeddingModel(),
+        vector_store=InMemoryVectorStore(),
+        support_scorer=ConstantSupportScorer(),
+    )
+    client = TestClient(app)
+
+    started = client.post("/summarize", json={"scope_type": "query", "query": "facial"})
+    result = client.get(f"/summarize/{started.json()['job_id']}").json()
+
+    assert started.status_code == 202
+    assert result["status"] == "error"
+    assert "Local AI is not ready (descriptor_unreadable)" in result["detail"]
+    assert "Settings" in result["detail"]
+    assert "ManagedLocalTargetError" not in result["detail"]
+    app.state.provider_client_runtime.close()
+    app.state.model_runtime_registry.close()
+    app.state.engine.dispose()
+
+
 class _Response:
     def __init__(self, payload: dict, status: int = 200) -> None:
         self.payload = payload
