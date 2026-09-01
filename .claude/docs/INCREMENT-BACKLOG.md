@@ -46,24 +46,6 @@
   `www/shots/app_current.png` and fold in the already-queued `.app-map` hotspot redesign (see the plan doc at
   `.claude/backups/plans/2026-08-30_website-demo-improvements.md`) in the same pass rather than recapturing
   twice.
-- **#66 The online demo's Discover section is out of date relative to real current Callosum functionality.**
-  Two concrete, cited gaps found auditing the demo (2026-08-31): `GET /feed/suggest-authors` (real route since
-  inc 455/506, real frontend call at `app/frontend/js/30g_feed_suggest.jsx:42`) has no matching route in
-  `demo/demo-runtime.js` at all — Feed → Suggest → Author 404s in the live demo. `tools/demo/
-  capture_demo_prospection.py:168-169` hardcodes `missing_works=[]`/`dismissed_works=[]` for the Indexed-Works
-  panel instead of deriving them from a real job. Both are expected to close in the same session this was filed.
-- **#67 Stale "three-paper"/corpus-count copy is spreading across the demo and marketing pages.** The demo
-  corpus grew 3→5 papers in inc 548; a recurring pattern of hardcoded old counts was found not just in
-  `demo/README.md`'s narrative prose (contradicted by its own, correctly-updated Coverage table further down
-  the same file) but baked into live frontend demo-mode strings (`app/frontend/js/08e_methods_publishers.jsx:414`,
-  `10_pdf_layer.jsx:252/293/299`, `demo-runtime.js:94,96`), capture-script docstrings/comments
-  (`generate_demo_synthesis_state.py:3`), data fields rendered verbatim in the UI (`generate_demo_wip_state.py:
-  71,196`), a separate `demo/coverage-v1.json`, and the marketing pages `www/index.html:375`/
-  `www/how-it-works.html:548`. Inc 550 already fixed one instance of this exact bug class
-  (`31_mypubs_dashboard.jsx`'s domains note), confirming it's a real, recurring failure mode distinct from
-  missing capture (#66) — stale prose, not a missing job. Expected to close in the same session this was filed;
-  see `.claude/docs/increment-notes/` for the increment that does the sweep for the exact final file list (more
-  sites than could be enumerated here turned up once the read/evaluate/audit-stage demo audits ran).
 - **#68 Tie GitHub release tags to the in-app "what's new" notification banner.** The banner mechanism
   (`app/frontend/js/30c_frame.jsx`'s `LocalAiWhatsNewHint`, a versioned dismissible-once localStorage key —
   `LOCAL_AI_WHATSNEW_KEY = "callosum.local-ai-whatsnew.v1"`) is a real, useful pattern, but each instance is a
