@@ -1,16 +1,21 @@
 """Fail when public-site capability claims drift outside the demo experience ledger."""
 
+# ruff: noqa: E402 -- direct script execution needs the repository root on sys.path before the tools.qa import.
+
 from __future__ import annotations
 
 import argparse
 import json
 import re
+import sys
 from datetime import date
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
 from tools.qa import changelog_drift
 
-ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_LEDGER = ROOT / "demo" / "experience-coverage-v1.json"
 SHOWCASE = ROOT / "www" / "showcase.html"
 INDEX = ROOT / "www" / "index.html"

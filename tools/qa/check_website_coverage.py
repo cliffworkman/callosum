@@ -20,19 +20,24 @@ A decline is never a silent bypass: it requires a reason, only covers drift up t
 was recorded at, and is always printed by a passing check while it remains in effect.
 """
 
+# ruff: noqa: E402 -- direct script execution needs the repository root on sys.path before the tools.qa import.
+
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
 import struct
+import sys
 from datetime import date
 from html.parser import HTMLParser
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
 from tools.qa import changelog_drift
 
-ROOT = Path(__file__).resolve().parents[2]
 REGISTRY = ROOT / "www" / "showcase-coverage.json"
 SHOWCASE = ROOT / "www" / "showcase.html"
 INDEX = ROOT / "www" / "index.html"
