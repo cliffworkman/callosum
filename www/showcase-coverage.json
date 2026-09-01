@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-31",
-    "reviewed_rev": "89af8e6",
-    "source_fingerprint": "3f673d74009714f590033ad5ff0bc397f625f8993f9593dbdb0db3c8c3f162d1",
-    "note": "inc 550: reviewed the corrected My Publications domains note (31_mypubs_dashboard.jsx) after fixing its stale two-paper/hand-curated wording; no other user-facing claim or visual changed."
+    "reviewed_rev": "c69f6fe",
+    "source_fingerprint": "0164a0ad8bd91504699e78bdccafa2e133dcc84cf48ca4f0ec66fd16f45bfe2a",
+    "note": "fig-journals was left orphaned at half-width (its old grid partner fig-indexed-gaps became a full-row compact figure in the prior fix) -- marked it wide to match its full-app-screenshot siblings and close the empty-gap layout bug."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",
@@ -143,8 +143,8 @@
     "shots/saved_note_current.png": {
       "captured_at": "2026-08-10",
       "width": 290,
-      "height": 861,
-      "sha256": "a84ed919074620b656ed7546e6c80c26aac6aa8f204890a3eb940ca461af750b",
+      "height": 228,
+      "sha256": "8380a4193b1e26a8fa8ace7115c2049f45400fb6133584e65bbe7649fc556c40",
       "reviewed_at": "2026-08-31"
     },
     "shots/citation_evidence_current.png": {
@@ -164,15 +164,15 @@
     "shots/statcheck_current.png": {
       "captured_at": "2026-08-10",
       "width": 387,
-      "height": 2803,
-      "sha256": "d4ee10cf6f8c94a62777c571c459dfbd643f47235be8e3f0d249c2f16095d874",
+      "height": 915,
+      "sha256": "196b2f638c4ae3f083a5b3cd4f19e81943e1e37ab2023fe585ef1e65c9379e30",
       "reviewed_at": "2026-08-31"
     },
     "shots/metaanalysis_current.png": {
       "captured_at": "2026-08-10",
       "width": 387,
-      "height": 1641,
-      "sha256": "1e41fbb3b1b5ea8ea5221769a6562268bb00e9353d6929fefce02642d397b9f9",
+      "height": 881,
+      "sha256": "51015a17cd19e70afffbe0ed2199f86a230d5d15270cd6e38f755b543baea4b9",
       "reviewed_at": "2026-08-31"
     },
     "shots/synthesis_current.png": {
