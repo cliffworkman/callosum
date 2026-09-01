@@ -259,7 +259,8 @@ def generate_candidates(
     # Tier 2 (egress-gated, invariant #3): the LLM PROPOSES concerns; each is admitted only through the #13
     # verbatim bar (verify_candidates → canonical_text_contains), annotated with a local NLI stance, and persisted
     # as a pending CANDIDATE the human accepts/rejects. A fake generator (test seam) still honors the egress gate.
-    from app.backend.llm.providers import requires_egress
+    from app.backend.llm.managed_local import ManagedLocalTargetError
+    from app.backend.llm.providers import ProviderError, requires_egress
     from app.backend.methods.critical_review import paper_full_text
     from integrations.gemini.critical_review import GeminiCriticalReviewGenerator, verify_candidates
 
@@ -268,7 +269,12 @@ def generate_candidates(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
 
-    config = resolve_llm_config(request.app)
+    try:
+        config = resolve_llm_config(request.app)
+    except ManagedLocalTargetError as exc:
+        raise HTTPException(
+            status_code=422, detail=f"Local AI is not ready ({exc.code}). Check Settings → AI features."
+        ) from None
     if requires_egress(config) and not config.data_egress_enabled:
         raise HTTPException(status_code=422, detail="AI critique requires data-egress consent (Settings → AI features)")
     generator = getattr(request.app.state, "critical_review_generator", None)
@@ -279,7 +285,10 @@ def generate_candidates(
 
     _, _, stance_scorer = _cr_deps(request.app)
     paper_text = paper_full_text(conn, paper_id)
-    drafts = generator.propose(paper_text=paper_text)
+    try:
+        drafts = generator.propose(paper_text=paper_text)
+    except ProviderError as exc:
+        raise HTTPException(status_code=422, detail=f"AI critique generation failed: {exc}") from None
     verified = verify_candidates(
         drafts,
         paper_id=paper_id,

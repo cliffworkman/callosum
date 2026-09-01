@@ -24,6 +24,13 @@ _MAX_DRAFTS = 8
 _MAX_CONCERN = 400
 _MAX_QUOTE = 400
 _MAX_PROMPT_CHARS = 20000
+# The managed Local AI preview runs a fixed 12,288-token context (2,048 reserved for output — see
+# app/backend/llm/managed_local.py's _PREVIEW_CONTEXT_TOKENS/max_output_tokens), unlike cloud providers'
+# effectively unbounded context. 20,000 chars of dense scientific prose can tokenize well past that budget
+# on Qwen's tokenizer, producing an unhandled provider failure (the same context-overflow class inc 554
+# already found and fixed once for Funding Discovery). Conservatively sized so even a pessimistic 3
+# chars/token still leaves the output reserve and prompt instructions comfortable headroom.
+_MAX_PROMPT_CHARS_MANAGED_LOCAL = 12000
 
 
 @dataclass(frozen=True)
@@ -95,17 +102,18 @@ class GeminiCriticalReviewGenerator:
         self.config = config
 
     def propose(self, *, paper_text: str) -> list[CandidateDraft]:
-        result = complete(self.config, _prompt(paper_text))
+        result = complete(self.config, _prompt(paper_text, provider=getattr(self.config, "provider", None)))
         return parse_drafts(str(getattr(result, "text", "") or ""))
 
 
-def _prompt(paper_text: str) -> str:
+def _prompt(paper_text: str, *, provider: str | None = None) -> str:
+    max_chars = _MAX_PROMPT_CHARS_MANAGED_LOCAL if provider == "managed_local" else _MAX_PROMPT_CHARS
     return (
         "You are a skeptical methodological reviewer. Read the paper text and list up to "
         f"{_MAX_DRAFTS} specific concerns a careful reader should CHECK — about the CLAIMS and METHODS ONLY, "
         "never about the authors as people. For each concern, quote the EXACT sentence from the paper it refers "
         'to, copied verbatim. Return ONLY a JSON array of {"concern": "...", "anchor_quote": "..."} objects, no '
-        "prose.\n\nPaper text:\n" + paper_text[:_MAX_PROMPT_CHARS]
+        "prose.\n\nPaper text:\n" + paper_text[:max_chars]
     )
 
 

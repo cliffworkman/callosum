@@ -579,6 +579,27 @@ def test_critical_read_endpoints(temp_db_url) -> None:
 # --- Task 5: Tier-2 verified candidates (egress-gated) ----------------------------------------------------------
 
 
+def test_prompt_bounds_paper_text_tighter_for_managed_local_than_cloud():
+    """The managed Local AI preview runs a fixed 12,288-token context (2,048 reserved for output) unlike
+    cloud providers' effectively unbounded context; a 20,000-char prompt can tokenize past that budget on
+    Qwen's tokenizer. Cloud keeps its existing generous cap; managed_local gets a conservative one."""
+    from integrations.gemini.critical_review import (
+        _MAX_PROMPT_CHARS,
+        _MAX_PROMPT_CHARS_MANAGED_LOCAL,
+        _prompt,
+    )
+
+    long_text = "x" * 50_000
+
+    cloud_prompt = _prompt(long_text, provider="gemini")
+    managed_prompt = _prompt(long_text, provider="managed_local")
+
+    assert long_text[:_MAX_PROMPT_CHARS] in cloud_prompt
+    assert long_text[:_MAX_PROMPT_CHARS_MANAGED_LOCAL] in managed_prompt
+    assert _MAX_PROMPT_CHARS_MANAGED_LOCAL < _MAX_PROMPT_CHARS
+    assert len(managed_prompt) < len(cloud_prompt)
+
+
 def test_verify_candidates_keeps_only_grounded_and_skips_rejected():
     from types import SimpleNamespace
 
@@ -678,6 +699,30 @@ def test_generate_candidates_endpoint_verifies_and_egress_gates(temp_db_url, mon
     monkeypatch.delenv("CALLOSUM_ALLOW_DATA_EGRESS", raising=False)
     r2 = client.post(f"/papers/{pid}/critical-read/candidates/generate")
     assert r2.status_code == 422
+
+
+def test_generate_candidates_endpoint_reports_provider_failure_as_422_not_500(temp_db_url):
+    """A live provider failure (e.g. Local AI's context overflowing) must surface as a clean, actionable 4xx
+    with the real detail preserved — never an unhandled 500 (the bug a real HTTP 500 on this endpoint traced
+    back to: the LLM call here had zero exception handling)."""
+    from app.backend.llm.providers import ProviderError
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", abstract="We prove causation.", csl_json={"title": "P"})
+    engine.dispose()
+
+    class _FailingGen:
+        def propose(self, *, paper_text):
+            raise ProviderError("HTTP 400: context size exceeded")
+
+    app = create_app(db_url=temp_db_url)
+    app.state.critical_review_generator = _FailingGen()
+    client = TestClient(app)
+
+    r = client.post(f"/papers/{pid}/critical-read/candidates/generate")
+    assert r.status_code == 422, r.text
+    assert "context size exceeded" in r.json()["detail"]
 
 
 def test_generate_candidates_with_triage_toggle_annotates_in_one_round_trip(temp_db_url):
