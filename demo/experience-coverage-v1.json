@@ -191,10 +191,10 @@
   },
   "review": {
     "reviewed_at": "2026-09-01",
-    "reviewed_rev": "73ac6ac",
+    "reviewed_rev": "296d10f",
     "reviewed_increment": 555,
-    "source_fingerprint": "9153fedefea927c0c8e4149fe9b41106642644532c3886b68eac45482e9e374a",
-    "note": "Bootstrapped changelog-drift tracking (inc 555); fixed the Discover suggest-authors/indexed-works gaps (backlog #66), swept stale three-paper copy across the demo (backlog #67), fixed the crosswalk attachment_id PDF-evidence bug, gated Citation Styles preview in demo mode, and reclassified cap-fulltext to missing-snapshot.",
+    "source_fingerprint": "514215ed069ce9c695cd27c363d4055ce76b2c292060cbe52c075c4fe50e23e7",
+    "note": "Bootstrapped changelog-drift tracking (inc 555); fixed the Discover suggest-authors/indexed-works gaps (backlog #66), swept stale three-paper copy across the demo (backlog #67), fixed the crosswalk attachment_id PDF-evidence bug, gated Citation Styles preview in demo mode, and reclassified cap-fulltext to missing-snapshot. Also added .gitattributes eol=lf rules for app/backend/api/routers/*.py and tools/demo/*.py (this tool's own fingerprint glob) and normalized 63 CRLF-committed files to LF, fixing a cross-platform fingerprint mismatch caught live in CI.",
     "declined_at": null,
     "declined_rev": null,
     "declined_increment": null,

@@ -11,10 +11,10 @@
   ],
   "review": {
     "reviewed_at": "2026-09-01",
-    "reviewed_rev": "73ac6ac",
+    "reviewed_rev": "296d10f",
     "reviewed_increment": 555,
-    "source_fingerprint": "fbb802073e246ad2c894ce44637b48852b1385cc4184401de73c33662e95985c",
-    "note": "Bootstrapped changelog-drift tracking (inc 555); fixed a genuine crosswalk attachment_id PDF-evidence bug, gated Citation Styles preview in demo mode, and swept stale three-paper corpus-count copy across app/frontend/js and www/*.html.",
+    "source_fingerprint": "90f4a3d3a0aeca85f3c986a93e819d43330fad4f36c125b930ff9522e7ac049a",
+    "note": "Bootstrapped changelog-drift tracking (inc 555); fixed a genuine crosswalk attachment_id PDF-evidence bug, gated Citation Styles preview in demo mode, and swept stale three-paper corpus-count copy across app/frontend/js and www/*.html. Also fixed a stale adapters/google_docs (vs real adapters/googledocs) .gitattributes glob and normalized CRLF-committed files in that directory to LF, per the file's own documented cross-platform-fingerprint rationale.",
     "declined_at": null,
     "declined_rev": null,
     "declined_increment": null,

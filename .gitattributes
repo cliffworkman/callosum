@@ -1,11 +1,12 @@
-# tools/qa/check_website_coverage.py hashes the exact bytes of these directories/files to fingerprint
-# "user-facing source" for its showcase-drift check, and tools/demo/generate_demo_wip_state.py hashes
-# tools/demo/fixtures/*.md byte-for-byte into the committed demo/wip-state-v1.json regression fixture
-# (app/backend/wip/content.py's whole_file_hash). Without a forced EOL, core.autocrlf differences
-# between platforms (CRLF on a Windows checkout, LF on Linux CI) change those hashed bytes and make
-# both fixtures non-reproducible across machines -- confirmed as the cause of two separate CI-only
-# failures (test_demo_snapshot.py::test_demo_wip_state_regenerates_from_real_sandbox_deterministically
-# and check_website_coverage.py's source_fingerprint mismatch). text=auto lets git's own binary
+# tools/qa/check_website_coverage.py and tools/qa/check_demo_experience_coverage.py (inc 555) hash the
+# exact bytes of these directories/files to fingerprint "user-facing source" for their drift checks, and
+# tools/demo/generate_demo_wip_state.py hashes tools/demo/fixtures/*.md byte-for-byte into the committed
+# demo/wip-state-v1.json regression fixture (app/backend/wip/content.py's whole_file_hash). Without a
+# forced EOL, core.autocrlf differences between platforms (CRLF on a Windows checkout, LF on Linux CI)
+# change those hashed bytes and make both fixtures non-reproducible across machines -- confirmed as the
+# cause of three separate CI-only failures (test_demo_snapshot.py::test_demo_wip_state_regenerates_from_
+# real_sandbox_deterministically, check_website_coverage.py's source_fingerprint mismatch, and inc 555's
+# own check_demo_experience_coverage.py source_fingerprint mismatch). text=auto lets git's own binary
 # detection skip real binaries (e.g. adapters/word/icon.png) that live alongside text files in the
 # same glob.
 tools/demo/fixtures/*.md text=auto eol=lf
@@ -16,6 +17,9 @@ app/frontend/js/*.jsx text=auto eol=lf
 app/backend/help/help_content.md text=auto eol=lf
 adapters/libreoffice/** text=auto eol=lf
 adapters/word/** text=auto eol=lf
-adapters/google_docs/** text=auto eol=lf
+adapters/googledocs/** text=auto eol=lf
 tui/** text=auto eol=lf
 mcp_server/** text=auto eol=lf
+
+app/backend/api/routers/*.py text=auto eol=lf
+tools/demo/*.py text=auto eol=lf
