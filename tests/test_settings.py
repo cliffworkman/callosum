@@ -37,19 +37,34 @@ def test_agent_writes_toggle_defaults_off_and_round_trips(temp_db_url: str) -> N
 
 
 def test_onboarding_completed_defaults_false_and_round_trips(temp_db_url: str) -> None:
-    # inc 416: the first-run wizard's completion/skip flag. Default OFF; PUT toggles it.
+    # inc 416/553: completion and the wizard-contract version are one atomic settings update.
     client = TestClient(create_app(db_url=temp_db_url))
-    assert client.get("/settings").json()["onboarding_completed"] is False
-    assert client.put("/settings", json={"onboarding_completed": True}).json()["onboarding_completed"] is True
-    assert client.get("/settings").json()["onboarding_completed"] is True
+    initial = client.get("/settings").json()
+    assert initial["onboarding_completed"] is False
+    assert initial["onboarding_version"] == 0
+    updated = client.put(
+        "/settings",
+        json={"onboarding_completed": True, "onboarding_version": app_settings.ONBOARDING_CURRENT_VERSION},
+    ).json()
+    assert updated["onboarding_completed"] is True
+    assert updated["onboarding_version"] == app_settings.ONBOARDING_CURRENT_VERSION
+    assert client.get("/settings").json()["onboarding_version"] == app_settings.ONBOARDING_CURRENT_VERSION
 
 
 def test_onboarding_completed_store_roundtrip() -> None:
     assert app_settings.stored_onboarding_completed() is False
-    app_settings.set_onboarding_completed(True)
+    assert app_settings.stored_onboarding_version() == 0
+    app_settings.set_onboarding_completed(True, version=app_settings.ONBOARDING_CURRENT_VERSION)
     assert app_settings.stored_onboarding_completed() is True
+    assert app_settings.stored_onboarding_version() == app_settings.ONBOARDING_CURRENT_VERSION
     app_settings.set_onboarding_completed(False)
     assert app_settings.stored_onboarding_completed() is False
+
+
+def test_onboarding_version_requires_completion_and_is_bounded(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.put("/settings", json={"onboarding_version": 2}).status_code == 422
+    assert client.put("/settings", json={"onboarding_completed": True, "onboarding_version": 3}).status_code == 422
 
 
 def test_publisher_prefs_gate_and_roundtrip(temp_db_url: str) -> None:

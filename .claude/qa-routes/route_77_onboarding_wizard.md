@@ -6,15 +6,18 @@ fe: 04e_onboarding.jsx, 35a_mypubs.jsx, 27_scan.jsx, 28_import.jsx, 28b_bundle.j
 # ROUTE 77 — First-run onboarding wizard
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust the new first-run wizard (inc 416) — a full-screen overlay shown once per machine, sequencing
-five existing settings screens. The sharpest checks: it never overwrites an existing My Publications profile
-with blanks, it never defaults the AI/egress toggle on, and "Skip setup" is always a real, reachable exit.
+**Goal:** Exhaust the first-run wizard (inc 416) and the versioned Local AI refresh (inc 553). A fresh install
+sequences five existing settings screens; a pre-v2 completed desktop install sees only the shared AI-provider step
+and completion screen once. The sharpest checks: identity is never overwritten, Local AI setup is real rather than
+duplicated UI, cloud egress remains off by default, and every skip/not-now exit is reachable and durable.
 
 ## Environment
 
-Clean seeded instance (`_TEMPLATE.md` → Environment). Egress unset. To force the wizard to appear, ensure
-`~/.callosum/app-settings.json` (or `CALLOSUM_SETTINGS_PATH`) has no `onboarding_completed` key (a fresh
-settings file already satisfies this). To test the "existing tester" path, first `PUT /settings` a My
+Clean seeded instance (`_TEMPLATE.md` → Environment). Egress unset. To force first-run onboarding, ensure
+`~/.callosum/app-settings.json` (or `CALLOSUM_SETTINGS_PATH`) has neither `onboarding_completed` nor
+`onboarding_version` (a fresh settings file satisfies this). To test a returning desktop user, seed
+`{"onboarding_completed": true}` with no version; packaged Tauri must surface the one-time Local AI refresh.
+To test the "existing tester" identity path, first `PUT /settings` a My
 Publications profile via `PUT /my-publications/profile {"display_name": "Ada Lovelace", "name_variants":
 ["A. Lovelace"], "orcid": "0000-0002-1825-0097"}` before loading the app.
 
@@ -22,15 +25,16 @@ Publications profile via `PUT /my-publications/profile {"display_name": "Ada Lov
 
 - **Console-error budget = 0.** Any console `error` ≥ Medium; any `pageerror` ≥ High.
 - **No uncompletable control.**
-- **Egress gate.** With egress unset, the AI/BYOK step's toggle must render OFF/unchecked on load, with no
+- **Provider/egress gate.** The AI step includes the real managed **Local AI** card and **Set up Local AI** action.
+  With egress unset, the cloud-provider toggle must render OFF/unchecked on load, with no
   pre-checked box and no "Continue (recommended)"-style pressure toward turning it on. Any request to a
   `generativelanguage`/Gemini/genai host with egress off is **Critical**.
 - **Never overwrites existing identity data.** With a profile seeded per the Environment note, the identity
   step must show the real name/variants/ORCID — never blank fields — regardless of how quickly you click
   through. This is **Critical** if violated (real user data loss).
-- **"Skip setup" is always visible and always works**, at every one of the five steps, and always results in
-  `GET /health`'s `onboarding_completed` reporting `true` afterward (confirmed via the network tab or a
-  follow-up `GET /health`).
+- **"Skip setup" is always visible and always works** during first-run setup. **Not now** is the refresh exit.
+  Either must result in `GET /health` reporting `onboarding_completed:true` and `onboarding_version` equal to
+  `onboarding_current_version`; reload must not re-nag.
 - **No dead ends.** Every step's Next/Back/Skip/choice buttons are completable; the import/axis steps'
   "Skip this step →" is always present alongside the two real tool choices.
 
@@ -43,6 +47,8 @@ Publications profile via `PUT /my-publications/profile {"display_name": "Ada Lov
   the saved result still matches the original data, not blanks
 - click "Skip setup" on the very first step (identity) — confirm the wizard closes immediately and does not
   reappear on reload
+- with legacy completed state and no version, confirm the desktop refresh starts on **AI features**, contains only
+  AI + Done, and **Not now** prevents recurrence; the Library notice must still reopen the same AI-first refresh
 - on the import step, pick "Import EndNote RIS / citations file…", then click Back — confirm the choice screen reappears
   cleanly (no stuck state)
 - resize to `375x812` — the wizard card fits without horizontal overflow, and its internal step body scrolls if
@@ -53,7 +59,8 @@ Publications profile via `PUT /my-publications/profile {"display_name": "Ada Lov
 1. Baseline screenshot: load the app fresh (no `onboarding_completed` key) → the wizard appears, blocking, with
    the identity step showing empty fields (no prior profile).
 2. Step through identity: enter a name, click Next.
-3. Step through AI/BYOK: confirm the egress toggle is off; leave it off; click Next.
+3. Step through AI providers: confirm **Local AI** offers **Set up Local AI** with no API key; confirm cloud egress
+   is off; leave it off; click Next.
 4. Step through library folder: confirm it shows the default watched library folder; click "Add + scan" with a
    folder path, confirm progress appears (and, separately, appears in the Status popover); click Next (or use
    the step's own "×"/"Close", confirming both reach the same next step).
@@ -61,17 +68,23 @@ Publications profile via `PUT /my-publications/profile {"display_name": "Ada Lov
    click Next.
 6. Step through axis: choose "Create one manually…", name an axis, confirm it saves, reaches the final screen.
 7. Confirm the "You're all set" screen, click Finish. Confirm the wizard is gone and `GET /health` now reports
-   `onboarding_completed: true`. Reload the app — the wizard must NOT reappear.
+   `onboarding_completed:true` and current `onboarding_version`. Reload — the wizard must NOT reappear.
 8. **Existing-tester path**: reset `onboarding_completed` to unset, seed a My Publications profile directly via
    the API (see Environment), reload — confirm the identity step shows the real seeded name/variants/ORCID, not
    blanks, then click through or Skip.
-9. Adversarial: rapid-click-through, Enter-key race on identity, mobile viewport check (see checklist above).
+9. **Returning-user refresh:** seed only `onboarding_completed:true`, launch packaged desktop, and confirm the
+   two-screen **What's new in Callosum — AI features** refresh appears once. Confirm **Not now**, Next/Finish, and
+   real Local AI setup each persist the current version and do not recur on reload.
+10. Dismiss/finish the refresh, then click **Set up Local AI** in the Library announcement. Confirm it reopens
+    directly at the same AI step even though onboarding is current; no identity/library/import/axis step appears.
+11. Adversarial: rapid-click-through, Enter-key race on identity, mobile viewport check (see checklist above).
 
 ## Pass criteria
 
-- The wizard appears once on a fresh install and never again after Finish/Skip.
+- The full wizard appears once on a fresh install; the AI-only refresh appears once on a legacy completed desktop.
 - The identity step never shows or saves blanks over an existing profile.
-- The AI/BYOK step's egress toggle is off by default, never pre-checked.
+- The AI step exposes the real Local AI setup and keeps cloud egress off by default.
+- The Library announcement can always reopen the AI-only refresh after a skip/dismiss.
 - "Skip setup" works from every step and always marks onboarding as done.
 - Each of the five steps' embedded tool actually performs its real action (scan/import/axis-create), visible
   in the Status popover where applicable.

@@ -95,7 +95,7 @@ function App() {
   // inc 416: defaults true (never undefined) — a FAILED /health still sets healthLoaded=true, and if this
   // defaulted falsy the wizard would incorrectly appear over a broken instance instead of the connection-error
   // state. Only flips false when a real /health response says the wizard hasn't run/been skipped yet.
-  const [onboardingDone, setOnboardingDone] = useState(true);
+  const [onboarding, setOnboarding] = useState({ done: true, refresh: false, version: 0 });
   const savedDemoWip = demoWorkspaceCapability("library", "wip")?.mode === "saved";
   const wip = useWipWorkspace({ enabled: healthLoaded && (readOnly === false || savedDemoWip), readOnly });
   // inc 460: WIP tab state/management lives in its own hook (10h_wip_filters.jsx, alongside useWipWorkspace) --
@@ -317,7 +317,7 @@ function App() {
       if (r.ok) {
         setConn({ state: "ok", version: (r.data && r.data.app_version) || null });
         setReadOnly(!!(r.data && r.data.read_only));
-        setOnboardingDone(!!(r.data && r.data.onboarding_completed));
+        setOnboarding(onboardingLaunchState(r.data, "__TAURI__" in window));
       } else setConn({ state: "bad" });
       setHealthLoaded(true);
     });
@@ -450,6 +450,7 @@ function App() {
           readingMode={readingMode} onToggleReading={toggleReading}
           mobile={mobile}
           capture={capture} onCaptureAnchor={captureAnchor} onCancelCapture={clearCapture}
+          onOpenLocalAi={() => setOnboarding(s => ({ ...s, done: false, refresh: true }))}
         />
       </div>
       <div className="workspace-slot" style={{ display: activeWorkspace === "profile" ? "flex" : "none" }}>
@@ -529,8 +530,9 @@ function App() {
         <SharedWithMeModal onClose={() => setSharedWithMeOpen(false)}
           onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }}
           onOpenSettings={() => { setSharedWithMeOpen(false); selectWorkspace("settings"); }} />}
-      {!authLocked && healthLoaded && !onboardingDone &&
-        <OnboardingWizard onDone={() => setOnboardingDone(true)}
+      {!authLocked && healthLoaded && !onboarding.done &&
+        <OnboardingWizard onDone={() => setOnboarding(s => ({ ...s, done: true, refresh: false }))}
+          refreshMode={onboarding.refresh} currentVersion={onboarding.version}
           onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)}
           onScanned={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }}
           onImported={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }}

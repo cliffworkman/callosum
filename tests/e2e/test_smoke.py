@@ -54,7 +54,7 @@ def server(tmp_path_factory):
     # runner with no prior ~/.callosum/app-settings.json shows the first-run wizard overlay,
     # which blocks every pre-existing smoke test's clicks on the app underneath.
     settings_path = tmp_path_factory.mktemp("e2e") / "app-settings.json"
-    settings_path.write_text('{"onboarding_completed": true}', encoding="utf-8")
+    settings_path.write_text('{"onboarding_completed": true, "onboarding_version": 2}', encoding="utf-8")
 
     port = _free_port()
     env = {

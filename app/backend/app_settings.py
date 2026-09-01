@@ -1,14 +1,8 @@
 """Local app-settings store (inc 146 — BYOK).
 
-A tiny JSON file holding the user's Gemini API key + data-egress consent, set from the Settings UI. It
-lives at ``~/.callosum/app-settings.json`` (overridable via ``CALLOSUM_SETTINGS_PATH``) — **outside the git
-repo and outside the project's synced Dropbox folder**, so the secret never travels with a copy of the
-library ``.sqlite``.
-
-The key is a SECRET: it is never logged, never returned by the API (only a set/not-set status), and never
-committed (the file is in the user's home dir). Environment variables (``GOOGLE_API_KEY`` /
-``CALLOSUM_ALLOW_DATA_EGRESS``) remain the fallback, so existing ``.env`` setups are unaffected — the stored
-value, when present, simply overlays the env default (see ``GeminiConfig.from_environment``).
+The JSON file lives outside the repo at ``~/.callosum/app-settings.json`` (overridable via
+``CALLOSUM_SETTINGS_PATH``). Secrets are never logged or returned by the API; environment variables remain
+fallbacks, so existing setups are unaffected.
 """
 
 from __future__ import annotations
@@ -23,6 +17,7 @@ from pathlib import Path
 API_KEY_MAX_LEN = 512
 CONTACT_EMAIL_MAX_LEN = 254  # RFC-5321 max address length; the boundary validator enforces it too
 ACCESS_TOKEN_MAX_LEN = 256  # remote-access bearer token (inc 168); generated tokens are ~43 chars
+ONBOARDING_CURRENT_VERSION = 2  # v2 resurfaces onboarding once for the managed Local AI introduction
 
 
 def settings_path() -> Path:
@@ -437,16 +432,22 @@ def stored_remote_access() -> bool:
     return bool(load_settings().get("remote_access_enabled", False))
 
 
-def set_onboarding_completed(done: bool) -> None:
+def set_onboarding_completed(done: bool, *, version: int | None = None) -> None:
     data = load_settings()
     data["onboarding_completed"] = bool(done)
+    if version is not None:
+        data["onboarding_version"] = max(0, int(version))
     _write(data)
 
 
 def stored_onboarding_completed() -> bool:
-    """Whether the first-run wizard has been completed OR explicitly skipped (both count — re-nagging on every
-    future launch after a skip would itself be the kind of pressure the wizard is designed to avoid)."""
+    """Whether the first-run wizard has been completed or explicitly skipped."""
     return bool(load_settings().get("onboarding_completed", False))
+
+
+def stored_onboarding_version() -> int:
+    value = load_settings().get("onboarding_version", 0)
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
 
 
 def read_only_mode() -> bool:

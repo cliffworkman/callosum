@@ -214,13 +214,12 @@ def test_workspace_menubar_structure_present():
     assert 'title="Papers you want an OA copy of' in raw and 'title="Works related to several of your papers' in raw
     assert 'title="Per axis: works relevant to it but under-cited' in raw
     assert "onFindDuplicates, onOpenWanted" not in raw and "onFindDuplicates, onOpenScan" in raw
-    # inc 284: returning users get a one-time Library hint for relocated tools.
-    assert "callosum.workspaces-whatsnew" in raw
-    assert "function WorkspacesWhatsNewHint(" in raw
-    assert "New layout:" in raw and "Synthesize" in raw and "Meta Reference List" in raw and "CRediT" in raw
-    assert "Discover → Search" in raw and "Wanted" in raw and "Gaps" in raw and "Overlooked" in raw
-    assert "Meta-Analyze" in raw and "Work" in raw
-    assert '_saveLayout(WORKSPACES_WHATSNEW_KEY, "1")' in raw
+    # inc 553: the superseded layout hint becomes a fresh Local AI announcement with a durable setup entry point.
+    assert "callosum.local-ai-whatsnew.v1" in raw
+    assert "function LocalAiWhatsNewHint(" in raw
+    assert "New: Local AI." in raw and "no API key or cloud account required" in raw
+    assert "Set up Local AI" in raw and "onOpenLocalAi" in raw
+    assert '_saveLayout(LOCAL_AI_WHATSNEW_KEY, "1")' in raw
     css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
     assert (
         ".workspace-body { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; overflow-y: auto; }"
@@ -1207,9 +1206,9 @@ def test_qa_20260719_mobile_batch_and_pdf_404_fix():
     # superseded by the padding-sweep fix below: .cite-pane now gets real base padding via .ws-pad, so the
     # mobile-only patch was removed rather than left as a contradictory one-off (DESIGN.md §3 #10).
     assert ".app.mobile .cite-pane { padding: 0 14px" not in css
-    # the workspace "what moved" hint gets a shorter mobile-specific copy (was 4 lines / 82px on a phone)
-    assert "function WorkspacesWhatsNewHint({ readOnly, mobile })" in raw
-    assert "tools moved into <b>Discover</b> and <b>Work</b>" in raw
+    # the current release hint retains a shorter mobile-specific copy (the old layout notice was 4 lines / 82px)
+    assert "function LocalAiWhatsNewHint({ readOnly, mobile, onOpenLocalAi })" in raw
+    assert "Run Callosum's AI features on this device — no API key required." in raw
     assert "<b>Extract</b>" not in raw
     # a paper opened with a known attachment_count of 0 skips the doomed /pdf fetch entirely (no 404, no
     # console error) instead of relying on the 404 being handled gracefully after the fact
@@ -1458,10 +1457,15 @@ def test_onboarding_wizard_orchestrates_existing_settings_never_defaults_egress_
     # PUT /settings endpoint (no dedicated onboarding endpoint invented).
     assert "function OnboardingWizard(" in raw
     assert "Skip setup" in raw
-    assert 'apiPut("/settings", { onboarding_completed: true })' in raw
+    assert 'apiPut("/settings", { onboarding_completed: true, onboarding_version: currentVersion })' in raw
     # It reuses the existing settings components verbatim — never a re-implementation of them.
     assert "<MyPubsSettings onRefreshed={onMyPubsRefreshed} />" in raw
     assert "<AiSettings />" in raw
+    # inc 553: completed pre-v2 desktop installs see the real AI step once; read-only/non-desktop views do not.
+    assert 'const ONBOARDING_REFRESH_STEPS = ["ai", "done"]' in raw
+    assert "function onboardingLaunchState(health, isDesktop)" in raw
+    assert "storedVersion < currentVersion" in raw and '"__TAURI__" in window' in raw
+    assert "Local AI is now built in." in raw and 'refreshMode ? "Not now" : "Skip Setup"' in raw
     # inc 416: each of the five step-source components was split into a bare *Body + a thin wrapper that
     # still adds the .axis-modal-overlay chrome — both halves must survive, so every existing standalone
     # entry point (Settings, the library "+Add" menu, the axis editor/suggester) keeps working unchanged.

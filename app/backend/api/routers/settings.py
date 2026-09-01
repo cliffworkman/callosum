@@ -72,6 +72,7 @@ class SettingsStatus(BaseModel):
     publisher_defaults_set: bool = False
     account: AccountStatus  # SP1: optional "Sign in with ORCID" status — the verified identity, never tokens
     onboarding_completed: bool = False  # inc 416: first-run wizard done/skipped — a read/write path for Settings
+    onboarding_version: int = 0  # inc 553: completed wizard contract; old installs have implicit version 0
 
 
 class SettingsUpdate(BaseModel):
@@ -99,6 +100,7 @@ class SettingsUpdate(BaseModel):
     set_publisher_breadth: bool = False
     publisher_breadth: str | None = None
     onboarding_completed: bool | None = None  # inc 416: set by the wizard's "Finish"/"Skip setup"
+    onboarding_version: int | None = Field(default=None, ge=0, le=app_settings.ONBOARDING_CURRENT_VERSION)
 
 
 def _stored_key(provider: str) -> bool:
@@ -177,6 +179,7 @@ def _status() -> SettingsStatus:
         publisher_defaults_set=publisher_settings.publisher_defaults_set(),
         account=AccountStatus(configured=app_settings.oidc_configured(), **app_settings.oauth_account_status()),
         onboarding_completed=app_settings.stored_onboarding_completed(),
+        onboarding_version=app_settings.stored_onboarding_version(),
     )
 
 
@@ -187,6 +190,8 @@ def get_settings() -> SettingsStatus:
 
 @router.put("/settings", response_model=SettingsStatus)
 def put_settings(update: SettingsUpdate) -> SettingsStatus:
+    if update.onboarding_version is not None and update.onboarding_completed is None:
+        raise HTTPException(status_code=422, detail="onboarding_version requires onboarding_completed")
     if update.provider is not None:
         if update.provider not in providers_store.provider_ids():
             raise HTTPException(status_code=422, detail=f"Unknown provider: {update.provider}")
@@ -243,7 +248,7 @@ def put_settings(update: SettingsUpdate) -> SettingsStatus:
             raise HTTPException(status_code=422, detail=f"Unknown result breadth: {b}")
         publisher_settings.set_publisher_breadth(b or None)
     if update.onboarding_completed is not None:
-        app_settings.set_onboarding_completed(update.onboarding_completed)
+        app_settings.set_onboarding_completed(update.onboarding_completed, version=update.onboarding_version)
     return _status()
 
 

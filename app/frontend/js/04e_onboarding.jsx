@@ -1,6 +1,7 @@
-// inc 416: the first-run onboarding wizard. Runs once per machine (gated on GET /health's onboarding_completed,
+// inc 416/553: first-run onboarding plus a one-time Local AI refresh for existing desktop installs. Both are gated
+// by GET /health's completed/version state; the refresh reuses the real AI settings step rather than duplicating it.
 // the same unconditional launch fetch read_only already rides — see 40_app.jsx), orchestrating existing,
-// already-working settings screens rather than reinventing them: My Publications identity, AI/BYOK opt-in,
+// already-working settings screens rather than reinventing them: My Publications identity, AI provider choice,
 // the watched library folder, citation/bundle import, and an initial axis. "Skip setup" is always visible and
 // reachable — the wizard's job is to surface these once, not to gate the app behind completing them; everything
 // it offers stays permanently reachable via Settings regardless. No multi-step convention existed in this
@@ -8,6 +9,7 @@
 // Wizard, since nothing else needs one yet.
 
 const ONBOARDING_STEPS = ["identity", "ai", "library", "import", "axis", "done"];
+const ONBOARDING_REFRESH_STEPS = ["ai", "done"];
 
 const ONBOARDING_STEP_LABELS = {
   identity: "Your publications",
@@ -54,17 +56,26 @@ function OnboardingAxisChoice({ onPick, onSkip }) {
   );
 }
 
-function OnboardingWizard({ onDone, onMyPubsRefreshed, onScanned, onImported, onImportedZotero, onImportedBundle, onAxisSaved }) {
+function onboardingLaunchState(health, isDesktop) {
+  const completed = !!(health && health.onboarding_completed);
+  const storedVersion = Number.isInteger(health && health.onboarding_version) ? health.onboarding_version : 0;
+  const currentVersion = Number.isInteger(health && health.onboarding_current_version) ? health.onboarding_current_version : 0;
+  const refresh = !!(isDesktop && !(health && health.read_only) && completed && storedVersion < currentVersion);
+  return { done: completed && !refresh, refresh, version: currentVersion };
+}
+
+function OnboardingWizard({ onDone, refreshMode = false, currentVersion = 0, onMyPubsRefreshed, onScanned, onImported, onImportedZotero, onImportedBundle, onAxisSaved }) {
+  const steps = refreshMode ? ONBOARDING_REFRESH_STEPS : ONBOARDING_STEPS;
   const [step, setStep] = useState(0);
   const [importMode, setImportMode] = useState(null);  // null | "file" | "bundle" | "zotero"
   const [axisMode, setAxisMode] = useState(null);       // null | "suggest" | "manual"
   const [busy, setBusy] = useState(false);
-  const stepId = ONBOARDING_STEPS[step];
-  const isLast = step === ONBOARDING_STEPS.length - 1;
+  const stepId = steps[step];
+  const isLast = step === steps.length - 1;
 
   const finish = async () => {
     setBusy(true);
-    await apiPut("/settings", { onboarding_completed: true });
+    await apiPut("/settings", { onboarding_completed: true, onboarding_version: currentVersion });
     setBusy(false);
     if (onDone) onDone();
   };
@@ -82,7 +93,11 @@ function OnboardingWizard({ onDone, onMyPubsRefreshed, onScanned, onImported, on
   } else if (stepId === "ai") {
     body = (
       <>
-        <div className="axis-modal-note">Optional and off by default — skip this if you'd rather stay fully local.</div>
+        <div className="axis-modal-note">{refreshMode
+          ? <>Local AI is now built in. Set it up once to run compatible AI features on this device — no API key,
+              provider account, endpoint, Ollama, or terminal required.</>
+          : <>Choose <b>Local AI</b> to run compatible AI features on this device, or configure a cloud provider.
+              Callosum never switches providers silently.</>}</div>
         <AiSettings />
       </>
     );
@@ -107,8 +122,10 @@ function OnboardingWizard({ onDone, onMyPubsRefreshed, onScanned, onImported, on
     body = (
       <div className="onboarding-done">
         <div className="onboarding-done-icon" aria-hidden="true">🎉</div>
-        <p>You're all set. Everything here is always reachable again from <b>Settings</b> — come back anytime to
-          adjust your profile, AI provider, watched folders, or axes.</p>
+        <p>{refreshMode
+          ? <>Your AI provider and Local AI setup remain available in <b>Settings</b> whenever you need them.</>
+          : <>You're all set. Everything here is always reachable again from <b>Settings</b> — come back anytime to
+              adjust your profile, AI provider, watched folders, or axes.</>}</p>
       </div>
     );
   }
@@ -119,14 +136,14 @@ function OnboardingWizard({ onDone, onMyPubsRefreshed, onScanned, onImported, on
           full-screen intentional overlay isn't backdrop-dismissable. "Skip setup" is the real exit. */}
       <div className="axis-modal onboarding-card" onClick={e => e.stopPropagation()}>
         <div className="onboarding-dots" aria-hidden="true">
-          {ONBOARDING_STEPS.map((id, i) => (
+          {steps.map((id, i) => (
             <span key={id} className={"onboarding-dot" + (i === step ? " active" : i < step ? " done" : "")} />
           ))}
         </div>
         <div className="axis-modal-head">
-          <span>Welcome to Callosum — {ONBOARDING_STEP_LABELS[stepId]}</span>
+          <span>{refreshMode ? "What's new in Callosum" : "Welcome to Callosum"} — {ONBOARDING_STEP_LABELS[stepId]}</span>
           {stepId !== "done" &&
-            <button className="axis-link" disabled={busy} onClick={finish}>Skip Setup</button>}
+            <button className="axis-link" disabled={busy} onClick={finish}>{refreshMode ? "Not now" : "Skip Setup"}</button>}
         </div>
         <div className="onboarding-body">{body}</div>
         <div className="onboarding-nav axis-form-actions">

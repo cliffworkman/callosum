@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from alembic import command
 from alembic.config import Config
+from app.backend import app_settings
 from app.backend.api import create_app
 from tests.api_helpers import (
     _seed_library,
@@ -70,11 +71,19 @@ def test_health_reports_behind_db_as_not_at_head(tmp_path: Path) -> None:
 
 
 def test_health_reports_onboarding_completed_and_reflects_settings_change(temp_db_url: str) -> None:
-    # inc 416: onboarding_completed rides this same unconditional launch fetch (mirrors read_only's precedent).
+    # inc 416/553: completion + stored/current wizard versions ride the unconditional launch fetch.
     client = TestClient(create_app(db_url=temp_db_url))
-    assert client.get("/health").json()["onboarding_completed"] is False
-    client.put("/settings", json={"onboarding_completed": True})
-    assert client.get("/health").json()["onboarding_completed"] is True
+    initial = client.get("/health").json()
+    assert initial["onboarding_completed"] is False
+    assert initial["onboarding_version"] == 0
+    assert initial["onboarding_current_version"] == app_settings.ONBOARDING_CURRENT_VERSION
+    client.put(
+        "/settings",
+        json={"onboarding_completed": True, "onboarding_version": app_settings.ONBOARDING_CURRENT_VERSION},
+    )
+    current = client.get("/health").json()
+    assert current["onboarding_completed"] is True
+    assert current["onboarding_version"] == app_settings.ONBOARDING_CURRENT_VERSION
 
 
 def test_health_app_version_prefers_desktop_shell_env_over_the_dev_git_fallback(temp_db_url: str, monkeypatch) -> None:

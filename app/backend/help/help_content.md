@@ -6,6 +6,8 @@ The most important habit is to treat Callosum as an evidence workbench, not a ma
 
 The app is local-first. After your library has been imported and processed, extraction, search, embeddings, axis scoring, duplicate scanning, and verification run locally. The app remains useful offline. For generative features, choose either managed **Local AI** (no account or API key) or an explicitly configured cloud provider. Callosum never switches from Local AI to a cloud provider on its own.
 
+On a fresh install, the onboarding wizard includes this same Local AI setup. Existing desktop installations receive a one-time **What's new in Callosum — AI features** refresh after the Local AI update. If you choose **Not now**, the Library's **New: Local AI** notice can reopen that exact setup step later; the full provider controls always remain in **Settings → AI features**.
+
 Start by:
 
 - Open the app in your browser.

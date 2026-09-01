@@ -74,6 +74,8 @@ class HealthResponse(BaseModel):
     # inc 416: has the first-run onboarding wizard been completed or explicitly skipped? Rides this same
     # unconditional launch fetch (the one App() always makes), mirroring read_only's own precedent above.
     onboarding_completed: bool = False
+    onboarding_version: int = 0
+    onboarding_current_version: int = app_settings.ONBOARDING_CURRENT_VERSION
     # The desktop shell's own version (e.g. "0.3.2"), set via CALLOSUM_APP_VERSION when the Tauri shell
     # spawns this backend as a child process. Outside the shell (plain uvicorn/dev, the remote-access
     # tunnel) there's no packaged release version, so this falls back to a "dev-<git-sha>" identifier
@@ -123,5 +125,6 @@ def health(conn: Connection = Depends(get_connection)) -> HealthResponse:
         db_head_revision=head,
         read_only=app_settings.read_only_mode(),
         onboarding_completed=app_settings.stored_onboarding_completed(),
+        onboarding_version=app_settings.stored_onboarding_version(),
         app_version=reported_app_version(),
     )

@@ -48,8 +48,9 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 - **Workspace subsection scroll.** Long Discover/Work sub-tabs scroll inside their active body; their tab strip and
   the menu bar remain fixed.
 - **Active workspace persists** (`callosum.workspace`) across reload; Library is the default on first load.
-- **One-time moved-tools hint:** on a read-write instance, the Library workspace shows the thin "New layout" banner
-  until dismissed; dismissing writes `callosum.workspaces-whatsnew=1` and it stays gone after reload.
+- **Local AI announcement:** on a read-write instance, Library shows the thin **New: Local AI** banner. Its setup
+  action opens the onboarding wizard directly at AI features; dismissing writes
+  `callosum.local-ai-whatsnew.v1=1` and it stays gone after reload.
 - **Read-only companion:** write-only workspaces/tabs (Discover, Synthesize → Critique, Work → Meta-Reference,
   Work → CRediT, Work → Meta-Analyze) are hidden; Profile, Library, Synthesize → Ask history, and Work → Cite show.
   A visible moved-tools hint on a read-only instance is High.
@@ -76,9 +77,9 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 
 1. Confirm the **menu bar** sits at the top of the center pane: **My Publications · Library · Synthesize · Discover · Work** left,
    **Help · Settings** right (no **Extract** — folded into Work). Library is active by default; the left/right
-   accordions are present + full height. Confirm the Library workspace shows the one-time "New layout" banner
-   pointing Synthesize to the menu bar, Cite/Meta-Reference/CRediT/Meta-Analyze to Work, and Discover tools to
-   Discover Search. Resize to phone width and confirm that same workspace list is reachable from the **Workspace**
+   accordions are present + full height. Confirm Library shows the one-time **New: Local AI** announcement; its
+   **Set up Local AI** action must open the two-step onboarding refresh directly at AI features. Resize to phone
+   width and confirm the workspace list is reachable from the **Workspace**
    dropdown, grouped into Workspaces and Utilities, while the bottom mobile nav still switches only **Library /
    Panels / Details**.
 2. **Discover** → confirm four sub-tabs **Feed · Search · Journals · Funding**. In **Feed**, confirm the standalone
@@ -137,8 +138,8 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
    Click that tab → it opens the PDF through the normal reader path and the selected-paper tab disappears. Open a
    second PDF, drag the open PDF tabs to reorder them, then switch to Discover → the PDF tabs are hidden; return →
    they are back in the chosen order. Reload → the last workspace is restored.
-8. Return to Library, click the banner's **Dismiss** button, and reload. Confirm the banner is gone and
-   `localStorage.getItem("callosum.workspaces-whatsnew") === "1"`.
+8. Return to Library, click the Local AI banner's **Dismiss** button, and reload. Confirm the banner is gone and
+   `localStorage.getItem("callosum.local-ai-whatsnew.v1") === "1"`.
 9. In the Library header, confirm **Retractions ↻** appears after **Metadata ↻** and before **Text Health** with the
     same `.trash-toggle` visual recipe. Run it on a fixture with at least one registry-hit paper if available; confirm
     the button tooltip gains a last-refreshed summary, fallback text appears if Retraction Watch could not refresh,

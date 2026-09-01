@@ -2076,6 +2076,7 @@
     color: var(--ink-2);
   }
   .workspace-whatsnew span { min-width: 0; }
+  .workspace-whatsnew-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
   .workspace-whatsnew-dismiss { flex: 0 0 auto; font-size: 14px; }
   .frame-tabs {
     flex: 0 0 auto; display: flex; align-items: flex-end; gap: 3px;
@@ -5652,6 +5653,7 @@
     return /* @__PURE__ */ React.createElement("div", { className: "update-toast", role: "status" }, /* @__PURE__ */ React.createElement("span", { className: "update-toast-text" }, "Update ready \u2014 v", update.version), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: act }, label), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setDismissed(true) }, "Later"));
   }
   const ONBOARDING_STEPS = ["identity", "ai", "library", "import", "axis", "done"];
+  const ONBOARDING_REFRESH_STEPS = ["ai", "done"];
   const ONBOARDING_STEP_LABELS = {
     identity: "Your publications",
     ai: "AI features",
@@ -5666,16 +5668,24 @@
   function OnboardingAxisChoice({ onPick, onSkip }) {
     return /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "An axis is a lens for organizing your library along a theme you define \u2014 Callosum can suggest some from your library's own content, or you can name your first one by hand. Either way, you can add more anytime."), /* @__PURE__ */ React.createElement("div", { className: "onboarding-choice-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-btn", onClick: () => onPick("suggest") }, "Suggest axes from my library\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => onPick("manual") }, "Create one manually\u2026"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onSkip }, "Skip this step \u2192")));
   }
-  function OnboardingWizard({ onDone, onMyPubsRefreshed, onScanned, onImported, onImportedZotero, onImportedBundle, onAxisSaved }) {
+  function onboardingLaunchState(health, isDesktop) {
+    const completed = !!(health && health.onboarding_completed);
+    const storedVersion = Number.isInteger(health && health.onboarding_version) ? health.onboarding_version : 0;
+    const currentVersion = Number.isInteger(health && health.onboarding_current_version) ? health.onboarding_current_version : 0;
+    const refresh = !!(isDesktop && !(health && health.read_only) && completed && storedVersion < currentVersion);
+    return { done: completed && !refresh, refresh, version: currentVersion };
+  }
+  function OnboardingWizard({ onDone, refreshMode = false, currentVersion = 0, onMyPubsRefreshed, onScanned, onImported, onImportedZotero, onImportedBundle, onAxisSaved }) {
+    const steps = refreshMode ? ONBOARDING_REFRESH_STEPS : ONBOARDING_STEPS;
     const [step, setStep] = useState(0);
     const [importMode, setImportMode] = useState(null);
     const [axisMode, setAxisMode] = useState(null);
     const [busy, setBusy] = useState(false);
-    const stepId = ONBOARDING_STEPS[step];
-    const isLast = step === ONBOARDING_STEPS.length - 1;
+    const stepId = steps[step];
+    const isLast = step === steps.length - 1;
     const finish = async () => {
       setBusy(true);
-      await apiPut("/settings", { onboarding_completed: true });
+      await apiPut("/settings", { onboarding_completed: true, onboarding_version: currentVersion });
       setBusy(false);
       if (onDone) onDone();
     };
@@ -5688,7 +5698,7 @@
     if (stepId === "identity") {
       body = /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Optional \u2014 helps Callosum find and organize your own papers."), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }));
     } else if (stepId === "ai") {
-      body = /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Optional and off by default \u2014 skip this if you'd rather stay fully local."), /* @__PURE__ */ React.createElement(AiSettings, null));
+      body = /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, refreshMode ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Local AI is now built in. Set it up once to run compatible AI features on this device \u2014 no API key, provider account, endpoint, Ollama, or terminal required.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Choose ", /* @__PURE__ */ React.createElement("b", null, "Local AI"), " to run compatible AI features on this device, or configure a cloud provider. Callosum never switches providers silently.")), /* @__PURE__ */ React.createElement(AiSettings, null));
     } else if (stepId === "library") {
       body = /* @__PURE__ */ React.createElement(ScanModalBody, { onClose: goNext, onScanned });
     } else if (stepId === "import") {
@@ -5710,9 +5720,9 @@
         }
       );
     } else if (stepId === "done") {
-      body = /* @__PURE__ */ React.createElement("div", { className: "onboarding-done" }, /* @__PURE__ */ React.createElement("div", { className: "onboarding-done-icon", "aria-hidden": "true" }, "\u{1F389}"), /* @__PURE__ */ React.createElement("p", null, "You're all set. Everything here is always reachable again from ", /* @__PURE__ */ React.createElement("b", null, "Settings"), " \u2014 come back anytime to adjust your profile, AI provider, watched folders, or axes."));
+      body = /* @__PURE__ */ React.createElement("div", { className: "onboarding-done" }, /* @__PURE__ */ React.createElement("div", { className: "onboarding-done-icon", "aria-hidden": "true" }, "\u{1F389}"), /* @__PURE__ */ React.createElement("p", null, refreshMode ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Your AI provider and Local AI setup remain available in ", /* @__PURE__ */ React.createElement("b", null, "Settings"), " whenever you need them.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "You're all set. Everything here is always reachable again from ", /* @__PURE__ */ React.createElement("b", null, "Settings"), " \u2014 come back anytime to adjust your profile, AI provider, watched folders, or axes.")));
     }
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", role: "dialog", "aria-modal": "true", "aria-label": "Get started with Callosum" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal onboarding-card", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "onboarding-dots", "aria-hidden": "true" }, ONBOARDING_STEPS.map((id, i) => /* @__PURE__ */ React.createElement("span", { key: id, className: "onboarding-dot" + (i === step ? " active" : i < step ? " done" : "") }))), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Welcome to Callosum \u2014 ", ONBOARDING_STEP_LABELS[stepId]), stepId !== "done" && /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: busy, onClick: finish }, "Skip Setup")), /* @__PURE__ */ React.createElement("div", { className: "onboarding-body" }, body), /* @__PURE__ */ React.createElement("div", { className: "onboarding-nav axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: step === 0 || busy, onClick: goBack }, "\u2190 Back"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: busy, onClick: goNext }, busy ? "Finishing\u2026" : isLast ? "Finish" : "Next \u2192"))));
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", role: "dialog", "aria-modal": "true", "aria-label": "Get started with Callosum" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal onboarding-card", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "onboarding-dots", "aria-hidden": "true" }, steps.map((id, i) => /* @__PURE__ */ React.createElement("span", { key: id, className: "onboarding-dot" + (i === step ? " active" : i < step ? " done" : "") }))), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, refreshMode ? "What's new in Callosum" : "Welcome to Callosum", " \u2014 ", ONBOARDING_STEP_LABELS[stepId]), stepId !== "done" && /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: busy, onClick: finish }, refreshMode ? "Not now" : "Skip Setup")), /* @__PURE__ */ React.createElement("div", { className: "onboarding-body" }, body), /* @__PURE__ */ React.createElement("div", { className: "onboarding-nav axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: step === 0 || busy, onClick: goBack }, "\u2190 Back"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: busy, onClick: goNext }, busy ? "Finishing\u2026" : isLast ? "Finish" : "Next \u2192"))));
   }
   function creditItems(items) {
     return Array.isArray(items) ? items : [items];
@@ -17305,25 +17315,25 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       }
     ), /* @__PURE__ */ React.createElement("label", { className: "pdf-annot-notedonly", title: "Show only highlights that have a note" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: notedOnly, onChange: (e) => setNotedOnly(e.target.checked) }), " Noted")), annotations.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights yet. Select text in the PDF to add one, then click it to add a note."), annotations.length > 0 && shown.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights match this filter."), shown.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, className: "pdf-annot-item" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-row", onClick: () => onJump(a), title: "Jump to this highlight" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-chip", style: { background: a.color } }), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-page" }, "p.", a.page), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-snip" }, (a.anchor_text || "").slice(0, 90) || "(no text)")), a.note && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-note" }, a.note), /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-actions" }, /* @__PURE__ */ React.createElement("button", { onClick: (e) => onEdit(a, e.clientX - 250, e.clientY + 6) }, a.note ? "Edit Note" : "Add Note"), /* @__PURE__ */ React.createElement("button", { className: "danger", onClick: () => onDelete(a.id) }, "Delete")))));
   }
-  const WORKSPACES_WHATSNEW_KEY = "callosum.workspaces-whatsnew";
-  function WorkspacesWhatsNewHint({ readOnly, mobile }) {
-    const [dismissed, setDismissed] = useState(() => _loadLayout(WORKSPACES_WHATSNEW_KEY, "0") === "1");
+  const LOCAL_AI_WHATSNEW_KEY = "callosum.local-ai-whatsnew.v1";
+  function LocalAiWhatsNewHint({ readOnly, mobile, onOpenLocalAi }) {
+    const [dismissed, setDismissed] = useState(() => _loadLayout(LOCAL_AI_WHATSNEW_KEY, "0") === "1");
     if (readOnly !== false || dismissed) return null;
     const dismiss = () => {
       setDismissed(true);
-      _saveLayout(WORKSPACES_WHATSNEW_KEY, "1");
+      _saveLayout(LOCAL_AI_WHATSNEW_KEY, "1");
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "status" }, /* @__PURE__ */ React.createElement("span", null, mobile ? /* @__PURE__ */ React.createElement(React.Fragment, null, "New layout: tools moved into ", /* @__PURE__ */ React.createElement("b", null, "Discover"), " and ", /* @__PURE__ */ React.createElement("b", null, "Work"), " on the menu bar \u2014 see ", /* @__PURE__ */ React.createElement("b", null, "Help"), " for the full map.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "New layout: ", /* @__PURE__ */ React.createElement("b", null, "Synthesize"), " is on the menu bar with ", /* @__PURE__ */ React.createElement("b", null, "Ask"), " + ", /* @__PURE__ */ React.createElement("b", null, "Critique"), "; ", /* @__PURE__ */ React.createElement("b", null, "Cite"), ", ", /* @__PURE__ */ React.createElement("b", null, "Meta-Reference"), ", ", /* @__PURE__ */ React.createElement("b", null, "CRediT"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Meta-Analyze"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Work"), "; ", /* @__PURE__ */ React.createElement("b", null, "Wanted"), ", ", /* @__PURE__ */ React.createElement("b", null, "Gaps"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Overlooked"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Discover \u2192 Search"), ".")), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss workspace layout notice", title: "Dismiss", onClick: dismiss }, "\xD7"));
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "region", "aria-label": "What's new" }, /* @__PURE__ */ React.createElement("span", null, mobile ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, "New: Local AI."), " Run Callosum's AI features on this device \u2014 no API key required.") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, "New: Local AI."), " Run Callosum's compatible AI features on this device \u2014 no API key or cloud account required.")), /* @__PURE__ */ React.createElement("div", { className: "workspace-whatsnew-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-link", onClick: onOpenLocalAi }, "Set up Local AI"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss Local AI notice", title: "Dismiss", onClick: dismiss }, "\xD7")));
   }
   const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
   const WIP_TAB_DRAG_TYPE = "application/x-callosum-wiptab";
-  function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
+  function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi }) {
     const [dragOverKey, setDragOverKey] = useState(null);
     const openSelectedPaper = () => {
       if (!selectedPaperTab) return;
       onOpenPdf({ id: selectedPaperTab.id, title: selectedPaperTab.title });
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement(WorkspacesWhatsNewHint, { readOnly: libraryProps && libraryProps.readOnly, mobile }), /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement(LocalAiWhatsNewHint, { readOnly: libraryProps && libraryProps.readOnly, mobile, onOpenLocalAi }), /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "frame-tab" + (activeTab === "library" ? " active" : ""),
@@ -22706,7 +22716,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     });
     const [readOnly, setReadOnly] = useState(isDemoMode() ? true : void 0);
     const [healthLoaded, setHealthLoaded] = useState(false);
-    const [onboardingDone, setOnboardingDone] = useState(true);
+    const [onboarding, setOnboarding] = useState({ done: true, refresh: false, version: 0 });
     const savedDemoWip = demoWorkspaceCapability("library", "wip")?.mode === "saved";
     const wip = useWipWorkspace({ enabled: healthLoaded && (readOnly === false || savedDemoWip), readOnly });
     const { wipTabs, openWip, closeWipTab, activateWipTab, reorderWipTabs } = useWipTabs({
@@ -22973,7 +22983,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         if (r.ok) {
           setConn({ state: "ok", version: r.data && r.data.app_version || null });
           setReadOnly(!!(r.data && r.data.read_only));
-          setOnboardingDone(!!(r.data && r.data.onboarding_completed));
+          setOnboarding(onboardingLaunchState(r.data, "__TAURI__" in window));
         } else setConn({ state: "bad" });
         setHealthLoaded(true);
       });
@@ -23146,7 +23156,8 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         mobile,
         capture,
         onCaptureAnchor: captureAnchor,
-        onCancelCapture: clearCapture
+        onCancelCapture: clearCapture,
+        onOpenLocalAi: () => setOnboarding((s) => ({ ...s, done: false, refresh: true }))
       }
     )), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "profile" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
       MyPubsDashboard,
@@ -23273,10 +23284,12 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           selectWorkspace("settings");
         }
       }
-    ), !authLocked && healthLoaded && !onboardingDone && /* @__PURE__ */ React.createElement(
+    ), !authLocked && healthLoaded && !onboarding.done && /* @__PURE__ */ React.createElement(
       OnboardingWizard,
       {
-        onDone: () => setOnboardingDone(true),
+        onDone: () => setOnboarding((s) => ({ ...s, done: true, refresh: false })),
+        refreshMode: onboarding.refresh,
+        currentVersion: onboarding.version,
         onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1),
         onScanned: () => {
           setLibRefresh((n) => n + 1);
