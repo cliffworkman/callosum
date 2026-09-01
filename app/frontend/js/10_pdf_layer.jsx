@@ -249,7 +249,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           {libraryActionsVisible && <span className="lib-head-actions">
             {!trashView && <AddMenu
               onScan={demoMode ? () => explainDemoLock("Watched folders read local directories and persist their paths. The static browser demo has no filesystem or backend; use local Callosum to add and watch PDF folders.", "/library/scan") : onOpenScan}
-              onImport={demoMode ? () => explainDemoLock("Citation import creates persistent library records. The static demo keeps its curated three-paper library immutable; use local Callosum to import BibTeX, RIS, or CSL-JSON.", "/papers/import") : onOpenImport}
+              onImport={demoMode ? () => explainDemoLock("Citation import creates persistent library records. The static demo keeps its curated five-paper library immutable; use local Callosum to import BibTeX, RIS, or CSL-JSON.", "/papers/import") : onOpenImport}
               onImportZotero={demoMode
                 ? () => explainDemoLock("Reading a Zotero library copies a local zotero.sqlite file and creates persistent library records — full fidelity (PDFs, notes, tags, collections). The static browser demo has no filesystem or backend; use local Callosum to read your Zotero library.", "/library/zotero/import")
                 : onOpenImportZotero}
@@ -290,13 +290,13 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
               </span>}
             {!trashView && (demoMode
               ? <DemoLockedLibraryButton label="Unsorted" path="/papers?needs_review=true"
-                  message="All three curated demo records have resolved metadata. In local Callosum, Unsorted isolates raw imports and unresolved identifiers for review." />
+                  message="All five curated demo records have resolved metadata. In local Callosum, Unsorted isolates raw imports and unresolved identifiers for review." />
               : <button className="trash-toggle" onClick={onToggleNeedsReview}
                   title={libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review — raw imports, unresolved DOIs"}>
                   {libraryNeedsReview ? "← Library" : "Unsorted"}</button>)}
             {!trashView && (demoMode
               ? <DemoLockedLibraryButton label="Duplicates" path="/papers/duplicates"
-                  message="The curated three-paper demo has no duplicate candidate to fabricate. Local Callosum scans likely duplicates and lets you inspect and merge them reversibly." />
+                  message="The curated five-paper demo has no duplicate candidate to fabricate. Local Callosum scans likely duplicates and lets you inspect and merge them reversibly." />
               : <button className="trash-toggle" onClick={onFindDuplicates} title="Scan for likely duplicates">Duplicates</button>)}
             {!trashView && (demoMode
               ? <DemoLockedLibraryButton label="Citations ↻" path="/papers/citation-counts/refresh"
@@ -312,7 +312,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
               : <RetractionCheckButton onDone={onRetractionRan} />)}
             {!trashView && (demoMode
               ? <DemoLockedLibraryButton label="Text Health" path="/papers/text-health/overview"
-                  message="All three demo PDFs already have extracted text. Text-health repair and OCR operate on local files through the backend and are unavailable in the static browser demo." />
+                  message="All four demo PDFs already have extracted text. Text-health repair and OCR operate on local files through the backend and are unavailable in the static browser demo." />
               : <TextHealthButton onOpen={onOpenTextHealth} />)}
             {trashView && state.status === "ready" && state.papers.length > 0 &&
               <button className="trash-toggle danger" onClick={onEmptyTrash}

@@ -45,7 +45,6 @@
         "cap-axes",
         "cap-tags",
         "cap-saved-searches",
-        "cap-fulltext",
         "cap-reading-queue",
         "cap-attachments",
         "cap-reader",
@@ -70,7 +69,8 @@
         "cap-ocr"
       ],
       "missing-snapshot": [
-        "cap-pdf-search"
+        "cap-pdf-search",
+        "cap-fulltext"
       ]
     },
     "evaluate": {
@@ -103,25 +103,29 @@
       ]
     },
     "synthesize": {
-      "saved-partial": [
+      "saved-inspectable": [
         "cap-synthesis",
         "cap-verification",
-        "cap-contrasts",
         "cap-open-source",
-        "cap-meta-analyze",
-        "cap-extraction-candidates",
-        "cap-extraction-anchors",
         "cap-extraction-export",
         "cap-registration-reference",
-        "cap-registration-acquire",
         "cap-commitments",
+        "cap-registration-triage"
+      ],
+      "saved-partial": [
+        "cap-meta-analyze",
+        "cap-extraction-anchors",
+        "cap-registration-acquire",
         "cap-publication-evidence",
         "cap-crosswalk",
+        "cap-raw-registration"
+      ],
+      "missing-snapshot": [
+        "cap-contrasts",
+        "cap-extraction-candidates",
         "cap-staleness",
         "cap-registration-review",
-        "cap-registration-correction",
-        "cap-registration-triage",
-        "cap-raw-registration"
+        "cap-registration-correction"
       ]
     },
     "write": {
@@ -184,5 +188,16 @@
         "cap-mcp-revert"
       ]
     }
+  },
+  "review": {
+    "reviewed_at": "2026-09-01",
+    "reviewed_rev": "73ac6ac",
+    "reviewed_increment": 555,
+    "source_fingerprint": "9153fedefea927c0c8e4149fe9b41106642644532c3886b68eac45482e9e374a",
+    "note": "Bootstrapped changelog-drift tracking (inc 555); fixed the Discover suggest-authors/indexed-works gaps (backlog #66), swept stale three-paper copy across the demo (backlog #67), fixed the crosswalk attachment_id PDF-evidence bug, gated Citation Styles preview in demo mode, and reclassified cap-fulltext to missing-snapshot.",
+    "declined_at": null,
+    "declined_rev": null,
+    "declined_increment": null,
+    "decline_note": null
   }
 }

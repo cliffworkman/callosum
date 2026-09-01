@@ -1576,7 +1576,434 @@
       "i10_index": 3,
       "works_count": 4
     },
-    "missing_works": [],
+    "missing_works": [
+      {
+        "cited_by_count": 219,
+        "doi": "10.1016/j.brs.2014.11.020",
+        "title": "Deep Brain Stimulation Influences Brain Structure in Alzheimer's Disease",
+        "year": 2014
+      },
+      {
+        "cited_by_count": 179,
+        "doi": "10.1001/archneurol.2012.590",
+        "title": "Increased Cerebral Metabolism After 1 Year of Deep Brain Stimulation in Alzheimer Disease",
+        "year": 2012
+      },
+      {
+        "cited_by_count": 108,
+        "doi": "10.1016/j.nbd.2017.05.007",
+        "title": "Molecular imaging of serotonin degeneration in mild cognitive impairment",
+        "year": 2017
+      },
+      {
+        "cited_by_count": 105,
+        "doi": "10.1001/jamapsychiatry.2015.1813",
+        "title": "Self-blame–Selective Hyperconnectivity Between Anterior Temporal and Subgenual Cortices and Prediction of Recurrent Depressive Episodes",
+        "year": 2015
+      },
+      {
+        "cited_by_count": 88,
+        "doi": "10.1016/j.neurobiolaging.2018.09.027",
+        "title": "Neurometabolites and associations with cognitive deficits in mild cognitive impairment: a magnetic resonance spectroscopy study at 7 Tesla",
+        "year": 2018
+      },
+      {
+        "cited_by_count": 75,
+        "doi": "10.1080/17470919.2017.1400462",
+        "title": "A multilevel social neuroscience perspective on radicalization and terrorism",
+        "year": 2017
+      },
+      {
+        "cited_by_count": 58,
+        "doi": "10.1016/j.actpsy.2021.103385",
+        "title": "The effect of aging on facial attractiveness: An empirical and computational investigation",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 53,
+        "doi": "10.1016/j.eurpsy.2015.02.005",
+        "title": "Negative emotions towards others are diminished in remitted major depression",
+        "year": 2015
+      },
+      {
+        "cited_by_count": 52,
+        "doi": "10.1080/09515089.2022.2035343",
+        "title": "Which moral exemplars inspire prosociality?",
+        "year": 2022
+      },
+      {
+        "cited_by_count": 36,
+        "doi": "10.1016/j.jad.2020.10.011",
+        "title": "Neurotransmitters and Neurometabolites in Late-Life Depression: A Preliminary Magnetic Resonance Spectroscopy Study at 7T",
+        "year": 2020
+      },
+      {
+        "cited_by_count": 31,
+        "doi": "10.1038/s41398-021-01539-9",
+        "title": "Positron emission tomography imaging of serotonin degeneration and beta-amyloid deposition in late-life depression evaluated with multi-modal partial least squares",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 30,
+        "doi": "10.1016/j.jagp.2013.10.001",
+        "title": "Structural Imaging in Late-Life Depression: Association with Mood and Cognitive Responses to Antidepressant Treatment",
+        "year": 2013
+      },
+      {
+        "cited_by_count": 30,
+        "doi": "10.1016/j.pscychresns.2014.01.009",
+        "title": "The relationship between fasting serum glucose and cerebral glucose metabolism in late-life depression and normal aging",
+        "year": 2014
+      },
+      {
+        "cited_by_count": 29,
+        "doi": "10.7551/mitpress/12611.003.0005",
+        "title": "The Neuroscience of Moral Judgment: Empirical and Philosophical Developments",
+        "year": 2022
+      },
+      {
+        "cited_by_count": 29,
+        "doi": "10.1080/21507740.2020.1811798",
+        "title": "The Dark Side of Morality – Neural Mechanisms Underpinning Moral Convictions and Support for Violence",
+        "year": 2020
+      },
+      {
+        "cited_by_count": 28,
+        "doi": "10.1038/npp.2016.8",
+        "title": "Subgenual Cingulate–Amygdala Functional Disconnection and Vulnerability to Melancholic Depression",
+        "year": 2016
+      },
+      {
+        "cited_by_count": 28,
+        "doi": "10.1093/braincomms/fcac016",
+        "title": "Regional amyloid correlates of cognitive performance in ageing and mild cognitive impairment",
+        "year": 2022
+      },
+      {
+        "cited_by_count": 28,
+        "doi": "10.1017/s0033291716002567",
+        "title": "A novel resting-state functional magnetic resonance imaging signature of resilience to recurrent depression",
+        "year": 2016
+      },
+      {
+        "cited_by_count": 24,
+        "doi": "10.1002/gps.3840",
+        "title": "Longitudinal studies of cerebral glucose metabolism in late‐life depression and normal aging",
+        "year": 2012
+      },
+      {
+        "cited_by_count": 24,
+        "doi": "10.1002/hbm.23595",
+        "title": "Association between serotonin denervation and resting‐state functional connectivity in mild cognitive impairment",
+        "year": 2017
+      },
+      {
+        "cited_by_count": 24,
+        "doi": "10.1016/j.neurobiolaging.2021.01.002",
+        "title": "Molecular imaging of beta-amyloid deposition in late-life depression",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 21,
+        "doi": "10.1016/j.metip.2021.100063",
+        "title": "The Face Image Meta-Database (fIMDb) & ChatLab Facial Anomaly Database (CFAD): Tools for research on face perception and social stigma",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 21,
+        "doi": "10.1097/scs.0000000000008662",
+        "title": "Associations of Facial Proportionality, Attractiveness, and Character Traits",
+        "year": 2022
+      },
+      {
+        "cited_by_count": 21,
+        "doi": "10.1002/nbm.4040",
+        "title": "Reproducibility of brain MRS in older healthy adults at 7T",
+        "year": 2018
+      },
+      {
+        "cited_by_count": 19,
+        "doi": "10.1017/s0033291720003372",
+        "title": "Subgenual activation and the finger of blame: individual differences and depression vulnerability",
+        "year": 2020
+      },
+      {
+        "cited_by_count": 16,
+        "doi": "10.1097/jgp.0b013e3181eafde4",
+        "title": "The Relationship Between the Acute Cerebral Metabolic Response to Citalopram and Chronic Citalopram Treatment Outcome",
+        "year": 2010
+      },
+      {
+        "cited_by_count": 15,
+        "doi": "10.1016/j.neuropharm.2021.108447",
+        "title": "Molecular imaging of the serotonin transporter availability and occupancy by antidepressant treatment in late-life depression",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 14,
+        "doi": "10.1016/j.eurpsy.2017.06.011",
+        "title": "Early life stress explains reduced positive memory biases in remitted depression",
+        "year": 2017
+      },
+      {
+        "cited_by_count": 10,
+        "doi": "10.31234/osf.io/yj8ps",
+        "title": "What is good is beautiful (and what isn’t, isn’t): How moral character affects perceived facial attractiveness",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 9,
+        "doi": "10.1016/j.evolhumbehav.2024.106598",
+        "title": "US adults accurately assess Hadza and Tsimane men's hunting ability from a single face photograph",
+        "year": 2024
+      },
+      {
+        "cited_by_count": 9,
+        "doi": "10.1097/prs.0000000000009728",
+        "title": "Facial Scars: Do Position and Orientation Matter?",
+        "year": 2022
+      },
+      {
+        "cited_by_count": 9,
+        "doi": "10.31234/osf.io/89jcx",
+        "title": "The Neuroscience of Moral Judgment: Empirical and Philosophical Developments",
+        "year": 2020
+      },
+      {
+        "cited_by_count": 9,
+        "doi": "10.31234/osf.io/mz75u",
+        "title": "Morality is in the eye of the beholder: The neurocognitive basis of the “anomalous-is-bad” stereotype.",
+        "year": 2020
+      },
+      {
+        "cited_by_count": 8,
+        "doi": "10.1016/j.neurobiolaging.2024.06.003",
+        "title": "Multimodal investigation of neuropathology and neurometabolites in mild cognitive impairment and late-life depression with 11C-PiB beta-amyloid PET and 7T magnetic resonance spectroscopy",
+        "year": 2024
+      },
+      {
+        "cited_by_count": 8,
+        "doi": "10.1111/bjop.12719",
+        "title": "First impressions: Do faces with scars and palsies influence warmth, competence and humanization?",
+        "year": 2024
+      },
+      {
+        "cited_by_count": 8,
+        "doi": "10.1002/syn.21590",
+        "title": "Serotonin modulation of cerebral glucose metabolism: Sex and age effects",
+        "year": 2012
+      },
+      {
+        "cited_by_count": 7,
+        "doi": "10.1016/j.aip.2023.102050",
+        "title": "Increased functional connectivity in military service members presenting a psychological closure and healing theme in art therapy masks",
+        "year": 2023
+      },
+      {
+        "cited_by_count": 6,
+        "doi": "10.1097/sap.0000000000003435",
+        "title": "Visual Attention, Bias, and Social Dispositions Toward People With Facial Anomalies",
+        "year": 2023
+      },
+      {
+        "cited_by_count": 6,
+        "doi": "10.1038/s41598-024-57128-5",
+        "title": "Art therapy masks reflect emotional changes in military personnel with PTSS",
+        "year": 2024
+      },
+      {
+        "cited_by_count": 5,
+        "doi": "10.1016/j.jagp.2012.12.169",
+        "title": "Cortical Beta-Amyloid Deposition in Late-Life Depression",
+        "year": 2013
+      },
+      {
+        "cited_by_count": 5,
+        "doi": "10.31234/osf.io/rw3gh",
+        "title": "Evidence against the \"anomalous-is-bad\" stereotype in Hadza hunter gatherers",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 5,
+        "doi": "10.31234/osf.io/wr5bu",
+        "title": "Normalizing Anomalies with Mobile Exposure (NAME): Reducing implicit biases against people with facial anomalies",
+        "year": 2022
+      },
+      {
+        "cited_by_count": 4,
+        "doi": "10.1097/prs.0000000000011237",
+        "title": "Visual Attention toward Patients with Hemifacial Microsomia Reconstruction: A Prospective Eye-Tracking Study",
+        "year": 2023
+      },
+      {
+        "cited_by_count": 3,
+        "doi": "10.31234/osf.io/t69w4",
+        "title": "The Dark Side of Morality – Neural Mechanisms Underpinning Moral Convictions and Support for Violence",
+        "year": 2020
+      },
+      {
+        "cited_by_count": 3,
+        "doi": "10.31234/osf.io/z9wv8",
+        "title": "Subgenual cingulate-amygdala functional disconnection and vulnerability to melancholic depression",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 2,
+        "doi": "10.1097/01.gox.0000898996.44696.95",
+        "title": "Layperson Bias and Empathy Influence Visual Attention Toward Patients with Hemifacial Microsomia: A Prospective Eye-tracking Study",
+        "year": 2022
+      },
+      {
+        "cited_by_count": 2,
+        "doi": "10.21203/rs.3.rs-1169909/v1",
+        "title": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 2,
+        "doi": "10.31234/osf.io/vjm23",
+        "title": "Visual Attention, Bias, and Social Dispositions Toward People with Facial Anomalies: A Prospective Study with Eye-Tracking Technology.",
+        "year": 2023
+      },
+      {
+        "cited_by_count": 2,
+        "doi": "10.31234/osf.io/92hdx",
+        "title": "Cinematic Representations of Visible Facial Differences Across Time and Cultures",
+        "year": 2023
+      },
+      {
+        "cited_by_count": 1,
+        "doi": "10.3389/conf.fpsyt.2017.48.00007",
+        "title": "Ventral striatal volumes correlate with individuals’ regret related to pleasure rather than duty",
+        "year": 2017
+      },
+      {
+        "cited_by_count": 1,
+        "doi": "10.1007/s11031-025-10141-1",
+        "title": "Reader in face-reading: viewer’s empathy and sensitivity to disgust impacts the first impressions of anomalous faces",
+        "year": 2025
+      },
+      {
+        "cited_by_count": 1,
+        "doi": "10.1097/01.gox.0000828596.70420.5f",
+        "title": "P62. VISUAL PERCEPTIONS OF HEMIFACIAL MICROSOMIA RECONSTRUCTION: A PROSPECTIVE STUDY WITH EYE TRACKING TECHNOLOGY AND LINEAR MIXED EFFECTS MODEL ANALYSIS",
+        "year": 2022
+      },
+      {
+        "cited_by_count": 1,
+        "doi": "10.9734/bpi/namms/v5/19347d",
+        "title": "The Effect of Aging on Facial Attractiveness: An Empirical and Computational Investigation",
+        "year": 2023
+      },
+      {
+        "cited_by_count": 1,
+        "doi": "10.31234/osf.io/54utr",
+        "title": "The Face Image Meta-Database (fIMDb) & ChatLab Facial Anomaly Database (CFAD): Tools for research on face perception and social stigma",
+        "year": 2020
+      },
+      {
+        "cited_by_count": 1,
+        "doi": "10.31234/osf.io/2m3hg",
+        "title": "The effect of aging on facial attractiveness: An empirical and computational investigation",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 1,
+        "doi": "10.31234/osf.io/dzb4y",
+        "title": "First Impressions: Do Faces with Scars and Palsies Influence Warmth, Competence, and Humanization?",
+        "year": 2023
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.1093/ijnp/pyw042.119",
+        "title": "Speaker 2: Gwenn Smith, USA",
+        "year": 2016
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.17605/osf.io/deszt",
+        "title": "Face Image Meta-Database (fIMDb)",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.17605/osf.io/6u7e3",
+        "title": "ChatLab Facial Anomaly Database (CFAD)",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.17605/osf.io/d9sc7",
+        "title": "The neurocognitive basis of the “anomalous-is-bad” stereotype",
+        "year": 2020
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.31234/osf.io/dq62n",
+        "title": "Which moral exemplars inspire prosociality?",
+        "year": 2022
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.1097/01.gox.0000828408.86704.05",
+        "title": "P10. IT’S ALL RELATIVE: ASSOCIATIONS OF FACIAL PROPORTIONALITY, ATTRACTIVENESS, AND CHARACTER TRAITS IN 597 INDIVIDUALS",
+        "year": 2022
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.31234/osf.io/5xmva",
+        "title": "CRediT where Credit is Due: A Comment on Leising et al. (2021)",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.31234/osf.io/f8msc",
+        "title": "A novel resting-state functional magnetic resonance imaging signature of resilience to recurrent depression",
+        "year": 2021
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.31234/osf.io/z8qu2",
+        "title": "Do attitudes about and behaviors towards people who enhance their cognition depend on their looks?",
+        "year": 2022
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.31234/osf.io/52avf",
+        "title": "Associations of Facial Proportionality, Attractiveness, and Character Traits",
+        "year": 2022
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.31234/osf.io/9pa43",
+        "title": "Facial Scars: Do Position and Orientation Matter?",
+        "year": 2022
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.21203/rs.3.rs-3325596/v1",
+        "title": "Art Therapy Unmasked: Evaluating Emotional Shifts in Art Therapy Masks",
+        "year": 2023
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.31234/osf.io/92hdx_v3",
+        "title": "Exploring Film as Popular Art Promoting Scarred Villain Trope",
+        "year": 2025
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.31234/osf.io/92hdx_v2",
+        "title": "Exploring Film as Popular Art Promoting Scarred Villain Trope",
+        "year": 2025
+      },
+      {
+        "cited_by_count": 0,
+        "doi": "10.1177/02762374251386302",
+        "title": "Exploring Film as Popular Art Promoting Scarred Villain Trope",
+        "year": 2025
+      }
+    ],
     "name": "Clifford I. Workman — demo corpus",
     "openalex_extra": {
       "affiliation": "University of Delaware",

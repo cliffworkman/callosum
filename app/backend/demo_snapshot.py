@@ -46,6 +46,7 @@ from app.backend.api.routers.reading_queue import ReadingQueueItem
 from app.backend.api.routers.registration_acquisition import RegistrationVersionOut
 from app.backend.api.routers.registration_comparisons import ComparisonRowOut, ComparisonRunDetail, ComparisonRunSummary
 from app.backend.api.routers.registration_discovery import RegistrationLinkOut
+from app.backend.api.routers.settings import SettingsStatus
 from app.backend.api.routers.status import StatusJob, StatusProgress, StatusResponse
 from app.backend.api.routers.summaries import (
     SummarizeJobResponse,
@@ -350,11 +351,7 @@ def assert_public_snapshot_bytes(payload: bytes) -> None:
     _reject_unknown(raw["api"]["help_corpus"], set(HelpCorpusResponse.model_fields), "api.help_corpus")
     for index, section in enumerate(raw["api"]["help_corpus"]["sections"]):
         _reject_unknown(section, set(HelpSectionResponse.model_fields), f"api.help_corpus.sections[{index}]")
-    _reject_unknown(
-        raw["api"]["settings"],
-        {"data_egress_enabled", "publisher_defaults_set", "publisher_weighting", "publisher_breadth"},
-        "api.settings",
-    )
+    _reject_unknown(raw["api"]["settings"], set(SettingsStatus.model_fields), "api.settings")
     for index, axis in enumerate(raw["api"]["axes"]):
         _reject_unknown(axis, set(AxisResponse.model_fields), f"api.axes[{index}]")
     for axis_id, nodes in raw["api"]["axis_clusters"].items():

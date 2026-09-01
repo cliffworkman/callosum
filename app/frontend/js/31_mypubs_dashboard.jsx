@@ -357,7 +357,7 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
           </button>
         </div>
         {refreshing && <ProgressBar label="Resolving via OpenAlex…" managedBy="backend-job" />}
-        {demoMode && <div className="settings-note">Saved OpenAlex snapshot scoped to the two genuine Workman publications in this demo corpus. Refreshing public metadata requires local Callosum.</div>}
+        {demoMode && <div className="settings-note">Saved OpenAlex snapshot scoped to the four genuine Workman publications in this demo corpus. Refreshing public metadata requires local Callosum.</div>}
       </section>
 
       <MissingWorksModal

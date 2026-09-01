@@ -30,6 +30,100 @@
 
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
+- **#64 Dependabot GHSA-wrw7-89jp-8q8g (`glib`, moderate) on the desktop-shell Linux build.** Flagged by GitHub
+  on the inc-543 push (2026-08-30). `app/desktop-shell/src-tauri/Cargo.lock` pins `glib 0.18.5`, inside the
+  vulnerable range `>=0.15.0, <0.20.0` (unsound `VariantStrIter` iterator impl, fixed in `0.20.0`). Confirmed
+  transitive-only — pulled in by `tauri = "2"`'s Linux-only gtk-rs/webkit2gtk stack (`atk`/`gdk`/`gtk`/
+  `webkit2gtk`/…, `app/desktop-shell/src-tauri/Cargo.toml` pins none of these directly) — and not reachable from
+  any callosum code path (`VariantStrIter` is internal GTK variant/dbus-type iteration). Fixing it means a
+  coordinated bump of the whole gtk-rs sibling-crate family via a newer `tauri`/`wry` release, not a standalone
+  `cargo update -p glib`. Low urgency: Linux-desktop-build only, moderate severity, no known reachable path.
+- **#65 `cap-pdf-search` on `www/showcase.html` claims "PDF text search" but no in-reader find/search UI exists
+  anywhere in the app.** Found auditing demo coverage (2026-08-30): `app/frontend/js/30_viewer.jsx` loads only
+  pdf.js's render/text-layer API, never `FindController` — this is a showcase claim for a feature that was
+  never built, not a missing demo snapshot of an existing one. **Cliff's call:** build the real feature (pdf.js
+  `FindController`-based in-reader find/search) once the current website arc finishes, then recapture
+  `www/shots/app_current.png` and fold in the already-queued `.app-map` hotspot redesign (see the plan doc at
+  `.claude/backups/plans/2026-08-30_website-demo-improvements.md`) in the same pass rather than recapturing
+  twice.
+- **#66 The online demo's Discover section is out of date relative to real current Callosum functionality.**
+  Two concrete, cited gaps found auditing the demo (2026-08-31): `GET /feed/suggest-authors` (real route since
+  inc 455/506, real frontend call at `app/frontend/js/30g_feed_suggest.jsx:42`) has no matching route in
+  `demo/demo-runtime.js` at all — Feed → Suggest → Author 404s in the live demo. `tools/demo/
+  capture_demo_prospection.py:168-169` hardcodes `missing_works=[]`/`dismissed_works=[]` for the Indexed-Works
+  panel instead of deriving them from a real job. Both are expected to close in the same session this was filed.
+- **#67 Stale "three-paper"/corpus-count copy is spreading across the demo and marketing pages.** The demo
+  corpus grew 3→5 papers in inc 548; a recurring pattern of hardcoded old counts was found not just in
+  `demo/README.md`'s narrative prose (contradicted by its own, correctly-updated Coverage table further down
+  the same file) but baked into live frontend demo-mode strings (`app/frontend/js/08e_methods_publishers.jsx:414`,
+  `10_pdf_layer.jsx:252/293/299`, `demo-runtime.js:94,96`), capture-script docstrings/comments
+  (`generate_demo_synthesis_state.py:3`), data fields rendered verbatim in the UI (`generate_demo_wip_state.py:
+  71,196`), a separate `demo/coverage-v1.json`, and the marketing pages `www/index.html:375`/
+  `www/how-it-works.html:548`. Inc 550 already fixed one instance of this exact bug class
+  (`31_mypubs_dashboard.jsx`'s domains note), confirming it's a real, recurring failure mode distinct from
+  missing capture (#66) — stale prose, not a missing job. Expected to close in the same session this was filed;
+  see `.claude/docs/increment-notes/` for the increment that does the sweep for the exact final file list (more
+  sites than could be enumerated here turned up once the read/evaluate/audit-stage demo audits ran).
+- **#68 Tie GitHub release tags to the in-app "what's new" notification banner.** The banner mechanism
+  (`app/frontend/js/30c_frame.jsx`'s `LocalAiWhatsNewHint`, a versioned dismissible-once localStorage key —
+  `LOCAL_AI_WHATSNEW_KEY = "callosum.local-ai-whatsnew.v1"`) is a real, useful pattern, but each instance is a
+  bespoke one-off added ad-hoc per feature with no systematic tie to a release — Cliff's own observation is that
+  a prior instance (a "New layout" banner for the Synthesize/Work menu reorg) went stale/unused after
+  implementation rather than being kept current release-over-release. **Proposal:** a CI gate on the existing
+  `vX.Y.Z` release-tag push (CLAUDE.md's documented "Cutting a public desktop-shell release" flow —
+  `git tag -a vX.Y.Z` + `git push origin vX.Y.Z`, which fires `desktop-shell-release.yml`) that fails unless an
+  explicit, reasoned acknowledgment exists that the in-app banner reflects that release's real user-facing
+  changes — reusing the exact `--refresh`/`--decline` + registry pattern `tools/qa/changelog_drift.py` already
+  established for the demo/showcase drift gates (inc TBD, see increment notes) rather than inventing a new
+  mechanism. Needs a design decision on where the "current release's banner content" registry lives (likely a
+  small new JSON alongside the release tag, or a field in an existing settings/version file) — flagged here
+  rather than built, since it's a genuinely new registry, not just a new glob on the existing one.
+- **#69 A changelog-driven drift gate for `README.md` and `www/how-it-works.html`, mirroring the demo/showcase
+  gate.** Cliff's own observation: `README.md` often goes stale relative to real functionality; `how-it-works.html`
+  is unlikely to drift much on its own (most of the core pipeline it explains is already stable) but **is** worth
+  a content update now given Local AI (inc 547) — see the increment that fixes this alongside the demo sweep
+  for whether that content update landed in the same pass or needs a follow-up. **Proposal:** extend
+  `tools/qa/changelog_drift.py` (built for the demo/showcase gates, inc TBD) with a third `_source_files()` glob
+  scoped to whatever backend/frontend surface each doc actually describes, reusing the same `--refresh`/
+  `--decline`/registry/CI-gate shape rather than a new mechanism per doc.
+- **#70 The all-6-stage demo currency audit (2026-08-31/09-01, the same session that shipped #66/#67 and the
+  changelog-drift gate) found real remaining gaps in Write and Synthesize beyond what was cheap to fix inline.**
+  Fixed in the same session: the crosswalk "Open Registration/Publication Evidence" buttons silently served the
+  wrong PDF for 10 of 12 Meta-Preregistration rows (`demo-runtime.js`'s pdf route now validates `attachment_id`
+  against the paper's real attachments and blocks honestly on mismatch); the two page-less crosswalk rows'
+  permanent "loading stored registration…" dead end (`08i_registration_comparison.jsx`'s `openSource`); the
+  Citation Styles panel auto-firing a live preview POST in demo mode and rendering a raw error box
+  (`35d_citation_styles.jsx` now gates it behind `isDemoMode()`); and `cap-fulltext` was reclassified
+  `saved-inspectable` → `missing-snapshot` in `demo/experience-coverage-v1.json` (no matched route for
+  `/papers/fulltext` exists at all — Library-wide full-text search 404s in the demo). **Still open, needs a new
+  capture job or product decision:**
+  - `cap-fulltext` (Read): needs an actual capture (one representative saved query over the 4 bundled PDFs) +
+    matching `demo-runtime.js` route, or it stays honestly `missing-snapshot`.
+  - `cap-cite-stance` (Write): all 3 saved Cite suggestions are `"support"` — no "contrast" or "mention" example
+    exists despite the panel narrating all three; needs a recaptured canned claim/result set.
+  - `cap-csl` breadth (Write): only one hardcoded style (`"apa"`) is ever servable; demonstrating real
+    install/switch between ≥2 styles needs a new capture job, not just better error copy (already added).
+  - `cap-bibliography` breadth (Write): saved renderings cover only 3 of 5 papers/one style (inherent to "only
+    what the one canned Cite example touched") — extending needs a deliberate `export_demo_snapshot.py` scope
+    decision.
+  - `cap-contrasts` (Synthesize): zero citations have `status:"contradicted"` in the saved synthesis, so the
+    "⚠ source disagrees" UI state is never demonstrated — needs a real sandbox run producing one, then promotion
+    via the already-capable `tools/demo/promote_verified_demo_synthesis.py`.
+  - `cap-extraction-candidates` (Synthesize): `capture_demo_extended_state.py` PUTs every workbench cell value
+    directly and never calls the real `/propose` endpoint, so the accept/reject candidate UI never renders —
+    fix is mechanical (call `/propose` before filling ≥1 row's cells) but needs the capture script touched.
+  - `cap-extraction-anchors` (Synthesize): every workbench cell has `bbox_json: null` and a synthetic placeholder
+    quote — needs a real exact-precision anchor captured via the actual select-in-PDF flow.
+  - `cap-staleness` + `cap-registration-correction` (Synthesize): zero stale-comparison and zero rejected/
+    incorrect-match registration-link examples exist; a deliberately-incorrect link seeded alongside the
+    confirmed one would naturally produce both together.
+  - `cap-registration-review` (Synthesize): all 12 crosswalk rows are `review_state:"unreviewed"` by deliberate
+    privacy design (`snapshot_saved_registration_triage.py` strips real review notes) — needs a product decision
+    on seeding 1-2 clearly-synthetic reviewed/dismissed rows.
+  - `cap-raw-registration` (Synthesize): "Inspect Stored Registration" is unconditionally disabled — not a bug,
+    a genuine OSF licensing constraint (no bundled full registration text to show); needs a product decision to
+    either reword the showcase claim or build an excerpts-only substitute view.
+  See the increment notes for this session's audit for the full per-capability evidence trail.
 ---
 
 ## 2. Needs a design decision from Cliff (not destructive/security — just your call)

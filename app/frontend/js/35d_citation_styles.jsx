@@ -35,6 +35,7 @@ function CitationStylesSettings() {
   const selected = catalog && catalog.styles.find(style => style.id === selectedId);
   useEffect(() => {
     if (!selectedId || view === "repository") return;
+    if (isDemoMode()) { setPreview({ status: "demo-disabled" }); return; }
     let live = true;
     setPreview({ status: "loading" });
     apiPost("/citations/styles/preview", { style: selectedId, locale }).then(r => {
@@ -548,6 +549,7 @@ function CitationStylesSettings() {
               <div className="citation-style-preview" aria-live="polite">
                 <p className="eyebrow">Preview (example references)</p>
                 {preview.status === "loading" && <div className="settings-note">Rendering preview…</div>}
+                {preview.status === "demo-disabled" && <div className="settings-note">Live style preview requires Callosum's local citeproc engine and is unavailable in the online demo.</div>}
                 {preview.status === "error" && <div className="settings-note settings-note-err">Preview unavailable: {preview.error}</div>}
                 {preview.status === "ready" &&
                   <>

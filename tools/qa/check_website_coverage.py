@@ -11,6 +11,13 @@ After reviewing every affected website claim and visual, acknowledge an intentio
 
 The refresh command records a combined source fingerprint plus exact image checksums and dimensions.
 It is an explicit review receipt, not an automatic claim that a screenshot is still accurate.
+
+If known drift is not being fixed right now, decline it explicitly instead of ignoring the failure::
+
+    python tools/qa/check_website_coverage.py --decline --note "Why this is being left as-is."
+
+A decline is never a silent bypass: it requires a reason, only covers drift up to the increment it
+was recorded at, and is always printed by a passing check while it remains in effect.
 """
 
 from __future__ import annotations
@@ -19,10 +26,11 @@ import argparse
 import hashlib
 import json
 import struct
-import subprocess
 from datetime import date
 from html.parser import HTMLParser
 from pathlib import Path
+
+from tools.qa import changelog_drift
 
 ROOT = Path(__file__).resolve().parents[2]
 REGISTRY = ROOT / "www" / "showcase-coverage.json"
@@ -67,7 +75,7 @@ def _source_files() -> list[Path]:
         "app/backend/help/help_content.md",
         "adapters/libreoffice/**/*.py",
         "adapters/word/**/*",
-        "adapters/google_docs/**/*",
+        "adapters/googledocs/**/*",
         "tui/**/*.py",
         "mcp_server/**/*.py",
     )
@@ -78,13 +86,7 @@ def _source_files() -> list[Path]:
 
 
 def _source_fingerprint() -> str:
-    digest = hashlib.sha256()
-    for path in _source_files():
-        relative = path.relative_to(ROOT).as_posix().encode()
-        digest.update(len(relative).to_bytes(4, "big"))
-        digest.update(relative)
-        digest.update(path.read_bytes())
-    return digest.hexdigest()
+    return changelog_drift.fingerprint(_source_files())
 
 
 def _sha256(path: Path) -> str:
@@ -100,10 +102,7 @@ def _png_dimensions(path: Path) -> tuple[int, int]:
 
 
 def _git_rev() -> str:
-    result = subprocess.run(
-        ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=False
-    )
-    return result.stdout.strip() or "unknown"
+    return changelog_drift.git_rev()
 
 
 def refresh(note: str) -> int:
@@ -113,8 +112,15 @@ def refresh(note: str) -> int:
     data["review"] = {
         "reviewed_at": date.today().isoformat(),
         "reviewed_rev": _git_rev(),
+        "reviewed_increment": changelog_drift.latest_increment_number(),
         "source_fingerprint": _source_fingerprint(),
         "note": note.strip(),
+        # A real review supersedes any earlier decline -- clear it rather than leaving a now-dead
+        # acknowledgment sitting in the registry looking like unfixed drift still remains.
+        "declined_at": None,
+        "declined_rev": None,
+        "declined_increment": None,
+        "decline_note": None,
     }
     for relative, metadata in data["figures"].items():
         path = ROOT / "www" / relative
@@ -130,6 +136,22 @@ def refresh(note: str) -> int:
         )
     REGISTRY.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     print(f"[website] refreshed review receipt at {_git_rev()} ({len(data['figures'])} figures)")
+    return 0
+
+
+def decline(note: str) -> int:
+    """Explicitly acknowledge known, unfixed drift instead of fixing it right now. Never a silent
+    bypass: requires a reason, is stamped alongside (never instead of) the last real review, only
+    covers drift up to the current increment, and is always printed by check() while it's active."""
+    if not note.strip():
+        raise SystemExit("--decline requires a non-empty --note explaining why the drift is being left as-is")
+    data = json.loads(REGISTRY.read_text(encoding="utf-8"))
+    data["review"]["declined_at"] = date.today().isoformat()
+    data["review"]["declined_rev"] = _git_rev()
+    data["review"]["declined_increment"] = changelog_drift.latest_increment_number()
+    data["review"]["decline_note"] = note.strip()
+    REGISTRY.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    print(f"[website] recorded an explicit decline at increment {data['review']['declined_increment']}")
     return 0
 
 
@@ -209,12 +231,17 @@ def check() -> int:
         if positioning not in prose:
             errors.append(f"canonical positioning drift: {path.relative_to(ROOT)}")
 
+    # Zero grace here (unlike the demo tool's grace-windowed check): the website's fingerprinted
+    # glob is narrow and human-curated, so any drift at all fails immediately -- exactly the
+    # original behavior. An active --decline is still the one way to keep this green without
+    # re-reviewing, and is always printed below when it's the reason a check passes.
     current_fingerprint = _source_fingerprint()
-    recorded_fingerprint = data["review"].get("source_fingerprint")
-    if current_fingerprint != recorded_fingerprint:
+    if current_fingerprint != data["review"].get("source_fingerprint") and not changelog_drift.decline_covers(
+        data["review"]
+    ):
         errors.append(
             "user-facing source changed since website review; inspect affected claims/visuals, then run "
-            'check_website_coverage.py --refresh --note "…"'
+            'check_website_coverage.py --refresh --note "…" (or --decline --note "…" for a deliberate gap)'
         )
 
     if errors:
@@ -222,6 +249,9 @@ def check() -> int:
         for error in errors:
             print(f"  - {error}")
         return 1
+    banner = changelog_drift.decline_banner(data["review"], label="website")
+    if banner:
+        print(banner)
     print(
         f"[website] OK — {len(mapped_routes)} QA routes ({len(excluded_routes)} excluded), "
         f"{len(data['external_surfaces'])} external surfaces, {len(registered_figures)} current figures"
@@ -232,8 +262,15 @@ def check() -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--refresh", action="store_true", help="record a completed website visual/copy review")
-    parser.add_argument("--note", default="", help="required review note when --refresh is used")
+    parser.add_argument(
+        "--decline", action="store_true", help="explicitly acknowledge known drift without fixing it now"
+    )
+    parser.add_argument("--note", default="", help="required review note when --refresh or --decline is used")
     args = parser.parse_args()
+    if args.refresh and args.decline:
+        raise SystemExit("--refresh and --decline are mutually exclusive")
+    if args.decline:
+        return decline(args.note)
     return refresh(args.note) if args.refresh else check()
 
 

@@ -24,7 +24,7 @@ function ReadPriorityControl({ paper, onChanged, demoLocked }) {
   const toggleRead = (e) => {
     e.stopPropagation();
     if (demoLocked) {
-      explainDemoLock("Read state and priority are saved personal library markers. Their current demo values remain visible, but changing them requires your local Callosum library.", `/papers/${paper.id}/read`);
+      explainDemoLock("Read state and priority are personal library markers. Their saved demo values remain visible, but changing them requires your persistent local Callosum library.", `/papers/${paper.id}/read`);
       return;
     }
     const next = !read;
@@ -35,7 +35,7 @@ function ReadPriorityControl({ paper, onChanged, demoLocked }) {
     e.stopPropagation();
     if (demoLocked) {
       setPop(false);
-      explainDemoLock("Read state and priority are saved personal library markers. Their current demo values remain visible, but changing them requires your local Callosum library.", `/papers/${paper.id}/priority`);
+      explainDemoLock("Read state and priority are personal library markers. Their saved demo values remain visible, but changing them requires your persistent local Callosum library.", `/papers/${paper.id}/priority`);
       return;
     }
     const prev = priority;

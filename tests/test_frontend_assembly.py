@@ -1623,9 +1623,9 @@ def test_static_demo_exposes_library_scope_and_locks_personal_reader_mutations_p
     for label in ("Watched folders", "Import citations file", "Duplicates", "Text Health", "Trash"):
         assert label in raw
     assert "The saved searches below can be recalled in the demo" in raw
-    assert "The curated three-paper demo has no duplicate candidate to fabricate" in raw
+    assert "The curated five-paper demo has no duplicate candidate to fabricate" in raw
     assert "The saved demo note is inspectable but immutable" in raw
-    assert "Read state and priority are saved personal library markers" in raw
+    assert "Read state and priority are personal library markers" in raw
     assert "if (/^\\/annotations\\//.test(path)" in runtime
     assert "if (/^\\/papers\\/\\d+\\/(read|priority)$/.test(path))" in runtime
 

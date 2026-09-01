@@ -120,7 +120,7 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
   const openSource = (locator, quote, key) => {
     if (!locator || !onOpenPaper || locator.attachment_id == null) return;
     const page = locator.page_start || locator.page || null;
-    if (page == null) { setShowRaw(true); return; }
+    if (page == null) { if (!showRaw) inspectRaw(); return; }
     onOpenPaper({ id: paperId, title: paperTitle }, {
       id: key,
       paperId,
@@ -178,7 +178,8 @@ function RegistrationComparisonWorkspace({ paperId, paperTitle, versions, onOpen
         onChange={event => setIncludeSupplements(event.target.checked)} /> Include Relevant Supplements</label>
       <label className="settings-check"><input type="checkbox" checked={expandSearch} disabled={isDemoMode()}
         onChange={event => setExpandSearch(event.target.checked)} /> Expand beyond expected sections when bounded search is weak</label>
-      <button className="btn-link" disabled={isDemoMode()} onClick={inspectRaw}>{showRaw ? "Hide Stored Registration" : "Inspect Stored Registration"}</button>
+      <button className="btn-link" disabled={isDemoMode()} onClick={inspectRaw}
+        title={isDemoMode() ? "Inspecting the stored registration record requires the local Callosum backend." : undefined}>{showRaw ? "Hide Stored Registration" : "Inspect Stored Registration"}</button>
       {selectedVersion?.attachment_id && selectedVersion.provider !== "osf" && <button className="btn-link"
         onClick={() => onOpenPaper && onOpenPaper({ id: paperId, title: paperTitle }, {
           id: `file:${selectedVersion.attachment_id}`, paperId, attachmentId: selectedVersion.attachment_id,

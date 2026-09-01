@@ -11,9 +11,14 @@
   ],
   "review": {
     "reviewed_at": "2026-09-01",
-    "reviewed_rev": "9db06b2",
-    "source_fingerprint": "ecca7bffa768e8b753b6b79f473c046c6cd385f2adecb5e9e2db27abbc3b00c8",
-    "note": "Reviewed the v0.5.1 Local AI setup progress/status UX and packaged-runtime repair. Existing Local AI website claims and visuals remain accurate; no public copy or screenshot change is required for this patch release."
+    "reviewed_rev": "73ac6ac",
+    "reviewed_increment": 555,
+    "source_fingerprint": "fbb802073e246ad2c894ce44637b48852b1385cc4184401de73c33662e95985c",
+    "note": "Bootstrapped changelog-drift tracking (inc 555); fixed a genuine crosswalk attachment_id PDF-evidence bug, gated Citation Styles preview in demo mode, and swept stale three-paper corpus-count copy across app/frontend/js and www/*.html.",
+    "declined_at": null,
+    "declined_rev": null,
+    "declined_increment": null,
+    "decline_note": null
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

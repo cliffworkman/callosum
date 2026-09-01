@@ -21,14 +21,14 @@ network requests. The production and desktop builds do not load the demo runtime
 
 ## What the visitor sees
 
-The demo opens in the ordinary Library workspace. Visitors can search and filter the three-work library, open paper
+The demo opens in the ordinary Library workspace. Visitors can search and filter the five-work library, open paper
 metadata and bundled PDFs, and inspect each paper's saved statcheck, Transparency, mixed-model, Bayesian, and
 meta-analysis results. The saved library also includes a real cosine-scored **Anomalous-is-bad bias** axis over all
-three papers, automatic OpenAlex topic tags, locally generated c-TF-IDF tag suggestions for every paper, and a
-three-item reading queue (Workman 2021 high, Rasset 2023 normal, He et al. 2024 unprioritized).
-**My Publications** is scoped to the two Workman-authored papers in this deliberately tiny demo corpus.
+five papers, automatic OpenAlex topic tags, locally generated c-TF-IDF tag suggestions for every paper, and a
+five-item reading queue (one high priority, one normal, three unprioritized).
+**My Publications** is scoped to the four Workman-authored papers in this curated demo corpus.
 The Library's real **WIP** sub-workspace contains two prominently labeled synthetic drafts generated from a fresh
-Callosum sandbox. Visitors can open their ordinary manuscript tabs and inspect structure state, tasks, all three
+Callosum sandbox. Visitors can open their ordinary manuscript tabs and inspect structure state, tasks, all five
 linked Library sources, activity, exact content checkpoints, reference-integrity state, and authentic saved runs
 from all five deterministic manuscript checks. Reruns, edits, filesystem actions, and finding dispositions remain
 disabled because the static artifact has no backend.
@@ -110,7 +110,7 @@ export an ordinary working database for this purpose. The library-state generato
 `library-state-v1.json` fixture. It defaults to cached model files; pass `--allow-model-download` only when
 intentionally bootstrapping the public curation environment. Automatic topic tags are an explicit OpenAlex
 allowlist in `tools/demo/curated_library.py`, not a build-time network dependency. The exporter then opens it read-only, uses explicit SQL
-field whitelists, computes the saved deterministic method responses, copies only the three licensed assets declared
+field whitelists, computes the saved deterministic method responses, copies only the five licensed assets declared
 in `CORPUS`, verifies hashes and PDF signatures, validates shared live API models, rejects unknown fields, and
 scans for secrets and machine paths. The acknowledgement is deliberately required. `curate_good_beautiful_study.py` is
 an explicit, idempotent fixture-preparation step and never runs during an ordinary build. The same curated source
@@ -120,7 +120,7 @@ To change the showcased synthesis, create/verify it in the dedicated database, u
 records if the corpus changed, regenerate the library state, then rerun the exporter. Do not put prose, citations,
 evidence, tags, axis assignments, or queue records in a UI component.
 
-The WIP generator never reads a working library. It migrates a new temporary database, inserts only the same three
+The WIP generator never reads a working library. It migrates a new temporary database, inserts only the same five
 allowlisted bibliographic records, scans the two public synthetic Markdown fixtures, then drives the real WIP
 workflow, checkpoint, reference-link, and deterministic-check endpoints. Its strict `wip-state-v1.json` output
 omits UUIDs and filesystem keys, replaces its temporary location with a virtual demo label, normalizes timestamps,
@@ -133,7 +133,7 @@ Callosum's production deterministic comparator and a whitelist-exported fixture 
 still be found verbatim in the curated He et al. manuscript; regeneration fails if that evidence drifts. The strict state
 records the OSF license audit, and the complete unlicensed registration never enters the artifact.
 
-The extended-state capture migrates a fresh temporary database, inserts only the three public bibliographic
+The extended-state capture migrates a fresh temporary database, inserts only the five public bibliographic
 records, and drives Callosum's real discovery, journal, funding, saved-check, CRediT, and workbench endpoints. Its
 strict response models reject extra fields. Volatile citation-provider refreshes are not required for deterministic
 regeneration; unavailable graph evidence remains an explicit zero/empty result rather than fabricated coverage.
@@ -145,13 +145,13 @@ exact verified claims narrated by the Overview. Export fails with a regeneration
 Ordinary snapshot exports and builds never invoke AI.
 
 `capture_demo_prospection.py` likewise requires explicit metadata-egress authorization. It creates a fresh
-three-paper database, resolves the public ORCID identity, confirms only the two Workman-authored demo papers, and
+five-paper database, resolves the public ORCID identity, confirms only the four Workman-authored demo papers, and
 runs the production dashboard, citation-gap, emerging-citing-topic, and citing-author workflows against OpenAlex.
 The same fresh author refresh supplies the headline metrics, publication and citation year charts, per-paper
 counts, OpenAlex provenance, and graph surfaces. The saved responses retain graph evidence, scope, window dates,
 caps, and coverage caveats; the static demo never refreshes them or reads the working library.
 
-`capture_demo_meta_reference.py` creates another fresh three-paper sandbox and runs every published-paper
+`capture_demo_meta_reference.py` creates another fresh five-paper sandbox and runs every published-paper
 Meta-Reference path for each article: reference integrity, citation concentration with the production field
 baseline, overlooked-work discovery/ranking, incoming citation context, and outgoing reference context. Public
 DOIs and bibliographic metadata reach OpenAlex, Semantic Scholar, and Crossref; SPECTER ranking and NLI stance

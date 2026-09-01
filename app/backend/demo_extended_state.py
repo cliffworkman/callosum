@@ -26,7 +26,11 @@ from app.backend.api.routers.saved_searches import SavedSearch
 from app.backend.api.routers.wanted import CoverageResponse, WantedListResponse
 from app.backend.api.routers.workbench import ProjectSummary
 
-DEMO_EXTENDED_STATE_SCHEMA_VERSION = 3  # v3 (2026-08-30): added real wanted/wanted_coverage/literature_gaps/
+DEMO_EXTENDED_STATE_SCHEMA_VERSION = 4  # v4 (2026-09-01): added suggested_authors -- backlog #66, the Feed
+# Suggest modal's Author tab called a real endpoint (GET /feed/suggest-authors) that had no demo-runtime.js
+# route at all and no captured data, so the tab spun forever in demo mode (loadAuthorSuggestions()'s early
+# isDemoMode() return never resolved the loading state).
+# v3 (2026-08-30): added real wanted/wanted_coverage/literature_gaps/
 # beyond_library_saved (demo-coverage fixwave closing cap-wanted/cap-literature-gaps/cap-beyond-library --
 # these were previously hardcoded to empty placeholders directly in demo-runtime.js).
 # v2 (2026-08-27): dropped followed_author_candidates -- the Followed
@@ -135,6 +139,7 @@ class DemoDiscoverState(_StrictModel):
     funding_reports: dict[str, DemoFundingReport]
     saved_funding: list[dict[str, JsonValue]] = Field(default_factory=list)
     followed_authors: list[FollowedAuthorOut] = Field(default_factory=list)
+    suggested_authors: list[dict[str, JsonValue]] = Field(default_factory=list)
     citation_gaps: CitationGapListResponse
     emerging_topics: EmergingTopicListResponse
     citing_authors: CitingAuthorListResponse

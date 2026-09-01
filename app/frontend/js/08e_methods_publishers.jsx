@@ -411,7 +411,7 @@ function PublishersPanel({ ctx }) {
         </div>}
 
       {state.status === "running" && <ProgressBar progress={state.progress} label="Matching journals…" managedBy="backend-job" />}
-      {isDemoMode() && <div className="settings-note">Saved journal search from the curated three-paper sandbox. New searches and preference changes require local Callosum.</div>}
+      {isDemoMode() && <div className="settings-note">Saved journal search from the curated five-paper sandbox. New searches and preference changes require local Callosum.</div>}
       {state.status === "error" && <div className="axis-err">Couldn't search: {state.error}</div>}
 
       {state.status === "done" && rep &&

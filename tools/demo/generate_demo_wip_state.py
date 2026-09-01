@@ -68,7 +68,7 @@ MANUSCRIPTS = {
         "manuscript_type": "empirical article",
         "target_journal": "British Journal of Psychology",
         "deadline": "2026-09-30",
-        "notes": "Synthetic public-demo draft linked to the complete three-paper sandbox library.",
+        "notes": "Synthetic public-demo draft linked to the complete five-paper sandbox library.",
     },
 }
 
@@ -171,7 +171,7 @@ def _configure_manuscript(client: TestClient, manuscript: dict[str, Any], defini
     tasks = (
         ("Resolve the intentionally surfaced detector candidates", "in-progress", "Results"),
         ("Connect every interpretive claim to quoted evidence", "open", "Discussion"),
-        ("Verify the three corrected bibliography records", "complete", "References"),
+        ("Verify the five corrected bibliography records", "complete", "References"),
     )
     for title, status, section_name in tasks:
         _must(
@@ -193,7 +193,7 @@ def _configure_manuscript(client: TestClient, manuscript: dict[str, Any], defini
                 json={
                     "paper_id": paper_id,
                     "relationship_state": "cited",
-                    "notes": "Linked from the curated three-paper public demo library.",
+                    "notes": "Linked from the curated five-paper public demo library.",
                 },
             ),
             "reference link",

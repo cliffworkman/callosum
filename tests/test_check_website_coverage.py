@@ -24,8 +24,13 @@ def _write_registry(path: Path, **overrides: object) -> None:
         "review": {
             "reviewed_at": "2026-01-01",
             "reviewed_rev": "deadbeef",
+            "reviewed_increment": cwc.changelog_drift.latest_increment_number(),
             "source_fingerprint": cwc._source_fingerprint(),
             "note": "test",
+            "declined_at": None,
+            "declined_rev": None,
+            "declined_increment": None,
+            "decline_note": None,
         },
         "qa_routes": {},
         "excluded_qa_routes": {},

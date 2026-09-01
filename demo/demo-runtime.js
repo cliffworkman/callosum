@@ -83,6 +83,11 @@
     if (/^\/sync(?:\/|$)/.test(path)) return "Sync is unavailable because the static demo has no account, encrypted vault, or sync server. In the installed app it is optional, end-to-end encrypted, and off by default.";
     if (/^\/integrations\/libreoffice/.test(path)) return "LibreOffice installation runs on the user's computer and cannot start from a static website. The integration's real controls and setup boundary remain described in Settings and Help.";
     if (/^\/integrations\/word/.test(path)) return "The Word add-in is installed into desktop Word and needs the local Callosum app. Its real setup boundary remains described in Settings and Help.";
+    if (/^\/citations\/styles\//.test(path)) return "Installing, editing, duplicating, or setting preferences for citation styles writes to persistent local configuration and is unavailable in this immutable demo.";
+    if (path === "/methods/pcurve/run" || /^\/methods\/pcurve\/run\//.test(path)) return "p-curve reruns the statcheck extractor and its own EM estimator over whatever papers you select. That local computation needs the Callosum backend and is unavailable in the static browser demo.";
+    if (path === "/methods/zcurve/run" || /^\/methods\/zcurve\/run\//.test(path)) return "Z-curve's EDR/ERR mixture-model estimator runs locally over whatever papers you select. That local computation needs the Callosum backend and is unavailable in the static browser demo.";
+    if (path === "/methods/effect-size") return "The effect-size converter needs Callosum's local calculator. Its inputs remain visible for you to inspect the intended workflow, but no computation runs in the static browser demo.";
+    if (path === "/critical-read/set" || /^\/critical-read\/set\//.test(path)) return "Running a fresh multi-paper critical read against your library needs the Callosum backend, local embeddings, and NLI models. This saved per-paper Critique example remains inspectable.";
     if (/^\/feedback/.test(path)) return "Feedback submission is disabled in the public demo because it would send data outside the static site. You can still compose, inspect, and copy the exact JSON report locally.";
     if (path === "/help/ask") return "AI Help answers require an explicitly enabled model provider. The complete bundled Help corpus below remains searchable and inspectable without any network request.";
     if (/^\/usage/.test(path)) return "Changing the usage log requires a writable local database. The public demo exposes only a saved, zero-egress usage summary.";
@@ -91,9 +96,10 @@
     if (path === "/library/scan" || path === "/papers/import") return "Import and watched-folder scanning read local files and create persistent library records. The static browser demo has no filesystem or database.";
     if (/^\/library\/bundle/.test(path)) return "Portable library bundle import or export is produced from persistent local records, tags, axes, and annotations and is unavailable in the immutable public snapshot.";
     if (/^\/saved-searches/.test(path)) return "The curated saved searches can be recalled in the demo, but saving or deleting them requires persistent local library state.";
-    if (/^\/papers\/(duplicates|merge)/.test(path)) return "Duplicate review and merge require persistent local library records. The curated three-paper demo has no duplicate candidate to fabricate.";
-    if (/^\/papers\/(trash|\d+\/(restore|permanent))/.test(path) || /^\/papers\/\d+$/.test(path)) return "Trash, restore, and permanent deletion require persistent local library state; the curated demo contains no deleted paper.";
-    if (/^\/papers\/text-health/.test(path) || /^\/papers\/\d+\/ocr/.test(path)) return "Text-health repair and OCR operate on local files through the backend. All three bundled demo PDFs already have extracted text.";
+    if (/^\/papers\/(duplicates|merge)/.test(path)) return "Duplicate review and merge require persistent local library records. The curated five-paper demo has no duplicate candidate to fabricate.";
+    if (/^\/papers\/(trash|\d+\/(restore|permanent))/.test(path)) return "Trash, restore, and permanent deletion require persistent local library state; the curated demo contains no deleted paper.";
+    if (/^\/papers\/\d+$/.test(path)) return "Editing paper details writes to persistent local library state. The saved demo metadata for this paper remains visible and inspectable.";
+    if (/^\/papers\/text-health/.test(path) || /^\/papers\/\d+\/ocr/.test(path)) return "Text-health repair and OCR operate on local files through the backend. All four bundled demo PDFs already have extracted text.";
     if (/^\/agent/.test(path)) return "MCP writes require the installed local server, an explicit write gate, and a reversible activity log. The static demo has none of those mutation endpoints.";
     if (path === "/feed/refresh") return "Feed refresh is unavailable online because it polls external journal and search providers. The reviewed cached Feed remains inspectable.";
     if (path === "/feed/subscriptions" || /^\/feed\/subscriptions\//.test(path)) return "Following and unfollowing sources changes the persistent library and is unavailable in this immutable demo.";
@@ -310,7 +316,7 @@
       if (path === "/sync/status") return jsonResponse({ enabled: false, configured: false, signed_in: false, server_url: null, last_cursor: 0 });
       if (path === "/sync/conflicts") return jsonResponse([]);
       if (path === "/agent/writes") return jsonResponse([]);
-      if (path === "/usage/summary") return jsonResponse({ enabled: false, types: [
+      if (path === "/usage/summary") return jsonResponse({ enabled: true, types: [
         { event_type: "citation_exported", label: "Citations exported", all_time: 0, last_30_days: 0 },
         { event_type: "duplicate_resolved", label: "Duplicates resolved", all_time: 0, last_30_days: 0 },
         { event_type: "metadata_reresolved", label: "Metadata records re-resolved", all_time: 0, last_30_days: 0 },
@@ -379,6 +385,7 @@
       }
       if (path === "/feed/library-journals") return jsonResponse({ journals: snapshot.api.extended.feed.library_journals });
       if (path === "/followed-authors") return jsonResponse(snapshot.api.extended.discover.followed_authors);
+      if (path === "/feed/suggest-authors") return jsonResponse({ authors: snapshot.api.extended.discover.suggested_authors });
       if (path === "/funding-discovery/saved") return jsonResponse({ items: snapshot.api.extended.discover.saved_funding });
       if (path === "/funding-discovery/runs") return jsonResponse({ runs: snapshot.api.extended.discover.funding_runs });
       var fundingRunMatch = path.match(/^\/funding-discovery\/runs\/(\d+)$/);
@@ -524,6 +531,13 @@
       if (pdfMatch) {
         var pdfPaper = paperById(snapshot, pdfMatch[1]);
         if (!pdfPaper || !pdfPaper.document.asset_path) return jsonResponse({ detail: "Document unavailable" }, 404);
+        var requestedAttachmentId = parts.search.get("attachment_id");
+        if (requestedAttachmentId != null) {
+          var knownAttachmentIds = (pdfPaper.detail.attachments || []).map(function (attachment) { return String(attachment.id); });
+          if (knownAttachmentIds.indexOf(String(requestedAttachmentId)) < 0) {
+            return jsonResponse({ detail: "This locator points at a document the public snapshot has no redistribution right to bundle (for example, an unlicensed registration record). Only this paper's own licensed PDF is available in the online demo." }, 404);
+          }
+        }
         var assetUrl = new URL(pdfPaper.document.asset_path, base);
         if (assetUrl.origin !== window.location.origin || assetUrl.pathname.indexOf(base.pathname) !== 0) {
           throw new Error("Demo document escaped the static base path");
@@ -556,7 +570,9 @@
         ? "The LibreOffice extension is installed on the user's computer and is not bundled as a web-demo download. Its real workflow and setup instructions remain inspectable here."
         : /^\/integrations\/word/.test(path)
           ? "The Word manifest belongs to an installed local Callosum instance and is not bundled as a web-demo download. Its real setup boundary remains inspectable here."
-          : "This read-only surface is not included in the current demo snapshot. No network request was made. Install Callosum for live local data, or inspect the saved surfaces available in this demo.";
+          : /^\/citations\/styles\//.test(path)
+            ? "Browsing the remote CSL style repository, exporting, checking for updates, or previewing another installed style requires Callosum's local citeproc engine. Only the one saved default style is available in this demo."
+            : "This read-only surface is not included in the current demo snapshot. No network request was made. Install Callosum for live local data, or inspect the saved surfaces available in this demo.";
       blocked(missingReadMessage, path);
       return jsonResponse({ detail: missingReadMessage }, 404);
     }

@@ -18,7 +18,7 @@
           "reason": "Surfaced by crossref from title/abstract metadata; metadata term overlap 0.36.",
           "relationship_kind": null,
           "relationship_label": null,
-          "saved_at": "2026-08-31T14:59:34.341042+00:00",
+          "saved_at": "2026-09-01T06:10:07.540064+00:00",
           "source_query": null,
           "sources": [
             "crossref"
@@ -1841,7 +1841,7 @@
           "year": 2013
         }
       ],
-      "computed_at": "2026-08-31T14:56:44.185273+00:00",
+      "computed_at": "2026-09-01T06:08:34.453752+00:00",
       "coverage": {
         "checked": 4,
         "domain_count": 0,
@@ -2547,7 +2547,7 @@
           "name": "Lauren K. Salinero"
         }
       ],
-      "computed_at": "2026-08-31T14:57:46.241448+00:00",
+      "computed_at": "2026-09-01T06:09:14.473624+00:00",
       "coverage": {
         "checked": 4,
         "citing_authorship_cap_count": 0,
@@ -2577,7 +2577,7 @@
       }
     },
     "emerging_topics": {
-      "computed_at": "2026-08-31T14:57:42.611002+00:00",
+      "computed_at": "2026-09-01T06:09:12.033858+00:00",
       "coverage": {
         "checked": 4,
         "domain_count": 0,
@@ -3635,31 +3635,12 @@
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
             "id": 1,
-            "organization_name": "DOL-MSHA",
-            "provenance": [
-              {
-                "extraction_method": "provider_native",
-                "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
-                "source_field": "oppHits",
-                "source_record_id": "363024"
-              }
-            ],
-            "scheme_name": null,
-            "surface_type": "official_api",
-            "url": "https://www.grants.gov/search-results-detail/363024"
-          },
-          {
-            "access_mode": "open_rfp",
-            "actionability": "open_opportunity",
-            "details": "Current opportunity status was provided by grants-gov.",
-            "id": 2,
             "organization_name": "MCC",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "331311"
               }
@@ -3672,13 +3653,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 3,
+            "id": 2,
             "organization_name": "USDOJ-OJP-BJA",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "363733"
               }
@@ -3691,13 +3672,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 4,
+            "id": 3,
             "organization_name": "HHS-NIH11",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "361164"
               }
@@ -3710,13 +3691,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 5,
+            "id": 4,
             "organization_name": "VA-CSHF",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "58617"
               }
@@ -3729,13 +3710,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 6,
+            "id": 5,
             "organization_name": "DOD-AMC",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "345241"
               }
@@ -3748,13 +3729,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 7,
+            "id": 6,
             "organization_name": "USDA-RUS",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "363396"
               }
@@ -3767,13 +3748,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 8,
+            "id": 7,
             "organization_name": "DOD-COE-FW",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "363673"
               }
@@ -3786,13 +3767,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 9,
+            "id": 8,
             "organization_name": "DOS-GRC",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "359266"
               }
@@ -3805,13 +3786,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 10,
+            "id": 9,
             "organization_name": "EPA",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "351547"
               }
@@ -3824,13 +3805,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 11,
+            "id": 10,
             "organization_name": "DOC",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "334079"
               }
@@ -3843,13 +3824,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 12,
+            "id": 11,
             "organization_name": "HHS-NIH11",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "359646"
               }
@@ -3862,13 +3843,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 13,
+            "id": 12,
             "organization_name": "DOD-COE-FW",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "363721"
               }
@@ -3881,13 +3862,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 14,
+            "id": 13,
             "organization_name": "DOD-AMC",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "350730"
               }
@@ -3900,13 +3881,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 15,
+            "id": 14,
             "organization_name": "DOC-DOCNOAAERA",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "363729"
               }
@@ -3919,13 +3900,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 16,
+            "id": 15,
             "organization_name": "HHS-NIH11",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "359692"
               }
@@ -3938,13 +3919,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 17,
+            "id": 16,
             "organization_name": "DOS-NLD",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "357133"
               }
@@ -3957,13 +3938,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 18,
+            "id": 17,
             "organization_name": "DOD-COE-FW",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "363540"
               }
@@ -3976,13 +3957,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 19,
+            "id": 18,
             "organization_name": "DOI-NPS",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "360378"
               }
@@ -3995,13 +3976,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 20,
+            "id": 19,
             "organization_name": "HHS-OPHS",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "355824"
               }
@@ -4014,13 +3995,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 21,
+            "id": 20,
             "organization_name": "HHS-OPHS",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "355829"
               }
@@ -4033,13 +4014,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 22,
+            "id": 21,
             "organization_name": "HHS-OPHS",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "355830"
               }
@@ -4052,13 +4033,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 23,
+            "id": 22,
             "organization_name": "HHS-NIH11",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "359820"
               }
@@ -4071,13 +4052,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 24,
+            "id": 23,
             "organization_name": "HHS-NIH11",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "351234"
               }
@@ -4090,13 +4071,13 @@
             "access_mode": "open_rfp",
             "actionability": "open_opportunity",
             "details": "Current opportunity status was provided by grants-gov.",
-            "id": 25,
+            "id": 24,
             "organization_name": "HHS-NIH11",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "356888"
               }
@@ -4104,6 +4085,25 @@
             "scheme_name": null,
             "surface_type": "official_api",
             "url": "https://www.grants.gov/search-results-detail/356888"
+          },
+          {
+            "access_mode": "open_rfp",
+            "actionability": "open_opportunity",
+            "details": "Current opportunity status was provided by grants-gov.",
+            "id": 25,
+            "organization_name": "NSF",
+            "provenance": [
+              {
+                "extraction_method": "provider_native",
+                "provider_id": "grants-gov",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
+                "source_field": "oppHits",
+                "source_record_id": "356425"
+              }
+            ],
+            "scheme_name": null,
+            "surface_type": "official_api",
+            "url": "https://www.grants.gov/search-results-detail/356425"
           }
         ],
         "funding_prospects": [
@@ -4114,15 +4114,14 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "Specific funding schemes and current priorities are not detailed."
+                "The exact scope of the ESRC's funding priorities is not detailed here, so the fit is only possible."
               ],
               "fit_dimensions": [
-                "subject",
-                "activity_type"
+                "subject"
               ],
               "label": "possible_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The Economic and Social Research Council has portfolio topic overlap and scholarly lineage suggesting potential relevance to research on social and cognitive aspects of morality.",
+              "rationale": "The organization's name 'Economic and Social Research Council' suggests potential alignment with research on societal aspects like morality and stereotypes.",
               "show_in_triage": true
             },
             "organization_name": "Economic and Social Research Council",
@@ -4141,7 +4140,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1016/j.jesp.2018.06.005",
                         "source_text": "Doing good vs. avoiding bad in prosocial choice: A refined test and extension of the morality preference hypothesis",
@@ -4169,7 +4168,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.3758/s13423-018-1504-z",
                         "source_text": "Exploring the neurocognitive basis of episodic recollection in autism",
@@ -4207,7 +4206,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1016/j.jesp.2018.06.005",
                     "source_text": "Doing good vs. avoiding bad in prosocial choice: A refined test and extension of the morality preference hypothesis",
@@ -4216,7 +4215,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.3758/s13423-018-1504-z",
                     "source_text": "Exploring the neurocognitive basis of episodic recollection in autism",
@@ -4238,7 +4237,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.3758/s13423-018-1504-z",
                         "source_text": "Exploring the neurocognitive basis of episodic recollection in autism",
@@ -4266,7 +4265,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1016/j.jesp.2018.06.005",
                         "source_text": "Doing good vs. avoiding bad in prosocial choice: A refined test and extension of the morality preference hypothesis",
@@ -4291,7 +4290,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.3758/s13423-018-1504-z",
                     "source_text": "Exploring the neurocognitive basis of episodic recollection in autism",
@@ -4300,7 +4299,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1016/j.jesp.2018.06.005",
                     "source_text": "Doing good vs. avoiding bad in prosocial choice: A refined test and extension of the morality preference hypothesis",
@@ -4319,15 +4318,15 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The direct relevance to morality and stereotypes is not explicit in the name."
+                "The primary focus is on dental and craniofacial research, which may not directly align with morality, though a link to neurocognition is plausible."
               ],
               "fit_dimensions": [
                 "subject",
-                "activity_type"
+                "population"
               ],
               "label": "possible_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The National Institute of Dental and Craniofacial Research has portfolio topic overlap and scholarly lineage, which could potentially align with research on the neurocognitive basis of stereotypes.",
+              "rationale": "The 'National Institute of Dental and Craniofacial Research' may fund research related to the 'neurocognitive basis' and potentially 'stereotypes' affecting these areas.",
               "show_in_triage": true
             },
             "organization_name": "National Institute of Dental and Craniofacial Research",
@@ -4346,7 +4345,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1111/nyas.14575",
                         "source_text": "Morality is in the eye of the beholder: the neurocognitive basis of the “anomalous‐is‐bad” stereotype",
@@ -4396,7 +4395,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1111/nyas.14575",
                     "source_text": "Morality is in the eye of the beholder: the neurocognitive basis of the “anomalous‐is‐bad” stereotype",
@@ -4418,7 +4417,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1111/nyas.14575",
                         "source_text": "Morality is in the eye of the beholder: the neurocognitive basis of the “anomalous‐is‐bad” stereotype",
@@ -4443,7 +4442,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1111/nyas.14575",
                     "source_text": "Morality is in the eye of the beholder: the neurocognitive basis of the “anomalous‐is‐bad” stereotype",
@@ -4452,7 +4451,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1038/s41598-022-12440-w",
                     "source_text": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
@@ -4471,15 +4470,15 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "Specific funding opportunities are not detailed."
+                "The exact scope of the MindCORE program beyond neurocognition is not specified, so the fit is only possible."
               ],
               "fit_dimensions": [
                 "subject",
-                "activity_type"
+                "method"
               ],
               "label": "possible_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The University of Pennsylvania MindCORE program has portfolio topic overlap and scholarly lineage, directly suggesting relevance to the 'neurocognitive basis' of topics like morality.",
+              "rationale": "The 'MindCORE program' at the University of Pennsylvania directly relates to 'neurocognitive' aspects, which are central to the research context.",
               "show_in_triage": true
             },
             "organization_name": "University of Pennsylvania MindCORE program",
@@ -4498,7 +4497,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1038/s41598-022-12440-w",
                         "source_text": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
@@ -4532,7 +4531,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1038/s41598-022-12440-w",
                     "source_text": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
@@ -4554,7 +4553,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1038/s41598-022-12440-w",
                         "source_text": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
@@ -4579,7 +4578,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1038/s41598-022-12440-w",
                     "source_text": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
@@ -4598,15 +4597,15 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The connection to morality and the specific stereotype is indirect."
+                "The direct link to morality is not explicit, and the focus is on appearance."
               ],
               "fit_dimensions": [
                 "subject",
-                "activity_type"
+                "population"
               ],
               "label": "possible_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The Edwin and Fannie Gray Hall Center for Human Appearance has portfolio topic overlap and scholarly lineage. While not a direct match, research into human appearance could intersect with the 'anomalous-is-bad stereotype' and its neurocognitive basis.",
+              "rationale": "The 'Edwin and Fannie Gray Hall Center for Human Appearance' may investigate aspects of perception and judgment related to appearance, which could intersect with 'stereotypes' and 'neurocognitive basis'.",
               "show_in_triage": true
             },
             "organization_name": "Edwin and Fannie Gray Hall Center for Human Appearance",
@@ -4625,7 +4624,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1038/s41598-022-12440-w",
                         "source_text": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
@@ -4659,7 +4658,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1038/s41598-022-12440-w",
                     "source_text": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
@@ -4681,7 +4680,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1038/s41598-022-12440-w",
                         "source_text": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
@@ -4706,7 +4705,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1038/s41598-022-12440-w",
                     "source_text": "Evidence against the “anomalous-is-bad” stereotype in Hadza hunter gatherers",
@@ -4725,16 +4724,16 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The alignment with 'morality', 'neurocognitive basis', or 'stereotypes' is not evident from the organization's name alone."
+                "The organization is international, and its specific research priorities are not detailed."
               ],
               "fit_dimensions": [
                 "subject",
-                "activity_type"
+                "geography"
               ],
               "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The Japan Society for the Promotion of Science has portfolio topic overlap and scholarly lineage. The specific research focus is not clear from the name, requiring further investigation.",
-              "show_in_triage": true
+              "rationale": "The organization's name 'Japan Society for the Promotion of Science' is broad and does not provide specific clues about its research interests related to morality or neurocognition.",
+              "show_in_triage": false
             },
             "organization_name": "Japan Society for the Promotion of Science",
             "prospect_kind": "organization",
@@ -4752,7 +4751,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1163/15685373-12340155",
                         "source_text": "Morality is in the Cultural Eye of the Beholder: A Situation Sampling Study",
@@ -4786,7 +4785,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1163/15685373-12340155",
                     "source_text": "Morality is in the Cultural Eye of the Beholder: A Situation Sampling Study",
@@ -4808,7 +4807,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1163/15685373-12340155",
                         "source_text": "Morality is in the Cultural Eye of the Beholder: A Situation Sampling Study",
@@ -4833,7 +4832,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1163/15685373-12340155",
                     "source_text": "Morality is in the Cultural Eye of the Beholder: A Situation Sampling Study",
@@ -4852,16 +4851,16 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "Specific NIH institutes and their current funding priorities need to be identified."
+                "NIH funds a vast array of research; a direct alignment with morality and stereotypes is not guaranteed."
               ],
               "fit_dimensions": [
                 "subject",
-                "activity_type"
+                "method"
               ],
-              "label": "possible_fit",
+              "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The National Institutes of Health has portfolio topic overlap and scholarly lineage. Given the research context involves neurocognition, NIH is a highly probable funder.",
-              "show_in_triage": true
+              "rationale": "The National Institutes of Health is a broad funding body, and while 'neurocognitive basis' is a likely area, it's too general to confirm a strong fit without more specific program information.",
+              "show_in_triage": false
             },
             "organization_name": "National Institutes of Health",
             "prospect_kind": "organization",
@@ -4879,7 +4878,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1016/j.cortex.2017.01.014",
                         "source_text": "The neurocognitive basis of borrowed context information",
@@ -4913,7 +4912,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1016/j.cortex.2017.01.014",
                     "source_text": "The neurocognitive basis of borrowed context information",
@@ -4935,7 +4934,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1016/j.cortex.2017.01.014",
                         "source_text": "The neurocognitive basis of borrowed context information",
@@ -4960,7 +4959,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1016/j.cortex.2017.01.014",
                     "source_text": "The neurocognitive basis of borrowed context information",
@@ -4979,15 +4978,16 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The alignment with 'morality', 'neurocognitive basis', or 'stereotypes' is not evident from the organization's name alone."
+                "This is a governmental ministry with broad responsibilities, and the specific research interests related to morality or neurocognition are not specified."
               ],
               "fit_dimensions": [
-                "subject"
+                "subject",
+                "geography"
               ],
               "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The Ministerio de Educación, Cultura y Deporte has portfolio topic overlap and scholarly lineage. Its relevance to the specific research context is unclear without more information on its funding priorities.",
-              "show_in_triage": true
+              "rationale": "The 'Ministerio de Educación, Cultura y Deporte' (Ministry of Education, Culture and Sport) could potentially fund research in these areas, but the specific focus is unknown.",
+              "show_in_triage": false
             },
             "organization_name": "Ministerio de Educación, Cultura y Deporte",
             "prospect_kind": "organization",
@@ -5005,7 +5005,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1016/j.ijintrel.2014.12.006",
                         "source_text": "The effects of stereotype content on acculturation preferences and prosocial tendencies: The prominent role of morality",
@@ -5039,7 +5039,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1016/j.ijintrel.2014.12.006",
                     "source_text": "The effects of stereotype content on acculturation preferences and prosocial tendencies: The prominent role of morality",
@@ -5061,7 +5061,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1016/j.ijintrel.2014.12.006",
                         "source_text": "The effects of stereotype content on acculturation preferences and prosocial tendencies: The prominent role of morality",
@@ -5086,7 +5086,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1016/j.ijintrel.2014.12.006",
                     "source_text": "The effects of stereotype content on acculturation preferences and prosocial tendencies: The prominent role of morality",
@@ -5105,15 +5105,16 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The alignment with 'morality', 'neurocognitive basis', or 'stereotypes' is not evident from the organization's name alone."
+                "The organization is Dutch, and its specific research priorities related to the topic are not detailed."
               ],
               "fit_dimensions": [
-                "subject"
+                "subject",
+                "geography"
               ],
               "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The Nederlandse Organisatie voor Wetenschappelijk Onderzoek has portfolio topic overlap and scholarly lineage. Its relevance to the specific research context is unclear without more information on its funding priorities.",
-              "show_in_triage": true
+              "rationale": "The 'Nederlandse Organisatie voor Wetenschappelijk Onderzoek' (Netherlands Organisation for Scientific Research) is a broad research funding body, and specific alignment is not clear from the name alone.",
+              "show_in_triage": false
             },
             "organization_name": "Nederlandse Organisatie voor Wetenschappelijk Onderzoek",
             "prospect_kind": "organization",
@@ -5131,7 +5132,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1155/2014/104920",
                         "source_text": "Neurocognitive Basis of Schizophrenia: Information Processing Abnormalities and Clues for Treatment",
@@ -5165,7 +5166,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1155/2014/104920",
                     "source_text": "Neurocognitive Basis of Schizophrenia: Information Processing Abnormalities and Clues for Treatment",
@@ -5187,7 +5188,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1155/2014/104920",
                         "source_text": "Neurocognitive Basis of Schizophrenia: Information Processing Abnormalities and Clues for Treatment",
@@ -5212,7 +5213,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1155/2014/104920",
                     "source_text": "Neurocognitive Basis of Schizophrenia: Information Processing Abnormalities and Clues for Treatment",
@@ -5231,16 +5232,16 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "Specific research areas within ERC need to be identified."
+                "H2020 is a large European funding framework, and specific alignment requires examining individual calls."
               ],
               "fit_dimensions": [
                 "subject",
-                "activity_type"
+                "geography"
               ],
-              "label": "possible_fit",
+              "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "H2020 European Research Council has portfolio topic overlap and scholarly lineage. The ERC funds frontier research, which could encompass neurocognitive studies of morality and stereotypes.",
-              "show_in_triage": true
+              "rationale": "The 'H2020 European Research Council' funds a wide range of scientific research, and without specific details on their calls, it's difficult to ascertain a precise fit with morality and neurocognition.",
+              "show_in_triage": false
             },
             "organization_name": "H2020 European Research Council",
             "prospect_kind": "organization",
@@ -5258,7 +5259,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1080/17588928.2022.2132223",
                         "source_text": "MA-EM: A neurocognitive model for understanding mixed and ambiguous emotions and morality",
@@ -5292,7 +5293,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1080/17588928.2022.2132223",
                     "source_text": "MA-EM: A neurocognitive model for understanding mixed and ambiguous emotions and morality",
@@ -5314,7 +5315,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1080/17588928.2022.2132223",
                         "source_text": "MA-EM: A neurocognitive model for understanding mixed and ambiguous emotions and morality",
@@ -5339,7 +5340,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1080/17588928.2022.2132223",
                     "source_text": "MA-EM: A neurocognitive model for understanding mixed and ambiguous emotions and morality",
@@ -5358,15 +5359,16 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The alignment with 'morality', 'neurocognitive basis', or 'stereotypes' is not evident from the organization's name alone."
+                "The organization is Dutch, and its specific research priorities related to the topic are not detailed."
               ],
               "fit_dimensions": [
-                "subject"
+                "subject",
+                "geography"
               ],
               "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "nederlandse organisatie voor wetenschappelijk onderzoek has portfolio topic overlap and scholarly lineage. Its relevance to the specific research context is unclear without more information on its funding priorities.",
-              "show_in_triage": true
+              "rationale": "The 'nederlandse organisatie voor wetenschappelijk onderzoek' (Netherlands Organisation for Scientific Research) is a broad research funding body, and specific alignment is not clear from the name alone.",
+              "show_in_triage": false
             },
             "organization_name": "nederlandse organisatie voor wetenschappelijk onderzoek",
             "prospect_kind": "organization",
@@ -5384,7 +5386,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1080/17588928.2022.2132223",
                         "source_text": "MA-EM: A neurocognitive model for understanding mixed and ambiguous emotions and morality",
@@ -5418,7 +5420,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1080/17588928.2022.2132223",
                     "source_text": "MA-EM: A neurocognitive model for understanding mixed and ambiguous emotions and morality",
@@ -5440,7 +5442,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1080/17588928.2022.2132223",
                         "source_text": "MA-EM: A neurocognitive model for understanding mixed and ambiguous emotions and morality",
@@ -5465,7 +5467,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1080/17588928.2022.2132223",
                     "source_text": "MA-EM: A neurocognitive model for understanding mixed and ambiguous emotions and morality",
@@ -5484,15 +5486,15 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "Current funding priorities need to be verified for specific alignment."
+                "The specific focus on morality and stereotypes is not guaranteed, and their current funding priorities would need to be checked."
               ],
               "fit_dimensions": [
                 "subject",
-                "activity_type"
+                "method"
               ],
               "label": "possible_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The James S. McDonnell Foundation has portfolio topic overlap and scholarly lineage. The foundation has historically funded research in cognitive neuroscience and related areas, which could be relevant.",
+              "rationale": "The James S. McDonnell Foundation has previously funded research in areas related to cognition, decision-making, and the brain sciences, which aligns with the 'neurocognitive basis' aspect of the research context.",
               "show_in_triage": true
             },
             "organization_name": "James S. McDonnell Foundation",
@@ -5511,7 +5513,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.3758/s13423-018-1504-z",
                         "source_text": "Exploring the neurocognitive basis of episodic recollection in autism",
@@ -5545,7 +5547,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.3758/s13423-018-1504-z",
                     "source_text": "Exploring the neurocognitive basis of episodic recollection in autism",
@@ -5567,7 +5569,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.3758/s13423-018-1504-z",
                         "source_text": "Exploring the neurocognitive basis of episodic recollection in autism",
@@ -5592,7 +5594,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.3758/s13423-018-1504-z",
                     "source_text": "Exploring the neurocognitive basis of episodic recollection in autism",
@@ -5611,15 +5613,16 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The alignment with 'morality', 'neurocognitive basis', or 'stereotypes' is not evident from the organization's name alone."
+                "The exact research priorities related to the topic are not detailed."
               ],
               "fit_dimensions": [
-                "subject"
+                "subject",
+                "geography"
               ],
               "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The Ministry of Education of the People's Republic of China has portfolio topic overlap and scholarly lineage. Its relevance to the specific research context is unclear without more information on its funding priorities.",
-              "show_in_triage": true
+              "rationale": "The 'Ministry of Education of the People's Republic of China' is a government ministry with broad responsibilities, and specific research interests related to morality or neurocognition are not specified.",
+              "show_in_triage": false
             },
             "organization_name": "Ministry of Education of the People's Republic of China",
             "prospect_kind": "organization",
@@ -5637,7 +5640,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1016/j.brainres.2025.150010",
                         "source_text": "Neurocognitive basis of inter-subject variability in speech motor control: Interaction of bottom-up and top-down processes",
@@ -5671,7 +5674,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1016/j.brainres.2025.150010",
                     "source_text": "Neurocognitive basis of inter-subject variability in speech motor control: Interaction of bottom-up and top-down processes",
@@ -5693,7 +5696,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1016/j.brainres.2025.150010",
                         "source_text": "Neurocognitive basis of inter-subject variability in speech motor control: Interaction of bottom-up and top-down processes",
@@ -5718,7 +5721,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1016/j.brainres.2025.150010",
                     "source_text": "Neurocognitive basis of inter-subject variability in speech motor control: Interaction of bottom-up and top-down processes",
@@ -5737,15 +5740,15 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The specific research areas and funding priorities are not detailed."
+                "The specific focus on morality and stereotypes is not guaranteed."
               ],
               "fit_dimensions": [
                 "subject",
-                "activity_type"
+                "method"
               ],
-              "label": "uncertain",
+              "label": "possible_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The National Institute of Psychobiology has portfolio topic overlap and scholarly lineage. While 'psychobiology' is related to 'neurocognitive basis', the specific focus on morality and stereotypes is not guaranteed.",
+              "rationale": "The 'National Institute of Psychobiology' directly aligns with the 'neurocognitive basis' aspect of the research context.",
               "show_in_triage": true
             },
             "organization_name": "National Institute of Psychobiology",
@@ -5764,7 +5767,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1037/0894-4105.21.4.431",
                         "source_text": "Neurocognitive basis of impaired empathy in schizophrenia.",
@@ -5798,7 +5801,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1037/0894-4105.21.4.431",
                     "source_text": "Neurocognitive basis of impaired empathy in schizophrenia.",
@@ -5820,7 +5823,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1037/0894-4105.21.4.431",
                         "source_text": "Neurocognitive basis of impaired empathy in schizophrenia.",
@@ -5845,7 +5848,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1037/0894-4105.21.4.431",
                     "source_text": "Neurocognitive basis of impaired empathy in schizophrenia.",
@@ -5864,14 +5867,16 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The focus on schizophrenia and depression may not align with the research context."
+                "The primary focus is on specific mental health conditions, and the link to general morality and the 'anomalous-is-bad' stereotype may be indirect."
               ],
               "fit_dimensions": [
-                "subject"
+                "subject",
+                "population",
+                "method"
               ],
-              "label": "uncertain",
+              "label": "possible_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The National Alliance for Research on Schizophrenia and Depression has portfolio topic overlap and scholarly lineage. While related to mental health and cognition, its direct relevance to the specific research context of morality and the 'anomalous-is-bad' stereotype is not clear.",
+              "rationale": "The 'National Alliance for Research on Schizophrenia and Depression' may fund research related to neurocognition and the underlying factors that contribute to mental health conditions, which could touch upon stereotypes and moral judgments.",
               "show_in_triage": true
             },
             "organization_name": "National Alliance for Research on Schizophrenia and Depression",
@@ -5890,7 +5895,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1037/0894-4105.21.4.431",
                         "source_text": "Neurocognitive basis of impaired empathy in schizophrenia.",
@@ -5924,7 +5929,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1037/0894-4105.21.4.431",
                     "source_text": "Neurocognitive basis of impaired empathy in schizophrenia.",
@@ -5946,7 +5951,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1037/0894-4105.21.4.431",
                         "source_text": "Neurocognitive basis of impaired empathy in schizophrenia.",
@@ -5971,7 +5976,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1037/0894-4105.21.4.431",
                     "source_text": "Neurocognitive basis of impaired empathy in schizophrenia.",
@@ -5990,15 +5995,15 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The alignment with 'morality', 'neurocognitive basis', or 'stereotypes' is not evident from the organization's name alone."
+                "The focus on 'future studies' may not align with the neurocognitive underpinnings of current moral judgments or stereotypes."
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The World Futures Studies Federation has portfolio topic overlap and scholarly lineage. Its relevance to the specific research context is unclear without more information on its funding priorities.",
-              "show_in_triage": true
+              "rationale": "The 'World Futures Studies Federation' is broad and its connection to the specific research context of morality and neurocognition is not clear.",
+              "show_in_triage": false
             },
             "organization_name": "World Futures Studies Federation",
             "prospect_kind": "organization",
@@ -6016,7 +6021,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1080/10848770.2022.2129361",
                         "source_text": "<i>Breaking Bad</i>, Dostoevsky, Nihilism, and Marketplace Morality",
@@ -6046,7 +6051,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1080/10848770.2022.2129361",
                     "source_text": "<i>Breaking Bad</i>, Dostoevsky, Nihilism, and Marketplace Morality",
@@ -6068,7 +6073,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1080/10848770.2022.2129361",
                         "source_text": "<i>Breaking Bad</i>, Dostoevsky, Nihilism, and Marketplace Morality",
@@ -6093,7 +6098,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1080/10848770.2022.2129361",
                     "source_text": "<i>Breaking Bad</i>, Dostoevsky, Nihilism, and Marketplace Morality",
@@ -6112,16 +6117,16 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "Specific departments or funding schemes within the university need to be identified."
+                "The fit depends heavily on specific research groups within the university."
               ],
               "fit_dimensions": [
                 "subject",
-                "activity_type"
+                "geography"
               ],
-              "label": "possible_fit",
+              "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The University of Washington has portfolio topic overlap and scholarly lineage. As a major research university, it is likely to have departments or programs relevant to neurocognition, psychology, or sociology that could fund this research.",
-              "show_in_triage": true
+              "rationale": "The University of Washington is a large institution, and its research interests are broad. Without knowing specific departments or programs, the fit is uncertain.",
+              "show_in_triage": false
             },
             "organization_name": "University of Washington",
             "prospect_kind": "organization",
@@ -6139,7 +6144,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1016/j.ssresearch.2026.103378",
                         "source_text": "The good, the bad, and the healthy: A factorial survey analysis of situational morality in consumption and healthcare",
@@ -6169,7 +6174,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1016/j.ssresearch.2026.103378",
                     "source_text": "The good, the bad, and the healthy: A factorial survey analysis of situational morality in consumption and healthcare",
@@ -6191,7 +6196,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1016/j.ssresearch.2026.103378",
                         "source_text": "The good, the bad, and the healthy: A factorial survey analysis of situational morality in consumption and healthcare",
@@ -6216,7 +6221,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1016/j.ssresearch.2026.103378",
                     "source_text": "The good, the bad, and the healthy: A factorial survey analysis of situational morality in consumption and healthcare",
@@ -6235,15 +6240,16 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The alignment with 'morality', 'neurocognitive basis', or 'stereotypes' is not evident from the organization's name alone."
+                "The organization is from Mauritius, and its research priorities are not specified."
               ],
               "fit_dimensions": [
-                "subject"
+                "subject",
+                "geography"
               ],
               "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The Mauritius Research Council has portfolio topic overlap and scholarly lineage. Its relevance to the specific research context is unclear without more information on its funding priorities.",
-              "show_in_triage": true
+              "rationale": "The 'Mauritius Research Council' is a national research funding body, and its specific focus related to morality or neurocognition is not detailed.",
+              "show_in_triage": false
             },
             "organization_name": "Mauritius Research Council",
             "prospect_kind": "organization",
@@ -6261,7 +6267,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1016/s0140-6736(05)64134-7",
                         "source_text": "Genetic basis of bad behaviour in adolescents",
@@ -6291,7 +6297,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1016/s0140-6736(05)64134-7",
                     "source_text": "Genetic basis of bad behaviour in adolescents",
@@ -6313,7 +6319,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1016/s0140-6736(05)64134-7",
                         "source_text": "Genetic basis of bad behaviour in adolescents",
@@ -6338,7 +6344,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1016/s0140-6736(05)64134-7",
                     "source_text": "Genetic basis of bad behaviour in adolescents",
@@ -6357,15 +6363,15 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The alignment with 'morality', 'neurocognitive basis', or 'stereotypes' is not evident from the organization's name alone."
+                "The name is too generic to assess a specific fit."
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The National Centre of Science has portfolio topic overlap and scholarly lineage. Its relevance to the specific research context is unclear without more information on its funding priorities.",
-              "show_in_triage": true
+              "rationale": "The 'National Centre of Science' is a broad term, and its specific research interests related to morality or neurocognition are not detailed.",
+              "show_in_triage": false
             },
             "organization_name": "National Centre of Science",
             "prospect_kind": "organization",
@@ -6383,7 +6389,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1080/14733285.2020.1849561",
                         "source_text": "Bad television, unhealthy computers? Children’s mapping of health, fun and morality",
@@ -6413,7 +6419,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1080/14733285.2020.1849561",
                     "source_text": "Bad television, unhealthy computers? Children’s mapping of health, fun and morality",
@@ -6435,7 +6441,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1080/14733285.2020.1849561",
                         "source_text": "Bad television, unhealthy computers? Children’s mapping of health, fun and morality",
@@ -6460,7 +6466,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1080/14733285.2020.1849561",
                     "source_text": "Bad television, unhealthy computers? Children’s mapping of health, fun and morality",
@@ -6479,15 +6485,16 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The alignment with 'morality', 'neurocognitive basis', or 'stereotypes' is not evident from the organization's name alone."
+                "The organization is Polish, and its research priorities are not specified."
               ],
               "fit_dimensions": [
-                "subject"
+                "subject",
+                "geography"
               ],
               "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "Narodowe Centrum Nauki (National Science Centre, Poland) has portfolio topic overlap and scholarly lineage. Its relevance to the specific research context is unclear without more information on its funding priorities.",
-              "show_in_triage": true
+              "rationale": "Narodowe Centrum Nauki (National Science Centre) is a broad Polish research funding body, and specific alignment with morality and neurocognition is not detailed.",
+              "show_in_triage": false
             },
             "organization_name": "Narodowe Centrum Nauki",
             "prospect_kind": "organization",
@@ -6505,7 +6512,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1080/14733285.2020.1849561",
                         "source_text": "Bad television, unhealthy computers? Children’s mapping of health, fun and morality",
@@ -6535,7 +6542,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1080/14733285.2020.1849561",
                     "source_text": "Bad television, unhealthy computers? Children’s mapping of health, fun and morality",
@@ -6557,7 +6564,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1080/14733285.2020.1849561",
                         "source_text": "Bad television, unhealthy computers? Children’s mapping of health, fun and morality",
@@ -6582,7 +6589,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1080/14733285.2020.1849561",
                     "source_text": "Bad television, unhealthy computers? Children’s mapping of health, fun and morality",
@@ -6601,15 +6608,15 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The alignment with 'morality', 'neurocognitive basis', or 'stereotypes' is not evident from the organization's name alone."
+                "The acronym is too broad to assess fit."
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "ARC (Australian Research Council) has portfolio topic overlap and scholarly lineage. Its relevance to the specific research context is unclear without more information on its funding priorities.",
-              "show_in_triage": true
+              "rationale": "ARC is a very general acronym and without further information, its research focus related to morality or neurocognition cannot be determined.",
+              "show_in_triage": false
             },
             "organization_name": "ARC",
             "prospect_kind": "organization",
@@ -6627,7 +6634,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1002/ejsp.2123",
                         "source_text": "Bad habit or social good? How perceptions of gossiper morality are related to gossip content",
@@ -6657,7 +6664,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1002/ejsp.2123",
                     "source_text": "Bad habit or social good? How perceptions of gossiper morality are related to gossip content",
@@ -6679,7 +6686,7 @@
                       {
                         "extraction_method": "provider_native",
                         "provider_id": "crossref-funding",
-                        "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                        "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                         "source_field": "funder",
                         "source_record_id": "10.1002/ejsp.2123",
                         "source_text": "Bad habit or social good? How perceptions of gossiper morality are related to gossip content",
@@ -6704,7 +6711,7 @@
                   {
                     "extraction_method": "provider_native",
                     "provider_id": "crossref-funding",
-                    "retrieved_at": "2026-08-31T14:55:22.005187+00:00",
+                    "retrieved_at": "2026-09-01T06:05:56.317984+00:00",
                     "source_field": "funder",
                     "source_record_id": "10.1002/ejsp.2123",
                     "source_text": "Bad habit or social good? How perceptions of gossiper morality are related to gossip content",
@@ -6729,13 +6736,7 @@
         "open_opportunities": [
           {
             "amount": {},
-            "deadlines": [
-              {
-                "basis": "provider_native",
-                "date": "08/31/2026",
-                "kind": "application"
-              }
-            ],
+            "deadlines": [],
             "eligibility": {
               "assessment": "not_assessed",
               "label": "Not assessed"
@@ -6744,52 +6745,14 @@
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title and summary do not align with the research context."
+                "The opportunity is for 'Community Engagement Services for the Solomon Islands Threshold Program', which does not appear related to the research context of 'mora"
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'Brookwood-Sago Mine Safety Grants', which appears unrelated.",
-              "show_in_triage": false
-            },
-            "organization_name": "DOL-MSHA",
-            "provenance": [
-              {
-                "extraction_method": "provider_native",
-                "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
-                "source_field": "oppHits",
-                "source_record_id": "363024"
-              }
-            ],
-            "provider_id": "grants-gov",
-            "provider_opportunity_id": "363024",
-            "source_url": "https://www.grants.gov/search-results-detail/363024",
-            "status": "open",
-            "summary": "Federal opportunity surfaced from Grants.gov search keyword: morality beholder neurocognitive basis anomalous-is-bad stereotype",
-            "title": "Brookwood-Sago Mine Safety Grants"
-          },
-          {
-            "amount": {},
-            "deadlines": [],
-            "eligibility": {
-              "assessment": "not_assessed",
-              "label": "Not assessed"
-            },
-            "id": 2,
-            "llm_evaluation": {
-              "basis": "LLM triage over bounded research context and surfaced funding evidence.",
-              "concerns": [
-                "The title and summary do not align with the research context."
-              ],
-              "fit_dimensions": [
-                "subject"
-              ],
-              "label": "lower_apparent_fit",
-              "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'Request for Information (RFI) No. 95332421K0004 - Community Engagement Services for the Solomon Islands Threshold Program', which appears unrelated.",
+              "rationale": "The title and summary do not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "MCC",
@@ -6797,7 +6760,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "331311"
               }
@@ -6822,18 +6785,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 3,
+            "id": 2,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title and summary do not align with the research context."
+                "The opportunity is for the 'Special Attorneys Program', which does not appear related to the research context of 'morality, neurocognitive basis, stereotype'."
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'OJP FY 2026 Special Attorneys Program Round 8', which appears unrelated.",
+              "rationale": "The title does not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "USDOJ-OJP-BJA",
@@ -6841,7 +6804,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "363733"
               }
@@ -6866,18 +6829,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 4,
+            "id": 3,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The core topic of morality and neurocognition is not explicitly present in the title."
+                "The primary focus is on 'Childhood Cancers', which is not directly aligned with the research context's emphasis on morality and neurocognition. The 'X01 Clinica"
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "possible_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The opportunity title 'Discovery of the Genetic Basis of Childhood Cancers and of Congenital Anomalies: Gabriella Miller Kids First Pediatric Research Program' includes 'congenital anomalies' which could align with 'anomalous-is-bad' from the research context. The summary indicates a keyword match.",
+              "rationale": "The research context includes 'anomalous-is-bad stereotype' and the opportunity mentions 'Congenital Anomalies', suggesting a potential, albeit indirect, thematic overlap.",
               "show_in_triage": true
             },
             "organization_name": "HHS-NIH11",
@@ -6885,7 +6848,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "361164"
               }
@@ -6904,18 +6867,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 5,
+            "id": 4,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title and summary do not align with the research context."
+                "The opportunity is for the 'State Veterans Home Construction Grant Program', which does not appear related to the research context of 'morality, neurocognitive "
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'State Veterans Home Construction Grant Program', which appears unrelated.",
+              "rationale": "The title does not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "VA-CSHF",
@@ -6923,7 +6886,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "58617"
               }
@@ -6948,19 +6911,19 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 6,
+            "id": 5,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The specific focus of 'anomalous-is-bad stereotype' is not explicitly stated in the title or summary as a direct area of interest."
+                "The specific subject matter of the 'DEVCOM ANALYSIS CENTER' is unclear and may not align with the focus on morality and stereotypes."
               ],
               "fit_dimensions": [
                 "subject",
-                "activity_type"
+                "method"
               ],
               "label": "possible_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The opportunity is for 'Applied Research' and the summary indicates a keyword match for 'morality beholder neurocognitive basis anomalous-is-bad stereotype'. This suggests potential thematic overlap, particularly with 'neurocognitive basis'.",
+              "rationale": "The opportunity is for 'Applied Research' and the research context involves 'neurocognitive basis', suggesting a potential for alignment in research methodologies.",
               "show_in_triage": true
             },
             "organization_name": "DOD-AMC",
@@ -6968,7 +6931,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "345241"
               }
@@ -6987,18 +6950,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 7,
+            "id": 6,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title and summary do not align with the research context."
+                "The opportunity is for the 'Powering Affordable Reliable Technology (PART) Energy Program', which does not appear related to the research context of 'morality, "
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'Powering Affordable Reliable Technology (PART) Energy Program', which appears unrelated.",
+              "rationale": "The title does not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "USDA-RUS",
@@ -7006,7 +6969,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "363396"
               }
@@ -7031,18 +6994,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 8,
+            "id": 7,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title and summary do not align with the research context."
+                "The opportunity focuses on 'Juvenile Salmonid Surveys', which is unrelated to the research context."
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'Naval Base Kitsap-Bremerton Natural Resources Support- Juvenile Salmonid Surveys in Sinclair Inlet, WA', which appears unrelated.",
+              "rationale": "The title does not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "DOD-COE-FW",
@@ -7050,7 +7013,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "363673"
               }
@@ -7069,18 +7032,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 9,
+            "id": 8,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title is too generic to determine relevance."
+                "The 'Annual Program Statement' is very broad and lacks specific details to assess topical alignment."
               ],
               "fit_dimensions": [
                 "subject"
               ],
-              "label": "lower_apparent_fit",
+              "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'Annual Program Statement (APS)', which is too general to assess fit.",
+              "rationale": "The summary is too generic to determine fit.",
               "show_in_triage": false
             },
             "organization_name": "DOS-GRC",
@@ -7088,7 +7051,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "359266"
               }
@@ -7113,18 +7076,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 10,
+            "id": 9,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title and summary do not align with the research context."
+                "The opportunity is for 'CONTAMINATED ALASKA NATIVE CLAIMS SETTLEMENT ACT LANDS', which is unrelated to the research context."
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'CONTAMINATED ALASKA NATIVE CLAIMS SETTLEMENT ACT LANDS ASSISTANCE PROGRAM', which appears unrelated.",
+              "rationale": "The title does not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "EPA",
@@ -7132,7 +7095,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "351547"
               }
@@ -7151,18 +7114,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 11,
+            "id": 10,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title and summary do not align with the research context."
+                "The opportunity is for 'Economic Development', which does not appear related to the research context of 'morality, neurocognitive basis, stereotype'."
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'FY 2021 - 2023 Economic Development RNTA', which appears unrelated.",
+              "rationale": "The title does not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "DOC",
@@ -7170,7 +7133,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "334079"
               }
@@ -7195,27 +7158,26 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 12,
+            "id": 11,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The specific focus on morality or stereotypes is not explicit in the title."
+                "The focus on animal and biological materials may not align with human neurocognition and morality. The 'X01 Clinical Trial Not Allowed' may also be a constraint"
               ],
               "fit_dimensions": [
-                "subject",
-                "activity_type"
+                "subject"
               ],
-              "label": "possible_fit",
+              "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The opportunity title 'Animal and Biological Material Resource Centers' aligns with the 'neurocognitive basis' aspect of the research context, potentially through research on biological underpinnings of behavior or cognition. The summary indicates a keyword match.",
-              "show_in_triage": true
+              "rationale": "While the research context mentions 'neurocognitive', the opportunity's focus on 'Animal and Biological Material Resource Centers' is unclear in its relation to human morality or stereotypes.",
+              "show_in_triage": false
             },
             "organization_name": "HHS-NIH11",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "359646"
               }
@@ -7240,18 +7202,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 13,
+            "id": 12,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title and summary do not align with the research context."
+                "The opportunity focuses on 'Conservation and Forestry Program Support', which is unrelated to the research context."
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'Conservation and Forestry Program Support...', which appears unrelated.",
+              "rationale": "The title does not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "DOD-COE-FW",
@@ -7259,7 +7221,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "363721"
               }
@@ -7278,11 +7240,11 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 14,
+            "id": 13,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The terms 'morality' and 'anomalous-is-bad stereotype' are not explicitly mentioned in the title."
+                "The 'community influence' aspect is broad and may or may not align with the specific focus on morality."
               ],
               "fit_dimensions": [
                 "subject",
@@ -7290,7 +7252,7 @@
               ],
               "label": "possible_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The opportunity title 'Request for Information (RFI): Community Influence on Human Judgment During Information Processing Tasks' directly relates to 'neurocognitive basis' and 'beholder' aspects of the research context. The summary confirms keyword matching.",
+              "rationale": "The title 'Community Influence on Human Judgment During Information Processing Tasks' has a potential overlap with the research context's 'neurocognitive basis' and 'stereotype' components.",
               "show_in_triage": true
             },
             "organization_name": "DOD-AMC",
@@ -7298,7 +7260,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "350730"
               }
@@ -7323,18 +7285,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 15,
+            "id": 14,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title and summary do not align with the research context."
+                "The opportunity is for 'Bluefin Tuna Research', which is unrelated to the research context."
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'SEFSC Bluefin Tuna Research Program', which appears unrelated.",
+              "rationale": "The title does not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "DOC-DOCNOAAERA",
@@ -7342,7 +7304,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "363729"
               }
@@ -7367,27 +7329,27 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 16,
+            "id": 15,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The specific focus on morality or stereotypes is not evident in the title."
+                "The specific research areas funded by NIAID are broad, and it is unclear if they would encompass the neurocognitive basis of morality or stereotypes. The 'X01 C"
               ],
               "fit_dimensions": [
                 "subject",
-                "activity_type"
+                "method"
               ],
-              "label": "possible_fit",
+              "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The opportunity title 'NIAID Resource-Related Research Projects' aligns with the broader scope of 'neurocognitive basis' and 'research' mentioned in the context. The summary indicates a keyword match.",
-              "show_in_triage": true
+              "rationale": "The research context mentions 'neurocognitive basis', and this opportunity is for 'Resource-Related Research Projects', but the specific focus is unclear.",
+              "show_in_triage": false
             },
             "organization_name": "HHS-NIH11",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "359692"
               }
@@ -7406,18 +7368,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 17,
+            "id": 16,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title is too generic to determine relevance."
+                "The opportunity is for the 'U.S. Embassy The Hague PD Annual Program Statement', which is too generic and likely focused on diplomatic or public diplomacy initi"
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'U.S. Embassy The Hague PD Annual Program Statement', which is too general to assess fit.",
+              "rationale": "The title does not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "DOS-NLD",
@@ -7425,7 +7387,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "357133"
               }
@@ -7450,18 +7412,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 18,
+            "id": 17,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title and summary do not align with the research context."
+                "The opportunity focuses on 'Cook Inlet Beluga Whale (CIBW) Prey, Salmon Productivity Monitoring', which is unrelated to the research context."
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'Cook Inlet Beluga Whale (CIBW) Prey, Salmon Productivity Monitoring at Joint Base Elmendorf-Richardson (JBER).', which appears unrelated.",
+              "rationale": "The title does not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "DOD-COE-FW",
@@ -7469,7 +7431,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "363540"
               }
@@ -7494,18 +7456,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 19,
+            "id": 18,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title and summary do not align with the research context."
+                "The opportunity is for 'Battlefield Land Acquisition Grant', which does not appear related to the research context of 'morality, neurocognitive basis, stereotyp"
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'FY2026 ABPP - Battlefield Land Acquisition Grant', which appears unrelated.",
+              "rationale": "The title does not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "DOI-NPS",
@@ -7513,7 +7475,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "360378"
               }
@@ -7532,26 +7494,27 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 20,
+            "id": 19,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title does not directly align with the research context of morality and stereotypes."
+                "The primary focus on dementia and health disparities may not directly encompass the research context's emphasis on morality and the 'anomalous-is-bad' stereotyp"
               ],
               "fit_dimensions": [
-                "subject"
+                "subject",
+                "population"
               ],
-              "label": "lower_apparent_fit",
+              "label": "possible_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'Making America Healthy Again by Addressing Dementia Disparities', which appears unrelated to the core research topic of morality and stereotypes, although it touches on cognition.",
-              "show_in_triage": false
+              "rationale": "The title 'Making America Healthy Again by Addressing Dementia Disparities' mentions 'dementia,' which relates to 'neurocognitive' aspects, and 'disparities' can sometimes be linked to societal judgments or stereotypes.",
+              "show_in_triage": true
             },
             "organization_name": "HHS-OPHS",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "355824"
               }
@@ -7570,18 +7533,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 21,
+            "id": 20,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title and summary do not align with the research context."
+                "The opportunity is for 'Coordinating Center for Language Access Services', which does not appear related to the research context of 'morality, neurocognitive ba"
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'Coordinating Center for Language Access Services', which appears unrelated.",
+              "rationale": "The title does not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "HHS-OPHS",
@@ -7589,7 +7552,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "355829"
               }
@@ -7608,18 +7571,18 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 22,
+            "id": 21,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The title and summary do not align with the research context."
+                "The opportunity is for 'Promoting Access with a Language Services Assistance Symbol', which does not appear related to the research context of 'morality, neuroc"
               ],
               "fit_dimensions": [
                 "subject"
               ],
               "label": "lower_apparent_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The surfaced evidence mentions 'morality beholder neurocognitive basis anomalous-is-bad stereotype' but the opportunity title is 'Promoting Access with a Language Services Assistance Symbol', which appears unrelated.",
+              "rationale": "The title does not appear to align with the research context.",
               "show_in_triage": false
             },
             "organization_name": "HHS-OPHS",
@@ -7627,7 +7590,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "355830"
               }
@@ -7646,18 +7609,19 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 23,
+            "id": 22,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The direct connection to 'anomalous-is-bad stereotype' is not explicit."
+                "The focus on 'aggression' is broader than morality, and 'across species' may dilute the focus on human neurocognition. The status is 'forecasted'."
               ],
               "fit_dimensions": [
-                "subject"
+                "subject",
+                "method"
               ],
               "label": "possible_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The opportunity title 'Resource and Capacity Building to Advance the Science of Aggression across Species and Disciplines' has potential overlap with 'morality' and 'neurocognitive basis' through the study of aggression. The summary indicates a keyword match.",
+              "rationale": "The title 'Resource and Capacity Building to Advance the Science of Aggression across Species and Disciplines' has potential overlap with 'neurocognitive basis' and 'stereotype'. Aggression can be linked to moral judgments.",
               "show_in_triage": true
             },
             "organization_name": "HHS-NIH11",
@@ -7665,7 +7629,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "359820"
               }
@@ -7690,19 +7654,19 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 24,
+            "id": 23,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The specific focus on morality or stereotypes is not evident in the title."
+                "The explicit focus is on alcohol, and the connection to morality and the 'anomalous-is-bad' stereotype needs further investigation. The 'X01 Clinical Trial Not "
               ],
               "fit_dimensions": [
                 "subject",
-                "activity_type"
+                "method"
               ],
               "label": "possible_fit",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The opportunity title 'Alcohol Research-Related Resource Award' aligns with 'neurocognitive basis' and 'research'. The summary indicates a keyword match.",
+              "rationale": "The research context mentions 'neurocognitive basis,' and this opportunity is for 'Alcohol Research.' Alcohol consumption can influence judgment and behavior, potentially relating to morality and stereotypes.",
               "show_in_triage": true
             },
             "organization_name": "HHS-NIH11",
@@ -7710,7 +7674,7 @@
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "351234"
               }
@@ -7735,27 +7699,27 @@
               "assessment": "not_assessed",
               "label": "Not assessed"
             },
-            "id": 25,
+            "id": 24,
             "llm_evaluation": {
               "basis": "LLM triage over bounded research context and surfaced funding evidence.",
               "concerns": [
-                "The explicit focus on morality or stereotypes is not apparent in the title."
+                "The focus on computational curation for biomedical research assets may not directly align with the research on the neurocognitive basis of morality and stereoty"
               ],
               "fit_dimensions": [
                 "subject",
-                "activity_type"
+                "method"
               ],
-              "label": "possible_fit",
+              "label": "uncertain",
               "prompt_version": "funding-triage-v1",
-              "rationale": "The opportunity title 'Computational Approaches to Curation at Scale for Biomedical Research Assets' aligns with the 'neurocognitive basis' aspect of the research context by supporting research infrastructure. The summary indicates a keyword match.",
-              "show_in_triage": true
+              "rationale": "The research context involves 'neurocognitive basis', and this opportunity is for 'Computational Approaches to Curation at Scale for Biomedical Research Assets', but the direct link is unclear.",
+              "show_in_triage": false
             },
             "organization_name": "HHS-NIH11",
             "provenance": [
               {
                 "extraction_method": "provider_native",
                 "provider_id": "grants-gov",
-                "retrieved_at": "2026-08-31T14:55:23.853604+00:00",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
                 "source_field": "oppHits",
                 "source_record_id": "356888"
               }
@@ -7766,6 +7730,44 @@
             "status": "open",
             "summary": "Federal opportunity surfaced from Grants.gov search keyword: morality beholder neurocognitive basis anomalous-is-bad stereotype",
             "title": "Computational Approaches to Curation at Scale for Biomedical Research Assets (R01 Clinical Trial Not Allowed)"
+          },
+          {
+            "amount": {},
+            "deadlines": [],
+            "eligibility": {
+              "assessment": "not_assessed",
+              "label": "Not assessed"
+            },
+            "id": 25,
+            "llm_evaluation": {
+              "basis": "LLM triage over bounded research context and surfaced funding evidence.",
+              "concerns": [
+                "This opportunity appears to be focused on international collaborations and may not be specific enough to the research topic."
+              ],
+              "fit_dimensions": [
+                "subject"
+              ],
+              "label": "uncertain",
+              "prompt_version": "funding-triage-v1",
+              "rationale": "The title 'Multilateral Partnerships Leveraging Excellence' is too broad to assess fit with the research context.",
+              "show_in_triage": false
+            },
+            "organization_name": "NSF",
+            "provenance": [
+              {
+                "extraction_method": "provider_native",
+                "provider_id": "grants-gov",
+                "retrieved_at": "2026-09-01T06:05:57.508905+00:00",
+                "source_field": "oppHits",
+                "source_record_id": "356425"
+              }
+            ],
+            "provider_id": "grants-gov",
+            "provider_opportunity_id": "356425",
+            "source_url": "https://www.grants.gov/search-results-detail/356425",
+            "status": "open",
+            "summary": "Federal opportunity surfaced from Grants.gov search keyword: morality beholder neurocognitive basis anomalous-is-bad stereotype",
+            "title": "Multilateral Partnerships Leveraging Excellence"
           }
         ],
         "profile": {
@@ -7833,7 +7835,7 @@
             {
               "extraction_method": "deterministic_parse",
               "provider_id": "callosum",
-              "retrieved_at": "2026-08-31T14:55:16.577628+00:00",
+              "retrieved_at": "2026-09-01T06:05:52.800022+00:00",
               "source_field": "title/abstract/field",
               "source_record_id": "67"
             }
@@ -7881,7 +7883,7 @@
     },
     "funding_runs": [
       {
-        "created_at": "2026-08-31 14:55:23",
+        "created_at": "2026-09-01 06:05:57",
         "llm_annotated_count": 45,
         "provider_statuses": [
           {
@@ -7931,17 +7933,124 @@
       "profiles": [
         {
           "ajol_status": null,
+          "apc_amount": 3801.0,
+          "apc_currency": "USD",
+          "apc_waiver": false,
+          "display_name": "Frontiers in Human Neuroscience",
+          "doaj_seal": false,
+          "elevated_for": [
+            "gold OA (free to read)"
+          ],
+          "fit": 0.772,
+          "fit_rank": 19,
+          "h_index": 224,
+          "homepage_url": "http://www.frontiersin.org/human_neuroscience",
+          "indexed_in_medline": false,
+          "is_in_doaj": true,
+          "issns": [
+            "1662-5161"
+          ],
+          "legitimacy_absent": [
+            "COPE / OASPA membership",
+            "regional indexes (Redalyc, Latindex)",
+            "self-archiving policy"
+          ],
+          "legitimacy_signals": [
+            "Indexed in DOAJ"
+          ],
+          "license": [],
+          "oa_color": "gold",
+          "scielo_collections": [],
+          "source_id": "S146364893",
+          "top_factor": null,
+          "two_year_mean_citedness": 3.4205488194001274,
+          "weighted_rank": 1,
+          "works_count": 13962
+        },
+        {
+          "ajol_status": null,
+          "apc_amount": 1880.0,
+          "apc_currency": "USD",
+          "apc_waiver": false,
+          "display_name": "Computers in Human Behavior Reports",
+          "doaj_seal": false,
+          "elevated_for": [
+            "gold OA (free to read)"
+          ],
+          "fit": 0.744,
+          "fit_rank": 34,
+          "h_index": 55,
+          "homepage_url": "https://www.journals.elsevier.com/computers-in-human-behavior-reports",
+          "indexed_in_medline": false,
+          "is_in_doaj": true,
+          "issns": [
+            "2451-9588"
+          ],
+          "legitimacy_absent": [
+            "COPE / OASPA membership",
+            "regional indexes (Redalyc, Latindex)",
+            "self-archiving policy"
+          ],
+          "legitimacy_signals": [
+            "Indexed in DOAJ"
+          ],
+          "license": [],
+          "oa_color": "gold",
+          "scielo_collections": [],
+          "source_id": "S4210198611",
+          "top_factor": null,
+          "two_year_mean_citedness": 4.906178489702517,
+          "weighted_rank": 2,
+          "works_count": 1191
+        },
+        {
+          "ajol_status": null,
+          "apc_amount": 3550.0,
+          "apc_currency": "USD",
+          "apc_waiver": false,
+          "display_name": "Judgment and Decision Making",
+          "doaj_seal": false,
+          "elevated_for": [
+            "gold OA (free to read)"
+          ],
+          "fit": 0.724,
+          "fit_rank": 41,
+          "h_index": 103,
+          "homepage_url": "https://www.cambridge.org/core/journals/judgment-and-decision-making",
+          "indexed_in_medline": false,
+          "is_in_doaj": true,
+          "issns": [
+            "1930-2975"
+          ],
+          "legitimacy_absent": [
+            "COPE / OASPA membership",
+            "regional indexes (Redalyc, Latindex)",
+            "self-archiving policy"
+          ],
+          "legitimacy_signals": [
+            "Indexed in DOAJ"
+          ],
+          "license": [],
+          "oa_color": "gold",
+          "scielo_collections": [],
+          "source_id": "S179575189",
+          "top_factor": null,
+          "two_year_mean_citedness": 1.8703703703703705,
+          "weighted_rank": 3,
+          "works_count": 1187
+        },
+        {
+          "ajol_status": null,
           "apc_amount": 3540.0,
           "apc_currency": "USD",
-          "apc_waiver": true,
+          "apc_waiver": false,
           "display_name": "NeuroImage",
-          "doaj_seal": true,
+          "doaj_seal": false,
           "elevated_for": [
-            "gold OA (free to read)",
-            "DOAJ Seal"
+            "gold OA (free to read)"
           ],
-          "fit": 0.769,
-          "fit_rank": 21,
+          "fit": 0.721,
+          "fit_rank": 43,
           "h_index": 534,
           "homepage_url": "http://www.elsevier.com/locate/ynimg",
           "indexed_in_medline": true,
@@ -7957,161 +8066,28 @@
           ],
           "legitimacy_signals": [
             "Indexed in DOAJ",
-            "DOAJ Seal",
             "Indexed in MEDLINE"
           ],
-          "license": [
-            "CC BY",
-            "CC BY-NC",
-            "CC BY-NC-ND"
-          ],
+          "license": [],
           "oa_color": "gold",
           "scielo_collections": [],
           "source_id": "S103225281",
           "top_factor": null,
           "two_year_mean_citedness": 4.12,
-          "weighted_rank": 1,
+          "weighted_rank": 4,
           "works_count": 28478
         },
         {
           "ajol_status": null,
-          "apc_amount": 3150.0,
-          "apc_currency": "CHF",
-          "apc_waiver": true,
-          "display_name": "Frontiers in Human Neuroscience",
-          "doaj_seal": true,
-          "elevated_for": [
-            "gold OA (free to read)",
-            "DOAJ Seal"
-          ],
-          "fit": 0.764,
-          "fit_rank": 27,
-          "h_index": 224,
-          "homepage_url": "http://www.frontiersin.org/human_neuroscience",
-          "indexed_in_medline": false,
-          "is_in_doaj": true,
-          "issns": [
-            "1662-5161"
-          ],
-          "legitimacy_absent": [
-            "COPE / OASPA membership",
-            "regional indexes (Redalyc, Latindex)",
-            "self-archiving policy"
-          ],
-          "legitimacy_signals": [
-            "Indexed in DOAJ",
-            "DOAJ Seal"
-          ],
-          "license": [
-            "CC BY"
-          ],
-          "oa_color": "gold",
-          "scielo_collections": [],
-          "source_id": "S146364893",
-          "top_factor": null,
-          "two_year_mean_citedness": 3.4205488194001274,
-          "weighted_rank": 2,
-          "works_count": 13962
-        },
-        {
-          "ajol_status": null,
-          "apc_amount": 3655.0,
+          "apc_amount": 1471.0,
           "apc_currency": "USD",
-          "apc_waiver": true,
-          "display_name": "Judgment and Decision Making",
-          "doaj_seal": true,
-          "elevated_for": [
-            "gold OA (free to read)",
-            "DOAJ Seal"
-          ],
-          "fit": 0.74,
-          "fit_rank": 36,
-          "h_index": 103,
-          "homepage_url": "https://www.cambridge.org/core/journals/judgment-and-decision-making",
-          "indexed_in_medline": false,
-          "is_in_doaj": true,
-          "issns": [
-            "1930-2975"
-          ],
-          "legitimacy_absent": [
-            "COPE / OASPA membership",
-            "regional indexes (Redalyc, Latindex)",
-            "self-archiving policy"
-          ],
-          "legitimacy_signals": [
-            "Indexed in DOAJ",
-            "DOAJ Seal"
-          ],
-          "license": [
-            "CC BY",
-            "CC BY-SA",
-            "CC BY-ND",
-            "CC BY-NC",
-            "CC BY-NC-SA",
-            "CC BY-NC-ND"
-          ],
-          "oa_color": "gold",
-          "scielo_collections": [],
-          "source_id": "S179575189",
-          "top_factor": null,
-          "two_year_mean_citedness": 1.8703703703703705,
-          "weighted_rank": 3,
-          "works_count": 1187
-        },
-        {
-          "ajol_status": null,
-          "apc_amount": 2420.0,
-          "apc_currency": "USD",
-          "apc_waiver": true,
-          "display_name": "Computers in Human Behavior Reports",
-          "doaj_seal": true,
-          "elevated_for": [
-            "gold OA (free to read)",
-            "DOAJ Seal"
-          ],
-          "fit": 0.712,
-          "fit_rank": 44,
-          "h_index": 55,
-          "homepage_url": "https://www.journals.elsevier.com/computers-in-human-behavior-reports",
-          "indexed_in_medline": false,
-          "is_in_doaj": true,
-          "issns": [
-            "2451-9588"
-          ],
-          "legitimacy_absent": [
-            "COPE / OASPA membership",
-            "regional indexes (Redalyc, Latindex)",
-            "self-archiving policy"
-          ],
-          "legitimacy_signals": [
-            "Indexed in DOAJ",
-            "DOAJ Seal"
-          ],
-          "license": [
-            "CC BY",
-            "CC BY-NC",
-            "CC BY-NC-ND"
-          ],
-          "oa_color": "gold",
-          "scielo_collections": [],
-          "source_id": "S4210198611",
-          "top_factor": null,
-          "two_year_mean_citedness": 4.906178489702517,
-          "weighted_rank": 4,
-          "works_count": 1191
-        },
-        {
-          "ajol_status": null,
-          "apc_amount": 1400.0,
-          "apc_currency": "GBP",
-          "apc_waiver": true,
+          "apc_waiver": false,
           "display_name": "Royal Society Open Science",
-          "doaj_seal": true,
+          "doaj_seal": false,
           "elevated_for": [
-            "gold OA (free to read)",
-            "DOAJ Seal"
+            "gold OA (free to read)"
           ],
-          "fit": 0.658,
+          "fit": 0.648,
           "fit_rank": 57,
           "h_index": 130,
           "homepage_url": "https://royalsocietypublishing.org/journal/rsos",
@@ -8126,12 +8102,9 @@
             "self-archiving policy"
           ],
           "legitimacy_signals": [
-            "Indexed in DOAJ",
-            "DOAJ Seal"
+            "Indexed in DOAJ"
           ],
-          "license": [
-            "CC BY"
-          ],
+          "license": [],
           "oa_color": "gold",
           "scielo_collections": [],
           "source_id": "S2737558550",
@@ -8282,7 +8255,7 @@
           "year": 2019
         }
       ],
-      "computed_at": "2026-08-31T14:59:20.233794+00:00"
+      "computed_at": "2026-09-01T06:09:56.864832+00:00"
     },
     "overlooked_by_axis": {
       "9001": {
@@ -8513,7 +8486,7 @@
             "year_percentile": 0.1667
           }
         ],
-        "computed_at": "2026-08-31T14:58:50.674154+00:00"
+        "computed_at": "2026-09-01T06:09:42.225832+00:00"
       }
     },
     "saved_funding": [],
@@ -8654,6 +8627,29 @@
         }
       ]
     },
+    "suggested_authors": [
+      {
+        "name": "Benoît Montalan",
+        "paper_count": 1,
+        "paper_ids": [
+          88
+        ]
+      },
+      {
+        "name": "Jessica Mange",
+        "paper_count": 1,
+        "paper_ids": [
+          88
+        ]
+      },
+      {
+        "name": "Pauline Rasset",
+        "paper_count": 1,
+        "paper_ids": [
+          88
+        ]
+      }
+    ],
     "wanted": {
       "items": [
         {
@@ -37091,7 +37087,7 @@
       }
     ]
   },
-  "schema_version": 3,
+  "schema_version": 4,
   "work": {
     "citation_bibtex": {},
     "citation_context_incoming": {
@@ -41977,7 +41973,7 @@
               "Northwestern University — 2",
               "University of Pennsylvania — 2",
               "University of York — 2",
-              "Université de Caen Normandie — 2"
+              "Université de Rouen Normandie — 2"
             ],
             "coverage": "computed over 34 of 37 references with an OpenAlex record; 32 had affiliation data.",
             "coverage_fraction": 0.8648648648648649,
@@ -43709,7 +43705,7 @@
             "signal_fingerprint": "711cd802fe4617f01a7918f4c9a27c9e0cf9d7ba91f041172ff53007c2409286",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:09:45",
+                "detected_at": "2026-09-01 06:16:45",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -43764,7 +43760,7 @@
             "signal_fingerprint": "464cb3ea3d3d4ae60ecb88a879c809d3041356ab7a85057d380e1d60b631e90d",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:09:45",
+                "detected_at": "2026-09-01 06:16:45",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -43819,7 +43815,7 @@
             "signal_fingerprint": "e4b3b8b8d7897cc5f2bd79fb037e3121b513ded89f6b35bf25772aa56500ca6f",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:09:45",
+                "detected_at": "2026-09-01 06:16:45",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -43867,7 +43863,7 @@
             "signal_fingerprint": "b07483373f2867d07ee6f83582cc7527af4fb60b5ced1d77f3c8f698bc8d4991",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:09:45",
+                "detected_at": "2026-09-01 06:16:45",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -43896,7 +43892,7 @@
             "year": null
           }
         ],
-        "last_checked_at": "2026-08-31 15:09:45",
+        "last_checked_at": "2026-09-01 06:16:45",
         "paper_id": 67,
         "provider_statuses": [
           {
@@ -43952,7 +43948,7 @@
             "signal_fingerprint": "aeeaad246a0a52dcc86c57e44b56c6f14b5815987ca724c7cc2ddac14aebd2ac",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:17:33",
+                "detected_at": "2026-09-01 06:22:18",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44003,7 +43999,7 @@
             "signal_fingerprint": "eb35053e75b760156d1f040e81bbd16815eb5c0bcc4a14f806ce5c5f223275d9",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:17:33",
+                "detected_at": "2026-09-01 06:22:18",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44053,7 +44049,7 @@
             "signal_fingerprint": "e7f035d38e08d7bc5ecdf5a9d42bf235e3a275fc5a88966e8754416d77ea9862",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:17:33",
+                "detected_at": "2026-09-01 06:22:18",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44103,7 +44099,7 @@
             "signal_fingerprint": "16012bd7198911efcdc0708091f8bc95673d9f1588584f73751f4fdc22f2ae48",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:17:33",
+                "detected_at": "2026-09-01 06:22:18",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44147,7 +44143,7 @@
             "year": 2014
           }
         ],
-        "last_checked_at": "2026-08-31 15:17:33",
+        "last_checked_at": "2026-09-01 06:22:18",
         "paper_id": 88,
         "provider_statuses": [
           {
@@ -44203,7 +44199,7 @@
             "signal_fingerprint": "db9c5a94acf172976cfdc641181cfaeb2756833e4f63b1cd10b8e27540c355f5",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:24:47",
+                "detected_at": "2026-09-01 06:27:45",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44265,7 +44261,7 @@
             "signal_fingerprint": "1aea7ce1cedac85394d886acc6ea14c368dcb6e9c24c1a75f7a87d4a1f10afa4",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:24:47",
+                "detected_at": "2026-09-01 06:27:45",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44326,7 +44322,7 @@
             "signal_fingerprint": "4a523c71f8d4b4cdf34d8afe3539ff8bea478b50a8310b7f3efbfc7af82902c8",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:24:47",
+                "detected_at": "2026-09-01 06:27:45",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44381,7 +44377,7 @@
             "signal_fingerprint": "da0a1a683d5366d38f9c8e604ad821062f68df1c15818df99a6a273570e639a1",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:24:47",
+                "detected_at": "2026-09-01 06:27:45",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44442,7 +44438,7 @@
             "signal_fingerprint": "76780b7ccb2fdf957038a3fe45ea6cfd2a093a25812919629065269a640abe82",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:24:47",
+                "detected_at": "2026-09-01 06:27:45",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44500,7 +44496,7 @@
             "signal_fingerprint": "53d88477f49da0034d394360c999dd6b47fe9dd59ea89f3a30be66c47d41e0f9",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:24:47",
+                "detected_at": "2026-09-01 06:27:45",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44533,7 +44529,7 @@
             "year": null
           }
         ],
-        "last_checked_at": "2026-08-31 15:24:47",
+        "last_checked_at": "2026-09-01 06:27:45",
         "paper_id": 89,
         "provider_statuses": [
           {
@@ -44586,7 +44582,7 @@
             "signal_fingerprint": "9d408cca574473aa5d6d738c3d145f9e79c187da07b8f7b595de78b7694ed0a2",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:30:30",
+                "detected_at": "2026-09-01 06:31:52",
                 "detector_kind": "retraction",
                 "detector_status": "known_retraction_signal",
                 "evidence": {
@@ -44633,7 +44629,7 @@
             "signal_fingerprint": "2d90e5484e786ab8a4175fbe6df570879ad1230c85ee900158804968fdc42503",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:30:30",
+                "detected_at": "2026-09-01 06:31:52",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44695,7 +44691,7 @@
             "signal_fingerprint": "45e3756ab4ee2f87a2371b91fb16168eb9cdd5458bda4249144b5e568494e28b",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:30:30",
+                "detected_at": "2026-09-01 06:31:52",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44743,7 +44739,7 @@
             "signal_fingerprint": "820931722904f4f7b5432236c8fa4bb98f8752c315fdccbd43ad5056420e4467",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:30:30",
+                "detected_at": "2026-09-01 06:31:52",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44798,7 +44794,7 @@
             "signal_fingerprint": "1e87961bab92c5518b7cac56fc5aaa824ddeb5fb47908e80e43cd9b646e207ad",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:30:30",
+                "detected_at": "2026-09-01 06:31:52",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44828,7 +44824,7 @@
                 "source": "metadata-resolution"
               },
               {
-                "detected_at": "2026-08-31 15:30:30",
+                "detected_at": "2026-09-01 06:31:52",
                 "detector_kind": "own_library_propagation",
                 "detector_status": "previously_flagged_in_library",
                 "evidence": {
@@ -44878,7 +44874,7 @@
             "signal_fingerprint": "eff17de1d0653f5d5038d8083b757336d54a14f25123bc5390f3853034c57633",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:30:30",
+                "detected_at": "2026-09-01 06:31:52",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -44941,7 +44937,7 @@
             "signal_fingerprint": "4eeb79b88641ca80c9f86350ca135f315c134c5243e2a3e3353436ed899e7931",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:30:30",
+                "detected_at": "2026-09-01 06:31:52",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -45000,7 +44996,7 @@
             "signal_fingerprint": "bc4f47b453f9cd121fb35f9c5df659611b23f906da412123251d38cc5b9ef559",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:30:30",
+                "detected_at": "2026-09-01 06:31:52",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -45050,7 +45046,7 @@
             "signal_fingerprint": "1e0e39259a842b4fce708e0b1d5b840bc5ca43a773466babe17b999eeb692992",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:30:30",
+                "detected_at": "2026-09-01 06:31:52",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -45116,7 +45112,7 @@
             "signal_fingerprint": "ccd669132c1ead757428827a02a7603a2641da7248e5083020bc49bbd1c70f55",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:30:30",
+                "detected_at": "2026-09-01 06:31:52",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -45143,7 +45139,7 @@
                 "source": "metadata-resolution"
               },
               {
-                "detected_at": "2026-08-31 15:30:30",
+                "detected_at": "2026-09-01 06:31:52",
                 "detector_kind": "own_library_propagation",
                 "detector_status": "previously_flagged_in_library",
                 "evidence": {
@@ -45191,7 +45187,7 @@
             "signal_fingerprint": "121af84fc6b9ad4367ca15d8bd8c3083527fa174b07623b1c5be333cea03bc82",
             "signals": [
               {
-                "detected_at": "2026-08-31 15:30:30",
+                "detected_at": "2026-09-01 06:31:52",
                 "detector_kind": "bibliographic_verification",
                 "detector_status": "could_not_verify",
                 "evidence": {
@@ -45220,7 +45216,7 @@
             "year": null
           }
         ],
-        "last_checked_at": "2026-08-31 15:30:30",
+        "last_checked_at": "2026-09-01 06:31:52",
         "paper_id": 90,
         "provider_statuses": [
           {

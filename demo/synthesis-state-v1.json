@@ -199,7 +199,6 @@
       "link_id": 4201,
       "llm_triage_status": {
         "annotated_count": 12,
-        "evaluated_count": 12,
         "focused_count": 12,
         "model_id": "gemini-2.5-flash-lite",
         "prompt_version": "registration-comparison-triage-v1",

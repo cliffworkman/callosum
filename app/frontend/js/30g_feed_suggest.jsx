@@ -35,7 +35,9 @@ function FeedSuggestModal({ subs, libJournals, sourceMeta, onFollow, onFollowAut
   }, []);
 
   const loadAuthorSuggestions = React.useCallback(() => {
-    if (isDemoMode()) return;
+    // Unlike the axes/tags effect above, this one DOES run in demo mode (backlog #66) -- the saved demo
+    // snapshot carries one real, captured suggested-authors result (whole library, exclude_coauthors=true,
+    // the only state reachable anyway since the axis dropdown has no options without real /axes data).
     const qs = new URLSearchParams();
     if (authorAxisId) qs.set("axis_id", authorAxisId);
     if (excludeCoauthors) qs.set("exclude_coauthors", "true");

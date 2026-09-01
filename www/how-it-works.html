@@ -111,7 +111,7 @@
     .dark-section { border-color: #322e28; background: var(--panel); color: var(--panel-ink); }
     .dark-section .eyebrow { color: #9b9286; }
     .dark-section .section-head p { color: #bdb5a8; }
-    .provider-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 11px; }
+    .provider-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 11px; }
     .provider { padding: 20px; border: 1px solid #3d3831; border-radius: 10px; background: var(--panel-2); }
     .provider h3 { color: #fff; font-size: 23px; }
     .provider p { margin-top: 8px; color: #aaa196; font-size: 13px; }
@@ -358,7 +358,7 @@
 
           <section class="stage-detail" id="stage-panel-generate" role="tabpanel" aria-labelledby="stage-generate" tabindex="0">
             <div class="stage-copy"><span class="eyebrow">05 · Generate candidates</span><h3 class="no-js-title">Generate candidates</h3><h3>Let a model propose—not certify—the answer.</h3><p>An optional configured model receives the bounded passages and returns structured candidate claims with proposed quotations and chunk references. This is the only generative step in the primary synthesis pass.</p><div class="io-row"><div class="io"><b>Input</b><span>Retrieved chunks and the explicit synthesis scope</span></div><div class="io"><b>Output</b><span>Candidate sentences and citation hints awaiting verification</span></div></div></div>
-            <aside class="stage-meta"><span class="boundary optional">optional local or cloud LLM</span><dl><div><dt>Providers</dt><dd>Gemini, OpenAI, Anthropic, custom, or loopback</dd></div><div><dt>Consent</dt><dd>Non-loopback endpoints require explicit data-egress permission</dd></div><div><dt>Authority</dt><dd>None—the result is still a candidate</dd></div></dl></aside>
+            <aside class="stage-meta"><span class="boundary optional">optional local or cloud LLM</span><dl><div><dt>Providers</dt><dd>Gemini, OpenAI, Anthropic, custom, a manual loopback endpoint, or the desktop app's own managed Local AI</dd></div><div><dt>Consent</dt><dd>Non-loopback endpoints require explicit data-egress permission</dd></div><div><dt>Authority</dt><dd>None—the result is still a candidate</dd></div></dl></aside>
           </section>
 
           <section class="stage-detail" id="stage-panel-verify" role="tabpanel" aria-labelledby="stage-verify" tabindex="0">
@@ -403,12 +403,13 @@
 
     <section class="section dark-section" id="generation" aria-labelledby="generation-title">
       <div class="wrap">
-        <header class="section-head reveal"><span class="eyebrow">Selective, provider-swappable AI</span><h2 id="generation-title">The LLM is a drafting instrument.</h2><p>Generative models are optional, off by default for cloud endpoints, and reached through one provider-neutral seam. A loopback model can generate without data leaving the machine.</p></header>
+        <header class="section-head reveal"><span class="eyebrow">Selective, provider-swappable AI</span><h2 id="generation-title">The LLM is a drafting instrument.</h2><p>Generative models are optional, off by default for cloud endpoints, and reached through one provider-neutral seam. A loopback model—including the desktop app's own zero-setup managed Local AI—can generate without data leaving the machine.</p></header>
         <div class="provider-grid reveal">
           <article class="provider"><h3>Gemini</h3><p>Google’s SDK and configured model, using the user’s own key.</p><span class="boundary optional">cloud · consent required</span></article>
           <article class="provider"><h3>OpenAI</h3><p>Chat Completions or Responses-compatible transport.</p><span class="boundary optional">cloud · consent required</span></article>
           <article class="provider"><h3>Anthropic</h3><p>Messages-compatible transport through the same gate.</p><span class="boundary optional">cloud · consent required</span></article>
           <article class="provider"><h3>Local / custom</h3><p>OpenAI-compatible loopback endpoint, or an explicitly configured custom provider.</p><span class="boundary ml">loopback can be zero egress</span></article>
+          <article class="provider"><h3>Local AI</h3><p>The desktop app downloads and verifies its own pinned Qwen model and llama.cpp runtime—no key, no separate install.</p><span class="boundary ml">loopback · zero setup, zero egress</span></article>
         </div>
         <div class="gate reveal"><span class="gate-icon" aria-hidden="true">◇</span><div><b>Library-text egress gate</b><p>A non-loopback endpoint cannot receive source text unless the user explicitly enables data egress. Provider checks repeat the boundary as defense in depth.</p></div><span class="state">off by default</span></div>
         <div class="proposal reveal">
@@ -545,7 +546,7 @@
 
     <section class="closing">
       <div class="wrap closing-card reveal">
-        <div><h2>See the evidence pipeline from the inside.</h2><p>Open the saved three-paper workflow, inspect a completed synthesis, expand its citations, and return to the supporting pages.</p></div>
+        <div><h2>See the evidence pipeline from the inside.</h2><p>Open the saved five-paper workflow, inspect a completed synthesis, expand its citations, and return to the supporting pages.</p></div>
         <div class="closing-actions"><a class="btn" href="demo/">Try the demo →</a><a class="btn secondary" href="showcase.html#tour">Tour every workspace</a></div>
       </div>
     </section>

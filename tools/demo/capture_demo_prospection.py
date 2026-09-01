@@ -162,8 +162,10 @@ def _curated_publication_state() -> tuple[DashboardResponse, dict[str, CitingRes
             in_library=len(counts),
             gap=0,
             research_summary=RESEARCH_SUMMARY,
-            # domains is populated afterward in capture() from the real /my-publications/domains job output --
-            # never fabricated here (a hardcoded placeholder Domain object previously lived at this exact spot).
+            # domains, missing_works, and dismissed_works are all populated afterward in capture() from the
+            # real /my-publications/dashboard read (live_dashboard) -- never fabricated here (a hardcoded
+            # placeholder Domain object previously lived at this exact spot, and missing_works/dismissed_works
+            # were hardcoded empty until backlog #66).
             domains=[],
             missing_works=[],
             dismissed_works=[],
@@ -240,6 +242,19 @@ def capture(output: Path, library_output: Path) -> tuple[DemoExtendedState, Demo
             profile = ProfileResponse.model_validate(
                 _must(client.get("/my-publications/profile"), "read My Publications profile")
             )
+            # Feed Suggest modal's Author tab (backlog #66): a real, already-existing, parameterless-by-default
+            # endpoint that simply had no demo-runtime.js route or captured data at all -- the tab's own loading
+            # effect explicitly skips the call in demo mode and never resolves, so it spun forever rather than
+            # 404ing. Captured with the same exclude_coauthors=true / whole-library defaults the modal itself
+            # opens with -- the only state reachable in demo mode anyway (the axis dropdown has no options
+            # there, so a visitor can never actually request a different axis scope).
+            suggested_authors = (
+                _must(
+                    client.get("/feed/suggest-authors", params={"exclude_coauthors": "true"}),
+                    "read Feed suggested authors",
+                ).get("authors")
+                or []
+            )
             # Real domain decomposition (cap-domains, backlog #57-adjacent 2026-08-30 demo-coverage fixwave):
             # requires MIN_DOMAIN_PAPERS=4 confirmed My-Publications papers, now met above. Never a hardcoded
             # placeholder -- this is the live job's own output, fetched back via the dashboard read below.
@@ -299,6 +314,10 @@ def capture(output: Path, library_output: Path) -> tuple[DemoExtendedState, Demo
     dashboard, citing = _curated_publication_state()
     dashboard.openalex_extra = live_dashboard.openalex_extra
     dashboard.domains = live_dashboard.domains
+    # Indexed-works review (cap-indexed-works): the real dashboard already computes these from the live
+    # OpenAlex works vs. the curated corpus -- never hand-fabricated, matching the domains pattern above.
+    dashboard.missing_works = live_dashboard.missing_works
+    dashboard.dismissed_works = live_dashboard.dismissed_works
 
     if not emerging_topics.topics:
         raise ValueError(
@@ -322,6 +341,11 @@ def capture(output: Path, library_output: Path) -> tuple[DemoExtendedState, Demo
             "the real /overlooked/refresh job returned no candidates for the curated axis -- refusing to "
             "silently fall back to an empty placeholder"
         )
+    if not suggested_authors:
+        raise ValueError(
+            "the real /feed/suggest-authors call returned no authors against the five-paper curated corpus "
+            "-- refusing to silently fall back to an empty placeholder"
+        )
     discover = current.discover.model_copy(
         update={
             "citation_gaps": citation_gaps,
@@ -330,6 +354,7 @@ def capture(output: Path, library_output: Path) -> tuple[DemoExtendedState, Demo
             "overlooked_by_axis": {str(AUTOMATED_AXIS_ID): overlooked},
             "literature_gaps": literature_gaps,
             "beyond_library_saved": beyond_library_saved,
+            "suggested_authors": suggested_authors,
         }
     )
     generated_with = dict(current.generated_with)

@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-01 — Increment 555: changelog-driven demo/showcase drift gate + whole-demo currency audit
+- **Files:** new `tools/qa/changelog_drift.py`; `tools/qa/check_website_coverage.py`,
+  `tools/qa/check_demo_experience_coverage.py` (both gain `--decline`); `demo/demo-runtime.js`,
+  `tools/demo/capture_demo_prospection.py`, `app/backend/demo_extended_state.py` (Discover's
+  `GET /feed/suggest-authors` gap + `missing_works`/`dismissed_works`); a "three-paper" stale-copy sweep across
+  ~15 sites (`demo/README.md`, `demo/coverage-v1.json`, several `app/frontend/js/*.jsx`, `www/*.html`,
+  `tools/demo/generate_demo_wip_state.py`); a real crosswalk-attachment-id bug fix in `demo-runtime.js`'s pdf
+  route (10 of 12 Meta-Preregistration rows opened the wrong PDF); `35d_citation_styles.jsx` demo-mode gating;
+  `export_demo_snapshot.py`/`demo_snapshot.py` settings-dict schema-drift fix; `www/how-it-works.html` gains a
+  5th "Local AI" provider card (inc 547).
+- **What:** built the changelog/increment-aware hard CI drift gate Cliff asked for (both tools now fail closed
+  when relevant source has changed since the last review, with a mandatory-reason `--decline` escape hatch),
+  and ran the all-6-stage demo currency audit he chose ("audit all 6 stages now"), fixing what was cheap
+  in-session and filing the rest as `INCREMENT-BACKLOG.md` #70 with evidence.
+- **Why:** the online demo and showcase website had no time-awareness at all — a screenshot or demo snapshot
+  could go stale indefinitely with nothing catching it; Cliff specifically flagged Discover as out of date and
+  asked for a structural fix, not just a one-time cleanup.
+- **Revert:** see `.claude/docs/increment-notes/INCREMENT-555-NOTES.md` for the full file list and rationale.
+
 <!-- HELP-DOCS-SYNCED inc-554 2026-09-01 -->
 ## 2026-09-01 — Increment 554: Local AI setup visibility and packaged-runtime repair
 - **Setup UX:** the onboarding AI step now shows named setup phases, real downloaded MiB, and a phase-local ETA;

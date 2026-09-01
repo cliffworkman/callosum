@@ -7111,7 +7111,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         title: "Clear recent Journals search history stored in this browser"
       },
       "Clear History"
-    )), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { progress: state.progress, label: "Matching journals\u2026", managedBy: "backend-job" }), isDemoMode() && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Saved journal search from the curated three-paper sandbox. New searches and preference changes require local Callosum."), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't search: ", state.error), state.status === "done" && rep && /* @__PURE__ */ React.createElement("div", { className: "pub-results" }, /* @__PURE__ */ React.createElement("div", { className: "pub-thumb" }, /* @__PURE__ */ React.createElement("span", { className: "pub-thumb-state" }, "Open-science weighting: ", /* @__PURE__ */ React.createElement("b", null, pubWeightLabel(weighting)), weightingOn ? ` \u2014 ${elevated.length} journal${elevated.length === 1 ? "" : "s"} elevated${elevatedGoods.length ? " for " + elevatedGoods.join(", ") : ""}` : " \u2014 ranked by topical fit only", " \xB7 adjust:"), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_WEIGHTS, value: pubWeightId(weighting), onChange: adjustWeighting, disabled: isDemoMode(), ariaLabel: "Adjust open-science weighting" })), rep.shown === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No candidate journals found for this topic.") : /* @__PURE__ */ React.createElement(React.Fragment, null, rep.profiles.map((p) => /* @__PURE__ */ React.createElement(PubProfileCard, { key: p.source_id, p, weightingOn })), absent && absent.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-absent" }, "Not checked in this version: ", absent.join("; "), ". Absence of a signal is common for new + regional journals and is ", /* @__PURE__ */ React.createElement("b", null, "not"), " a mark against a journal."), rep.top_factor_coverage && rep.top_factor_coverage.count === 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-absent" }, `TOP Factor data hasn't been downloaded to this machine yet (Settings \u2192 Local maintenance) \u2014 this is different from "no journal has one": the local copy simply hasn't been fetched, so no TOP Factor fact could be checked for any journal above.`), rep.ajol_coverage && rep.ajol_coverage.count === 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-absent" }, `AJOL data hasn't been downloaded to this machine yet (Settings \u2192 Local maintenance) \u2014 this is different from "no journal is AJOL-indexed": the local copy simply hasn't been fetched, so no AJOL fact could be checked for any journal above.`))));
+    )), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { progress: state.progress, label: "Matching journals\u2026", managedBy: "backend-job" }), isDemoMode() && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Saved journal search from the curated five-paper sandbox. New searches and preference changes require local Callosum."), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't search: ", state.error), state.status === "done" && rep && /* @__PURE__ */ React.createElement("div", { className: "pub-results" }, /* @__PURE__ */ React.createElement("div", { className: "pub-thumb" }, /* @__PURE__ */ React.createElement("span", { className: "pub-thumb-state" }, "Open-science weighting: ", /* @__PURE__ */ React.createElement("b", null, pubWeightLabel(weighting)), weightingOn ? ` \u2014 ${elevated.length} journal${elevated.length === 1 ? "" : "s"} elevated${elevatedGoods.length ? " for " + elevatedGoods.join(", ") : ""}` : " \u2014 ranked by topical fit only", " \xB7 adjust:"), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_WEIGHTS, value: pubWeightId(weighting), onChange: adjustWeighting, disabled: isDemoMode(), ariaLabel: "Adjust open-science weighting" })), rep.shown === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No candidate journals found for this topic.") : /* @__PURE__ */ React.createElement(React.Fragment, null, rep.profiles.map((p) => /* @__PURE__ */ React.createElement(PubProfileCard, { key: p.source_id, p, weightingOn })), absent && absent.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-absent" }, "Not checked in this version: ", absent.join("; "), ". Absence of a signal is common for new + regional journals and is ", /* @__PURE__ */ React.createElement("b", null, "not"), " a mark against a journal."), rep.top_factor_coverage && rep.top_factor_coverage.count === 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-absent" }, `TOP Factor data hasn't been downloaded to this machine yet (Settings \u2192 Local maintenance) \u2014 this is different from "no journal has one": the local copy simply hasn't been fetched, so no TOP Factor fact could be checked for any journal above.`), rep.ajol_coverage && rep.ajol_coverage.count === 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-absent" }, `AJOL data hasn't been downloaded to this machine yet (Settings \u2192 Local maintenance) \u2014 this is different from "no journal is AJOL-indexed": the local copy simply hasn't been fetched, so no AJOL fact could be checked for any journal above.`))));
   }
   registerWorkspaceTab(
     { id: "discover" },
@@ -8203,7 +8203,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       if (!locator || !onOpenPaper || locator.attachment_id == null) return;
       const page = locator.page_start || locator.page || null;
       if (page == null) {
-        setShowRaw(true);
+        if (!showRaw) inspectRaw();
         return;
       }
       onOpenPaper({ id: paperId, title: paperTitle }, {
@@ -8256,7 +8256,16 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         disabled: isDemoMode(),
         onChange: (event) => setExpandSearch(event.target.checked)
       }
-    ), " Expand beyond expected sections when bounded search is weak"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: isDemoMode(), onClick: inspectRaw }, showRaw ? "Hide Stored Registration" : "Inspect Stored Registration"), selectedVersion?.attachment_id && selectedVersion.provider !== "osf" && /* @__PURE__ */ React.createElement(
+    ), " Expand beyond expected sections when bounded search is weak"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-link",
+        disabled: isDemoMode(),
+        onClick: inspectRaw,
+        title: isDemoMode() ? "Inspecting the stored registration record requires the local Callosum backend." : void 0
+      },
+      showRaw ? "Hide Stored Registration" : "Inspect Stored Registration"
+    ), selectedVersion?.attachment_id && selectedVersion.provider !== "osf" && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn-link",
@@ -10503,7 +10512,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       AddMenu,
       {
         onScan: demoMode ? () => explainDemoLock("Watched folders read local directories and persist their paths. The static browser demo has no filesystem or backend; use local Callosum to add and watch PDF folders.", "/library/scan") : onOpenScan,
-        onImport: demoMode ? () => explainDemoLock("Citation import creates persistent library records. The static demo keeps its curated three-paper library immutable; use local Callosum to import BibTeX, RIS, or CSL-JSON.", "/papers/import") : onOpenImport,
+        onImport: demoMode ? () => explainDemoLock("Citation import creates persistent library records. The static demo keeps its curated five-paper library immutable; use local Callosum to import BibTeX, RIS, or CSL-JSON.", "/papers/import") : onOpenImport,
         onImportZotero: demoMode ? () => explainDemoLock("Reading a Zotero library copies a local zotero.sqlite file and creates persistent library records \u2014 full fidelity (PDFs, notes, tags, collections). The static browser demo has no filesystem or backend; use local Callosum to read your Zotero library.", "/library/zotero/import") : onOpenImportZotero,
         onImportBundle: demoMode ? () => explainDemoLock("Importing a Callosum bundle changes the persistent library. The static demo has no database; use local Callosum to merge a portable bundle.", "/library/bundle/import") : onOpenImportBundle,
         onSharedWithMe: demoMode ? () => explainDemoLock("Receiving a shared library requires a local encrypted-sync identity and persistent library. No account or sync endpoint exists in the static demo.", "/sync/shares") : onOpenSharedWithMe,
@@ -10585,7 +10594,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       {
         label: "Unsorted",
         path: "/papers?needs_review=true",
-        message: "All three curated demo records have resolved metadata. In local Callosum, Unsorted isolates raw imports and unresolved identifiers for review."
+        message: "All five curated demo records have resolved metadata. In local Callosum, Unsorted isolates raw imports and unresolved identifiers for review."
       }
     ) : /* @__PURE__ */ React.createElement(
       "button",
@@ -10600,7 +10609,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       {
         label: "Duplicates",
         path: "/papers/duplicates",
-        message: "The curated three-paper demo has no duplicate candidate to fabricate. Local Callosum scans likely duplicates and lets you inspect and merge them reversibly."
+        message: "The curated five-paper demo has no duplicate candidate to fabricate. Local Callosum scans likely duplicates and lets you inspect and merge them reversibly."
       }
     ) : /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates")), !trashView && (demoMode ? /* @__PURE__ */ React.createElement(
       DemoLockedLibraryButton,
@@ -10628,7 +10637,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       {
         label: "Text Health",
         path: "/papers/text-health/overview",
-        message: "All three demo PDFs already have extracted text. Text-health repair and OCR operate on local files through the backend and are unavailable in the static browser demo."
+        message: "All four demo PDFs already have extracted text. Text-health repair and OCR operate on local files through the backend and are unavailable in the static browser demo."
       }
     ) : /* @__PURE__ */ React.createElement(TextHealthButton, { onOpen: onOpenTextHealth })), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
       "button",
@@ -13644,7 +13653,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const toggleRead = (e) => {
       e.stopPropagation();
       if (demoLocked) {
-        explainDemoLock("Read state and priority are saved personal library markers. Their current demo values remain visible, but changing them requires your local Callosum library.", `/papers/${paper.id}/read`);
+        explainDemoLock("Read state and priority are personal library markers. Their saved demo values remain visible, but changing them requires your persistent local Callosum library.", `/papers/${paper.id}/read`);
         return;
       }
       const next = !read;
@@ -13657,7 +13666,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       e.stopPropagation();
       if (demoLocked) {
         setPop(false);
-        explainDemoLock("Read state and priority are saved personal library markers. Their current demo values remain visible, but changing them requires your local Callosum library.", `/papers/${paper.id}/priority`);
+        explainDemoLock("Read state and priority are personal library markers. Their saved demo values remain visible, but changing them requires your persistent local Callosum library.", `/papers/${paper.id}/priority`);
         return;
       }
       const prev = priority;
@@ -18132,7 +18141,6 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       api("/tags").then((r) => setTags(r.ok ? r.data : []));
     }, []);
     const loadAuthorSuggestions = React.useCallback(() => {
-      if (isDemoMode()) return;
       const qs = new URLSearchParams();
       if (authorAxisId) qs.set("axis_id", authorAxisId);
       if (excludeCoauthors) qs.set("exclude_coauthors", "true");
@@ -18672,7 +18680,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         title: demoMode ? "Refreshing sends public identifiers to OpenAlex and requires the local Callosum backend." : void 0
       },
       refreshing ? "Refreshing\u2026" : "\u21BB Refresh from OpenAlex"
-    )), refreshing && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Resolving via OpenAlex\u2026", managedBy: "backend-job" }), demoMode && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Saved OpenAlex snapshot scoped to the two genuine Workman publications in this demo corpus. Refreshing public metadata requires local Callosum.")), /* @__PURE__ */ React.createElement(
+    )), refreshing && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Resolving via OpenAlex\u2026", managedBy: "backend-job" }), demoMode && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Saved OpenAlex snapshot scoped to the four genuine Workman publications in this demo corpus. Refreshing public metadata requires local Callosum.")), /* @__PURE__ */ React.createElement(
       MissingWorksModal,
       {
         open: missingOpen,
@@ -20898,6 +20906,10 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const selected = catalog && catalog.styles.find((style) => style.id === selectedId);
     useEffect(() => {
       if (!selectedId || view === "repository") return;
+      if (isDemoMode()) {
+        setPreview({ status: "demo-disabled" });
+        return;
+      }
       let live = true;
       setPreview({ status: "loading" });
       apiPost("/citations/styles/preview", { style: selectedId, locale }).then((r) => {
@@ -21382,7 +21394,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onClick: removeSelected
       },
       "Remove"
-    ))), selected.custom && selected.application_default && /* @__PURE__ */ React.createElement("span", { className: "settings-sub citation-style-default-note" }, "Choose another application default before removing this style."), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview", "aria-live": "polite" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Preview (example references)"), preview.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Rendering preview\u2026"), preview.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Preview unavailable: ", preview.error), preview.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, selected.family === "note" ? "First note" : "Citation"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[0])), selected.family === "note" && preview.data.citations[1] && /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Subsequent note"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[1])), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Bibliography"), /* @__PURE__ */ React.createElement("div", { className: "citation-style-bibliography" }, preview.data.bibliography_text || "This style does not produce a bibliography."))))) : /* @__PURE__ */ React.createElement("div", { className: "citation-style-empty" }, "Select a citation style to inspect it."), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg)), editorStyle && /* @__PURE__ */ React.createElement(
+    ))), selected.custom && selected.application_default && /* @__PURE__ */ React.createElement("span", { className: "settings-sub citation-style-default-note" }, "Choose another application default before removing this style."), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview", "aria-live": "polite" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Preview (example references)"), preview.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Rendering preview\u2026"), preview.status === "demo-disabled" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Live style preview requires Callosum's local citeproc engine and is unavailable in the online demo."), preview.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Preview unavailable: ", preview.error), preview.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, selected.family === "note" ? "First note" : "Citation"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[0])), selected.family === "note" && preview.data.citations[1] && /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Subsequent note"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[1])), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Bibliography"), /* @__PURE__ */ React.createElement("div", { className: "citation-style-bibliography" }, preview.data.bibliography_text || "This style does not produce a bibliography."))))) : /* @__PURE__ */ React.createElement("div", { className: "citation-style-empty" }, "Select a citation style to inspect it."), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg)), editorStyle && /* @__PURE__ */ React.createElement(
       CitationStyleEditorModal,
       {
         style: editorStyle,

@@ -37,6 +37,7 @@ from app.backend.api.routers.methods import (
 from app.backend.api.routers.methods_bayes import BayesLibrarySummary, build_bayes_response
 from app.backend.api.routers.methods_statcheck_cache import StatcheckCacheResponse
 from app.backend.api.routers.paper_models import AttachmentResponse, PaperDetailResponse, PaperListItem
+from app.backend.api.routers.settings import AccountStatus, SettingsStatus
 from app.backend.api.routers.status import JOB_COMPUTE_KINDS, JOB_LABELS, StatusJob, StatusResponse
 from app.backend.api.routers.summaries import (
     SummarizeJobResponse,
@@ -587,12 +588,19 @@ def export_snapshot(
                 app_version="0.1.0-demo",
             ),
             help_corpus=_public_help_corpus(),
-            settings={
-                "data_egress_enabled": False,
-                "publisher_defaults_set": True,
-                "publisher_weighting": 0.35,
-                "publisher_breadth": "standard",
-            },
+            settings=SettingsStatus(
+                provider="local",
+                api_key_set=False,
+                api_key_source=None,
+                data_egress_enabled=False,
+                egress_source="env",
+                usage_events_enabled=True,
+                publisher_defaults_set=True,
+                publisher_weighting=0.35,
+                publisher_breadth="standard",
+                account=AccountStatus(configured=False, signed_in=False),
+                onboarding_completed=True,
+            ).model_dump(),
             papers=papers,
             axes=library_state.axes,
             axis_clusters=library_state.axis_clusters,

@@ -441,7 +441,11 @@ def test_saved_my_publications_dashboard_has_real_citation_chart_data():
     assert dashboard.in_library == 4
     assert dashboard.indexed_works == 4
     assert dashboard.gap == 0
-    assert dashboard.missing_works == []
+    # backlog #66 (inc 555): missing_works/dismissed_works are now the real dashboard job's own computed
+    # values (previously hardcoded to []), so the Indexed-Works review panel has something real to show.
+    # The exact set drifts with live OpenAlex reads -- only non-emptiness and real-field shape are stable.
+    assert dashboard.missing_works
+    assert all(work.doi and work.title for work in dashboard.missing_works)
     assert dashboard.metrics.works_count == 4
     assert dashboard.metrics.cited_by_count == sum(item.cited_by_count for item in dashboard.paper_citations.values())
     assert {item.year for item in dashboard.counts_by_year} == {2021, 2022, 2024, 2026}
