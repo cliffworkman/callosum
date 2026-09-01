@@ -75,7 +75,7 @@ def _gen_shape(result):
     return [(s["text"], [(c["quote"], c["chunk_id"]) for c in s["citations"]]) for s in result["sentences"]]
 
 
-def _config_signature(config: LLMConfig, *, prompt_version: str = "summary-v4") -> str:
+def _config_signature(config: LLMConfig, *, prompt_version: str = "summary-v5") -> str:
     return synthesis_generation_cache_signature(
         generator_name="gemini-summary-generator",
         prompt_version=prompt_version,
@@ -161,7 +161,7 @@ def test_generation_configuration_dimensions_define_cache_identity(monkeypatch) 
     assert _config_signature(replace(base, base_url="https://other.example/api")) != signature
     assert _config_signature(replace(base, wire_format="responses")) != signature
     assert _config_signature(replace(base, model="other-model")) != signature
-    assert _config_signature(base, prompt_version="summary-v5") != signature
+    assert _config_signature(base, prompt_version="summary-v6") != signature
     assert _config_signature(replace(base, api_key="sk-account-b")) != signature
 
     # Trailing slash and an explicitly spelled builtin default resolve to the same actual request endpoint.
