@@ -1460,7 +1460,7 @@ def test_onboarding_wizard_orchestrates_existing_settings_never_defaults_egress_
     assert 'apiPut("/settings", { onboarding_completed: true, onboarding_version: currentVersion })' in raw
     # It reuses the existing settings components verbatim — never a re-implementation of them.
     assert "<MyPubsSettings onRefreshed={onMyPubsRefreshed} />" in raw
-    assert "<AiSettings />" in raw
+    assert "<AiSettings onLocalAiSetupState={setLocalAiSetupActive} />" in raw
     # inc 553: completed pre-v2 desktop installs see the real AI step once; read-only/non-desktop views do not.
     assert 'const ONBOARDING_REFRESH_STEPS = ["ai", "done"]' in raw
     assert "function onboardingLaunchState(health, isDesktop)" in raw
@@ -1478,6 +1478,36 @@ def test_onboarding_wizard_orchestrates_existing_settings_never_defaults_egress_
     assert "data_egress_enabled=true" not in raw
     assert ".onboarding-card {" in css
     assert ".onboarding-dot.active {" in css and ".onboarding-dot.done {" in css
+
+
+def test_local_ai_setup_progress_survives_onboarding_modal_and_reopens_from_status():
+    raw = assemble_jsx()
+    providers = (PROJECT_ROOT / "app/frontend/js/35b_providers.jsx").read_text(encoding="utf-8")
+    onboarding = (PROJECT_ROOT / "app/frontend/js/04e_onboarding.jsx").read_text(encoding="utf-8")
+    assert 'const LOCAL_AI_SETUP_STATUS_ID = "local-ai-setup"' in providers
+    assert 'nav: { modal: "local-ai" }' in providers
+    assert "trackLocalAiSetupInStatus()" in providers
+    assert "const _localAiSetupListeners = new Set()" in providers
+    assert providers.count("setInterval(") == 1  # app-scoped observer, never a second modal-scoped poll
+    assert 'window.__TAURI__.core.invoke("local_ai_status")' in providers
+    for field in ("downloaded_bytes", "total_bytes", "eta_seconds"):
+        assert field in providers
+    assert "Do not close Callosum." in providers and "select <b>Setting up Local AI</b>" in providers
+    assert "eta_seconds: status.eta_seconds ?? 0" in providers
+    assert 'scrollIntoView({ block: "nearest" })' in providers
+    assert "localSetupActive ? localSetupPhase[0]" in providers
+    assert 'nav.modal === "local-ai"' in raw
+    assert "setOnboarding(s => ({ ...s, done: false, refresh: true }))" in raw
+    assert "disabled={busy || localAiSetupRunning}" in onboarding
+    assert '"Setup in progress…"' in onboarding
+    assert '"Continue in background"' in onboarding
+
+
+def test_critical_review_reports_provider_failure_without_cloud_key_assumption():
+    source = (PROJECT_ROOT / "app/frontend/js/08x_methods_critical.jsx").read_text(encoding="utf-8")
+    assert 'setGenError(r.error || "Local critique generation failed.")' in source
+    assert "Couldn’t suggest critiques: {genError}" in source
+    assert "is AI enabled with a key" not in source
 
 
 def test_my_pubs_settings_gates_actions_until_profile_loads():

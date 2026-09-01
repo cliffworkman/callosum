@@ -83,9 +83,22 @@ def _preview_descriptor(tmp_path: Path) -> Path:
     payload = json.loads(descriptor.read_text(encoding="utf-8"))
     payload["qualification_state"] = "LOCAL_AI_PREVIEW"
     payload["model_artifact_digest"] = EXPECTED_PREVIEW_MODEL_DIGEST
+    payload["context_tokens"] = 12_288
     payload["max_output_tokens"] = 2048
     descriptor.write_text(json.dumps(payload), encoding="utf-8")
     return descriptor
+
+
+def test_preview_descriptor_requires_provider_wide_context_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    descriptor = _preview_descriptor(tmp_path)
+    monkeypatch.setenv("CALLOSUM_APP_DATA_DIR", str(tmp_path))
+    assert load_preview_target().context_tokens == 12_288
+
+    payload = json.loads(descriptor.read_text(encoding="utf-8"))
+    payload["context_tokens"] = 4096
+    descriptor.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ManagedLocalTargetError, match="context_tokens"):
+        load_preview_target()
 
 
 @pytest.mark.parametrize(

@@ -9,7 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED inc-553 2026-08-31 -->
+<!-- HELP-DOCS-SYNCED inc-554 2026-09-01 -->
+## 2026-09-01 — Increment 554: Local AI setup visibility and packaged-runtime repair
+- **Setup UX:** the onboarding AI step now shows named setup phases, real downloaded MiB, and a phase-local ETA;
+  accidental **Next** is disabled while setup runs, while explicit **Continue in background** preserves the
+  Tauri-owned operation. A durable Status row keeps updating and reopens the live AI setup screen.
+- **Packaged Python repair:** the exact sentence-transformers/transformers/tokenizers trio is pinned, packaging
+  smoke-imports the ML runtime, and the Windows updater replaces only immutable bundled Python/source directories
+  before copying the new bundle. This repairs duplicate stale `*.dist-info` left by overlay updates without deleting
+  the app-data Local AI model.
+- **Provider compatibility:** the frozen developer qualification target remains 4,096 context / 256 output; the
+  product Preview now declares and validates 12,288 context / 2,048 output. This admits bounded Critical Read and
+  Funding prompts while preserving the exact research receipt and never adding cloud fallback.
+- **Failure copy/docs/QA:** Critical Read reports the actual provider/local-verification error instead of assuming a
+  missing cloud key. Served Help, the latency contract, and QA routes 35/76/77 cover progress, Status recovery,
+  expanded product context, repair, and no-egress behavior.
+
 ## 2026-08-31 — Increment 553: one-time Local AI onboarding refresh
 - **Product:** fresh installs still receive the full onboarding wizard; previously completed desktop installs receive
   one AI-only refresh introducing managed Local AI, then persist onboarding contract version 2 so it does not recur.

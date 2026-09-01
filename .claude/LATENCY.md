@@ -468,8 +468,8 @@ Potential prompt-reduction work must preserve answer coverage and correctness.
 Do not replace broad context with retrieval merely because retrieval is cheaper without evaluating missed-information risk.
 
 Known live boundary: cloud/manual provider Help requests keep the original whole public corpus. The managed
-4,096-token Local AI target uses a deterministic lexical adapter that selects at most six live Help sections and
-14,000 characters; its identifiers still pass through the unchanged defensive parser/router allowlist. This is a
+Local AI target uses a deterministic lexical adapter that selects at most six live Help sections and 14,000
+characters within the Preview's 12,288-token runtime context; its identifiers still pass through the unchanged defensive parser/router allowlist. This is a
 provider-capacity adapter, not a scientific claim that selective context is equivalent. Its coverage remains
 **Testing** and must be evaluated before any broader prompt-reduction policy is inferred.
 
@@ -717,10 +717,12 @@ Unless deliberately changed and revalidated, Callosum currently relies on these 
   permits manual reclamation of stale work, and never overwrites a completed overview.
 - Running Status rows always show elapsed time; calibrated ranges/countdowns require comparable local receipts,
   expose uncertainty in ordinary language, and never alter authoritative completion or Overview lifecycle semantics.
-- The developer-only managed-local Overview POC publishes a target only after model readiness plus authenticated
-  inference succeeds. Tauri exclusively owns the llama-server process; Python exclusively owns target validation,
-  provider configuration, `complete()`, and the unchanged Overview parser/lifecycle. Its HTTP pool ignores proxy
-  environment variables, and local failure is supplementary-only with no cloud fallback. Requested execution is
+- The managed-local target publishes only after model readiness plus authenticated inference succeeds. Tauri
+  exclusively owns the llama-server process; Python exclusively owns target validation, provider configuration,
+  `complete()`, and feature parsers/lifecycles. The frozen developer qualification receipt remains 4,096 context /
+  256 output, while the user-selected Local AI Preview uses 12,288 context / 2,048 output so bounded production
+  feature prompts fit without changing historical qualification identity. Its HTTP pool ignores proxy environment
+  variables, and local failure never changes provider or privacy scope. Requested execution is
   never treated as observed execution: zero/partial/full offload is passed explicitly, bounded startup evidence must
   prove the actual backend and layer count, and any mismatch fails readiness before descriptor publication. Timing
   and future qualification identity use that observed state plus the deterministic launcher-and-library bundle
@@ -741,7 +743,7 @@ Any modification that affects these properties requires explicit review.
 | Critical Read tokenizer-length planning and reconstruction | `app/backend/summarization/stance.py` |
 | Synthesis citation batching and primary persistence | `app/backend/summarization/pipeline.py` |
 | Supplementary overview lifecycle/CAS/provider boundary | `app/backend/summarization/overview_lifecycle.py`, `app/backend/api/routers/summary_overview.py` |
-| Developer managed-local Overview target/lifecycle | `app/backend/llm/managed_local.py`, `app/desktop-shell/src-tauri/src/managed_local_ai.rs` |
+| Managed-local generation target/lifecycle | `app/backend/llm/managed_local.py`, `app/desktop-shell/src-tauri/src/managed_local_ai.rs` |
 | Synthesis generation-cache identity and source hashing | `app/backend/llm/cache.py`, `integrations/gemini/generator.py` |
 | Provider pool/client identity and cleanup | `app/backend/provider_runtime.py` |
 | Provider dispatch and explicit-client precedence | `app/backend/llm/providers.py` |
@@ -764,8 +766,8 @@ Known current boundaries—not completed optimizations—include:
 - local model inference is conservatively serialized per compatible runtime identity
 - process-local `JobStore` notification assumes the documented single-worker launch topology
 - aborting a frontend status observer does not cancel the underlying backend job
-- managed-local generative AI remains an explicitly enabled, unqualified developer POC for Overview only; there is
-  no shipped model/runtime, downloader, hardware policy, general router, LAN target, cloud fallback, or user setting
+- managed Local AI Preview is a user-selected first-class provider with one pinned downloaded model/runtime and no
+  silent cloud fallback; automatic hardware/provider routing, a multi-model catalog, and LAN targets remain unbuilt
 
 When code and this map disagree, inspect the code and update this contract in the same change; do not preserve stale
 prose as authority.

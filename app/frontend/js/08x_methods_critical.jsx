@@ -122,6 +122,7 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
   const [aiReady, setAiReady] = useState(false);
   const [cands, setCands] = useState(null);          // Tier-2 candidates
   const [gen, setGen] = useState("idle");            // idle|generating|error
+  const [genError, setGenError] = useState("");
   const [findingCands, setFindingCands] = useState([]);  // paper_findings CANDIDATEs (e.g. statcheck-flagged issues)
   const [wantLlm, setWantLlm] = useState(false);      // "Suggest critiques" toggle -- auto-chains after Tier-1
   const [wantTriage, setWantTriage] = useState(false);
@@ -156,7 +157,7 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
   };
 
   useEffect(() => {
-    setT1({ status: "idle" }); setMeta(null); setCands(null); setGen("idle"); setFindingCands([]);
+    setT1({ status: "idle" }); setMeta(null); setCands(null); setGen("idle"); setGenError(""); setFindingCands([]);
     if (paperId == null) return;
     let live = true;
     api(`/papers/${paperId}`).then(r => {
@@ -195,9 +196,10 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
     });
   };
   const generate = async () => {
-    setGen("generating");
+    setGen("generating"); setGenError("");
     const r = await apiPost(`/papers/${paperId}/critical-read/candidates/generate`, { triage: wantTriage });
-    if (r.ok) { setCands(r.data.candidates); setGen("idle"); } else setGen("error");
+    if (r.ok) { setCands(r.data.candidates); setGen("idle"); }
+    else { setGenError(r.error || "Local critique generation failed."); setGen("error"); }
   };
   generateRef.current = generate;
   const act = async (cid, action) => {
@@ -261,7 +263,7 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
               {gen === "generating" ? "Suggesting…" : cands ? "Suggest More Critiques (AI)" : "Suggest Critiques (AI)"}
             </button>}
         {gen === "generating" && <ProgressBar label="Suggesting and locally verifying critiques…" managedBy="tracked-request" />}
-        {gen === "error" && <div className="axis-err">Couldn’t suggest critiques — is AI enabled with a key (Settings)?</div>}
+        {gen === "error" && <div className="axis-err">Couldn’t suggest critiques: {genError}</div>}
         {shownAll.length > 0 && !shown.length &&
           <div className="tag-suggest-empty">All {shownAll.length} candidate(s) here were triaged as lower-yield — switch to “All rows” to see them.</div>}
         {shown.map(c => <CriticalCandidate key={c.id} c={c} onAccept={() => act(c.id, "accept")} onReject={() => act(c.id, "reject")} />)}

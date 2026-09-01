@@ -31,6 +31,8 @@ _TARGET_ID = re.compile(r"[a-z0-9][a-z0-9._-]{2,127}")
 _EXECUTION_BACKENDS = {"cpu", "cuda"}
 _LOG = logging.getLogger(__name__)
 _MANAGED_HTTP_TIMEOUT = 600.0
+_QUALIFICATION_CONTEXT_TOKENS = 4096
+_PREVIEW_CONTEXT_TOKENS = 12_288
 _PRIMARY_SYNTHESIS_CONTRACT = "primary_synthesis"
 _OVERVIEW_CONTRACT = "synthesis_overview"
 _PRIMARY_SYNTHESIS_SCHEMA = {
@@ -320,7 +322,12 @@ def _target_from_payload(
         declared_build_backend == "cuda" or requested_execution == ManagedExecutionState("cpu", 0),
         "declared_build_backend",
     )
-    _require(payload.get("context_tokens") == 4096, "context_tokens")
+    expected_context_tokens = (
+        _QUALIFICATION_CONTEXT_TOKENS
+        if qualification_state == DEVELOPER_QUALIFICATION_STATE
+        else _PREVIEW_CONTEXT_TOKENS
+    )
+    _require(payload.get("context_tokens") == expected_context_tokens, "context_tokens")
     expected_output_tokens = 256 if qualification_state == DEVELOPER_QUALIFICATION_STATE else 2048
     _require(payload.get("max_output_tokens") == expected_output_tokens, "max_output_tokens")
     temperature = payload.get("temperature")
@@ -340,7 +347,7 @@ def _target_from_payload(
         declared_build_backend=declared_build_backend,
         model_artifact_digest=model_digest,
         chat_template_digest=template_digest,
-        context_tokens=4096,
+        context_tokens=expected_context_tokens,
         max_output_tokens=expected_output_tokens,
         temperature=0.0,
         seed=42,

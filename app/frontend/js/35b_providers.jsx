@@ -134,6 +134,80 @@ function ProviderModelPicker({ p, activeModel, busy, onActivate }) {
   );
 }
 
+const LOCAL_AI_SETUP_STATES = new Set([
+  "checking", "downloading_runtime", "preparing_runtime", "downloading_model", "verifying", "preparing",
+]);
+const LOCAL_AI_SETUP_STATUS_ID = "local-ai-setup";
+let _localAiSetupStatusTimer = null;
+const _localAiSetupListeners = new Set();
+
+function localAiSetupActive(status) {
+  return !!(status && LOCAL_AI_SETUP_STATES.has(status.state));
+}
+
+function localAiSetupPhase(status) {
+  const phases = {
+    checking: ["Checking existing Local AI files…", "Callosum is checking whether verified files can be reused."],
+    downloading_runtime: ["Downloading the Local AI engine…", "Keep Callosum open while the small runtime package downloads."],
+    preparing_runtime: ["Preparing the Local AI engine…", "Callosum is verifying and unpacking the local runtime."],
+    downloading_model: ["Downloading the Local AI model…", "This is the main 1.04 GiB download. You may continue in the background and follow it under Status."],
+    verifying: ["Verifying downloaded files…", "Callosum is checking the pinned model identity before it can be used."],
+    preparing: ["Starting Local AI…", "The model is installed; Callosum is starting it and waiting for authenticated readiness."],
+  };
+  return phases[status && status.state] || ["Setting up Local AI…", "Keep Callosum open while setup finishes."];
+}
+
+function localAiSetupProgress(status) {
+  if (!status || !(status.total_bytes > 0) || status.downloaded_bytes == null) return null;
+  const unit = 1024 * 1024;
+  return {
+    current: Math.round(status.downloaded_bytes / unit * 10) / 10,
+    total: Math.round(status.total_bytes / unit * 10) / 10,
+    label: "Downloaded MiB",
+    // Zero means "not measurable yet" to ProgressBar and prevents Status from deriving an ETA from the whole
+    // multi-phase setup. Rust supplies the phase-local estimate once at least 0.5 s of download is observed.
+    eta_seconds: status.eta_seconds ?? 0,
+  };
+}
+
+function publishLocalAiSetupStatus(status) {
+  const active = localAiSetupActive(status);
+  if (active) {
+    const phase = localAiSetupPhase(status);
+    _startClientStatus({ id: LOCAL_AI_SETUP_STATUS_ID, label: "Setting up Local AI",
+      nav: { modal: "local-ai" }, computeKind: "On-device setup", progress: localAiSetupProgress(status) });
+    _updateClientStatus(LOCAL_AI_SETUP_STATUS_ID, { detail: phase[0], progress: localAiSetupProgress(status) });
+    return;
+  }
+  if (status && status.state === "ready") _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, true);
+  if (status && status.state === "error") _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, false, status.detail || "Local AI setup failed.");
+}
+
+function acceptLocalAiSetupStatus(status) {
+  publishLocalAiSetupStatus(status);
+  _localAiSetupListeners.forEach(listener => listener(status));
+}
+
+function trackLocalAiSetupInStatus() {
+  if (!("__TAURI__" in window) || _localAiSetupStatusTimer) return;
+  const poll = async () => {
+    try {
+      const status = await window.__TAURI__.core.invoke("local_ai_status");
+      acceptLocalAiSetupStatus(status);
+      if (!localAiSetupActive(status)) {
+        clearInterval(_localAiSetupStatusTimer);
+        _localAiSetupStatusTimer = null;
+      }
+    } catch (err) {
+      _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, false, String(err));
+      clearInterval(_localAiSetupStatusTimer);
+      _localAiSetupStatusTimer = null;
+    }
+  };
+  _localAiSetupStatusTimer = setInterval(poll, 1500);
+  poll();
+}
+
 // One provider in the roster. Builtins expose only their key (+ Local its loopback endpoint); custom providers add
 // an "Edit" mode over {name, base_url, wire_format, models}.
 function ProviderRow({ p, active, activeModel, status, busy, testing, test, wireFormats, egressOn,
@@ -152,6 +226,14 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
   const keyUrl = AI_KEY_URLS[p.id];
   const keySet = p.key_set;
   const fromEnv = active && status && status.api_key_source === "env";  // env source is known only for the active builtin
+  const localSetupActive = isManagedLocal && localAiSetupActive(localAi);
+  const localSetupPhase = localSetupActive ? localAiSetupPhase(localAi) : null;
+  const localSetupProgress = localSetupActive ? localAiSetupProgress(localAi) : null;
+  const localSetupProgressRef = useRef(null);
+  useEffect(() => {
+    if (!localSetupActive) return;
+    requestAnimationFrame(() => localSetupProgressRef.current?.scrollIntoView({ block: "nearest" }));
+  }, [localSetupActive, localAi?.state]);
 
   const saveKey = async () => { if (await onSaveKey(p.id, keyInput)) setKeyInput(""); };
   const startEdit = () => {
@@ -200,6 +282,13 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
                   localAi && localAi.state ? localAi.state.replaceAll("_", " ") : "Checking…"}</b>
               </div>
               {localAi && localAi.detail && <div className="provider-egress-warn">{localAi.detail}</div>}
+              {localSetupActive && <div className="local-ai-setup-progress" role="status" aria-live="polite"
+                ref={localSetupProgressRef}>
+                <ProgressBar label={localSetupPhase[0]} progress={localSetupProgress} managedBy="local-ai-setup" />
+                <div className="settings-sub">{localSetupPhase[1]}</div>
+                <div className="settings-sub"><b>Do not close Callosum.</b> You may continue this setup in the background;
+                  open <b>Status</b> and select <b>Setting up Local AI</b> to return here.</div>
+              </div>}
               <div className="settings-sub">Formal comparative evaluation is ongoing. Review important claims against the underlying evidence.</div>
               <details className="settings-details">
                 <summary>Technical details</summary>
@@ -212,7 +301,8 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
               </details>
               <div className="settings-actions">
                 <button className="btn btn-primary" disabled={busy || (localAi && !["ready", "installed", "not_installed", "error"].includes(localAi.state))}
-                  onClick={onSetupLocalAi}>{localAi && localAi.state === "ready" ? (active ? "Ready" : "Use Local AI") :
+                  onClick={onSetupLocalAi}>{localSetupActive ? localSetupPhase[0] :
+                    localAi && localAi.state === "ready" ? (active ? "Ready" : "Use Local AI") :
                     localAi && localAi.installed ? "Prepare Local AI" : "Set up Local AI"}</button>
               </div>
             </div>
@@ -269,7 +359,7 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
   );
 }
 
-function AiSettings({ agentSettings }) {
+function AiSettings({ agentSettings, onLocalAiSetupState }) {
   const [roster, setRoster] = useState(null);  // GET /settings/providers
   const [status, setStatus] = useState(null);  // GET /settings (egress/help/key_storage/sources)
   const [busy, setBusy] = useState(false);
@@ -278,16 +368,15 @@ function AiSettings({ agentSettings }) {
   const [testing, setTesting] = useState(false);
   const [adding, setAdding] = useState(false);
   const [localAi, setLocalAi] = useState(null);
-  const [localSetupBusy, setLocalSetupBusy] = useState(false);
 
   const refreshLocalAi = async () => {
     if (!("__TAURI__" in window)) {
-      setLocalAi({ state: "unsupported", installed: false, running: false,
+      acceptLocalAiSetupStatus({ state: "unsupported", installed: false, running: false,
         detail: "Managed Local AI setup is available in the installed desktop app." });
       return;
     }
-    try { setLocalAi(await window.__TAURI__.core.invoke("local_ai_status")); }
-    catch (err) { setLocalAi({ state: "error", detail: String(err), installed: false, running: false }); }
+    try { acceptLocalAiSetupStatus(await window.__TAURI__.core.invoke("local_ai_status")); }
+    catch (err) { acceptLocalAiSetupStatus({ state: "error", detail: String(err), installed: false, running: false }); }
   };
 
   const reload = async () => {
@@ -295,12 +384,17 @@ function AiSettings({ agentSettings }) {
     if (pr.ok) setRoster(pr.data);
     if (st.ok) setStatus(st.data);
   };
-  useEffect(() => { reload(); refreshLocalAi(); }, []);
   useEffect(() => {
-    if (!localSetupBusy) return undefined;
-    const timer = setInterval(refreshLocalAi, 1500);
-    return () => clearInterval(timer);
-  }, [localSetupBusy]);
+    const listener = current => setLocalAi(current);
+    _localAiSetupListeners.add(listener);
+    reload(); refreshLocalAi();
+    return () => _localAiSetupListeners.delete(listener);
+  }, []);
+  const localSetupActive = localAiSetupActive(localAi);
+  useEffect(() => {
+    if (onLocalAiSetupState) onLocalAiSetupState(localSetupActive);
+    if (localSetupActive) trackLocalAiSetupInStatus();
+  }, [localSetupActive]);
 
   const put = async (body, doneMsg) => {
     setBusy(true); setMsg(""); setTest(null);
@@ -325,18 +419,23 @@ function AiSettings({ agentSettings }) {
       await activate("managed_local");
       return;
     }
-    setBusy(true); setLocalSetupBusy(true); setMsg("");
-    setLocalAi(prev => ({ ...(prev || {}), state: "downloading_runtime" }));
+    setBusy(true); setMsg("");
+    acceptLocalAiSetupStatus({ ...(localAi || {}), state: "checking" });
+    _startClientStatus({ id: LOCAL_AI_SETUP_STATUS_ID, label: "Setting up Local AI",
+      nav: { modal: "local-ai" }, computeKind: "On-device setup", progress: null });
+    trackLocalAiSetupInStatus();
     try {
       const result = await window.__TAURI__.core.invoke("setup_local_ai");
-      setLocalAi(result);
+      acceptLocalAiSetupStatus(result);
       await apiPut("/settings", { provider: "managed_local", set_model: true, model: "" });
       await reload();
       setMsg("Local AI is ready and active.");
+      _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, true);
     } catch (err) {
-      setLocalAi({ state: "error", detail: String(err), installed: false, running: false });
+      acceptLocalAiSetupStatus({ state: "error", detail: String(err), installed: false, running: false });
       setMsg("Local AI setup did not finish. Retry setup or open technical details.");
-    } finally { setLocalSetupBusy(false); setBusy(false); }
+      _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, false, String(err));
+    } finally { setBusy(false); }
   };
   const saveKey = (id, val) => put({ set_api_key: true, api_key: val, api_key_provider: id }, val.trim() ? "Key saved." : "Key cleared.");
   const saveUrl = (url) => put({ set_local_base_url: true, local_base_url: url }, "Endpoint saved.");

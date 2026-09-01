@@ -24,6 +24,23 @@ TIMEOUT_SECONDS = 150
 LOG_TAIL_LINES = 40
 
 
+def _check_ml_runtime(python_exe: Path) -> bool:
+    """Catch package-code/dist-info skew before an installer is published."""
+    check = (
+        "from transformers.dependency_versions_table import deps; "
+        "from transformers.utils.versions import require_version; "
+        "require_version(deps['tokenizers']); "
+        "from sentence_transformers import CrossEncoder; "
+        "print('ML runtime imports are internally consistent')"
+    )
+    result = subprocess.run([str(python_exe), "-c", check], capture_output=True, text=True, timeout=90)
+    if result.returncode == 0:
+        print(result.stdout.strip())
+        return True
+    print(f"FAIL: packaged ML runtime is inconsistent:\n{result.stderr}", file=sys.stderr)
+    return False
+
+
 def _health_check(url: str) -> bool:
     """curl rather than a Python HTTP client — no functional reason, just proven reliable here."""
     try:
@@ -85,6 +102,8 @@ def main() -> int:
         return 1
     if not (source_root / "app" / "backend" / "api" / "app.py").is_file():
         print(f"FAIL: staged source tree missing app/backend/api/app.py under {source_root}", file=sys.stderr)
+        return 1
+    if not _check_ml_runtime(python_exe):
         return 1
 
     port = _free_port()

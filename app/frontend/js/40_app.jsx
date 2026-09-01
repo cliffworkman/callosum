@@ -238,6 +238,7 @@ function App() {
     if (nav.modal === "import") setImportOpen(true);
     if (nav.modal === "zotero-import") setZoteroImportOpen(true);
     if (nav.modal === "bundle-import") setBundleImportOpen(true);
+    if (nav.modal === "local-ai") setOnboarding(s => ({ ...s, done: false, refresh: true }));
     if (nav.modal === "feedback") window.dispatchEvent(new Event("callosum:open-feedback"));
   }, [gotoLibrary, libraryBits, mobile, openSynthesisSummary, openWip, requestWorkspaceTab, selectWorkspace, setMethodsOpen, setMobilePane, setTheoryOpen, wip.manuscripts]);
   // backlog #26 (F1 discoverability): jump from PUBLISHERS ("Where to submit") to the CRediT builder — both
@@ -251,7 +252,6 @@ function App() {
     setTextHealthContext(context || null);
     setTextHealthOpen(true);
   }, []);
-
   // Save a verified, exact-coordinate citation passage as a durable annotation (source="synthesis"). Re-checks the
   // honesty contract here too, so the precise-save path can never be reached for region/null/flagged citations.
   const saveCitationHighlight = useCallback(async (citation) => {

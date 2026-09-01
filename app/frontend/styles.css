@@ -919,6 +919,8 @@
   .onboarding-dot.done { background: var(--verified); }  /* green = completed step (affirmative, DESIGN §4) */
   .onboarding-body { min-height: 120px; max-height: 56vh; overflow-y: auto; }
   .onboarding-nav { justify-content: space-between; margin-top: 10px; }
+  .local-ai-setup-progress { margin: 8px 0; padding: 8px 9px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); }
+  .local-ai-setup-progress .progress { padding-top: 0; }
   .onboarding-choice-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; align-items: flex-start; }
   .onboarding-done { text-align: center; padding: 18px 8px; }
   .onboarding-done-icon { font-size: 32px; margin-bottom: 8px; }

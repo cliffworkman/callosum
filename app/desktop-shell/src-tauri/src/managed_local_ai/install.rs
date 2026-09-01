@@ -12,6 +12,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 pub(super) const MODEL_SHA256: &str =
     "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e";
@@ -47,6 +48,18 @@ pub struct LocalAiInstallState(Arc<Mutex<InstallProgress>>);
 struct InstallProgress {
     stage: Option<&'static str>,
     detail: Option<&'static str>,
+    downloaded_bytes: Option<u64>,
+    total_bytes: Option<u64>,
+    download_started: Option<Instant>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct InstallProgressSnapshot {
+    pub(super) stage: Option<&'static str>,
+    pub(super) detail: Option<&'static str>,
+    pub(super) downloaded_bytes: Option<u64>,
+    pub(super) total_bytes: Option<u64>,
+    pub(super) eta_seconds: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -76,13 +89,53 @@ struct InstallReceipt<'a> {
 
 impl LocalAiInstallState {
     pub(super) fn set(&self, stage: Option<&'static str>, detail: Option<&'static str>) {
-        *self.0.lock().expect("local AI install state poisoned") =
-            InstallProgress { stage, detail };
+        *self.0.lock().expect("local AI install state poisoned") = InstallProgress {
+            stage,
+            detail,
+            ..InstallProgress::default()
+        };
     }
 
-    pub(super) fn snapshot(&self) -> (Option<&'static str>, Option<&'static str>) {
+    fn begin_download(&self, stage: &'static str, total_bytes: u64) {
+        *self.0.lock().expect("local AI install state poisoned") = InstallProgress {
+            stage: Some(stage),
+            downloaded_bytes: Some(0),
+            total_bytes: Some(total_bytes),
+            download_started: Some(Instant::now()),
+            ..InstallProgress::default()
+        };
+    }
+
+    fn record_downloaded(&self, downloaded_bytes: u64) {
+        let mut progress = self.0.lock().expect("local AI install state poisoned");
+        progress.downloaded_bytes = Some(downloaded_bytes);
+    }
+
+    pub(super) fn snapshot(&self) -> InstallProgressSnapshot {
         let progress = self.0.lock().expect("local AI install state poisoned");
-        (progress.stage, progress.detail)
+        let eta_seconds = match (
+            progress.downloaded_bytes,
+            progress.total_bytes,
+            progress.download_started,
+        ) {
+            (Some(current), Some(total), Some(started)) if current > 0 && current < total => {
+                let elapsed = started.elapsed().as_secs_f64();
+                (elapsed >= 0.5).then(|| {
+                    ((total - current) as f64 * elapsed / current as f64)
+                        .ceil()
+                        .min(u64::MAX as f64) as u64
+                })
+            }
+            (Some(current), Some(total), _) if current >= total => Some(0),
+            _ => None,
+        };
+        InstallProgressSnapshot {
+            stage: progress.stage,
+            detail: progress.detail,
+            downloaded_bytes: progress.downloaded_bytes,
+            total_bytes: progress.total_bytes,
+            eta_seconds,
+        }
     }
 }
 
@@ -122,19 +175,26 @@ pub(super) fn install_windows(
     let runtime_archive = root.join("runtime.zip.partial");
     let model_partial = root.join(format!("{MODEL_FILENAME}.partial"));
 
-    progress.set(Some("downloading_runtime"), None);
+    progress.begin_download("downloading_runtime", RUNTIME_ARCHIVE_BYTES);
     download_exact(
         RUNTIME_ARCHIVE_URL,
         &runtime_archive,
         RUNTIME_ARCHIVE_BYTES,
         RUNTIME_ARCHIVE_SHA256,
+        progress,
     )?;
     progress.set(Some("preparing_runtime"), None);
     extract_runtime(&root, &runtime_archive)?;
     let _ = std::fs::remove_file(&runtime_archive);
 
-    progress.set(Some("downloading_model"), None);
-    download_exact(MODEL_URL, &model_partial, MODEL_BYTES, MODEL_SHA256)?;
+    progress.begin_download("downloading_model", MODEL_BYTES);
+    download_exact(
+        MODEL_URL,
+        &model_partial,
+        MODEL_BYTES,
+        MODEL_SHA256,
+        progress,
+    )?;
     progress.set(Some("verifying"), None);
     let model = root.join(MODEL_FILENAME);
     replace_file(&model_partial, &model)?;
@@ -169,6 +229,7 @@ fn download_exact(
     partial: &Path,
     expected_bytes: u64,
     expected_sha256: &str,
+    progress: &LocalAiInstallState,
 ) -> Result<(), ManagedAiError> {
     if partial.exists() {
         std::fs::remove_file(partial)
@@ -215,6 +276,7 @@ fn download_exact(
         output
             .write_all(&buffer[..read])
             .map_err(|_| ManagedAiError::Io("Local AI download write failed"))?;
+        progress.record_downloaded(total);
     }
     output
         .sync_all()
@@ -439,6 +501,37 @@ mod tests {
         assert!(!file_identity_matches(&file, 19, &digest).unwrap());
         assert!(!file_identity_matches(&file, 18, &"0".repeat(64)).unwrap());
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn install_progress_reports_bytes_eta_and_resets_without_large_stack_state() {
+        let state = LocalAiInstallState::default();
+        state.begin_download("downloading_model", 1_000);
+        {
+            let mut progress = state.0.lock().unwrap();
+            progress.download_started = Some(Instant::now() - std::time::Duration::from_secs(10));
+        }
+        state.record_downloaded(250);
+        let snapshot = state.snapshot();
+        assert_eq!(snapshot.stage, Some("downloading_model"));
+        assert_eq!(snapshot.detail, None);
+        assert_eq!(snapshot.downloaded_bytes, Some(250));
+        assert_eq!(snapshot.total_bytes, Some(1_000));
+        assert!(snapshot
+            .eta_seconds
+            .is_some_and(|seconds| (29..=31).contains(&seconds)));
+
+        state.set(Some("verifying"), None);
+        assert_eq!(
+            state.snapshot(),
+            InstallProgressSnapshot {
+                stage: Some("verifying"),
+                detail: None,
+                downloaded_bytes: None,
+                total_bytes: None,
+                eta_seconds: None,
+            }
+        );
     }
 
     #[cfg(windows)]

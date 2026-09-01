@@ -943,6 +943,8 @@
   .onboarding-dot.done { background: var(--verified); }  /* green = completed step (affirmative, DESIGN §4) */
   .onboarding-body { min-height: 120px; max-height: 56vh; overflow-y: auto; }
   .onboarding-nav { justify-content: space-between; margin-top: 10px; }
+  .local-ai-setup-progress { margin: 8px 0; padding: 8px 9px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); }
+  .local-ai-setup-progress .progress { padding-top: 0; }
   .onboarding-choice-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; align-items: flex-start; }
   .onboarding-done { text-align: center; padding: 18px 8px; }
   .onboarding-done-icon { font-size: 32px; margin-bottom: 8px; }
@@ -5681,8 +5683,10 @@
     const [importMode, setImportMode] = useState(null);
     const [axisMode, setAxisMode] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [localAiSetupActive2, setLocalAiSetupActive] = useState(false);
     const stepId = steps[step];
     const isLast = step === steps.length - 1;
+    const localAiSetupRunning = stepId === "ai" && localAiSetupActive2;
     const finish = async () => {
       setBusy(true);
       await apiPut("/settings", { onboarding_completed: true, onboarding_version: currentVersion });
@@ -5690,6 +5694,7 @@
       if (onDone) onDone();
     };
     const goNext = () => {
+      if (localAiSetupRunning) return;
       if (isLast) finish();
       else setStep((s) => s + 1);
     };
@@ -5698,7 +5703,7 @@
     if (stepId === "identity") {
       body = /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Optional \u2014 helps Callosum find and organize your own papers."), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }));
     } else if (stepId === "ai") {
-      body = /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, refreshMode ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Local AI is now built in. Set it up once to run compatible AI features on this device \u2014 no API key, provider account, endpoint, Ollama, or terminal required.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Choose ", /* @__PURE__ */ React.createElement("b", null, "Local AI"), " to run compatible AI features on this device, or configure a cloud provider. Callosum never switches providers silently.")), /* @__PURE__ */ React.createElement(AiSettings, null));
+      body = /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, refreshMode ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Local AI is now built in. Set it up once to run compatible AI features on this device \u2014 no API key, provider account, endpoint, Ollama, or terminal required.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Choose ", /* @__PURE__ */ React.createElement("b", null, "Local AI"), " to run compatible AI features on this device, or configure a cloud provider. Callosum never switches providers silently.")), /* @__PURE__ */ React.createElement(AiSettings, { onLocalAiSetupState: setLocalAiSetupActive }));
     } else if (stepId === "library") {
       body = /* @__PURE__ */ React.createElement(ScanModalBody, { onClose: goNext, onScanned });
     } else if (stepId === "import") {
@@ -5722,7 +5727,16 @@
     } else if (stepId === "done") {
       body = /* @__PURE__ */ React.createElement("div", { className: "onboarding-done" }, /* @__PURE__ */ React.createElement("div", { className: "onboarding-done-icon", "aria-hidden": "true" }, "\u{1F389}"), /* @__PURE__ */ React.createElement("p", null, refreshMode ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Your AI provider and Local AI setup remain available in ", /* @__PURE__ */ React.createElement("b", null, "Settings"), " whenever you need them.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "You're all set. Everything here is always reachable again from ", /* @__PURE__ */ React.createElement("b", null, "Settings"), " \u2014 come back anytime to adjust your profile, AI provider, watched folders, or axes.")));
     }
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", role: "dialog", "aria-modal": "true", "aria-label": "Get started with Callosum" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal onboarding-card", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "onboarding-dots", "aria-hidden": "true" }, steps.map((id, i) => /* @__PURE__ */ React.createElement("span", { key: id, className: "onboarding-dot" + (i === step ? " active" : i < step ? " done" : "") }))), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, refreshMode ? "What's new in Callosum" : "Welcome to Callosum", " \u2014 ", ONBOARDING_STEP_LABELS[stepId]), stepId !== "done" && /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: busy, onClick: finish }, refreshMode ? "Not now" : "Skip Setup")), /* @__PURE__ */ React.createElement("div", { className: "onboarding-body" }, body), /* @__PURE__ */ React.createElement("div", { className: "onboarding-nav axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: step === 0 || busy, onClick: goBack }, "\u2190 Back"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: busy, onClick: goNext }, busy ? "Finishing\u2026" : isLast ? "Finish" : "Next \u2192"))));
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", role: "dialog", "aria-modal": "true", "aria-label": "Get started with Callosum" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal onboarding-card", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "onboarding-dots", "aria-hidden": "true" }, steps.map((id, i) => /* @__PURE__ */ React.createElement("span", { key: id, className: "onboarding-dot" + (i === step ? " active" : i < step ? " done" : "") }))), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, refreshMode ? "What's new in Callosum" : "Welcome to Callosum", " \u2014 ", ONBOARDING_STEP_LABELS[stepId]), stepId !== "done" && /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: busy, onClick: finish }, localAiSetupRunning ? "Continue in background" : refreshMode ? "Not now" : "Skip Setup")), /* @__PURE__ */ React.createElement("div", { className: "onboarding-body" }, body), /* @__PURE__ */ React.createElement("div", { className: "onboarding-nav axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: step === 0 || busy, onClick: goBack }, "\u2190 Back"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-btn",
+        disabled: busy || localAiSetupRunning,
+        onClick: goNext,
+        title: localAiSetupRunning ? "Wait for Local AI setup, or continue it in the background." : void 0
+      },
+      busy ? "Finishing\u2026" : localAiSetupRunning ? "Setup in progress\u2026" : isLast ? "Finish" : "Next \u2192"
+    ))));
   }
   function creditItems(items) {
     return Array.isArray(items) ? items : [items];
@@ -9779,6 +9793,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [aiReady, setAiReady] = useState(false);
     const [cands, setCands] = useState(null);
     const [gen, setGen] = useState("idle");
+    const [genError, setGenError] = useState("");
     const [findingCands, setFindingCands] = useState([]);
     const [wantLlm, setWantLlm] = useState(false);
     const [wantTriage, setWantTriage] = useState(false);
@@ -9819,6 +9834,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       setMeta(null);
       setCands(null);
       setGen("idle");
+      setGenError("");
       setFindingCands([]);
       if (paperId == null) return;
       let live = true;
@@ -9869,11 +9885,15 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     };
     const generate = async () => {
       setGen("generating");
+      setGenError("");
       const r = await apiPost(`/papers/${paperId}/critical-read/candidates/generate`, { triage: wantTriage });
       if (r.ok) {
         setCands(r.data.candidates);
         setGen("idle");
-      } else setGen("error");
+      } else {
+        setGenError(r.error || "Local critique generation failed.");
+        setGen("error");
+      }
     };
     generateRef.current = generate;
     const act = async (cid, action) => {
@@ -9916,7 +9936,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         title: "The AI proposes concerns; each must quote the paper verbatim, and you confirm or reject it."
       },
       gen === "generating" ? "Suggesting\u2026" : cands ? "Suggest More Critiques (AI)" : "Suggest Critiques (AI)"
-    ), gen === "generating" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Suggesting and locally verifying critiques\u2026", managedBy: "tracked-request" }), gen === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t suggest critiques \u2014 is AI enabled with a key (Settings)?"), shownAll.length > 0 && !shown.length && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "All ", shownAll.length, " candidate(s) here were triaged as lower-yield \u2014 switch to \u201CAll rows\u201D to see them."), shown.map((c) => /* @__PURE__ */ React.createElement(CriticalCandidate, { key: c.id, c, onAccept: () => act(c.id, "accept"), onReject: () => act(c.id, "reject") }))));
+    ), gen === "generating" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Suggesting and locally verifying critiques\u2026", managedBy: "tracked-request" }), gen === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t suggest critiques: ", genError), shownAll.length > 0 && !shown.length && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "All ", shownAll.length, " candidate(s) here were triaged as lower-yield \u2014 switch to \u201CAll rows\u201D to see them."), shown.map((c) => /* @__PURE__ */ React.createElement(CriticalCandidate, { key: c.id, c, onAccept: () => act(c.id, "accept"), onReject: () => act(c.id, "reject") }))));
   }
   function WipCriticalReadResult({ run, ctx, onOpenSource }) {
     const result = run.structured_result_json || {};
@@ -20027,6 +20047,83 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     }
     return /* @__PURE__ */ React.createElement("div", { className: "settings-field provider-model-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Model", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The model name your endpoint serves (e.g. ", /* @__PURE__ */ React.createElement("code", null, "llama3.1"), ").")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "model name", value: text, onChange: (e) => setText(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !text.trim(), onClick: () => onActivate(p.id, text.trim()) }, "Set")));
   }
+  const LOCAL_AI_SETUP_STATES = /* @__PURE__ */ new Set([
+    "checking",
+    "downloading_runtime",
+    "preparing_runtime",
+    "downloading_model",
+    "verifying",
+    "preparing"
+  ]);
+  const LOCAL_AI_SETUP_STATUS_ID = "local-ai-setup";
+  let _localAiSetupStatusTimer = null;
+  const _localAiSetupListeners = /* @__PURE__ */ new Set();
+  function localAiSetupActive(status) {
+    return !!(status && LOCAL_AI_SETUP_STATES.has(status.state));
+  }
+  function localAiSetupPhase(status) {
+    const phases = {
+      checking: ["Checking existing Local AI files\u2026", "Callosum is checking whether verified files can be reused."],
+      downloading_runtime: ["Downloading the Local AI engine\u2026", "Keep Callosum open while the small runtime package downloads."],
+      preparing_runtime: ["Preparing the Local AI engine\u2026", "Callosum is verifying and unpacking the local runtime."],
+      downloading_model: ["Downloading the Local AI model\u2026", "This is the main 1.04 GiB download. You may continue in the background and follow it under Status."],
+      verifying: ["Verifying downloaded files\u2026", "Callosum is checking the pinned model identity before it can be used."],
+      preparing: ["Starting Local AI\u2026", "The model is installed; Callosum is starting it and waiting for authenticated readiness."]
+    };
+    return phases[status && status.state] || ["Setting up Local AI\u2026", "Keep Callosum open while setup finishes."];
+  }
+  function localAiSetupProgress(status) {
+    if (!status || !(status.total_bytes > 0) || status.downloaded_bytes == null) return null;
+    const unit = 1024 * 1024;
+    return {
+      current: Math.round(status.downloaded_bytes / unit * 10) / 10,
+      total: Math.round(status.total_bytes / unit * 10) / 10,
+      label: "Downloaded MiB",
+      // Zero means "not measurable yet" to ProgressBar and prevents Status from deriving an ETA from the whole
+      // multi-phase setup. Rust supplies the phase-local estimate once at least 0.5 s of download is observed.
+      eta_seconds: status.eta_seconds ?? 0
+    };
+  }
+  function publishLocalAiSetupStatus(status) {
+    const active = localAiSetupActive(status);
+    if (active) {
+      const phase = localAiSetupPhase(status);
+      _startClientStatus({
+        id: LOCAL_AI_SETUP_STATUS_ID,
+        label: "Setting up Local AI",
+        nav: { modal: "local-ai" },
+        computeKind: "On-device setup",
+        progress: localAiSetupProgress(status)
+      });
+      _updateClientStatus(LOCAL_AI_SETUP_STATUS_ID, { detail: phase[0], progress: localAiSetupProgress(status) });
+      return;
+    }
+    if (status && status.state === "ready") _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, true);
+    if (status && status.state === "error") _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, false, status.detail || "Local AI setup failed.");
+  }
+  function acceptLocalAiSetupStatus(status) {
+    publishLocalAiSetupStatus(status);
+    _localAiSetupListeners.forEach((listener) => listener(status));
+  }
+  function trackLocalAiSetupInStatus() {
+    if (!("__TAURI__" in window) || _localAiSetupStatusTimer) return;
+    const poll = async () => {
+      try {
+        const status = await window.__TAURI__.core.invoke("local_ai_status");
+        acceptLocalAiSetupStatus(status);
+        if (!localAiSetupActive(status)) {
+          clearInterval(_localAiSetupStatusTimer);
+          _localAiSetupStatusTimer = null;
+        }
+      } catch (err) {
+        _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, false, String(err));
+        clearInterval(_localAiSetupStatusTimer);
+        _localAiSetupStatusTimer = null;
+      }
+    };
+    _localAiSetupStatusTimer = setInterval(poll, 1500);
+    poll();
+  }
   function ProviderRow({
     p,
     active,
@@ -20059,6 +20156,14 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const keyUrl = AI_KEY_URLS[p.id];
     const keySet = p.key_set;
     const fromEnv = active && status && status.api_key_source === "env";
+    const localSetupActive = isManagedLocal && localAiSetupActive(localAi);
+    const localSetupPhase = localSetupActive ? localAiSetupPhase(localAi) : null;
+    const localSetupProgress = localSetupActive ? localAiSetupProgress(localAi) : null;
+    const localSetupProgressRef = useRef(null);
+    useEffect(() => {
+      if (!localSetupActive) return;
+      requestAnimationFrame(() => localSetupProgressRef.current?.scrollIntoView({ block: "nearest" }));
+    }, [localSetupActive, localAi?.state]);
     const saveKey = async () => {
       if (await onSaveKey(p.id, keyInput)) setKeyInput("");
     };
@@ -20075,14 +20180,25 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       };
       if (await onUpdate(p.id, patch, "Saved.")) setEditing(false);
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "provider-card" + (active ? " is-active" : "") }, /* @__PURE__ */ React.createElement("div", { className: "provider-card-head" }, /* @__PURE__ */ React.createElement("div", { className: "provider-identity" }, /* @__PURE__ */ React.createElement("span", { className: "provider-name" }, p.name), /* @__PURE__ */ React.createElement("span", { className: "provider-badge" }, WIRE_LABELS[p.wire_format] || p.wire_format)), /* @__PURE__ */ React.createElement("span", { className: "provider-actions" }, active ? /* @__PURE__ */ React.createElement("span", { className: "provider-active" }, "Active") : !isManagedLocal && /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: () => onActivate(p.id) }, "Use"), !p.builtin && /* @__PURE__ */ React.createElement("button", { className: "btn-link danger", disabled: busy, onClick: () => onDelete(p.id) }, "Delete"))), /* @__PURE__ */ React.createElement("div", { className: "provider-body" }, needsConsent && !editing && /* @__PURE__ */ React.createElement("div", { className: "provider-egress-warn" }, "\u26A0 AI features are off \u2014 Callosum won't contact ", /* @__PURE__ */ React.createElement("b", null, p.name), " until you turn on ", /* @__PURE__ */ React.createElement("b", null, "Allow AI features"), " below."), !editing && endpointUrl && /* @__PURE__ */ React.createElement("div", { className: "settings-sub provider-endpoint" }, "Sends to ", /* @__PURE__ */ React.createElement("code", null, endpointUrl), " \u2014 your library text goes there when you generate a summary.", isLoopbackUrl(endpointUrl) ? /* @__PURE__ */ React.createElement(React.Fragment, null, " This is a loopback address \u2014 ", /* @__PURE__ */ React.createElement("b", null, "nothing leaves your machine"), ".") : null), !editing && (isManagedLocal || p.id === "gemini") && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Overview \u2014 ", /* @__PURE__ */ React.createElement("b", null, "Evaluated"), " \xB7 Other generative capabilities \u2014 ", /* @__PURE__ */ React.createElement("b", null, "Testing")), isManagedLocal ? /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("b", null, "Runs on this device."), " No API key, provider account, endpoint, Ollama, or terminal required."), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Status: ", /* @__PURE__ */ React.createElement("b", null, localAi && localAi.state === "ready" ? "Local AI: Ready" : localAi && localAi.state === "installed" ? "Installed \u2014 preparing required" : localAi && localAi.state ? localAi.state.replaceAll("_", " ") : "Checking\u2026")), localAi && localAi.detail && /* @__PURE__ */ React.createElement("div", { className: "provider-egress-warn" }, localAi.detail), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Formal comparative evaluation is ongoing. Review important claims against the underlying evidence."), /* @__PURE__ */ React.createElement("details", { className: "settings-details" }, /* @__PURE__ */ React.createElement("summary", null, "Technical details"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Supported model: ", /* @__PURE__ */ React.createElement("b", null, localAi && localAi.model_id ? localAi.model_id : "Qwen2.5-1.5B-Instruct Q4_K_M"), localAi && localAi.model_bytes ? /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", (localAi.model_bytes / 1024 ** 3).toFixed(2), " GiB model download") : null, ". The preview uses a pinned, checksum-verified llama.cpp runtime and an explicit CPU-safe execution mode."), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "If setup is interrupted or an installed file is corrupt, run Set up Local AI again; Callosum verifies and repairs the managed files before starting.")), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "provider-card" + (active ? " is-active" : "") }, /* @__PURE__ */ React.createElement("div", { className: "provider-card-head" }, /* @__PURE__ */ React.createElement("div", { className: "provider-identity" }, /* @__PURE__ */ React.createElement("span", { className: "provider-name" }, p.name), /* @__PURE__ */ React.createElement("span", { className: "provider-badge" }, WIRE_LABELS[p.wire_format] || p.wire_format)), /* @__PURE__ */ React.createElement("span", { className: "provider-actions" }, active ? /* @__PURE__ */ React.createElement("span", { className: "provider-active" }, "Active") : !isManagedLocal && /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: () => onActivate(p.id) }, "Use"), !p.builtin && /* @__PURE__ */ React.createElement("button", { className: "btn-link danger", disabled: busy, onClick: () => onDelete(p.id) }, "Delete"))), /* @__PURE__ */ React.createElement("div", { className: "provider-body" }, needsConsent && !editing && /* @__PURE__ */ React.createElement("div", { className: "provider-egress-warn" }, "\u26A0 AI features are off \u2014 Callosum won't contact ", /* @__PURE__ */ React.createElement("b", null, p.name), " until you turn on ", /* @__PURE__ */ React.createElement("b", null, "Allow AI features"), " below."), !editing && endpointUrl && /* @__PURE__ */ React.createElement("div", { className: "settings-sub provider-endpoint" }, "Sends to ", /* @__PURE__ */ React.createElement("code", null, endpointUrl), " \u2014 your library text goes there when you generate a summary.", isLoopbackUrl(endpointUrl) ? /* @__PURE__ */ React.createElement(React.Fragment, null, " This is a loopback address \u2014 ", /* @__PURE__ */ React.createElement("b", null, "nothing leaves your machine"), ".") : null), !editing && (isManagedLocal || p.id === "gemini") && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Overview \u2014 ", /* @__PURE__ */ React.createElement("b", null, "Evaluated"), " \xB7 Other generative capabilities \u2014 ", /* @__PURE__ */ React.createElement("b", null, "Testing")), isManagedLocal ? /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("b", null, "Runs on this device."), " No API key, provider account, endpoint, Ollama, or terminal required."), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Status: ", /* @__PURE__ */ React.createElement("b", null, localAi && localAi.state === "ready" ? "Local AI: Ready" : localAi && localAi.state === "installed" ? "Installed \u2014 preparing required" : localAi && localAi.state ? localAi.state.replaceAll("_", " ") : "Checking\u2026")), localAi && localAi.detail && /* @__PURE__ */ React.createElement("div", { className: "provider-egress-warn" }, localAi.detail), localSetupActive && /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "local-ai-setup-progress",
+        role: "status",
+        "aria-live": "polite",
+        ref: localSetupProgressRef
+      },
+      /* @__PURE__ */ React.createElement(ProgressBar, { label: localSetupPhase[0], progress: localSetupProgress, managedBy: "local-ai-setup" }),
+      /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, localSetupPhase[1]),
+      /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("b", null, "Do not close Callosum."), " You may continue this setup in the background; open ", /* @__PURE__ */ React.createElement("b", null, "Status"), " and select ", /* @__PURE__ */ React.createElement("b", null, "Setting up Local AI"), " to return here.")
+    ), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Formal comparative evaluation is ongoing. Review important claims against the underlying evidence."), /* @__PURE__ */ React.createElement("details", { className: "settings-details" }, /* @__PURE__ */ React.createElement("summary", null, "Technical details"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Supported model: ", /* @__PURE__ */ React.createElement("b", null, localAi && localAi.model_id ? localAi.model_id : "Qwen2.5-1.5B-Instruct Q4_K_M"), localAi && localAi.model_bytes ? /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", (localAi.model_bytes / 1024 ** 3).toFixed(2), " GiB model download") : null, ". The preview uses a pinned, checksum-verified llama.cpp runtime and an explicit CPU-safe execution mode."), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "If setup is interrupted or an installed file is corrupt, run Set up Local AI again; Callosum verifies and repairs the managed files before starting.")), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-primary",
         disabled: busy || localAi && !["ready", "installed", "not_installed", "error"].includes(localAi.state),
         onClick: onSetupLocalAi
       },
-      localAi && localAi.state === "ready" ? active ? "Ready" : "Use Local AI" : localAi && localAi.installed ? "Prepare Local AI" : "Set up Local AI"
+      localSetupActive ? localSetupPhase[0] : localAi && localAi.state === "ready" ? active ? "Ready" : "Use Local AI" : localAi && localAi.installed ? "Prepare Local AI" : "Set up Local AI"
     ))) : isLocal ? /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Local endpoint (OpenAI-compatible)"), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "http://127.0.0.1:11434", value: urlInput, onChange: (e) => setUrlInput(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !urlInput.trim(), onClick: () => onSaveUrl(urlInput) }, busy ? "Saving\u2026" : "Save"))) : editing ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ProviderFields, { draft, setDraft, disabled: busy, wireFormats }), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => setEditing(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy || !draft.name.trim() || !draft.base_url.trim(), onClick: saveEdit }, busy ? "Saving\u2026" : "Save Details"))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "API key", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, keySet ? fromEnv ? "Set via an environment variable." : status && status.key_storage === "keychain" ? "A key is saved in your OS keychain." : "A key is saved locally on this machine." : "Not set. Stored locally (your OS keychain if available), sent only to this provider.", keyUrl ? /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("a", { href: keyUrl, target: "_blank", rel: "noopener noreferrer" }, "Get a key \u2192")) : null)), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
       "input",
       {
@@ -20095,7 +20211,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       }
     ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !keyInput.trim(), onClick: saveKey }, busy ? "Saving\u2026" : "Save"), keySet && !fromEnv && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => onSaveKey(p.id, "") }, "Clear"))), !p.builtin && /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: startEdit }, "Edit Name / URL / Models")), active && !editing && !isManagedLocal && /* @__PURE__ */ React.createElement("div", { className: "provider-model-test-row" }, /* @__PURE__ */ React.createElement(ProviderModelPicker, { p, activeModel, busy, onActivate }), (isLocal ? !!(status && status.local_base_url) : keySet) && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: testing, onClick: onTest }, testing ? "Testing\u2026" : isLocal ? "Test connection" : "Test key")), active && !editing && test && /* @__PURE__ */ React.createElement("div", { className: "settings-keytest-result " + (test.ok ? "ok" : "err") }, test.detail)));
   }
-  function AiSettings({ agentSettings }) {
+  function AiSettings({ agentSettings, onLocalAiSetupState }) {
     const [roster, setRoster] = useState(null);
     const [status, setStatus] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -20104,10 +20220,9 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [testing, setTesting] = useState(false);
     const [adding, setAdding] = useState(false);
     const [localAi, setLocalAi] = useState(null);
-    const [localSetupBusy, setLocalSetupBusy] = useState(false);
     const refreshLocalAi = async () => {
       if (!("__TAURI__" in window)) {
-        setLocalAi({
+        acceptLocalAiSetupStatus({
           state: "unsupported",
           installed: false,
           running: false,
@@ -20116,9 +20231,9 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         return;
       }
       try {
-        setLocalAi(await window.__TAURI__.core.invoke("local_ai_status"));
+        acceptLocalAiSetupStatus(await window.__TAURI__.core.invoke("local_ai_status"));
       } catch (err) {
-        setLocalAi({ state: "error", detail: String(err), installed: false, running: false });
+        acceptLocalAiSetupStatus({ state: "error", detail: String(err), installed: false, running: false });
       }
     };
     const reload = async () => {
@@ -20127,14 +20242,17 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       if (st.ok) setStatus(st.data);
     };
     useEffect(() => {
+      const listener = (current) => setLocalAi(current);
+      _localAiSetupListeners.add(listener);
       reload();
       refreshLocalAi();
+      return () => _localAiSetupListeners.delete(listener);
     }, []);
+    const localSetupActive = localAiSetupActive(localAi);
     useEffect(() => {
-      if (!localSetupBusy) return void 0;
-      const timer = setInterval(refreshLocalAi, 1500);
-      return () => clearInterval(timer);
-    }, [localSetupBusy]);
+      if (onLocalAiSetupState) onLocalAiSetupState(localSetupActive);
+      if (localSetupActive) trackLocalAiSetupInStatus();
+    }, [localSetupActive]);
     const put = async (body, doneMsg) => {
       setBusy(true);
       setMsg("");
@@ -20167,20 +20285,28 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         return;
       }
       setBusy(true);
-      setLocalSetupBusy(true);
       setMsg("");
-      setLocalAi((prev) => ({ ...prev || {}, state: "downloading_runtime" }));
+      acceptLocalAiSetupStatus({ ...localAi || {}, state: "checking" });
+      _startClientStatus({
+        id: LOCAL_AI_SETUP_STATUS_ID,
+        label: "Setting up Local AI",
+        nav: { modal: "local-ai" },
+        computeKind: "On-device setup",
+        progress: null
+      });
+      trackLocalAiSetupInStatus();
       try {
         const result = await window.__TAURI__.core.invoke("setup_local_ai");
-        setLocalAi(result);
+        acceptLocalAiSetupStatus(result);
         await apiPut("/settings", { provider: "managed_local", set_model: true, model: "" });
         await reload();
         setMsg("Local AI is ready and active.");
+        _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, true);
       } catch (err) {
-        setLocalAi({ state: "error", detail: String(err), installed: false, running: false });
+        acceptLocalAiSetupStatus({ state: "error", detail: String(err), installed: false, running: false });
         setMsg("Local AI setup did not finish. Retry setup or open technical details.");
+        _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, false, String(err));
       } finally {
-        setLocalSetupBusy(false);
         setBusy(false);
       }
     };
@@ -22910,6 +23036,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       if (nav.modal === "import") setImportOpen(true);
       if (nav.modal === "zotero-import") setZoteroImportOpen(true);
       if (nav.modal === "bundle-import") setBundleImportOpen(true);
+      if (nav.modal === "local-ai") setOnboarding((s) => ({ ...s, done: false, refresh: true }));
       if (nav.modal === "feedback") window.dispatchEvent(new Event("callosum:open-feedback"));
     }, [gotoLibrary, libraryBits, mobile, openSynthesisSummary, openWip, requestWorkspaceTab, selectWorkspace, setMethodsOpen, setMobilePane, setTheoryOpen, wip.manuscripts]);
     const openCreditBuilder = useCallback(() => {

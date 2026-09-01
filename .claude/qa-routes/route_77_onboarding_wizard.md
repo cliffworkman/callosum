@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: GET /health, GET /settings, PUT /settings
-fe: 04e_onboarding.jsx, 35a_mypubs.jsx, 27_scan.jsx, 28_import.jsx, 28b_bundle.jsx, 14_axes_edit.jsx, 17_axes_suggest.jsx
+fe: 04e_onboarding.jsx, 04c_status.jsx, 35b_providers.jsx, 35a_mypubs.jsx, 27_scan.jsx, 28_import.jsx, 28b_bundle.jsx, 14_axes_edit.jsx, 17_axes_suggest.jsx
 -->
 
 # ROUTE 77 — First-run onboarding wizard
@@ -37,6 +37,9 @@ Publications profile via `PUT /my-publications/profile {"display_name": "Ada Lov
   `onboarding_current_version`; reload must not re-nag.
 - **No dead ends.** Every step's Next/Back/Skip/choice buttons are completable; the import/axis steps'
   "Skip this step →" is always present alongside the two real tool choices.
+- **Setup cannot be mistaken for an inert button.** While managed Local AI setup is active, the AI step names its
+  current phase, shows real byte progress/ETA where measurable, and disables **Next**. The explicit **Continue in
+  background** exit remains available and must not cancel the Tauri-owned setup.
 
 ## Adversarial checklist
 
@@ -59,8 +62,13 @@ Publications profile via `PUT /my-publications/profile {"display_name": "Ada Lov
 1. Baseline screenshot: load the app fresh (no `onboarding_completed` key) → the wizard appears, blocking, with
    the identity step showing empty fields (no prior profile).
 2. Step through identity: enter a name, click Next.
-3. Step through AI providers: confirm **Local AI** offers **Set up Local AI** with no API key; confirm cloud egress
-   is off; leave it off; click Next.
+3. Step through AI providers: confirm **Local AI** offers **Set up Local AI** with no API key and cloud egress is off.
+   Start setup and confirm **Next** immediately disables while the setup card advances through named phases. During
+   downloads confirm the real MiB counter moves and the ETA is explicitly approximate; during hashing/startup it must
+   not invent a percentage. Confirm the new feedback scrolls into the wizard's visible body. Use **Continue in
+   background**, open Status, and click **Setting up Local AI** to return to the same live AI step. Let setup reach
+   **Local AI: Ready**, then click Next. Repeat once with an injected failure and confirm retry/repair guidance rather
+   than a cloud API-key instruction.
 4. Step through library folder: confirm it shows the default watched library folder; click "Add + scan" with a
    folder path, confirm progress appears (and, separately, appears in the Status popover); click Next (or use
    the step's own "×"/"Close", confirming both reach the same next step).
@@ -84,6 +92,8 @@ Publications profile via `PUT /my-publications/profile {"display_name": "Ada Lov
 - The full wizard appears once on a fresh install; the AI-only refresh appears once on a legacy completed desktop.
 - The identity step never shows or saves blanks over an existing profile.
 - The AI step exposes the real Local AI setup and keeps cloud egress off by default.
+- An active Local AI setup cannot be advanced past accidentally, survives explicit background dismissal, and remains
+  observable/reopenable through Status without a duplicate setup process.
 - The Library announcement can always reopen the AI-only refresh after a skip/dismiss.
 - "Skip setup" works from every step and always marks onboarding as done.
 - Each of the five steps' embedded tool actually performs its real action (scan/import/axis-create), visible

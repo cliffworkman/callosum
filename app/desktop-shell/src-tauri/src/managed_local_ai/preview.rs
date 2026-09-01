@@ -17,6 +17,9 @@ pub struct LocalAiStatus {
     pub model_bytes: u64,
     pub evidence: &'static str,
     pub execution: &'static str,
+    pub downloaded_bytes: Option<u64>,
+    pub total_bytes: Option<u64>,
+    pub eta_seconds: Option<u64>,
 }
 
 /// At packaged-app startup, preserve the explicit developer path, otherwise start the pinned
@@ -43,7 +46,7 @@ pub async fn setup_and_start(
     state: &ManagedLocalAiState,
     install_state: &LocalAiInstallState,
 ) -> Result<LocalAiStatus, ManagedAiError> {
-    if install_state.snapshot().0.is_some() {
+    if install_state.snapshot().stage.is_some() {
         return Err(ManagedAiError::InvalidConfig(
             "Local AI setup is already running",
         ));
@@ -51,7 +54,7 @@ pub async fn setup_and_start(
     install_state.set(Some("checking"), None);
     let data_dir_owned = data_dir.to_path_buf();
     let progress = install_state.clone();
-    let paths = tokio::task::spawn_blocking(move || {
+    let install_result = tokio::task::spawn_blocking(move || {
         if let Some(paths) = install::installed_paths(&data_dir_owned)? {
             #[cfg(windows)]
             if install::verify_install(&paths).is_ok() {
@@ -62,7 +65,18 @@ pub async fn setup_and_start(
         install::install_windows(&data_dir_owned, &progress)
     })
     .await
-    .map_err(|_| ManagedAiError::Io("Local AI setup worker failed"))??;
+    .map_err(|_| ManagedAiError::Io("Local AI setup worker failed"));
+    let paths = match install_result {
+        Ok(Ok(paths)) => paths,
+        Ok(Err(error)) => {
+            install_state.set(None, Some(error.detail()));
+            return Err(error);
+        }
+        Err(error) => {
+            install_state.set(None, Some(error.detail()));
+            return Err(error);
+        }
+    };
     install_state.set(Some("preparing"), None);
     let result = start_config(data_dir, state, DeveloperConfig::production(paths)).await;
     match result {
@@ -82,7 +96,7 @@ pub fn local_ai_status(
     state: &ManagedLocalAiState,
     install_state: &LocalAiInstallState,
 ) -> LocalAiStatus {
-    let (stage, error) = install_state.snapshot();
+    let progress = install_state.snapshot();
     let installed = install::installed_paths(data_dir).ok().flatten().is_some();
     let running = state
         .0
@@ -90,9 +104,9 @@ pub fn local_ai_status(
         .expect("managed local AI state poisoned")
         .as_mut()
         .is_some_and(|handle| matches!(handle.child.try_wait(), Ok(None)));
-    let (status, detail) = if let Some(stage) = stage {
+    let (status, detail) = if let Some(stage) = progress.stage {
         (stage, None)
-    } else if let Some(error) = error {
+    } else if let Some(error) = progress.detail {
         ("error", Some(error.to_string()))
     } else if running {
         ("ready", None)
@@ -115,6 +129,9 @@ pub fn local_ai_status(
         model_bytes: install::MODEL_BYTES,
         evidence: "testing",
         execution: "on_device",
+        downloaded_bytes: progress.downloaded_bytes,
+        total_bytes: progress.total_bytes,
+        eta_seconds: progress.eta_seconds,
     }
 }
 

@@ -43,7 +43,8 @@ pub const OWNER_ONLY_ENV: [&str; 5] = [
 ];
 const HOST: &str = "127.0.0.1";
 const MODEL_ALIAS: &str = "callosum-managed-local";
-const CONTEXT_TOKENS: u32 = 4096;
+const QUALIFICATION_CONTEXT_TOKENS: u32 = 4096;
+const PREVIEW_CONTEXT_TOKENS: u32 = 12_288;
 const OVERVIEW_OUTPUT_TOKENS: u32 = 256;
 const PREVIEW_OUTPUT_TOKENS: u32 = 2048;
 const READINESS_TIMEOUT: Duration = Duration::from_secs(180);
@@ -114,6 +115,7 @@ pub(super) struct DeveloperConfig {
     declared_build_backend: ExecutionBackend,
     gpu_layers: u32,
     threads: u16,
+    context_tokens: u32,
     max_output_tokens: u32,
     qualification_state: &'static str,
     expected_model_digest: Option<&'static str>,
@@ -142,6 +144,7 @@ impl DeveloperConfig {
             declared_build_backend,
             gpu_layers,
             threads,
+            context_tokens: QUALIFICATION_CONTEXT_TOKENS,
             max_output_tokens: OVERVIEW_OUTPUT_TOKENS,
             qualification_state: "DEVELOPER_TEST_ONLY",
             expected_model_digest: None,
@@ -157,6 +160,7 @@ impl DeveloperConfig {
             declared_build_backend: ExecutionBackend::Cpu,
             gpu_layers: 0,
             threads: 4,
+            context_tokens: PREVIEW_CONTEXT_TOKENS,
             max_output_tokens: PREVIEW_OUTPUT_TOKENS,
             qualification_state: "LOCAL_AI_PREVIEW",
             expected_model_digest: Some(install::MODEL_SHA256),
@@ -325,7 +329,7 @@ pub(super) async fn start_config(
         declared_build_backend: config.declared_build_backend,
         model_artifact_digest: model_digest,
         chat_template_digest: readiness.chat_template_digest,
-        context_tokens: CONTEXT_TOKENS,
+        context_tokens: config.context_tokens,
         max_output_tokens: config.max_output_tokens,
         temperature: 0.0,
         seed: 42,
@@ -432,7 +436,7 @@ fn server_args(config: &DeveloperConfig, port: u16, token_path: &Path) -> Vec<Os
         "--port".into(),
         port.to_string().into(),
         "--ctx-size".into(),
-        CONTEXT_TOKENS.to_string().into(),
+        config.context_tokens.to_string().into(),
         "--n-predict".into(),
         config.max_output_tokens.to_string().into(),
         "--threads".into(),

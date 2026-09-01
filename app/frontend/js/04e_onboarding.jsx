@@ -70,8 +70,10 @@ function OnboardingWizard({ onDone, refreshMode = false, currentVersion = 0, onM
   const [importMode, setImportMode] = useState(null);  // null | "file" | "bundle" | "zotero"
   const [axisMode, setAxisMode] = useState(null);       // null | "suggest" | "manual"
   const [busy, setBusy] = useState(false);
+  const [localAiSetupActive, setLocalAiSetupActive] = useState(false);
   const stepId = steps[step];
   const isLast = step === steps.length - 1;
+  const localAiSetupRunning = stepId === "ai" && localAiSetupActive;
 
   const finish = async () => {
     setBusy(true);
@@ -79,7 +81,10 @@ function OnboardingWizard({ onDone, refreshMode = false, currentVersion = 0, onM
     setBusy(false);
     if (onDone) onDone();
   };
-  const goNext = () => { if (isLast) finish(); else setStep(s => s + 1); };
+  const goNext = () => {
+    if (localAiSetupRunning) return;
+    if (isLast) finish(); else setStep(s => s + 1);
+  };
   const goBack = () => setStep(s => Math.max(0, s - 1));
 
   let body = null;
@@ -98,7 +103,7 @@ function OnboardingWizard({ onDone, refreshMode = false, currentVersion = 0, onM
               provider account, endpoint, Ollama, or terminal required.</>
           : <>Choose <b>Local AI</b> to run compatible AI features on this device, or configure a cloud provider.
               Callosum never switches providers silently.</>}</div>
-        <AiSettings />
+        <AiSettings onLocalAiSetupState={setLocalAiSetupActive} />
       </>
     );
   } else if (stepId === "library") {
@@ -143,13 +148,15 @@ function OnboardingWizard({ onDone, refreshMode = false, currentVersion = 0, onM
         <div className="axis-modal-head">
           <span>{refreshMode ? "What's new in Callosum" : "Welcome to Callosum"} — {ONBOARDING_STEP_LABELS[stepId]}</span>
           {stepId !== "done" &&
-            <button className="axis-link" disabled={busy} onClick={finish}>{refreshMode ? "Not now" : "Skip Setup"}</button>}
+            <button className="axis-link" disabled={busy} onClick={finish}>{localAiSetupRunning
+              ? "Continue in background" : refreshMode ? "Not now" : "Skip Setup"}</button>}
         </div>
         <div className="onboarding-body">{body}</div>
         <div className="onboarding-nav axis-form-actions">
           <button className="axis-link" disabled={step === 0 || busy} onClick={goBack}>← Back</button>
-          <button className="axis-btn" disabled={busy} onClick={goNext}>
-            {busy ? "Finishing…" : isLast ? "Finish" : "Next →"}
+          <button className="axis-btn" disabled={busy || localAiSetupRunning} onClick={goNext}
+            title={localAiSetupRunning ? "Wait for Local AI setup, or continue it in the background." : undefined}>
+            {busy ? "Finishing…" : localAiSetupRunning ? "Setup in progress…" : isLast ? "Finish" : "Next →"}
           </button>
         </div>
       </div>

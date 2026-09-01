@@ -11,8 +11,11 @@ starlette==1.3.1
 httpx>=0.27,<1
 lxml>=5,<7  # local CSL 1.0.2 Relax NG + Schematron validation (inc 369)
 PyMuPDF>=1.24,<2
-sentence-transformers>=4,<6  # floor is 4: model_runtime.py's CrossEncoder construction passes backend=,
-                              # a kwarg CrossEncoder.__init__ only accepts from sentence-transformers v4 onward
+# Keep this runtime trio exact. Tauri's bundled Python must be reproducible, and an unconstrained 2026 resolver
+# produced mutually inconsistent transformers code/dist-info during an in-place desktop update (inc 554).
+sentence-transformers==5.6.1
+transformers==5.14.1
+tokenizers==0.22.2
 sqlite-vec>=0.1,<1
 scikit-learn>=1.4,<2
 numpy>=1.26,<3

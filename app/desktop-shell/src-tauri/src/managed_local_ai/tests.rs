@@ -41,6 +41,7 @@ fn fake_config(root: &Path) -> DeveloperConfig {
         declared_build_backend: ExecutionBackend::Cpu,
         gpu_layers: 0,
         threads: 4,
+        context_tokens: QUALIFICATION_CONTEXT_TOKENS,
         max_output_tokens: OVERVIEW_OUTPUT_TOKENS,
         qualification_state: "DEVELOPER_TEST_ONLY",
         expected_model_digest: None,
@@ -181,6 +182,24 @@ fn server_argv_always_carries_exact_offload_value() {
 }
 
 #[test]
+fn server_argv_uses_the_exact_configuration_context() {
+    let root = test_dir("context-argv");
+    let token_path = root.join("auth-token");
+    for context_tokens in [QUALIFICATION_CONTEXT_TOKENS, PREVIEW_CONTEXT_TOKENS] {
+        let mut config = fake_config(&root);
+        config.context_tokens = context_tokens;
+        let values = server_args(&config, 32123, &token_path)
+            .iter()
+            .map(|value| value.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert!(values
+            .windows(2)
+            .any(|pair| pair == ["--ctx-size", &context_tokens.to_string()]));
+    }
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn tokens_are_strong_random_and_private_descriptor_has_no_secret_or_model_path() {
     let first = random_token().unwrap();
     let second = random_token().unwrap();
@@ -203,7 +222,7 @@ fn tokens_are_strong_random_and_private_descriptor_has_no_secret_or_model_path()
         declared_build_backend: ExecutionBackend::Cpu,
         model_artifact_digest: "b".repeat(64),
         chat_template_digest: Some("c".repeat(64)),
-        context_tokens: CONTEXT_TOKENS,
+        context_tokens: QUALIFICATION_CONTEXT_TOKENS,
         max_output_tokens: OVERVIEW_OUTPUT_TOKENS,
         temperature: 0.0,
         seed: 42,
@@ -851,6 +870,7 @@ fn live_pinned_preview_installs_and_runs_three_generation_contracts() {
         serde_json::from_slice(&std::fs::read(&descriptor).unwrap()).unwrap();
     assert_eq!(payload["qualification_state"], "LOCAL_AI_PREVIEW");
     assert_eq!(payload["model_artifact_digest"], install::MODEL_SHA256);
+    assert_eq!(payload["context_tokens"], PREVIEW_CONTEXT_TOKENS);
     assert_eq!(payload["max_output_tokens"], PREVIEW_OUTPUT_TOKENS);
     assert_eq!(payload["requested_execution"]["gpu_layers"], 0);
     assert_eq!(

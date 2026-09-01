@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: GET /status/jobs, POST /status/jobs/{store}/{job_id}/dismiss, POST /status/jobs/clear-finished
-fe: 04c_status.jsx, 04d_update.jsx, 04b_workspaces.jsx, 40_app.jsx, 20_synthesis.jsx
+fe: 04c_status.jsx, 04d_update.jsx, 04b_workspaces.jsx, 04e_onboarding.jsx, 35b_providers.jsx, 40_app.jsx, 20_synthesis.jsx
 -->
 
 # ROUTE 76 — Status popover: aggregation, dismissal, and click-to-navigate
@@ -81,6 +81,12 @@ Clean seeded instance (`_TEMPLATE.md` → Environment). Egress unset (nothing he
 10. In the desktop shell, inject the updater's `update-ready` event. Confirm **Restart now** invokes the install command
    for a restart action, **Open release page** invokes the release action on Linux, **Later** collapses to an
    **Update ready** pill, and the pill restores the notice without duplicating event listeners.
+11. In packaged Tauri, start **Set up Local AI** from onboarding. Confirm exactly one **Setting up Local AI** row
+    appears with on-device labeling, current phase, real MiB progress/ETA during downloads, and elapsed-only feedback
+    during verification/startup. Choose **Continue in background** and confirm the row keeps updating without a
+    second setup command. Click the row: the wizard reopens directly on AI features with the same current phase and
+    progress. Let setup finish and confirm the row becomes a finished receipt; repeat with a controlled setup failure
+    and confirm the failed receipt links back to the repair action without exposing a token, path, or cloud-key prompt.
 
 ## Pass criteria
 
@@ -91,6 +97,8 @@ Clean seeded instance (`_TEMPLATE.md` → Environment). Egress unset (nothing he
 - Every running job exposes elapsed time; calibrated estimates are evidence-backed, uncertainty-aware, and gracefully
   acknowledge overruns. A fresh/incompatible history never fabricates an estimate.
 - Dismiss / Clear all finished are unaffected by the new click target.
+- Closing Local AI onboarding never cancels or duplicates its Tauri-owned setup; Status preserves progress and the
+  exact route back until completion/failure.
 - Status remains available at mobile width; 0 console/page errors and no overflow.
 
 ## Deposit
