@@ -11,10 +11,10 @@
   ],
   "review": {
     "reviewed_at": "2026-09-01",
-    "reviewed_rev": "296d10f",
+    "reviewed_rev": "03bf0df",
     "reviewed_increment": 555,
-    "source_fingerprint": "90f4a3d3a0aeca85f3c986a93e819d43330fad4f36c125b930ff9522e7ac049a",
-    "note": "Bootstrapped changelog-drift tracking (inc 555); fixed a genuine crosswalk attachment_id PDF-evidence bug, gated Citation Styles preview in demo mode, and swept stale three-paper corpus-count copy across app/frontend/js and www/*.html. Also fixed a stale adapters/google_docs (vs real adapters/googledocs) .gitattributes glob and normalized CRLF-committed files in that directory to LF, per the file's own documented cross-platform-fingerprint rationale.",
+    "source_fingerprint": "b6c7c6865084f7045c10ced5a3c1256a270779f60e9ab1fa31bdf67ea8cb5e64",
+    "note": "Fixed _source_files() to enumerate only git-tracked files (git ls-files with :(glob) pathspec magic) instead of a raw filesystem glob -- a local gitignored adapters/googledocs/cloudflared-config.local.yml was silently entering the fingerprint on this machine, making it permanently unreproducible on a fresh CI checkout regardless of the EOL fix. Same underlying content review as the prior two refreshes this session.",
     "declined_at": null,
     "declined_rev": null,
     "declined_increment": null,

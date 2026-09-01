@@ -73,21 +73,19 @@ def _parse(path: Path) -> SiteParser:
 
 
 def _source_files() -> list[Path]:
-    patterns = (
-        "app/frontend/index.html",
-        "app/frontend/styles.css",
-        "app/frontend/js/*.jsx",
-        "app/backend/help/help_content.md",
-        "adapters/libreoffice/**/*.py",
-        "adapters/word/**/*",
-        "adapters/googledocs/**/*",
-        "tui/**/*.py",
-        "mcp_server/**/*.py",
+    return changelog_drift.tracked_files(
+        (
+            "app/frontend/index.html",
+            "app/frontend/styles.css",
+            "app/frontend/js/*.jsx",
+            "app/backend/help/help_content.md",
+            "adapters/libreoffice/**/*.py",
+            "adapters/word/**/*",
+            "adapters/googledocs/**/*",
+            "tui/**/*.py",
+            "mcp_server/**/*.py",
+        )
     )
-    files: set[Path] = set()
-    for pattern in patterns:
-        files.update(path for path in ROOT.glob(pattern) if path.is_file() and "__pycache__" not in path.parts)
-    return sorted(files, key=lambda path: path.relative_to(ROOT).as_posix())
 
 
 def _source_fingerprint() -> str:

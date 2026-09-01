@@ -70,6 +70,29 @@ def git_rev() -> str:
     return result.stdout.strip() or "unknown"
 
 
+def tracked_files(patterns: Iterable[str]) -> list[Path]:
+    """Only git-tracked files matching the given glob patterns, resolved on disk.
+
+    A raw filesystem glob (``ROOT.glob(pattern)``) would also pick up local, gitignored files (a
+    ``*.local.yml`` override, a ``dist/`` build directory, a stray editor artifact) that exist on one
+    machine's checkout but never on a fresh clone -- silently making the fingerprint unreproducible
+    across machines even after every real content byte matches. ``git ls-files`` with explicit
+    ``:(glob)`` pathspec magic matches the same ``**``/``*`` semantics as ``Path.glob`` but only ever
+    returns files git actually tracks.
+    """
+    result = subprocess.run(
+        ["git", "ls-files", "--", *(f":(glob){pattern}" for pattern in patterns)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return sorted(
+        {ROOT / line for line in result.stdout.splitlines() if line.strip()},
+        key=lambda p: p.relative_to(ROOT).as_posix(),
+    )
+
+
 def fingerprint(paths: Iterable[Path]) -> str:
     """A single combined SHA-256 over filename-length-prefixed-path + raw bytes of every file, sorted."""
     digest = hashlib.sha256()

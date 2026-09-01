@@ -38,11 +38,7 @@ def _source_files() -> list[Path]:
     # surface is the backend routers it captures from plus the capture scripts encoding what gets
     # captured -- deliberately not app/frontend/js/*.jsx, which check_website_coverage.py already
     # fingerprints for the shared UI layer.
-    patterns = ("app/backend/api/routers/*.py", "tools/demo/*.py")
-    files: set[Path] = set()
-    for pattern in patterns:
-        files.update(path for path in ROOT.glob(pattern) if path.is_file() and "__pycache__" not in path.parts)
-    return sorted(files, key=lambda path: path.relative_to(ROOT).as_posix())
+    return changelog_drift.tracked_files(("app/backend/api/routers/*.py", "tools/demo/*.py"))
 
 
 def _source_fingerprint() -> str:
