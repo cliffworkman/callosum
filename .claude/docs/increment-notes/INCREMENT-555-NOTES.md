@@ -156,6 +156,38 @@ routed through the demo tool's coarser logic.
 5. Open Settings → Citation styles in the demo: confirm an explanatory note renders instead of a raw
    "Preview unavailable: HTTP 404" error box.
 
+## Post-push CI hardening (found live, not by inspection)
+
+Pushing this increment surfaced three real bugs the local verification loop couldn't catch, fixed in three
+follow-up commits and confirmed against a real `gh run watch` round-trip each time:
+
+1. **`ModuleNotFoundError: No module named 'tools'`** — CI invokes `check_website_coverage.py` directly
+   (`uv run python tools/qa/...`), which doesn't put the repo root on `sys.path` the way pytest's
+   `pythonpath=.` config does locally. Fixed both tools with the same `sys.path.insert(0, str(ROOT))`
+   convention `tools/demo/*.py` scripts already use.
+2. **Cross-platform CRLF/LF fingerprint mismatch** — `.gitattributes`' `eol=lf` rule for the Google Docs
+   adapter targeted the wrong directory (`adapters/google_docs/**`, the exact same stale-name bug already
+   fixed in `_source_files()` this increment — the real path is `adapters/googledocs/`), and the demo tool's
+   new `app/backend/api/routers/*.py` + `tools/demo/*.py` glob had no `eol=lf` rule at all. A
+   Windows-computed `--refresh` fingerprint (CRLF checkout) could never match CI's Linux fingerprint (LF) for
+   byte-identical content. Fixed the glob name, added the two missing rules, and normalized 63 already-CRLF-
+   committed files to LF (confirmed via `git diff` as a pure line-ending change, zero real content diff).
+3. **Local gitignored files silently entering the fingerprint** — `_source_files()` used a raw filesystem
+   glob (`ROOT.glob(pattern)`), which also matches local, gitignored files that only exist on one machine
+   (`adapters/googledocs/cloudflared-config.local.yml` in this case) — permanently unreproducible on a clean
+   checkout regardless of line endings. New `changelog_drift.tracked_files()` enumerates via
+   `git ls-files :(glob)<pattern>` instead — same `**`/`*` semantics, but only ever returns tracked files.
+
+Verified this final fix against a genuine fresh `git clone` (not just the working tree) before re-pushing,
+confirming both tools pass cold with zero local `--refresh` needed — the same guarantee a real CI checkout
+gets. All three fixes are now folded into the single inc-555 state (registries refreshed a final time at
+commit `a174e4f`); CI is green end-to-end (`lint-and-test`, `e2e-smoke`, all three desktop-shell builds).
+
+**Lesson for future `--refresh`/`--decline` use on either tool**: a passing local check is necessary but not
+sufficient — cross-platform byte-identity (line endings) and git-tracked-only file enumeration are both load-
+bearing assumptions the fingerprint depends on silently. Prefer verifying via a fresh clone (`git clone
+<local-path> /tmp/sim && cd /tmp/sim && python tools/qa/check_*.py`) before trusting a refresh will hold in CI.
+
 ## Pytest
 
 `tests/test_frontend_assembly.py` (86 passed, after updating two assertions to the corrected demo-mode copy),
