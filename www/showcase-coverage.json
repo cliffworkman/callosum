@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-08-31",
-    "reviewed_rev": "c69f6fe",
-    "source_fingerprint": "0164a0ad8bd91504699e78bdccafa2e133dcc84cf48ca4f0ec66fd16f45bfe2a",
-    "note": "fig-journals was left orphaned at half-width (its old grid partner fig-indexed-gaps became a full-row compact figure in the prior fix) -- marked it wide to match its full-app-screenshot siblings and close the empty-gap layout bug."
+    "reviewed_rev": "add9582",
+    "source_fingerprint": "e755e28de46e8a4ef2859e36068212672b2b5db268d9fc43fffac6f6e5fec5f7",
+    "note": "fig-statements/fig-cite (Write chapter) and fig-meta-reference/fig-status (Audit chapter) were plain half-width-paired full-app screenshots, rendering noticeably smaller/less legible than their wide siblings elsewhere on the page. Marked all four wide for consistent full-width, own-row treatment matching every other 1600x1000 figure on the page."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",
