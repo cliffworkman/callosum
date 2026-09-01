@@ -771,7 +771,9 @@ Each cited sentence carries a status pill: **verified** (green — the source su
 
 Saved syntheses appear in **History** (a question shows its text; a selection shows "N papers"), where you can reload or delete them.
 
-If AI features are not enabled, synthesis will not run. **Synthesize → Ask** shows a short **"AI summaries are off"** nudge with an **Enable in Settings →** button that takes you straight to the AI-features section (where you set a key + turn on data egress). The nudge clears once AI is on.
+If a PDF is moved or removed after Callosum has already extracted it, one unavailable attachment no longer stops the whole synthesis. Callosum can still verify against the stored evidence chunk and reports page/region precision rather than claiming an exact PDF highlight; repair the attachment before relying on **Open source** or exact highlighting.
+
+If AI features are not enabled, synthesis will not run. **Synthesize → Ask** shows a short **"AI summaries are off"** nudge with an **Enable in Settings →** button that takes you straight to the AI-features section. You can select managed Local AI with no API key or configure a cloud provider; cloud use still requires explicit data-egress consent. The nudge clears once a usable generation provider is enabled.
 
 Tips:
 

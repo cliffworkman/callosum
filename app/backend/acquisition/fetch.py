@@ -177,8 +177,12 @@ def _year_label(csl: dict, paper) -> str:
 
 def _venue_label(csl: dict, paper) -> str:
     venue = (csl.get("container-title-short") or csl.get("container-title") or paper["venue"] or "").strip()
-    if not venue and csl.get("type") in {"book", "chapter"}:
-        venue = (paper["title"] or "").strip()
+    # Acquisition can precede Crossref enrichment, so a perfectly identified article may have a title
+    # but no venue at filename-construction time. Calling that final component "Unknown" makes the
+    # attachment look like a phantom unknown paper in errors and file pickers. Use the known title as
+    # the honest fallback for every item type; reserve "Unknown" for genuinely title-less metadata.
+    if not venue:
+        venue = (paper["title"] or csl.get("title") or "").strip()
     chapter = csl.get("chapter-number")
     if chapter and csl.get("type") == "chapter":
         venue = f"{venue} (Ch. {chapter})".strip()

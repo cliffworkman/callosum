@@ -18,7 +18,14 @@ from app.backend.pdf_processing.location import locate_quote_for_attachment
 from app.backend.pdf_processing.quote_matching import QuoteMatch
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
-from app.backend.persistence.schema import chunks, citation_mappings, evidence_quotes, summaries, summary_sentences
+from app.backend.persistence.schema import (
+    attachments,
+    chunks,
+    citation_mappings,
+    evidence_quotes,
+    summaries,
+    summary_sentences,
+)
 from app.backend.summarization.generators import CandidateCitation, CandidateSummarySentence, FakeSummaryGenerator
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
 from app.backend.summarization.verification import EmbeddingSupportScorer, LocalCitationVerifier, VerificationConfig
@@ -182,6 +189,54 @@ def test_quote_present_in_chunk_but_not_exactly_located_verifies_with_region_coo
     assert quote_row["bbox_json"]
     assert quote_row["bbox_json"][0]["coordinate_precision"] == "region"
     assert quote_row["bbox_json"][0]["page"] == chunk_row["bbox_json"][0]["page"]
+
+
+def test_missing_attachment_file_does_not_abort_synthesis_verification(tmp_path: Path) -> None:
+    """Regression for a live library whose extracted chunks outlived a moved managed PDF.
+
+    The immutable chunk text/page box remains usable evidence; only exact PDF rectangles are unavailable.
+    """
+    engine = _migrated_engine(tmp_path)
+    model = SummaryFakeEmbeddingModel()
+    vector_store = InMemoryVectorStore()
+
+    with engine.begin() as conn:
+        fixture = _ingest_summary_fixture(conn, tmp_path)
+        attachment_path = Path(
+            conn.execute(
+                select(attachments.c.resolved_path).where(attachments.c.paper_id == fixture["paper_id"])
+            ).scalar_one()
+        )
+        attachment_path.unlink()
+        generator = FakeSummaryGenerator(
+            sentences=[
+                CandidateSummarySentence(
+                    text="Alpha beta evidence supports the claim.",
+                    citations=[
+                        CandidateCitation(
+                            chunk_id=fixture["alpha_chunk_id"],
+                            quote="Alpha beta evidence supports the claim.",
+                        )
+                    ],
+                )
+            ]
+        )
+
+        result = summarize_scope(
+            conn,
+            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+            generator=generator,
+            model=model,
+            vector_store=vector_store,
+            support_scorer=EmbeddingSupportScorer(model),
+        )
+        quote_row = conn.execute(select(evidence_quotes)).mappings().one()
+
+    assert result.status == "verified"
+    assert result.sentences[0].citations[0].coordinate_precision == "region"
+    assert quote_row["quote_confidence"] == 1.0
+    assert quote_row["page_start"] == 1
+    assert quote_row["bbox_json"][0]["coordinate_precision"] == "region"
 
 
 def test_tolerant_quote_precheck_still_rejects_altered_quote(tmp_path: Path) -> None:

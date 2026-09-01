@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED inc-556 2026-09-01 -->
+## 2026-09-01 — Increment 556: missing PDF resilience for Synthesize → Ask
+- **Synthesis resilience:** exact PDF quote location is now optional enrichment. If an attachment has moved or
+  disappeared after extraction, verification falls back to the immutable stored chunk's honest page/region
+  provenance instead of aborting the entire synthesis with `FileNotFoundError`.
+- **Misleading filenames:** future managed acquisitions use a known paper title when venue metadata is absent,
+  reserving `Unknown` for genuinely title-less metadata. Existing legacy filenames are left untouched rather than
+  mutating or renaming user files during synthesis.
+- **Regression coverage:** focused tests prove a deleted source PDF does not block verified synthesis and prove
+  title-bearing article metadata no longer produces an `Unknown.pdf` filename. Served Help explains the degraded
+  coordinate precision and now describes Local AI as an API-key-free generation-provider option.
+- **Privacy/semantics:** no cloud fallback, model call, retrieval ordering, support threshold, or scientific verdict
+  changed. Available PDFs still receive exact quote coordinates; only the already-designed region fallback is used
+  when the file cannot be opened.
+
 ## 2026-09-01 — Increment 555: changelog-driven demo/showcase drift gate + whole-demo currency audit
 - **Files:** new `tools/qa/changelog_drift.py`; `tools/qa/check_website_coverage.py`,
   `tools/qa/check_demo_experience_coverage.py` (both gain `--decline`); `demo/demo-runtime.js`,
@@ -28,7 +43,6 @@ are the design diary; this is the chronological "what & why" record.
   asked for a structural fix, not just a one-time cleanup.
 - **Revert:** see `.claude/docs/increment-notes/INCREMENT-555-NOTES.md` for the full file list and rationale.
 
-<!-- HELP-DOCS-SYNCED inc-554 2026-09-01 -->
 ## 2026-09-01 — Increment 554: Local AI setup visibility and packaged-runtime repair
 - **Setup UX:** the onboarding AI step now shows named setup phases, real downloaded MiB, and a phase-local ETA;
   accidental **Next** is disabled while setup runs, while explicit **Continue in background** preserves the

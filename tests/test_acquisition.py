@@ -297,3 +297,14 @@ def test_filename_sanitizes_illegal_chars():
 def test_filename_falls_back_when_metadata_missing():
     paper = _paper(csl_json={}, first_author_family_name="Lovelace")
     assert library_filename_for(paper) == "Lovelace - n.d. - Unknown.pdf"
+
+
+def test_filename_uses_known_title_instead_of_implying_an_unknown_paper():
+    paper = _paper(
+        csl_json={"type": "article-journal", "title": "Evidence Against the Stereotype"},
+        title="Evidence Against the Stereotype",
+        first_author_family_name="Workman",
+        year=2022,
+    )
+
+    assert library_filename_for(paper) == "Workman - 2022 - Evidence Against the Stereotype.pdf"
