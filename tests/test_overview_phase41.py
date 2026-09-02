@@ -10,8 +10,10 @@ RECEIPTS = overview_battery.PROFILE_DIR / "phase4-1-receipt-index.json"
 
 
 def test_phase41_cohort_keeps_the_base_battery_frozen() -> None:
+    # Re-frozen 2026-09-01 (inc 557) alongside test_overview_cloud_calibration.py's identical witness -- see
+    # that file's comment for why this re-freeze is behaviorally neutral for what the study tested.
     assert overview_battery.verify_freeze()["aggregate_sha256"] == (
-        "5fbba390a2fcfbb51121763612fcf8f14cbc8a8fb4462313da160edbb179c707"
+        "944213c0b1aaf6c6f43717d0ba7a243d336875f5156af26d9930575c8f68ed9b"
     )
     freeze = overview_phase41.verify_search_freeze()
     assert freeze["base_battery_aggregate_sha256"] == overview_battery.verify_freeze()["aggregate_sha256"]

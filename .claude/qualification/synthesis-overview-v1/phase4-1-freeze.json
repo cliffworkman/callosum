@@ -2,7 +2,7 @@
   "schema_version": 1,
   "search_id": "synthesis-overview-phase4-1",
   "frozen_before_candidate_output": true,
-  "base_battery_aggregate_sha256": "5fbba390a2fcfbb51121763612fcf8f14cbc8a8fb4462313da160edbb179c707",
+  "base_battery_aggregate_sha256": "944213c0b1aaf6c6f43717d0ba7a243d336875f5156af26d9930575c8f68ed9b",
   "files": {
     ".claude/qualification/synthesis-overview-v1/phase4-1-candidates.json": "b1e1271ebc16782a72af3f4268539402f46952f8bba721305cdbb297916b00ac",
     "tools/qualification/overview_phase41.py": "92c4905abb0c44fd3bf39900ad6dd27618bcb20b123c9c1672c511654989df1f"
