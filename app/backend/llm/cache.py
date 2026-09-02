@@ -68,18 +68,33 @@ class GenerationCacheIdentity:
         from app.backend.llm.providers import completion_request_identity
 
         request = completion_request_identity(config)
-        resolved_key = config.resolved_api_key()
-        endpoint = request.base_url or "provider-sdk-default"
         environment = {key: os.getenv(key, "") for key in _GEMINI_ENV_KEYS} if request.wire_format == "gemini" else {}
+        # The managed Local AI target's endpoint/credential are per-launch-ephemeral (a fresh random port +
+        # bearer token every Tauri launch, by design -- security material, not scientific identity), so a
+        # semantically-identical request would otherwise never hit cache across a restart. When the config
+        # carries a stable_identity_fingerprint (managed_local only), key on THAT instead of the transport
+        # values for both the endpoint and credential identity components.
+        stable_fingerprint = getattr(config, "stable_identity_fingerprint", "") or ""
+        if stable_fingerprint:
+            # Two distinct hashes of the same restart-stable input (not the same value twice) -- keeps the
+            # endpoint/credential identity components independently inspectable even though, for a managed
+            # target, they both resolve to "which exact model+runtime+params", not two separate axes.
+            endpoint_identity = canonical_hash({"managed_stable_identity": "endpoint", "value": stable_fingerprint})
+            credential_identity = canonical_hash({"managed_stable_identity": "credential", "value": stable_fingerprint})
+        else:
+            resolved_key = config.resolved_api_key()
+            endpoint = request.base_url or "provider-sdk-default"
+            endpoint_identity = canonical_hash({"endpoint": endpoint})
+            credential_identity = canonical_hash({"credential": resolved_key or ""})
         return cls(
             generator_name=generator_name,
             prompt_version=prompt_version,
             provider=str(config.provider),
             model=str(config.model),
             wire_mode=request.wire_format,
-            endpoint_identity=canonical_hash({"endpoint": endpoint}),
+            endpoint_identity=endpoint_identity,
             generation_parameters=request.generation_parameters,
-            credential_identity=canonical_hash({"credential": resolved_key or ""}),
+            credential_identity=credential_identity,
             provider_environment_identity=canonical_hash(environment),
         )
 

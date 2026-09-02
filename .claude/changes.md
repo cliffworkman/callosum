@@ -9,6 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-01 — Increment 559: Local AI cache-identity restart-persistence (Wave 3 item 1/4)
+- `ManagedLocalTarget` gains `stable_identity_fingerprint()` (model/runtime/chat-template digests + context/
+  output sizes + temperature/seed, excluding the per-launch-ephemeral endpoint/credential and the performance-
+  only execution backend). `GenerationCacheIdentity.from_config()` keys on it for managed_local instead of the
+  transport values, so a semantically-identical Local AI request now hits cache across a restart. Deliberately
+  scoped away from `providers.py` (frozen by the synthesis-overview-v1 qualification study) — confined to
+  `cache.py`/`managed_local.py`, neither frozen.
+
 ## 2026-09-01 — Increment 558: closing out inc 557's handoff follow-ups
 - Fixed a real pre-existing bug found while testing inc 557: `workbench_assist.py::page_tagged_text` dropped
   a chunk entirely rather than truncating it when a single chunk alone exceeded the cap.

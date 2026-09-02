@@ -146,6 +146,37 @@ def test_descriptor_is_immutable_developer_only_and_secret_safe(
     runtime.close()
 
 
+def test_stable_identity_fingerprint_ignores_endpoint_and_credential_but_not_model(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The fingerprint that drives cache-identity restart-persistence (app/backend/llm/cache.py) must be
+    invariant to the per-launch-ephemeral endpoint/token (a fresh random port + bearer token every Tauri
+    launch) but MUST change when the actual model/runtime identity changes."""
+    _enable(monkeypatch, _descriptor(tmp_path / "launch-1", endpoint="http://127.0.0.1:32123", token=TOKEN))
+    launch_one = load_target_from_environment()
+
+    other_token = "b" * 40
+    _enable(monkeypatch, _descriptor(tmp_path / "launch-2", endpoint="http://127.0.0.1:60111", token=other_token))
+    launch_two = load_target_from_environment()
+
+    assert launch_one.stable_identity_fingerprint() == launch_two.stable_identity_fingerprint()
+
+    runtime = ProviderClientRuntime(http_client_factory=lambda identity: object())
+    assert (
+        launch_one.config(runtime).stable_identity_fingerprint == launch_two.config(runtime).stable_identity_fingerprint
+    )
+    runtime.close()
+
+    different_path = _descriptor(tmp_path / "different-model")
+    different_payload = json.loads(different_path.read_text(encoding="utf-8"))
+    different_payload["model_artifact_digest"] = "f" * 64
+    different_path.write_text(json.dumps(different_payload), encoding="utf-8")
+    _enable(monkeypatch, different_path)
+    different = load_target_from_environment()
+
+    assert different.stable_identity_fingerprint() != launch_one.stable_identity_fingerprint()
+
+
 def test_managed_output_contract_is_immutable_and_changes_transport_contract(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

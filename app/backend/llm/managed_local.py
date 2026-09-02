@@ -6,6 +6,7 @@ the backend with both the explicit developer gate and a private descriptor path.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -98,6 +99,12 @@ class ManagedProviderConfig:
     max_output_tokens: int
     help_assistant_enabled: bool = False
     managed_output_contract: str | None = None
+    # Restart-persistent cache identity (inc 558): the transport credential/base_url are per-launch-ephemeral
+    # (a fresh random bearer token + port every Tauri launch, by design -- security, not scientific identity),
+    # so app/backend/llm/cache.py's GenerationCacheIdentity keys on THIS instead for managed_local, letting a
+    # semantically-identical request hit cache across a restart. Empty string (never used for anything else)
+    # when unset, so directly-constructed test fixtures stay backward compatible.
+    stable_identity_fingerprint: str = ""
 
     def resolved_api_key(self) -> str:
         return self.api_key
@@ -199,6 +206,29 @@ class ManagedLocalTarget:
     observed_execution: ManagedExecutionState
     qualification_state: str
 
+    def stable_identity_fingerprint(self) -> str:
+        """A sha256 of everything that determines WHAT this target generates -- model/runtime/chat-template
+        digests, context/output size, and the fixed sampling parameters -- deliberately excluding the
+        per-launch-ephemeral endpoint/credential (security material, re-randomized every Tauri launch, never a
+        scientific identity) and the observed/requested execution backend (a performance detail, not an
+        output-determining one given generation is already fixed-temperature/fixed-seed deterministic)."""
+        payload = {
+            "model_alias": self.model_alias,
+            "runtime_family": self.runtime_family,
+            "runtime_version": self.runtime_version,
+            "runtime_binary_digest": self.runtime_binary_digest,
+            "runtime_bundle_manifest_digest": self.runtime_bundle_manifest_digest,
+            "declared_build_backend": self.declared_build_backend,
+            "model_artifact_digest": self.model_artifact_digest,
+            "chat_template_digest": self.chat_template_digest,
+            "context_tokens": self.context_tokens,
+            "max_output_tokens": self.max_output_tokens,
+            "temperature": self.temperature,
+            "seed": self.seed,
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
     def config(self, provider_runtime: ProviderClientRuntime) -> ManagedProviderConfig:
         token = _read_credential(self.credential_ref)
         return ManagedProviderConfig(
@@ -214,6 +244,7 @@ class ManagedLocalTarget:
             ),
             http_trust_env=False,
             max_output_tokens=self.max_output_tokens,
+            stable_identity_fingerprint=self.stable_identity_fingerprint(),
         )
 
 

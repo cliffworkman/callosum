@@ -201,6 +201,49 @@ def test_generation_parameter_change_alters_cache_identity() -> None:
     assert identity.signature != changed.signature
 
 
+def test_managed_local_cache_identity_survives_a_restart(monkeypatch) -> None:
+    """The managed target's endpoint/credential are re-randomized every Tauri launch (security material, not
+    scientific identity) -- without a stable fingerprint, a semantically-identical Local AI request would never
+    hit cache across a restart. Two configs differing only in the per-launch-ephemeral base_url/api_key, but
+    sharing the same stable_identity_fingerprint, must produce the SAME cache signature."""
+    from types import SimpleNamespace
+
+    def _managed_config(*, base_url: str, api_key: str, fingerprint: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            provider="managed_local",
+            wire_format="chat_completions",
+            model="callosum-managed-local",
+            base_url=base_url,
+            api_key=api_key,
+            stable_identity_fingerprint=fingerprint,
+            resolved_api_key=lambda: api_key,
+        )
+
+    launch_one = _managed_config(
+        base_url="http://127.0.0.1:51234", api_key="launch-1-token", fingerprint="stable-model-abc"
+    )
+    launch_two = _managed_config(
+        base_url="http://127.0.0.1:60111", api_key="launch-2-token", fingerprint="stable-model-abc"
+    )
+    assert _config_signature(launch_one) == _config_signature(launch_two)
+
+    # A genuinely different model/runtime (a different fingerprint) must still miss.
+    different_model = _managed_config(
+        base_url="http://127.0.0.1:51234", api_key="launch-1-token", fingerprint="stable-model-xyz"
+    )
+    assert _config_signature(launch_one) != _config_signature(different_model)
+
+
+def test_manual_local_provider_without_a_fingerprint_still_keys_on_transport(monkeypatch) -> None:
+    """A manually-configured "local"/custom loopback provider (no stable_identity_fingerprint attribute at
+    all -- only the managed target ever sets one) must keep the existing endpoint/credential-based identity
+    unchanged, matching every other non-managed provider."""
+    base = LLMConfig(
+        provider="local", wire_format="chat_completions", model="llama3", base_url="http://127.0.0.1:11434"
+    )
+    assert _config_signature(replace(base, base_url="http://127.0.0.1:22222")) != _config_signature(base)
+
+
 def test_prompt_relevant_source_and_scope_fields_define_input_hash() -> None:
     chunk = _source_chunk()
     kwargs = {"cache_signature": "sig", "source_chunks": [chunk], "scope_ref": {"query": "question"}}
