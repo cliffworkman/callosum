@@ -22,8 +22,8 @@ from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 OPENALEX_ROOT = "https://api.openalex.org"
 OPENALEX_AUTHOR_PROVIDER = "openalex_author"
 OPENALEX_WORKS_PROVIDER = "openalex_works"
-_WORKS_PER_PAGE = 200
-_MAX_WORKS_PAGES = 5  # cap a prolific author at ~1000 works
+_WORKS_PER_PAGE = 100
+_MAX_WORKS_PAGES = 10  # cap a prolific author at ~1000 works
 _MAX_CITING = 100  # inc 119 (SP3): cap the citing-works list (a highly-cited paper can have thousands of citers)
 
 
@@ -69,6 +69,17 @@ class CitingWork:
     authors: tuple[str, ...] = ()
 
 
+class OpenAlexAuthorUnavailable(RuntimeError):
+    """An author lookup could not establish a complete provider result."""
+
+
+@dataclass(frozen=True)
+class AuthorWorksResult:
+    works: tuple[AuthorWork, ...]
+    complete: bool
+    capped: bool = False
+
+
 class AuthorFetcher(Protocol):
     def __call__(
         self, url: str, *, params: dict[str, str], headers: dict[str, str], timeout: float
@@ -110,23 +121,29 @@ class OpenAlexAuthorClient:
         on file. The fallback is honestly lower-confidence (``matched_by="name"``): never silently equated with
         an exact ORCID match (see ``ResolvedAuthor.matched_by``, surfaced to the user)."""
         if orcid and orcid.strip():
-            author = self._fetch_by_orcid(conn, orcid)
+            author, state = self._fetch_by_orcid(conn, orcid)
             if author is not None:
                 return author
+            if state == "unavailable":
+                raise OpenAlexAuthorUnavailable("Exact ORCID lookup was unavailable")
         if name and name.strip():
             return self._fetch_by_name(conn, name)
         return None
 
-    def _fetch_by_orcid(self, conn: Connection, orcid: str) -> ResolvedAuthor | None:
+    def _fetch_by_orcid(self, conn: Connection, orcid: str) -> tuple[ResolvedAuthor | None, str]:
         key = _orcid_cache_key(orcid)
-        body = self._fetch(conn, OPENALEX_AUTHOR_PROVIDER, key, f"{OPENALEX_ROOT}/authors/orcid:{orcid.strip()}", {})
-        return _author_from_obj(_pick_author(body), matched_by="orcid") if body is not None else None
+        body, state = self._fetch(
+            conn, OPENALEX_AUTHOR_PROVIDER, key, f"{OPENALEX_ROOT}/authors/orcid:{orcid.strip()}", {}
+        )
+        return (_author_from_obj(_pick_author(body), matched_by="orcid") if body is not None else None, state)
 
     def _fetch_by_name(self, conn: Connection, name: str) -> ResolvedAuthor | None:
         key = _name_cache_key(name)
         url = f"{OPENALEX_ROOT}/authors"
         params = {"filter": f"display_name.search:{name.strip()}", "per-page": "1"}
-        body = self._fetch(conn, OPENALEX_AUTHOR_PROVIDER, key, url, params)
+        body, state = self._fetch(conn, OPENALEX_AUTHOR_PROVIDER, key, url, params)
+        if state == "unavailable":
+            raise OpenAlexAuthorUnavailable("OpenAlex name lookup was unavailable")
         return _author_from_obj(_pick_author(body), matched_by="name") if body is not None else None
 
     def cached_author(
@@ -151,35 +168,44 @@ class OpenAlexAuthorClient:
         return _author_from_obj(_pick_author(cached["response_json"]), matched_by=matched_by)
 
     def fetch_author_works(self, conn: Connection, author_id: str, *, refresh: bool = False) -> list[AuthorWork]:
+        return list(self.fetch_author_works_result(conn, author_id, refresh=refresh).works)
+
+    def fetch_author_works_result(
+        self, conn: Connection, author_id: str, *, refresh: bool = False
+    ) -> AuthorWorksResult:
         if not refresh:  # refresh=True bypasses + re-caches, so an old cache (no cited_by_count) upgrades (inc 83)
             cached = get_cached(conn, OPENALEX_WORKS_PROVIDER, author_id)
             if cached is not None and isinstance(cached["response_json"], dict):
                 works = cached["response_json"].get("works")
                 if isinstance(works, list):
-                    return [
-                        AuthorWork(
-                            doi=w.get("doi"),
-                            title=w.get("title"),
-                            year=w.get("year"),
-                            cited_by_count=int(w.get("cited_by_count") or 0),
-                            openalex_work_id=w.get("openalex_work_id"),  # inc 119: carry the id from a refreshed cache
-                            publication_date=w.get("publication_date"),  # inc 458: absent on pre-458 caches -> None
-                        )
-                        for w in works
-                    ]
-        works, ok = self._fetch_all_works(author_id)
-        if ok:  # only cache a real result — never cache a transient total failure
+                    return AuthorWorksResult(
+                        tuple(
+                            AuthorWork(
+                                doi=w.get("doi"),
+                                title=w.get("title"),
+                                year=w.get("year"),
+                                cited_by_count=int(w.get("cited_by_count") or 0),
+                                openalex_work_id=w.get("openalex_work_id"),
+                                publication_date=w.get("publication_date"),
+                            )
+                            for w in works
+                        ),
+                        complete=bool(cached["response_json"].get("complete", True)),
+                        capped=bool(cached["response_json"].get("capped", False)),
+                    )
+        result = self._fetch_all_works(author_id)
+        if result.complete:
             self._put(
                 conn,
                 OPENALEX_WORKS_PROVIDER,
                 author_id,
                 request_json={"author_id": author_id},
-                response_json={"works": [asdict(w) for w in works]},
+                response_json={"works": [asdict(w) for w in result.works], "complete": True, "capped": False},
                 status_code=200,
             )
-        return works
+        return result
 
-    def _fetch(self, conn, provider, key, url, params) -> dict[str, Any] | None:
+    def _fetch(self, conn, provider, key, url, params) -> tuple[dict[str, Any] | None, str]:
         cached = get_cached(conn, provider, key)
         # A cached row with status_code=None means the LAST attempt raised (transport/decode failure), not that
         # OpenAlex ever actually answered -- never treat that as authoritative (backlog #61: previously this
@@ -187,7 +213,11 @@ class OpenAlexAuthorClient:
         # here). Only a real prior response (any status code) short-circuits the fetch below.
         if cached is not None and cached["status_code"] is not None:
             status = int(cached["status_code"])
-            return cached["response_json"] if status == 200 and isinstance(cached["response_json"], dict) else None
+            if status == 200 and isinstance(cached["response_json"], dict):
+                return cached["response_json"], "ok"
+            if status == 404:
+                return None, "not_found"
+            # Retry transient/error responses instead of replaying them forever.
         try:
             status, body = self.fetcher(
                 url, params={**params, **self._polite()}, headers=self._headers(), timeout=self.timeout
@@ -196,13 +226,17 @@ class OpenAlexAuthorClient:
             self._put(
                 conn, provider, key, request_json={"url": url}, response_json={"error": str(exc)}, status_code=None
             )
-            return None
-        self._put(conn, provider, key, request_json={"url": url}, response_json=body, status_code=status)
-        return body if status == 200 and isinstance(body, dict) else None
+            return None, "unavailable"
+        if status == 200 and isinstance(body, dict):
+            self._put(conn, provider, key, request_json={"url": url}, response_json=body, status_code=status)
+            return body, "ok"
+        if status == 404:
+            self._put(conn, provider, key, request_json={"url": url}, response_json=body, status_code=status)
+            return None, "not_found"
+        return None, "unavailable"
 
-    def _fetch_all_works(self, author_id: str) -> tuple[list[AuthorWork], bool]:
+    def _fetch_all_works(self, author_id: str) -> AuthorWorksResult:
         works: list[AuthorWork] = []
-        any_ok = False
         cursor: str | None = "*"
         for _ in range(_MAX_WORKS_PAGES):
             params = {
@@ -219,18 +253,17 @@ class OpenAlexAuthorClient:
                     timeout=self.timeout,
                 )
             except Exception:
-                break
+                return AuthorWorksResult(tuple(works), complete=False)
             if status != 200 or not isinstance(body, dict):
-                break
-            any_ok = True
+                return AuthorWorksResult(tuple(works), complete=False)
             for work in body.get("results") or []:
                 parsed = _work_from_obj(work)
                 if parsed is not None:
                     works.append(parsed)
             cursor = (body.get("meta") or {}).get("next_cursor")
             if not cursor:
-                break
-        return works, any_ok
+                return AuthorWorksResult(tuple(works), complete=True)
+        return AuthorWorksResult(tuple(works), complete=False, capped=True)
 
     def fetch_citing_works(self, conn: Connection, work_id: str) -> tuple[list[CitingWork], bool]:
         """inc 119 (SP3): works that CITE the given OpenAlex work, cached under ``citing:<work_id>`` and capped at

@@ -336,6 +336,7 @@ def _check_references_for_paper(
             }
         )
     candidates = _candidates_from_semantic_contexts(contexts, _stance_scorer(app))
+    discovery_complete = bool(contexts) or provider_statuses[-1]["status"] in {"success", "empty"}
     if not candidates:
         if update_progress and jobs and job_id:
             jobs.mark_progress(job_id, 0, 1, "Trying OpenAlex reference fallback")
@@ -353,6 +354,7 @@ def _check_references_for_paper(
                 }
             )
         else:
+            discovery_complete = True
             provider_statuses.append(
                 {
                     "provider": "OpenAlex",
@@ -437,11 +439,12 @@ def _check_references_for_paper(
             if signals:
                 flagged_count += 1
             replace_instance_signals(conn, iid, signals)
-        for old_id in conn.execute(
-            select(reference_instances.c.id).where(reference_instances.c.citing_paper_id == paper_id)
-        ).scalars():
-            if int(old_id) not in seen_instance_ids:
-                replace_instance_signals(conn, int(old_id), [])
+        if discovery_complete and skipped_count == 0:
+            for old_id in conn.execute(
+                select(reference_instances.c.id).where(reference_instances.c.citing_paper_id == paper_id)
+            ).scalars():
+                if int(old_id) not in seen_instance_ids:
+                    replace_instance_signals(conn, int(old_id), [])
         report_payload = paper_reference_report(conn, paper_id)
     provider_statuses.append(
         {
@@ -466,8 +469,10 @@ def _candidates_from_semantic_contexts(contexts, stance_scorer) -> list[Referenc
 
 def _candidates_from_openalex_references(conn, openalex_client: OpenAlexClient, doi: str) -> list[ReferenceCandidate]:
     candidates: list[ReferenceCandidate] = []
-    for ix, work_id in enumerate(openalex_client.fetch_referenced_works(conn, PaperRef(doi=doi))):
-        meta = openalex_client.fetch_work_meta(conn, work_id)
+    reference_fetch = getattr(openalex_client, "fetch_referenced_works_strict", openalex_client.fetch_referenced_works)
+    meta_fetch = getattr(openalex_client, "fetch_work_meta_strict", openalex_client.fetch_work_meta)
+    for ix, work_id in enumerate(reference_fetch(conn, PaperRef(doi=doi))):
+        meta = meta_fetch(conn, work_id)
         if not meta:
             continue
         title = meta.get("title")

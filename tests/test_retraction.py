@@ -121,6 +121,19 @@ def test_detect_skips_a_raising_checker(temp_db_url):
     assert outcome.sources_checked == ["openalex"]  # the raising source isn't counted as checked
 
 
+def test_detect_all_sources_unavailable_is_not_clean(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper = {"id": _paper(conn, doi="10.1/x"), "doi": "10.1/x", "csl_json": {}}
+        outcome = detect_retraction(
+            conn, paper, checkers=[_checker("crossref", raises=True), _checker("openalex", raises=True)]
+        )
+    engine.dispose()
+    assert outcome.status_kind == "unavailable"
+    assert outcome.sources_checked == []
+    assert outcome.sources_failed == ["crossref", "openalex"]
+
+
 # ---- apply_retraction (findings FACT + signal status) ----------------------
 
 
@@ -170,6 +183,27 @@ def test_apply_unretraction_supersedes_fact(temp_db_url):
     engine.dispose()
     assert findings["facts"] == []  # the FACT was superseded
     assert status["status"] == "none" and flagged == 0
+
+
+def test_incomplete_recheck_preserves_existing_retraction_fact_status_and_tag(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(conn, doi="10.1/x")
+        paper = {"id": pid, "doi": "10.1/x", "csl_json": {}}
+        flag = _checker("crossref", RetractionSignal(source="crossref", status="retracted"))
+        apply_retraction(conn, pid, detect_retraction(conn, paper, checkers=[flag]))
+        before_facts = get_paper_findings(conn, pid)["facts"]
+        before_status = dict(get_retraction_status(conn, pid))
+        before_tags = [tag["name"] for tag in get_tags_for_paper(conn, pid)]
+
+        unavailable = detect_retraction(conn, paper, checkers=[_checker("crossref", raises=True)])
+        apply_retraction(conn, pid, unavailable)
+
+        assert get_paper_findings(conn, pid)["facts"] == before_facts
+        assert dict(get_retraction_status(conn, pid)) == before_status
+        assert [tag["name"] for tag in get_tags_for_paper(conn, pid)] == before_tags
+        assert RETRACTION_TAG_NAME in before_tags
+    engine.dispose()
 
 
 def test_apply_unchecked_writes_unchecked_signal(temp_db_url):

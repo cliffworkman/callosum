@@ -72,9 +72,10 @@ class MergedRetraction:
 
 @dataclass(frozen=True)
 class RetractionOutcome:
-    status_kind: str  # retracted/correction/concern (flagged) | "none" (checked, clean) | "unchecked" (no DOI)
+    status_kind: str  # flagged | none (complete clean) | unchecked (no DOI) | unavailable (incomplete check)
     merged: MergedRetraction | None = None
     sources_checked: list[str] = field(default_factory=list)
+    sources_failed: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -130,18 +131,30 @@ def detect_retraction(
         return RetractionOutcome(status_kind="unchecked")
     signals: list[RetractionSignal | None] = []
     checked: list[str] = []
+    failed: list[str] = []
     for checker in checkers:
         try:
             signal = checker(conn, paper)
         except Exception:  # a source being down must never abort the whole check
+            failed.append(checker.source)
             continue
         checked.append(checker.source)
         if signal is not None:
             signals.append(signal)
     merged = merge_signals(signals)
     sources_checked = sorted(set(checked))
+    sources_failed = sorted(set(failed))
     if merged is not None:
-        return RetractionOutcome(status_kind=merged.status, merged=merged, sources_checked=sources_checked)
+        return RetractionOutcome(
+            status_kind=merged.status,
+            merged=merged,
+            sources_checked=sources_checked,
+            sources_failed=sources_failed,
+        )
+    if sources_failed:
+        return RetractionOutcome(
+            status_kind="unavailable", sources_checked=sources_checked, sources_failed=sources_failed
+        )
     return RetractionOutcome(status_kind="none", merged=None, sources_checked=sources_checked)
 
 
@@ -149,6 +162,8 @@ def apply_retraction(conn: Connection, paper_id: int, outcome: RetractionOutcome
     """Persist an outcome: the FACT when flagged (else supersede any prior FACT), the check-status row, and the
     #19 system-fact tags (retracted and positive correction — kept in lockstep so both the batch job and the
     on-import hook stay covered from this one call site)."""
+    if outcome.status_kind == "unavailable":
+        return  # An incomplete check cannot erase or restamp previously established evidence.
     checked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     if outcome.merged is not None:
         merged = outcome.merged

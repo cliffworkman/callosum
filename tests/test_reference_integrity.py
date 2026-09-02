@@ -52,6 +52,11 @@ class _OpenAlex:
         return self.work_meta.get(work_id)
 
 
+class _UnavailableOpenAlex(_OpenAlex):
+    def fetch_referenced_works_strict(self, conn, ref):
+        raise RuntimeError("OpenAlex unavailable")
+
+
 def _client(temp_db_url, refs_by_doi, *, openalex=None, retraction_flag_dois=None):
     def fetcher(path, *, params, headers, timeout):
         for doi, refs in refs_by_doi.items():
@@ -160,6 +165,29 @@ def test_provider_failure_is_reported_without_erasing_fallback_results(temp_db_u
     assert ("Semantic Scholar", "failed") in statuses
     assert ("OpenAlex", "success") in statuses
     assert report["checked_count"] == 1
+
+
+def test_total_discovery_outage_preserves_existing_reference_signals(temp_db_url):
+    class _BoomSemanticScholar:
+        def fetch_reference_contexts(self, conn, doi):
+            raise RuntimeError("Semantic Scholar unavailable")
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(conn, "Focal", "10.1/focal")
+    engine.dispose()
+    client = _client(temp_db_url, {"10.1/focal": [_ref("Previously unresolved reference")]})
+    initial = _drive(client, pid)
+    assert initial["active_count"] == 1
+
+    client.app.state.semantic_scholar_client = _BoomSemanticScholar()
+    client.app.state.openalex_client = _UnavailableOpenAlex()
+    after = _drive(client, pid)
+
+    assert after["active_count"] == 1
+    statuses = {(row["provider"], row["status"]) for row in after["provider_statuses"]}
+    assert ("Semantic Scholar", "failed") in statuses
+    assert ("OpenAlex", "failed") in statuses
 
 
 def test_bulk_reference_run_checks_selected_doi_papers_and_skips_no_doi(temp_db_url):

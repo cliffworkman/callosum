@@ -3,11 +3,13 @@ no model tokens)."""
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.backend.api import create_app
 from app.backend.clustering.my_publications import (
+    CONFIRMED_CONFIDENCE,
     build_dashboard,
     import_missing_work,
     maybe_add_to_my_publications,
@@ -29,8 +31,15 @@ from app.backend.persistence.profile_repo import (
 )
 from app.backend.persistence.repository import create_paper
 from app.backend.persistence.schema import axes, cluster_node_papers, cluster_nodes, papers
-from integrations.api_cache import put_cached
-from integrations.openalex.author import OPENALEX_WORKS_PROVIDER, AuthorWork, OpenAlexAuthorClient, ResolvedAuthor
+from integrations.api_cache import get_cached, put_cached
+from integrations.openalex.author import (
+    OPENALEX_WORKS_PROVIDER,
+    AuthorWork,
+    AuthorWorksResult,
+    OpenAlexAuthorClient,
+    OpenAlexAuthorUnavailable,
+    ResolvedAuthor,
+)
 
 
 def _csl(title: str, doi: str | None = None) -> dict:
@@ -66,6 +75,11 @@ class _FakeAuthorClient:
 
     def fetch_author_works(self, conn, author_id, *, refresh=False):
         return self.works
+
+
+class _IncompleteAuthorClient(_FakeAuthorClient):
+    def fetch_author_works_result(self, conn, author_id, *, refresh=False):
+        return AuthorWorksResult(tuple(self.works), complete=False)
 
 
 class _FakeSummaryGen:
@@ -199,6 +213,31 @@ def test_resolver_respects_dismissed_until_forced(temp_db_url):
         set_my_publications_dismissed(conn, True)
         assert resolve_my_publications(conn, author_client=client, force=False)["status"] == "dismissed"
         assert resolve_my_publications(conn, author_client=client, force=True)["status"] == "ok"  # force bypasses
+
+
+def test_incomplete_author_refresh_preserves_existing_memberships(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+        kept = create_paper(conn, title="Engine", csl_json=_csl("Engine", "10.1/engine"), doi="10.1/engine")
+        resolve_my_publications(
+            conn,
+            author_client=_FakeAuthorClient(
+                author=_ADA, works=[AuthorWork(doi="10.1/engine", title="Engine", year=1843)]
+            ),
+            force=True,
+        )
+        before = _members(conn)
+        result = resolve_my_publications(
+            conn,
+            author_client=_IncompleteAuthorClient(
+                author=_ADA, works=[AuthorWork(doi="10.1/partial", title="Partial", year=1844)]
+            ),
+            force=True,
+        )
+        after = _members(conn)
+    assert result["status"] == "refresh-incomplete"
+    assert before == after and after[kept] == CONFIRMED_CONFIDENCE
 
 
 # --- import hook -----------------------------------------------------------------------------------------
@@ -354,14 +393,21 @@ def test_author_client_works_publication_date_parsed_validated_and_cached(temp_d
     assert {w.doi: w.publication_date for w in cached_works} == {"10.1/a": "2020-06-15", "10.1/b": None}
 
 
-def test_author_client_fails_closed(temp_db_url):
+def test_author_client_exact_orcid_failure_does_not_fall_back_to_name(temp_db_url):
     class _Boom:
+        def __init__(self):
+            self.calls = []
+
         def __call__(self, url, *, params, headers, timeout):
+            self.calls.append(url)
             raise RuntimeError("network down")
 
-    client = OpenAlexAuthorClient(fetcher=_Boom())
+    fetcher = _Boom()
+    client = OpenAlexAuthorClient(fetcher=fetcher)
     with make_engine(temp_db_url).begin() as conn:
-        assert client.resolve_author(conn, orcid="0000-x") is None  # never raises
+        with pytest.raises(OpenAlexAuthorUnavailable):
+            client.resolve_author(conn, orcid="0000-x", name="Another Person")
+    assert len(fetcher.calls) == 1
 
 
 def test_author_client_retries_after_a_transient_fetch_failure(temp_db_url):
@@ -383,10 +429,35 @@ def test_author_client_retries_after_a_transient_fetch_failure(temp_db_url):
     client = OpenAlexAuthorClient(fetcher=fetcher)
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
-        assert client.resolve_author(conn, orcid="0000-x") is None  # first attempt: fails closed
+        with pytest.raises(OpenAlexAuthorUnavailable):
+            client.resolve_author(conn, orcid="0000-x")
     with engine.begin() as conn:
         author = client.resolve_author(conn, orcid="0000-x")  # second attempt: retries rather than replaying
     assert author is not None and author.author_id == "A1" and fetcher.calls == 2
+
+
+def test_author_client_partial_page_failure_is_incomplete_and_not_cached(temp_db_url):
+    class _PageThenFailure:
+        def __init__(self):
+            self.calls = 0
+
+        def __call__(self, url, *, params, headers, timeout):
+            self.calls += 1
+            if self.calls == 1:
+                return 200, {
+                    "results": [{"id": "https://openalex.org/W1", "doi": "https://doi.org/10.1/a"}],
+                    "meta": {"next_cursor": "page-2"},
+                }
+            return 503, {"error": "unavailable"}
+
+    fetcher = _PageThenFailure()
+    client = OpenAlexAuthorClient(fetcher=fetcher)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        result = client.fetch_author_works_result(conn, "A1", refresh=True)
+        assert not result.complete and [work.doi for work in result.works] == ["10.1/a"]
+    with engine.begin() as conn:
+        assert get_cached(conn, OPENALEX_WORKS_PROVIDER, "A1") is None
 
 
 # --- endpoints -------------------------------------------------------------------------------------------

@@ -60,7 +60,22 @@ def _resolve_fetch(conn: Connection, *, author_client, force: bool):
         return {"status": "no-match", "name": (profile.get("display_name") or "").strip() or None}, None, []
     # inc 119 (SP3): refresh works on an explicit re-resolve so the cache carries fresh citation counts + the
     # OpenAlex work ids the citing-articles feature needs (an explicit "Refresh" should actually re-fetch).
-    works = author_client.fetch_author_works(conn, author.author_id, refresh=True)
+    result_fetcher = getattr(author_client, "fetch_author_works_result", None)
+    if callable(result_fetcher):
+        result = result_fetcher(conn, author.author_id, refresh=True)
+        if not result.complete:
+            return (
+                {
+                    "status": "refresh-incomplete",
+                    "name": author.display_name or (profile.get("display_name") or "").strip() or None,
+                    "capped": bool(result.capped),
+                },
+                None,
+                [],
+            )
+        works = list(result.works)
+    else:
+        works = author_client.fetch_author_works(conn, author.author_id, refresh=True)
     return None, author, works
 
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from dataclasses import dataclass
 from typing import Any, Protocol
 from urllib.parse import quote
 
@@ -32,6 +33,17 @@ from integrations.openalex.work_meta import (
 
 OPENALEX_BASE_URL = "https://api.openalex.org/works"
 MAX_CITING = 200  # cap on citing works read per paper (inc 137 forward gap; bound + a documented coverage limit)
+
+
+class OpenAlexUnavailableError(RuntimeError):
+    """The provider could not establish a complete answer for a requested OpenAlex lookup."""
+
+
+@dataclass(frozen=True)
+class _WorkFetchResult:
+    work: dict[str, Any] | None
+    state: str  # ok | not_found | unavailable
+
 
 # OpenAlex `oa_status` → our OA color. "closed" (and anything unknown) → None = no authorized OA copy.
 _OA_STATUS_TO_COLOR: dict[str, OaColor] = {
@@ -98,7 +110,17 @@ class OpenAlexClient(FieldSampleMixin):
     def fetch_referenced_works(self, conn: Connection, ref: PaperRef) -> list[str]:
         """The OpenAlex work ids a paper CITES (inc 135 gap-finder) — `referenced_works`, bare `W…` ids, capped.
         Reuses the cached DOI→work fetch; fail-closed (no work / no field → [])."""
-        work = self._fetch_work(conn, ref)
+        try:
+            return self.fetch_referenced_works_strict(conn, ref)
+        except OpenAlexUnavailableError:
+            return []
+
+    def fetch_referenced_works_strict(self, conn: Connection, ref: PaperRef) -> list[str]:
+        """Like ``fetch_referenced_works``, but distinguish provider failure from a complete empty result."""
+        result = self._fetch_work_result(conn, ref)
+        if result.state == "unavailable":
+            raise OpenAlexUnavailableError("OpenAlex referenced-work lookup was unavailable")
+        work = result.work
         if not isinstance(work, dict):
             return []
         out: list[str] = []
@@ -115,29 +137,35 @@ class OpenAlexClient(FieldSampleMixin):
     def fetch_work_meta(self, conn: Connection, work_id: str) -> dict[str, Any] | None:
         """Metadata for one OpenAlex work by its `W…` id (inc 135) — for a gap candidate's title/DOI/authors.
         Validated, cached (`work:<id>`), fail-closed → None."""
+        try:
+            return self.fetch_work_meta_strict(conn, work_id)
+        except OpenAlexUnavailableError:
+            return None
+
+    def fetch_work_meta_strict(self, conn: Connection, work_id: str) -> dict[str, Any] | None:
+        """Fetch one work while preserving unavailable versus complete-not-found semantics."""
         if not re.fullmatch(r"W\d+", work_id or ""):
             return None
         cache_key = f"work:{work_id}"
         cached = _cached_response(conn, cache_key)
         if cached is not None:
             status = int(cached["status_code"]) if cached["status_code"] is not None else None
-            return _meta_from_work(cached["response_json"]) if status == 200 else None
+            if status == 200:
+                return _meta_from_work(cached["response_json"])
+            if status == 404:
+                return None
+            raise OpenAlexUnavailableError(f"cached OpenAlex work lookup is unavailable (HTTP {status})")
         try:
             status, body = self.fetcher(
                 f"/{work_id}", params=self._polite_params(), headers=self._headers(), timeout=self.timeout
             )
-        except Exception:
-            self._store(
-                conn,
-                cache_key,
-                request_json={"work_id": work_id},
-                response_json={"error": "fetch failed"},
-                status_code=None,
-            )
+        except Exception as exc:
+            raise OpenAlexUnavailableError("OpenAlex work lookup failed") from exc
+        if status == 404:
             return None
-        self._store(conn, cache_key, request_json={"work_id": work_id}, response_json=body, status_code=status)
         if status != 200 or not isinstance(body, dict):
-            return None
+            raise OpenAlexUnavailableError(f"OpenAlex work lookup returned HTTP {status}")
+        self._store(conn, cache_key, request_json={"work_id": work_id}, response_json=body, status_code=status)
         return _meta_from_work(body)
 
     def fetch_work_meta_for(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
@@ -215,38 +243,45 @@ class OpenAlexClient(FieldSampleMixin):
     def lookup_retraction(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
         """Read OpenAlex's `is_retracted` boolean for a work (inc 131). Thin (a boolean, no notice detail) —
         corroboration + coverage alongside Crossref. Returns `{"status": "retracted"}` or None; never raises."""
-        work = self._fetch_work(conn, ref)
+        result = self._fetch_work_result(conn, ref)
+        if result.state == "unavailable":
+            raise OpenAlexUnavailableError("OpenAlex retraction lookup was unavailable")
+        work = result.work
         if isinstance(work, dict) and work.get("is_retracted") is True:
             return {"status": "retracted"}
         return None
 
     def _fetch_work(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
+        return self._fetch_work_result(conn, ref).work
+
+    def _fetch_work_result(self, conn: Connection, ref: PaperRef) -> _WorkFetchResult:
         path, params, cache_key = _endpoint_for(ref)
         if path is None:
-            return None
+            return _WorkFetchResult(None, "not_found")
         cached = _cached_response(conn, cache_key)
         if cached is not None:
             status = int(cached["status_code"]) if cached["status_code"] is not None else None
-            return _work_from_body(cached["response_json"]) if status == 200 else None
+            if status == 200:
+                work = _work_from_body(cached["response_json"])
+                return _WorkFetchResult(work, "ok" if work is not None else "not_found")
+            if status == 404:
+                return _WorkFetchResult(None, "not_found")
+            return _WorkFetchResult(None, "unavailable")
         try:
             status, body = self.fetcher(
                 path, params={**params, **self._polite_params()}, headers=self._headers(), timeout=self.timeout
             )
-        except Exception as exc:  # fail closed — never raise to the caller
-            self._store(
-                conn,
-                cache_key,
-                request_json={"path": path, "params": params},
-                response_json={"error": str(exc)},
-                status_code=None,
-            )
-            return None
+        except Exception:
+            return _WorkFetchResult(None, "unavailable")
+        if status == 404:
+            return _WorkFetchResult(None, "not_found")
+        if status != 200 or not isinstance(body, dict):
+            return _WorkFetchResult(None, "unavailable")
+        work = _work_from_body(body)
         self._store(
             conn, cache_key, request_json={"path": path, "params": params}, response_json=body, status_code=status
         )
-        if status != 200 or not isinstance(body, dict):
-            return None
-        return _work_from_body(body)
+        return _WorkFetchResult(work, "ok" if work is not None else "not_found")
 
     def _polite_params(self) -> dict[str, str]:
         return {"mailto": self.mailto} if self.mailto else {}

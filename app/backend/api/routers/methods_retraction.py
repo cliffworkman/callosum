@@ -226,7 +226,7 @@ def _run_retraction_all_job(app: FastAPI, job_id: str) -> None:
                 jobs.mark_progress(job_id, total, len(ids), "Checking retractions")
                 continue
             jobs.mark_progress(job_id, total, len(ids), "Checking retractions")
-            if outcome.status_kind != "unchecked":
+            if outcome.status_kind not in {"unchecked", "unavailable"}:
                 checked += 1
             if outcome.merged is not None and outcome.merged.status == "retracted":
                 flagged += 1
