@@ -1,11 +1,13 @@
 # Local AI reliability audit — handoff to Codex for review (2026-09-01)
 
-Written by Claude at the end of increment 557, **updated after increment 558** closed out several of this
-document's own "still open" items before Codex ever picked it up — see the update note right before "Smaller
-items" below. Cliff's framing for this handoff, verbatim: **"I figure we will ping-pong like that until
-everything is resolved"** — this is a review-and-continue-fixing request, not a "here's what's left, go build
-it" handoff. Your job is to look for anything this pass got wrong, missed, or introduced, fix what's cheap,
-and report back the same way (a findings list + what you fixed) so the cycle can continue.
+Written by Claude at the end of increment 557, **updated after increments 558, 559, and 560** — three
+same-day follow-ups that closed several of this document's own "still open" items, plus two full Wave 3
+items, before Codex ever picked it up. See the UPDATE notes below (search this document for "UPDATE" — there
+are two, one after 558 and one after 560). Cliff's framing for this handoff, verbatim: **"I figure we will
+ping-pong like that until everything is resolved"** — this is a review-and-continue-fixing request, not a
+"here's what's left, go build it" handoff. Your job is to look for anything this pass got wrong, missed, or
+introduced, fix what's cheap, and report back the same way (a findings list + what you fixed) so the cycle
+can continue.
 
 ## READ FIRST — do not re-derive this
 
@@ -16,14 +18,14 @@ and report back the same way (a findings list + what you fixed) so the cycle can
    6-fork pass + your independent pass, already merged) that this whole fix arc is answering. Read this in
    full before reading the increment notes below; it has the original findings, measured character envelopes,
    and the combined remediation plan (Wave 1/2/3) this handoff refers to by name.
-3. **`.claude/docs/increment-notes/INCREMENT-557-NOTES.md`** — what actually got fixed this pass, file by
-   file. This handoff summarizes it; the increment notes have the real detail.
-4. **`.claude/docs/increment-notes/INCREMENT-558-NOTES.md`** — the same-day follow-up that closed 4 of this
-   document's originally-listed open items before you ever picked it up. See the UPDATE note below.
-5. **The three commits that preceded the audit** (`35fe406`, `555627b`, `479fa85`) — the two live bugs found
+3. **`.claude/docs/increment-notes/INCREMENT-{557,558,559,560}-NOTES.md`**, in order — what actually got fixed
+   each pass, file by file. This handoff summarizes them; the increment notes have the real detail. 559 and
+   560 are the two Wave 3 items already closed (cache-identity restart-persistence; auxiliary-model revision
+   pinning) — don't re-attempt either.
+4. **The three commits that preceded the audit** (`35fe406`, `555627b`, `479fa85`) — the two live bugs found
    pre-audit (Synthesize/Ask, single-paper Critical Review) that established the fix template every other site
    in this pass follows. `git show` them if you want the exact diff shape.
-6. **Commits `2ba735a` and `dbb3562`** — the two CI-only fixes needed to get 557 fully green (demo-experience
+5. **Commits `2ba735a` and `dbb3562`** — the two CI-only fixes needed to get 557 fully green (demo-experience
    drift-gate refresh; the three-layer qualification-battery re-freeze). Read `dbb3562` in particular before
    touching `app/backend/llm/providers.py` again — see the UPDATE note below for why.
 
@@ -86,17 +88,30 @@ is your first job, before reviewing anything else.
 ## What's deliberately NOT touched — Wave 3, deferred on purpose
 
 Your own report explicitly warned the DB-transaction fix needs snapshot/version/CAS semantics, not a naive
-reorder — this pass didn't attempt it, or the other three Wave 3 items:
+reorder. Status as of increment 560 (two of the four items have since been closed — see the UPDATE note below
+for the full detail; this list is kept as the original framing for context):
 
 1. **DB-transaction findings** — primary synthesis, both Critical Review paths, Workbench, and analytic
-   flexibility all still hold a DB connection/transaction across the LLM call. Needs its own design pass; the
-   project's own `.claude/LATENCY.md` already treats the synthesis case as known technical debt.
-2. **Local AI cache-identity redesign** — the cache still keys on the per-launch credential/port, so a
-   semantically-identical Local AI request never hits cache across a restart. Not touched.
-3. **Auxiliary embedding/NLI/SPECTER model layer** — hidden first-use download, unpinned revisions, no
-   progress/ETA. This was your finding alone (outside Claude's original 6-wave scope); still fully open.
-4. **Cross-provider output-cap/sampling-parameter standardization** — Gemini/OpenAI still have no explicit
-   cap; Anthropic is still hardcoded to 2048; only managed Local AI has task-aware caps. Not touched.
+   flexibility all still hold a DB connection/transaction across the LLM call. **Still fully open** — needs its
+   own design pass; the project's own `.claude/LATENCY.md` already treats the synthesis case as known technical
+   debt. This is the one Wave 3 item nobody has attempted yet, and the riskiest by far.
+2. ~~**Local AI cache-identity redesign**~~ — **CLOSED, increment 559.** `ManagedLocalTarget.
+   stable_identity_fingerprint()` + `GenerationCacheIdentity.from_config()` now key managed_local's cache
+   identity off model/runtime/param digests instead of the per-launch endpoint/credential.
+3. **Auxiliary embedding/NLI/SPECTER model layer** — **partially closed, increment 560**: revision pinning is
+   done (`PINNED_MODEL_REVISIONS` in `model_runtime.py`). **Still open**: first-use download progress/ETA (no
+   Status-popover entry today) and a friendlier failure when a `local_files_only=True` call site hits a cold
+   cache — both explicitly UI-touching, larger pieces of work, documented as deferred in
+   `INCREMENT-560-NOTES.md`.
+4. **Cross-provider output-cap/sampling-parameter standardization** — **still open, deliberately not
+   attempted.** Gemini/OpenAI still have no explicit cap; Anthropic is still hardcoded to 2048; only managed
+   Local AI has task-aware caps. The reason this one was skipped rather than just being smaller-scoped like
+   item 3: fixing it means editing `app/backend/llm/providers.py` (the request-building code for every wire
+   format), which is one of the 10 files frozen by the `synthesis-overview-v1` qualification study — see the
+   UPDATE note above about the three-layer re-freeze cost. Given the audit's own framing of this item as "not
+   a crash risk," the re-freeze overhead didn't seem worth it for a consistency nicety in this pass — but it's
+   a legitimate item if you want to pick it up; just budget for the re-freeze cycle (commits `2ba735a`/
+   `dbb3562` show exactly how).
 
 ## UPDATE (increment 558) — several items below are now CLOSED, before you ever picked this up
 
