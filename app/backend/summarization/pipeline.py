@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
-from sqlalchemy import Connection, func, insert, select
+from sqlalchemy import Connection, Engine, func, insert, select
 
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.pipeline import embed_chunks
@@ -86,7 +86,7 @@ class SummaryPersistenceResult:
 
 
 def summarize_scope(
-    conn: Connection,
+    engine: Engine,
     *,
     scope: SummaryScope,
     generator: SummaryGenerator,
@@ -99,81 +99,96 @@ def summarize_scope(
     on_progress: Callable[[int, int, str], None] | None = None,
     on_stage: Callable[[str, str, int | None, bool], None] | None = None,
 ) -> SummaryPersistenceResult:
+    """Three phases, each opening its own short connection -- no connection or writer lock is held
+    across the (potentially slow, up to ~600s) generation call in between (LATENCY.md). Phase 1
+    (prepare) and Phase 3 (verify + persist) are separate transactions; Phase 3 re-reads every
+    source chunk fresh before verification so a chunk mutated during Phase 2 (a concurrent
+    re-extraction, for instance) can never leave stale-vs-fresh verification signals inconsistent
+    with each other or with the persisted provenance (see ``_refresh_source_chunks``). No
+    ``summaries`` row is created until generation + verification have both succeeded -- a failed
+    attempt leaves nothing behind, exactly as before this restructure.
+    """
     if on_stage is not None:
         on_stage("preparing_sources", "Preparing sources", None, False)
-    source_chunks = _source_chunks_for_scope(conn, scope=scope, model=model, vector_store=vector_store, top_k=top_k)
-    # Pass conn so the cache wrapper can read/write llm_cache on this same transaction (a second SQLite
-    # connection mid-transaction would lock). Verification below runs on every result, cached or fresh.
+    with engine.begin() as conn:
+        source_chunks = _source_chunks_for_scope(conn, scope=scope, model=model, vector_store=vector_store, top_k=top_k)
+
+    # Phase 2: the generator (its cache-wrapper layer specifically) manages its own short
+    # connections around this call and holds none of them open during it -- see cache.py.
     if on_stage is not None:
         on_stage("generating_synthesis", "Generating synthesis", len(source_chunks), True)
-    candidates = generator.generate(source_chunks=source_chunks, scope_ref=scope.to_ref(), conn=conn)
-    verifier = LocalCitationVerifier(
-        model=model,
-        vector_store=vector_store,
-        config=verifier_config,
-        support_scorer=support_scorer,
-    )
-    # inc 408: real per-claim progress for the ONE genuinely instrumentable stage. Retrieval + generation above
-    # stay un-instrumented on purpose — the LLM call is a single opaque blocking request with no sub-progress
-    # signal, and a cache hit would make a naive elapsed-time ETA misleading — so `on_progress` is only ever
-    # called here, once N (the candidate count) is known.
-    # inc 418: every (candidate, citation) pair across the WHOLE summary is verified in ONE verify_many() call
-    # (one batched embedding-encode + one batched NLI call) instead of one verify() call per citation — same
-    # per-item logic and thresholds, just batched. Results are unzipped back into their per-candidate rows before
-    # on_progress fires, so the reported sequence is unchanged: still exactly one call per candidate, in order.
-    total_candidates = len(candidates)
-    flat_items: list[tuple[str, CandidateCitation]] = [
-        (candidate.text, citation) for candidate in candidates for citation in candidate.citations
-    ]
-    if on_stage is not None:
-        on_stage("verifying_citations", "Verifying citations", len(flat_items), False)
-    flat_results = verifier.verify_many(conn, items=flat_items, source_chunks=source_chunks)
-    verification_rows: list[list[VerificationResult]] = []
-    cursor = 0
-    for index, candidate in enumerate(candidates, start=1):
-        count = len(candidate.citations)
-        verification_rows.append(flat_results[cursor : cursor + count])
-        cursor += count
-        if on_progress is not None:
-            on_progress(index, total_candidates, "Verifying claim")
-    summary_status = (
-        "verified" if all(all(item.verified for item in row) and row for row in verification_rows) else "flagged"
-    )
-    overview_status = (
-        "pending"
-        if overview_requested and any(row and all(item.verified for item in row) for row in verification_rows)
-        else "not_requested"
-    )
-    if on_stage is not None:
-        on_stage("finalizing_result", "Finalizing result", len(candidates), False)
-    summary_id = _insert_summary(
-        conn,
-        scope=scope,
-        content=" ".join(candidate.text for candidate in candidates),
-        generated_by=generator.name,
-        verifications=[item for row in verification_rows for item in row],
-        source_chunk_count=len(source_chunks),
-        status=summary_status,
-        overview_status=overview_status,
-    )
-    sentence_results = []
-    for ordinal, (candidate, verifications) in enumerate(zip(candidates, verification_rows, strict=False)):
-        sentence_id = conn.execute(
-            insert(summary_sentences).values(summary_id=summary_id, ordinal=ordinal, text=candidate.text)
-        ).inserted_primary_key[0]
-        citation_results = [
-            _persist_verification(conn, sentence_id=int(sentence_id), verification=verification)
-            for verification in verifications
-        ]
-        sentence_results.append(
-            SummarySentencePersistenceResult(
-                sentence_id=int(sentence_id),
-                ordinal=ordinal,
-                text=candidate.text,
-                flagged=not citation_results or any(result.status != "verified" for result in citation_results),
-                citations=citation_results,
-            )
+    candidates = generator.generate(source_chunks=source_chunks, scope_ref=scope.to_ref(), engine=engine)
+
+    with engine.begin() as conn:
+        fresh_source_chunks = _refresh_source_chunks(conn, source_chunks)
+        verifier = LocalCitationVerifier(
+            model=model,
+            vector_store=vector_store,
+            config=verifier_config,
+            support_scorer=support_scorer,
         )
+        # inc 408: real per-claim progress for the ONE genuinely instrumentable stage. Retrieval + generation
+        # above stay un-instrumented on purpose — the LLM call is a single opaque blocking request with no
+        # sub-progress signal, and a cache hit would make a naive elapsed-time ETA misleading — so `on_progress`
+        # is only ever called here, once N (the candidate count) is known.
+        # inc 418: every (candidate, citation) pair across the WHOLE summary is verified in ONE verify_many() call
+        # (one batched embedding-encode + one batched NLI call) instead of one verify() call per citation — same
+        # per-item logic and thresholds, just batched. Results are unzipped back into their per-candidate rows
+        # before on_progress fires, so the reported sequence is unchanged: still exactly one call per candidate,
+        # in order.
+        total_candidates = len(candidates)
+        flat_items: list[tuple[str, CandidateCitation]] = [
+            (candidate.text, citation) for candidate in candidates for citation in candidate.citations
+        ]
+        if on_stage is not None:
+            on_stage("verifying_citations", "Verifying citations", len(flat_items), False)
+        flat_results = verifier.verify_many(conn, items=flat_items, source_chunks=fresh_source_chunks)
+        verification_rows: list[list[VerificationResult]] = []
+        cursor = 0
+        for index, candidate in enumerate(candidates, start=1):
+            count = len(candidate.citations)
+            verification_rows.append(flat_results[cursor : cursor + count])
+            cursor += count
+            if on_progress is not None:
+                on_progress(index, total_candidates, "Verifying claim")
+        summary_status = (
+            "verified" if all(all(item.verified for item in row) and row for row in verification_rows) else "flagged"
+        )
+        overview_status = (
+            "pending"
+            if overview_requested and any(row and all(item.verified for item in row) for row in verification_rows)
+            else "not_requested"
+        )
+        if on_stage is not None:
+            on_stage("finalizing_result", "Finalizing result", len(candidates), False)
+        summary_id = _insert_summary(
+            conn,
+            scope=scope,
+            content=" ".join(candidate.text for candidate in candidates),
+            generated_by=generator.name,
+            verifications=[item for row in verification_rows for item in row],
+            source_chunk_count=len(source_chunks),
+            status=summary_status,
+            overview_status=overview_status,
+        )
+        sentence_results = []
+        for ordinal, (candidate, verifications) in enumerate(zip(candidates, verification_rows, strict=False)):
+            sentence_id = conn.execute(
+                insert(summary_sentences).values(summary_id=summary_id, ordinal=ordinal, text=candidate.text)
+            ).inserted_primary_key[0]
+            citation_results = [
+                _persist_verification(conn, sentence_id=int(sentence_id), verification=verification)
+                for verification in verifications
+            ]
+            sentence_results.append(
+                SummarySentencePersistenceResult(
+                    sentence_id=int(sentence_id),
+                    ordinal=ordinal,
+                    text=candidate.text,
+                    flagged=not citation_results or any(result.status != "verified" for result in citation_results),
+                    citations=citation_results,
+                )
+            )
     return SummaryPersistenceResult(
         summary_id=summary_id,
         status=summary_status,
@@ -181,6 +196,36 @@ def summarize_scope(
         source_chunk_count=len(source_chunks),
         section_filter=scope.sections or [],
     )
+
+
+def _refresh_source_chunks(conn: Connection, source_chunks: list[SourceChunk]) -> list[SourceChunk]:
+    """Re-read the given chunks fresh, immediately before verification (Phase 3).
+
+    Closes a staleness gap: verification must never check a citation's quote/version against a
+    retrieval-time (Phase 1) in-memory snapshot that could have gone stale during however long
+    generation (Phase 2, a possibly slow provider call) took. A chunk that no longer qualifies
+    (deleted, or its paper trashed, in the interim) is simply dropped from the fresh set -- any
+    citation that pointed at it falls through to ``LocalCitationVerifier``'s own existing
+    fresh-point-read fallback for a chunk id outside the pool, which fails the whole attempt
+    honestly (a clean rollback, surfaced as a job error) if the chunk is truly gone, rather than
+    fabricating a result against phantom data. A no-op in the common case: nothing changed between
+    Phase 1 and Phase 3.
+    """
+    if not source_chunks:
+        return []
+    ids = [chunk.chunk_id for chunk in source_chunks]
+    live_papers = select(papers.c.id).where(papers.c.deleted_at.is_(None))
+    stmt = (
+        select(chunks)
+        .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
+        .where(
+            chunks.c.id.in_(ids),
+            chunks.c.paper_id.in_(live_papers),
+            attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES),
+        )
+    )
+    fresh_by_id = {int(row["id"]): _source_chunk_from_row(row) for row in conn.execute(stmt).mappings()}
+    return [fresh_by_id[chunk_id] for chunk_id in ids if chunk_id in fresh_by_id]
 
 
 def _source_chunks_for_scope(

@@ -190,11 +190,11 @@
     }
   },
   "review": {
-    "reviewed_at": "2026-09-01",
-    "reviewed_rev": "7190d3d",
-    "reviewed_increment": 559,
-    "source_fingerprint": "dea9f244d7a31189abc4269ff825f238af85d03a280219459c6a62100c1d9693",
-    "note": "Reviewed incs 558-559: workbench_assist.py's page_tagged_text truncation fix, critical_review_triage.py's candidate_ids request-size bound, and the Local AI cache-identity restart-persistence fix (cache.py/managed_local.py). All are internal reliability/consistency fixes for real LLM-provider request handling and caching -- the backend-free static demo never calls a real provider or the summary cache (it replays captured snapshots), so no demo capability, route, or captured response changed.",
+    "reviewed_at": "2026-09-02",
+    "reviewed_rev": "bdb82c8",
+    "reviewed_increment": 561,
+    "source_fingerprint": "0e6ea71c8076b088d65fcab499656e7b60905cef9437cadec26aec0e6232a3e7",
+    "note": "Inc 561: summaries.py's only change is internal transaction-boundary plumbing (summarize_scope now takes an Engine and manages its own connections; the with-engine.begin() wrapper at the _run_summarize_job call site was removed). No request/response contract, endpoint behavior, or demo-relevant capability changed.",
     "declined_at": null,
     "declined_rev": null,
     "declined_increment": null,

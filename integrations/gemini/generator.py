@@ -13,7 +13,7 @@ from app.backend.llm.usage import log_usage
 from app.backend.summarization.generators import CandidateCitation, CandidateSummarySentence, SourceChunk
 
 if TYPE_CHECKING:
-    from sqlalchemy import Connection
+    from sqlalchemy import Engine
 
     from app.backend.provider_runtime import ProviderClientRuntime
 
@@ -117,7 +117,7 @@ class GeminiSummaryGenerator:
         *,
         source_chunks: list[SourceChunk],
         scope_ref: dict[str, object],
-        conn: "Connection | None" = None,  # caching is handled by the wrapper; the provider ignores it
+        engine: "Engine | None" = None,  # caching is handled by the wrapper; the provider ignores it
     ) -> list[CandidateSummarySentence]:
         from app.backend.llm.providers import complete, requires_egress
 

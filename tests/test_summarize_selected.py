@@ -106,7 +106,7 @@ class CapturingSummaryGenerator:
         self.sentences = sentences
         self.captured = None
 
-    def generate(self, *, source_chunks, scope_ref, conn=None):
+    def generate(self, *, source_chunks, scope_ref, engine=None):
         self.captured = list(source_chunks)
         return list(self.sentences)
 

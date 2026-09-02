@@ -293,7 +293,7 @@ def test_complete_redacts_the_key_from_provider_errors(monkeypatch: pytest.Monke
 class _FakeSum:
     name = "fake"
 
-    def generate(self, *, source_chunks, scope_ref, conn=None):
+    def generate(self, *, source_chunks, scope_ref, engine=None):
         return ["delegated"]
 
 

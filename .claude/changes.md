@@ -9,6 +9,28 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-02 — Increment 561: primary-synthesis DB-transaction/CAS redesign (Wave 3 item)
+- Closes the last open Wave 3 item from the LLM provider-integration audit — designed properly in Plan
+  Mode per the user's explicit choice, not a mechanical patch. `summarize_scope` (`pipeline.py`) now
+  takes a bare `Engine` and runs 3 phases, each its own short transaction: prepare (retrieval), generate
+  (zero DB connection held during the — potentially ~600s — provider call; the connection-vs-engine
+  split lives inside `CachedSummaryGenerator.generate`, preserving the existing egress-checked-before-
+  cache-checked order), verify+persist (a new `_refresh_source_chunks` re-reads every chunk fresh right
+  before verification, closing a real staleness gap where quote-matching could use retrieval-time text
+  while the embedding step used fresh text).
+- Fixes two concrete bugs: (1) two concurrent synthesis jobs could lock each other out via SQLite's 5s
+  `busy_timeout` since the writer lock was held for the whole pipeline including the slow provider call;
+  (2) a chunk mutated (e.g. re-extracted) between retrieval and verification could leave the persisted
+  `chunk_version_verified_against` provenance disagreeing with what was actually verified.
+- No schema migration — unlike the Overview lifecycle (inc 494) this is modeled on, primary synthesis
+  has no multi-caller race to defend against (each job creates a brand-new row), so no CAS claim state
+  was needed.
+- Found and fixed a real pre-existing bug along the way: `tools/validation_harness.py` wrapped PDF
+  ingestion and the summarization probe in one still-open transaction, which the new Phase 1 (a fresh
+  connection that can't see uncommitted work on a different one) exposed.
+- Two new regression tests prove both fixes directly, including a verified-to-discriminate staleness
+  test (confirmed to fail without the fix before restoring it). See `INCREMENT-561-NOTES.md`.
+
 ## 2026-09-01 — Increment 560: pin auxiliary local-model revisions (Wave 3 item, partial)
 - `PINNED_MODEL_REVISIONS` (`model_runtime.py`) pins the exact Hub revision for the 3 fixed-name auxiliary
   models (`all-MiniLM-L6-v2`, `cross-encoder/nli-MiniLM2-L6-H768`, `sentence-transformers/allenai-specter`),

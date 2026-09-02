@@ -8,8 +8,11 @@ serves stale verification. Persisted in SQLite (``llm_cache``), so savings survi
 
 ``CachedSummaryGenerator`` is the seam wrapper for the summary path. It is layered INSIDE the egress gate
 (``EgressGated(Cached(real))``) so the egress gate's behavior is unchanged — egress-off errors before the
-cache is consulted. It uses the pipeline's existing ``conn`` (threaded into ``generate``); a second SQLite
-connection mid-transaction would lock, so caching is skipped (pass-through) when ``conn`` is None.
+cache is consulted. It takes an ``engine`` (inc "primary-synthesis transaction boundary" redesign) and opens
+its own short-lived connections around the cache read and the cache write, holding NONE of them open across
+the (potentially slow, remote) generation call in between — mirroring the Overview lifecycle's own
+claim/release/call/persist shape (``overview_lifecycle.py``, LATENCY.md). Caching is skipped (pass-through,
+no caching) when ``engine`` is None.
 """
 
 from __future__ import annotations
@@ -31,7 +34,7 @@ from app.backend.summarization.generators import (
 )
 
 if TYPE_CHECKING:
-    from sqlalchemy import Connection
+    from sqlalchemy import Connection, Engine
 
 SUMMARY_CACHE_NAMESPACE = "summary"
 SUMMARY_CACHE_KEY_SCHEMA = "summary-generation-v2"
@@ -205,9 +208,9 @@ class CachedSummaryGenerator:
         *,
         source_chunks: list[SourceChunk],
         scope_ref: dict[str, object],
-        conn: "Connection | None" = None,
+        engine: "Engine | None" = None,
     ) -> list[CandidateSummarySentence]:
-        if conn is None:
+        if engine is None:
             return self.inner.generate(source_chunks=source_chunks, scope_ref=scope_ref)
         cache_signature = self.cache_signature
         key = summary_generation_input_hash(
@@ -215,20 +218,25 @@ class CachedSummaryGenerator:
             source_chunks=source_chunks,
             scope_ref=scope_ref,
         )
-        cached = llm_cache_get(conn, namespace=SUMMARY_CACHE_NAMESPACE, input_hash=key)
+        # The connection closes before the (possibly slow, remote) call below -- SQLAlchemy's implicit
+        # transaction must not retain a SQLite connection or writer lock during provider latency (LATENCY.md).
+        with engine.connect() as conn:
+            cached = llm_cache_get(conn, namespace=SUMMARY_CACHE_NAMESPACE, input_hash=key)
         if cached is not None:
             try:
                 return _deserialize_candidates(cached)
             except (KeyError, TypeError, ValueError):
-                llm_cache_delete(conn, namespace=SUMMARY_CACHE_NAMESPACE, input_hash=key)
+                with engine.begin() as conn:
+                    llm_cache_delete(conn, namespace=SUMMARY_CACHE_NAMESPACE, input_hash=key)
         result = self.inner.generate(source_chunks=source_chunks, scope_ref=scope_ref)
-        llm_cache_set(
-            conn,
-            namespace=SUMMARY_CACHE_NAMESPACE,
-            input_hash=key,
-            signature=persisted_generation_signature(cache_signature),
-            output=_serialize_candidates(result),
-        )
+        with engine.begin() as conn:
+            llm_cache_set(
+                conn,
+                namespace=SUMMARY_CACHE_NAMESPACE,
+                input_hash=key,
+                signature=persisted_generation_signature(cache_signature),
+                output=_serialize_candidates(result),
+            )
         return result
 
 

@@ -56,27 +56,28 @@ def test_verified_sentence_persists_full_trust_spine_with_coordinates(tmp_path: 
 
     with engine.begin() as conn:
         fixture = _ingest_summary_fixture(conn, tmp_path)
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text="Alpha beta evidence supports the claim.",
-                    citations=[
-                        CandidateCitation(
-                            chunk_id=fixture["alpha_chunk_id"],
-                            quote="Alpha beta evidence supports the claim.",
-                        )
-                    ],
-                )
-            ]
-        )
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=EmbeddingSupportScorer(model),
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="Alpha beta evidence supports the claim.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=fixture["alpha_chunk_id"],
+                        quote="Alpha beta evidence supports the claim.",
+                    )
+                ],
+            )
+        ]
+    )
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=EmbeddingSupportScorer(model),
+    )
+    with engine.connect() as conn:
         summary_row = conn.execute(select(summaries).where(summaries.c.id == result.summary_id)).mappings().one()
         sentence_rows = list(conn.execute(select(summary_sentences)).mappings())
         mapping_row = conn.execute(select(citation_mappings)).mappings().one()
@@ -109,27 +110,28 @@ def test_missing_claimed_quote_is_flagged_and_not_verified(tmp_path: Path) -> No
 
     with engine.begin() as conn:
         fixture = _ingest_summary_fixture(conn, tmp_path)
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text="Alpha beta evidence supports the claim.",
-                    citations=[
-                        CandidateCitation(
-                            chunk_id=fixture["alpha_chunk_id"],
-                            quote="This quote is not in the cited chunk.",
-                        )
-                    ],
-                )
-            ]
-        )
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=EmbeddingSupportScorer(model),
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="Alpha beta evidence supports the claim.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=fixture["alpha_chunk_id"],
+                        quote="This quote is not in the cited chunk.",
+                    )
+                ],
+            )
+        ]
+    )
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=EmbeddingSupportScorer(model),
+    )
+    with engine.connect() as conn:
         mapping_row = conn.execute(select(citation_mappings)).mappings().one()
         quote_row = conn.execute(select(evidence_quotes)).mappings().one()
 
@@ -159,27 +161,28 @@ def test_quote_present_in_chunk_but_not_exactly_located_verifies_with_region_coo
     with engine.begin() as conn:
         fixture = _ingest_summary_fixture(conn, tmp_path)
         chunk_row = conn.execute(select(chunks).where(chunks.c.id == fixture["alpha_chunk_id"])).mappings().one()
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text="Alpha beta evidence supports the claim.",
-                    citations=[
-                        CandidateCitation(
-                            chunk_id=fixture["alpha_chunk_id"],
-                            quote="Alpha beta evidence supports the claim.",
-                        )
-                    ],
-                )
-            ]
-        )
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=EmbeddingSupportScorer(model),
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="Alpha beta evidence supports the claim.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=fixture["alpha_chunk_id"],
+                        quote="Alpha beta evidence supports the claim.",
+                    )
+                ],
+            )
+        ]
+    )
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=EmbeddingSupportScorer(model),
+    )
+    with engine.connect() as conn:
         mapping_row = conn.execute(select(citation_mappings)).mappings().one()
         quote_row = conn.execute(select(evidence_quotes)).mappings().one()
 
@@ -212,29 +215,30 @@ def test_missing_attachment_file_does_not_abort_synthesis_verification(tmp_path:
                 select(attachments.c.resolved_path).where(attachments.c.paper_id == fixture["paper_id"])
             ).scalar_one()
         )
-        attachment_path.unlink()
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text="Alpha beta evidence supports the claim.",
-                    citations=[
-                        CandidateCitation(
-                            chunk_id=fixture["alpha_chunk_id"],
-                            quote="Alpha beta evidence supports the claim.",
-                        )
-                    ],
-                )
-            ]
-        )
+    attachment_path.unlink()
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="Alpha beta evidence supports the claim.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=fixture["alpha_chunk_id"],
+                        quote="Alpha beta evidence supports the claim.",
+                    )
+                ],
+            )
+        ]
+    )
 
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=EmbeddingSupportScorer(model),
-        )
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=EmbeddingSupportScorer(model),
+    )
+    with engine.connect() as conn:
         quote_row = conn.execute(select(evidence_quotes)).mappings().one()
 
     assert result.status == "verified"
@@ -251,27 +255,28 @@ def test_tolerant_quote_precheck_still_rejects_altered_quote(tmp_path: Path) -> 
 
     with engine.begin() as conn:
         fixture = _ingest_summary_fixture(conn, tmp_path)
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text="Alpha beta evidence supports the claim.",
-                    citations=[
-                        CandidateCitation(
-                            chunk_id=fixture["alpha_chunk_id"],
-                            quote="Alpha beta evidence supports a fabricated claim.",
-                        )
-                    ],
-                )
-            ]
-        )
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=EmbeddingSupportScorer(model),
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="Alpha beta evidence supports the claim.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=fixture["alpha_chunk_id"],
+                        quote="Alpha beta evidence supports a fabricated claim.",
+                    )
+                ],
+            )
+        ]
+    )
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=EmbeddingSupportScorer(model),
+    )
+    with engine.connect() as conn:
         quote_row = conn.execute(select(evidence_quotes)).mappings().one()
 
     assert result.status == "flagged"
@@ -302,27 +307,28 @@ def test_quote_not_in_chunk_still_fails_even_if_pdf_locator_would_find_it(
 
     with engine.begin() as conn:
         fixture = _ingest_summary_fixture(conn, tmp_path)
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text="Alpha beta evidence supports the claim.",
-                    citations=[
-                        CandidateCitation(
-                            chunk_id=fixture["alpha_chunk_id"],
-                            quote="Alpha beta evidence supports a fabricated claim.",
-                        )
-                    ],
-                )
-            ]
-        )
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=EmbeddingSupportScorer(model),
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="Alpha beta evidence supports the claim.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=fixture["alpha_chunk_id"],
+                        quote="Alpha beta evidence supports a fabricated claim.",
+                    )
+                ],
+            )
+        ]
+    )
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=EmbeddingSupportScorer(model),
+    )
+    with engine.connect() as conn:
         quote_row = conn.execute(select(evidence_quotes)).mappings().one()
 
     assert result.status == "flagged"
@@ -352,22 +358,23 @@ def test_hyphenated_faithful_chunk_quote_round_trips_to_pdf_coordinates(tmp_path
             int(fixture["attachment_id"]),
             "this quotation is completely fabricated",
         )
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text="The passage describes brain functioning in beautiful faces and people.",
-                    citations=[CandidateCitation(chunk_id=int(fixture["chunk_id"]), quote=quote)],
-                )
-            ]
-        )
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[int(fixture["paper_id"])]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=EmbeddingSupportScorer(model),
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="The passage describes brain functioning in beautiful faces and people.",
+                citations=[CandidateCitation(chunk_id=int(fixture["chunk_id"]), quote=quote)],
+            )
+        ]
+    )
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[int(fixture["paper_id"])]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=EmbeddingSupportScorer(model),
+    )
+    with engine.connect() as conn:
         quote_row = conn.execute(select(evidence_quotes)).mappings().one()
         chunk_text = conn.execute(select(chunks.c.text).where(chunks.c.id == fixture["chunk_id"])).scalar_one()
 
@@ -399,27 +406,28 @@ def test_claim_passes_quote_but_fails_support_and_retrieval(tmp_path: Path) -> N
 
     with engine.begin() as conn:
         fixture = _ingest_summary_fixture(conn, tmp_path)
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text="Alpha beta evidence supports the claim.",
-                    citations=[
-                        CandidateCitation(
-                            chunk_id=fixture["banana_chunk_id"],
-                            quote="Banana orchard material is unrelated.",
-                        )
-                    ],
-                )
-            ]
-        )
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=EmbeddingSupportScorer(model),
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="Alpha beta evidence supports the claim.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=fixture["banana_chunk_id"],
+                        quote="Banana orchard material is unrelated.",
+                    )
+                ],
+            )
+        ]
+    )
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=EmbeddingSupportScorer(model),
+    )
+    with engine.connect() as conn:
         mapping_row = conn.execute(select(citation_mappings)).mappings().one()
         quote_row = conn.execute(select(evidence_quotes)).mappings().one()
 
@@ -439,46 +447,47 @@ def test_each_confidence_component_must_pass_for_verified_status(tmp_path: Path)
 
     with engine.begin() as conn:
         fixture = _ingest_summary_fixture(conn, tmp_path)
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text="Alpha beta evidence supports the claim.",
-                    citations=[
-                        CandidateCitation(
-                            chunk_id=fixture["alpha_chunk_id"],
-                            quote="Alpha beta evidence supports the claim.",
-                        )
-                    ],
-                ),
-                CandidateSummarySentence(
-                    text="Alpha beta evidence supports the claim.",
-                    citations=[
-                        CandidateCitation(
-                            chunk_id=fixture["alpha_chunk_id"],
-                            quote="This quote is not in the cited chunk.",
-                        )
-                    ],
-                ),
-                CandidateSummarySentence(
-                    text="Alpha beta evidence supports the claim.",
-                    citations=[
-                        CandidateCitation(
-                            chunk_id=fixture["banana_chunk_id"],
-                            quote="Banana orchard material is unrelated.",
-                        )
-                    ],
-                ),
-            ]
-        )
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            verifier_config=config,
-            support_scorer=EmbeddingSupportScorer(model),
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="Alpha beta evidence supports the claim.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=fixture["alpha_chunk_id"],
+                        quote="Alpha beta evidence supports the claim.",
+                    )
+                ],
+            ),
+            CandidateSummarySentence(
+                text="Alpha beta evidence supports the claim.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=fixture["alpha_chunk_id"],
+                        quote="This quote is not in the cited chunk.",
+                    )
+                ],
+            ),
+            CandidateSummarySentence(
+                text="Alpha beta evidence supports the claim.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=fixture["banana_chunk_id"],
+                        quote="Banana orchard material is unrelated.",
+                    )
+                ],
+            ),
+        ]
+    )
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        verifier_config=config,
+        support_scorer=EmbeddingSupportScorer(model),
+    )
+    with engine.connect() as conn:
         statuses = [
             row["status"] for row in conn.execute(select(citation_mappings).order_by(citation_mappings.c.id)).mappings()
         ]
@@ -497,35 +506,35 @@ def test_on_progress_reports_one_call_per_candidate_only_during_verification(tmp
 
     with engine.begin() as conn:
         fixture = _ingest_summary_fixture(conn, tmp_path)
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text="Alpha beta evidence supports the claim.",
-                    citations=[
-                        CandidateCitation(
-                            chunk_id=fixture["alpha_chunk_id"], quote="Alpha beta evidence supports the claim."
-                        )
-                    ],
-                ),
-                CandidateSummarySentence(
-                    text="Banana orchard material is unrelated.",
-                    citations=[
-                        CandidateCitation(
-                            chunk_id=fixture["banana_chunk_id"], quote="Banana orchard material is unrelated."
-                        )
-                    ],
-                ),
-            ]
-        )
-        summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=EmbeddingSupportScorer(model),
-            on_progress=lambda i, n, label: calls.append((i, n, label)),
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="Alpha beta evidence supports the claim.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=fixture["alpha_chunk_id"], quote="Alpha beta evidence supports the claim."
+                    )
+                ],
+            ),
+            CandidateSummarySentence(
+                text="Banana orchard material is unrelated.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=fixture["banana_chunk_id"], quote="Banana orchard material is unrelated."
+                    )
+                ],
+            ),
+        ]
+    )
+    summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=EmbeddingSupportScorer(model),
+        on_progress=lambda i, n, label: calls.append((i, n, label)),
+    )
 
     assert calls == [(1, 2, "Verifying claim"), (2, 2, "Verifying claim")]
 
@@ -538,16 +547,16 @@ def test_on_progress_is_optional_and_never_called_with_zero_candidates(tmp_path:
 
     with engine.begin() as conn:
         fixture = _ingest_summary_fixture(conn, tmp_path)
-        generator = FakeSummaryGenerator(sentences=[])
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=EmbeddingSupportScorer(model),
-            on_progress=lambda i, n, label: calls.append((i, n, label)),
-        )
+    generator = FakeSummaryGenerator(sentences=[])
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=EmbeddingSupportScorer(model),
+        on_progress=lambda i, n, label: calls.append((i, n, label)),
+    )
 
     assert result.sentences == []
     assert calls == []

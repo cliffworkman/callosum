@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from sqlalchemy import Connection
+    from sqlalchemy import Engine
 
 
 @dataclass(frozen=True)
@@ -42,11 +42,13 @@ class SummaryGenerator(Protocol):
         *,
         source_chunks: list[SourceChunk],
         scope_ref: dict[str, object],
-        conn: "Connection | None" = None,
+        engine: "Engine | None" = None,
     ) -> list[CandidateSummarySentence]:
         """Return candidate sentences with LLM-claimed citation hints.
 
-        ``conn`` is an optional read/write handle the cache wrapper uses (the real generators ignore it).
+        ``engine`` is an optional handle the cache wrapper uses to open its own short connections
+        around the (potentially slow) call below — never held open during it (the real generators
+        ignore this parameter entirely).
         """
 
 
@@ -60,6 +62,6 @@ class FakeSummaryGenerator:
         *,
         source_chunks: list[SourceChunk],
         scope_ref: dict[str, object],
-        conn: "Connection | None" = None,
+        engine: "Engine | None" = None,
     ) -> list[CandidateSummarySentence]:
         return list(self.sentences)

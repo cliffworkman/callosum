@@ -34,7 +34,7 @@ class CountingSummaryGenerator:
     def cache_signature(self) -> str:
         return self._signature if self._signature is not None else self.name
 
-    def generate(self, *, source_chunks, scope_ref, conn=None):
+    def generate(self, *, source_chunks, scope_ref, engine=None):
         self.calls += 1
         return list(self.sentences)
 
@@ -285,11 +285,12 @@ def test_legacy_under_specified_cache_row_is_not_reused(temp_db_url: str) -> Non
                 output_json={"sentences": [{"text": "legacy", "citations": []}]},
             )
         )
-        result = CachedSummaryGenerator(generator).generate(
-            source_chunks=source_chunks,
-            scope_ref=scope_ref,
-            conn=conn,
-        )
+    result = CachedSummaryGenerator(generator).generate(
+        source_chunks=source_chunks,
+        scope_ref=scope_ref,
+        engine=engine,
+    )
+    with engine.connect() as conn:
         rows = conn.execute(select(func.count()).select_from(llm_cache)).scalar_one()
     engine.dispose()
 
@@ -310,12 +311,12 @@ def test_cache_identity_and_metadata_never_contain_raw_secrets(temp_db_url: str)
     signature = _config_signature(config)
     generator = CountingSummaryGenerator([], signature=f"custom/{secret}/https://user:password@provider.example/api")
     engine = make_engine(temp_db_url)
-    with engine.begin() as conn:
-        CachedSummaryGenerator(generator).generate(
-            source_chunks=[_source_chunk()],
-            scope_ref={"query": "question"},
-            conn=conn,
-        )
+    CachedSummaryGenerator(generator).generate(
+        source_chunks=[_source_chunk()],
+        scope_ref={"query": "question"},
+        engine=engine,
+    )
+    with engine.connect() as conn:
         row = conn.execute(select(llm_cache.c.input_hash, llm_cache.c.signature)).one()
     engine.dispose()
 

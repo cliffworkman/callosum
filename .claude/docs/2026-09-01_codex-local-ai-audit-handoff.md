@@ -1,13 +1,13 @@
 # Local AI reliability audit — handoff to Codex for review (2026-09-01)
 
-Written by Claude at the end of increment 557, **updated after increments 558, 559, and 560** — three
-same-day follow-ups that closed several of this document's own "still open" items, plus two full Wave 3
-items, before Codex ever picked it up. See the UPDATE notes below (search this document for "UPDATE" — there
-are two, one after 558 and one after 560). Cliff's framing for this handoff, verbatim: **"I figure we will
-ping-pong like that until everything is resolved"** — this is a review-and-continue-fixing request, not a
-"here's what's left, go build it" handoff. Your job is to look for anything this pass got wrong, missed, or
-introduced, fix what's cheap, and report back the same way (a findings list + what you fixed) so the cycle
-can continue.
+Written by Claude at the end of increment 557, **updated after increments 558, 559, 560, and 561** — four
+same-day/next-day follow-ups that closed several of this document's own "still open" items, plus all four
+Wave 3 items (three fully, one partially), before Codex ever picked it up. See the UPDATE notes below (search
+this document for "UPDATE" — there are three: after 558, after 560, and after 561). Cliff's framing for this
+handoff, verbatim: **"I figure we will ping-pong like that until everything is resolved"** — this is a
+review-and-continue-fixing request, not a "here's what's left, go build it" handoff. Your job is to look for
+anything this pass got wrong, missed, or introduced, fix what's cheap, and report back the same way (a
+findings list + what you fixed) so the cycle can continue.
 
 ## READ FIRST — do not re-derive this
 
@@ -91,10 +91,12 @@ Your own report explicitly warned the DB-transaction fix needs snapshot/version/
 reorder. Status as of increment 560 (two of the four items have since been closed — see the UPDATE note below
 for the full detail; this list is kept as the original framing for context):
 
-1. **DB-transaction findings** — primary synthesis, both Critical Review paths, Workbench, and analytic
-   flexibility all still hold a DB connection/transaction across the LLM call. **Still fully open** — needs its
-   own design pass; the project's own `.claude/LATENCY.md` already treats the synthesis case as known technical
-   debt. This is the one Wave 3 item nobody has attempted yet, and the riskiest by far.
+1. **DB-transaction findings** — ~~all sites still hold a DB connection/transaction across the LLM call~~ —
+   **primary synthesis CLOSED, increment 561** (the riskiest sub-case, done properly in Plan Mode per Cliff's
+   explicit choice, not a mechanical patch — see the UPDATE note below). **Critical Review (both paths),
+   Workbench, and analytic flexibility remain deliberately deferred** — surveyed this session and confirmed
+   lower risk (see the UPDATE note for the ranking); the WIP analytic-flexibility site already shows the right
+   shape in-repo as a reference for whoever picks this up next.
 2. ~~**Local AI cache-identity redesign**~~ — **CLOSED, increment 559.** `ManagedLocalTarget.
    stable_identity_fingerprint()` + `GenerationCacheIdentity.from_config()` now key managed_local's cache
    identity off model/runtime/param digests instead of the per-launch endpoint/credential.
@@ -145,6 +147,80 @@ re-freezing, confirm (and document in your commit) that your specific change doe
 managed_local qualification path actually exercises, the same way 557's own commits did. If you can't confirm
 that, stop and ask rather than re-freezing anyway. See commits `2ba735a`/`dbb3562` for exactly how this was
 done last time, including the confirmation reasoning.
+
+## UPDATE (increment 561) — the DB-transaction/CAS item is CLOSED for primary synthesis
+
+Read `.claude/docs/increment-notes/INCREMENT-561-NOTES.md` in full before touching this area again — this
+summary is compressed. Cliff was explicitly asked (via AskUserQuestion, after all 6 prior increments were
+CI-green) whether to design this properly or attempt a fast patch; he chose "design it properly now." The
+approach: 3 parallel Explore-agent research passes (the Overview lifecycle's own reference pattern; primary
+synthesis's exact current transaction shape; a breadth survey of the other 4 sites), then a dedicated Plan
+agent to validate/detail the design, then direct reading of every critical file (`overview_lifecycle.py`,
+`summary_overview.py`, `pipeline.py`, `cache.py`, `egress.py`, `verification.py`,
+`schema_summaries.py`) before writing the final plan and getting explicit approval via `ExitPlanMode`.
+
+**What shipped**: `summarize_scope` (`pipeline.py`) now takes a bare `Engine` and runs 3 phases, each its own
+short transaction — prepare (retrieval) → generate (zero DB connection held during the provider call; the
+connection-vs-engine split lives *inside* `CachedSummaryGenerator.generate`, `cache.py`, not in `pipeline.py`
+— this matters, see below) → verify+persist (a new `_refresh_source_chunks` re-reads every chunk fresh right
+before verification). Fixes two concrete bugs, not just a tidiness concern:
+1. **Reliability**: two concurrent synthesis jobs could lock each other out via SQLite's 5s `busy_timeout`,
+   since the old single-transaction shape often already held the writer lock (via retrieval's opportunistic
+   embedding writes for a query-scoped request) for the entire slow provider call.
+2. **Correctness/staleness**: a chunk mutated between retrieval and verification (e.g. a concurrent
+   re-extraction) could leave the persisted `chunk_version_verified_against` provenance disagreeing with what
+   verification actually checked — the exact "stale-write correctness bug" your own report and mine both
+   flagged as the reason this needed a real design, not a naive reorder.
+
+**A design subtlety worth your independent check**: my first-draft idea was to hoist the generation-cache
+check up into `pipeline.py`'s own Phase 1/Phase 2 split (check cache in Phase 1, only call the provider in
+Phase 2 on a miss). Reading `egress.py` directly caught that this would have **silently inverted a deliberate
+existing security order**: the real call chain is `EgressGatedSummaryGenerator.generate` (checks egress
+**first**) → `CachedSummaryGenerator.generate` (checks cache **second**) → the real provider (network call,
+**third**) — the egress wrapper's own comment says "a cache hit can never bypass the gate." Hoisting the
+cache-check above the egress gate would have let a cache hit skip the egress check entirely. Fixed by pushing
+the connection-vs-engine split *inside* `CachedSummaryGenerator.generate` itself instead (it now opens its own
+short `engine.connect()`/`engine.begin()` around the cache read/write, holding neither open during the
+provider call) — zero change to call order. **Worth an independent read of `egress.py` + `cache.py` to confirm
+this reasoning holds** — it's the single most consequential design decision in this increment.
+
+**No schema migration** — unlike Overview's CAS (which defends against two callers racing to fill the *same*
+pre-existing row), primary synthesis has no such race (each job creates a brand-new row), so the fix is
+simpler: don't create the `summaries` row until generation+verification both succeed, exactly preserving
+today's "no row = clean failure" behavior.
+
+**A real bug found and fixed along the way, not by inspection**: `tools/validation_harness.py` wrapped PDF
+ingestion and the summarization probe in one still-open transaction; the new Phase 1 (a fresh connection that
+can't see uncommitted work on a different one) exposed it immediately as a live test failure (`StopIteration`
+in the fake generator — zero chunks retrieved). Fixed by committing ingestion before the probe starts.
+
+**Two new regression tests** (`tests/test_summary_overview_lifecycle.py`) prove both fixes directly — the
+staleness one was verified to actually discriminate: reverting `_refresh_source_chunks`'s call site locally
+and re-running it fails (`quote_confidence` 1.0 → 0.0, status `verified` → `weak`), confirmed live before
+restoring the fix. Don't just trust the green run; that discrimination check is the real proof.
+
+**Explicit scope boundary, mirrored from the survey done this session** (breadth-only, not deep-traced —
+worth your own closer look if you pick any of these up): Critical Review single-paper Tier-2 with
+`triage=true` is the single highest-risk remaining site (a real write executes on the held connection before
+a *second* provider round-trip runs on the same connection — `critical_review.py:299` then
+`critical_review_triage.py:135`). Everything else surveyed (Critical Review's default/Set paths, Workbench,
+Library-side analytic-flexibility) holds an open connection/snapshot during the provider call but no actual
+writer-lock exposure under WAL semantics (the DB write happens only after the call returns). WIP-side
+analytic-flexibility (`wip_checks.py::analytic_flexibility_run`) already has zero connection open during its
+provider call — the one site that's already correctly shaped, useful as an in-repo reference.
+
+**Verification status when this was written**: targeted tests (203, every touched-file test) green; a live
+end-to-end synthesis run against the real ~200-paper testing DB (Gemini-backed, since the DB's default
+`managed_local` provider has no runtime outside the packaged app) confirmed byte-for-byte the same response
+shape as before — verified/weak/flagged sentences, exact bbox coordinates, an Overview. `ruff format`/`check`,
+line-budget, and `tach check` all clean. The demo-experience drift gate fired on `summaries.py` (in its
+watched glob) and was refreshed with a note — no demo-relevant behavior changed, purely transaction plumbing.
+`app/backend/llm/providers.py` was **not** touched, so the qualification-battery freeze did **not** need
+re-freezing this time (confirmed by checking `freeze.json`'s file list directly, not assumed). Full local
+suite: **2713 passed, 3 skipped, 0 failures** (`pytest -n 4 -q`, 35m10s — `-n auto` and an earlier `-n 4`
+attempt both hit this machine's known xdist worker-crash flakiness before a clean run; unrelated to this
+change, see the memory note on it). Confirm CI is green on the current `main` HEAD before you start, same as
+every prior UPDATE note in this document says.
 
 ## Specific things to review
 

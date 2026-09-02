@@ -246,20 +246,22 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
         support_scorer = resolve_support_scorer(api, embedding_model=model)
         config = api.state.verifier_config
         engine: Engine = api.state.engine
-        with engine.begin() as conn:
-            result = summarize_scope(
-                conn,
-                scope=_summary_scope_from_request(request),
-                generator=generator,
-                model=model,
-                vector_store=store,
-                top_k=request.top_k,
-                verifier_config=config,
-                support_scorer=support_scorer,
-                overview_requested=overview_generator is not None,
-                on_progress=lambda i, n, label: jobs.mark_progress(job_id, i, n, label),
-                on_stage=stage_reporter(jobs, job_id, calibration_key),
-            )
+        # summarize_scope manages its own short internal transactions (retrieval, then verify+persist)
+        # and holds no connection open during the generation call in between -- no outer `engine.begin()`
+        # wrapper here (the primary-synthesis transaction-boundary redesign; see pipeline.py).
+        result = summarize_scope(
+            engine,
+            scope=_summary_scope_from_request(request),
+            generator=generator,
+            model=model,
+            vector_store=store,
+            top_k=request.top_k,
+            verifier_config=config,
+            support_scorer=support_scorer,
+            overview_requested=overview_generator is not None,
+            on_progress=lambda i, n, label: jobs.mark_progress(job_id, i, n, label),
+            on_stage=stage_reporter(jobs, job_id, calibration_key),
+        )
         # Phase A has committed. Reread the authoritative trust spine from a fresh connection before
         # publishing completion; no generated-but-unverified or uncommitted response can reach JobStore.
         with engine.connect() as conn:

@@ -30,7 +30,7 @@ from app.backend.summarization.generators import (
 )
 
 if TYPE_CHECKING:
-    from sqlalchemy import Connection
+    from sqlalchemy import Engine
 
     from app.backend.help.assistant import HelpAnswer, HelpAssistant, HelpTurn
     from app.backend.summarization.overview import OverviewGenerator, OverviewSentence
@@ -97,14 +97,14 @@ class EgressGatedSummaryGenerator:
         *,
         source_chunks: list[SourceChunk],
         scope_ref: dict[str, object],
-        conn: "Connection | None" = None,
+        engine: "Engine | None" = None,
     ) -> list[CandidateSummarySentence]:
         # Egress is checked FIRST (outermost), before the inner cache is ever consulted, so egress-off
         # behaves exactly as before — a cache hit can never bypass the gate. A loopback endpoint keeps text on
         # the machine (egress not required), so consent-to-egress is correctly N/A.
         if _egress_needed(self.provider, self.wire_format, self.base_url) and not self.data_egress_enabled:
             raise DataEgressDisabledError("Summary generation requires explicit data-egress consent.")
-        return self.inner.generate(source_chunks=source_chunks, scope_ref=scope_ref, conn=conn)
+        return self.inner.generate(source_chunks=source_chunks, scope_ref=scope_ref, engine=engine)
 
 
 @dataclass(frozen=True)

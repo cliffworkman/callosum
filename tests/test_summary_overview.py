@@ -77,17 +77,16 @@ def _overview_for(db_url: str, *, overview_gen):
         ]
     )
     engine = make_engine(db_url)
-    with engine.begin() as conn:
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[seed["pa"], seed["pb"]]),
-            generator=sgen,
-            model=ApiFakeEmbeddingModel(),
-            vector_store=InMemoryVectorStore(),
-            support_scorer=ConstantSupportScorer(),
-            top_k=4,
-            overview_requested=overview_gen is not None,
-        )
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[seed["pa"], seed["pb"]]),
+        generator=sgen,
+        model=ApiFakeEmbeddingModel(),
+        vector_store=InMemoryVectorStore(),
+        support_scorer=ConstantSupportScorer(),
+        top_k=4,
+        overview_requested=overview_gen is not None,
+    )
     if overview_gen is not None:
         generate_overview(engine, summary_id=result.summary_id, generator=overview_gen)
     with engine.connect() as conn:

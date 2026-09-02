@@ -189,9 +189,13 @@ def run_validation(
             )
             if progress:
                 progress.finish("Running axis calibration", total=len(axes))
-        if summarization is not None:
-            if progress:
-                progress.start("Running summarization probe")
+    # Summarization runs in its own connection, opened only after the block above commits: summarize_scope
+    # (the primary-synthesis transaction-boundary redesign) opens its own fresh connections per phase and can
+    # only see already-committed data -- it can't observe ingestion still pending in an outer open transaction.
+    if summarization is not None:
+        if progress:
+            progress.start("Running summarization probe")
+        with engine.connect() as conn:
             report.summarization = run_summarization_probe(
                 conn,
                 spec=summarization,
@@ -204,8 +208,8 @@ def run_validation(
                 support_scorer=support_scorer,
                 gemini_config=gemini_config,
             )
-            if progress:
-                progress.finish("Running summarization probe")
+        if progress:
+            progress.finish("Running summarization probe")
 
     engine.dispose()
 
@@ -409,7 +413,7 @@ def run_summarization_probe(
 
     try:
         result = summarize_scope(
-            conn,
+            conn.engine,
             scope=scope,
             generator=generator,
             model=model,

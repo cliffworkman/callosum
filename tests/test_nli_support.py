@@ -125,30 +125,31 @@ def test_topically_similar_unentailed_claim_fails_with_nli_but_passes_embedding(
 
     with engine.begin() as conn:
         fixture = _ingest_nli_fixture(conn, tmp_path)
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text=sentence,
-                    citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
-                )
-            ]
-        )
-        embedding_result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=EmbeddingSupportScorer(model),
-        )
-        nli_result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=FakeNLISupportScorer(scores={(quote, sentence): 0.2}),
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text=sentence,
+                citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
+            )
+        ]
+    )
+    embedding_result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=EmbeddingSupportScorer(model),
+    )
+    nli_result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=FakeNLISupportScorer(scores={(quote, sentence): 0.2}),
+    )
+    with engine.connect() as conn:
         quote_rows = list(conn.execute(select(evidence_quotes).order_by(evidence_quotes.c.id)).mappings())
         mapping_rows = list(conn.execute(select(citation_mappings).order_by(citation_mappings.c.id)).mappings())
 
@@ -170,22 +171,22 @@ def test_genuinely_entailed_sentence_passes_with_nli_scorer(tmp_path: Path) -> N
 
     with engine.begin() as conn:
         fixture = _ingest_nli_fixture(conn, tmp_path)
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text=sentence,
-                    citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
-                )
-            ]
-        )
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=FakeNLISupportScorer(scores={(quote, sentence): 0.92}),
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text=sentence,
+                citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
+            )
+        ]
+    )
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=FakeNLISupportScorer(scores={(quote, sentence): 0.92}),
+    )
 
     assert result.status == "verified"
     assert result.sentences[0].citations[0].support_confidence == 0.92
@@ -219,21 +220,21 @@ def test_default_nli_path_falls_back_without_crashing_when_model_unavailable(
 
     with engine.begin() as conn:
         fixture = _ingest_nli_fixture(conn, tmp_path)
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text=sentence,
-                    citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
-                )
-            ]
-        )
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text=sentence,
+                citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
+            )
+        ]
+    )
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+    )
 
     assert result.status == "verified"
     assert result.sentences[0].citations[0].support_confidence == 1.0
@@ -249,30 +250,30 @@ def test_default_support_threshold_boundary_is_inclusive(tmp_path: Path) -> None
 
     with engine.begin() as conn:
         fixture = _ingest_nli_fixture(conn, tmp_path)
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text=sentence,
-                    citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
-                )
-            ]
-        )
-        pass_result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=ConstantSupportScorer(0.55),
-        )
-        fail_result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=ConstantSupportScorer(0.54),
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text=sentence,
+                citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
+            )
+        ]
+    )
+    pass_result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=ConstantSupportScorer(0.55),
+    )
+    fail_result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=ConstantSupportScorer(0.54),
+    )
 
     assert VerificationConfig().support_threshold == 0.55
     assert pass_result.sentences[0].citations[0].support_confidence == 0.55
@@ -324,22 +325,23 @@ def test_contradicting_source_resolves_to_contradicted_and_persists(tmp_path: Pa
     quote = "Criterion shifts can occur in signal detection tasks."  # quote matches + topically retrieved
     with engine.begin() as conn:
         fixture = _ingest_nli_fixture(conn, tmp_path)
-        generator = FakeSummaryGenerator(
-            sentences=[
-                CandidateSummarySentence(
-                    text=sentence,
-                    citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
-                )
-            ]
-        )
-        result = summarize_scope(
-            conn,
-            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
-            generator=generator,
-            model=model,
-            vector_store=vector_store,
-            support_scorer=FakeContradictionScorer(support=0.1, contradiction=0.85),
-        )
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text=sentence,
+                citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
+            )
+        ]
+    )
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+        generator=generator,
+        model=model,
+        vector_store=vector_store,
+        support_scorer=FakeContradictionScorer(support=0.1, contradiction=0.85),
+    )
+    with engine.connect() as conn:
         mapping_rows = list(conn.execute(select(citation_mappings).order_by(citation_mappings.c.id)).mappings())
 
     # the cited source contradicts the claim → contradicted (overriding what would otherwise be verified), flagged, persisted

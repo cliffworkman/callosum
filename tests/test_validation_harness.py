@@ -65,7 +65,7 @@ class HarnessSummaryGenerator:
         *,
         source_chunks: list[SourceChunk],
         scope_ref: dict[str, object],
-        conn=None,
+        engine=None,
     ) -> list[CandidateSummarySentence]:
         cited_chunk = next(chunk for chunk in source_chunks if "Neural brain cortex validation quote." in chunk.text)
         return [

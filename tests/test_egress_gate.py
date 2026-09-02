@@ -31,7 +31,7 @@ class _SpySummaryGenerator:
     def __init__(self) -> None:
         self.calls = 0
 
-    def generate(self, *, source_chunks, scope_ref, conn=None):
+    def generate(self, *, source_chunks, scope_ref, engine=None):
         self.calls += 1
         return ["SUMMARY_SENTINEL"]
 

@@ -10,7 +10,14 @@ from sqlalchemy import func, select, update
 
 from app.backend.api.routers.summaries import SummarizeRequest, _run_summarize_job
 from app.backend.persistence.database import make_engine
-from app.backend.persistence.schema import citation_mappings, evidence_quotes, summaries, summary_sentences
+from app.backend.persistence.schema import (
+    chunks,
+    citation_mappings,
+    evidence_quotes,
+    papers,
+    summaries,
+    summary_sentences,
+)
 from app.backend.summarization.generators import CandidateCitation, CandidateSummarySentence, FakeSummaryGenerator
 from app.backend.summarization.overview import FakeOverviewGenerator, OverviewSentence
 from app.backend.summarization.overview_lifecycle import acquire_overview, generate_overview
@@ -174,21 +181,153 @@ def test_phase_a_failure_rolls_back_entire_primary(temp_db_url: str, monkeypatch
 
     monkeypatch.setattr("app.backend.summarization.pipeline._persist_verification", fail_persistence)
     with pytest.raises(RuntimeError, match="primary persistence"):
-        with engine.begin() as conn:
-            summarize_scope(
-                conn,
-                scope=SummaryScope(scope_type="papers", paper_ids=[seeded["facial_paper_id"]]),
-                generator=_summary_generator(seeded["facial_chunk_id"]),
-                model=ApiFakeEmbeddingModel(),
-                vector_store=InMemoryVectorStore(),
-                support_scorer=ConstantSupportScorer(),
-                overview_requested=True,
-            )
+        summarize_scope(
+            engine,
+            scope=SummaryScope(scope_type="papers", paper_ids=[seeded["facial_paper_id"]]),
+            generator=_summary_generator(seeded["facial_chunk_id"]),
+            model=ApiFakeEmbeddingModel(),
+            vector_store=InMemoryVectorStore(),
+            support_scorer=ConstantSupportScorer(),
+            overview_requested=True,
+        )
     with engine.connect() as conn:
         assert conn.execute(select(func.count()).select_from(summaries)).scalar_one() == 0
         assert conn.execute(select(func.count()).select_from(summary_sentences)).scalar_one() == 0
         assert conn.execute(select(func.count()).select_from(citation_mappings)).scalar_one() == 0
         assert conn.execute(select(func.count()).select_from(evidence_quotes)).scalar_one() == 0
+    engine.dispose()
+
+
+@dataclass
+class BlockingSummaryGenerator:
+    chunk_id: int
+    started: threading.Event = field(default_factory=threading.Event)
+    release: threading.Event = field(default_factory=threading.Event)
+    calls: int = 0
+    name: str = "blocking-summary"
+
+    def generate(self, *, source_chunks, scope_ref, engine=None):  # type: ignore[no-untyped-def]
+        self.calls += 1
+        self.started.set()
+        if not self.release.wait(10):
+            raise TimeoutError("test did not release generation")
+        return [
+            CandidateSummarySentence(
+                text="Facial anomalies influence social judgments.",
+                citations=[
+                    CandidateCitation(chunk_id=self.chunk_id, quote="Facial anomalies influence social judgments.")
+                ],
+            )
+        ]
+
+
+def test_no_connection_held_during_generation_call(temp_db_url: str) -> None:
+    """Wave 3 regression (reliability): two independent writers on the same engine must not lock each
+    other out while a slow generation call (Phase 2) is in flight. A query-scoped request forces Phase 1
+    (retrieval) to write fresh embeddings before generation even starts (``_rank_chunks_for_query`` ->
+    ``embed_chunks``) -- the exact shape that used to hold SQLite's writer lock for the whole pipeline.
+    Phase 1 must have committed and released its connection before Phase 2 starts."""
+    seeded = _seed_summarization_library(temp_db_url)
+    engine = make_engine(temp_db_url)
+    generator = BlockingSummaryGenerator(chunk_id=seeded["facial_chunk_id"])
+
+    worker = threading.Thread(
+        target=summarize_scope,
+        kwargs=dict(
+            engine=engine,
+            scope=SummaryScope(scope_type="papers", paper_ids=[seeded["facial_paper_id"]], query="facial anomalies"),
+            generator=generator,
+            model=ApiFakeEmbeddingModel(),
+            vector_store=InMemoryVectorStore(),
+            support_scorer=ConstantSupportScorer(),
+        ),
+    )
+    worker.start()
+    assert generator.started.wait(10)
+
+    write_done = threading.Event()
+
+    def independent_writer() -> None:
+        with engine.begin() as conn:
+            conn.execute(update(papers).where(papers.c.id == seeded["facial_paper_id"]).values(priority=1))
+        write_done.set()
+
+    writer = threading.Thread(target=independent_writer)
+    writer.start()
+    assert write_done.wait(2), (
+        "an independent write on the same engine blocked while generation was in flight -- "
+        "Phase 1's connection/writer-lock is still held during the (potentially slow) generation call"
+    )
+    writer.join(10)
+
+    generator.release.set()
+    worker.join(10)
+    assert not worker.is_alive()
+    engine.dispose()
+
+
+@dataclass
+class ChunkMutatingSummaryGenerator:
+    engine: object
+    chunk_id: int
+    fresh_version: str
+    fresh_text: str
+    calls: int = 0
+    name: str = "chunk-mutating-summary"
+
+    def generate(self, *, source_chunks, scope_ref, engine=None):  # type: ignore[no-untyped-def]
+        self.calls += 1
+        # Simulate a concurrent chunk re-extraction landing during generation (Phase 2) -- exactly the
+        # gap _refresh_source_chunks (Phase 3) exists to close.
+        with self.engine.begin() as conn:
+            conn.execute(
+                update(chunks)
+                .where(chunks.c.id == self.chunk_id)
+                .values(chunk_version=self.fresh_version, text=self.fresh_text)
+            )
+        return [
+            CandidateSummarySentence(
+                text="Facial anomalies influence social judgments in the study.",
+                citations=[CandidateCitation(chunk_id=self.chunk_id, quote=self.fresh_text)],
+            )
+        ]
+
+
+def test_verification_uses_fresh_chunk_data_when_mutated_during_generation(temp_db_url: str) -> None:
+    """Wave 3 regression (correctness/staleness): a chunk mutated between Phase 1 (retrieval) and Phase 3
+    (verify + persist) must be verified against its FRESH text/version, never the Phase-1 snapshot --
+    otherwise the persisted chunk_version_verified_against provenance and the quote-match outcome could
+    silently disagree with each other, exactly the "stale-write correctness bug" both the original and
+    Codex's independent provider-integration audits flagged. The cited quote only exists in the fresh
+    (post-mutation) text; a verifier still using the stale Phase-1 snapshot would score it unverified."""
+    seeded = _seed_summarization_library(temp_db_url)
+    engine = make_engine(temp_db_url)
+    fresh_text = "Facial anomalies also influence long-term social judgments after treatment."
+    generator = ChunkMutatingSummaryGenerator(
+        engine=engine,
+        chunk_id=seeded["facial_chunk_id"],
+        fresh_version="summary-chunk-v2-mutated",
+        fresh_text=fresh_text,
+    )
+
+    result = summarize_scope(
+        engine,
+        scope=SummaryScope(scope_type="papers", paper_ids=[seeded["facial_paper_id"]]),
+        generator=generator,
+        model=ApiFakeEmbeddingModel(),
+        vector_store=InMemoryVectorStore(),
+        support_scorer=ConstantSupportScorer(),
+    )
+
+    assert generator.calls == 1
+    citation = result.sentences[0].citations[0]
+    assert citation.quote_confidence == 1.0
+    assert citation.status == "verified"
+    with engine.connect() as conn:
+        mapping_row = conn.execute(select(citation_mappings)).mappings().one()
+        summary_row = conn.execute(select(summaries)).mappings().one()
+    assert mapping_row["chunk_version_verified_against"] == "summary-chunk-v2-mutated"
+    assert summary_row["chunk_version_verified_against"] == "summary-chunk-v2-mutated"
     engine.dispose()
 
 
