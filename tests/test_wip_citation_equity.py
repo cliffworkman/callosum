@@ -92,6 +92,28 @@ def test_run_404_for_unknown_manuscript(temp_db_url) -> None:
     assert client.post("/wip/manuscripts/999999/citation-equity/run").status_code == 404
 
 
+def test_openalex_outage_marks_wip_audit_error_instead_of_empty(temp_db_url, tmp_path: Path) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        cited_id = _seed_paper(conn, "Cited work", "10.1/cited")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    manuscript_id = _manuscript(client, tmp_path / "Draft")
+    _link(client, manuscript_id, cited_id, "cited")
+    client.app.state.openalex_client = OpenAlexClient(fetcher=lambda *a, **k: (503, {"error": "unavailable"}))
+
+    started = client.post(f"/wip/manuscripts/{manuscript_id}/citation-equity/run")
+    job_id = started.json()["job_id"]
+    result = {}
+    for _ in range(40):
+        result = client.get(f"/wip/citation-equity/run/{job_id}").json()
+        if result["status"] in {"done", "error"}:
+            break
+
+    assert result["status"] == "error"
+    assert "unavailable" in result["detail"].lower()
+
+
 def test_status_nav_points_at_work_meta_reference(temp_db_url, tmp_path: Path) -> None:
     client = TestClient(create_app(db_url=temp_db_url))
     manuscript_id = _manuscript(client, tmp_path / "Draft")

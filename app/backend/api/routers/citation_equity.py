@@ -31,6 +31,7 @@ from app.backend.methods.overlooked_work import rank_overlooked
 from app.backend.persistence.repository import find_existing_paper_by_identity
 from app.backend.persistence.schema import papers
 from integrations.openalex.adapter import OpenAlexClient
+from integrations.openalex.request import OpenAlexResponseUnavailable
 
 # SPECTER v1 scientific-paper embeddings (inc 228) — title+abstract relatedness, loadable via the existing
 # sentence-transformers stack (no new dependency; a ~440 MB model download on first use). SPECTER2 (needs the
@@ -156,20 +157,26 @@ def citation_equity_check_selected(payload: EquityCheckSelectedRequest, request:
     its own to draw one from).
     """
     client = request.app.state.openalex_client or OpenAlexClient()
+    engine = request.app.state.engine
+    fetch_client = client.with_cache_engine(engine) if hasattr(client, "with_cache_engine") else client
     refs: list[dict] = []
-    with request.app.state.engine.begin() as conn:
-        for paper_id in payload.paper_ids:
-            row = (
-                conn.execute(select(papers.c.doi, papers.c.title).where(papers.c.id == paper_id))
-                .mappings()
-                .one_or_none()
-            )
-            if row is None:
-                continue  # a paper id no longer in the library -- skipped, not fatal (every other per-ref skip)
-            ref = PaperRef(doi=row["doi"]) if row["doi"] else PaperRef(title=row["title"])
-            meta = client.fetch_work_meta_for(conn, ref)
-            if meta:
-                refs.append(meta)
+    try:
+        with engine.connect() as conn:
+            for paper_id in payload.paper_ids:
+                row = (
+                    conn.execute(select(papers.c.doi, papers.c.title).where(papers.c.id == paper_id))
+                    .mappings()
+                    .one_or_none()
+                )
+                if row is None:
+                    continue  # a paper id no longer in the library -- skipped, not fatal (every other per-ref skip)
+                ref = PaperRef(doi=row["doi"]) if row["doi"] else PaperRef(title=row["title"])
+                meta_fetch = getattr(fetch_client, "fetch_work_meta_for_strict", fetch_client.fetch_work_meta_for)
+                meta = meta_fetch(conn, ref)
+                if meta:
+                    refs.append(meta)
+    except OpenAlexResponseUnavailable as exc:
+        raise HTTPException(status_code=503, detail="OpenAlex metadata is temporarily unavailable.") from exc
     report = audit_reference_list(
         refs=refs,
         focal_author_families=set(),
@@ -236,20 +243,22 @@ def _run_citation_equity_job(app: FastAPI, job_id: str, paper_id: int) -> None:
                 _family(a) for a in _authors_from_csl(row["csl_json"], fallback=row["first_author_family_name"])
             }
             families = {f for f in families if f}
-            ref_ids = fetch_client.fetch_referenced_works(conn, ref)
+            refs_fetch = getattr(fetch_client, "fetch_referenced_works_strict", fetch_client.fetch_referenced_works)
+            meta_for_fetch = getattr(fetch_client, "fetch_work_meta_for_strict", fetch_client.fetch_work_meta_for)
+            meta_fetch = getattr(fetch_client, "fetch_work_meta_strict", fetch_client.fetch_work_meta)
+            field_fetch = getattr(fetch_client, "fetch_field_sample_strict", fetch_client.fetch_field_sample)
+            ref_ids = refs_fetch(conn, ref)
             total = len(ref_ids)
             # The focal paper's primary_topic = the field baseline (read from the now-cached by-DOI fetch, no extra HTTP).
-            focal_meta = fetch_client.fetch_work_meta_for(conn, ref)
+            focal_meta = meta_for_fetch(conn, ref)
             field_topic = (focal_meta or {}).get("primary_topic")
             refs: list[dict] = []
             for i, wid in enumerate(ref_ids):
-                meta = fetch_client.fetch_work_meta(
-                    conn, wid
-                )  # per-ref errors are skipped (counted in coverage), never fatal
+                meta = meta_fetch(conn, wid)
                 if meta:
                     refs.append(meta)
                 jobs.mark_progress(job_id, i + 1, total, "Fetching reference metadata")
-            field = fetch_client.fetch_field_sample(conn, field_topic["id"]) if field_topic else []
+            field = field_fetch(conn, field_topic["id"]) if field_topic else []
             baseline_pct, baseline_n = _compute_self_citation_baseline(
                 conn, fetch_client, field, jobs=jobs, job_id=job_id
             )
@@ -362,13 +371,17 @@ def _run_overlooked_job(app: FastAPI, job_id: str, paper_id: int) -> None:
             jobs.mark_progress(job_id, 1, 3, "Finding related work")
             focal_csl = fetch_client.fetch_work_csl(conn, ref) or {}
             focal_text = (str(focal_csl.get("title") or "") + ". " + str(focal_csl.get("abstract") or "")).strip()
-            focal_meta = fetch_client.fetch_work_meta_for(conn, ref) or {}
+            meta_for_fetch = getattr(fetch_client, "fetch_work_meta_for_strict", fetch_client.fetch_work_meta_for)
+            refs_fetch = getattr(fetch_client, "fetch_referenced_works_strict", fetch_client.fetch_referenced_works)
+            works_fetch = getattr(fetch_client, "fetch_works_by_ids_strict", fetch_client.fetch_works_by_ids)
+            topic_fetch = getattr(fetch_client, "fetch_topic_candidates_strict", fetch_client.fetch_topic_candidates)
+            focal_meta = meta_for_fetch(conn, ref) or {}
             focal_id = focal_meta.get("openalex_work_id")
-            cited = set(fetch_client.fetch_referenced_works(conn, ref))  # exclude what's already cited
+            cited = set(refs_fetch(conn, ref))  # exclude what's already cited
             # union candidate pool: OpenAlex related-works (tight) ∪ the topic sample (broad)
-            related = fetch_client.fetch_works_by_ids(conn, focal_meta.get("related_works") or [])
+            related = works_fetch(conn, focal_meta.get("related_works") or [])
             topic = focal_meta.get("primary_topic")
-            field = fetch_client.fetch_topic_candidates(conn, topic["id"]) if topic else []
+            field = topic_fetch(conn, topic["id"]) if topic else []
             jobs.mark_progress(job_id, 2, 3, "Gathering candidates")
             by_id: dict[str, dict] = {}
             for c in [*related, *field]:

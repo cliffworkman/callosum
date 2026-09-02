@@ -80,7 +80,10 @@ def _run_wip_citation_equity_job(app: FastAPI, job_id: str, manuscript_id: int) 
     jobs.mark_running(job_id)
     client = app.state.openalex_client or OpenAlexClient()
     try:
-        with app.state.engine.begin() as conn:
+        engine = app.state.engine
+        fetch_client = client.with_cache_engine(engine) if hasattr(client, "with_cache_engine") else client
+        meta_fetch = getattr(fetch_client, "fetch_work_meta_for_strict", fetch_client.fetch_work_meta_for)
+        with engine.connect() as conn:
             cited_rows = list(
                 conn.execute(
                     select(papers.c.id, papers.c.doi, papers.c.title)
@@ -95,7 +98,7 @@ def _run_wip_citation_equity_job(app: FastAPI, job_id: str, manuscript_id: int) 
             refs: list[dict] = []
             for i, row in enumerate(cited_rows):
                 ref = PaperRef(doi=row["doi"]) if row["doi"] else PaperRef(title=row["title"])
-                meta = client.fetch_work_meta_for(conn, ref)  # per-reference errors skipped, never fatal
+                meta = meta_fetch(conn, ref)
                 if meta:
                     refs.append(meta)
                 jobs.mark_progress(job_id, i + 1, total, "Fetching reference metadata")

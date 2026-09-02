@@ -23,7 +23,13 @@ from app.backend.persistence.schema import papers
 from integrations.api_cache import get_cached, put_cached
 from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 from integrations.openalex import OpenAlexClient
-from integrations.openalex.request import bounded_openalex_get, openalex_headers, openalex_params
+from integrations.openalex.request import (
+    OPENALEX_CACHE_TTL_SECONDS,
+    OpenAlexResponseUnavailable,
+    bounded_openalex_get,
+    openalex_headers,
+    openalex_params,
+)
 
 OPENALEX_FUNDING_PROVIDER = "openalex-funding"
 OPENALEX_WORKS_URL = "https://api.openalex.org/works"
@@ -133,9 +139,24 @@ class OpenAlexFundingProvider:
     def search_awards(
         self, conn: Connection, profile: ResearchFundingProfile
     ) -> tuple[list[HistoricalAward], ProviderStatus]:
-        lineage_awards = self._lineage_awards(conn, profile)
+        lineage_failed = False
+        try:
+            lineage_awards = self._lineage_awards(conn, profile)
+        except OpenAlexResponseUnavailable:
+            lineage_awards = []
+            lineage_failed = True
         keyword_awards, keyword_status = self._keyword_awards(conn, profile)
         combined = _dedupe_awards([*lineage_awards, *keyword_awards])
+        if lineage_failed:
+            status = "failed" if keyword_status.status == "failed" else "partial"
+            return combined, ProviderStatus(
+                self.id,
+                "award_history",
+                status,
+                result_count=len(combined),
+                warning="The related-work funding-lineage lookup was unavailable.",
+                error_code=keyword_status.error_code if status == "failed" else None,
+            )
         if lineage_awards and keyword_status.status == "failed":
             return combined, ProviderStatus(
                 self.id,
@@ -169,7 +190,7 @@ class OpenAlexFundingProvider:
         }
         cache_params = {key: value for key, value in params.items() if key != "api_key"}
         cache_key = hashlib.sha256(str(cache_params).encode("utf-8")).hexdigest()
-        cached = get_cached(conn, self.id, cache_key)
+        cached = get_cached(conn, self.id, cache_key, max_age_seconds=OPENALEX_CACHE_TTL_SECONDS)
         if cached is not None and cached["status_code"] == 200 and cached["response_json"] is not None:
             return self._normalize(cached["response_json"], cached["status_code"])
         try:
@@ -193,13 +214,15 @@ class OpenAlexFundingProvider:
         if row is None or not row["doi"]:
             return []
         client = self.client or OpenAlexClient()
-        focal = client.fetch_work_meta_for(conn, PaperRef(doi=row["doi"]))
+        meta_fetch = getattr(client, "fetch_work_meta_for_strict", client.fetch_work_meta_for)
+        batch_fetch = getattr(client, "fetch_works_by_ids_strict", client.fetch_works_by_ids)
+        focal = meta_fetch(conn, PaperRef(doi=row["doi"]))
         if not focal:
             return []
         related_ids = [rid for rid in focal.get("related_works") or [] if isinstance(rid, str)][:25]
         if not related_ids:
             return []
-        works = client.fetch_works_by_ids(conn, related_ids, with_abstract=False)
+        works = batch_fetch(conn, related_ids, with_abstract=False)
         return _awards_from_openalex_works(works, source_field="related_works.grants", provider_id=self.id)
 
     def _normalize(self, payload: dict[str, Any] | None, status: int | None):

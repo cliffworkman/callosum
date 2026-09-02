@@ -202,16 +202,25 @@ def _run_publishers_job(app: FastAPI, job_id: str, body: PublishersRequest) -> N
     medline_client = app.state.nlm_medline_client or NlmJournalsClient()
     oa_client = app.state.openalex_client or OpenAlexClient()
     try:
-        with app.state.engine.begin() as conn:
+        engine = app.state.engine
+        fetch_sources = (
+            sources_client.with_cache_engine(engine) if hasattr(sources_client, "with_cache_engine") else sources_client
+        )
+        fetch_oa = oa_client.with_cache_engine(engine) if hasattr(oa_client, "with_cache_engine") else oa_client
+        with engine.begin() as conn:
             jobs.mark_progress(job_id, 1, 4, "Resolving topic")
-            topic_id, abstract = _resolve_topic_and_abstract(conn, body, sources_client, oa_client)
+            topic_id, abstract = _resolve_topic_and_abstract(conn, body, fetch_sources, fetch_oa)
             if not topic_id:
                 jobs.mark_error(job_id, "Couldn't resolve a research topic for this input.")
                 return
             jobs.mark_progress(job_id, 2, 4, "Fetching candidate journals")
-            stubs = sources_client.fetch_candidate_sources(conn, topic_id)
+            source_fetch = getattr(
+                fetch_sources, "fetch_candidate_sources_strict", fetch_sources.fetch_candidate_sources
+            )
+            details_fetch = getattr(fetch_sources, "fetch_source_details_strict", fetch_sources.fetch_source_details)
+            stubs = source_fetch(conn, topic_id)
             source_ids = [s.source_id for s in stubs]
-            details = sources_client.fetch_source_details(conn, source_ids)
+            details = details_fetch(conn, source_ids)
             candidates = [details[sid] for sid in source_ids if sid in details]  # preserve frequency order
 
             jobs.mark_progress(job_id, 3, 4, "Checking legitimacy signals")
@@ -316,12 +325,14 @@ def _resolve_topic_and_abstract(conn, body, sources_client, oa_client) -> tuple[
         )
         if row is None or not row["doi"]:
             return None, ""
-        meta = oa_client.fetch_work_meta_for(conn, PaperRef(doi=row["doi"])) or {}
+        meta_fetch = getattr(oa_client, "fetch_work_meta_for_strict", oa_client.fetch_work_meta_for)
+        meta = meta_fetch(conn, PaperRef(doi=row["doi"])) or {}
         topic = meta.get("primary_topic") or {}
         topic_id = topic.get("id")
         title = str(row["title"] or "").strip()
         body_text = abstract_plain_text(row["abstract"]) or ""
         abstract = (title + ". " + body_text).strip(" .")
         return topic_id, abstract
-    topic_id = sources_client.fetch_topic_for_subject(conn, body.subject or "")
+    topic_fetch = getattr(sources_client, "fetch_topic_for_subject_strict", sources_client.fetch_topic_for_subject)
+    topic_id = topic_fetch(conn, body.subject or "")
     return topic_id, (body.abstract or "").strip()

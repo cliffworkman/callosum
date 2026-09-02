@@ -40,7 +40,13 @@ class FollowedAuthorFeedSource:
         if not author_id:
             return []
         with self.engine.connect() as conn:
-            works = self.author_client.fetch_author_works(conn, author_id, refresh=True)
+            if hasattr(self.author_client, "fetch_author_works_result"):
+                result = self.author_client.fetch_author_works_result(conn, author_id, refresh=True)
+                if not result.complete:
+                    raise RuntimeError("OpenAlex author-work refresh was incomplete")
+                works = list(result.works)
+            else:
+                works = self.author_client.fetch_author_works(conn, author_id, refresh=True)
         ranked = sorted(works, key=lambda w: (-(w.year or 0), w.title or ""))
         out: list[FeedEntry] = []
         for work in ranked:

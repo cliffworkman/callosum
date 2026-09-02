@@ -261,6 +261,30 @@ def test_openalex_funding_provider_uses_selected_paper_related_work_lineage(temp
     assert awards[0].provenance[0].source_field == "related_works.grants"
 
 
+def test_openalex_funding_lineage_outage_is_reported_as_partial(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(
+            conn,
+            title="Adolescent implementation",
+            csl_json={"title": "x", "DOI": "10.1/focal"},
+            doi="10.1/focal",
+            abstract="Implementation research with adolescents.",
+        )
+        from app.backend.funding.profile import profile_from_paper
+
+        profile = profile_from_paper(conn, pid)
+        awards, status = OpenAlexFundingProvider(
+            fetcher=lambda *a, **k: (200, {"results": []}),
+            client=OpenAlexClient(fetcher=lambda *a, **k: (503, {"error": "unavailable"})),
+        ).search_awards(conn, profile)
+    engine.dispose()
+
+    assert awards == []
+    assert status.status == "partial"
+    assert "lineage" in status.warning.lower()
+
+
 def test_openalex_adapter_meta_preserves_grants(temp_db_url):
     body = {
         "id": "https://openalex.org/W1",

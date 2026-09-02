@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
@@ -20,6 +21,7 @@ from app.backend.persistence.repository import create_paper
 from integrations.doaj.journals import DoajJournal, DoajJournalsClient, _journal_from_body
 from integrations.nlm.journals import NlmJournalsClient
 from integrations.openalex.adapter import OpenAlexClient
+from integrations.openalex.request import OpenAlexResponseUnavailable
 from integrations.openalex.sources import OpenAlexSourcesClient, SourceMeta
 from integrations.scielo.journals import ScieloJournal, ScieloJournalsClient
 
@@ -204,6 +206,15 @@ def test_sources_client_fail_closed(temp_db_url):
         assert client.fetch_topic_for_subject(conn, "x") is None
         assert client.fetch_candidate_sources(conn, "T1") == []
         assert client.fetch_source_details(conn, ["S1"]) == {}
+    engine.dispose()
+
+
+def test_sources_client_strict_candidate_lookup_rejects_malformed_success(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        client = OpenAlexSourcesClient(fetcher=lambda p, **k: (200, {"results": "not-a-list"}))
+        with pytest.raises(OpenAlexResponseUnavailable, match="malformed"):
+            client.fetch_candidate_sources_strict(conn, "T1")
     engine.dispose()
 
 
@@ -651,6 +662,18 @@ def test_endpoint_paste_path(temp_db_url):
     assert by["S1"]["oa_color"] == "diamond" and by["S1"]["apc_amount"] == 0.0 and by["S1"]["doaj_seal"] is True
     assert "S2" in by and by["S2"]["oa_color"] == "closed"
     assert "predator" not in json.dumps(rep).lower()
+
+
+def test_endpoint_reports_openalex_outage_instead_of_empty_journal_result(temp_db_url):
+    client = _endpoint_app(temp_db_url)
+    client.app.state.openalex_sources_client = OpenAlexSourcesClient(
+        fetcher=lambda *a, **k: (503, {"error": "unavailable"})
+    )
+
+    _, result = _drive(client, {"abstract": "memory attention", "subject": "neuroscience"})
+
+    assert result["status"] == "error"
+    assert "unavailable" in result["detail"].lower()
 
 
 def test_endpoint_paper_path(temp_db_url):

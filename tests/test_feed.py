@@ -6,6 +6,7 @@ opt-in; public-metadata polling — not the Gemini gate.
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
@@ -149,6 +150,22 @@ def test_followed_author_source_maps_skips_no_doi_and_caps_limit(temp_db_url):
     assert [e.doi for e in entries] == ["10.9/newer"]  # no-DOI skipped, newest-first, capped to limit
     assert entries[0].posted_date == "2025"  # a bare year, not left NULL -- feed_repo sorts by posted_date DESC
     assert src.fetch("", limit=10) == []
+    engine.dispose()
+
+
+def test_followed_author_source_rejects_incomplete_openalex_refresh(temp_db_url):
+    from app.backend.discovery.followed_author_feed_source import FollowedAuthorFeedSource
+    from integrations.openalex.author import AuthorWorksResult
+
+    class IncompleteAuthorClient(_FakeAuthorClient):
+        def fetch_author_works_result(self, conn, author_id, *, refresh=False):
+            del conn, author_id, refresh
+            return AuthorWorksResult(works=(), complete=False)
+
+    engine = make_engine(temp_db_url)
+    src = FollowedAuthorFeedSource(engine=engine, author_client=IncompleteAuthorClient({}))
+    with pytest.raises(RuntimeError, match="incomplete"):
+        src.fetch("A1", limit=10)
     engine.dispose()
 
 

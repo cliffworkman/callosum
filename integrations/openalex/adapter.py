@@ -181,6 +181,13 @@ class OpenAlexClient(FieldSampleMixin):
         Gives the focal paper's `primary_topic` (the field baseline) + authors. Fail-closed → None."""
         return _meta_from_work(self._fetch_work(conn, ref))
 
+    def fetch_work_meta_for_strict(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
+        """Return normalized metadata or a proven miss; raise when the work lookup is unavailable."""
+        result = self._fetch_work_result(conn, ref)
+        if result.state == "unavailable":
+            raise OpenAlexUnavailableError("OpenAlex work metadata lookup was unavailable")
+        return _meta_from_work(result.work)
+
     def fetch_work_csl(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
         """A CSL-fragment (title/author/issued/container-title/type/abstract/DOI/PMID) for a work by DOI/PMID/
         title — the multi-pass metadata enricher's OpenAlex source (inc 217). Notably fills venue / abstract /

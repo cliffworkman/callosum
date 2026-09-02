@@ -72,6 +72,14 @@ class FieldSampleMixin:
             return []
         return [m for work in results[:size] if (m := _meta_from_work(work))]
 
+    def fetch_field_sample_strict(self, conn: Connection, topic_id: str, *, size: int = 200) -> list[dict[str, Any]]:
+        """Return a complete field sample, raising when the response is unavailable or malformed."""
+        body = self._field_sample_body(conn, topic_id, size)
+        results = body.get("results") if isinstance(body, dict) else None
+        if not isinstance(results, list):
+            raise OpenAlexResponseUnavailable("OpenAlex field sample was unavailable or malformed")
+        return [m for work in results[:size] if (m := _meta_from_work(work))]
+
     def fetch_topic_candidates(self, conn: Connection, topic_id: str, *, size: int = 200) -> list[dict[str, Any]]:
         """Topic-sample works WITH the reconstructed abstract (inc 228 overlooked-work) -- candidates from the field,
         ranked by local embedding similarity to the focal paper. Shares the `field:<id>` cache with
@@ -82,6 +90,16 @@ class FieldSampleMixin:
         results = body.get("results")
         if not isinstance(results, list):
             return []
+        return [m for work in results[:size] if (m := _meta_with_abstract(work))]
+
+    def fetch_topic_candidates_strict(
+        self, conn: Connection, topic_id: str, *, size: int = 200
+    ) -> list[dict[str, Any]]:
+        """Return complete topic candidates, raising when the response is unavailable or malformed."""
+        body = self._field_sample_body(conn, topic_id, size)
+        results = body.get("results") if isinstance(body, dict) else None
+        if not isinstance(results, list):
+            raise OpenAlexResponseUnavailable("OpenAlex topic candidates were unavailable or malformed")
         return [m for work in results[:size] if (m := _meta_with_abstract(work))]
 
     def fetch_works_by_ids(

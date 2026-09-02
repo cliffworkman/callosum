@@ -374,6 +374,20 @@ def test_run_404_and_422(temp_db_url):
     assert client.post("/methods/citation-equity/run", json={"paper_id": no_doi}).status_code == 422
 
 
+def test_run_reports_openalex_outage_instead_of_publishing_empty_audit(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _seed(conn, "Focal", "10.1/f")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.openalex_client = OpenAlexClient(fetcher=lambda *a, **k: (503, {"error": "unavailable"}))
+
+    done = _drive(client, pid)
+
+    assert done["status"] == "error"
+    assert "unavailable" in done["detail"].lower()
+
+
 def test_run_no_referenced_works_is_graceful(temp_db_url):
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
@@ -463,6 +477,20 @@ def test_check_selected_rejects_empty_and_over_cap_input(temp_db_url):
     assert client.post("/methods/citation-equity/check-selected", json={"paper_ids": []}).status_code == 422
     too_many = list(range(1, MAX_EQUITY_CHECK_SELECTED + 2))
     assert client.post("/methods/citation-equity/check-selected", json={"paper_ids": too_many}).status_code == 422
+
+
+def test_check_selected_returns_503_when_openalex_is_unavailable(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _seed(conn, "Selected", "10.1/selected")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.openalex_client = OpenAlexClient(fetcher=lambda *a, **k: (503, {"error": "unavailable"}))
+
+    response = client.post("/methods/citation-equity/check-selected", json={"paper_ids": [pid]})
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "OpenAlex metadata is temporarily unavailable."
 
 
 # --- inc 457: the self-citation field baseline's dual cap (target N=40, max checks=100) -----------------------

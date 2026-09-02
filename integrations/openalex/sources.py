@@ -152,6 +152,15 @@ class OpenAlexSourcesClient:
     ) -> list[SourceStub]:
         """The journals a topic's recent works appear in, ranked by frequency (the topic's dominant venues).
         `topic_id` validated `^T\\d+$` before any request. Fail-closed → []."""
+        try:
+            return self.fetch_candidate_sources_strict(conn, topic_id, cap=cap)
+        except OpenAlexResponseUnavailable:
+            return []
+
+    def fetch_candidate_sources_strict(
+        self, conn: Connection, topic_id: str, *, cap: int = MAX_CANDIDATES
+    ) -> list[SourceStub]:
+        """Return a complete candidate-source sample, raising when it cannot be established."""
         if not _TOPIC_RE.fullmatch(topic_id or ""):
             return []
         cap = max(1, min(int(cap), MAX_CANDIDATES))
@@ -162,10 +171,11 @@ class OpenAlexSourcesClient:
             {"filter": f"primary_topic.id:{topic_id}", "per-page": str(WORKS_SAMPLE), "select": "primary_location"},
             cache_key,
             {"topic_id": topic_id},
+            strict=True,
         )
         works = (body or {}).get("results") if isinstance(body, dict) else None
         if not isinstance(works, list):
-            return []
+            raise OpenAlexResponseUnavailable("OpenAlex candidate-source response was malformed")
         counts: Counter[str] = Counter()
         meta: dict[str, tuple[str | None, str | None]] = {}
         for work in works:
@@ -237,6 +247,13 @@ class OpenAlexSourcesClient:
     def fetch_source_details(self, conn: Connection, source_ids: list[str]) -> dict[str, SourceMeta]:
         """Per-journal facts for a batch of source ids (`/sources?filter=openalex_id:S1|S2|…`, ≤MAX_BYIDS/call).
         Each id validated `^S\\d+$` before the request. Returns {source_id: SourceMeta}; fail-closed → {}."""
+        try:
+            return self.fetch_source_details_strict(conn, source_ids)
+        except OpenAlexResponseUnavailable:
+            return {}
+
+    def fetch_source_details_strict(self, conn: Connection, source_ids: list[str]) -> dict[str, SourceMeta]:
+        """Return all bounded source-detail batches, raising rather than publishing a partial set."""
         valid = [s for s in (source_ids or []) if _SOURCE_RE.fullmatch(s or "")]
         out: dict[str, SourceMeta] = {}
         for i in range(0, len(valid), MAX_BYIDS):
@@ -248,8 +265,12 @@ class OpenAlexSourcesClient:
                 {"filter": "openalex_id:" + "|".join(chunk), "per-page": str(len(chunk))},
                 cache_key,
                 {"ids": chunk},
+                strict=True,
             )
-            for src in (body or {}).get("results") or [] if isinstance(body, dict) else []:
+            results = body.get("results") if isinstance(body, dict) else None
+            if not isinstance(results, list):
+                raise OpenAlexResponseUnavailable("OpenAlex source-detail response was malformed")
+            for src in results[: len(chunk)]:
                 m = _source_meta(src)
                 if m is not None:
                     out[m.source_id] = m
