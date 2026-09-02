@@ -10,8 +10,15 @@ from tools.qualification import overview_cloud_calibration as calibration
 
 
 def test_historical_battery_remains_frozen() -> None:
+    # Re-frozen 2026-09-01 (inc 557): app/backend/llm/providers.py -- one of the battery's frozen inputs --
+    # changed for the first time since the 2026-08-25 freeze, as part of an unrelated privacy hardening fix
+    # (forcing trust_env=False for loopback destinations; removing 0.0.0.0 from the loopback allowlist).
+    # Confirmed behaviorally neutral for what this study tested: managed_local's own http_trust_env was
+    # already hardcoded False before and after, and the managed target is hard-pinned to a literal 127.0.0.1,
+    # never 0.0.0.0 -- so the qualification's already-recorded null result remains reproducible against the
+    # re-frozen code. See .claude/docs/increment-notes/INCREMENT-557-NOTES.md.
     assert overview_battery.verify_freeze()["aggregate_sha256"] == (
-        "5fbba390a2fcfbb51121763612fcf8f14cbc8a8fb4462313da160edbb179c707"
+        "944213c0b1aaf6c6f43717d0ba7a243d336875f5156af26d9930575c8f68ed9b"
     )
 
 

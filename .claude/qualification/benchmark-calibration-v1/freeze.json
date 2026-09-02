@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "calibration_profile": "benchmark-calibration-v1",
-  "starting_head": "4cb610eb44d16ce7792f7e169946ebbacc9dbb22",
+  "starting_head": "2ba735abb1808644bbe388a14ccb6963bf95b9ab",
   "frozen_before_provider_output": true,
-  "base_battery_aggregate_sha256": "5fbba390a2fcfbb51121763612fcf8f14cbc8a8fb4462313da160edbb179c707",
+  "base_battery_aggregate_sha256": "944213c0b1aaf6c6f43717d0ba7a243d336875f5156af26d9930575c8f68ed9b",
   "files": {
     ".claude/qualification/benchmark-calibration-v1/preregistration.json": "6324ef6a455ae16b89b43d7b61be0e28638390ec7d33e99cc514a86305722cdb",
     ".claude/qualification/benchmark-calibration-v1/protocol-amendment-1.json": "e7b97b35a7ac49c1e88d546a1b6fdbc2d891225ee9d582937a1956ef80242ebc",

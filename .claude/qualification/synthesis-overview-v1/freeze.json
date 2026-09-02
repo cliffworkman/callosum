@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "qualification_profile": "synthesis-overview-v1",
-  "starting_head": "a860f1ff7e409c3b6b89e42d6d5f97e8d085a241",
+  "starting_head": "2ba735abb1808644bbe388a14ccb6963bf95b9ab",
   "files": {
     ".claude/qualification/synthesis-overview-v1/preregistration.json": "dbde545934f7e84608bec78507ca4bdff2fdd8662f8e3bdf1f992c013ed288c9",
     ".claude/qualification/synthesis-overview-v1/codebook.md": "1542f06cee30296b3d57bfb8615fabdbef1970ee09f9b4c9c6af1914d50f3c54",
@@ -11,8 +11,8 @@
     "integrations/gemini/overview.py": "08bbf9ff8fa6a02afb7a5c2cbf1500c068d7b572addbe0c2b85138181e917103",
     "app/backend/summarization/overview.py": "7de0d4f79068abf2e08d1bf81f028032997b89dd18fdc479afe76ba8bdb93be4",
     "app/backend/summarization/overview_lifecycle.py": "bfa1ebdf38e38fc3338276fa4c0ae74b1673e6f57bfeb428e6c573a39d6fd61a",
-    "app/backend/llm/providers.py": "2b7ccc442143174e7eb7d498cfa8df26a049b3562eca313082512f5e1cb6dbea",
+    "app/backend/llm/providers.py": "f8b4773da4c11c84742064104ff419785b2f6f3dedce2ae0f2f683e61ebff6f2",
     "tools/qualification/overview_battery.py": "390c8aa9f354fc9993312f5b76fc7c8bd3d311000436f992e9f057251bb9dc9a"
   },
-  "aggregate_sha256": "5fbba390a2fcfbb51121763612fcf8f14cbc8a8fb4462313da160edbb179c707"
+  "aggregate_sha256": "944213c0b1aaf6c6f43717d0ba7a243d336875f5156af26d9930575c8f68ed9b"
 }
