@@ -11,10 +11,10 @@
   ],
   "review": {
     "reviewed_at": "2026-09-01",
-    "reviewed_rev": "479fa85",
+    "reviewed_rev": "3806e7c",
     "reviewed_increment": 556,
-    "source_fingerprint": "aedb1d80867c0e9f5543c591e733d463adba7b3eb061666cc2c7a3973a4ae297",
-    "note": "Reviewed Synthesize/Ask and Critical Review Local AI fixes ahead of a lab-meeting demo: 19_synthesis_failures.jsx gained a friendly Local-AI-not-ready classification branch; app/backend/api/routers/critical_review.py and summaries.py gained exception handling for provider/Local-AI failures (backend-only, not in this tool's frontend-focused glob).",
+    "source_fingerprint": "69e944b46d1dd97cb5d02bb27d1e690dae248490445b62868baead3f34f4305f",
+    "note": "Reviewed the Wave 1/2 Local AI reliability fix set (frontend gate swaps in 08n/08x/08y/20_synthesis.jsx, plus a new Status-tracked entry in 04c_status.jsx for the Critical Review triage endpoint): no showcase claim or visual change is required -- these are internal readiness-detection/tracking fixes, not user-visible feature or copy changes.",
     "declined_at": null,
     "declined_rev": null,
     "declined_increment": null,

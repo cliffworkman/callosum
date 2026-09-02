@@ -10,6 +10,7 @@ endpoint must be a loopback address (422 otherwise) — that is what makes its "
 from __future__ import annotations
 
 import os
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -203,6 +204,8 @@ def put_settings(update: SettingsUpdate) -> SettingsStatus:
                 status_code=422,
                 detail="The local endpoint must be a loopback address (127.0.0.1 / localhost) — nothing leaves the machine.",
             )
+        if url and (urlparse(url).username or urlparse(url).password):
+            raise HTTPException(status_code=422, detail="The local endpoint must not contain embedded credentials.")
         app_settings.set_local_base_url(url)
     if update.set_model:
         app_settings.set_model(update.model)

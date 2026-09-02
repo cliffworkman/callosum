@@ -85,6 +85,15 @@ def test_custom_validation_raises_value_error():
         providers_store.add_custom(name="X", base_url="https://x.ai", wire_format="chat_completions", models=["m"] * 99)
 
 
+def test_custom_base_url_rejects_embedded_credentials():
+    # https://user:pass@host risks a secret landing in stored config/error text -- the key is already collected
+    # and stored separately, so a base URL never needs to carry one.
+    with pytest.raises(ValueError, match="credentials"):
+        providers_store.add_custom(
+            name="X", base_url="https://user:pass@x.ai", wire_format="chat_completions", models=[]
+        )
+
+
 def test_active_custom_cloud_provider_is_egress_gated():
     """A custom provider pointed at a cloud URL resolves through from_environment and is gated exactly like Gemini;
     a custom loopback provider is honestly no-egress (invariant #3 for an arbitrary user URL)."""

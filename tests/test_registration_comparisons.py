@@ -575,6 +575,36 @@ def test_registration_llm_triage_is_bounded_advisory_and_keeps_unlabeled_rows_vi
     assert "compliance" in prompts[0] and "Return JSON only" in prompts[0]
 
 
+def test_registration_llm_triage_bounds_total_input_tighter_for_managed_local() -> None:
+    """Real measured worst-case input against the cloud-sized MAX_TOTAL_INPUT_CHARS was 58,209 chars --
+    near-certain overflow on the managed Local AI preview's much smaller ~10,240-token window."""
+
+    def complete_fn(config, prompt):
+        assert len(prompt) < 15_000
+        return SimpleNamespace(text='{"rows":[]}')
+
+    rows = [
+        {
+            "id": i,
+            "field_type": "outcome",
+            "comparison_status": "potentially-changed",
+            "registration_evidence_text": "x" * 900,
+            "publication_evidence_text": "y" * 900,
+            "explanation": "z" * 700,
+            "uncertainty": "w" * 500,
+            "search_scope_json": {},
+        }
+        for i in range(30)
+    ]
+    evaluator = RegistrationComparisonTriageEvaluator(
+        config=SimpleNamespace(provider="managed_local", model="fixture-model"), complete_fn=complete_fn
+    )
+    result = evaluator.evaluate(rows=rows)
+    assert result["status"]["status"] == "success"
+    assert result["status"]["evaluated_count"] < 30  # rows were dropped to fit the tighter managed_local budget
+    assert "bounded row" in result["status"]["warning"]
+
+
 def test_registration_llm_triage_endpoint_persists_without_changing_crosswalk(temp_db_url: str) -> None:
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:

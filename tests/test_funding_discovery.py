@@ -584,6 +584,45 @@ def test_llm_triage_annotates_items_without_replacing_full_pool():
     assert "recommended grant" not in payload
 
 
+def test_llm_triage_bounds_total_input_for_managed_local_without_dropping_silently():
+    """Funding triage previously had NO total-character cap at all (only an 80-item count cap) -- real measured
+    worst-case input was 641,896 chars, nearly two orders of magnitude past the managed Local AI preview's
+    ~10,240-token budget. A managed_local run must bound total input and disclose any dropped items via the
+    warning, never silently."""
+    from types import SimpleNamespace
+
+    class _Result:
+        text = json.dumps({"items": []})
+
+    def complete_fn(config, prompt):
+        assert len(prompt) < 20_000  # comfortably under the managed_local budget, not the 200k cloud default
+        return _Result()
+
+    report = {
+        "profile": {},
+        "open_opportunities": [
+            {
+                "id": i,
+                "title": f"Opportunity {i}",
+                "organization_name": "Org",
+                "status": "open",
+                "summary": "x" * 5000,  # each item alone would blow a tiny total budget without per-field clipping
+                "signals": [],
+            }
+            for i in range(20)
+        ],
+        "recurring_schemes": [],
+        "funding_prospects": [],
+        "application_surfaces": [],
+    }
+    status = FundingLlmTriageEvaluator(
+        config=SimpleNamespace(provider="managed_local"), complete_fn=complete_fn
+    ).evaluate(report=report, research_context="test")
+    assert status["status"] == "success"
+    assert status["evaluated_count"] < 20  # some items were dropped to fit the managed_local budget
+    assert status["warning"] and "bounded item" in status["warning"]  # disclosed, not silent
+
+
 def test_llm_triage_endpoint_reviews_current_pool_without_rerunning_discovery(temp_db_url):
     class _Evaluator:
         def evaluate(self, *, report, research_context):

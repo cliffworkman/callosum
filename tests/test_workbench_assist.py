@@ -190,3 +190,19 @@ def test_assemble_proposals_filters_and_shapes(monkeypatch):
     assert len(result) == 1  # "secret" was filtered out
     assert result[0]["field_key"] == "r"
     assert {"field_key", "value", "quote", "anchor_state", "page", "bbox_json", "reason"} <= set(result[0].keys())
+
+
+def test_extraction_prompt_defense_in_depth_caps_text_for_managed_local():
+    """workbench_assist.py already pre-bounds its own `text` (MAX_TEXT_CHARS/MAX_TEXT_CHARS_MANAGED_LOCAL) before
+    it reaches this layer -- this is a defense-in-depth cap for any future caller that forgets to."""
+    from integrations.gemini.extraction_assistant import MAX_PAPER_TEXT_CHARS_MANAGED_LOCAL, _prompt
+
+    long_text = "x" * 20_000
+    fields = [{"key": "r", "label": "Correlation", "type": "number", "options": None}]
+
+    cloud_prompt = _prompt(text=long_text, fields=fields, provider="gemini")
+    managed_prompt = _prompt(text=long_text, fields=fields, provider="managed_local")
+
+    assert long_text in cloud_prompt
+    assert long_text not in managed_prompt
+    assert long_text[:MAX_PAPER_TEXT_CHARS_MANAGED_LOCAL] in managed_prompt

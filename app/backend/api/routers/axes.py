@@ -70,6 +70,7 @@ from app.backend.clustering.axis_suggestion import apply_labels, suggest_axes
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.llm.egress import EgressGatedAxisClusterLabeler, EgressGatedAxisTermSuggester
+from app.backend.llm.managed_local import ManagedLocalTargetError
 from app.backend.persistence.profile_repo import get_profile
 from app.backend.persistence.repository import (
     get_axis,
@@ -154,7 +155,11 @@ def suggest_axis_terms(payload: SuggestTermsRequest, request: Request) -> Sugges
     except DataEgressDisabledError:
         raise HTTPException(
             status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI term suggestions need data egress: set CALLOSUM_ALLOW_DATA_EGRESS=1 and GOOGLE_API_KEY, then restart.",
+            detail="AI term suggestions require explicit data-egress consent (Settings → AI features).",
+        ) from None
+    except ManagedLocalTargetError as exc:
+        raise HTTPException(
+            status_code=422, detail=f"Local AI is not ready ({exc.code}). Check Settings → AI features."
         ) from None
     except Exception as exc:  # any Gemini/network failure → surface, never 500
         raise HTTPException(
@@ -434,9 +439,13 @@ def _run_axis_suggest_job(app: FastAPI, job_id: str) -> None:
         engine: Engine = app.state.engine
         with engine.begin() as conn:  # clustering is local; the conn closes before any Gemini call
             suggestions = suggest_axes(conn, model=model)
-        suggestions = apply_labels(
-            suggestions, labeler=_axis_cluster_labeler(app)
-        )  # egress-gated polish; local fallback
+        try:
+            labeler = _axis_cluster_labeler(app)
+        except ManagedLocalTargetError:
+            # Local AI not ready — apply_labels(labeler=None) keeps every suggestion's local c-TF-IDF label
+            # rather than failing the whole job over an optional polish step.
+            labeler = None
+        suggestions = apply_labels(suggestions, labeler=labeler)  # egress-gated polish; local fallback
         jobs.mark_done(
             job_id,
             AxisSuggestJobResponse(

@@ -61,6 +61,26 @@ def test_triage_is_bounded_advisory_and_keeps_unlabeled_items_visible() -> None:
     assert "Return JSON only" in prompts[0]
 
 
+def test_triage_bounds_total_input_tighter_for_managed_local() -> None:
+    """Real measured worst-case input against the cloud-sized MAX_TOTAL_INPUT_CHARS was 39,879 chars --
+    near-certain overflow on the managed Local AI preview's much smaller ~10,240-token window."""
+
+    def complete_fn(config, prompt):
+        assert len(prompt) < 15_000
+        return SimpleNamespace(text='{"items":[]}')
+
+    items = [
+        {"item_id": i, "claim": "x" * 500, "evidence": "y" * 900, "stance": "contrast", "confidence": 0.5}
+        for i in range(30)
+    ]
+    evaluator = CriticalReviewTriageEvaluator(
+        config=SimpleNamespace(provider="managed_local", model="fixture-model"), complete_fn=complete_fn
+    )
+    result = evaluator.evaluate(items=items)
+    assert result["status"]["status"] == "success"
+    assert result["status"]["evaluated_count"] < 30  # items were dropped to fit the tighter managed_local budget
+
+
 def test_single_paper_critical_read_triages_contested_claims_ephemerally(temp_db_url: str) -> None:
     from app.backend.embeddings.vector_store import VectorHit
 
@@ -246,6 +266,61 @@ def test_candidate_triage_honors_egress_gate(temp_db_url: str, monkeypatch: pyte
     assert r.status_code == 200
     assert r.json()["status"]["status"] == "unavailable"
     assert "egress consent" in r.json()["status"]["detail"]
+
+
+def test_candidate_triage_degrades_safely_on_malformed_model_output(temp_db_url: str) -> None:
+    """A malformed/non-JSON model response (bare json.loads() inside evaluate(), no try/except at that layer)
+    must degrade to a safe "failed" status through this router's own broad catch -- never an unhandled 500.
+    Critical Review triage previously lacked this safety net, unlike its funding/registration siblings."""
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        (cid,) = repo.insert_candidates(
+            conn,
+            pid,
+            [{"concern": "x", "anchor_quote": "y", "signature": "sig1", "stance": "contrast", "confidence": 0.7}],
+        )
+    engine.dispose()
+
+    def complete_fn(config, prompt):
+        return SimpleNamespace(text="not json at all, no braces")
+
+    app = create_app(db_url=temp_db_url)
+    app.state.critical_review_triage_evaluator = CriticalReviewTriageEvaluator(
+        config=SimpleNamespace(provider="local", model="fixture-model"), complete_fn=complete_fn
+    )
+    client = TestClient(app)
+    r = client.post("/critical-read/candidates/triage", json={"candidate_ids": [cid]})
+    assert r.status_code == 200, r.text
+    assert r.json()["status"]["status"] == "failed"
+    assert "still shown untriaged" in r.json()["status"]["detail"]
+
+
+def test_candidate_triage_reports_managed_local_not_ready_not_a_raw_crash(
+    temp_db_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.backend.llm.managed_local import ManagedLocalTargetError
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        (cid,) = repo.insert_candidates(
+            conn,
+            pid,
+            [{"concern": "x", "anchor_quote": "y", "signature": "sig1", "stance": "contrast", "confidence": 0.7}],
+        )
+    engine.dispose()
+
+    def _raise(app):
+        raise ManagedLocalTargetError("descriptor_unreadable")
+
+    monkeypatch.setattr("app.backend.api.routers.critical_review_triage.resolve_llm_config", _raise)
+    app = create_app(db_url=temp_db_url)
+    client = TestClient(app)
+    r = client.post("/critical-read/candidates/triage", json={"candidate_ids": [cid]})
+    assert r.status_code == 200, r.text
+    assert r.json()["status"]["status"] == "unavailable"
+    assert "Local AI is not ready (descriptor_unreadable)" in r.json()["status"]["detail"]
 
 
 def test_candidate_triage_fingerprint_detects_content_drift() -> None:

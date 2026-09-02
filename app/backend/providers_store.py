@@ -240,6 +240,10 @@ def _norm_base(u) -> str:
     parsed = urlparse(u)
     if parsed.scheme not in ("http", "https") or not parsed.netloc:
         raise ValueError("Base URL must be an http(s) URL (e.g. https://api.example.com).")
+    if parsed.username or parsed.password:
+        # Embedded userinfo (https://user:pass@host) risks a secret landing in stored config/error text --
+        # a custom provider's key is already collected + stored separately, so a URL never needs to carry one.
+        raise ValueError("Base URL must not contain embedded credentials (user:pass@host).")
     u = u.rstrip("/")
     # The transports append the version themselves ({base}/v1/chat/completions etc.), so a base that already
     # ends in /v1 would double it — strip it off (users commonly paste the provider's documented /v1 base).

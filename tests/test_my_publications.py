@@ -983,3 +983,17 @@ def test_undismiss_returns_work_to_missing_queue(temp_db_url):
     # the undismiss endpoint is local + always 204 (idempotent)
     client = TestClient(create_app(db_url=temp_db_url, openalex_author_client=fake))
     assert client.post("/my-publications/works/undismiss", json={"doi": "10.1/miss"}).status_code == 204
+
+
+def test_research_summary_prompt_bounds_documents_tighter_for_managed_local_than_cloud() -> None:
+    """60 docs x 600-char abstracts is up to 36,000 chars of abstracts alone; measured real worst-case input
+    was 56,397 chars -- well past the managed Local AI preview's ~10,240-token budget."""
+    from integrations.gemini.research_summary import _prompt
+
+    documents = [{"title": f"Paper {i}", "abstract": "x" * 600} for i in range(60)]
+
+    cloud_prompt = _prompt(documents, provider="gemini")
+    managed_prompt = _prompt(documents, provider="managed_local")
+
+    assert len(managed_prompt) < len(cloud_prompt)
+    assert "Paper 0" in managed_prompt and "Paper 59" not in managed_prompt  # fewer docs sent, not truncated mid-list

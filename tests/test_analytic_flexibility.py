@@ -87,6 +87,56 @@ def test_propose_analytic_flexibility_writes_findings_from_llm_candidates(temp_d
     assert rows[0]["payload"]["anchor_state"] == "unanchored"
 
 
+def test_propose_analytic_flexibility_bounds_methods_text_tighter_for_managed_local(temp_db_url: str) -> None:
+    """Real measured worst-case combined input (this cap + the sibling WIP cap) was 20,703 chars -- already
+    at/past the 20,000-char default, and well past the managed Local AI preview's ~10,240-token budget."""
+    eng = create_engine(temp_db_url)
+    with eng.begin() as conn:
+        pid = create_paper(conn, title="T", csl_json={"title": "T", "type": "article-journal"})
+        aid = create_attachment(
+            conn,
+            paper_id=pid,
+            storage_mode="linked",
+            availability="available",
+            content_type="application/pdf",
+            checksum="x",
+            import_source="test",
+            attachment_type="pdf",
+            role="article-fulltext",
+        )
+        for i in range(15):  # 15 x 1,000-char methods chunks -- fits under the 20,000 cloud cap, not under 8,000
+            conn.execute(
+                chunks.insert().values(
+                    paper_id=pid,
+                    attachment_id=aid,
+                    text="x" * 1000,
+                    section="methods",
+                    page_start=i + 1,
+                    page_end=i + 1,
+                    bbox_coordinate_system="pdf-points-top-left",
+                    extraction_tool="test",
+                    extraction_version="1",
+                    chunking_strategy="test",
+                    chunk_version="1",
+                    source_attachment_checksum="deadbeef",
+                )
+            )
+        config = GeminiConfig(provider="managed_local", model="callosum-managed-local", data_egress_enabled=False)
+        received = {}
+
+        def _capture_propose(self, *, text):
+            received["len"] = len(text)
+            return []
+
+        with (
+            patch("app.backend.analytic_flexibility.AnalyticFlexibilityAssistant.propose", _capture_propose),
+            patch("app.backend.analytic_flexibility.primary_pdf_path", return_value=None),
+        ):
+            propose_analytic_flexibility(conn, pid, config)
+    eng.dispose()
+    assert received["len"] <= 8000
+
+
 def test_propose_analytic_flexibility_reports_no_methods_text_honestly(temp_db_url: str) -> None:
     eng = create_engine(temp_db_url)
     with eng.begin() as conn:

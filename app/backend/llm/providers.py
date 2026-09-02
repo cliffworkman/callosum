@@ -31,7 +31,11 @@ if TYPE_CHECKING:
 CLOUD_PROVIDERS = ("gemini", "openai", "anthropic")
 ALL_PROVIDERS = (*CLOUD_PROVIDERS, "local")
 WIRE_FORMATS = ("gemini", "messages", "chat_completions", "responses")
-_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
+_LOOPBACK_HOSTS = {
+    "127.0.0.1",
+    "localhost",
+    "::1",
+}  # NOT 0.0.0.0 -- a bind-all address, not a client-reachable loopback
 _HTTP_TIMEOUT = 60.0
 _MAX_TOKENS = 2048  # anthropic requires an explicit cap; a generous bound for our prompts
 _ANTHROPIC_VERSION = "2023-06-01"
@@ -188,10 +192,16 @@ def complete(
     if http_client is not None:
         return dispatch(http_client)
     if runtime is not None:
+        # A loopback destination never honors an ambient HTTP(S)_PROXY env var, regardless of what the
+        # config's own http_trust_env says — a manually-configured "local"/custom loopback provider (which
+        # inherits LLMConfig's http_trust_env=True default) would otherwise silently route "local, no egress"
+        # traffic through a proxy if one happens to be set. The managed Local AI target already sets
+        # http_trust_env=False explicitly, so this is unaffected there.
+        trust_env = bool(getattr(config, "http_trust_env", True)) and not is_loopback_url(base)
         return runtime.run_http(
             base_url=base,
             timeout=_HTTP_TIMEOUT,
-            trust_env=bool(getattr(config, "http_trust_env", True)),
+            trust_env=trust_env,
             operation=dispatch,
         )
     return dispatch(None)

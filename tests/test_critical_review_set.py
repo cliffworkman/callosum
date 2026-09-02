@@ -309,6 +309,26 @@ def test_verify_set_output_has_no_author_or_score_fields():
     assert not ({"score", "quality", "grade", "rating", "verdict"} & set(out[0].keys()))
 
 
+def test_set_prompt_bounds_paper_text_tighter_for_managed_local_than_cloud():
+    """The managed Local AI preview's ~10,240-token input budget is a fraction of the cloud-sized
+    _MAX_SET_PROMPT_CHARS above (measured real worst-case input: 20,565 chars -- already at/past the cloud
+    cap). Every set paper still gets representation (truncated, never dropped)."""
+    from integrations.gemini.critical_review_set import (
+        _MAX_SET_PROMPT_CHARS,
+        _MAX_SET_PROMPT_CHARS_MANAGED_LOCAL,
+        _set_prompt,
+    )
+
+    set_papers = [{"index": i + 1, "paper_id": i, "text": "x" * 5000} for i in range(5)]
+
+    cloud_prompt = _set_prompt(set_papers, provider="gemini")
+    managed_prompt = _set_prompt(set_papers, provider="managed_local")
+
+    assert _MAX_SET_PROMPT_CHARS_MANAGED_LOCAL < _MAX_SET_PROMPT_CHARS
+    assert len(managed_prompt) < len(cloud_prompt)
+    assert managed_prompt.count("[1]") == 1 and managed_prompt.count("[5]") == 1  # every paper still represented
+
+
 def test_parse_set_drafts_defensive():
     assert parse_set_drafts("not json") == []
     drafts = parse_set_drafts('[{"concern":"c","anchor_quote":"q","related":[1,2]}]')
@@ -401,6 +421,34 @@ def test_set_tier2_fake_generator_and_egress_off(temp_db_url, monkeypatch):
     )
     assert done2["report"]["llm_status"]["status"] == "unavailable"
     assert done2["report"]["candidates"] == []
+
+
+def test_set_tier2_reports_managed_local_not_ready_without_failing_the_whole_job(
+    temp_db_url, tmp_path, monkeypatch
+) -> None:
+    """A ManagedLocalTargetError raised resolving config for the set path must degrade to the same honest
+    llm_status.unavailable shape the egress-off case already uses -- not fail the whole job (mirrors the
+    single-paper Tier-2 fix; this path is job-based so a raw exception would otherwise surface only as an
+    opaque bare-code job error, per the known follow-up noted when the single-paper fix shipped)."""
+    settings = tmp_path / "settings.json"
+    settings.write_text(json.dumps({"provider": "managed_local", "data_egress_enabled": True}), encoding="utf-8")
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(settings))
+    monkeypatch.setenv("CALLOSUM_APP_DATA_DIR", str(tmp_path))  # no managed-local-ai/target.json written here
+    app = _cr_set_app(temp_db_url)
+    with make_engine(temp_db_url).begin() as conn:
+        a = create_paper(conn, title="A", abstract="The sample was n = 12 participants.", csl_json={"title": "A"})
+        b = create_paper(conn, title="B", abstract="We used a within-subjects design.", csl_json={"title": "B"})
+    client = TestClient(app)
+    done = _poll_set(
+        client, client.post("/critical-read/set", json={"paper_ids": [a, b], "llm": True}).json()["job_id"]
+    )
+    assert done["status"] == "done"  # the job itself completes -- only the LLM sub-step degrades
+    assert done["report"]["llm_status"]["status"] == "unavailable"
+    assert "Local AI is not ready (descriptor_unreadable)" in done["report"]["llm_status"]["detail"]
+    assert done["report"]["candidates"] == []
+    app.state.provider_client_runtime.close()
+    app.state.model_runtime_registry.close()
+    app.state.engine.dispose()
 
 
 class _FakeCandidateTriage:

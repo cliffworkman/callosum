@@ -9,6 +9,7 @@ from sqlalchemy import Engine
 from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_engine, resolve_llm_config
+from app.backend.llm.managed_local import ManagedLocalTargetError
 from app.backend.persistence.repository import get_summary
 from app.backend.summarization.overview_lifecycle import (
     OverviewStatus,
@@ -37,7 +38,12 @@ def summary_overview_retry(
     request: Request,
     engine: Engine = Depends(get_engine),
 ) -> OverviewRetryResponse:
-    generator = resolve_overview_generator(request.app)
+    try:
+        generator = resolve_overview_generator(request.app)
+    except ManagedLocalTargetError as exc:
+        raise HTTPException(
+            status_code=422, detail=f"Local AI is not ready ({exc.code}). Check Settings → AI features."
+        ) from None
     if generator is None:
         raise HTTPException(status_code=409, detail="Overview generation is not currently available")
     with engine.begin() as conn:

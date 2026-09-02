@@ -448,11 +448,18 @@ def _run_set_tier2(
     # Tier 2 (egress-gated, invariant #3): the LLM proposes CROSS-PAPER concerns; each is admitted only through the
     # extended #13 bar (verify_set_candidates → verbatim anchor in some set paper), annotated with a local NLI stance,
     # and persisted as a pending CANDIDATE the human accepts/rejects. A fake generator (test seam) still honors the gate.
+    from app.backend.llm.managed_local import ManagedLocalTargetError
     from app.backend.llm.providers import requires_egress
     from app.backend.methods.critical_review import paper_full_text
     from integrations.gemini.critical_review_set import GeminiSetCriticalReviewGenerator, verify_set_candidates
 
-    config = resolve_llm_config(app)
+    try:
+        config = resolve_llm_config(app)
+    except ManagedLocalTargetError as exc:
+        return {
+            "status": "unavailable",
+            "detail": f"Local AI is not ready ({exc.code}). Check Settings → AI features.",
+        }, []
     if requires_egress(config) and not config.data_egress_enabled:
         return {
             "status": "unavailable",

@@ -43,7 +43,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
   const [scopeNote, setScopeNote] = useState(null);   // "N selected papers" when summarizing a library selection
   const [scopeMeta, setScopeMeta] = useState(null);   // {total, topK} for the papers scope → the coverage readout (inc 153)
   const [history, setHistory] = useState({ status: "loading", items: [] });
-  const [egressOff, setEgressOff] = useState(false);  // inc 148: AI off → show a nudge with a door into Settings
+  const [aiUnavailable, setAiUnavailable] = useState(false);  // inc 148: AI off → show a nudge with a door into Settings
   const [sourceDiagnostic, setSourceDiagnostic] = useState(null);
   const pollRef = useRef(null);
   const lastLaunchRef = useRef(null);
@@ -51,7 +51,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
 
   // Re-read egress state on mount + whenever Settings closes (settingsNonce), so the nudge clears once AI is on.
   useEffect(() => {
-    api("/settings").then(r => { if (r.ok && r.data) setEgressOff(!r.data.data_egress_enabled); });
+    api("/settings").then(r => { if (r.ok && r.data) setAiUnavailable(!r.data.generation_provider_available); });
   }, [settingsNonce]);
 
   const loadHistory = useCallback(() => {
@@ -298,7 +298,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
         {busy && <ProgressBar managedBy="backend-job" />}
       </React.Fragment>}
 
-      {!readOnly && egressOff && state.status !== "error" && egressNudge}
+      {!readOnly && aiUnavailable && state.status !== "error" && egressNudge}
 
       {scopeNote &&
         <div className="synth-scope-note">Summary of <b>{scopeNote}</b> from the library selection.</div>}

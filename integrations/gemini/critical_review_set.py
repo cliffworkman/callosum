@@ -12,6 +12,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.backend.llm.prompt_budget import select_total_chars
 from app.backend.llm.providers import complete
 from app.backend.pdf_processing.extraction import canonical_text_contains
 from app.backend.summarization.verification import classify_stances
@@ -21,6 +22,9 @@ _MAX_DRAFTS = 8
 _MAX_CONCERN = 400
 _MAX_QUOTE = 400
 _MAX_SET_PROMPT_CHARS = 20000
+# Measured real worst-case input was 20,565 chars -- already at/past the cap above, and well past the managed
+# Local AI preview's ~10,240-token (~30-40k character) budget. See app/backend/llm/prompt_budget.py.
+_MAX_SET_PROMPT_CHARS_MANAGED_LOCAL = 8000
 
 
 @dataclass(frozen=True)
@@ -92,8 +96,11 @@ def verify_set_candidates(
     return out
 
 
-def _set_prompt(set_papers: list[dict]) -> str:
-    budget = max(1, _MAX_SET_PROMPT_CHARS // max(1, len(set_papers)))
+def _set_prompt(set_papers: list[dict], *, provider: str | None = None) -> str:
+    total_chars = select_total_chars(
+        provider, cloud_default=_MAX_SET_PROMPT_CHARS, managed_local_budget=_MAX_SET_PROMPT_CHARS_MANAGED_LOCAL
+    )
+    budget = max(1, total_chars // max(1, len(set_papers)))
     blocks = [f"[{int(p['index'])}] {str(p['text'])[:budget]}" for p in set_papers]
     return (
         "You are a skeptical methodological reviewer reading several papers a user is citing together. List up to "
@@ -112,7 +119,7 @@ class GeminiSetCriticalReviewGenerator:
         self.config = config
 
     def propose(self, set_papers: list[dict]) -> list[SetCandidateDraft]:
-        result = complete(self.config, _set_prompt(set_papers))
+        result = complete(self.config, _set_prompt(set_papers, provider=getattr(self.config, "provider", None)))
         return parse_set_drafts(str(getattr(result, "text", "") or ""))
 
 

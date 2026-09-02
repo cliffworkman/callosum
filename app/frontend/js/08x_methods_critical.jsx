@@ -185,7 +185,7 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
   const onFindingReviewed = () => { loadFindingCands(); if (onFindingsChanged) onFindingsChanged(); };
 
   // AI availability: the Tier-2 button only appears when data-egress is enabled (the endpoint still enforces the gate).
-  useEffect(() => { api("/settings").then(r => { if (r.ok) setAiReady(Boolean(r.data.data_egress_enabled)); }); }, []);
+  useEffect(() => { api("/settings").then(r => { if (r.ok) setAiReady(Boolean(r.data.generation_provider_available)); }); }, []);
 
   const runT1 = () => {
     autoChainRef.current = wantLlm;

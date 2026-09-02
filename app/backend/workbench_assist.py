@@ -25,6 +25,9 @@ from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import get_attachments_for_paper
 
 MAX_TEXT_CHARS = 50_000  # the paper-text egress cap (resource guard; also bounds the prompt)
+# Measured real worst-case input was 50,546 chars -- essentially the full cloud-sized cap above, well past
+# the managed Local AI preview's ~10,240-token (~30-40k character) budget. See app/backend/llm/prompt_budget.py.
+MAX_TEXT_CHARS_MANAGED_LOCAL = 8_000
 MAX_RELEVANT_CHUNKS = 12  # local retrieval budget before the text egress cap is applied
 STRUCTURED_TYPES = {"number", "choice"}  # the funnel drafts these; free-text columns stay hand-entered
 logger = logging.getLogger(__name__)

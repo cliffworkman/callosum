@@ -61,6 +61,12 @@ def test_is_loopback_url():
     assert not is_loopback_url(None)
 
 
+def test_is_loopback_url_rejects_bind_all_address():
+    # 0.0.0.0 is a bind-all address, not a client-reachable loopback target -- classifying it as loopback would
+    # let a custom provider URL skip the egress gate incorrectly.
+    assert not is_loopback_url("http://0.0.0.0:11434")
+
+
 # --- complete() per provider (no network — injected client) ---
 
 
@@ -159,6 +165,39 @@ def test_managed_local_gets_bounded_slow_device_timeout_without_changing_cloud()
     assert local_cap["timeout"] == 600.0
     assert cloud_cap["timeout"] == 60.0
     base_runtime.close()
+
+
+class _FakeRuntime:
+    """Captures the trust_env kwarg complete() passes to provider_runtime.run_http, bypassing the real
+    ProviderClientRuntime's httpx.Client construction plumbing (which doesn't itself expose trust_env)."""
+
+    def __init__(self, capture):
+        self.capture = capture
+
+    def run_http(self, *, base_url, timeout, operation, trust_env=True):
+        self.capture["trust_env"] = trust_env
+        response = {"choices": [{"message": {"content": "ok"}}], "usage": {}}
+        return operation(_FakeClient(response, {}))
+
+
+def test_complete_forces_trust_env_false_for_a_manually_configured_loopback_provider():
+    # A manually-configured "local"/custom loopback provider inherits LLMConfig's http_trust_env=True default --
+    # without this guard it would honor an ambient HTTP_PROXY/HTTPS_PROXY, silently routing "local, no egress"
+    # traffic through a proxy. The complete() dispatch seam must force trust_env=False for any loopback base_url
+    # regardless of what the config itself claims.
+    cap = {}
+    cfg = _Cfg("local", model="llama3", api_key=None, base_url="http://127.0.0.1:11434")
+    cfg.http_trust_env = True
+    complete(cfg, "PROMPT", provider_runtime=_FakeRuntime(cap))
+    assert cap["trust_env"] is False
+
+
+def test_complete_respects_http_trust_env_for_a_real_cloud_provider():
+    cap = {}
+    cfg = _Cfg("openai", base_url="https://api.openai.com")
+    cfg.http_trust_env = True
+    complete(cfg, "PROMPT", provider_runtime=_FakeRuntime(cap))
+    assert cap["trust_env"] is True
 
 
 def test_complete_blocks_before_network_when_no_key_for_cloud_provider():

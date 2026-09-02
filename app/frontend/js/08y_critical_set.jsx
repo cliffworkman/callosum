@@ -165,7 +165,7 @@ function CriticalSetModal({ ids, resumeJobId, onClose, onOpenPaper }) {
 
   useEffect(() => {
     let live = true;
-    api("/settings").then(r => { if (live && r.ok) setAiReady(Boolean(r.data.data_egress_enabled)); });
+    api("/settings").then(r => { if (live && r.ok) setAiReady(Boolean(r.data.generation_provider_available)); });
     return () => { live = false; };
   }, []);
 

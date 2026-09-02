@@ -18,6 +18,7 @@ from sqlalchemy.exc import NoResultFound
 from app.backend.analytic_flexibility import propose_analytic_flexibility
 from app.backend.api.dependencies import get_connection, resolve_llm_config
 from app.backend.llm.egress import DataEgressDisabledError
+from app.backend.llm.managed_local import ManagedLocalTargetError
 from app.backend.llm.providers import ProviderError, requires_egress
 from app.backend.persistence.repository import get_paper
 
@@ -30,7 +31,12 @@ _EGRESS_REFUSED_DETAIL = (
 
 @router.post("/papers/{paper_id}/analytic-flexibility")
 def run_analytic_flexibility(paper_id: int, request: Request, conn: Connection = Depends(get_connection)) -> dict:
-    config = resolve_llm_config(request.app)
+    try:
+        config = resolve_llm_config(request.app)
+    except ManagedLocalTargetError as exc:
+        raise HTTPException(
+            status_code=422, detail=f"Local AI is not ready ({exc.code}). Check Settings → AI features."
+        ) from None
     if requires_egress(config) and not config.data_egress_enabled:
         raise HTTPException(status_code=403, detail=_EGRESS_REFUSED_DETAIL)
     try:

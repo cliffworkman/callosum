@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
-from app.backend.help.assistant import HelpAnswer, HelpReference
+from app.backend.help.assistant import HelpAnswer, HelpReference, HelpTurn
 from app.backend.help.corpus import load_help_corpus, parse_help_sections
 
 # ── corpus parsing + safe rendering (inline samples; independent of the shipped file) ────────────────
@@ -148,7 +148,22 @@ def test_help_ask_blocked_when_help_disabled(temp_db_url: str, monkeypatch) -> N
     client = TestClient(_help_app(temp_db_url, assistant=fake))
     r = client.post("/help/ask", json={"message": "hi", "history": []})
     assert r.status_code == 503
-    assert "CALLOSUM_HELP_ASSISTANT_ENABLED" in r.json()["detail"]
+    assert "Settings" in r.json()["detail"]
+    assert "GOOGLE_API_KEY" not in r.json()["detail"]  # not provider-specific -- any active provider may apply
+
+
+def test_prompt_bounds_history_tighter_for_managed_local_than_cloud() -> None:
+    """History had no managed_local-aware cap at all: 20 turns x 4,000 chars is up to 80,000 chars alone, which
+    combined with the (already-bounded) corpus measured 98,783 chars total real worst-case input -- against the
+    managed Local AI preview's ~10,240-token budget."""
+    from integrations.gemini.help_assistant import _prompt
+
+    history = [HelpTurn(role="user", content="x" * 4000) for _ in range(20)]
+
+    cloud_prompt = _prompt(message="q", history=history, config=None)
+    managed_prompt = _prompt(message="q", history=history, config=type("C", (), {"provider": "managed_local"})())
+
+    assert len(managed_prompt) < len(cloud_prompt)
 
 
 def test_help_ask_drops_unknown_section_ids(temp_db_url: str) -> None:

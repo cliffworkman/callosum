@@ -346,8 +346,10 @@ class _FakeAssistant:
 
     def __init__(self, proposals):
         self._proposals = proposals
+        self.received_text = None
 
     def propose(self, *, text, fields):
+        self.received_text = text
         return list(self._proposals)
 
 
@@ -597,3 +599,40 @@ def test_propose_provider_failure_returns_502(temp_db_url, tmp_path, monkeypatch
     row_id = client.post(f"/workbench/projects/{pid}/rows", json={"paper_id": paper}).json()["rows"][0]["id"]
     # Both structured fields are empty → past the short-circuit; provider fails → 502
     assert client.post(f"/workbench/rows/{row_id}/propose").status_code == 502
+
+
+def test_propose_bounds_paper_text_tighter_for_managed_local(temp_db_url, tmp_path, monkeypatch):
+    """Measured real worst-case input was 50,546 chars -- essentially the full cloud-sized MAX_TEXT_CHARS cap,
+    well past the managed Local AI preview's ~10,240-token budget. The text the assistant actually receives
+    must be capped at MAX_TEXT_CHARS_MANAGED_LOCAL, not the cloud-sized default, when managed_local is active."""
+    from types import SimpleNamespace
+
+    import app.backend.api.routers.workbench as wbmod
+
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    monkeypatch.setattr(
+        wbmod,
+        "resolve_llm_config",
+        lambda app: SimpleNamespace(
+            provider="managed_local",
+            data_egress_enabled=False,
+            wire_format="chat_completions",
+            base_url="http://127.0.0.1:1234",
+        ),
+    )
+    paper = _seed_paper(temp_db_url, "Theta")
+    # 10 modest chunks (1,000 chars each -- realistic chunk size, none individually near either cap) summing to
+    # 10,000+ chars once page-tagged: fits fully under the cloud MAX_TEXT_CHARS, but must be bounded under the
+    # much smaller managed_local cap.
+    chunks = [{"page_start": i + 1, "page_end": i + 1, "text": "x" * 1000} for i in range(10)]
+    pdf = _pdf_with(tmp_path, "placeholder")
+    fake = _FakeAssistant([])
+    monkeypatch.setattr(wa, "primary_pdf_path", lambda conn, pid: __import__("pathlib").Path(pdf))
+    monkeypatch.setattr(wbmod, "get_chunks_for_paper", lambda conn, pid, **k: chunks)
+    client = TestClient(create_app(db_url=temp_db_url, extraction_assistant=fake))
+    pid = client.post("/workbench/projects", json={"name": "R", "design": "correlation"}).json()["id"]
+    row_id = client.post(f"/workbench/projects/{pid}/rows", json={"paper_id": paper}).json()["rows"][0]["id"]
+    assert client.post(f"/workbench/rows/{row_id}/propose").status_code == 200
+    assert fake.received_text is not None
+    assert len(fake.received_text) <= wa.MAX_TEXT_CHARS_MANAGED_LOCAL
+    assert len(fake.received_text) > 0  # some chunks still got through, not dropped to nothing

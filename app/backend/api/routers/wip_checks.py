@@ -12,6 +12,8 @@ from app.backend.api.dependencies import resolve_llm_config
 from app.backend.api.wip_security import require_local_wip
 from app.backend.funding.run_report import funding_run_summaries
 from app.backend.llm.egress import DataEgressDisabledError
+from app.backend.llm.managed_local import ManagedLocalTargetError
+from app.backend.llm.prompt_budget import select_total_chars
 from app.backend.llm.providers import ProviderError, requires_egress
 from app.backend.methods.bayes import audit_completeness, run_bayes
 from app.backend.methods.lmm import audit_lmm
@@ -257,7 +259,12 @@ def meta_analysis_run(manuscript_id: int, request: Request) -> dict:
 def analytic_flexibility_run(manuscript_id: int, request: Request) -> dict:
     # Egress consent is checked BEFORE any manuscript lookup or DB work (mirrors routers/grobid.py and the
     # Library-side routers/analytic_flexibility.py -- the consent gate wins even over a 404).
-    config = resolve_llm_config(request.app)
+    try:
+        config = resolve_llm_config(request.app)
+    except ManagedLocalTargetError as exc:
+        raise HTTPException(
+            status_code=422, detail=f"Local AI is not ready ({exc.code}). Check Settings → AI features."
+        ) from None
     if requires_egress(config) and not config.data_egress_enabled:
         raise HTTPException(status_code=403, detail=_EGRESS_REFUSED_DETAIL)
     with request.app.state.engine.connect() as conn:
@@ -287,7 +294,11 @@ def analytic_flexibility_run(manuscript_id: int, request: Request) -> dict:
     # closure -- run_write retries its whole closure on a SQLite lock, which would risk re-issuing the LLM
     # call. Persistence (record_snapshot + store_analytic_flexibility_run below) is pure DB writes and is the
     # only part safely wrapped in run_write.
-    scoping = wip_methods_text(list(prepared.identity.blocks))
+    # Measured real worst-case input (combined with the sibling Library-side cap in
+    # app/backend/analytic_flexibility.py) was 20,703 chars -- already at/past the 20,000-char default, and
+    # well past the managed Local AI preview's ~10,240-token budget. See app/backend/llm/prompt_budget.py.
+    methods_max_chars = select_total_chars(config.provider, cloud_default=20000, managed_local_budget=8000)
+    scoping = wip_methods_text(list(prepared.identity.blocks), max_chars=methods_max_chars)
     candidates: list[dict] = []
     if scoping["text"] is not None:
         try:

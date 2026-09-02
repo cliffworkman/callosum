@@ -26,7 +26,7 @@ function AnalyticFlexibilityPaper({ paperId, onOpenPaper, onFindingsChanged, fin
 
   useEffect(() => { load(); }, [load, findingsRefresh]);
   useEffect(() => { setState({ status: "idle" }); }, [paperId]);
-  useEffect(() => { api("/settings").then(r => { if (r.ok) setAiReady(Boolean(r.data.data_egress_enabled)); }); }, []);
+  useEffect(() => { api("/settings").then(r => { if (r.ok) setAiReady(Boolean(r.data.generation_provider_available)); }); }, []);
 
   const run = async () => {
     setState({ status: "running" });

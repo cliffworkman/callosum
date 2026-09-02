@@ -9,6 +9,34 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-01 — Increment 557: Local AI reliability audit + Wave 1/2 remediation
+- **Frontend Local-AI gating fixed:** the analytic-flexibility check, single-paper Critical Review, Set
+  Critical Review, and Synthesize/Ask panels all read the wrong Settings field (`data_egress_enabled`,
+  false-by-design for Local AI) to decide readiness. Swapped to `generation_provider_available` — the
+  highest-leverage fix in the combined audit, since a fully-working Local AI setup still presented as gated
+  off in the UI without it.
+- **Comprehensive crash-site sweep:** every `resolve_llm_config()` call site in the codebase (16 files) was
+  directly inspected; unguarded ones now catch `ManagedLocalTargetError` and surface a friendly "Local AI is
+  not ready" message instead of a raw 500 or a cryptic bare-exception string, matching the pattern already
+  shipped this session for Synthesize/Ask and single-paper Critical Review. Two additional gaps beyond the
+  original audit's list were found and fixed live: Set Critical Review's Tier-2 path, and the axis-suggestion
+  job's cluster-labeler polish step (now falls back to local labels instead of failing the whole job).
+- **New shared `app/backend/llm/prompt_budget.py`** generalizes the truncate-never-drop pattern to all 8
+  measured-overflow features from the audit (funding triage, Help, registration/critical-review triage,
+  research summary, workbench extraction, Set Critical Review, analytic flexibility) — each gets a
+  conservative managed-local-aware character budget instead of a cloud-sized one. Funding triage previously
+  had no total-character cap at all; real measured worst-case input was 641,896 characters.
+- **Privacy hardening:** `complete()`'s HTTP dispatch now forces `trust_env=False` for any loopback
+  destination regardless of the config's own setting (closing a gap where a manual local/custom provider
+  could silently route through an ambient HTTP(S)_PROXY); `0.0.0.0` removed from the loopback allowlist;
+  custom/local provider URLs reject embedded userinfo; the 3 hardcoded `GOOGLE_API_KEY` error messages now
+  name Settings generically instead of one specific cloud provider.
+- **Deferred to a Codex handoff:** DB-transaction/CAS redesign for provider calls held open across a write
+  transaction, Local-AI cache-identity redesign (never survives a restart today), auxiliary embedding/NLI
+  model preflight, and cross-provider output-cap standardization — all flagged by the combined audit as
+  needing their own design pass, not a mechanical patch.
+- Full combined audit: `.claude/docs/research/2026-09-01_llm-provider-integration-audit.md`.
+
 <!-- HELP-DOCS-SYNCED inc-556 2026-09-01 -->
 ## 2026-09-01 — Increment 556: missing PDF resilience for Synthesize → Ask
 - **Synthesis resilience:** exact PDF quote location is now optional enrichment. If an attachment has moved or

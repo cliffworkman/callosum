@@ -67,6 +67,7 @@ const TRACKED_AI_REQUESTS = [
   { method: "GET", re: /^\/papers\/\d+\/suggested-tags$/, label: "Suggesting tags", kind: "Local AI", nav: { pane: "theory", section: "axes", tab: "tags" } },
   { method: "POST", re: /^\/citations\/suggest$/, label: "Finding citation evidence", kind: "Local AI", nav: { workspace: "work", tab: "cite" } },
   { method: "POST", re: /^\/papers\/\d+\/critical-read\/candidates\/generate$/, label: "Suggesting grounded critiques", kind: "Provider AI + local verification", nav: { workspace: "synthesis", tab: "critique" } },
+  { method: "POST", re: /^\/critical-read\/candidates\/triage$/, label: "Triaging critique candidates", kind: "Provider AI", nav: { workspace: "synthesis", tab: "critique" } },
   { method: "POST", re: /^\/discovery\/relevance$/, label: "Scoring literature relevance", kind: "Local AI", nav: { workspace: "discover", tab: "search" } },
   { method: "POST", re: /^\/funding-discovery\/llm-triage$/, label: "Triaging funding results", kind: "Provider AI", nav: { workspace: "discover", tab: "funding" } },
   { method: "POST", re: /^\/help\/ask$/, label: "Drafting a Help answer", kind: "Provider AI", nav: { workspace: "help" } },

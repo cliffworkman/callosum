@@ -98,6 +98,45 @@ def test_analytic_flexibility_run_maps_unanchored_to_null_coordinate_precision(
     assert finding["disposition"] == "open"
 
 
+def test_analytic_flexibility_run_bounds_methods_text_tighter_for_managed_local(
+    temp_db_url: str, tmp_path: Path
+) -> None:
+    """Real measured worst-case combined input (this cap + the sibling Library-side cap) was 20,703 chars --
+    already at/past the 20,000-char default, and well past the managed Local AI preview's ~10,240-token
+    budget."""
+    from types import SimpleNamespace
+
+    folder = tmp_path / "Draft"
+    folder.mkdir()
+    draft = folder / "draft.md"
+    draft.write_text("Methods: " + ("x " * 6000), encoding="utf-8")  # well over 8,000 chars of methods text
+    client = TestClient(create_app(db_url=temp_db_url))
+    _, manuscript_id, _ = _setup(client, folder)
+
+    received = {}
+
+    def _capture_propose(self, *, text):
+        received["len"] = len(text)
+        return []
+
+    with (
+        patch(
+            "app.backend.api.routers.wip_checks.resolve_llm_config",
+            lambda app: SimpleNamespace(
+                provider="managed_local",
+                data_egress_enabled=False,
+                wire_format="chat_completions",
+                base_url="http://127.0.0.1:1234",
+            ),
+        ),
+        patch("app.backend.api.routers.wip_checks.AnalyticFlexibilityAssistant.propose", _capture_propose),
+    ):
+        response = client.post(f"/wip/manuscripts/{manuscript_id}/checks/analytic-flexibility", json={})
+
+    assert response.status_code == 200, response.text
+    assert received["len"] <= 8000
+
+
 def test_analytic_flexibility_run_refuses_before_any_network_call_when_egress_off(
     temp_db_url: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:

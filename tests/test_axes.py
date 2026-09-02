@@ -575,6 +575,43 @@ def test_suggest_axes_empty_when_too_few_papers(temp_db_url: str) -> None:
     assert result["suggestions"] == []
 
 
+def test_suggest_axes_falls_back_to_local_when_local_ai_not_ready(temp_db_url: str, monkeypatch) -> None:
+    """A ManagedLocalTargetError resolving config for the optional labeler polish must degrade the same way
+    egress-off already does (local labels, status 'done') -- not fail the WHOLE job over a step whose own
+    inline comment already promises "egress-gated polish; local fallback". Confirmed this session: the job's
+    single outer except Exception would otherwise swallow the raw exception as a job error, losing every
+    cluster suggestion just because the optional polish step couldn't resolve a provider."""
+    import app.backend.api.routers.axes as axes_mod
+    from app.backend.llm.managed_local import ManagedLocalTargetError
+
+    def _raise(app):
+        raise ManagedLocalTargetError("descriptor_unreadable")
+
+    monkeypatch.setattr(axes_mod, "resolve_llm_config", _raise)
+    _seed_cluster_papers(temp_db_url)
+    client = TestClient(_axes_app(temp_db_url, model=ClusterFakeModel(), cluster_labeler=FakeClusterLabeler()))
+
+    result = _run_suggest(client)
+
+    assert result["status"] == "done"  # NOT "error" -- the whole job must not fail
+    labels = [s["label"] for s in result["suggestions"]]
+    assert labels and all(label and label != "Gemini Label" for label in labels)  # local labels used
+
+
+def test_suggest_terms_reports_local_ai_not_ready_as_a_clean_422(temp_db_url: str, monkeypatch) -> None:
+    import app.backend.api.routers.axes as axes_mod
+    from app.backend.llm.managed_local import ManagedLocalTargetError
+
+    def _raise(app):
+        raise ManagedLocalTargetError("descriptor_unreadable")
+
+    monkeypatch.setattr(axes_mod, "resolve_llm_config", _raise)
+    client = TestClient(_axes_app(temp_db_url))
+    r = client.post("/axes/suggest-terms", json={"label": "resting state"})
+    assert r.status_code == 422
+    assert "Local AI is not ready (descriptor_unreadable)" in r.json()["detail"]
+
+
 # ── egress gate at the DI seam (inc 58) ──────────────────────────────────────
 
 

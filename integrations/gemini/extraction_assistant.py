@@ -17,11 +17,16 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from app.backend.llm.egress import DataEgressDisabledError
+from app.backend.llm.prompt_budget import truncate_text
 from app.backend.llm.usage import log_usage
 from integrations.gemini.generator import GeminiConfig
 
 MAX_VALUE_CHARS = 500  # a proposed value (matches the SP2a-2 capture + CellPut.value cap)
 MAX_QUOTE_CHARS = 4000  # a proposed quote (matches CellPut.quote)
+# Defense in depth only -- app.backend.workbench_assist pre-bounds `text` (its own managed-local-aware
+# MAX_TEXT_CHARS/MAX_TEXT_CHARS_MANAGED_LOCAL) before it ever reaches this layer. This second cap guards any
+# future caller that forgets to bound its own input.
+MAX_PAPER_TEXT_CHARS_MANAGED_LOCAL = 8_000
 
 
 class ExtractionAssistant(Protocol):
@@ -38,20 +43,21 @@ class GeminiExtractionAssistant:
 
         if requires_egress(self.config) and not self.config.data_egress_enabled:
             raise DataEgressDisabledError("Assisted extraction requires explicit data-egress consent.")
-        result = complete(self.config, _prompt(text=text, fields=fields))
+        result = complete(self.config, _prompt(text=text, fields=fields, provider=self.config.provider))
         log_usage("extraction-assist", self.config.model, result)
         return parse_proposals(str(result.text or ""), allowed_keys={f["key"] for f in fields})
 
 
-def _prompt(*, text: str, fields: list[dict]) -> str:
+def _prompt(*, text: str, fields: list[dict], provider: str | None = None) -> str:
     spec = [{"key": f["key"], "label": f["label"], "type": f["type"], "options": f.get("options")} for f in fields]
+    bounded_text = truncate_text(text, provider=provider, total_chars=MAX_PAPER_TEXT_CHARS_MANAGED_LOCAL)
     return (
         "You are a data-extraction assistant for a meta-analysis. From the paper text below, propose a value ONLY for "
         "these fields. For each field you can find, copy a VERBATIM quote from the text that reports it and give the "
         "page number shown in that quote's [p.N] tag. If a field is not reported, OMIT it — never guess, compute, or "
         "infer. Return STRICT JSON only: an object mapping each field_key to "
         '{"value": <string>, "quote": <verbatim string>, "page": <integer>}. '
-        f"Fields: {json.dumps(spec, ensure_ascii=True)}\n\nPaper text:\n{text}"
+        f"Fields: {json.dumps(spec, ensure_ascii=True)}\n\nPaper text:\n{bounded_text}"
     )
 
 

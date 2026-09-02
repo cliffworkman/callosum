@@ -17,6 +17,7 @@ from __future__ import annotations
 from sqlalchemy import Connection
 
 from app.backend.citations.section_scope import paper_methods_text
+from app.backend.llm.prompt_budget import select_total_chars
 from app.backend.pdf_processing.quote_matching import anchor_quote
 from app.backend.persistence.findings_repo import upsert_findings
 from app.backend.workbench_assist import primary_pdf_path
@@ -24,6 +25,10 @@ from integrations.gemini.analytic_flexibility_assistant import AnalyticFlexibili
 from integrations.gemini.generator import GeminiConfig
 
 SOURCE = "analytic-flexibility"
+# Measured real worst-case input (this cap combined with the sibling WIP cap in
+# app/backend/wip/analytic_flexibility_text.py) was 20,703 chars -- already at/past both defaults, and well
+# past the managed Local AI preview's ~10,240-token (~30-40k character) budget. See app/backend/llm/prompt_budget.py.
+_METHODS_TEXT_CHARS_MANAGED_LOCAL = 8000
 
 # Human-readable labels for ANALYTIC_FLEXIBILITY_CATEGORIES (integrations/gemini/analytic_flexibility_assistant.py),
 # used only to compose the finding's display "desc" -- the raw category key is always preserved in the payload too.
@@ -41,7 +46,10 @@ def propose_analytic_flexibility(conn: Connection, paper_id: int, config: Gemini
     persist them into ``paper_findings``. Honestly reports ``methods_text_found=False`` -- and never calls the
     LLM at all -- when this paper has no methods-section text to draft from (no egress on a paper the assistant
     couldn't help with anyway)."""
-    text = paper_methods_text(conn, paper_id)
+    max_chars = select_total_chars(
+        getattr(config, "provider", None), cloud_default=20000, managed_local_budget=_METHODS_TEXT_CHARS_MANAGED_LOCAL
+    )
+    text = paper_methods_text(conn, paper_id, max_chars=max_chars)
     if text is None:
         return {"candidates_found": 0, "methods_text_found": False}
 

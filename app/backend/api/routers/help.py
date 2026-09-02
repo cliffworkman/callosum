@@ -21,6 +21,7 @@ from app.backend.api.dependencies import resolve_llm_config
 from app.backend.help.assistant import HelpAssistant, HelpTurn
 from app.backend.help.corpus import load_help_corpus
 from app.backend.llm.egress import EgressGatedHelpAssistant, HelpAssistantDisabledError
+from app.backend.llm.managed_local import ManagedLocalTargetError
 from integrations.gemini import GeminiHelpAssistant
 
 router = APIRouter()
@@ -77,8 +78,12 @@ def help_ask(payload: HelpAskRequest, request: Request) -> HelpAskResponse:
     except HelpAssistantDisabledError:
         raise HTTPException(
             status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The AI help assistant is off. Set CALLOSUM_HELP_ASSISTANT_ENABLED=1 and GOOGLE_API_KEY, "
-            "then restart. (The help docs work without it.)",
+            detail="The AI help assistant is off. Enable it in Settings → AI features. "
+            "(The help docs work without it.)",
+        ) from None
+    except ManagedLocalTargetError as exc:
+        raise HTTPException(
+            status_code=422, detail=f"Local AI is not ready ({exc.code}). Check Settings → AI features."
         ) from None
     except Exception as exc:  # any Gemini/network/parse failure → surface, never 500
         raise HTTPException(

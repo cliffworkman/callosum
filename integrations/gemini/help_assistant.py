@@ -25,6 +25,12 @@ MAX_REFERENCES = 6
 MAX_REASON_LEN = 200
 MAX_HISTORY_TURNS = 20
 MAX_TURN_LEN = 4000
+# Unlike the corpus (already bounded to 14,000 chars for managed_local below), conversation history had no
+# managed-local-aware cap at all: 20 turns x 4,000 chars is up to 80,000 chars alone, which combined with the
+# corpus measured 98,783 chars total real worst-case input -- against the managed Local AI preview's
+# ~10,240-token (~30-40k character) budget. See app/backend/llm/prompt_budget.py.
+MAX_HISTORY_TURNS_MANAGED_LOCAL = 6
+MAX_TURN_LEN_MANAGED_LOCAL = 400
 
 
 @dataclass(frozen=True)
@@ -47,7 +53,10 @@ class GeminiHelpAssistant:
 
 
 def _prompt(*, message: str, history: list[HelpTurn], config: GeminiConfig | None = None) -> str:
-    convo = "\n".join(f"{t.role}: {t.content[:MAX_TURN_LEN]}" for t in history[-MAX_HISTORY_TURNS:])
+    managed_local = config is not None and config.provider == "managed_local"
+    max_turns = MAX_HISTORY_TURNS_MANAGED_LOCAL if managed_local else MAX_HISTORY_TURNS
+    max_turn_len = MAX_TURN_LEN_MANAGED_LOCAL if managed_local else MAX_TURN_LEN
+    convo = "\n".join(f"{t.role}: {t.content[:max_turn_len]}" for t in history[-max_turns:])
     return (
         "You are the in-app help assistant for Callosum, a local-first reference manager. Answer the user's "
         "question about USING the app, drawing ONLY on the HELP SECTIONS below. Be concise and concrete. "

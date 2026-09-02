@@ -15,11 +15,16 @@ import re
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from app.backend.llm.prompt_budget import select_total_chars
 from app.backend.llm.providers import complete
 
 TRIAGE_PROMPT_VERSION = "critical-review-triage-v1"
 MAX_TRIAGE_ITEMS = 50
 MAX_TOTAL_INPUT_CHARS = 40000
+# The managed Local AI preview's ~10,240-token input budget is a fraction of the cloud-sized cap above
+# (measured worst-case real input against the cloud cap: 39,879 chars, near-certain overflow on the
+# managed target's much smaller window). See app/backend/llm/prompt_budget.py.
+MAX_TOTAL_INPUT_CHARS_MANAGED_LOCAL = 8000
 MAX_CLAIM_CHARS = 500
 MAX_EVIDENCE_CHARS = 900
 TRIAGE_LABELS = {"prioritize", "uncertain", "likely_noise"}
@@ -36,7 +41,12 @@ class CriticalReviewTriageEvaluator:
     complete_fn: CompletionFn = complete
 
     def evaluate(self, *, items: list[dict[str, Any]]) -> dict[str, Any]:
-        bounded, truncated = _bounded_items(items)
+        total_chars = select_total_chars(
+            getattr(self.config, "provider", None),
+            cloud_default=MAX_TOTAL_INPUT_CHARS,
+            managed_local_budget=MAX_TOTAL_INPUT_CHARS_MANAGED_LOCAL,
+        )
+        bounded, truncated = _bounded_items(items, total_chars=total_chars)
         if not bounded:
             return {
                 "status": _status(self.config, "not_searched", "No critique items were available."),
@@ -73,7 +83,9 @@ class CriticalReviewTriageEvaluator:
         }
 
 
-def _bounded_items(items: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], bool]:
+def _bounded_items(
+    items: list[dict[str, Any]], *, total_chars: int = MAX_TOTAL_INPUT_CHARS
+) -> tuple[list[dict[str, Any]], bool]:
     bounded: list[dict[str, Any]] = []
     used = 0
     truncated = False
@@ -89,7 +101,7 @@ def _bounded_items(items: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], b
             "confidence": raw.get("confidence"),
         }
         size = len(json.dumps(item, ensure_ascii=False, default=str))
-        if bounded and used + size > MAX_TOTAL_INPUT_CHARS:
+        if bounded and used + size > total_chars:
             truncated = True
             break
         bounded.append(item)

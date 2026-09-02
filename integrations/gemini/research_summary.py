@@ -18,6 +18,12 @@ from integrations.gemini.generator import DataEgressDisabledError, GeminiConfig
 MAX_DOCUMENTS = 60  # cap how many of the user's publications we send
 MAX_ABSTRACT_CHARS = 600  # truncate each abstract
 MAX_SUMMARY_CHARS = 2000  # defensively cap the returned paragraph (untrusted output)
+# 60 docs x 600-char abstracts is up to 36,000 chars of abstracts alone; measured real worst-case input was
+# 56,397 chars -- well past the managed Local AI preview's ~10,240-token (~30-40k character) budget. Fewer
+# documents, each more tightly truncated, when the active provider is managed_local. See
+# app/backend/llm/prompt_budget.py.
+MAX_DOCUMENTS_MANAGED_LOCAL = 20
+MAX_ABSTRACT_CHARS_MANAGED_LOCAL = 250
 
 
 class ResearchSummaryGenerator(Protocol):
@@ -35,18 +41,21 @@ class GeminiResearchSummaryGenerator:
 
         if requires_egress(self.config) and not self.config.data_egress_enabled:
             raise DataEgressDisabledError("Research-summary generation requires explicit data-egress consent.")
-        result = complete(self.config, _prompt(documents))
+        result = complete(self.config, _prompt(documents, provider=self.config.provider))
         log_usage("research-summary", self.config.model, result)
         return _clean(str(result.text or ""))
 
 
-def _prompt(documents: list[dict[str, str]]) -> str:
+def _prompt(documents: list[dict[str, str]], *, provider: str | None = None) -> str:
+    managed_local = provider == "managed_local"
+    max_documents = MAX_DOCUMENTS_MANAGED_LOCAL if managed_local else MAX_DOCUMENTS
+    max_abstract_chars = MAX_ABSTRACT_CHARS_MANAGED_LOCAL if managed_local else MAX_ABSTRACT_CHARS
     items: list[dict[str, str]] = []
-    for doc in documents[:MAX_DOCUMENTS]:
+    for doc in documents[:max_documents]:
         title = str(doc.get("title") or "").strip()
         if not title:
             continue
-        items.append({"title": title, "abstract": str(doc.get("abstract") or "").strip()[:MAX_ABSTRACT_CHARS]})
+        items.append({"title": title, "abstract": str(doc.get("abstract") or "").strip()[:max_abstract_chars]})
     return (
         "You write a concise research summary of a single researcher's body of work, for the overview of their "
         "personal publications dashboard. Given the researcher's OWN publication titles and abstracts below, "

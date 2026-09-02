@@ -12,11 +12,20 @@ import re
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from app.backend.llm.prompt_budget import select_total_chars
 from app.backend.llm.providers import complete
 
 TRIAGE_PROMPT_VERSION = "funding-triage-v1"
 MAX_CONTEXT_CHARS = 6000
 MAX_TRIAGE_ITEMS = 80
+MAX_SUMMARY_CHARS = 600
+# No total-input-character cap existed here at all before this fix (unlike the sibling registration/
+# critical-review triage evaluators) -- with up to 80 items each carrying an unbounded `summary`, real
+# measured worst-case input was 641,896 characters, nearly two orders of magnitude past the managed
+# Local AI preview's ~10,240-token input budget. Cloud providers keep a generous cap; managed_local gets a
+# conservative one, matching the budget order of magnitude already used elsewhere (see prompt_budget.py).
+MAX_TOTAL_INPUT_CHARS = 200_000
+MAX_TOTAL_INPUT_CHARS_MANAGED_LOCAL = 8_000
 TRIAGE_KEEP_LABELS = {"closer_apparent_fit", "possible_fit"}
 TRIAGE_LABELS = TRIAGE_KEEP_LABELS | {"uncertain", "lower_apparent_fit"}
 
@@ -34,15 +43,23 @@ class FundingLlmTriageEvaluator:
         items = _triage_items(report)
         if not items:
             return _status("not_searched", "No funding items were available for LLM triage.")
-        evaluated = items[:MAX_TRIAGE_ITEMS]
+        provider = getattr(self.config, "provider", None)
+        total_chars = select_total_chars(
+            provider, cloud_default=MAX_TOTAL_INPUT_CHARS, managed_local_budget=MAX_TOTAL_INPUT_CHARS_MANAGED_LOCAL
+        )
+        evaluated, size_truncated = _bounded_items(items[:MAX_TRIAGE_ITEMS], total_chars=total_chars)
         result = self.complete_fn(self.config, _prompt(research_context, report.get("profile") or {}, evaluated))
         parsed = _parse_response(getattr(result, "text", "") or "")
         annotations = _annotations(parsed, {item["item_key"] for item in evaluated})
         _attach_annotations(report, annotations)
-        warning = None
-        if len(items) > len(evaluated):
-            warning = f"Only the first {len(evaluated)} surfaced item(s) were sent for LLM triage."
-        return _status("success", warning, evaluated_count=len(evaluated), annotated_count=len(annotations))
+        warnings = []
+        if len(items) > MAX_TRIAGE_ITEMS:
+            warnings.append(f"Only the first {MAX_TRIAGE_ITEMS} surfaced item(s) were considered for LLM triage.")
+        if size_truncated:
+            warnings.append(f"Only {len(evaluated)} bounded item(s) were sent; unevaluated items remain visible.")
+        return _status(
+            "success", " ".join(warnings) or None, evaluated_count=len(evaluated), annotated_count=len(annotations)
+        )
 
 
 def _triage_items(report: dict[str, Any]) -> list[dict[str, Any]]:
@@ -66,13 +83,34 @@ def _triage_items(report: dict[str, Any]) -> list[dict[str, Any]]:
                     "organization_name": item.get("organization_name"),
                     "scheme_name": item.get("scheme_name"),
                     "status": item.get("status") or _status_label(kind),
-                    "summary": item.get("summary"),
+                    "summary": _clip(item.get("summary"), MAX_SUMMARY_CHARS),
                     "signals": _signal_summaries(item.get("signals") or []),
                     "eligibility": (item.get("eligibility") or {}).get("label"),
                     "application_route": _surface_summaries(report, item),
                 }
             )
     return items
+
+
+def _clip(value: Any, limit: int) -> str | None:
+    if value is None:
+        return None
+    return " ".join(str(value).split())[:limit]
+
+
+def _bounded_items(items: list[dict[str, Any]], *, total_chars: int) -> tuple[list[dict[str, Any]], bool]:
+    """Keep items in order until their cumulative JSON size would exceed ``total_chars``; drop the remainder
+    (mirrors the sibling registration/critical-review triage evaluators' own bounded-items shape). Always keeps
+    at least the first item, even if it alone exceeds the budget."""
+    bounded: list[dict[str, Any]] = []
+    used = 0
+    for item in items:
+        size = len(json.dumps(item, ensure_ascii=False, default=str))
+        if bounded and used + size > total_chars:
+            return bounded, True
+        bounded.append(item)
+        used += size
+    return bounded, len(bounded) < len(items)
 
 
 def _prompt(research_context: str, profile: dict[str, Any], items: list[dict[str, Any]]) -> str:

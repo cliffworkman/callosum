@@ -11,11 +11,16 @@ import re
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from app.backend.llm.prompt_budget import select_total_chars
 from app.backend.llm.providers import complete
 
 TRIAGE_PROMPT_VERSION = "registration-comparison-triage-v1"
 MAX_TRIAGE_ROWS = 50
 MAX_TOTAL_INPUT_CHARS = 60000
+# The managed Local AI preview's ~10,240-token input budget is a fraction of the cloud-sized cap above
+# (measured worst-case real input against the cloud cap: 58,209 chars, near-certain overflow on the
+# managed target's much smaller window). See app/backend/llm/prompt_budget.py.
+MAX_TOTAL_INPUT_CHARS_MANAGED_LOCAL = 8000
 MAX_EVIDENCE_CHARS = 900
 TRIAGE_LABELS = {"prioritize", "uncertain", "likely_noise"}
 TRIAGE_FOCUS_LABELS = {"prioritize", "uncertain"}
@@ -31,7 +36,12 @@ class RegistrationComparisonTriageEvaluator:
     complete_fn: CompletionFn = complete
 
     def evaluate(self, *, rows: list[dict[str, Any]]) -> dict[str, Any]:
-        items, truncated = _bounded_items(rows)
+        total_chars = select_total_chars(
+            getattr(self.config, "provider", None),
+            cloud_default=MAX_TOTAL_INPUT_CHARS,
+            managed_local_budget=MAX_TOTAL_INPUT_CHARS_MANAGED_LOCAL,
+        )
+        items, truncated = _bounded_items(rows, total_chars=total_chars)
         if not items:
             return {
                 "status": _status(self.config, "not_searched", "No comparison rows were available."),
@@ -69,7 +79,9 @@ class RegistrationComparisonTriageEvaluator:
         }
 
 
-def _bounded_items(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], bool]:
+def _bounded_items(
+    rows: list[dict[str, Any]], *, total_chars: int = MAX_TOTAL_INPUT_CHARS
+) -> tuple[list[dict[str, Any]], bool]:
     items: list[dict[str, Any]] = []
     used = 0
     truncated = False
@@ -89,7 +101,7 @@ def _bounded_items(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], bo
             "search_scope": _scope(row.get("search_scope_json") or row.get("search_scope") or {}),
         }
         size = len(json.dumps(item, ensure_ascii=False, default=str))
-        if items and used + size > MAX_TOTAL_INPUT_CHARS:
+        if items and used + size > total_chars:
             truncated = True
             break
         items.append(item)

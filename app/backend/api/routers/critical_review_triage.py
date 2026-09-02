@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from sqlalchemy import Connection
 
 from app.backend.api.dependencies import get_connection, resolve_llm_config
+from app.backend.llm.managed_local import ManagedLocalTargetError
 from app.backend.persistence import critical_review_repo as repo
 
 router = APIRouter()
@@ -46,16 +47,24 @@ def triage_contested(app: FastAPI, contested: list[Any]) -> dict:
     ``llm_triage`` in place. Never persisted — contested claims themselves live only inside this job's cached
     result. Duck-typed on ``.claim``/``.passage``/``.stance``/``.confidence``/``.llm_triage`` to avoid importing
     the pydantic model back from ``critical_review.py`` (would create a circular import)."""
-    evaluator, refusal = triage_evaluator(app)
-    if refusal:
-        return refusal
-    if not contested:
-        return {"status": "not_searched", "detail": "No contested claims were available to triage."}
-    items = [
-        {"item_id": i, "claim": c.claim, "evidence": c.passage, "stance": c.stance, "confidence": c.confidence}
-        for i, c in enumerate(contested)
-    ]
-    result = evaluator.evaluate(items=items)
+    try:
+        evaluator, refusal = triage_evaluator(app)
+        if refusal:
+            return refusal
+        if not contested:
+            return {"status": "not_searched", "detail": "No contested claims were available to triage."}
+        items = [
+            {"item_id": i, "claim": c.claim, "evidence": c.passage, "stance": c.stance, "confidence": c.confidence}
+            for i, c in enumerate(contested)
+        ]
+        result = evaluator.evaluate(items=items)
+    except ManagedLocalTargetError as exc:
+        return {"status": "unavailable", "detail": f"Local AI is not ready ({exc.code}). Check Settings → AI features."}
+    except Exception as exc:  # noqa: BLE001 -- triage is optional, reversible display polish; never block critique
+        return {
+            "status": "failed",
+            "detail": f"AI triage failed; critique items are still shown untriaged. {type(exc).__name__}: {exc}",
+        }
     annotations = result.get("annotations", {})
     for i, c in enumerate(contested):
         if i in annotations:
@@ -66,22 +75,30 @@ def triage_contested(app: FastAPI, contested: list[Any]) -> dict:
 def triage_contested_dicts(app: FastAPI, contested: list[dict]) -> dict:
     """Same as ``triage_contested`` but for the set path's plain-dict contested-claim shape (``set_aggregate``
     builds ``report`` straight from these dicts, never through ``ContestedClaimResponse``)."""
-    evaluator, refusal = triage_evaluator(app)
-    if refusal:
-        return refusal
-    if not contested:
-        return {"status": "not_searched", "detail": "No contested claims were available to triage."}
-    items = [
-        {
-            "item_id": i,
-            "claim": c.get("claim"),
-            "evidence": c.get("passage"),
-            "stance": c.get("stance"),
-            "confidence": c.get("confidence"),
+    try:
+        evaluator, refusal = triage_evaluator(app)
+        if refusal:
+            return refusal
+        if not contested:
+            return {"status": "not_searched", "detail": "No contested claims were available to triage."}
+        items = [
+            {
+                "item_id": i,
+                "claim": c.get("claim"),
+                "evidence": c.get("passage"),
+                "stance": c.get("stance"),
+                "confidence": c.get("confidence"),
+            }
+            for i, c in enumerate(contested)
+        ]
+        result = evaluator.evaluate(items=items)
+    except ManagedLocalTargetError as exc:
+        return {"status": "unavailable", "detail": f"Local AI is not ready ({exc.code}). Check Settings → AI features."}
+    except Exception as exc:  # noqa: BLE001 -- triage is optional, reversible display polish; never block critique
+        return {
+            "status": "failed",
+            "detail": f"AI triage failed; critique items are still shown untriaged. {type(exc).__name__}: {exc}",
         }
-        for i, c in enumerate(contested)
-    ]
-    result = evaluator.evaluate(items=items)
     annotations = result.get("annotations", {})
     for i, c in enumerate(contested):
         if i in annotations:
@@ -93,22 +110,30 @@ def triage_and_persist_candidates(app: FastAPI, conn: Connection, candidates: li
     """Triage newly (or previously) persisted candidate rows and store the annotations, keyed by candidate id."""
     from app.backend.persistence import critical_review_triage_repo as triage_repo
 
-    evaluator, refusal = triage_evaluator(app)
-    if refusal:
-        return refusal
-    if not candidates:
-        return {"status": "not_searched", "detail": "No candidates were available to triage."}
-    items = [
-        {
-            "item_id": c["id"],
-            "claim": c.get("concern"),
-            "evidence": c.get("anchor_quote"),
-            "stance": c.get("stance"),
-            "confidence": c.get("confidence"),
+    try:
+        evaluator, refusal = triage_evaluator(app)
+        if refusal:
+            return refusal
+        if not candidates:
+            return {"status": "not_searched", "detail": "No candidates were available to triage."}
+        items = [
+            {
+                "item_id": c["id"],
+                "claim": c.get("concern"),
+                "evidence": c.get("anchor_quote"),
+                "stance": c.get("stance"),
+                "confidence": c.get("confidence"),
+            }
+            for c in candidates
+        ]
+        result = evaluator.evaluate(items=items)
+    except ManagedLocalTargetError as exc:
+        return {"status": "unavailable", "detail": f"Local AI is not ready ({exc.code}). Check Settings → AI features."}
+    except Exception as exc:  # noqa: BLE001 -- triage is optional, reversible display polish; never block critique
+        return {
+            "status": "failed",
+            "detail": f"AI triage failed; candidates are still shown untriaged. {type(exc).__name__}: {exc}",
         }
-        for c in candidates
-    ]
-    result = evaluator.evaluate(items=items)
     triage_repo.persist_candidate_triage(conn, candidates=candidates, result=result)
     return result.get("status", {"status": "success"})
 

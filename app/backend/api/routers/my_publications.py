@@ -31,6 +31,7 @@ from app.backend.clustering.my_publications import (
 from app.backend.clustering.my_publications_domains import _decompose_compute
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.llm.egress import DataEgressDisabledError, EgressGatedResearchSummaryGenerator
+from app.backend.llm.managed_local import ManagedLocalTargetError
 from app.backend.persistence.profile_repo import (
     dismiss_work,
     get_profile,
@@ -378,7 +379,11 @@ def generate_my_publications_summary(
     except DataEgressDisabledError:
         raise HTTPException(
             status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI summary needs data egress: set CALLOSUM_ALLOW_DATA_EGRESS=1 and GOOGLE_API_KEY, then restart.",
+            detail="AI summary generation requires explicit data-egress consent (Settings → AI features).",
+        ) from None
+    except ManagedLocalTargetError as exc:
+        raise HTTPException(
+            status_code=422, detail=f"Local AI is not ready ({exc.code}). Check Settings → AI features."
         ) from None
     except Exception as exc:  # any Gemini/network failure → surface, never 500
         raise HTTPException(

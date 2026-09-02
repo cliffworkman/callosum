@@ -25,6 +25,7 @@ from app.backend import workbench_assist as wa
 from app.backend.api.dependencies import get_connection, get_engine, resolve_llm_config
 from app.backend.api.routers.library import _embedding_model, _vector_store
 from app.backend.llm.egress import DataEgressDisabledError, EgressGatedExtractionAssistant
+from app.backend.llm.managed_local import ManagedLocalTargetError
 from app.backend.llm.providers import ProviderError
 from app.backend.methods.effectsize import convert
 from app.backend.persistence import workbench_export as wx
@@ -344,18 +345,30 @@ def propose_row(row_id: int, request: Request, conn: Connection = Depends(get_co
     pdf_path = wa.primary_pdf_path(conn, row["paper_id"])
     if pdf_path is None:
         raise HTTPException(status_code=422, detail="This paper has no processed local PDF to draft from.")
+    try:
+        text_cap_provider = resolve_llm_config(request.app).provider
+    except ManagedLocalTargetError as exc:
+        raise HTTPException(
+            status_code=422, detail=f"Local AI is not ready ({exc.code}). Check Settings → AI features."
+        ) from None
+    text_cap = wa.MAX_TEXT_CHARS_MANAGED_LOCAL if text_cap_provider == "managed_local" else wa.MAX_TEXT_CHARS
     text, truncated = wa.relevant_page_tagged_text(
         conn,
         get_chunks_for_paper(conn, row["paper_id"], document_roles=ARTICLE_DOCUMENT_ROLES),
         fields=fields,
         model=_embedding_model(request.app),
         vector_store=_vector_store(request.app),
+        cap=text_cap,
     )
     if not text.strip():
         raise HTTPException(status_code=422, detail="This paper has no extracted text to draft from.")
-    assistant = _extraction_assistant(request.app)
     try:
+        assistant = _extraction_assistant(request.app)
         raw = assistant.propose(text=text, fields=fields)
+    except ManagedLocalTargetError as exc:
+        raise HTTPException(
+            status_code=422, detail=f"Local AI is not ready ({exc.code}). Check Settings → AI features."
+        ) from None
     except DataEgressDisabledError:
         raise HTTPException(
             status_code=403, detail="AI features are off. Enable data egress in Settings to draft from the PDF."

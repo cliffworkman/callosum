@@ -5407,6 +5407,7 @@
     { method: "GET", re: /^\/papers\/\d+\/suggested-tags$/, label: "Suggesting tags", kind: "Local AI", nav: { pane: "theory", section: "axes", tab: "tags" } },
     { method: "POST", re: /^\/citations\/suggest$/, label: "Finding citation evidence", kind: "Local AI", nav: { workspace: "work", tab: "cite" } },
     { method: "POST", re: /^\/papers\/\d+\/critical-read\/candidates\/generate$/, label: "Suggesting grounded critiques", kind: "Provider AI + local verification", nav: { workspace: "synthesis", tab: "critique" } },
+    { method: "POST", re: /^\/critical-read\/candidates\/triage$/, label: "Triaging critique candidates", kind: "Provider AI", nav: { workspace: "synthesis", tab: "critique" } },
     { method: "POST", re: /^\/discovery\/relevance$/, label: "Scoring literature relevance", kind: "Local AI", nav: { workspace: "discover", tab: "search" } },
     { method: "POST", re: /^\/funding-discovery\/llm-triage$/, label: "Triaging funding results", kind: "Provider AI", nav: { workspace: "discover", tab: "funding" } },
     { method: "POST", re: /^\/help\/ask$/, label: "Drafting a Help answer", kind: "Provider AI", nav: { workspace: "help" } },
@@ -9705,7 +9706,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     }, [paperId]);
     useEffect(() => {
       api("/settings").then((r) => {
-        if (r.ok) setAiReady(Boolean(r.data.data_egress_enabled));
+        if (r.ok) setAiReady(Boolean(r.data.generation_provider_available));
       });
     }, []);
     const run = async () => {
@@ -9878,7 +9879,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     };
     useEffect(() => {
       api("/settings").then((r) => {
-        if (r.ok) setAiReady(Boolean(r.data.data_egress_enabled));
+        if (r.ok) setAiReady(Boolean(r.data.generation_provider_available));
       });
     }, []);
     const runT1 = () => {
@@ -10156,7 +10157,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     useEffect(() => {
       let live = true;
       api("/settings").then((r) => {
-        if (live && r.ok) setAiReady(Boolean(r.data.data_egress_enabled));
+        if (live && r.ok) setAiReady(Boolean(r.data.generation_provider_available));
       });
       return () => {
         live = false;
@@ -14489,14 +14490,14 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [scopeNote, setScopeNote] = useState(null);
     const [scopeMeta, setScopeMeta] = useState(null);
     const [history, setHistory] = useState({ status: "loading", items: [] });
-    const [egressOff, setEgressOff] = useState(false);
+    const [aiUnavailable, setAiUnavailable] = useState(false);
     const [sourceDiagnostic, setSourceDiagnostic] = useState(null);
     const pollRef = useRef(null);
     const lastLaunchRef = useRef(null);
     const overviewLifecycle = useSynthesisOverview(state, setState);
     useEffect(() => {
       api("/settings").then((r) => {
-        if (r.ok && r.data) setEgressOff(!r.data.data_egress_enabled);
+        if (r.ok && r.data) setAiUnavailable(!r.data.generation_provider_available);
       });
     }, [settingsNonce]);
     const loadHistory = useCallback(() => {
@@ -14705,7 +14706,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         },
         sectionLabel(section)
       );
-    })), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !query.trim(), onClick: start }, "Synthesize"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? state.message || "Generating and verifying" : "query scope \xB7 top 8 chunks")), busy && /* @__PURE__ */ React.createElement(ProgressBar, { managedBy: "backend-job" })), !readOnly && egressOff && state.status !== "error" && egressNudge, scopeNote && /* @__PURE__ */ React.createElement("div", { className: "synth-scope-note" }, "Summary of ", /* @__PURE__ */ React.createElement("b", null, scopeNote), " from the library selection."), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "30px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Verified synthesis"), "Ask a question. Callosum will generate a summary and independently verify each citation."), state.status === "error" && /* @__PURE__ */ React.createElement(
+    })), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !query.trim(), onClick: start }, "Synthesize"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? state.message || "Generating and verifying" : "query scope \xB7 top 8 chunks")), busy && /* @__PURE__ */ React.createElement(ProgressBar, { managedBy: "backend-job" })), !readOnly && aiUnavailable && state.status !== "error" && egressNudge, scopeNote && /* @__PURE__ */ React.createElement("div", { className: "synth-scope-note" }, "Summary of ", /* @__PURE__ */ React.createElement("b", null, scopeNote), " from the library selection."), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "30px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Verified synthesis"), "Ask a question. Callosum will generate a summary and independently verify each citation."), state.status === "error" && /* @__PURE__ */ React.createElement(
       SynthesisFailure,
       {
         error: state.error,
