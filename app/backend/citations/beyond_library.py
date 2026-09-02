@@ -11,7 +11,6 @@ import re
 from dataclasses import dataclass, replace
 from typing import Any, Protocol
 
-import httpx
 from sqlalchemy import Connection, select
 
 from app.backend.acquisition.registry import PaperRef
@@ -20,6 +19,7 @@ from app.backend.persistence.repository import find_existing_paper_by_identity
 from app.backend.persistence.schema import papers
 from app.backend.summarization.verification import Stance, StanceScorer
 from integrations.openalex.adapter import OPENALEX_BASE_URL, OpenAlexClient, _meta_with_abstract
+from integrations.openalex.request import bounded_openalex_get, openalex_headers, openalex_params
 from integrations.semantic_scholar.adapter import RecommendedPaper, SemanticScholarClient
 
 MAX_BEYOND_TEXT_LEN = 4000
@@ -447,7 +447,12 @@ def _dedupe_mark_library(conn: Connection, items: list[Item]) -> list[Item]:
 
 
 def _openalex_fetch(query: str, rows: int, *, timeout: float) -> tuple[int, dict[str, Any] | None]:
-    response = httpx.get(OPENALEX_BASE_URL, params={"search": query, "per-page": rows}, timeout=timeout)
+    response = bounded_openalex_get(
+        OPENALEX_BASE_URL,
+        params={"search": query, "per-page": rows, **openalex_params(None)},
+        headers=openalex_headers(None),
+        timeout=timeout,
+    )
     try:
         body = response.json()
     except ValueError:

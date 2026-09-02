@@ -123,11 +123,10 @@ def compute_gaps(
 
     if direction == "forward":
         for paper_id, doi in scoped:
-            try:
-                work_id = openalex_client.fetch_work_id(conn, PaperRef(doi=doi))
-                citing = openalex_client.fetch_citing_works(conn, work_id) if work_id else []
-            except Exception:
-                citing = []
+            work_id_lookup = getattr(openalex_client, "fetch_work_id_strict", openalex_client.fetch_work_id)
+            citing_lookup = getattr(openalex_client, "fetch_citing_works_strict", openalex_client.fetch_citing_works)
+            work_id = work_id_lookup(conn, PaperRef(doi=doi))
+            citing = citing_lookup(conn, work_id) if work_id else []
             for cw in citing:
                 cid = cw.get("openalex_work_id")
                 if not cid:
@@ -137,10 +136,10 @@ def compute_gaps(
         note = _NOTE_FORWARD
     else:  # backward
         for paper_id, doi in scoped:
-            try:
-                refs = openalex_client.fetch_referenced_works(conn, PaperRef(doi=doi))
-            except Exception:
-                refs = []
+            refs_lookup = getattr(
+                openalex_client, "fetch_referenced_works_strict", openalex_client.fetch_referenced_works
+            )
+            refs = refs_lookup(conn, PaperRef(doi=doi))
             for ref_id in set(refs):
                 citers.setdefault(ref_id, set()).add(paper_id)
         # backward needs a metadata fetch per surviving candidate (bound it: only those over the threshold)
@@ -149,7 +148,8 @@ def compute_gaps(
             key=lambda wid: (-len(citers[wid]), wid),
         )[: max_candidates * 3]
         for ref_id in eligible:
-            meta = openalex_client.fetch_work_meta(conn, ref_id)
+            meta_lookup = getattr(openalex_client, "fetch_work_meta_strict", openalex_client.fetch_work_meta)
+            meta = meta_lookup(conn, ref_id)
             if meta:
                 meta_by_id[ref_id] = meta
         note = _NOTE_BACKWARD

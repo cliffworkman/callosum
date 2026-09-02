@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.backend.acquisition.registry import PaperRef
 from app.backend.clustering.gapfinder import GapCandidate, compute_gaps
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_paper
 from integrations.openalex.adapter import OpenAlexClient
+from integrations.openalex.request import OpenAlexResponseUnavailable
 
 
 def _paper(conn, doi) -> int:
@@ -108,6 +111,14 @@ def test_fetch_citing_works(temp_db_url):
     assert bad == []  # an invalid id is rejected without a fetch
 
 
+def test_strict_graph_fetches_distinguish_unavailable_from_empty(temp_db_url):
+    client = OpenAlexClient(fetcher=lambda *a, **k: (503, {"error": "down"}))
+    with make_engine(temp_db_url).begin() as conn:
+        assert client.fetch_citing_works(conn, "W42") == []
+        with pytest.raises(OpenAlexResponseUnavailable):
+            client.fetch_citing_works_strict(conn, "W42")
+
+
 # ---- compute_gaps (injected fake client, no network) -----------------------
 
 
@@ -129,6 +140,11 @@ class _FakeOA:
 
     def fetch_citing_works(self, conn, work_id):
         return self.citing_by_workid.get(work_id, [])
+
+
+class _UnavailableOA(_FakeOA):
+    def fetch_referenced_works_strict(self, conn, ref):
+        raise OpenAlexResponseUnavailable("down")
 
 
 def _meta(wid, doi, title="T", year=2010):
@@ -155,6 +171,15 @@ def test_compute_gaps_surfaces_works_cited_by_many(temp_db_url):
     assert candidates[0].cited_by_in_library == 2 and candidates[0].title == "Cited Often"
     assert isinstance(candidates[0], GapCandidate)
     assert coverage["checked"] == 3 and coverage["total"] == 3 and "coverage" in coverage["note"].lower()
+
+
+def test_compute_gaps_propagates_incomplete_scan(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        _paper(conn, "10.1/p1")
+        with pytest.raises(OpenAlexResponseUnavailable):
+            compute_gaps(conn, openalex_client=_UnavailableOA(), dismissed=set())
+    engine.dispose()
 
 
 def test_compute_gaps_excludes_in_library_and_dismissed(temp_db_url):

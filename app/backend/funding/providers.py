@@ -6,7 +6,6 @@ import hashlib
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
-import httpx
 from sqlalchemy import Connection, select
 
 from app.backend.acquisition.registry import PaperRef
@@ -22,7 +21,9 @@ from app.backend.funding.profile import ResearchFundingProfile, facet_values
 from app.backend.funding.ror import RorIdentityProvider as RorIdentityProvider  # noqa: F401
 from app.backend.persistence.schema import papers
 from integrations.api_cache import get_cached, put_cached
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 from integrations.openalex import OpenAlexClient
+from integrations.openalex.request import bounded_openalex_get, openalex_headers, openalex_params
 
 OPENALEX_FUNDING_PROVIDER = "openalex-funding"
 OPENALEX_WORKS_URL = "https://api.openalex.org/works"
@@ -37,7 +38,16 @@ class GetJsonFetcher(Protocol):
 
 
 def httpx_get_fetcher(url: str, *, params: dict[str, str], headers: dict[str, str], timeout: float):
-    response = httpx.get(url, params=params, headers=headers, timeout=timeout)
+    response = bounded_get(url, max_bytes=METADATA_RESPONSE_CAP, params=params, headers=headers, timeout=timeout)
+    try:
+        body = response.json()
+    except ValueError:
+        body = None
+    return response.status_code, body
+
+
+def openalex_get_fetcher(url: str, *, params: dict[str, str], headers: dict[str, str], timeout: float):
+    response = bounded_openalex_get(url, params=params, headers=headers, timeout=timeout)
     try:
         body = response.json()
     except ValueError:
@@ -115,7 +125,7 @@ class OpenAlexFundingProvider:
         client: OpenAlexClient | None = None,
         timeout: float = 15.0,
     ) -> None:
-        self.fetcher = fetcher or httpx_get_fetcher
+        self.fetcher = fetcher or openalex_get_fetcher
         self.client = client
         self.timeout = timeout
         self.mailto = resolved_mailto("CALLOSUM_OPENALEX_MAILTO")
@@ -155,22 +165,21 @@ class OpenAlexFundingProvider:
             "search": query,
             "filter": "has_funder:true",
             "per-page": "25",
-            **({"mailto": self.mailto} if self.mailto else {}),
+            **openalex_params(self.mailto),
         }
-        cache_key = hashlib.sha256(str(params).encode("utf-8")).hexdigest()
+        cache_params = {key: value for key, value in params.items() if key != "api_key"}
+        cache_key = hashlib.sha256(str(cache_params).encode("utf-8")).hexdigest()
         cached = get_cached(conn, self.id, cache_key)
-        if cached is not None and cached["response_json"] is not None:
+        if cached is not None and cached["status_code"] == 200 and cached["response_json"] is not None:
             return self._normalize(cached["response_json"], cached["status_code"])
         try:
             status, payload = self.fetcher(
-                OPENALEX_WORKS_URL, params=params, headers=_json_headers(self.mailto), timeout=self.timeout
+                OPENALEX_WORKS_URL, params=params, headers=openalex_headers(self.mailto), timeout=self.timeout
             )
         except Exception:
-            put_cached(
-                conn, self.id, cache_key, request_json=params, response_json={"error": "fetch failed"}, status_code=None
-            )
             return [], ProviderStatus(self.id, "award_history", "failed", error_code="fetch_failed")
-        put_cached(conn, self.id, cache_key, request_json=params, response_json=payload, status_code=status)
+        if status == 200 and isinstance(payload, dict):
+            put_cached(conn, self.id, cache_key, request_json=cache_params, response_json=payload, status_code=status)
         return self._normalize(payload, status)
 
     def _lineage_awards(self, conn: Connection, profile: ResearchFundingProfile) -> list[HistoricalAward]:

@@ -95,20 +95,21 @@ def _run_citation_counts_job(app: FastAPI, job_id: str) -> None:
         with engine.connect() as conn:
             rows = list_live_papers_with_doi(conn)
         total = len(rows)
+        fetch_client = client.with_cache_engine(engine) if hasattr(client, "with_cache_engine") else client
 
-        def process(conn, row):  # inc C: per-paper committed txn — the external OpenAlex fetch no longer holds a
-            count = client.fetch_cited_by_count(conn, PaperRef(doi=row["doi"]))  # batch-wide write lock
+        def process(row):
+            with engine.connect() as conn:
+                count = fetch_client.fetch_cited_by_count(conn, PaperRef(doi=row["doi"]), refresh=True)
             if count is not None:  # 0 is a real count and is stored; None = no work/field → leave honest "—"
-                upsert_citation_count(conn, int(row["id"]), count)
+                run_write(engine, lambda conn: upsert_citation_count(conn, int(row["id"]), count))
                 return True
             return False
 
         # inc 418: fetch+write each paper concurrently (bounded) instead of one-at-a-time — the OpenAlex round
-        # trip, not the local write, dominates wall-clock time here. `process` itself is unchanged; only the
-        # orchestration is concurrent. Progress is completion-count-based (inherently order-agnostic).
+        # trip, not the short local write, dominates wall-clock time here. Progress is completion-count-based.
         completed = 0
         with ThreadPoolExecutor(max_workers=CITATION_COUNT_WORKERS) as pool:
-            futures = {pool.submit(run_write, engine, lambda conn, r=row: process(conn, r)): row for row in rows}
+            futures = {pool.submit(process, row): row for row in rows}
             for future in as_completed(futures):
                 completed += 1
                 row = futures[future]

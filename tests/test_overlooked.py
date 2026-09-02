@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
@@ -19,6 +20,7 @@ from app.backend.methods.overlooked import OverlookedCandidate, compute_overlook
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.overlooked_repo import read_overlooked_candidates, replace_overlooked_candidates
 from app.backend.persistence.repository import create_paper
+from integrations.openalex.request import OpenAlexResponseUnavailable
 from integrations.openalex.sources import OpenAlexSourcesClient, TopicWork
 
 
@@ -83,6 +85,14 @@ def test_fetch_topic_works_transmits_only_the_topic_id(temp_db_url):
     engine.dispose()
 
 
+def test_strict_topic_fetch_rejects_unavailable_response(temp_db_url):
+    client = OpenAlexSourcesClient(fetcher=lambda *a, **k: (503, {"error": "down"}))
+    with make_engine(temp_db_url).begin() as conn:
+        assert client.fetch_topic_works(conn, "T7") == []
+        with pytest.raises(OpenAlexResponseUnavailable):
+            client.fetch_topic_works_strict(conn, "T7")
+
+
 # --- Task 2: the compute_overlooked engine -----------------------------------
 
 _VOCAB = ["neural", "vision", "plant"]
@@ -104,14 +114,17 @@ class _KeywordEmbed:
 class _FakeSources:
     """A sources client stand-in: a fixed topic + a fixed candidate-works list (no network)."""
 
-    def __init__(self, topic, works):
+    def __init__(self, topic, works, *, fail=False):
         self._topic = topic
         self._works = works
+        self.fail = fail
 
     def fetch_topic_for_subject(self, conn, subject):
         return self._topic
 
     def fetch_topic_works(self, conn, topic_id, *, cap=200):
+        if self.fail:
+            raise OpenAlexResponseUnavailable("down")
         return list(self._works)
 
 
@@ -261,6 +274,16 @@ def test_overlooked_endpoints_refresh_then_list(temp_db_url):
         assert "relevance" in c and "year_percentile" in c
         assert not any(("author" in k) or ("score" in k) for k in c)
     assert "score" not in json.dumps(body).lower()
+
+
+def test_failed_overlooked_refresh_preserves_previous_snapshot(temp_db_url):
+    client, axis_id = _lens_app(temp_db_url)
+    assert _drive_refresh(client, axis_id)["status"] == "done"
+    before = client.get("/overlooked", params={"axis_id": axis_id}).json()
+    client.app.state.openalex_sources_client.fail = True
+    failed = _drive_refresh(client, axis_id)
+    assert failed["status"] == "error" and "OpenAlexResponseUnavailable" in failed["detail"]
+    assert client.get("/overlooked", params={"axis_id": axis_id}).json() == before
 
 
 def test_overlooked_list_filters_dismissed(temp_db_url):

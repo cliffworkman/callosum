@@ -15,6 +15,7 @@ from integrations.openalex.citing_topics import (
     OpenAlexCitingTopicsClient,
     normalize_author_records,
 )
+from integrations.openalex.request import OPENALEX_CACHE_TTL_SECONDS, openalex_headers, openalex_params
 
 OPENALEX_CITING_AUTHORS_PROVIDER = "openalex_citing_authors"
 
@@ -77,8 +78,10 @@ class OpenAlexCitingAuthorsClient:
         if not source_ids or len(source_ids) > MAX_SOURCE_WORKS:
             return {}
         cache_key = _cache_key(source_ids)
-        cached = get_cached(conn, OPENALEX_CITING_AUTHORS_PROVIDER, cache_key)
-        if cached is not None and isinstance(cached["response_json"], dict):
+        cached = get_cached(
+            conn, OPENALEX_CITING_AUTHORS_PROVIDER, cache_key, max_age_seconds=OPENALEX_CACHE_TTL_SECONDS
+        )
+        if cached is not None and int(cached["status_code"] or 0) == 200 and isinstance(cached["response_json"], dict):
             response = cached["response_json"]
             if int(cached["status_code"] or 0) == 200 and isinstance(response.get("works"), list):
                 return {
@@ -86,7 +89,6 @@ class OpenAlexCitingAuthorsClient:
                     for raw in response["works"]
                     if isinstance(raw, dict) and (row := _cached_source(raw)) is not None
                 }
-            raise CitingAuthorMetadataUnavailable("Cached OpenAlex own-work authorships are unavailable.")
 
         params = {
             "filter": f"openalex:{'|'.join(source_ids)}",
@@ -126,13 +128,10 @@ class OpenAlexCitingAuthorsClient:
             put_cached(conn, OPENALEX_CITING_AUTHORS_PROVIDER, cache_key, **fields)
 
     def _polite_params(self) -> dict[str, str]:
-        return {"mailto": self.mailto} if self.mailto else {}
+        return openalex_params(self.mailto)
 
     def _headers(self) -> dict[str, str]:
-        user_agent = "Callosum/0.1 (local-first reference manager)"
-        if self.mailto:
-            user_agent = f"{user_agent}; mailto:{self.mailto}"
-        return {"User-Agent": user_agent, "Accept": "application/json"}
+        return openalex_headers(self.mailto)
 
 
 def _source_from_obj(value: Any, source_ids: set[str]) -> dict[str, Any] | None:

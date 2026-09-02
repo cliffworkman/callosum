@@ -18,7 +18,7 @@ from sqlalchemy import Connection, Engine
 from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
 from app.backend.clustering.followed_authors import suggest_authors_to_follow
-from app.backend.discovery.feed import feed_view, refresh_subscriptions
+from app.backend.discovery.feed import feed_view, refresh_subscriptions_managed
 from app.backend.persistence import feed_repo, followed_author_repo
 from app.backend.persistence.sqlite_retry import run_write
 
@@ -167,8 +167,7 @@ def _run_feed_refresh(app: FastAPI, job_id: str) -> None:
     jobs: JobStore[FeedRefreshResponse] = app.state.feed_jobs
     jobs.mark_running(job_id)
     try:
-        with app.state.engine.begin() as conn:
-            counts = refresh_subscriptions(conn, app.state.feed_registry)
+        counts = refresh_subscriptions_managed(app.state.engine, app.state.feed_registry)
         result = FeedRefreshResult(subscriptions=counts["subscriptions"], new_items=counts["new_items"])
         jobs.mark_done(job_id, FeedRefreshResponse(job_id=job_id, status="done", result=result))
     except Exception as exc:  # noqa: BLE001

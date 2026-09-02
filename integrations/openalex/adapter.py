@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import hashlib
 import re
+import unicodedata
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from typing import Any, Protocol
 from urllib.parse import quote
 
@@ -19,8 +21,13 @@ from sqlalchemy import Connection, Engine
 from app.backend.acquisition.registry import OaColor, OaLocation, OaVersion, PaperRef
 from app.backend.app_settings import resolved_mailto
 from integrations.api_cache import put_cached, put_cached_committing
-from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 from integrations.openalex.field_sample import FieldSampleMixin
+from integrations.openalex.request import (
+    OpenAlexResponseUnavailable,
+    bounded_openalex_get,
+    openalex_headers,
+    openalex_params,
+)
 from integrations.openalex.work_keywords import keywords_from_work
 from integrations.openalex.work_meta import (
     MAX_REFERENCED,
@@ -35,7 +42,7 @@ OPENALEX_BASE_URL = "https://api.openalex.org/works"
 MAX_CITING = 200  # cap on citing works read per paper (inc 137 forward gap; bound + a documented coverage limit)
 
 
-class OpenAlexUnavailableError(RuntimeError):
+class OpenAlexUnavailableError(OpenAlexResponseUnavailable):
     """The provider could not establish a complete answer for a requested OpenAlex lookup."""
 
 
@@ -154,7 +161,7 @@ class OpenAlexClient(FieldSampleMixin):
                 return _meta_from_work(cached["response_json"])
             if status == 404:
                 return None
-            raise OpenAlexUnavailableError(f"cached OpenAlex work lookup is unavailable (HTTP {status})")
+            # A cached transient response is not an authoritative answer; retry below.
         try:
             status, body = self.fetcher(
                 f"/{work_id}", params=self._polite_params(), headers=self._headers(), timeout=self.timeout
@@ -187,6 +194,15 @@ class OpenAlexClient(FieldSampleMixin):
         wid = str(raw).rsplit("/", 1)[-1] if raw else None
         return wid if wid and re.fullmatch(r"W\d+", wid) else None
 
+    def fetch_work_id_strict(self, conn: Connection, ref: PaperRef) -> str | None:
+        """Return a work id or a proven absence; raise when OpenAlex was unavailable."""
+        result = self._fetch_work_result(conn, ref)
+        if result.state == "unavailable":
+            raise OpenAlexUnavailableError("OpenAlex work lookup was unavailable")
+        raw = result.work.get("id") if isinstance(result.work, dict) else None
+        work_id = str(raw).rsplit("/", 1)[-1] if raw else None
+        return work_id if work_id and re.fullmatch(r"W\d+", work_id) else None
+
     def fetch_work_keywords(self, conn: Connection, ref: PaperRef) -> list[str]:
         """Curated keyword display-names (topics, else concepts) for a paper (inc 306 — the `keyword:openalex`
         tag source). Reads the cached work populated by the enrich cascade → zero extra egress in the normal path.
@@ -196,13 +212,23 @@ class OpenAlexClient(FieldSampleMixin):
     def fetch_citing_works(self, conn: Connection, work_id: str) -> list[dict[str, Any]]:
         """Works that CITE a given work (inc 137 forward gap) — `?filter=cites:<W…>`, capped, cached, fail-closed.
         Returns meta dicts (openalex_work_id/doi/title/authors/year)."""
+        try:
+            return self.fetch_citing_works_strict(conn, work_id)
+        except OpenAlexResponseUnavailable:
+            return []
+
+    def fetch_citing_works_strict(self, conn: Connection, work_id: str) -> list[dict[str, Any]]:
+        """Return a complete bounded citing-work page, raising when it cannot be established."""
         if not re.fullmatch(r"W\d+", work_id or ""):
             return []
         cache_key = f"citing:{work_id}"
         cached = _cached_response(conn, cache_key)
-        if cached is not None:
-            body = cached["response_json"] if cached["status_code"] == 200 else None
-        else:
+        body = (
+            cached["response_json"]
+            if cached is not None and cached["status_code"] == 200 and isinstance(cached["response_json"], dict)
+            else None
+        )
+        if body is None:
             try:
                 status, body = self.fetcher(
                     "",
@@ -210,31 +236,27 @@ class OpenAlexClient(FieldSampleMixin):
                     headers=self._headers(),
                     timeout=self.timeout,
                 )
-            except Exception:
-                self._store(
-                    conn,
-                    cache_key,
-                    request_json={"work_id": work_id},
-                    response_json={"error": "fetch failed"},
-                    status_code=None,
-                )
-                return []
+            except Exception as exc:
+                raise OpenAlexUnavailableError("OpenAlex citing-work lookup was unavailable") from exc
+            if status != 200 or not isinstance(body, dict):
+                raise OpenAlexUnavailableError(f"OpenAlex citing-work lookup returned HTTP {status}")
             self._store(conn, cache_key, request_json={"work_id": work_id}, response_json=body, status_code=status)
-            if status != 200:
-                body = None
         if not isinstance(body, dict):
-            return []
+            raise OpenAlexUnavailableError("OpenAlex citing-work response was malformed")
+        results = body.get("results")
+        if not isinstance(results, list):
+            raise OpenAlexUnavailableError("OpenAlex citing-work results were malformed")
         out: list[dict[str, Any]] = []
-        for work in (body.get("results") or [])[:MAX_CITING]:
+        for work in results[:MAX_CITING]:
             meta = _meta_from_work(work)
             if meta and meta.get("openalex_work_id"):
                 out.append(meta)
         return out
 
-    def fetch_cited_by_count(self, conn: Connection, ref: PaperRef) -> int | None:
+    def fetch_cited_by_count(self, conn: Connection, ref: PaperRef, *, refresh: bool = False) -> int | None:
         """OpenAlex's `cited_by_count` for a paper (inc 210, A2) — read from the cached DOI→work fetch.
         Returns the verbatim count (0 is a real value, kept), or None if the work/field is absent. Fail-closed."""
-        work = self._fetch_work(conn, ref)
+        work = self._fetch_work_result(conn, ref, refresh=refresh).work
         if not isinstance(work, dict):
             return None
         count = work.get("cited_by_count")
@@ -254,19 +276,19 @@ class OpenAlexClient(FieldSampleMixin):
     def _fetch_work(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
         return self._fetch_work_result(conn, ref).work
 
-    def _fetch_work_result(self, conn: Connection, ref: PaperRef) -> _WorkFetchResult:
+    def _fetch_work_result(self, conn: Connection, ref: PaperRef, *, refresh: bool = False) -> _WorkFetchResult:
         path, params, cache_key = _endpoint_for(ref)
         if path is None:
             return _WorkFetchResult(None, "not_found")
-        cached = _cached_response(conn, cache_key)
+        cached = None if refresh else _cached_response(conn, cache_key)
         if cached is not None:
             status = int(cached["status_code"]) if cached["status_code"] is not None else None
             if status == 200:
-                work = _work_from_body(cached["response_json"])
+                work = _validated_work(cached["response_json"], ref)
                 return _WorkFetchResult(work, "ok" if work is not None else "not_found")
             if status == 404:
                 return _WorkFetchResult(None, "not_found")
-            return _WorkFetchResult(None, "unavailable")
+            # Retry cached transient/error statuses rather than replaying them indefinitely.
         try:
             status, body = self.fetcher(
                 path, params={**params, **self._polite_params()}, headers=self._headers(), timeout=self.timeout
@@ -277,20 +299,17 @@ class OpenAlexClient(FieldSampleMixin):
             return _WorkFetchResult(None, "not_found")
         if status != 200 or not isinstance(body, dict):
             return _WorkFetchResult(None, "unavailable")
-        work = _work_from_body(body)
+        work = _validated_work(body, ref)
         self._store(
             conn, cache_key, request_json={"path": path, "params": params}, response_json=body, status_code=status
         )
         return _WorkFetchResult(work, "ok" if work is not None else "not_found")
 
     def _polite_params(self) -> dict[str, str]:
-        return {"mailto": self.mailto} if self.mailto else {}
+        return openalex_params(self.mailto)
 
     def _headers(self) -> dict[str, str]:
-        user_agent = "Callosum/0.1 (local-first reference manager)"
-        if self.mailto:
-            user_agent = f"{user_agent}; mailto:{self.mailto}"
-        return {"User-Agent": user_agent, "Accept": "application/json"}
+        return openalex_headers(self.mailto)
 
 
 def _endpoint_for(ref: PaperRef) -> tuple[str | None, dict[str, str], str]:
@@ -311,9 +330,7 @@ def _endpoint_for(ref: PaperRef) -> tuple[str | None, dict[str, str], str]:
 def _httpx_fetcher(
     path: str, *, params: dict[str, str], headers: dict[str, str], timeout: float
 ) -> tuple[int, dict[str, Any] | None]:
-    response = bounded_get(
-        OPENALEX_BASE_URL + path, max_bytes=METADATA_RESPONSE_CAP, params=params, headers=headers, timeout=timeout
-    )
+    response = bounded_openalex_get(OPENALEX_BASE_URL + path, params=params, headers=headers, timeout=timeout)
     try:
         body = response.json()
     except ValueError:
@@ -326,6 +343,32 @@ def _work_from_body(body: Any) -> dict[str, Any] | None:
     if isinstance(body, dict) and isinstance(body.get("results"), list):
         return body["results"][0] if body["results"] else None
     return body if isinstance(body, dict) else None
+
+
+def _validated_work(body: Any, ref: PaperRef) -> dict[str, Any] | None:
+    work = _work_from_body(body)
+    if work is None or not ref.title or ref.doi or ref.pmid:
+        return work
+    return work if _title_matches(ref.title, work.get("title")) else None
+
+
+def _title_matches(requested: str, returned: Any) -> bool:
+    """Reject an unrelated first search hit while tolerating minor punctuation/Unicode variation."""
+    if not isinstance(returned, str):
+        return False
+
+    def normalized(value: str) -> str:
+        folded = unicodedata.normalize("NFKC", value).casefold()
+        return " ".join(re.findall(r"\w+", folded, flags=re.UNICODE))
+
+    wanted, found = normalized(requested), normalized(returned)
+    if not wanted or not found:
+        return False
+    if wanted == found:
+        return True
+    wanted_tokens, found_tokens = set(wanted.split()), set(found.split())
+    overlap = len(wanted_tokens & found_tokens) / max(len(wanted_tokens | found_tokens), 1)
+    return overlap >= 0.9 and SequenceMatcher(None, wanted, found).ratio() >= 0.92
 
 
 def _best_oa_location_from_work(work: dict[str, Any]) -> OaLocation | None:

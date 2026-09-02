@@ -27,8 +27,7 @@ def upsert_profile(
     name_variants: list[str],
     orcid: str | None,
 ) -> dict[str, Any]:
-    """Create or update the single profile row's identity fields. Leaves the cached ``openalex_author_id`` and
-    the ``my_publications_dismissed`` flag untouched (the resolver / delete manage those)."""
+    """Create or update identity fields, invalidating a cached author match when that identity changes."""
     existing = get_profile(conn)
     values = {
         "display_name": (display_name or "").strip() or None,
@@ -39,6 +38,9 @@ def upsert_profile(
     if existing is None:
         conn.execute(insert(profile).values(**values))
     else:
+        identity_changed = any(existing.get(key) != values[key] for key in ("display_name", "name_variants", "orcid"))
+        if identity_changed:
+            values["openalex_author_id"] = None
         conn.execute(update(profile).where(profile.c.id == int(existing["id"])).values(**values))
     return get_profile(conn) or {}
 

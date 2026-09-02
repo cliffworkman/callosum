@@ -98,6 +98,22 @@ def test_meta_surfaces_related_and_concepts_and_abstract():
     assert rich["abstract"] == "risk decision"
 
 
+def test_meta_treats_malformed_collection_fields_as_absent_and_bounds_abstract():
+    work = {
+        "id": "https://openalex.org/W1",
+        "authorships": {"not": "a list"},
+        "related_works": 42,
+        "concepts": "not a list",
+        "grants": {"not": "a list"},
+        "referenced_works": 42,
+        "abstract_inverted_index": {"word": list(range(10_000))},
+    }
+    meta = _meta_with_abstract(work)
+    assert meta is not None
+    assert meta["authors"] == [] and meta["related_works"] == [] and meta["referenced_works"] == []
+    assert len(meta["abstract"]) <= 20_000 and len(meta["abstract"].split()) <= 5_000
+
+
 def test_fetch_works_by_ids_batches_validates_failcloses(temp_db_url):
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:

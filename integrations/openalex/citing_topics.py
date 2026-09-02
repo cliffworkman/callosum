@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy import Connection, Engine
 
 from integrations.api_cache import get_cached, put_cached, put_cached_committing
+from integrations.openalex.request import OPENALEX_CACHE_TTL_SECONDS, openalex_headers, openalex_params
 
 OPENALEX_CITING_TOPICS_PROVIDER = "openalex_citing_topics"
 MAX_SOURCE_WORKS = 50
@@ -57,14 +58,15 @@ class OpenAlexCitingTopicsClient:
         if not source_ids or len(source_ids) > MAX_SOURCE_WORKS or not _valid_years(start_year, end_year):
             return [], False
         cache_key = _cache_key(source_ids, start_year, end_year)
-        cached = get_cached(conn, OPENALEX_CITING_TOPICS_PROVIDER, cache_key)
-        if cached is not None and isinstance(cached["response_json"], dict):
+        cached = get_cached(
+            conn, OPENALEX_CITING_TOPICS_PROVIDER, cache_key, max_age_seconds=OPENALEX_CACHE_TTL_SECONDS
+        )
+        if cached is not None and int(cached["status_code"] or 0) == 200 and isinstance(cached["response_json"], dict):
             response = cached["response_json"]
             if int(cached["status_code"] or 0) == 200 and isinstance(response.get("works"), list):
                 return [_cached_work(work) for work in response["works"] if isinstance(work, dict)], bool(
                     response.get("capped")
                 )
-            raise CitingTopicWindowUnavailable("Cached OpenAlex citing-topic window is unavailable.")
 
         works: list[dict[str, Any]] = []
         cursor = "*"
@@ -88,11 +90,15 @@ class OpenAlexCitingTopicsClient:
                 raise CitingTopicWindowUnavailable("OpenAlex citing-topic window fetch failed.") from exc
             if status != 200 or not isinstance(body, dict):
                 raise CitingTopicWindowUnavailable(f"OpenAlex citing-topic window returned HTTP {status}.")
-            for raw in body.get("results") or []:
+            results = body.get("results")
+            meta = body.get("meta")
+            if not isinstance(results, list) or (meta is not None and not isinstance(meta, dict)):
+                raise CitingTopicWindowUnavailable("OpenAlex citing-topic window response was malformed.")
+            for raw in results[:WORKS_PER_PAGE]:
                 normalized = _work_from_obj(raw, set(source_ids))
                 if normalized is not None:
                     works.append(normalized)
-            next_cursor = (body.get("meta") or {}).get("next_cursor")
+            next_cursor = (meta or {}).get("next_cursor")
             if not next_cursor:
                 break
             if page_index == MAX_PAGES - 1:
@@ -117,13 +123,10 @@ class OpenAlexCitingTopicsClient:
             put_cached(conn, OPENALEX_CITING_TOPICS_PROVIDER, cache_key, **fields)
 
     def _polite_params(self) -> dict[str, str]:
-        return {"mailto": self.mailto} if self.mailto else {}
+        return openalex_params(self.mailto)
 
     def _headers(self) -> dict[str, str]:
-        user_agent = "Callosum/0.1 (local-first reference manager)"
-        if self.mailto:
-            user_agent = f"{user_agent}; mailto:{self.mailto}"
-        return {"User-Agent": user_agent, "Accept": "application/json"}
+        return openalex_headers(self.mailto)
 
 
 def _work_from_obj(work: Any, source_ids: set[str]) -> dict[str, Any] | None:

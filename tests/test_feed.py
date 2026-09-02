@@ -381,9 +381,10 @@ def test_refresh_upserts_and_view_marks_in_library(temp_db_url):
 def test_refresh_skips_a_failing_source(temp_db_url):
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
-        feed_repo.add_subscription(conn, kind="test_source", value="x")
+        sub = feed_repo.add_subscription(conn, kind="test_source", value="x")
         reg = FeedRegistry().register(_FakeSource([], boom=True))
-        assert refresh_subscriptions(conn, reg)["new_items"] == 0  # a raising source is skipped, not fatal
+        assert refresh_subscriptions(conn, reg) == {"subscriptions": 0, "new_items": 0}
+        assert feed_repo.get_subscription(conn, int(sub["id"]))["last_polled_at"] is None
     engine.dispose()
 
 

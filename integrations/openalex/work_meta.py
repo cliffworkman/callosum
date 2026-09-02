@@ -12,10 +12,13 @@ from typing import Any
 from sqlalchemy import Connection
 
 from integrations.api_cache import get_cached
+from integrations.openalex.request import OPENALEX_CACHE_TTL_SECONDS
 
 OPENALEX_PROVIDER = "openalex"
 MAX_REFERENCED = 500  # cap on referenced-work ids read per paper (inc 135; bound the gap-finder fetches)
 MAX_RELATED = 50  # cap on related-work ids read per paper (inc 228 overlooked-work; OpenAlex returns ~10-25)
+MAX_AUTHORSHIPS = 100
+MAX_ABSTRACT_WORDS = 5_000
 
 # OpenAlex `type` -> CSL type (only the common ones; unknown -> omitted, never a guessed type -- inc 217).
 _OA_TYPE_TO_CSL = {
@@ -31,7 +34,7 @@ _OA_TYPE_TO_CSL = {
 
 
 def _cached_response(conn: Connection, cache_key: str):
-    return get_cached(conn, OPENALEX_PROVIDER, cache_key)
+    return get_cached(conn, OPENALEX_PROVIDER, cache_key, max_age_seconds=OPENALEX_CACHE_TTL_SECONDS)
 
 
 def _meta_from_work(work: Any) -> dict[str, Any] | None:
@@ -47,7 +50,7 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
     doi = raw_doi.strip().lower().replace("https://doi.org/", "") if isinstance(raw_doi, str) and raw_doi else None
     title = work.get("title") or work.get("display_name")
     year = work.get("publication_year")
-    authorships = [a for a in (work.get("authorships") or []) if isinstance(a, dict)]
+    authorships = [a for a in _list_value(work.get("authorships"))[:MAX_AUTHORSHIPS] if isinstance(a, dict)]
     authors = [str((a.get("author") or {}).get("display_name") or "").strip() for a in authorships]
     # inc 456: bare A... author ids (self-citation field baseline) -- sitting unused in the same response as
     # authors' display_name; capped like every other id list here.
@@ -64,7 +67,7 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
     # inc 227: institution names for the institutional-concentration signal; no country/nationality extraction.
     institutions: list[str] = []
     for a in authorships:
-        for inst in a.get("institutions") or []:
+        for inst in _list_value(a.get("institutions"))[:20]:
             if not isinstance(inst, dict):
                 continue
             name = inst.get("display_name")
@@ -80,18 +83,18 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
     # inc 228 (overlooked-work SP2): related_works (OpenAlex's relatedness to this paper, bare ids) + concepts
     # (top concept names -- the shared-topic "why" for a candidate). Small lists; existing callers ignore them.
     related: list[str] = []
-    for url in (work.get("related_works") or [])[:MAX_RELATED]:
+    for url in _list_value(work.get("related_works"))[:MAX_RELATED]:
         if isinstance(url, str):
             wid = url.rsplit("/", 1)[-1]
             if re.fullmatch(r"W\d+", wid):
                 related.append(wid)
     concepts = [
         str(c.get("display_name"))
-        for c in (work.get("concepts") or [])[:8]
+        for c in _list_value(work.get("concepts"))[:8]
         if isinstance(c, dict) and c.get("display_name")
     ]
     grants: list[dict[str, str]] = []
-    for grant in (work.get("grants") or [])[:20]:
+    for grant in _list_value(work.get("grants"))[:20]:
         if not isinstance(grant, dict):
             continue
         funder = grant.get("funder_display_name") or grant.get("funder") or grant.get("funder_name")
@@ -111,7 +114,7 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
     # inc 456: the self-citation field baseline needs to know what a field-sample paper ITSELF cites -- already
     # present in the same response (no extra HTTP), just never extracted before now.
     referenced_works: list[str] = []
-    for url in work.get("referenced_works") or []:
+    for url in _list_value(work.get("referenced_works"))[:MAX_REFERENCED]:
         if isinstance(url, str):
             wid = url.rsplit("/", 1)[-1]
             if re.fullmatch(r"W\d+", wid):
@@ -156,9 +159,13 @@ def _reconstruct_abstract(inverted_index: Any) -> str | None:
     for word, idxs in inverted_index.items():
         if not isinstance(idxs, list):
             continue
-        for i in idxs:
+        for i in idxs[:MAX_ABSTRACT_WORDS]:
             if isinstance(i, int):
                 positions.append((i, str(word)))
+                if len(positions) >= MAX_ABSTRACT_WORDS:
+                    break
+        if len(positions) >= MAX_ABSTRACT_WORDS:
+            break
     if not positions:
         return None
     positions.sort()
@@ -180,7 +187,7 @@ def _csl_from_work(work: Any) -> dict[str, Any] | None:
         fragment["issued"] = {"date-parts": [[year]]}
     authors = [
         {"literal": str(name)}
-        for a in (work.get("authorships") or [])
+        for a in _list_value(work.get("authorships"))[:MAX_AUTHORSHIPS]
         if isinstance(a, dict)
         for name in [(a.get("author") or {}).get("display_name") or a.get("raw_author_name")]
         if name
@@ -206,3 +213,7 @@ def _csl_from_work(work: Any) -> dict[str, Any] | None:
         if digits:
             fragment["PMID"] = digits
     return fragment or None
+
+
+def _list_value(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []

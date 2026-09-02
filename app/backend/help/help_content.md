@@ -1289,7 +1289,7 @@ Read the two together: relevant **and** under-cited for its year = *possibly* ov
 
 <!-- section: citation-equity -->
 ## Checking citation concentration
-The **Citation concentration** subsection of **Work → Meta-Reference**, with a paper selected, describes the **structural shape** of a paper's reference list — how much it leans on a few sources or on established power — and it's deliberately a *mirror, not a report card*. Select a paper, open Meta-Reference, and click **Run audit**; it resolves the paper's references via OpenAlex (public metadata — only the DOIs leave your machine; not the AI/Gemini setting) and shows four descriptive signals, each next to a sample of the paper's **field** (its OpenAlex topic):
+The **Citation concentration** subsection of **Work → Meta-Reference**, with a paper selected, describes the **structural shape** of a paper's reference list — how much it leans on a few sources or on established power — and it's deliberately a *mirror, not a report card*. Select a paper, open Meta-Reference, and click **Run audit**; it resolves the paper's references via OpenAlex (public metadata — the paper DOI plus OpenAlex work, topic, and author identifiers used for the bounded comparison leave your machine; no PDF or library text is sent, and this is not the AI/Gemini setting) and shows four descriptive signals, each next to a sample of the paper's **field** (its OpenAlex topic):
 
 - **Self-citation** — how many references include an author of the paper (King et al. 2017).
 - **Reliance on highly-cited work** — how much the list leans on already-famous papers, against the field (the Matthew effect; Merton 1968 / Perc 2014).

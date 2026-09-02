@@ -17,7 +17,12 @@ from sqlalchemy import Connection, Engine
 
 from app.backend.app_settings import resolved_mailto
 from integrations.api_cache import get_cached, put_cached, put_cached_committing
-from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
+from integrations.openalex.request import (
+    OPENALEX_CACHE_TTL_SECONDS,
+    bounded_openalex_get,
+    openalex_headers,
+    openalex_params,
+)
 
 OPENALEX_ROOT = "https://api.openalex.org"
 OPENALEX_AUTHOR_PROVIDER = "openalex_author"
@@ -162,7 +167,7 @@ class OpenAlexAuthorClient:
         return None
 
     def _cached_by_key(self, conn: Connection, key: str, *, matched_by: str) -> ResolvedAuthor | None:
-        cached = get_cached(conn, OPENALEX_AUTHOR_PROVIDER, key)
+        cached = get_cached(conn, OPENALEX_AUTHOR_PROVIDER, key, max_age_seconds=OPENALEX_CACHE_TTL_SECONDS)
         if cached is None or int(cached["status_code"] or 0) != 200 or not isinstance(cached["response_json"], dict):
             return None
         return _author_from_obj(_pick_author(cached["response_json"]), matched_by=matched_by)
@@ -174,7 +179,7 @@ class OpenAlexAuthorClient:
         self, conn: Connection, author_id: str, *, refresh: bool = False
     ) -> AuthorWorksResult:
         if not refresh:  # refresh=True bypasses + re-caches, so an old cache (no cited_by_count) upgrades (inc 83)
-            cached = get_cached(conn, OPENALEX_WORKS_PROVIDER, author_id)
+            cached = get_cached(conn, OPENALEX_WORKS_PROVIDER, author_id, max_age_seconds=OPENALEX_CACHE_TTL_SECONDS)
             if cached is not None and isinstance(cached["response_json"], dict):
                 works = cached["response_json"].get("works")
                 if isinstance(works, list):
@@ -206,7 +211,7 @@ class OpenAlexAuthorClient:
         return result
 
     def _fetch(self, conn, provider, key, url, params) -> tuple[dict[str, Any] | None, str]:
-        cached = get_cached(conn, provider, key)
+        cached = get_cached(conn, provider, key, max_age_seconds=OPENALEX_CACHE_TTL_SECONDS)
         # A cached row with status_code=None means the LAST attempt raised (transport/decode failure), not that
         # OpenAlex ever actually answered -- never treat that as authoritative (backlog #61: previously this
         # permanently "poisoned" a name/ORCID after one transient failure, since retries always short-circuited
@@ -256,11 +261,15 @@ class OpenAlexAuthorClient:
                 return AuthorWorksResult(tuple(works), complete=False)
             if status != 200 or not isinstance(body, dict):
                 return AuthorWorksResult(tuple(works), complete=False)
-            for work in body.get("results") or []:
+            results = body.get("results")
+            meta = body.get("meta")
+            if not isinstance(results, list) or (meta is not None and not isinstance(meta, dict)):
+                return AuthorWorksResult(tuple(works), complete=False)
+            for work in results[:_WORKS_PER_PAGE]:
                 parsed = _work_from_obj(work)
                 if parsed is not None:
                     works.append(parsed)
-            cursor = (body.get("meta") or {}).get("next_cursor")
+            cursor = (meta or {}).get("next_cursor")
             if not cursor:
                 return AuthorWorksResult(tuple(works), complete=True)
         return AuthorWorksResult(tuple(works), complete=False, capped=True)
@@ -271,7 +280,7 @@ class OpenAlexAuthorClient:
         if not re.fullmatch(r"W\d+", work_id or ""):
             return [], False
         cache_key = f"citing:{work_id}"
-        cached = get_cached(conn, OPENALEX_WORKS_PROVIDER, cache_key)
+        cached = get_cached(conn, OPENALEX_WORKS_PROVIDER, cache_key, max_age_seconds=OPENALEX_CACHE_TTL_SECONDS)
         if cached is not None and isinstance(cached["response_json"], dict):
             raw = cached["response_json"].get("works")
             if isinstance(raw, list):
@@ -290,7 +299,6 @@ class OpenAlexAuthorClient:
 
     def _fetch_citing(self, work_id: str) -> tuple[list[CitingWork], bool, bool]:
         works: list[CitingWork] = []
-        any_ok = False
         capped = False
         cursor: str | None = "*"
         for _ in range(_MAX_WORKS_PAGES):
@@ -308,36 +316,36 @@ class OpenAlexAuthorClient:
                     timeout=self.timeout,
                 )
             except Exception:
-                break
+                return works[:_MAX_CITING], capped, False
             if status != 200 or not isinstance(body, dict):
-                break
-            any_ok = True
-            for work in body.get("results") or []:
+                return works[:_MAX_CITING], capped, False
+            results = body.get("results")
+            meta = body.get("meta")
+            if not isinstance(results, list) or (meta is not None and not isinstance(meta, dict)):
+                return works[:_MAX_CITING], capped, False
+            for work in results[:_WORKS_PER_PAGE]:
                 works.append(_citing_from_obj(work))
                 if len(works) >= _MAX_CITING:
                     capped = True
                     break
             if capped:
-                break
-            cursor = (body.get("meta") or {}).get("next_cursor")
+                return works[:_MAX_CITING], True, True
+            cursor = (meta or {}).get("next_cursor")
             if not cursor:
-                break
-        return works[:_MAX_CITING], capped, any_ok
+                return works[:_MAX_CITING], False, True
+        return works[:_MAX_CITING], True, True
 
     def _polite(self) -> dict[str, str]:
-        return {"mailto": self.mailto} if self.mailto else {}
+        return openalex_params(self.mailto)
 
     def _headers(self) -> dict[str, str]:
-        ua = "Callosum/0.1 (local-first reference manager)"
-        if self.mailto:
-            ua = f"{ua}; mailto:{self.mailto}"
-        return {"User-Agent": ua, "Accept": "application/json"}
+        return openalex_headers(self.mailto)
 
 
 def _httpx_fetcher(
     url: str, *, params: dict[str, str], headers: dict[str, str], timeout: float
 ) -> tuple[int, dict[str, Any] | None]:
-    response = bounded_get(url, max_bytes=METADATA_RESPONSE_CAP, params=params, headers=headers, timeout=timeout)
+    response = bounded_openalex_get(url, params=params, headers=headers, timeout=timeout)
     try:
         body = response.json()
     except ValueError:

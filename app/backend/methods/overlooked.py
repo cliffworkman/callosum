@@ -75,10 +75,12 @@ def compute_overlooked(
     label = str(axis["label"] or "").strip()
     if not label:
         return []
-    topic_id = sources_client.fetch_topic_for_subject(conn, label)
+    topic_lookup = getattr(sources_client, "fetch_topic_for_subject_strict", sources_client.fetch_topic_for_subject)
+    works_lookup = getattr(sources_client, "fetch_topic_works_strict", sources_client.fetch_topic_works)
+    topic_id = topic_lookup(conn, label)
     if not topic_id:
         return []
-    works = sources_client.fetch_topic_works(conn, topic_id)
+    works = works_lookup(conn, topic_id)
     works = [w for w in works if not _in_library(conn, w)]
     if not works:
         return []

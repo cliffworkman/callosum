@@ -240,6 +240,18 @@ def test_incomplete_author_refresh_preserves_existing_memberships(temp_db_url):
     assert before == after and after[kept] == CONFIRMED_CONFIDENCE
 
 
+def test_profile_identity_change_invalidates_cached_openalex_author(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=["A. Lovelace"], orcid="0000-a")
+        set_openalex_author_id(conn, "A1")
+        unchanged = upsert_profile(conn, display_name="Ada Lovelace", name_variants=["A. Lovelace"], orcid="0000-a")
+        assert unchanged["openalex_author_id"] == "A1"
+        changed = upsert_profile(conn, display_name="Grace Hopper", name_variants=[], orcid="0000-b")
+        assert changed["openalex_author_id"] is None
+    engine.dispose()
+
+
 # --- import hook -----------------------------------------------------------------------------------------
 
 

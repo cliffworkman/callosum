@@ -214,7 +214,11 @@ def _run_citation_equity_job(app: FastAPI, job_id: str, paper_id: int) -> None:
     jobs.mark_running(job_id)
     client = app.state.openalex_client or OpenAlexClient()
     try:
-        with app.state.engine.begin() as conn:
+        engine = app.state.engine
+        fetch_client = client.with_cache_engine(engine) if hasattr(client, "with_cache_engine") else client
+        # Provider cache writes use their own short transaction; the bounded network scan must not hold SQLite's
+        # writer lock for the duration of the reference-list audit.
+        with engine.connect() as conn:
             row = (
                 conn.execute(
                     select(papers.c.doi, papers.c.csl_json, papers.c.first_author_family_name).where(
@@ -232,21 +236,23 @@ def _run_citation_equity_job(app: FastAPI, job_id: str, paper_id: int) -> None:
                 _family(a) for a in _authors_from_csl(row["csl_json"], fallback=row["first_author_family_name"])
             }
             families = {f for f in families if f}
-            ref_ids = client.fetch_referenced_works(conn, ref)
+            ref_ids = fetch_client.fetch_referenced_works(conn, ref)
             total = len(ref_ids)
             # The focal paper's primary_topic = the field baseline (read from the now-cached by-DOI fetch, no extra HTTP).
-            focal_meta = client.fetch_work_meta_for(conn, ref)
+            focal_meta = fetch_client.fetch_work_meta_for(conn, ref)
             field_topic = (focal_meta or {}).get("primary_topic")
             refs: list[dict] = []
             for i, wid in enumerate(ref_ids):
-                meta = client.fetch_work_meta(
+                meta = fetch_client.fetch_work_meta(
                     conn, wid
                 )  # per-ref errors are skipped (counted in coverage), never fatal
                 if meta:
                     refs.append(meta)
                 jobs.mark_progress(job_id, i + 1, total, "Fetching reference metadata")
-            field = client.fetch_field_sample(conn, field_topic["id"]) if field_topic else []
-            baseline_pct, baseline_n = _compute_self_citation_baseline(conn, client, field, jobs=jobs, job_id=job_id)
+            field = fetch_client.fetch_field_sample(conn, field_topic["id"]) if field_topic else []
+            baseline_pct, baseline_n = _compute_self_citation_baseline(
+                conn, fetch_client, field, jobs=jobs, job_id=job_id
+            )
             report = audit_reference_list(
                 refs=refs,
                 focal_author_families=families,
@@ -345,22 +351,24 @@ def _run_overlooked_job(app: FastAPI, job_id: str, paper_id: int) -> None:
     jobs.mark_running(job_id)
     client = app.state.openalex_client or OpenAlexClient()
     try:
-        with app.state.engine.begin() as conn:
+        engine = app.state.engine
+        fetch_client = client.with_cache_engine(engine) if hasattr(client, "with_cache_engine") else client
+        with engine.connect() as conn:
             row = conn.execute(select(papers.c.doi).where(papers.c.id == paper_id)).mappings().first()
             if row is None or not row["doi"]:
                 jobs.mark_error(job_id, "Paper not found or has no DOI.")
                 return
             ref = PaperRef(doi=row["doi"])
             jobs.mark_progress(job_id, 1, 3, "Finding related work")
-            focal_csl = client.fetch_work_csl(conn, ref) or {}
+            focal_csl = fetch_client.fetch_work_csl(conn, ref) or {}
             focal_text = (str(focal_csl.get("title") or "") + ". " + str(focal_csl.get("abstract") or "")).strip()
-            focal_meta = client.fetch_work_meta_for(conn, ref) or {}
+            focal_meta = fetch_client.fetch_work_meta_for(conn, ref) or {}
             focal_id = focal_meta.get("openalex_work_id")
-            cited = set(client.fetch_referenced_works(conn, ref))  # exclude what's already cited
+            cited = set(fetch_client.fetch_referenced_works(conn, ref))  # exclude what's already cited
             # union candidate pool: OpenAlex related-works (tight) ∪ the topic sample (broad)
-            related = client.fetch_works_by_ids(conn, focal_meta.get("related_works") or [])
+            related = fetch_client.fetch_works_by_ids(conn, focal_meta.get("related_works") or [])
             topic = focal_meta.get("primary_topic")
-            field = client.fetch_topic_candidates(conn, topic["id"]) if topic else []
+            field = fetch_client.fetch_topic_candidates(conn, topic["id"]) if topic else []
             jobs.mark_progress(job_id, 2, 3, "Gathering candidates")
             by_id: dict[str, dict] = {}
             for c in [*related, *field]:

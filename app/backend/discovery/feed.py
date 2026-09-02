@@ -17,6 +17,7 @@ from sqlalchemy import Connection, Engine
 
 from app.backend.persistence import feed_repo
 from app.backend.persistence.repository import find_existing_paper_by_identity
+from app.backend.persistence.sqlite_retry import run_write
 from integrations.openalex import OpenAlexAuthorClient
 
 
@@ -143,10 +144,42 @@ def refresh_subscriptions(conn: Connection, registry: FeedRegistry, *, limit_per
         try:
             entries = source.fetch(str(sub["value"]), limit=limit_per)
         except Exception:  # noqa: BLE001 — one bad source/subscription must not sink the rest
-            entries = []
+            # An unavailable provider is not an authoritative empty feed. Preserve the previous poll timestamp so
+            # the UI continues to show that this subscription has not been refreshed successfully.
+            continue
         new = feed_repo.upsert_items(conn, int(sub["id"]), [e.to_row() for e in entries])
         feed_repo.touch_subscription(conn, int(sub["id"]))
         total_new += new
+        polled += 1
+    return {"subscriptions": polled, "new_items": total_new}
+
+
+def refresh_subscriptions_managed(engine: Engine, registry: FeedRegistry, *, limit_per: int = 40) -> dict[str, Any]:
+    """Poll without holding a database transaction, then persist each successful result atomically."""
+    with engine.connect() as conn:
+        subscriptions = [dict(row) for row in feed_repo.list_subscriptions(conn)]
+    total_new = 0
+    polled = 0
+    for subscription in subscriptions:
+        source = registry.get(str(subscription["kind"]))
+        if source is None:
+            continue
+        try:
+            entries = source.fetch(str(subscription["value"]), limit=limit_per)
+        except Exception:  # noqa: BLE001 — preserve the prior successful-poll state
+            continue
+
+        sub_id = int(subscription["id"])
+        rows = [entry.to_row() for entry in entries]
+
+        def persist(conn: Connection, sub_id: int = sub_id, rows: list[dict[str, Any]] = rows) -> int:
+            if feed_repo.get_subscription(conn, sub_id) is None:
+                return 0
+            created = feed_repo.upsert_items(conn, sub_id, rows)
+            feed_repo.touch_subscription(conn, sub_id)
+            return created
+
+        total_new += run_write(engine, persist)
         polled += 1
     return {"subscriptions": polled, "new_items": total_new}
 

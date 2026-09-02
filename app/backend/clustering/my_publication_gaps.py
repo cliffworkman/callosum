@@ -91,11 +91,10 @@ def compute_my_publication_citation_gaps(
     for row in scoped:
         paper_id = int(row["id"])
         ref = PaperRef(doi=str(row["doi"]))
-        try:
-            own_id = openalex_client.fetch_work_id(conn, ref)
-            references = openalex_client.fetch_referenced_works(conn, ref)
-        except Exception:  # one unavailable OpenAlex record must not abort the remaining bounded scan
-            continue
+        work_id_lookup = getattr(openalex_client, "fetch_work_id_strict", openalex_client.fetch_work_id)
+        refs_lookup = getattr(openalex_client, "fetch_referenced_works_strict", openalex_client.fetch_referenced_works)
+        own_id = work_id_lookup(conn, ref)
+        references = refs_lookup(conn, ref)
         if own_id and _valid_work_id(own_id):
             own_work_ids.add(own_id)
         for work_id in set(references):
@@ -115,19 +114,18 @@ def compute_my_publication_citation_gaps(
             key=lambda item: (-len(item[1]), item[0]),
         )[:MAX_SHARED_ANCHORS]
     ]
+    works_lookup = getattr(openalex_client, "fetch_works_by_ids_strict", openalex_client.fetch_works_by_ids)
     anchor_meta = {
         str(meta["openalex_work_id"]): meta
-        for meta in openalex_client.fetch_works_by_ids(conn, selected_anchor_ids, with_abstract=False)
+        for meta in works_lookup(conn, selected_anchor_ids, with_abstract=False)
         if _valid_work_id(meta.get("openalex_work_id"))
     }
 
     candidate_meta: dict[str, dict[str, Any]] = {}
     candidate_anchors: dict[str, set[str]] = {}
+    citing_lookup = getattr(openalex_client, "fetch_citing_works_strict", openalex_client.fetch_citing_works)
     for anchor_id in selected_anchor_ids:
-        try:
-            citing_works = openalex_client.fetch_citing_works(conn, anchor_id)
-        except Exception:
-            continue
+        citing_works = citing_lookup(conn, anchor_id)
         for meta in citing_works:
             work_id = str(meta.get("openalex_work_id") or "")
             if (

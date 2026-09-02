@@ -47,6 +47,22 @@ def test_fetch_cited_by_count_verbatim_zero_kept_and_missing_is_none(temp_db_url
     engine.dispose()
 
 
+def test_citation_refresh_bypasses_cached_work_and_replaces_it(temp_db_url):
+    counts = iter((4, 9))
+
+    def fetcher(path, *, params, headers, timeout):
+        return 200, {"id": "https://openalex.org/W1", "cited_by_count": next(counts)}
+
+    client = OpenAlexClient(fetcher=fetcher)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        assert client.fetch_cited_by_count(conn, PaperRef(doi="10.1/a")) == 4
+    with engine.begin() as conn:
+        assert client.fetch_cited_by_count(conn, PaperRef(doi="10.1/a")) == 4
+        assert client.fetch_cited_by_count(conn, PaperRef(doi="10.1/a"), refresh=True) == 9
+    engine.dispose()
+
+
 # ---- store + list projection + Most-cited sort -----------------------------
 
 

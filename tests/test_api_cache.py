@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import update
 from sqlalchemy.exc import OperationalError
 
-from integrations.api_cache import put_cached
+from app.backend.persistence.database import make_engine
+from app.backend.persistence.schema import external_api_cache
+from integrations.api_cache import get_cached, put_cached
 
 
 def test_put_cached_retries_transient_lock_then_writes():
@@ -109,4 +113,35 @@ def test_put_cached_committing_self_commits(temp_db_url):
         row = get_cached(conn, "openalex", "work:W1")
         assert row is not None and row["response_json"] == {"title": "X"}
         assert conn.execute(select(external_api_cache).where(external_api_cache.c.cache_key == "work:W1")).first()
+    engine.dispose()
+
+
+def test_age_bounded_cache_rejects_stale_rows_and_put_refreshes_timestamp(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        put_cached(
+            conn,
+            "openalex",
+            "work:W1",
+            request_json={"work_id": "W1"},
+            response_json={"id": "W1"},
+            status_code=200,
+        )
+        old = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=2)
+        conn.execute(
+            update(external_api_cache)
+            .where(external_api_cache.c.provider == "openalex", external_api_cache.c.cache_key == "work:W1")
+            .values(fetched_at=old)
+        )
+        assert get_cached(conn, "openalex", "work:W1") is not None
+        assert get_cached(conn, "openalex", "work:W1", max_age_seconds=60) is None
+        put_cached(
+            conn,
+            "openalex",
+            "work:W1",
+            request_json={"work_id": "W1"},
+            response_json={"id": "W1", "updated": True},
+            status_code=200,
+        )
+        assert get_cached(conn, "openalex", "work:W1", max_age_seconds=60) is not None
     engine.dispose()
