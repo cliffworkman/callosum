@@ -91,15 +91,21 @@ def retrieve_registration_publication_evidence(
         get_chunks_for_paper(conn, paper_id, document_roles=(SUPPLEMENT,)) if payload.include_supplements else []
     )
     model = resolve_embedding_model(request.app, local_files_only=True)
-    retrievals = retrieve_publication_evidence(
-        commitments,
-        article_chunks,
-        supplement_chunks,
-        model=model,
-        include_supplements=payload.include_supplements,
-        expand_beyond_expected=payload.expand_beyond_expected_sections,
-        top_k=payload.top_k,
-    )
+    try:
+        retrievals = retrieve_publication_evidence(
+            commitments,
+            article_chunks,
+            supplement_chunks,
+            model=model,
+            include_supplements=payload.include_supplements,
+            expand_beyond_expected=payload.expand_beyond_expected_sections,
+            top_k=payload.top_k,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Publication-evidence retrieval could not complete: {type(exc).__name__}: {exc}",
+        ) from exc
     return RegistrationRetrievalResult(
         paper_id=paper_id,
         version_id=payload.version_id,

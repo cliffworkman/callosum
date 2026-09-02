@@ -204,6 +204,35 @@ def test_retrieval_starts_in_compatible_sections_then_expands_and_excludes_regis
     engine.dispose()
 
 
+class _RaisingEmbeddingModel:
+    """A stand-in for a broken/cold local embedding model (corrupted cache, OOM, offline first-use download)."""
+
+    name = "raising"
+    version = "1"
+    dimension = 9
+    normalization = "none"
+
+    def encode_texts(self, texts: list[str]) -> list[list[float]]:
+        raise RuntimeError("local model failed to load")
+
+
+def test_retrieval_endpoint_returns_clean_error_when_local_model_fails(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id, version_id, *_ = _seed(conn)
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=_RaisingEmbeddingModel()))
+
+    response = client.post(
+        f"/papers/{paper_id}/registration-evidence/retrieve",
+        json={"version_id": version_id, "include_supplements": False},
+    )
+
+    assert response.status_code == 503
+    assert "could not complete" in response.json()["detail"]
+    assert "RuntimeError" in response.json()["detail"]  # invariant #4: the real error stays inspectable
+    engine.dispose()
+
+
 def test_supplements_are_searched_only_when_explicitly_requested(temp_db_url: str) -> None:
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:

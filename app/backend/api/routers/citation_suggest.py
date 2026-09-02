@@ -112,31 +112,41 @@ def suggest_citations_endpoint(
 ) -> SuggestResponse:
     if not payload.text.strip():
         raise HTTPException(status_code=422, detail="text must not be empty")
-    items = suggest_citations(
-        conn,
-        text=payload.text,
-        model=_suggest_model(request),
-        vector_store=_suggest_vector_store(request),
-        top_k=payload.top_k,
-        evaluate=payload.evaluate,
-        stance_scorer=_suggest_stance_scorer(request),
-        current_heading=payload.current_heading,
-    )
+    try:
+        items = suggest_citations(
+            conn,
+            text=payload.text,
+            model=_suggest_model(request),
+            vector_store=_suggest_vector_store(request),
+            top_k=payload.top_k,
+            evaluate=payload.evaluate,
+            stance_scorer=_suggest_stance_scorer(request),
+            current_heading=payload.current_heading,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503, detail=f"Suggest-Citation could not complete: {type(exc).__name__}: {exc}"
+        ) from exc
     beyond_items: list[BeyondLibrarySuggestion] = []
     coverage: list[ProviderStatus] = []
     if payload.include_beyond_library:
-        beyond_items, coverage = suggest_beyond_library(
-            conn,
-            text=payload.text,
-            registry=request.app.state.discovery_registry,
-            top_k=payload.beyond_top_k,
-            evaluate=payload.evaluate,
-            stance_scorer=_suggest_stance_scorer(request),
-            openalex_provider=getattr(request.app.state, "citation_openalex_provider", None),
-            anchors=anchors_from_suggestions(conn, items),
-            openalex_client=request.app.state.openalex_client,
-            semantic_scholar_client=request.app.state.semantic_scholar_client,
-        )
+        try:
+            beyond_items, coverage = suggest_beyond_library(
+                conn,
+                text=payload.text,
+                registry=request.app.state.discovery_registry,
+                top_k=payload.beyond_top_k,
+                evaluate=payload.evaluate,
+                stance_scorer=_suggest_stance_scorer(request),
+                openalex_provider=getattr(request.app.state, "citation_openalex_provider", None),
+                anchors=anchors_from_suggestions(conn, items),
+                openalex_client=request.app.state.openalex_client,
+                semantic_scholar_client=request.app.state.semantic_scholar_client,
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503, detail=f"Beyond-library suggestions could not complete: {type(exc).__name__}: {exc}"
+            ) from exc
     return SuggestResponse(
         suggestions=[_suggestion_response(item) for item in items],
         beyond_library_suggestions=[_beyond_response(item) for item in beyond_items],

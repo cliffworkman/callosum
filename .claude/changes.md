@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-02 — Increment 564: embedding/NLI integration audit, Wave 1 remediation
+- Follows the read-only audit at `2026-09-02_embedding-nli-integration-audit.md` (mirrors the LLM-provider
+  audit's own Wave 1/2/3 split). Closes the mechanical, low-risk subset: batched three previously-unbatched
+  NLI stance loops (`citations/suggest.py`, `beyond_library.py`, `methods/citation_context.py` — up to 40
+  sequential per-request NLI calls on the interactive Suggest-Citation endpoint collapsed to 1-2 batched
+  calls); crash-hardened 3 unguarded synchronous embedding/NLI endpoints (`/citations/suggest`,
+  `/discovery/relevance`, `/papers/{id}/registration-evidence/retrieve`) with a clean 503 instead of a raw
+  500; fixed a model-identity filter gap in `other_paper_chunk_embedding_ids` (single-paper Critical Read's
+  candidate pool had no model/version/normalization filter, unlike its WIP sibling); closed several
+  `PINNED_MODEL_REVISIONS` bypass gaps (`default_support_scorer`/`default_stance_scorer`, the LibreOffice
+  round-trip harness, and the public-demo library-state generator — the last one a real, if narrow,
+  reproducibility gap since its output ships in the live public demo).
+- Corrected a stale claim in `INCREMENT-560-NOTES.md`: `wip_critical_review.py` already gracefully degrades
+  a cold-cache model failure rather than raising raw, as the notes had claimed.
+- Deliberately deferred: the harder DB-transaction-across-model-call bugs, `commit_each`'s
+  systemic-failure blind spot, and the Status/cold-cache UX gaps — each needs a real design pass or new UI
+  work, not a same-session mechanical fix. See `INCREMENT-564-NOTES.md`.
+
 ## 2026-09-02 — Increment 561: primary-synthesis DB-transaction/CAS redesign (Wave 3 item)
 - Closes the last open Wave 3 item from the LLM provider-integration audit — designed properly in Plan
   Mode per the user's explicit choice, not a mechanical patch. `summarize_scope` (`pipeline.py`) now

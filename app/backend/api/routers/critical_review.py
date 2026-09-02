@@ -180,7 +180,13 @@ def _run_critical_read_job(app: FastAPI, job_id: str, paper_id: int, want_triage
                 stance_scorer=stance_scorer,
                 resolve_chunk=make_chunk_resolver(conn),
                 claim_sentences=extract_claim_sentences(conn, paper_id),
-                other_chunk_ids=other_paper_chunk_embedding_ids(conn, paper_id),
+                other_chunk_ids=other_paper_chunk_embedding_ids(
+                    conn,
+                    paper_id,
+                    model_name=embed_model.name,
+                    model_version=embed_model.version,
+                    normalization=embed_model.normalization,
+                ),
                 on_stage=lambda key, label, size: jobs.mark_stage(
                     job_id, key, label, timing_key=calibration_key, workload_size=size
                 ),

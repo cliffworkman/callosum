@@ -7,7 +7,7 @@ tested with a fake CrossEncoder. The honesty invariant assertions live here too 
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from fastapi.testclient import TestClient
 from sqlalchemy import update
@@ -39,6 +39,27 @@ class FakeStanceScorer:
         return Stance(
             label=self.label, confidence=self.confidence, probs={"support": 0.91, "contrast": 0.04, "mention": 0.05}
         )
+
+
+@dataclass
+class _BatchCountingStanceScorer:
+    """Proves suggest_citations batches its NLI calls (LATENCY.md) instead of one call per candidate."""
+
+    batch_calls: int = 0
+    single_calls: int = 0
+    last_pairs: list = field(default_factory=list)
+
+    def classify_stance(self, *, sentence: str, passage: str) -> Stance:
+        self.single_calls += 1
+        raise AssertionError("suggest_citations must not call classify_stance per-item when a batch API exists")
+
+    def classify_stances(self, pairs: list[tuple[str, str]]) -> list[Stance]:
+        self.batch_calls += 1
+        self.last_pairs = list(pairs)
+        return [
+            Stance(label="support", confidence=0.9, probs={"support": 0.9, "contrast": 0.05, "mention": 0.05})
+            for _ in pairs
+        ]
 
 
 def _embed_all(db_url: str, model, store) -> None:
@@ -214,6 +235,61 @@ def test_suggest_evaluate_attaches_injected_stance_else_none(temp_db_url: str) -
 
     assert evaluated[0].stance is not None and evaluated[0].stance.label == "contrast"
     assert plain[0].stance is None
+
+
+def test_suggest_citations_batches_stance_scorer_calls(temp_db_url: str) -> None:
+    _seed_summarization_library(temp_db_url)
+    model, store = ApiFakeEmbeddingModel(), InMemoryVectorStore()
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        second_paper_id = create_paper(
+            conn,
+            title="API Summarization Facial Paper Two",
+            csl_json={"type": "article-journal", "title": "API Summarization Facial Paper Two"},
+            first_author_family_name="Lovelace",
+            processing_tier="fully-chunked",
+        )
+        second_attachment_id = create_attachment(
+            conn,
+            paper_id=second_paper_id,
+            storage_mode="linked",
+            availability="available",
+            content_type="application/pdf",
+            checksum="summary-facial-two-checksum",
+            import_source="test",
+            attachment_type="pdf",
+            role="primary",
+        )
+        create_chunk(
+            conn,
+            paper_id=second_paper_id,
+            attachment_id=second_attachment_id,
+            text="Facial anomalies also influence social judgments in a second paper.",
+            page_start=1,
+            page_end=1,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="fixture",
+            extraction_version="1",
+            chunking_strategy="paragraph",
+            chunk_version="v1",
+            source_attachment_checksum="summary-facial-two-checksum",
+        )
+    engine.dispose()
+    _embed_all(temp_db_url, model, store)
+
+    scorer = _BatchCountingStanceScorer()
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        suggestions = suggest_citations(
+            conn, text=FACIAL_QUERY, model=model, vector_store=store, top_k=2, evaluate=True, stance_scorer=scorer
+        )
+    engine.dispose()
+
+    assert len(suggestions) == 2
+    assert scorer.single_calls == 0
+    assert scorer.batch_calls == 1  # one NLI call for both candidates, not one per candidate (LATENCY.md)
+    assert len(scorer.last_pairs) == 2
 
 
 def test_suggest_excludes_trashed_papers(temp_db_url: str) -> None:
@@ -456,6 +532,28 @@ def test_suggest_endpoint_returns_suggestions_with_stance(temp_db_url: str) -> N
     assert top["attachment_id"] is not None
     assert top["stance"]["label"] == "support"
     assert "Facial anomalies" in top["quote"]
+
+
+class _RaisingStanceScorer:
+    """A stand-in for a broken/cold local NLI model (corrupted cache, OOM, offline first-use download)."""
+
+    def classify_stance(self, *, sentence: str, passage: str):
+        raise RuntimeError("local model failed to load")
+
+    def classify_stances(self, pairs):
+        raise RuntimeError("local model failed to load")
+
+
+def test_suggest_endpoint_returns_clean_error_when_local_model_fails(temp_db_url: str) -> None:
+    _seed_summarization_library(temp_db_url)
+    app = _suggest_app(temp_db_url, stance_scorer=_RaisingStanceScorer())
+    client = TestClient(app)
+
+    resp = client.post("/citations/suggest", json={"text": FACIAL_QUERY, "top_k": 5, "evaluate": True})
+
+    assert resp.status_code == 503
+    assert "could not complete" in resp.json()["detail"]
+    assert "RuntimeError" in resp.json()["detail"]  # invariant #4: the real error stays inspectable, not hidden
 
 
 def test_suggest_endpoint_discloses_section_source(temp_db_url: str) -> None:

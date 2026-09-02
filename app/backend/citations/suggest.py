@@ -25,7 +25,7 @@ from app.backend.embeddings.retrieval import RetrievalHit, search_similar
 from app.backend.embeddings.vector_store import VectorStore
 from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.schema import attachments, chunks, papers
-from app.backend.summarization.verification import Stance, StanceScorer, default_stance_scorer
+from app.backend.summarization.verification import Stance, StanceScorer, classify_stances, default_stance_scorer
 
 MAX_TEXT_LEN = 4000  # cap the untrusted draft span (resource bound)
 CHUNK_TOP_K = 30  # how many chunk hits to scan before aggregating to papers
@@ -108,13 +108,21 @@ def suggest_citations(
     if evaluate:
         scorer = stance_scorer if stance_scorer is not None else default_stance_scorer()
 
-    suggestions: list[Suggestion] = []
+    hit_rows = []
     for hit in ranked:
         assert hit.chunk_id is not None  # filtered above
         chunk = _chunk_evidence(conn, hit.chunk_id)
         chunk_text = str(chunk.get("text") or "")
         meta = _paper_meta(conn, hit.paper_id)
-        stance = scorer.classify_stance(sentence=query, passage=chunk_text) if scorer is not None else None
+        hit_rows.append((hit, chunk, chunk_text, meta))
+
+    # Batched: one NLI call for the whole ranked set instead of one per candidate (LATENCY.md).
+    stances: list[Stance | None] = [None] * len(hit_rows)
+    if scorer is not None and hit_rows:
+        stances = classify_stances(scorer, [(query, chunk_text) for _, _, chunk_text, _ in hit_rows])
+
+    suggestions: list[Suggestion] = []
+    for (hit, chunk, chunk_text, meta), stance in zip(hit_rows, stances, strict=True):
         family, source = families[hit.paper_id]
         phase = "expected-sections" if (matched_any and family == expected_family) else None
         suggestions.append(

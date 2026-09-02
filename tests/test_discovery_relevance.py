@@ -113,6 +113,35 @@ def test_relevance_endpoint(temp_db_url):
     assert client.post("/discovery/relevance", json={"items": []}).status_code == 422
 
 
+class _RaisingModel:
+    """A stand-in for a broken/cold local embedding model (corrupted cache, OOM, offline first-use download)."""
+
+    name = "raising"
+    version = "v1"
+    dimension = 2
+    normalization = "none"
+
+    def encode_texts(self, texts):
+        raise RuntimeError("local model failed to load")
+
+
+def test_relevance_endpoint_returns_clean_error_when_local_model_fails(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        _axis(conn, "alpha topics", label="Alpha")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=_RaisingModel()))
+
+    r = client.post(
+        "/discovery/relevance",
+        json={"items": [{"dedup_key": "d1", "title": "Alpha", "abstract": "alpha methods"}]},
+    )
+
+    assert r.status_code == 503
+    assert "could not complete" in r.json()["detail"]
+    assert "RuntimeError" in r.json()["detail"]  # invariant #4: the real error stays inspectable, not hidden
+
+
 def test_relevance_endpoint_accepts_up_to_feeds_default_page_size(temp_db_url):
     # Feed's GET /feed defaults to limit=200 and sends its whole page in one relevance call (no chunking) --
     # the cap must cover that exactly, not just Search's own smaller limit=25.

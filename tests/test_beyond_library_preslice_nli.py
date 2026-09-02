@@ -33,6 +33,28 @@ class RecordingScorer:
 
 
 @dataclass
+class BatchCountingScorer:
+    """Proves suggest_beyond_library batches its NLI calls (LATENCY.md) instead of one call per candidate."""
+
+    batch_calls: int = 0
+    single_calls: int = 0
+    last_pairs: list = field(default_factory=list)
+
+    def classify_stance(self, *, sentence: str, passage: str) -> Stance:
+        del sentence, passage
+        self.single_calls += 1
+        raise AssertionError("suggest_beyond_library must not call classify_stance per-item when a batch API exists")
+
+    def classify_stances(self, pairs: list[tuple[str, str]]) -> list[Stance]:
+        self.batch_calls += 1
+        self.last_pairs = list(pairs)
+        return [
+            Stance(label="support", confidence=0.9, probs={"support": 0.9, "contrast": 0.05, "mention": 0.05})
+            for _ in pairs
+        ]
+
+
+@dataclass
 class StaticProvider:
     name: str
     items: list[Item]
@@ -84,6 +106,41 @@ def _run(
         openalex_provider=EmptyProvider(),
         anchors=[],
     )
+
+
+def test_openalex_neighborhood_outage_is_reported_as_partial(temp_db_url: str) -> None:
+    class UnavailableOpenAlex:
+        def fetch_work_id(self, conn, ref):
+            del conn, ref
+            raise RuntimeError("OpenAlex unavailable")
+
+        fetch_work_id_strict = fetch_work_id
+
+        def fetch_work_meta_for(self, conn, ref):
+            del conn, ref
+            return None
+
+        def fetch_referenced_works(self, conn, ref):
+            del conn, ref
+            return []
+
+        def fetch_citing_works(self, conn, work_id):
+            del conn, work_id
+            return []
+
+        def fetch_works_by_ids(self, conn, work_ids):
+            del conn, work_ids
+            return []
+
+    anchor = beyond.CitationNeighborhoodAnchor(1, "Anchor", "10.1/anchor", 0.9)
+    engine = make_engine(temp_db_url)
+    with engine.connect() as conn:
+        items, status = beyond._neighborhood_items(conn, anchors=[anchor], openalex_client=UnavailableOpenAlex())
+    engine.dispose()
+
+    assert items == []
+    assert status.status == "partial"
+    assert "unavailable" in (status.warning or "").lower()
 
 
 def _old_reference(
@@ -143,6 +200,20 @@ def test_exact_response_matches_evaluate_all_reference_and_skips_tail(temp_db_ur
     assert len(reference_scorer.calls) == 37
     assert len(optimized_scorer.calls) == 18
     assert optimized_scorer.calls == [f"evidence-{index}" for index in range(20) if index not in {2, 7}]
+
+
+def test_suggest_beyond_library_batches_stance_scorer_calls(temp_db_url: str) -> None:
+    items = [_item(index) for index in range(5)]
+    scorer = BatchCountingScorer()
+    engine = make_engine(temp_db_url)
+    with engine.connect() as conn:
+        result, _ = _run(conn, [StaticProvider("one", items)], top_k=5, scorer=scorer)
+    engine.dispose()
+
+    assert len(result) == 5
+    assert scorer.single_calls == 0
+    assert scorer.batch_calls == 1  # one NLI call for every scoreable candidate, not one per candidate (LATENCY.md)
+    assert len(scorer.last_pairs) == 5
 
 
 @pytest.mark.parametrize(("top_k", "expected_calls"), [(1, 0), (5, 4), (20, 19)])

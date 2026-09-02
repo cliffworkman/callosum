@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Protocol, TypeVar
 
-from app.backend.model_runtime import ManagedModelRuntime
+from app.backend.model_runtime import PINNED_MODEL_REVISIONS, ManagedModelRuntime
 
 T = TypeVar("T")
 
@@ -170,7 +170,7 @@ class NLIStanceScorer:
 
 
 def default_stance_scorer() -> StanceScorer:
-    return NLIStanceScorer()
+    return NLIStanceScorer(revision=PINNED_MODEL_REVISIONS.get(DEFAULT_NLI_MODEL))
 
 
 def classify_stances(scorer: StanceScorer, pairs: list[tuple[str, str]]) -> list[Stance | None]:

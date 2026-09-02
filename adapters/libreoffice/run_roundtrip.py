@@ -73,6 +73,7 @@ def seed_db() -> tuple[str, int, int]:
     from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, SentenceTransformerEmbeddingModel
     from app.backend.embeddings.pipeline import embed_chunks
     from app.backend.embeddings.vector_store import SQLiteVecVectorStore
+    from app.backend.model_runtime import PINNED_MODEL_REVISIONS
     from app.backend.persistence.database import make_engine
     from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
 
@@ -130,7 +131,11 @@ def seed_db() -> tuple[str, int, int]:
             )
         embed_chunks(
             conn,
-            model=SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL),
+            model=SentenceTransformerEmbeddingModel(
+                name=DEFAULT_EMBEDDING_MODEL,
+                version=DEFAULT_EMBEDDING_MODEL,
+                revision=PINNED_MODEL_REVISIONS.get(DEFAULT_EMBEDDING_MODEL),
+            ),
             vector_store=SQLiteVecVectorStore(),
             document_roles=("article-fulltext",),
         )

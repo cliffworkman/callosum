@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from app.backend.summarization.verification import StanceScorer
+from app.backend.summarization.verification import StanceScorer, classify_stances
 
 CONTEXT_MAX = 1000  # chars of joined citing sentences fed to the NLI per citation (bound; rule #4)
 MAX_ITEMS = 500  # cap on citations classified per run (matches the S2 fetch cap; rule #4)
@@ -76,27 +76,38 @@ def classify_citation_contexts(
     the local NLI. Counts by stance; keeps every citation's evidence. No composite score; unclassifiable → counted."""
     claim = (focal_claim or "").strip()
     counts = {k: 0 for k in STANCE_KEYS}
-    items: list[ClassifiedCitation] = []
     with_context = 0
+
+    rows: list[dict[str, Any]] = []
     for ctx in contexts[:max_items]:
         sentences = list(getattr(ctx, "sentences", []) or [])
         sentence = " ".join(s.strip() for s in sentences if s.strip()).strip()[:CONTEXT_MAX]
         # The hypothesis is the *cited* paper's own claim per-item (SP2, references) if present, else the constant
         # focal-paper claim (SP1, citations). The citing sentence is always the premise/evidence.
         hypothesis = (getattr(ctx, "claim", None) or claim).strip()
-        stance: str | None = None
-        confidence: float | None = None
         if sentence:
             with_context += 1
-            result = (
-                stance_scorer.classify_stance(sentence=hypothesis, passage=sentence)
-                if (stance_scorer is not None and hypothesis)
-                else None
-            )
-            if result is not None and result.label in counts:
-                stance = result.label
-                confidence = round(float(result.confidence), 3)
-                counts[stance] += 1
+        rows.append({"ctx": ctx, "sentence": sentence, "hypothesis": hypothesis})
+
+    # Batched: one NLI call for every scoreable citation instead of one per citation (LATENCY.md).
+    scoreable_indices = [i for i, row in enumerate(rows) if row["sentence"] and row["hypothesis"]]
+    results_by_index: dict[int, Any] = {}
+    if stance_scorer is not None and scoreable_indices:
+        pairs = [(rows[i]["hypothesis"], rows[i]["sentence"]) for i in scoreable_indices]
+        stances = classify_stances(stance_scorer, pairs)
+        results_by_index = dict(zip(scoreable_indices, stances, strict=True))
+
+    items: list[ClassifiedCitation] = []
+    for i, row in enumerate(rows):
+        ctx = row["ctx"]
+        sentence = row["sentence"]
+        stance: str | None = None
+        confidence: float | None = None
+        result = results_by_index.get(i)
+        if result is not None and result.label in counts:
+            stance = result.label
+            confidence = round(float(result.confidence), 3)
+            counts[stance] += 1
         items.append(
             ClassifiedCitation(
                 citing_title=getattr(ctx, "citing_title", None),

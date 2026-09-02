@@ -17,7 +17,7 @@ from app.backend.acquisition.registry import PaperRef
 from app.backend.discovery.providers import Item, SourceProvider, SourceRegistry
 from app.backend.persistence.repository import find_existing_paper_by_identity
 from app.backend.persistence.schema import papers
-from app.backend.summarization.verification import Stance, StanceScorer
+from app.backend.summarization.verification import Stance, StanceScorer, classify_stances
 from integrations.openalex.adapter import OPENALEX_BASE_URL, OpenAlexClient, _meta_with_abstract
 from integrations.openalex.request import bounded_openalex_get, openalex_headers, openalex_params
 from integrations.semantic_scholar.adapter import RecommendedPaper, SemanticScholarClient
@@ -245,11 +245,18 @@ def suggest_beyond_library(
     selected_indices = ranked_indices[:limit]
     if evaluate and stance_scorer is not None:
         selected = set(selected_indices)
-        for original_index, suggestion in enumerate(suggestions):
-            if original_index not in selected or not suggestion.abstract:
-                continue
-            stance = stance_scorer.classify_stance(sentence=query, passage=suggestion.abstract[:1200])
-            suggestions[original_index] = replace(suggestion, stance=stance)
+        scoreable = [
+            (original_index, suggestion)
+            for original_index, suggestion in enumerate(suggestions)
+            if original_index in selected and suggestion.abstract
+        ]
+        if scoreable:
+            # Batched: one NLI call for every scoreable candidate instead of one per candidate (LATENCY.md).
+            stances = classify_stances(
+                stance_scorer, [(query, suggestion.abstract[:1200]) for _, suggestion in scoreable]
+            )
+            for (original_index, suggestion), stance in zip(scoreable, stances, strict=True):
+                suggestions[original_index] = replace(suggestion, stance=stance)
     return [suggestions[index] for index in selected_indices], statuses
 
 
@@ -302,21 +309,30 @@ def _neighborhood_items(
         checked += 1
         ref = PaperRef(doi=anchor.doi)
         try:
-            work_id = openalex_client.fetch_work_id(conn, ref)
-            focal_meta = openalex_client.fetch_work_meta_for(conn, ref) or {}
-            referenced = openalex_client.fetch_referenced_works(conn, ref)[:MAX_NEIGHBOR_IDS_PER_KIND]
+            work_id_fetch = getattr(openalex_client, "fetch_work_id_strict", openalex_client.fetch_work_id)
+            meta_fetch = getattr(openalex_client, "fetch_work_meta_for_strict", openalex_client.fetch_work_meta_for)
+            refs_fetch = getattr(
+                openalex_client, "fetch_referenced_works_strict", openalex_client.fetch_referenced_works
+            )
+            citing_fetch = getattr(openalex_client, "fetch_citing_works_strict", openalex_client.fetch_citing_works)
+            batch_fetch = getattr(openalex_client, "fetch_works_by_ids_strict", openalex_client.fetch_works_by_ids)
+            work_id = work_id_fetch(conn, ref)
+            focal_meta = meta_fetch(conn, ref) or {}
+            referenced = refs_fetch(conn, ref)[:MAX_NEIGHBOR_IDS_PER_KIND]
             related = (focal_meta.get("related_works") or [])[:MAX_NEIGHBOR_IDS_PER_KIND]
-            cited_by = openalex_client.fetch_citing_works(conn, work_id)[:MAX_NEIGHBOR_IDS_PER_KIND] if work_id else []
+            cited_by = citing_fetch(conn, work_id)[:MAX_NEIGHBOR_IDS_PER_KIND] if work_id else []
+            referenced_meta = batch_fetch(conn, referenced)
+            related_meta = batch_fetch(conn, related)
         except Exception as exc:  # noqa: BLE001
             return out, ProviderStatus("openalex-neighborhood", "partial", len(out), f"{type(exc).__name__}: {exc}")
         out.extend(
             (_item_from_openalex_meta(meta, "openalex-neighborhood"), _relation("cited_by_local_match", anchor))
-            for meta in openalex_client.fetch_works_by_ids(conn, referenced)
+            for meta in referenced_meta
             if meta
         )
         out.extend(
             (_item_from_openalex_meta(meta, "openalex-neighborhood"), _relation("related_to_local_match", anchor))
-            for meta in openalex_client.fetch_works_by_ids(conn, related)
+            for meta in related_meta
             if meta
         )
         out.extend(

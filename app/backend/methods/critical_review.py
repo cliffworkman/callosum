@@ -482,10 +482,19 @@ def paper_full_text(conn, paper_id) -> str:
     return "\n".join(part for part in parts if part)
 
 
-def other_paper_chunk_embedding_ids(conn, paper_id) -> set[int]:
-    """The ``embeddings.id`` of every chunk-embedding belonging to a paper OTHER than ``paper_id``, excluding
-    soft-deleted papers — the candidate set the contradiction detector retrieves the *rest of the corpus* from.
-    Joins ``embeddings.target_id`` → ``chunks.id`` (target_type='chunk') → ``papers.id`` (deleted_at IS NULL)."""
+def other_paper_chunk_embedding_ids(
+    conn,
+    paper_id,
+    *,
+    model_name: str,
+    model_version: str,
+    normalization: str,
+) -> set[int]:
+    """The ``embeddings.id`` of every matching-model chunk-embedding belonging to a paper OTHER than ``paper_id``,
+    excluding soft-deleted papers — the candidate set the contradiction detector retrieves the *rest of the corpus*
+    from. Joins ``embeddings.target_id`` → ``chunks.id`` (target_type='chunk') → ``papers.id`` (deleted_at IS NULL).
+    Model/version/normalization matching avoids comparing unlike vector spaces (mirrors
+    ``library_article_chunk_embedding_ids``'s own filter, just scoped to "other papers" instead of "all papers")."""
     corpus = (
         embeddings.join(chunks, embeddings.c.target_id == chunks.c.id)
         .join(attachments, attachments.c.id == chunks.c.attachment_id)
@@ -496,6 +505,9 @@ def other_paper_chunk_embedding_ids(conn, paper_id) -> set[int]:
         .select_from(corpus)
         .where(
             embeddings.c.target_type == "chunk",
+            embeddings.c.model_name == model_name,
+            embeddings.c.model_version == model_version,
+            embeddings.c.normalization == normalization,
             chunks.c.paper_id != paper_id,
             papers.c.deleted_at.is_(None),
             attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES),

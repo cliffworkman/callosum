@@ -124,6 +124,43 @@ def test_client_fetch_references_parses_cited_paper_and_claim(temp_db_url):
 # --- the pure classifier ----------------------------------------------------
 
 
+class _BatchCountingStance:
+    """Proves classify_citation_contexts batches its NLI calls (LATENCY.md) instead of one call per citation."""
+
+    def __init__(self):
+        self.batch_calls = 0
+        self.single_calls = 0
+        self.last_pairs = []
+
+    def classify_stance(self, *, sentence: str, passage: str):
+        del sentence, passage
+        self.single_calls += 1
+        raise AssertionError("classify_citation_contexts must not call classify_stance per-item")
+
+    def classify_stances(self, pairs):
+        self.batch_calls += 1
+        self.last_pairs = list(pairs)
+        return [
+            Stance(label="mention", confidence=0.6, probs={"support": 0.2, "contrast": 0.2, "mention": 0.6})
+            for _ in pairs
+        ]
+
+
+def test_classifier_batches_stance_scorer_calls():
+    contexts = [
+        CitingContext("A", 2022, ["X"], "10.1/a", ["This confirms the result."], True),
+        CitingContext("B", 2021, ["Y"], "10.1/b", ["However, it fails to replicate."], False),
+        CitingContext("C", 2020, ["Z"], "10.1/c", ["We use their method."], False),
+        CitingContext("D", 2019, [], None, [], False),  # no citing sentence -- must be excluded from the batch
+    ]
+    scorer = _BatchCountingStance()
+    rep = classify_citation_contexts(contexts=contexts, focal_claim="Focal paper claim", stance_scorer=scorer)
+    assert rep.with_context == 3
+    assert scorer.single_calls == 0
+    assert scorer.batch_calls == 1  # one NLI call for the 3 scoreable citations, not one per citation (LATENCY.md)
+    assert len(scorer.last_pairs) == 3
+
+
 def test_classifier_counts_keeps_evidence_and_never_guesses():
     contexts = [
         CitingContext("A", 2022, ["X"], "10.1/a", ["This confirms the result."], True),

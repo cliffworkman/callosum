@@ -99,7 +99,12 @@ def discovery_relevance(
     best-matching axis + similarity per item that clears that axis's cutoff; below-cutoff items are simply absent
     (no badge ≠ "irrelevant"). Local — embeddings over the user's own axes; no egress."""
     items = [{"dedup_key": it.dedup_key, "text": f"{it.title} {it.abstract or ''}".strip()} for it in payload.items]
-    relevance = score_axis_relevance(conn, items, embedding_model=_discovery_model(request))
+    try:
+        relevance = score_axis_relevance(conn, items, embedding_model=_discovery_model(request))
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503, detail=f"Axis-relevance highlighting could not complete: {type(exc).__name__}: {exc}"
+        ) from exc
     return {"relevance": relevance}
 
 

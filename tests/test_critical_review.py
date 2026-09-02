@@ -460,13 +460,58 @@ def test_other_paper_chunk_embedding_ids() -> None:
         _, emb_a = _chunk_with_embedding(c, pid_a, aid_a, text="a", page=1)
         _, emb_b = _chunk_with_embedding(c, pid_b, aid_b, text="b", page=1)
 
-        ids = other_paper_chunk_embedding_ids(c, pid_a)
+        ids = other_paper_chunk_embedding_ids(c, pid_a, model_name="fake", model_version="v1", normalization="none")
         assert emb_b in ids  # the OTHER paper's chunk-embedding
         assert emb_a not in ids  # never this paper's own
 
         # soft-deleting B removes its chunk-embeddings from the corpus
         c.execute(update(schema.papers).where(schema.papers.c.id == pid_b).values(deleted_at=func.current_timestamp()))
-        assert other_paper_chunk_embedding_ids(c, pid_a) == set()
+        assert (
+            other_paper_chunk_embedding_ids(c, pid_a, model_name="fake", model_version="v1", normalization="none")
+            == set()
+        )
+
+
+def test_other_paper_chunk_embedding_ids_excludes_foreign_model_embeddings() -> None:
+    # Two models can share an output dimension -- without a model-identity filter, a foreign-model embedding
+    # could silently enter the same similarity search as the query vector with a meaningless-but-confident score.
+    eng = _fresh_db()
+    with eng.begin() as c:
+        pid_a, aid_a = _paper_with_attachment(c, "A")
+        pid_b, aid_b = _paper_with_attachment(c, "B")
+        _chunk_with_embedding(c, pid_a, aid_a, text="a", page=1)
+        _, emb_current = _chunk_with_embedding(c, pid_b, aid_b, text="b current", page=1)
+        chunk_id = create_chunk(
+            c,
+            paper_id=pid_b,
+            attachment_id=aid_b,
+            text="b foreign model",
+            page_start=2,
+            page_end=2,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="test",
+            extraction_version="1",
+            chunking_strategy="paragraph",
+            chunk_version="v1",
+            source_attachment_checksum="chk",
+        )
+        emb_foreign = int(
+            c.execute(
+                insert(schema.embeddings).values(
+                    target_type="chunk",
+                    target_id=chunk_id,
+                    model_name="a-different-model",
+                    model_version="v1",
+                    dimension=3,
+                    normalization="none",
+                    source_text_version="v1",
+                )
+            ).inserted_primary_key[0]
+        )
+
+        ids = other_paper_chunk_embedding_ids(c, pid_a, model_name="fake", model_version="v1", normalization="none")
+        assert emb_current in ids
+        assert emb_foreign not in ids
 
 
 def test_other_paper_chunk_embedding_ids_excludes_references_section() -> None:
@@ -479,7 +524,7 @@ def test_other_paper_chunk_embedding_ids_excludes_references_section() -> None:
         _, emb_body = _chunk_with_embedding(c, pid_b, aid_b, text="a body passage", page=1)
         _, emb_refs = _chunk_with_embedding(c, pid_b, aid_b, text="1. Smith et al. 2020.", page=9, section="references")
 
-        ids = other_paper_chunk_embedding_ids(c, pid_a)
+        ids = other_paper_chunk_embedding_ids(c, pid_a, model_name="fake", model_version="v1", normalization="none")
         assert emb_body in ids
         assert emb_refs not in ids
 

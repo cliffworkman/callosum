@@ -37,8 +37,9 @@ from app.backend.api.routers.reading_queue import ReadingQueueItem
 from app.backend.api.routers.tags import SuggestedTagsResponse, TagSummary
 from app.backend.clustering.tag_suggestion import suggest_tags_for_paper
 from app.backend.demo_library_state import DemoLibraryState
-from app.backend.embeddings.models import SentenceTransformerEmbeddingModel
+from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, SentenceTransformerEmbeddingModel
 from app.backend.embeddings.pipeline import paper_embedding_text
+from app.backend.model_runtime import PINNED_MODEL_REVISIONS
 from app.backend.persistence.schema import metadata, papers
 from tools.demo.curated_library import CORPUS, CORPUS_GROWN_ON, CURATED_ON, curated_abstract
 
@@ -211,7 +212,9 @@ def _axis_state(rows: dict[int, dict], model) -> tuple[list[AxisResponse], dict[
 
 def generate_state(source_db: Path, output: Path, *, model=None) -> DemoLibraryState:
     rows = _source_rows(source_db)
-    model = model or SentenceTransformerEmbeddingModel(local_files_only=True)
+    model = model or SentenceTransformerEmbeddingModel(
+        local_files_only=True, revision=PINNED_MODEL_REVISIONS.get(DEFAULT_EMBEDDING_MODEL)
+    )
     axes, axis_clusters = _axis_state(rows, model)
     tags, paper_tags = _automatic_tags()
     state = DemoLibraryState(
@@ -314,7 +317,9 @@ def main() -> int:
     args = parser.parse_args()
     if not args.confirm_public_demo_source:
         parser.error("--confirm-public-demo-source is required; never use an ordinary working library")
-    model = SentenceTransformerEmbeddingModel(local_files_only=not args.allow_model_download)
+    model = SentenceTransformerEmbeddingModel(
+        local_files_only=not args.allow_model_download, revision=PINNED_MODEL_REVISIONS.get(DEFAULT_EMBEDDING_MODEL)
+    )
     generate_state(args.source_db, args.output, model=model)
     print(f"generated validated demo library state: {args.output}")
     return 0

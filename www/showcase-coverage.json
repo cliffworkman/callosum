@@ -10,11 +10,11 @@
     "audit"
   ],
   "review": {
-    "reviewed_at": "2026-09-01",
-    "reviewed_rev": "3806e7c",
-    "reviewed_increment": 556,
-    "source_fingerprint": "69e944b46d1dd97cb5d02bb27d1e690dae248490445b62868baead3f34f4305f",
-    "note": "Reviewed the Wave 1/2 Local AI reliability fix set (frontend gate swaps in 08n/08x/08y/20_synthesis.jsx, plus a new Status-tracked entry in 04c_status.jsx for the Critical Review triage endpoint): no showcase claim or visual change is required -- these are internal readiness-detection/tracking fixes, not user-visible feature or copy changes.",
+    "reviewed_at": "2026-09-02",
+    "reviewed_rev": "7ef0350",
+    "reviewed_increment": 563,
+    "source_fingerprint": "62ffa87c9125f737755e420d87af1ef047b75f516b003c33ba3f2a0b84120400",
+    "note": "Inc 562/563 (embedding/NLI audit Wave 1): adapters/libreoffice/run_roundtrip.py only gained a pinned model revision kwarg in its dev/CI seed-data helper -- a real-UNO test-harness fixture, not user-facing adapter behavior. No copy, visual, or capability claim changed.",
     "declined_at": null,
     "declined_rev": null,
     "declined_increment": null,
@@ -108,147 +108,147 @@
       "width": 1600,
       "height": 1000,
       "sha256": "f163c80c37adee3f05e5ef23c21bead54a0a4dea7162f91366ed67e018ed785e",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/feed_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "cf393130f7b828215ba3889c5b26c53888468ad9a22455e6be709ee59ac4683f",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/my_publications_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "ece1ac824801112f558d1ec429023ab118b6b1165a9070e37b7afc4939f2b184",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/gaps_current.png": {
       "captured_at": "2026-08-10",
       "width": 540,
       "height": 860,
       "sha256": "0afe95542e1a9ded82d86158d558325ccfc8c310f6890d7dcf3bdbe448cbae19",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/publishers_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "762374ef119dddebce960825d8fecbbef074786198ade27ddb1fbc863829d9ee",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/reader_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "6ee06e2acbdd885fc3390d373119c3645e78da34b4998bb21db1db25de82c220",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/saved_note_current.png": {
       "captured_at": "2026-08-10",
       "width": 290,
       "height": 228,
       "sha256": "8380a4193b1e26a8fa8ace7115c2049f45400fb6133584e65bbe7649fc556c40",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/citation_evidence_current.png": {
       "captured_at": "2026-08-10",
       "width": 796,
       "height": 222,
       "sha256": "91e15b6686189c6f3c24358d04a7ddbc8de954ac3c5490210d2d26266a52d03e",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/methods_data_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "54ceed7f78c792ae7a04a1a24d8fba778fd287d91a35840eb6b03ae1438aa157",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/statcheck_current.png": {
       "captured_at": "2026-08-10",
       "width": 387,
       "height": 915,
       "sha256": "196b2f638c4ae3f083a5b3cd4f19e81943e1e37ab2023fe585ef1e65c9379e30",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/metaanalysis_current.png": {
       "captured_at": "2026-08-10",
       "width": 387,
       "height": 881,
       "sha256": "51015a17cd19e70afffbe0ed2199f86a230d5d15270cd6e38f755b543baea4b9",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/synthesis_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "3563070aa7da9bab7429f737b6bf7c68916f6ff7264bbc34180e61a6603c8367",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/meta_preregistration.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "de660525aa16c6594edfd75db403c78a98c74aca9d32ab909661c9037a1fb035",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/wip_workspace_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "6a3133206e598d864577f529ab1557001f68fecb3df2cc78e26b6c64743c1102",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/statements_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "4d90a79f172c06814aced3bb37c9f2ac4a08ab5a0ed282dc87a17f082695f6ad",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/cite_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "a100e0532d1e08f3d80c9334ec72f36156d10508bd44a1942fa47a4ec56d77a6",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/usage_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "1792bf79f0bddbac57263c16b80e6ffe89e7438b2d04dcf83275ae867e6ac754",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/meta_reference_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "7dc767ad009550fa19efccc33008f1ecd311d7a84d8f77b45dd33572c758a7c2",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/status_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "0c0a607247a245a5c46b401a41ae750b74221eb2ca4f7d58bb034cbd05dbf982",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/dark_mode_current.png": {
       "captured_at": "2026-08-10",
       "width": 1600,
       "height": 1000,
       "sha256": "673ab97655a9ed9311dc7d524c8a4be64b2edc41884ae41a95cff5ec82e7fb2b",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     },
     "shots/mobile_current.png": {
       "captured_at": "2026-08-30",
       "width": 390,
       "height": 844,
       "sha256": "ae47d41526cda20db4c20402555a2d6b40b78c0e958e92350bc3580a0d87440e",
-      "reviewed_at": "2026-09-01"
+      "reviewed_at": "2026-09-02"
     }
   },
   "index_links": [

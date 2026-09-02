@@ -37,6 +37,12 @@ failure for `local_files_only=True` paths when the cache isn't warm remain expli
   still raise whatever raw exception `sentence-transformers` produces when weights aren't already cached and
   network access is refused — not yet translated into an actionable message pointing the user at warming the
   cache first (e.g. by running an ordinary embedding-producing feature once with network allowed).
+  **Correction (2026-09-02, embedding/NLI integration audit):** this claim is stale for the third site.
+  `wip_critical_review.py`'s `_run_wip_critical_read_job` already wraps its model-touching call in its own
+  local `try/except Exception`, degrading to a `ContestedSearchReport(..., "local-model-unavailable")` result
+  rather than raising a raw exception — spot-checked directly against current code. The other two sites
+  (`registration_comparisons.py:313`, `registration_retrieval.py:93`) are unaffected by this correction; see
+  `.claude/docs/research/2026-09-02_embedding-nli-integration-audit.md` §10.
 - **`bge-base-en-v1.5`** (CLAUDE.md's documented second supported embedding model) is not referenced by any
   fixed constant in the codebase (only selectable via Settings), so no local cache/revision was available to
   pin from — left honestly unpinned rather than guessed.
