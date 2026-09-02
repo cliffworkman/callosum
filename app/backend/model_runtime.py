@@ -14,6 +14,21 @@ from typing import TypeVar
 
 T = TypeVar("T")
 
+# Pinned Hugging Face Hub revisions for the models this project references by a fixed name. Without
+# this, a fresh install silently pulls whatever "main" currently resolves to on the Hub -- an
+# unreproducible, unaudited moving target (backlog: auxiliary local-model reliability). Pinned to the
+# exact revision this project has actually been developed and tested against, not necessarily the
+# newest one available. A name absent here (e.g. a user-selected alternate embedding model such as
+# bge-base-en-v1.5, never referenced by a fixed constant in this codebase) is deliberately left
+# unpinned rather than guessed -- resolve_embedding_model's own explicit revision= still wins for any
+# caller that wants to override this.
+PINNED_MODEL_REVISIONS: dict[str, str] = {
+    "all-MiniLM-L6-v2": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+    "sentence-transformers/all-MiniLM-L6-v2": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+    "cross-encoder/nli-MiniLM2-L6-H768": "b95119ce93d3e065de6214e38cd4a97b0f2f2c6d",
+    "sentence-transformers/allenai-specter": "2c68eeca61259b2dd70c3f2628219f925df7031a",
+}
+
 
 @dataclass(frozen=True)
 class ModelRuntimeIdentity:

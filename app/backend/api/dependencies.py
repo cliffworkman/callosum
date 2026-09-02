@@ -13,6 +13,7 @@ from app.backend.embeddings.models import (
     DEFAULT_NORMALIZATION,
     EmbeddingModel,
 )
+from app.backend.model_runtime import PINNED_MODEL_REVISIONS
 from app.backend.summarization.verification import DEFAULT_NLI_MODEL, StanceScorer, SupportScorer
 
 if TYPE_CHECKING:
@@ -66,7 +67,7 @@ def resolve_embedding_model(
         normalization=normalization,
         batch_size=batch_size,
         local_files_only=local_files_only,
-        revision=revision,
+        revision=revision if revision is not None else PINNED_MODEL_REVISIONS.get(name),
         device=device,
         backend=backend,
     )
@@ -87,6 +88,7 @@ def resolve_support_scorer(
         embedding_model=embedding_model,
         model_name=model_name,
         local_files_only=local_files_only,
+        revision=PINNED_MODEL_REVISIONS.get(model_name),
     )
 
 
@@ -103,6 +105,7 @@ def resolve_stance_scorer(
     return app.state.model_runtime_registry.get_stance_scorer(
         model_name=model_name,
         local_files_only=local_files_only,
+        revision=PINNED_MODEL_REVISIONS.get(model_name),
     )
 
 

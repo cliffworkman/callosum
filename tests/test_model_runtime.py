@@ -162,6 +162,42 @@ def test_explicit_dependency_injection_wins() -> None:
     assert embed_loads == [] and nli_loads == []
 
 
+def test_default_models_resolve_with_their_pinned_revision() -> None:
+    """A fresh install must not silently pull whatever "main" currently resolves to on the Hugging Face
+    Hub for the default embedding/NLI models -- resolve_embedding_model/resolve_support_scorer/
+    resolve_stance_scorer must supply the project's pinned revision when the caller doesn't override one."""
+    from app.backend.model_runtime import PINNED_MODEL_REVISIONS
+
+    identities: list[ModelRuntimeIdentity] = []
+    registry = ModelRuntimeRegistry(
+        sentence_transformer_factory=lambda identity: identities.append(identity) or _EmbeddingRuntime(),
+        cross_encoder_factory=lambda identity: identities.append(identity) or _CrossEncoderRuntime(),
+    )
+    app = create_app(db_url="sqlite://", model_runtime_registry=registry)
+
+    embedding = resolve_embedding_model(app)
+    embedding.encode_texts(["x"])  # force the lazy load
+    support = resolve_support_scorer(app, embedding_model=embedding)
+    support.score(sentence="claim", passage="passage")
+    stance = resolve_stance_scorer(app)
+    stance.classify_stance(sentence="claim", passage="passage")
+
+    by_family = {identity.family: identity for identity in identities}
+    assert by_family["sentence-transformer"].revision == PINNED_MODEL_REVISIONS[DEFAULT_EMBEDDING_MODEL]
+    assert by_family["cross-encoder"].revision == PINNED_MODEL_REVISIONS[DEFAULT_NLI_MODEL]
+
+    # An explicit caller override still wins over the pin.
+    overridden = resolve_embedding_model(app, name="a-different-model", revision="explicit-override")
+    overridden.encode_texts(["x"])
+    assert identities[-1].revision == "explicit-override"
+
+    # A name with no known pin (e.g. a user-selected alternate embedding model) resolves unpinned,
+    # never a guessed hash.
+    unknown = resolve_embedding_model(app, name="bge-base-en-v1.5")
+    unknown.encode_texts(["x"])
+    assert identities[-1].revision is None
+
+
 def test_simultaneous_first_use_constructs_once() -> None:
     construction_count = 0
     count_lock = Lock()

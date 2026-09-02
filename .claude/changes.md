@@ -9,6 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-01 — Increment 560: pin auxiliary local-model revisions (Wave 3 item, partial)
+- `PINNED_MODEL_REVISIONS` (`model_runtime.py`) pins the exact Hub revision for the 3 fixed-name auxiliary
+  models (`all-MiniLM-L6-v2`, `cross-encoder/nli-MiniLM2-L6-H768`, `sentence-transformers/allenai-specter`),
+  read off this machine's already-populated local cache. `dependencies.py`'s three resolvers apply the pin
+  when the caller doesn't override; an unknown model name (e.g. user-selected `bge-base-en-v1.5`) stays
+  unpinned, never guessed. Download-progress/ETA UI and a friendlier cold-cache failure message remain
+  explicitly open — see the increment notes.
+
 ## 2026-09-01 — Increment 559: Local AI cache-identity restart-persistence (Wave 3 item 1/4)
 - `ManagedLocalTarget` gains `stable_identity_fingerprint()` (model/runtime/chat-template digests + context/
   output sizes + temperature/seed, excluding the per-launch-ephemeral endpoint/credential and the performance-
