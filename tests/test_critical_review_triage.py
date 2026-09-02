@@ -145,7 +145,8 @@ def test_single_paper_critical_read_triages_contested_claims_ephemerally(temp_db
                 target_type="chunk",
                 target_id=other_chunk_id,
                 model_name="fake",
-                model_version="v1",
+                model_version="fake",  # must match FakeEmbed.version below -- other_paper_chunk_embedding_ids
+                # filters by model identity (inc 564) so a mismatched fixture embedding is now correctly excluded.
                 dimension=3,
                 normalization="none",
                 source_text_version="v1",
