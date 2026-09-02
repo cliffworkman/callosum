@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import Connection
 
 from app.backend.api.dependencies import get_connection, resolve_llm_config
@@ -20,6 +20,12 @@ from app.backend.llm.managed_local import ManagedLocalTargetError
 from app.backend.persistence import critical_review_repo as repo
 
 router = APIRouter()
+
+# The evaluator itself only ever processes the first MAX_TRIAGE_ITEMS (50, methods/critical_review_triage.py);
+# this bounds the DB fetch + response size for the rest of a bulk re-fetch/re-triage request before that cap
+# ever applies, a resource-amplification guard at the boundary (rule #4) — not a live bug today, no current
+# frontend caller sends anywhere near this many ids.
+MAX_TRIAGE_CANDIDATE_IDS = 500
 
 
 def triage_evaluator(app: FastAPI):
@@ -139,7 +145,7 @@ def triage_and_persist_candidates(app: FastAPI, conn: Connection, candidates: li
 
 
 class CandidateTriageRequest(BaseModel):
-    candidate_ids: list[int]
+    candidate_ids: list[int] = Field(min_length=1, max_length=MAX_TRIAGE_CANDIDATE_IDS)
 
 
 class CandidateTriageResponse(BaseModel):

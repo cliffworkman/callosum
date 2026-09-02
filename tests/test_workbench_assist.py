@@ -82,6 +82,24 @@ def test_page_tagged_text_caps_and_flags_truncation():
     assert text.startswith("[p.1] ")
 
 
+def test_page_tagged_text_truncates_rather_than_drops_a_single_oversized_chunk():
+    """A single chunk whose own page-tagged text alone exceeds `cap` must still be truncated to fit, not
+    dropped entirely -- the prior behavior broke before appending anything, silently returning "" for a paper
+    that does have real (if dense) extracted text."""
+    chunks = [{"page_start": 1, "page_end": 1, "text": "x" * 1000}]
+    text, truncated = wa.page_tagged_text(chunks, cap=200)
+    assert truncated is True
+    assert text != ""
+    assert len(text) <= 200
+    assert text.startswith("[p.1] ")
+
+    # a later, normal-sized chunk after the oversized one is still correctly dropped, not appended past cap
+    chunks_two = [{"page_start": 1, "page_end": 1, "text": "x" * 1000}, {"page_start": 2, "page_end": 2, "text": "y"}]
+    text_two, truncated_two = wa.page_tagged_text(chunks_two, cap=200)
+    assert truncated_two is True
+    assert "y" not in text_two
+
+
 def test_relevant_text_ranks_only_this_papers_chunks_from_field_labels(monkeypatch):
     chunks = [{"id": i, "page_start": i, "page_end": i, "text": f"chunk {i}"} for i in range(1, 16)]
     captured = {}

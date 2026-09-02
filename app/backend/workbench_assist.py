@@ -42,6 +42,13 @@ def page_tagged_text(chunks, *, cap: int = MAX_TEXT_CHARS) -> tuple[str, bool]:
         seg = f"[p.{c['page_start']}] {c['text']}\n"
         if total + len(seg) > cap:
             truncated = True
+            if not parts:
+                # Never return empty just because the very first chunk alone exceeds the whole budget --
+                # truncate it to fit instead of dropping it, so a paper with one dense chunk (or a tight
+                # managed_local cap) still gets some representation rather than "no extracted text at all".
+                prefix = f"[p.{c['page_start']}] "
+                budget = max(0, cap - len(prefix) - 1)  # -1 reserves the trailing newline
+                parts.append(f"{prefix}{c['text'][:budget]}\n")
             break
         parts.append(seg)
         total += len(seg)

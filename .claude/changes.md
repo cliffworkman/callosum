@@ -9,6 +9,15 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-01 — Increment 558: closing out inc 557's handoff follow-ups
+- Fixed a real pre-existing bug found while testing inc 557: `workbench_assist.py::page_tagged_text` dropped
+  a chunk entirely rather than truncating it when a single chunk alone exceeded the cap.
+- Bounded the standalone Critical Review triage endpoint's `candidate_ids` request field (resource
+  amplification guard, rule #4).
+- Investigated and confirmed (no code change) two more handoff items: Help's independent enable-toggle is
+  intentional design, not a bug; Windows credential-fallback hardening is dev-only (the packaged build
+  installs `keyring` as a hard dependency).
+
 ## 2026-09-01 — Increment 557: Local AI reliability audit + Wave 1/2 remediation
 - **Frontend Local-AI gating fixed:** the analytic-flexibility check, single-paper Critical Review, Set
   Critical Review, and Synthesize/Ask panels all read the wrong Settings field (`data_egress_enabled`,

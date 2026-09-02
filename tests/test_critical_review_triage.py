@@ -235,6 +235,19 @@ def test_candidate_triage_endpoint_persists_and_is_read_time_attached(temp_db_ur
     engine.dispose()
 
 
+def test_candidate_triage_rejects_an_oversized_id_list(temp_db_url: str) -> None:
+    """A resource-amplification guard at the boundary (rule #4): the DB fetch runs before the evaluator's own
+    50-item processing cap ever applies, so the request body itself must be bounded too."""
+    from app.backend.api.routers.critical_review_triage import MAX_TRIAGE_CANDIDATE_IDS
+
+    client = TestClient(create_app(db_url=temp_db_url))
+    oversized = list(range(1, MAX_TRIAGE_CANDIDATE_IDS + 2))
+    r = client.post("/critical-read/candidates/triage", json={"candidate_ids": oversized})
+    assert r.status_code == 422
+    r_empty = client.post("/critical-read/candidates/triage", json={"candidate_ids": []})
+    assert r_empty.status_code == 422
+
+
 def test_candidate_triage_honors_egress_gate(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:

@@ -1,10 +1,11 @@
 # Local AI reliability audit — handoff to Codex for review (2026-09-01)
 
-Written by Claude at the end of increment 557. Cliff's framing for this handoff, verbatim: **"I figure we
-will ping-pong like that until everything is resolved"** — this is a review-and-continue-fixing request, not
-a "here's what's left, go build it" handoff. Your job is to look for anything this pass got wrong, missed, or
-introduced, fix what's cheap, and report back the same way (a findings list + what you fixed) so the cycle
-can continue.
+Written by Claude at the end of increment 557, **updated after increment 558** closed out several of this
+document's own "still open" items before Codex ever picked it up — see the update note right before "Smaller
+items" below. Cliff's framing for this handoff, verbatim: **"I figure we will ping-pong like that until
+everything is resolved"** — this is a review-and-continue-fixing request, not a "here's what's left, go build
+it" handoff. Your job is to look for anything this pass got wrong, missed, or introduced, fix what's cheap,
+and report back the same way (a findings list + what you fixed) so the cycle can continue.
 
 ## READ FIRST — do not re-derive this
 
@@ -17,20 +18,27 @@ can continue.
    and the combined remediation plan (Wave 1/2/3) this handoff refers to by name.
 3. **`.claude/docs/increment-notes/INCREMENT-557-NOTES.md`** — what actually got fixed this pass, file by
    file. This handoff summarizes it; the increment notes have the real detail.
-4. **The three commits that preceded the audit** (`35fe406`, `555627b`, `479fa85`) — the two live bugs found
+4. **`.claude/docs/increment-notes/INCREMENT-558-NOTES.md`** — the same-day follow-up that closed 4 of this
+   document's originally-listed open items before you ever picked it up. See the UPDATE note below.
+5. **The three commits that preceded the audit** (`35fe406`, `555627b`, `479fa85`) — the two live bugs found
    pre-audit (Synthesize/Ask, single-paper Critical Review) that established the fix template every other site
    in this pass follows. `git show` them if you want the exact diff shape.
+6. **Commits `2ba735a` and `dbb3562`** — the two CI-only fixes needed to get 557 fully green (demo-experience
+   drift-gate refresh; the three-layer qualification-battery re-freeze). Read `dbb3562` in particular before
+   touching `app/backend/llm/providers.py` again — see the UPDATE note below for why.
 
 ## Non-negotiable verification requirements
 
 Same standing rule as every other handoff on this project: **never claim a test passed without having
 actually run it this turn and reporting the real output.** This pass ran 400+ targeted tests across every
-touched area with zero failures (exact command list is in `INCREMENT-557-NOTES.md`'s Verification section),
-but **the full `pytest -n auto -q` run was never completed locally** — it hit this session's background-task
-time ceiling at ~29% (zero failures observed up to that point). **Confirm CI is actually green on the current
-`main` HEAD before you start** (`gh run list --branch main --limit 5` / `gh run view --log-failed` if it
-isn't) — don't assume it passed just because this document says the targeted tests did. If CI is red, that is
-your first job, before reviewing anything else.
+touched area with zero failures (exact command list is in `INCREMENT-557-NOTES.md`'s Verification section).
+**CI was pushed through to fully green** on `main` (run `33581825060`: e2e-smoke + lint-and-test, Pytest 2703
+passed/4 skipped) — two real CI-only failures were found and fixed along the way (a demo-experience drift
+gate; the qualification-battery freeze cascade described above), both documented in their own commits.
+**Still confirm CI is green on the current `main` HEAD before you start** (`gh run list --branch main --limit
+5` / `gh run view --log-failed` if it isn't) — increment 558 landed after 557 and may have moved HEAD further
+by the time you read this; don't assume it's still exactly where this document describes. If CI is red, that
+is your first job, before reviewing anything else.
 
 ## What this pass fixed (Wave 1 + Wave 2, in full)
 
@@ -90,37 +98,38 @@ reorder — this pass didn't attempt it, or the other three Wave 3 items:
 4. **Cross-provider output-cap/sampling-parameter standardization** — Gemini/OpenAI still have no explicit
    cap; Anthropic is still hardcoded to 2048; only managed Local AI has task-aware caps. Not touched.
 
-## Smaller items from your report that this pass also did NOT address — genuinely still open, not forgotten
+## UPDATE (increment 558) — several items below are now CLOSED, before you ever picked this up
 
-These were in your report's "Codex-exclusive findings" list but weren't part of the Wave 1/2 items this pass
-scoped to. Worth a look, or worth explicitly deciding to leave open with a reason:
+Right after 557 landed and CI went green, a same-day follow-up (`.claude/docs/increment-notes/
+INCREMENT-558-NOTES.md`) closed 4 of the items originally listed in this section. **Read that increment's
+notes, not just this summary, before re-investigating any of the four:**
 
-- **Help's independent enable-switch gap is only half-fixed.** The misleading env-var message is gone
-  (`help.py` now says "Enable it in Settings → AI features"), but selecting Local AI as the active provider
-  still does **not** auto-enable the separate `help_assistant_enabled` toggle — a user has to flip two
-  separate switches. Not touched this pass; worth deciding whether Local AI selection should auto-enable it,
-  or whether the two-toggle design is intentional (Help sends the question text even with a local model, so a
-  separate consent gate may be deliberate — check the original design reasoning in `help.py`'s module
-  docstring before assuming this is a bug to fix).
-- **Critical Review triage's candidate-ID list is still unbounded at the API layer** before the DB query runs
-  (the evaluator itself caps processed items downstream). A resource-amplification concern, not a live bug —
-  your own report flagged it as low-priority.
-- **Windows credential-fallback hardening is still weaker than the POSIX path.** Dev/fallback-only caveat per
-  your own report (packaged builds use the OS keychain, unaffected).
+1. **`page_tagged_text` FIXED** (was "flagging, not fixed" below) — it now truncates an oversized single
+   chunk instead of dropping it entirely. Regression test added.
+2. **Critical Review triage's candidate-ID list is now bounded** — `MAX_TRIAGE_CANDIDATE_IDS = 500` via
+   `Field(min_length=1, max_length=...)` on the request model.
+3. **Help's enable-switch "gap" investigated and confirmed intentional, not a bug** — the two-toggle
+   separation is deliberate per `help_assistant.py`'s own docstring (sending the question anywhere, even to a
+   no-egress local provider, gets its own explicit consent). No code change; don't "fix" this.
+4. **Windows credential-fallback hardening confirmed low-priority and already honestly documented** — the
+   packaged build installs `keyring` as a hard dependency (`build_python_windows.ps1`), so real end users are
+   unaffected. Only a source checkout without the optional extra is exposed. No code change made.
 
-## A small, unrelated pre-existing bug found while testing this pass — flagging, not fixed
-
-`app/backend/workbench_assist.py::page_tagged_text` **drops a chunk entirely rather than truncating it** when
-that single chunk's page-tagged text alone exceeds `cap` (`if total + len(seg) > cap: break` fires on the
-very first chunk if it alone is too big, before anything is appended — so `parts` stays empty and the
-function returns `""`). This predates this session's changes and isn't part of either audit pass's findings —
-it surfaced only because a first draft of `tests/test_workbench.py::test_propose_bounds_paper_text_tighter_
-for_managed_local` used one giant synthetic chunk and got an unexpected 422 (fixed by using multiple
-realistic-sized chunks in the test instead — see the final version in `tests/test_workbench.py`). In practice
-this needs a single real PDF chunk to individually exceed the (now much smaller) `MAX_TEXT_CHARS_MANAGED_LOCAL
-= 8_000`, which the project's normal chunking strategy makes unlikely but not impossible for an unusually
-dense paragraph. Worth a one-line fix (truncate the oversized chunk instead of breaking before appending it)
-if you're already in that file — not urgent enough to justify its own pass.
+**One more thing surfaced only by pushing 557 and watching real CI, worth knowing before you touch
+`app/backend/llm/providers.py` again**: it's one of several files whose exact byte-content is frozen inside a
+preregistered local-model qualification study (`.claude/qualification/synthesis-overview-v1/`, already
+concluded with a negative/no-qualification result, plus two downstream dependents —
+`benchmark-calibration-v1/` and the Phase 4.1 cohort — that each carry their own witness of the base
+battery's identity). **Any edit to `providers.py` will break three independent frozen-manifest checks** (two
+`freeze.json`-style files re-frozen via each module's own `freeze --starting-head <commit>` CLI command, plus
+a third, `phase4-1-freeze.json`, which has no CLI and needs its `base_battery_aggregate_sha256` field
+hand-edited) **and two hardcoded test witnesses** (`tests/test_overview_cloud_calibration.py::
+test_historical_battery_remains_frozen`, `tests/test_overview_phase41.py::
+test_phase41_cohort_keeps_the_base_battery_frozen`). This is by design, not a bug to route around — before
+re-freezing, confirm (and document in your commit) that your specific change doesn't alter any behavior the
+managed_local qualification path actually exercises, the same way 557's own commits did. If you can't confirm
+that, stop and ask rather than re-freezing anyway. See commits `2ba735a`/`dbb3562` for exactly how this was
+done last time, including the confirmation reasoning.
 
 ## Specific things to review
 
@@ -133,8 +142,10 @@ if you're already in that file — not urgent enough to justify its own pass.
    leaving headroom for prompt scaffolding), but if you have a way to measure real token counts against
    Qwen's actual tokenizer the way your original audit measured character envelopes, that would sharpen these
    from "conservative guess" to "measured."
-3. **New-issue check**: did any of these fixes introduce a regression? Full suite hasn't completed locally
-   (see above) — CI is the first real signal.
+3. **New-issue check**: did any of these fixes introduce a regression? **CI is now fully green** (confirmed via
+   `gh run watch`, run `33581825060`: e2e-smoke + lint-and-test both passing, Pytest 2703 passed/4 skipped) —
+   the local 10-minute background-task ceiling that blocked a full local run in 557 wasn't a real problem, CI
+   completed it. Still worth your own independent read, not just trusting the count.
 4. **The `critical_review_triage.py` broad-except design choice** (see Wave 1 above) — confirm you agree
    "match the sibling architecture" was the right call, or propose the alternative if not.
 
