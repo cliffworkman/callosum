@@ -76,19 +76,29 @@ The same boundary now includes native Intel macOS. The installer selects the off
 launcher and deterministic bundle-manifest digest, and uses the same allowlisted tar extraction and lifecycle.
 The application, portable CPython dependency bundle, Local AI acceptance test, `.dmg`, signed updater archive,
 and Gatekeeper exercise are all built on GitHub's native `macos-15-intel` runner. Apple Silicon and Intel remain
-separate artifacts and updater targets; neither architecture is mislabeled as universal. Final PASS for Intel is
-conditional on that native workflow completing successfully before release.
+separate artifacts and updater targets; neither architecture is mislabeled as universal.
+
+The native acceptance completed successfully in GitHub Actions run `33760636237` on 2026-09-03. Both the
+`macos-15-intel` and Apple Silicon lanes passed portable-backend import/health, the live managed Local AI test,
+application packaging, signed updater generation, mounted-DMG execution, and Gatekeeper assessment. The Intel
+live test installed the pinned x64 runtime, proved requested and observed CPU execution at zero GPU layers,
+exercised Overview, primary-synthesis, and Help provider contracts without cloud credentials or egress, and
+removed the managed descriptor and launch token during cleanup. This is the release acceptance for 0.5.4.
 
 ### Intel packaged-ML compatibility boundary
 
 PyTorch 2.2.2 is upstream's final official native Intel-macOS wheel; newer upstream versions no longer publish
 x86_64 macOS wheels. That legacy wheel has known advisories, including GHSA-53q9-r3pm-6pq6 in PyTorch's pickle
-loader. Callosum mitigates the relevant model-loading path by pinning every owned Hugging Face model revision and
-requiring `use_safetensors=True` on every SentenceTransformer/CrossEncoder construction; a repository that lacks
-safetensors fails rather than falling back to a pickle checkpoint. Callosum does not invoke the separately advised
-JIT/LSTM/packed-sequence/quantized APIs with attacker-controlled tensors.
+loader. The compatible Transformers 4.57.6 lane also predates later fixes for remote-configuration,
+`save_pretrained`, Trainer, and LightGlue paths. Callosum mitigates its owned model-loading path by pinning every
+Hugging Face model revision and requiring `use_safetensors=True` on every SentenceTransformer/CrossEncoder
+construction; a repository that lacks safetensors fails rather than falling back to a pickle checkpoint. The two
+production configurations consumed on this lane were inspected at their pinned revisions: they are ordinary
+BERT/Roberta configurations, provide `model.safetensors`, and contain no `auto_map`, custom-code, or internal
+attention-implementation field implicated in the remote-configuration issue. Callosum neither saves these models
+nor invokes Trainer, LightGlue, JIT, LSTM, packed-sequence, or quantized APIs with attacker-controlled tensors.
 
 This is a constrained compatibility risk, not a claim that the legacy dependency has no vulnerabilities. Moving
 Intel Macs to a current non-Torch inference runtime or retiring Intel support when the hosted runner disappears is
 the appropriate follow-up. Native packaging, backend import/health, and managed Local AI acceptance remain
-release-blocking.
+release-blocking on every future Intel build; the 0.5.4 candidate passed those gates in run `33760636237`.

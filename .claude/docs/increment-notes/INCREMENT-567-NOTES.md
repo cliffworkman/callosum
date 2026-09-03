@@ -43,4 +43,22 @@ version is not treated as binary equivalence.
 The workflow/YAML and packaging assertions pass locally. Windows Rust compilation was attempted from a clean
 external Cargo target and reached the final Tauri crate without a compiler diagnostic, but the local Cargo
 process again stalled during finalization in this Dropbox-backed checkout; it was stopped rather than claimed as
-passing. Native Intel and Apple Silicon CI are release-blocking and must both pass before 0.5.4 is tagged.
+passing.
+
+The release-blocking native validation completed successfully in GitHub Actions run `33760636237` on commit
+`3995e0c`:
+
+- Intel (`macos-15-intel`, job `100666122528`) passed in 34m56s. Its live managed Local AI test completed in
+  386.25s after compilation and proved install, authenticated readiness, exact CPU 0-layer observation, three
+  provider contracts, no cloud credentials/egress, and cleanup.
+- Apple Silicon (job `100666122718`) passed in approximately 30m12s. Its equivalent live test completed in
+  838.65s after compilation.
+- Both lanes passed the portable Python backend import/health smoke, `.app` and architecture-specific `.dmg`
+  builds, signed updater payload generation/upload, mounted-app launch, and Gatekeeper assessment.
+- The Apple Silicon screenshot helper emitted its existing non-blocking health-wait annotation. The separate
+  blocking packaged-backend and live managed-runtime checks passed, so this remains an observability limitation,
+  not a release failure.
+
+The same commit also passed the cross-platform CI run `33760636172`, CodeQL run `33760635290`, Linux desktop
+run `33760636178`, and Windows desktop run `33760635984`. These results establish the tested implementation as
+the 0.5.4 release candidate; the tag build must still reproduce its release artifacts and updater metadata.
