@@ -45,6 +45,8 @@ def test_macos_packaging_and_updates_cover_native_arm_and_intel() -> None:
 
     assert 'PYTHON_ARCH="aarch64"' in python_build
     assert 'PYTHON_ARCH="x86_64"' in python_build
+    assert '"torch==2.2.2"' in python_build
+    assert '"numpy>=1.26,<2"' in python_build
     assert "macos-latest" in macos_workflow
     assert "macos-15-intel" in macos_workflow
     assert "callosum-macos-${{ matrix.arch }}" in macos_workflow

@@ -42,7 +42,15 @@ echo "Installing real project dependencies (torch is large)..."
 # See build_python_windows.ps1's matching comment: callosum never uses GPU acceleration, so the
 # CPU-only torch build goes in first (smaller, and avoids a hard dynamic-link dependency on the
 # NVIDIA driver that doesn't exist on a GPU-less machine at all).
-"$PYTHON_BIN" -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+if [[ "$PYTHON_ARCH" == "x86_64" ]]; then
+  # PyTorch 2.2.2 is the last official native Intel-macOS wheel. It predates NumPy 2's ABI, so
+  # install a compatible NumPy first; requirements.txt's >=1.26,<3 range will preserve it.
+  "$PYTHON_BIN" -m pip install --no-cache-dir "numpy>=1.26,<2"
+  "$PYTHON_BIN" -m pip install --no-cache-dir \
+    "torch==2.2.2" --index-url https://download.pytorch.org/whl/cpu
+else
+  "$PYTHON_BIN" -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+fi
 "$PYTHON_BIN" -m pip install --no-cache-dir -r "$PROJECT_ROOT/requirements.txt"
 "$PYTHON_BIN" -m pip install --no-cache-dir keyring  # hard dependency in the packaged build
 
