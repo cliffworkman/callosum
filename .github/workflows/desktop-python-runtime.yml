@@ -44,8 +44,16 @@ jobs:
           ID=$(python app/desktop-shell/packaging/package_python_runtime.py id --platform '${{ matrix.platform }}')
           echo "runtime_id=$ID" >> "$GITHUB_OUTPUT"
           if gh release view "python-runtime-$ID" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Reusing already-published immutable runtime $ID"
+            ASSETS=$(gh release view "python-runtime-$ID" --json assets --jq '.assets[].name')
+            if grep -Fxq "$ID.tar.gz" <<<"$ASSETS" && \
+               grep -Fxq "runtime-manifest.json" <<<"$ASSETS" && \
+               grep -Fxq "runtime-manifest.json.sig" <<<"$ASSETS"; then
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "Reusing already-published immutable runtime $ID"
+            else
+              echo "::error::immutable runtime release $ID exists but is incomplete; never overwrite it"
+              exit 1
+            fi
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -108,6 +116,15 @@ jobs:
           npm ci
           npx tauri signer sign ../../runtime-dist/runtime-manifest.json
 
+      - name: Enforce GitHub's immutable-asset size boundary
+        if: steps.identity.outputs.exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ID='${{ steps.identity.outputs.runtime_id }}'
+          BYTES=$(wc -c < "runtime-dist/$ID.tar.gz")
+          test "$BYTES" -lt 2147483648 || { echo "::error::runtime archive exceeds GitHub's 2 GiB asset limit"; exit 1; }
+
       - name: Publish immutable runtime release
         if: steps.identity.outputs.exists != 'true'
         shell: bash
@@ -117,9 +134,9 @@ jobs:
           set -euo pipefail
           ID='${{ steps.identity.outputs.runtime_id }}'
           gh release create "python-runtime-$ID" \
+            "runtime-dist/$ID.tar.gz" \
             runtime-dist/runtime-manifest.json \
             runtime-dist/runtime-manifest.json.sig \
-            "runtime-dist/$ID.tar.gz" \
             --target "$GITHUB_SHA" \
             --title "Callosum Python runtime $ID" \
             --notes "Immutable managed Python runtime for Callosum desktop. Its ID is derived from the platform, CPython build, dependency definitions, and packaging recipe. Ordinary Callosum releases reuse this artifact." \

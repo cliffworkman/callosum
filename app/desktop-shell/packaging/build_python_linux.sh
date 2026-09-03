@@ -31,6 +31,10 @@ RESOLVED_REQUIREMENTS="$RESOURCES_DIR/python-runtime-requirements.lock"
 echo "Exporting the exact runtime dependency set from uv.lock..."
 uv export --frozen --no-dev --extra keyring --no-emit-project --no-hashes \
   --format requirements-txt --output-file "$RESOLVED_REQUIREMENTS"
+# uv.lock also represents the default PyPI torch branch, whose Linux dependency closure includes
+# CUDA/triton packages. This runtime deliberately installs the exact CPU wheel first; remove only
+# that alternate accelerator branch from the otherwise exact export before the --no-deps install.
+sed -i -E '/^(cuda-|nvidia-|triton==)/d' "$RESOLVED_REQUIREMENTS"
 
 echo "Installing real project dependencies (torch is large)..."
 # See build_python_windows.ps1's matching comment: callosum never uses GPU acceleration, so the

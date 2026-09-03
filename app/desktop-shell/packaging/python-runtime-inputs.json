@@ -47,7 +47,7 @@
       "dependency_recipe": "numpy-1x-and-cpu-torch-2.2.2-then-frozen-uv-export-without-dependency-resolution"
     },
     "linux-x86_64": {
-      "runtime_id": "linux-x86_64-py3.11-s1-e954465bf7795d3e",
+      "runtime_id": "linux-x86_64-py3.11-s1-fac12cb5788842a3",
       "os": "linux",
       "arch": "x86_64",
       "python_version": "3.11.15",
