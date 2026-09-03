@@ -106,6 +106,39 @@
     a genuine OSF licensing constraint (no bundled full registration text to show); needs a product decision to
     either reword the showcase claim or build an excerpts-only substitute view.
   See the increment notes for this session's audit for the full per-capability evidence trail.
+- **#71 The Debian `.deb` installs, but the installed app does not open.** Reported by Cliff (2026-09-03) from a
+  real install: `dpkg -i` succeeds and something lands on disk, but launching it never brings the app up. **This
+  is currently the only platform where the shipped installer produces a non-functioning app** — it makes Linux a
+  dead end for a new user, so it outranks ordinary near-term polish despite living in this section.
+  - **CI already observes this failure and passes anyway — that is the reason it shipped.**
+    `.github/workflows/desktop-shell-linux.yml`'s "Verify: install the real .deb, run it under Xvfb, screenshot
+    the real running window" step polls `GET /health` for 40×3s, and on exhaustion runs
+    `echo "::warning::backend never reported healthy within the wait budget"` with **no `exit 1`**. A
+    `::warning::` does not fail a step, so the job goes green whether or not the app ever started. Note the
+    contrast: the Python-runtime build step above it is explicitly labelled `REQUIRED — blocking`, but the step
+    that proves the app actually *runs* is not.
+  - **Reproduced in the v0.5.3 release run** (`33750541758`, 2026-09-03), which is exactly the build published to
+    users: the Linux job emitted `##[warning]backend never reported healthy within the wait budget` and never
+    printed `healthy on port …`. Windows in the same run printed `healthy on port 57679 after 12s`. So the
+    failure is reproducible in CI today without needing a local Debian box to start the investigation.
+  - **First diagnostic to pull:** the job already uploads `/tmp/running-window.png` as the
+    `callosum-linux-verification` artifact on every run — the screenshot from that release run should show
+    whether it dies at the splash, a blank webview, or never paints at all. Then check whether `callosum-shell`
+    even spawns its `uvicorn app.backend.api.app:app` child (the poll greps `ps aux` for exactly that argv), which
+    separates "Tauri shell won't start" from "shell starts but the bundled portable-CPython backend can't".
+  - **Likely suspects, unranked pending that evidence:** the bundled portable CPython under `bundle.resources`
+    not being executable / not resolving its interpreter after `dpkg` relocation; a missing runtime `.deb`
+    dependency that the build host happened to have; or an `AppImage`-vs-`.deb` path assumption. Linux is
+    `.deb`-only by an inc-395 decision (its AppImage bundler fought the embedded ML stack), so there is no
+    second Linux artifact to fall back on.
+  - **Fix the gate too, not just the bug:** make the health assertion blocking on Linux, otherwise the next
+    regression ships the same silent way. Worth deciding at the same time whether to make it blocking on all
+    three platforms — in the same release run the macOS job *also* warned, though real macOS users are running
+    the app fine, so that one looks like a runner/timing artifact rather than a user-facing break and should be
+    confirmed before being treated as the same defect.
+  - Note Linux has no in-app auto-updater (needs AppImage; it gets the "Open release page" fallback instead), so
+    a fixed Linux build reaches existing users only if they re-download — worth saying plainly in the release
+    notes when this is fixed.
 ---
 
 ## 2. Needs a design decision from Cliff (not destructive/security — just your call)
