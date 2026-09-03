@@ -46,3 +46,28 @@ identity, a full-name variant survives an ambiguous surname, and surname-only am
 
 The updated macOS workflow adds a release-blocking live managed-install/provider-contract/cleanup acceptance test.
 Its result will be recorded before the release version/tag is created.
+
+## Remote macOS acceptance result (recorded 2026-09-03)
+
+The acceptance ran on the Apple Silicon runner and **passed**, at commit `e5dd236` (workflow run `33711884431`,
+"Desktop shell (macOS)"). Recording it here as this section promised.
+
+- `live_pinned_preview_installs_and_runs_three_generation_contracts` — **ok**, in **867.15s**. The duration is
+  itself part of the evidence: it reflects a real pinned-artifact download, hashing, llama-server launch, and
+  three real generation contracts on arm64, not a stubbed path.
+- The step's post-conditions (`test ! -e .../managed-local-ai/target.json`, `test ! -e .../auth-token`) ran under
+  `set -euo pipefail` and the step succeeded, so cleanup provably left neither the descriptor nor the credential
+  behind.
+- Every later step passed too: `.app` build, the resource-aware re-sign, updater-artifact regeneration, `.dmg`
+  wrap, and the real mount/Gatekeeper-simulation/screenshot verification.
+
+**One platform-only defect had to be fixed first (`e5dd236`).** The macOS compiler rejected code Windows could
+not compile-check: in `install_macos.rs` the tar entry's filename was borrowed from the entry while that same
+entry was being streamed. The fix owns the validated filename before streaming; two Windows-only imports in
+`process.rs` also had their conditional compilation corrected so strict Clippy stays clean. This is exactly the
+class of bug a Windows-only development loop cannot catch, and is the reason the live macOS job earns its cost.
+
+**Unrelated CI note:** `lint-and-test` was red from `1035bee` through `e5dd236` for a reason independent of this
+work — the website coverage gate fingerprints `app/frontend/js/*.jsx`, which this increment legitimately changed.
+Reviewed and refreshed in `5749fdb` (no showcase claim or visual needed updating); CI green again from that
+commit.
