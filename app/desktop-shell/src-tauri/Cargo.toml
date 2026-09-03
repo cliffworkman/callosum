@@ -27,6 +27,9 @@ tokio = { version = "1", features = ["rt-multi-thread", "time", "process"] }
 getrandom = "0.3"
 sha2 = "0.10"
 minisign-verify = "0.2.5"
+# `tauri signer sign` writes the .sig file base64-encoded, so the runtime manifest signature has to
+# be decoded before minisign can parse it. Already present transitively; pinned here to use directly.
+base64 = "0.22"
 zip = { version = "4", default-features = false, features = ["deflate"] }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 tar = { version = "0.4", default-features = false }

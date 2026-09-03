@@ -381,6 +381,7 @@ dependencies = [
 name = "callosum-shell"
 version = "0.5.4"
 dependencies = [
+ "base64 0.22.1",
  "flate2",
  "getrandom 0.3.4",
  "libc",

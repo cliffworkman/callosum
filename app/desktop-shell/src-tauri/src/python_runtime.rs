@@ -4,6 +4,8 @@
 //! that ID to one exact archive and extracted tree. Installation occurs only under the current
 //! user's local application-data directory; an app/package update never mutates that directory.
 
+use base64::engine::general_purpose::STANDARD as BASE64;
+use base64::Engine as _;
 use flate2::read::GzDecoder;
 use minisign_verify::{PublicKey, Signature};
 use reqwest::blocking::{Client, Response};
@@ -397,20 +399,34 @@ fn download_small(client: &Client, url: &str, maximum: u64) -> Result<Vec<u8>, R
     Ok(bytes)
 }
 
+/// Parse a minisign signature that may be stored either plainly or base64-wrapped.
+///
+/// `tauri signer sign` -- the signer this project already uses for updater artifacts, and which the
+/// runtime workflow reuses -- writes the whole 4-line minisign document **base64-encoded**, while
+/// `minisign_verify::Signature::decode` expects that document verbatim. Handing it the raw file
+/// therefore rejects every genuine signature. Both encodings are accepted here so the verifier
+/// matches what the signer actually produces without being brittle if that ever changes; anything
+/// that is neither still fails closed.
+fn decode_signature(signature: &[u8]) -> Option<Signature> {
+    if let Ok(text) = std::str::from_utf8(signature) {
+        if let Ok(parsed) = Signature::decode(text) {
+            return Some(parsed);
+        }
+        let unwrapped = BASE64.decode(text.trim().as_bytes()).ok()?;
+        let unwrapped_text = std::str::from_utf8(&unwrapped).ok()?;
+        return Signature::decode(unwrapped_text).ok();
+    }
+    None
+}
+
 fn verify_manifest_signature(manifest: &[u8], signature: &[u8]) -> Result<(), RuntimeError> {
-    let signature_text = std::str::from_utf8(signature).map_err(|_| {
-        RuntimeError::new(
-            "PYTHON_RUNTIME_SIGNATURE_INVALID",
-            "The Python runtime signature is malformed.",
-        )
-    })?;
     let key = PublicKey::decode(PUBLIC_KEY).map_err(|_| {
         RuntimeError::new(
             "PYTHON_RUNTIME_PUBLIC_KEY_INVALID",
             "Callosum's built-in runtime verification key is invalid.",
         )
     })?;
-    let signature = Signature::decode(signature_text).map_err(|_| {
+    let signature = decode_signature(signature).ok_or_else(|| {
         RuntimeError::new(
             "PYTHON_RUNTIME_SIGNATURE_INVALID",
             "The Python runtime signature is malformed.",
@@ -1183,5 +1199,33 @@ mod tests {
         assert!(!target.join("incomplete").exists());
         assert!(!staging.exists());
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// The signature this project actually publishes, verified by the code that actually runs.
+    ///
+    /// Every other test here builds its own fixtures, so nothing exercised the one contract that
+    /// cannot be assumed: `tauri signer sign` writes the `.sig` file **base64-encoded**, while
+    /// `minisign_verify::Signature::decode` expects plain minisign text. A mismatch there rejects
+    /// every genuine runtime, on every platform, with no bundled Python left to fall back on.
+    #[test]
+    fn published_manifest_signature_verifies_against_the_builtin_key() {
+        let trusted = trusted_platform().unwrap();
+        let tag = format!("python-runtime-{}", trusted.runtime_id);
+        let manifest_url = format!("{RELEASE_BASE}/{tag}/runtime-manifest.json");
+        let client = download_client().unwrap();
+
+        let manifest = match download_small(&client, &manifest_url, MAX_MANIFEST_BYTES) {
+            Ok(bytes) => bytes,
+            // Offline or the artifact is not published for this platform yet: skip rather than
+            // fail, so a disconnected `cargo test` stays green. The gate that matters is CI.
+            Err(_) => return,
+        };
+        let signature =
+            download_small(&client, &format!("{manifest_url}.sig"), MAX_SIGNATURE_BYTES).unwrap();
+
+        verify_manifest_signature(&manifest, &signature).expect(
+            "the published runtime manifest must verify against the built-in key -- if this fails, \
+             first-run provisioning is broken for every user",
+        );
     }
 }
