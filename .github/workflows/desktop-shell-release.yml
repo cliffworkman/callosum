@@ -40,29 +40,40 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: callosum-windows-x64
-          path: dist
+          path: dist/windows
 
       - uses: actions/download-artifact@v4
         with:
           name: callosum-macos-arm64
-          path: dist
+          path: dist/macos-arm64
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: callosum-macos-x64
+          path: dist/macos-x64
 
       - uses: actions/download-artifact@v4
         with:
           name: callosum-linux-x86_64
-          path: dist
+          path: dist/linux
 
       - uses: actions/download-artifact@v4
         continue-on-error: true # absent if the signing secrets aren't set yet — see the latest.json step below
         with:
           name: callosum-windows-x64-updater
-          path: dist
+          path: dist/windows
 
       - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: callosum-macos-arm64-updater
-          path: dist
+          path: dist/macos-arm64
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: callosum-macos-x64-updater
+          path: dist/macos-x64
 
       - name: Read the annotated tag's own message as the release body
         id: tagmsg
@@ -91,18 +102,36 @@ jobs:
             echo 'CALLOSUM_RELEASE_BODY_EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: "Build latest.json for the in-app auto-updater (Windows/macOS only — see updater.rs for why Linux has no silent-update path). Gracefully skipped, not a release-blocking failure, if the updater artifacts are missing — e.g. before Cliff has set the two TAURI_SIGNING_* repo secrets. Runs BEFORE the alias-creation step below so dist/*.exe unambiguously matches the one real, versioned installer (the alias copy doesn't exist yet)."
+      - name: Stage uniquely named release assets
+        run: |
+          set -e
+          mkdir release
+          cp dist/windows/*.exe release/
+          cp dist/windows/*.exe.sig release/ 2>/dev/null || true
+          cp dist/macos-arm64/*.dmg release/
+          cp dist/macos-arm64/*.app.tar.gz release/ 2>/dev/null || true
+          cp dist/macos-arm64/*.app.tar.gz.sig release/ 2>/dev/null || true
+          cp dist/macos-x64/*.dmg release/
+          cp dist/macos-x64/*.app.tar.gz release/ 2>/dev/null || true
+          cp dist/macos-x64/*.app.tar.gz.sig release/ 2>/dev/null || true
+          cp dist/linux/*.deb release/
+
+      - name: "Build latest.json for the in-app auto-updater (Windows/macOS only — see updater.rs for why Linux has no silent-update path). Gracefully skipped, not a release-blocking failure, if the updater artifacts are missing — e.g. before Cliff has set the two TAURI_SIGNING_* repo secrets. Runs BEFORE the alias-creation step below so release/*.exe unambiguously matches the one real, versioned installer (the alias copy doesn't exist yet)."
         env:
           NOTES: ${{ steps.tagmsg.outputs.body }}
         run: |
           set -e
           # Confirmed via a real signed run: Tauri's NSIS updater signs the installer .exe directly —
           # there is no separate .nsis.zip artifact (despite some docs describing one).
-          WIN_EXE=$(ls dist/*.exe 2>/dev/null | head -1 || true)
-          WIN_SIG=$(ls dist/*.exe.sig 2>/dev/null | head -1 || true)
-          MAC_TGZ=$(ls dist/*.app.tar.gz 2>/dev/null | head -1 || true)
-          MAC_SIG=$(ls dist/*.app.tar.gz.sig 2>/dev/null | head -1 || true)
-          if [ -z "$WIN_EXE" ] || [ -z "$WIN_SIG" ] || [ -z "$MAC_TGZ" ] || [ -z "$MAC_SIG" ]; then
+          WIN_EXE=$(ls release/*.exe 2>/dev/null | head -1 || true)
+          WIN_SIG=$(ls release/*.exe.sig 2>/dev/null | head -1 || true)
+          MAC_ARM_TGZ=$(ls release/*_aarch64.app.tar.gz 2>/dev/null | head -1 || true)
+          MAC_ARM_SIG=$(ls release/*_aarch64.app.tar.gz.sig 2>/dev/null | head -1 || true)
+          MAC_X64_TGZ=$(ls release/*_x86_64.app.tar.gz 2>/dev/null | head -1 || true)
+          MAC_X64_SIG=$(ls release/*_x86_64.app.tar.gz.sig 2>/dev/null | head -1 || true)
+          if [ -z "$WIN_EXE" ] || [ -z "$WIN_SIG" ] || \
+             [ -z "$MAC_ARM_TGZ" ] || [ -z "$MAC_ARM_SIG" ] || \
+             [ -z "$MAC_X64_TGZ" ] || [ -z "$MAC_X64_SIG" ]; then
             echo "::warning::updater artifacts missing (TAURI_SIGNING_PRIVATE_KEY/_PASSWORD repo secrets not set yet?) — this release will publish WITHOUT latest.json, so the in-app auto-updater won't see it. Set the two secrets, then the next release will include it automatically."
             exit 0
           fi
@@ -113,21 +142,25 @@ jobs:
             --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg win_url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$(basename "$WIN_EXE")" \
             --arg win_sig "$(cat "$WIN_SIG")" \
-            --arg mac_url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$(basename "$MAC_TGZ")" \
-            --arg mac_sig "$(cat "$MAC_SIG")" \
+            --arg mac_arm_url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$(basename "$MAC_ARM_TGZ")" \
+            --arg mac_arm_sig "$(cat "$MAC_ARM_SIG")" \
+            --arg mac_x64_url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$(basename "$MAC_X64_TGZ")" \
+            --arg mac_x64_sig "$(cat "$MAC_X64_SIG")" \
             '{version: $version, notes: $notes, pub_date: $pub_date, platforms: {
                "windows-x86_64": {signature: $win_sig, url: $win_url},
-               "darwin-aarch64": {signature: $mac_sig, url: $mac_url}
-            }}' > dist/latest.json
-          echo "wrote dist/latest.json for $TAG_VERSION"
+               "darwin-aarch64": {signature: $mac_arm_sig, url: $mac_arm_url},
+               "darwin-x86_64": {signature: $mac_x64_sig, url: $mac_x64_url}
+            }}' > release/latest.json
+          echo "wrote release/latest.json for $TAG_VERSION"
 
       - name: Create version-independent aliases (Tauri bakes the version into each installer's own
           filename, so a direct .../releases/latest/download/<file> link would silently 404 on the
           next release without these stable-named copies alongside the real, versioned assets)
         run: |
-          cp dist/*.exe dist/Callosum-windows-x64-setup.exe
-          cp dist/*.dmg dist/Callosum-macos-arm64.dmg
-          cp dist/*.deb dist/Callosum-linux-amd64.deb
+          cp release/*.exe release/Callosum-windows-x64-setup.exe
+          cp release/*_aarch64.dmg release/Callosum-macos-arm64.dmg
+          cp release/*_x86_64.dmg release/Callosum-macos-x64.dmg
+          cp release/*.deb release/Callosum-linux-amd64.deb
 
       - name: Publish the GitHub Release
         # SHA-pinned (not the mutable @v2 tag) since this step runs with contents: write.
@@ -137,4 +170,4 @@ jobs:
           name: Callosum ${{ github.ref_name }}
           body: ${{ steps.tagmsg.outputs.body }}
           generate_release_notes: true
-          files: dist/**
+          files: release/**

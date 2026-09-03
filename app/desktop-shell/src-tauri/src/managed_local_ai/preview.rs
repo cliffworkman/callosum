@@ -87,7 +87,7 @@ pub async fn setup_and_start(
     let progress = install_state.clone();
     let install_result = tokio::task::spawn_blocking(move || {
         if let Some(paths) = install::installed_paths(&data_dir_owned)? {
-            #[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
+            #[cfg(any(windows, target_os = "macos"))]
             if install::verify_install(&paths).is_ok() {
                 progress.set(None, None);
                 return Ok(paths);
@@ -143,7 +143,10 @@ pub fn local_ai_status(
         .is_some_and(|handle| matches!(handle.child.try_wait(), Ok(None)));
     let supported = cfg!(any(
         windows,
-        all(target_os = "macos", target_arch = "aarch64")
+        all(
+            target_os = "macos",
+            any(target_arch = "aarch64", target_arch = "x86_64")
+        )
     ));
     let (status, detail) = if let Some(stage) = progress.stage {
         (stage, None)
@@ -195,7 +198,7 @@ fn status_diagnostic(
             detail
                 .unwrap_or("Local AI is unsupported by this build.")
                 .to_string(),
-            "Use the Apple Silicon macOS or Windows x64 Callosum build.",
+            "Use a supported macOS or Windows x64 Callosum build.",
         ),
         "installed" => (
             "LOCAL_AI_RUNTIME_NOT_RUNNING",

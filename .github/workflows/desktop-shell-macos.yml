@@ -1,7 +1,7 @@
 name: Desktop shell (macOS)
 
-# Builds the Tauri desktop shell's macOS .dmg — arm64-only (see app/desktop-shell's increment notes
-# for why Intel Macs are out of scope for now) — and then actually verifies it on the runner's real
+# Builds native Apple Silicon and Intel Tauri desktop-shell .dmg files, then actually verifies each
+# architecture on a matching runner's real
 # macOS session: mounts the real .dmg, installs it, tags it with a quarantine attribute (simulating a
 # real "downloaded from the internet" file, since GitHub's own build step doesn't apply one), checks
 # what Gatekeeper actually does with an unsigned app, gets past it, and screenshots the real running
@@ -38,7 +38,18 @@ concurrency:
 
 jobs:
   build-macos-shell:
-    runs-on: macos-latest # Apple Silicon (arm64) as of this writing
+    name: build-macos-shell (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            bundle_arch: aarch64
+            runner: macos-latest
+          - arch: x64
+            bundle_arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5
 
@@ -88,7 +99,7 @@ jobs:
       - name: Stage callosum source into resources/callosum-src
         run: python3 app/desktop-shell/packaging/stage_source.py
 
-      - name: "Build portable Python runtime + install real deps + smoke test (arm64, REQUIRED — blocking)"
+      - name: "Build native portable Python runtime + install real deps + smoke test (REQUIRED — blocking)"
         run: bash app/desktop-shell/packaging/build_python_macos.sh
 
       # Cargo runs Tauri's build script even for this focused test, and that script validates every
@@ -165,7 +176,7 @@ jobs:
                 src-tauri/target/release/bundle/macos/Callosum.app.tar.gz.sig
           APP=$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name "*.app")
           VERSION=$(jq -r '.version' src-tauri/tauri.conf.json)
-          ARTIFACT="src-tauri/target/release/bundle/macos/Callosum_${VERSION}_aarch64.app.tar.gz"
+          ARTIFACT="src-tauri/target/release/bundle/macos/Callosum_${VERSION}_${{ matrix.bundle_arch }}.app.tar.gz"
           tar -czf "$ARTIFACT" -C "$(dirname "$APP")" "$(basename "$APP")"
           npx tauri signer sign "$ARTIFACT"
 
@@ -175,19 +186,19 @@ jobs:
           VERSION=$(jq -r '.version' app/desktop-shell/src-tauri/tauri.conf.json)
           mkdir -p app/desktop-shell/src-tauri/target/release/bundle/dmg
           hdiutil create -volname "Callosum" -srcfolder "$APP" -ov -format UDZO \
-            "app/desktop-shell/src-tauri/target/release/bundle/dmg/Callosum_${VERSION}_aarch64.dmg"
+            "app/desktop-shell/src-tauri/target/release/bundle/dmg/Callosum_${VERSION}_${{ matrix.bundle_arch }}.dmg"
 
       - name: Upload .dmg artifact
         uses: actions/upload-artifact@v4
         with:
-          name: callosum-macos-arm64
+          name: callosum-macos-${{ matrix.arch }}
           path: app/desktop-shell/src-tauri/target/release/bundle/dmg/*.dmg
           if-no-files-found: error
 
       - name: Upload updater artifact (signed .app.tar.gz + .sig, for the in-app auto-updater)
         uses: actions/upload-artifact@v4
         with:
-          name: callosum-macos-arm64-updater
+          name: callosum-macos-${{ matrix.arch }}-updater
           path: |
             app/desktop-shell/src-tauri/target/release/bundle/macos/*.app.tar.gz
             app/desktop-shell/src-tauri/target/release/bundle/macos/*.app.tar.gz.sig

@@ -68,3 +68,13 @@ Verified independently against the code (not from the implementing agent's repor
 canonicalised containment check before writing (`install_macos.rs:97-120,149`); diagnostics carry
 `orcid_checksum_valid`/`candidate_orcid_match`/`rejection_reason` but never the ORCID value, no filesystem
 paths, no tokens, and `diagnostic_report()` whitelists detail values to primitives only.
+
+## Intel extension (2026-09-03)
+
+The same boundary now includes native Intel macOS. The installer selects the official pinned llama.cpp b10516
+`macos-x64` archive only when compiled for `x86_64`, verifies archive size/SHA-256 plus a separately derived
+launcher and deterministic bundle-manifest digest, and uses the same allowlisted tar extraction and lifecycle.
+The application, portable CPython dependency bundle, Local AI acceptance test, `.dmg`, signed updater archive,
+and Gatekeeper exercise are all built on GitHub's native `macos-15-intel` runner. Apple Silicon and Intel remain
+separate artifacts and updater targets; neither architecture is mislabeled as universal. Final PASS for Intel is
+conditional on that native workflow completing successfully before release.

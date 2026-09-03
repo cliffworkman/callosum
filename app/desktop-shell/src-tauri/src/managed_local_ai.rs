@@ -19,7 +19,7 @@ mod observation;
 use observation::{observe_child_output, SharedRuntimeObservation};
 mod install;
 pub use install::LocalAiInstallState;
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[cfg(target_os = "macos")]
 mod install_macos;
 mod preview;
 pub use preview::{local_ai_status, setup_and_start, start_for_startup, LocalAiStatus};
@@ -191,13 +191,13 @@ impl DeveloperConfig {
             max_output_tokens: PREVIEW_OUTPUT_TOKENS,
             qualification_state: "LOCAL_AI_PREVIEW",
             expected_model_digest: Some(install::MODEL_SHA256),
-            #[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
+            #[cfg(any(windows, target_os = "macos"))]
             expected_launcher_digest: Some(install::RUNTIME_LAUNCHER_SHA256),
-            #[cfg(not(any(windows, all(target_os = "macos", target_arch = "aarch64"))))]
+            #[cfg(not(any(windows, target_os = "macos")))]
             expected_launcher_digest: None,
-            #[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
+            #[cfg(any(windows, target_os = "macos"))]
             expected_bundle_digest: Some(install::RUNTIME_BUNDLE_SHA256),
-            #[cfg(not(any(windows, all(target_os = "macos", target_arch = "aarch64"))))]
+            #[cfg(not(any(windows, target_os = "macos")))]
             expected_bundle_digest: None,
         }
     }

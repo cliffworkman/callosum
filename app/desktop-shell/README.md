@@ -60,12 +60,12 @@ npx tauri build
 
 ## Local AI Preview
 
-On Windows x64 and Apple Silicon macOS, **Settings → AI features → Local AI → Set up Local AI** installs Callosum's one supported managed
+On Windows x64 and native Apple Silicon or Intel macOS builds, **Settings → AI features → Local AI → Set up Local AI** installs Callosum's one supported managed
 preview configuration: the publisher-owned Qwen2.5-1.5B-Instruct Q4_K_M GGUF and an official pinned llama.cpp CPU
 runtime. Callosum downloads both from immutable sources, verifies their exact byte sizes and SHA-256 digests, and
 promotes only complete verified files. No API key, provider account, terminal, endpoint, Ollama installation, or
-manual model download is required. Intel macOS and Linux setup report their unsupported architecture explicitly
-rather than selecting an unvalidated package; current Callosum macOS releases are Apple Silicon-only.
+manual model download is required. Each macOS architecture receives a native, separately verified app, Python
+runtime, llama.cpp bundle, and updater artifact; Linux setup still reports its unsupported architecture explicitly.
 
 After setup, Local AI is a first-class generative provider. Compatible features resolve through the same shared
 provider seam as Gemini/OpenAI/Anthropic, but execute through the managed loopback target. A local timeout, crash,
@@ -93,9 +93,7 @@ hardware selection, GPU recommendations, and a multi-model catalog remain out of
 - **No code signing or notarization on either platform.** `FIRST-LAUNCH-NOTE.md` is the mitigation —
   a plain-language explanation of the SmartScreen/Gatekeeper click-through, linked from the release
   and the download page.
-- **macOS is arm64-only.** An Intel Mac cannot run this build at all (not just friction — it won't
-  launch). This was a deliberate bet given the 2-day build window; revisit if it matters.
-- **The macOS build is never manually verified before shipping** — there's no Mac hardware available
-  in this project's dev environment. CI's blocking `smoke_test_backend.py` step proves the real
-  dependency stack imports and serves on real macOS arm64 hardware; it does not prove Gatekeeper lets
-  the app open or that the webview loads.
+- **The macOS builds are never manually verified before shipping** — there's no Mac hardware available
+  in this project's dev environment. CI's blocking native arm64 and x86_64 jobs prove each real
+  dependency stack imports and serves, exercise managed Local AI, and mount/open each `.dmg`; they do
+  not substitute for a human checking the complete UI on both Mac architectures.

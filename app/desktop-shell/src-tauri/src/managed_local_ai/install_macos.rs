@@ -1,4 +1,4 @@
-//! Safe extraction for the pinned official llama.cpp macOS arm64 archive.
+//! Safe extraction for the pinned official llama.cpp native macOS archive.
 
 use super::install::RUNTIME_DIR;
 use super::ManagedAiError;

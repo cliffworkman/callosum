@@ -1,21 +1,34 @@
 #!/usr/bin/env bash
-# Builds app/desktop-shell/resources/python-runtime/ for macOS — a portable CPython 3.11 (arm64
-# only; see the increment notes for why Intel Macs are explicitly out of scope for now) + this
-# project's real dependencies. Runs ONLY in CI (.github/workflows/desktop-shell-macos.yml) on a
-# macos-latest (Apple Silicon) runner — there is no Mac hardware to run this on locally.
+# Builds app/desktop-shell/resources/python-runtime/ for macOS — a native portable CPython 3.11
+# plus this project's real dependencies. Runs only on the native arm64/x86_64 CI jobs; never build
+# one architecture under translation and label it as the other.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RESOURCES_DIR="$SCRIPT_DIR/../resources"
 RUNTIME_DIR="$RESOURCES_DIR/python-runtime"
-ASSET="cpython-3.11.15+20260718-aarch64-apple-darwin-install_only.tar.gz"
+case "$(uname -m)" in
+  arm64|aarch64)
+    PYTHON_ARCH="aarch64"
+    DISPLAY_ARCH="arm64"
+    ;;
+  x86_64)
+    PYTHON_ARCH="x86_64"
+    DISPLAY_ARCH="x86_64"
+    ;;
+  *)
+    echo "Unsupported macOS architecture: $(uname -m)" >&2
+    exit 1
+    ;;
+esac
+ASSET="cpython-3.11.15+20260718-${PYTHON_ARCH}-apple-darwin-install_only.tar.gz"
 URL="https://github.com/astral-sh/python-build-standalone/releases/download/20260718/${ASSET// /%20}"
 
 rm -rf "$RUNTIME_DIR"
 mkdir -p "$RESOURCES_DIR"
 
-echo "Downloading portable CPython (macos arm64)..."
+echo "Downloading portable CPython (macOS ${DISPLAY_ARCH})..."
 curl -L -o "$RESOURCES_DIR/python-runtime.tar.gz" "$URL"
 
 echo "Extracting..."

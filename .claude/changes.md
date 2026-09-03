@@ -9,6 +9,13 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-03 — Increment 567: native Intel macOS desktop and Local AI
+- Adds a native `macos-15-intel` build alongside Apple Silicon, including architecture-matched portable Python,
+  the exact pinned llama.cpp b10516 x64 bundle, and the full live Local AI/provider/cleanup acceptance test.
+- Publishes separate arm64/x64 `.dmg` and signed updater artifacts; `latest.json` now has both
+  `darwin-aarch64` and `darwin-x86_64` and fails closed if either signed Mac payload is absent.
+- Keeps Intel Local AI explicitly CPU-only; no Metal policy, routing change, cloud fallback, or model change.
+
 ## 2026-09-02 — Increment 566: macOS Local AI and first-class researcher identity
 - Replaces the misleading Windows-only Local AI dead end with a pinned, verified Apple Silicon macOS managed
   llama.cpp installation and a live macOS CI acceptance covering install, three provider contracts, and cleanup.
