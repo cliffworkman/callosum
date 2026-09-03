@@ -1183,6 +1183,50 @@ mod tests {
         assert!(validate_manifest(&manifest, &trusted, &tag).is_ok());
         manifest.runtime_id.push_str("-wrong");
         assert!(validate_manifest(&manifest, &trusted, &tag).is_err());
+        manifest.runtime_id = trusted.runtime_id.clone();
+
+        // archive_url is the field that decides where ~365 MB of executable content is fetched from,
+        // so it must be pinned to a value this build computes rather than trusted from the document.
+        // Signing alone would not help if the signer were ever compromised or misused.
+        for hostile in [
+            "https://example.invalid/evil.tar.gz",
+            // Same allowlisted host, attacker-chosen path -- host checks alone would pass this.
+            &format!(
+                "{RELEASE_BASE}/python-runtime-other/{}.tar.gz",
+                trusted.runtime_id
+            ),
+        ] {
+            manifest.archive_url = hostile.to_string();
+            assert!(
+                validate_manifest(&manifest, &trusted, &tag).is_err(),
+                "archive_url {hostile} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn symlink_targets_may_not_escape_the_runtime_root() {
+        // A tar symlink is the classic way to write outside an extraction root. Nothing covered this
+        // despite validate_link_target being the only thing standing in front of it.
+        for (relative, target) in [
+            ("bin/python3", "../../../../etc/passwd"),
+            ("bin/python3", "/etc/passwd"),
+            ("python3", ".."),
+            ("bin/python3", "..\\..\\windows"),
+            ("bin/python3", ""),
+        ] {
+            assert!(
+                validate_link_target(Path::new(relative), target).is_err(),
+                "escaping link {relative} -> {target} must be rejected"
+            );
+        }
+        // Ordinary in-tree links remain valid: python-build-standalone ships bin/python3 as one.
+        for (relative, target) in [("bin/python3", "python3.11"), ("bin/python3", "../lib/x")] {
+            assert!(
+                validate_link_target(Path::new(relative), target).is_ok(),
+                "in-tree link {relative} -> {target} must be accepted"
+            );
+        }
     }
 
     #[test]
