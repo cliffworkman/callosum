@@ -140,29 +140,6 @@
     a fixed Linux build reaches existing users only if they re-download — worth saying plainly in the release
     notes when this is fixed.
 
-- **#72 Local AI must be reachable from the dev (browser) backend, not only the packaged Tauri app.** Raised by
-  Cliff (2026-09-03): testing any Local-AI-backed feature currently requires a full Tauri build/rebuild — an
-  hours-long loop he called "totally unfeasible for continued development." This is a **dev-velocity blocker**,
-  not a user-facing bug.
-  - **Cause is one env var.** `_preview_descriptor_path()` (`app/backend/llm/managed_local.py`) requires
-    `CALLOSUM_APP_DATA_DIR`, and the *only* thing that ever sets it is `backend.rs:202` — the Tauri shell. No
-    `tools/` script does, so `run_dev.py` and a bare `uvicorn` always raise `ManagedLocalTargetError
-    ("app_data_missing")`. Inc 568 made that failure *visible*; it did not make Local AI *reachable*.
-  - **The mechanism already works outside Tauri — verified, not assumed.** A plain Python process read the
-    packaged app's descriptor and drove the running llama-server to a correct answer in 6–11 s. So this is
-    plumbing, not a design problem.
-  - Three candidate designs, cheapest first:
-    - **(a) Documented env-var handoff** — `$env:CALLOSUM_APP_DATA_DIR = "$env:APPDATA\com.callosum.desktop"`
-      with the desktop app open. Works today, zero code; shipped as documentation in inc 568. Limitation: the
-      desktop app must be running, because it owns the llama-server lifecycle.
-    - **(b) An explicit `run_dev.py --local-ai` flag** doing (a) with a clear startup banner. ~3 lines. Cliff's
-      inc-568 call was "document, don't wire," so this needs his go-ahead, not just implementation.
-    - **(c) Wire the already-existing developer seam.** `CALLOSUM_MANAGED_LOCAL_AI_DESCRIPTOR` /
-      `load_target_from_environment()` exist but are consulted only by the *Overview* developer path, never by
-      the production `load_preview_target()`. Letting dev supply its own descriptor — and start its own
-      llama-server from the already-downloaded runtime under `managed-local-ai-install/` — removes the
-      packaged-app dependency entirely. The real fix; needs care that a dev-only seam cannot widen the
-      production trust boundary (the descriptor pins digests and a loopback endpoint for a reason).
 ---
 
 ## 2. Needs a design decision from Cliff (not destructive/security — just your call)

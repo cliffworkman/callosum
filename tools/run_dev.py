@@ -45,6 +45,18 @@ def _spawn(argv: list[str], env: dict[str, str]) -> subprocess.Popen:
     return subprocess.Popen(argv, cwd=str(ROOT), env=env)  # noqa: S603 (fixed argv, no request-derived input)
 
 
+def _clear_local_ai_descriptor(dev_dir: Path) -> None:
+    """Defense in depth: a descriptor outliving its llama-server would make the backend report Local AI as
+    available and then fail on every request. run_local_ai.py cleans up after itself, but if it was hard-killed
+    its `finally` never ran -- so the supervisor clears the pair too, on the way in and on the way out."""
+    managed = dev_dir / "managed-local-ai"
+    for name in ("target.json", "auth-token"):
+        try:
+            (managed / name).unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 def _stop_all(procs: dict[str, subprocess.Popen]) -> None:
     for proc in procs.values():
         if proc.poll() is None:
@@ -59,12 +71,25 @@ def _stop_all(procs: dict[str, subprocess.Popen]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--port", type=int, default=None, help="HTTP port (default: CALLOSUM_HTTP_PORT env, else 8888)")
+    parser.add_argument(
+        "--local-ai",
+        action="store_true",
+        help="also start managed Local AI for this dev session (backlog #72; no packaged desktop app needed)",
+    )
     args = parser.parse_args()
 
     http_port = args.port if args.port is not None else int(os.environ.get("CALLOSUM_HTTP_PORT", "8888"))
     env = os.environ.copy()  # both children inherit the SAME environment -- including CALLOSUM_DB_URL
 
     procs: dict[str, subprocess.Popen] = {}
+    dev_dir = ROOT / ".local" / "dev-app-data"
+    if args.local_ai:
+        # Start Local AI FIRST and set CALLOSUM_APP_DATA_DIR before the servers spawn: the env var is
+        # process-local and read at request time, so a server started without it can never see the descriptor.
+        _clear_local_ai_descriptor(dev_dir)  # never inherit a descriptor from a previously hard-killed run
+        env["CALLOSUM_APP_DATA_DIR"] = str(dev_dir)
+        procs["local-ai"] = _spawn([sys.executable, str(ROOT / "tools" / "run_local_ai.py")], env)
+        print(f"[run_dev] local-ai: starting (descriptor under {dev_dir}); first run loads ~1 GiB, be patient")
     procs["http"] = _spawn(
         [sys.executable, "-m", "uvicorn", "app.backend.api.app:app", "--host", "127.0.0.1", "--port", str(http_port)],
         env,
@@ -87,10 +112,12 @@ def main() -> int:
                 if code is not None:
                     print(f"[run_dev] {name} exited (code {code}) -- stopping the rest.")
                     _stop_all(procs)
+                    _clear_local_ai_descriptor(dev_dir)
                     return 1
     except KeyboardInterrupt:
         print("\n[run_dev] stopping...")
         _stop_all(procs)
+        _clear_local_ai_descriptor(dev_dir)
         return 0
 
 

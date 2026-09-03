@@ -162,7 +162,11 @@ function localAiStatusLabel(status) {
     ready: "Local AI: Ready",
     installed: "Installed — ready to start",
     not_installed: "Ready to set up",
+    // "unsupported" means the CPU architecture genuinely has no runtime (an Intel Mac before inc 567).
+    // A browser dev session is a different thing entirely and gets its own state, or it would read as a
+    // hardware verdict that is simply false.
     unsupported: "Unsupported architecture",
+    desktop_required: "Set up in the desktop app",
     error: "Setup needs attention",
   };
   return labels[status && status.state] || (status && status.state ? status.state.replaceAll("_", " ") : "Checking…");
@@ -385,11 +389,20 @@ function AiSettings({ agentSettings, onLocalAiSetupState }) {
   const [adding, setAdding] = useState(false);
   const [localAi, setLocalAi] = useState(null);
 
-  const refreshLocalAi = async () => {
+  // Without the Tauri bridge there is no local_ai_status command to call, but the BACKEND still knows whether
+  // it can resolve a managed target -- that is exactly what /settings reports (inc 568). Ask it, instead of
+  // asserting a hardware verdict the browser cannot possibly have checked (backlog #72).
+  const refreshLocalAi = async (settings) => {
     if (!("__TAURI__" in window)) {
-      acceptLocalAiSetupStatus({ state: "unsupported", installed: false, running: false,
-        detail: "Managed Local AI setup is available in the installed desktop app.", diagnostic:
-          localAiFrontendDiagnostic("LOCAL_AI_DESKTOP_REQUIRED", "Managed Local AI requires the installed desktop app.", "runtime_detection") });
+      const reachable = !!(settings && settings.provider === "managed_local" && settings.generation_provider_available);
+      acceptLocalAiSetupStatus(reachable
+        ? { state: "ready", installed: true, running: true,
+            detail: "Reachable from this session (started outside the desktop app)." }
+        : { state: "desktop_required", installed: false, running: false,
+            detail: (settings && settings.generation_provider_detail)
+              || "Managed Local AI setup is available in the installed desktop app.",
+            diagnostic: localAiFrontendDiagnostic("LOCAL_AI_DESKTOP_REQUIRED",
+              "Managed Local AI setup requires the installed desktop app.", "runtime_detection") });
       return;
     }
     try { acceptLocalAiSetupStatus(await window.__TAURI__.core.invoke("local_ai_status")); }
@@ -401,11 +414,12 @@ function AiSettings({ agentSettings, onLocalAiSetupState }) {
     const [pr, st] = await Promise.all([api("/settings/providers"), api("/settings")]);
     if (pr.ok) setRoster(pr.data);
     if (st.ok) setStatus(st.data);
+    return st.ok ? st.data : null;  // the browser branch of refreshLocalAi needs the backend's own verdict
   };
   useEffect(() => {
     const listener = current => setLocalAi(current);
     _localAiSetupListeners.add(listener);
-    reload(); refreshLocalAi();
+    reload().then(refreshLocalAi);
     return () => _localAiSetupListeners.delete(listener);
   }, []);
   const localSetupActive = localAiSetupActive(localAi);

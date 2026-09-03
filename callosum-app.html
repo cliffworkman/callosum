@@ -20187,7 +20187,11 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       ready: "Local AI: Ready",
       installed: "Installed \u2014 ready to start",
       not_installed: "Ready to set up",
+      // "unsupported" means the CPU architecture genuinely has no runtime (an Intel Mac before inc 567).
+      // A browser dev session is a different thing entirely and gets its own state, or it would read as a
+      // hardware verdict that is simply false.
       unsupported: "Unsupported architecture",
+      desktop_required: "Set up in the desktop app",
       error: "Setup needs attention"
     };
     return labels[status && status.state] || (status && status.state ? status.state.replaceAll("_", " ") : "Checking\u2026");
@@ -20349,14 +20353,24 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [testing, setTesting] = useState(false);
     const [adding, setAdding] = useState(false);
     const [localAi, setLocalAi] = useState(null);
-    const refreshLocalAi = async () => {
+    const refreshLocalAi = async (settings) => {
       if (!("__TAURI__" in window)) {
-        acceptLocalAiSetupStatus({
-          state: "unsupported",
+        const reachable = !!(settings && settings.provider === "managed_local" && settings.generation_provider_available);
+        acceptLocalAiSetupStatus(reachable ? {
+          state: "ready",
+          installed: true,
+          running: true,
+          detail: "Reachable from this session (started outside the desktop app)."
+        } : {
+          state: "desktop_required",
           installed: false,
           running: false,
-          detail: "Managed Local AI setup is available in the installed desktop app.",
-          diagnostic: localAiFrontendDiagnostic("LOCAL_AI_DESKTOP_REQUIRED", "Managed Local AI requires the installed desktop app.", "runtime_detection")
+          detail: settings && settings.generation_provider_detail || "Managed Local AI setup is available in the installed desktop app.",
+          diagnostic: localAiFrontendDiagnostic(
+            "LOCAL_AI_DESKTOP_REQUIRED",
+            "Managed Local AI setup requires the installed desktop app.",
+            "runtime_detection"
+          )
         });
         return;
       }
@@ -20376,12 +20390,12 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       const [pr, st] = await Promise.all([api("/settings/providers"), api("/settings")]);
       if (pr.ok) setRoster(pr.data);
       if (st.ok) setStatus(st.data);
+      return st.ok ? st.data : null;
     };
     useEffect(() => {
       const listener = (current) => setLocalAi(current);
       _localAiSetupListeners.add(listener);
-      reload();
-      refreshLocalAi();
+      reload().then(refreshLocalAi);
       return () => _localAiSetupListeners.delete(listener);
     }, []);
     const localSetupActive = localAiSetupActive(localAi);

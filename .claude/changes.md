@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-03 — Increment 569: Local AI in the dev browser build (backlog #72)
+- **Files:** `tools/run_local_ai.py` (new), `tools/run_dev.py`, `app/frontend/js/35b_providers.jsx`,
+  `tests/test_run_local_ai.py` (new), `.claude/CLAUDE.md`, `.claude/docs/INCREMENT-BACKLOG{,-DONE}.md`,
+  `.claude/security-audits/2026-09-03_dev-local-ai-launcher.md` (new)
+- **What:** `python tools/run_dev.py --local-ai` starts the same managed llama-server the packaged app
+  would, from the already-installed and digest-reverified artifacts, and publishes a descriptor the
+  **unmodified** `load_preview_target()` accepts — so Local-AI features are testable in a browser dev
+  session with the desktop app closed. Also fixed the Settings card claiming "Unsupported architecture"
+  in any browser session, which is a hardware verdict it never checked.
+- **Why:** `CALLOSUM_APP_DATA_DIR` is set only by the Tauri shell, so a source-checkout backend failed
+  every generative feature with `app_data_missing`; testing any Local-AI change meant an hours-long
+  rebuild, which Cliff flagged as unfeasible for continued development.
+- **Boundary:** zero production code changed. The tool is developer-only, lives in `tools/` outside
+  production paths (inc-542 precedent), never downloads, and writes only into a separate dev app-data
+  dir. CLAUDE.md's "Tauri alone owns the lifecycle" bullet now records this single exception.
+- **Revert:** delete `tools/run_local_ai.py` + `tests/test_run_local_ai.py` and revert the `--local-ai`
+  flag; nothing in `app/` depends on either.
+
 ## 2026-09-03 — Increment 568: an unpolished axis label must say so
 - **Files:** `app/backend/llm/managed_local.py`, `app/backend/api/routers/{settings,axes,axes_models}.py`,
   `app/backend/clustering/axis_suggestion.py`, `integrations/gemini/{generator,axis_cluster_labeler}.py`,

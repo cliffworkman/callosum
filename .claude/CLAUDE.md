@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 568** (see Increment workflow) with **2763 passed, 3 skipped in the last completed root-suite
+It is currently at **Increment 569** (see Increment workflow) with **2763 passed, 3 skipped in the last completed root-suite
 pass** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
 The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
 receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
@@ -1000,6 +1000,15 @@ the full per-increment narrative for all other increments now lives in the reloc
   `Testing` otherwise). The clean default remains Gemini, manual endpoints remain distinct, and specialized local
   embedding/NLI/OCR paths are unchanged. Exact identities and the provider-gated feature audit are in
   `INCREMENT-547-NOTES.md`.
+  **"Tauri alone owns the lifecycle" has exactly one deliberate exception (inc 569, backlog #72):**
+  `tools/run_local_ai.py` starts the same llama-server for a **dev browser session**, because
+  `CALLOSUM_APP_DATA_DIR` is set only by `backend.rs` — so a source-checkout backend otherwise fails every
+  generative feature with `app_data_missing`, and testing any Local-AI change meant an hours-long Tauri
+  rebuild. It is developer-only, lives in `tools/` outside production paths (the inc-542 precedent), and
+  **changes zero production code**: it re-verifies the already-installed artifacts against `install.json`,
+  never downloads, writes only into a separate dev app-data dir, and publishes a descriptor the unmodified
+  `load_preview_target()` validates or rejects on its own terms. Run it via `run_dev.py --local-ai`. It is
+  not reachable from the packaged app. See `.claude/security-audits/2026-09-03_dev-local-ai-launcher.md`.
 - **Frontend:** modular source under `app/frontend/` (`index.html` shell + `styles.css` +
   ordered `js/*.jsx` React chunks, React/ReactDOM + pdf.js via CDN), assembled by
   `app/backend/api/frontend.py`: the JSX chunks are concatenated and **precompiled to plain JS by
@@ -1266,6 +1275,7 @@ Run from the project root. The shell is **PowerShell** (Windows).
 | `$env:CALLOSUM_DB_URL = "sqlite:///C:/Users/cliff/Dropbox/Dropbox/01_Work/callosum/.local/validation-summarize/validation.sqlite"` | Point the app at a SQLite DB (default if unset: `sqlite:///.local/validation/validation.sqlite`) |
 | `uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080` | Start the FastAPI app; then open `http://127.0.0.1:8080/` |
 | `python tools/run_dev.py` | Start HTTP (normal use) **and** HTTPS (Word add-in) together as one supervised command pair sharing the same `CALLOSUM_DB_URL` — use this instead of the bare `uvicorn` command above whenever you also want Word working (inc 514; prevents the two servers drifting to different DBs/code versions) |
+| `python tools/run_dev.py --local-ai` | The same, **plus managed Local AI for the dev browser session** (inc 569, backlog #72) — needed because `CALLOSUM_APP_DATA_DIR` is set only by the Tauri shell, so a source-checkout backend otherwise fails every generative feature with `app_data_missing`. Requires Local AI to have been installed once via the packaged app; the desktop app does **not** need to be running |
 | `npm install` | Install the build-time frontend toolchain (pinned `esbuild`) — required once before `tools/build_frontend.py` / live assembly (inc 102) |
 | `python tools/build_frontend.py` | Rebuild `callosum-app.html` from `app/frontend/` (esbuild-precompiles the JSX) — run after any `app/frontend/` edit |
 | `pytest tests/test_<area>.py -q` | **Default dev loop — run only the changed area's tests** (seconds, not ~45 min). See the Verification protocol §1. |
@@ -1497,7 +1507,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 568). Each increment of real work
+callosum is built in **numbered increments** (currently at 569). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
