@@ -12,7 +12,12 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from app.backend.llm.usage import log_usage
-from integrations.gemini.generator import DataEgressDisabledError, GeminiConfig, _strip_code_fence
+from integrations.gemini.generator import (
+    DataEgressDisabledError,
+    GeminiConfig,
+    _strip_code_fence,
+    first_embedded_json,
+)
 
 MAX_TERMS = 12
 MAX_TERM_LEN = 60
@@ -52,10 +57,13 @@ def _prompt(*, label: str, description: str | None) -> str:
 
 def _parse_terms(text: str, *, label: str, description: str | None) -> list[str]:
     """Defensively parse the model's JSON array into clean, deduped, capped terms (untrusted output)."""
+    stripped = _strip_code_fence(text)
     try:
-        payload = json.loads(_strip_code_fence(text))
+        payload = json.loads(stripped)
     except (json.JSONDecodeError, ValueError):
-        return []
+        # Same silent-degradation shape as axis labeling: a wrapped-but-correct answer must not read as
+        # "the model returned nothing" (which here would surface as an empty term list).
+        payload = first_embedded_json(stripped, want=list)
     if not isinstance(payload, list):
         return []
     existing_words = {word.lower() for word in (label + " " + (description or "")).split()}

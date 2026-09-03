@@ -495,10 +495,15 @@ def _axis_term_suggester(app: FastAPI) -> AxisTermSuggester:
 
 
 def _axis_cluster_labeler(app: FastAPI) -> AxisClusterLabeler:
+    from app.backend.llm.managed_local import AXIS_LABEL_CONTRACT, with_managed_output_contract
+
     config = resolve_llm_config(app)
     inner = app.state.axis_cluster_labeler
     if inner is None:
-        inner = GeminiAxisClusterLabeler(config=config)
+        # Constrain the managed local target to the exact {label, terms} object this feature parses. A cloud or
+        # manual provider is returned unchanged (with_managed_output_contract is a no-op off managed_local), so
+        # only the small local model -- which cannot be trusted to emit bare JSON unprompted -- gains a grammar.
+        inner = GeminiAxisClusterLabeler(config=with_managed_output_contract(config, AXIS_LABEL_CONTRACT))
     # Authoritative egress gate at the seam — covers the injected labeler AND the default.
     return EgressGatedAxisClusterLabeler(
         inner=inner,

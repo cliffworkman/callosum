@@ -13,7 +13,12 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from app.backend.llm.usage import log_usage
-from integrations.gemini.generator import DataEgressDisabledError, GeminiConfig, _strip_code_fence
+from integrations.gemini.generator import (
+    DataEgressDisabledError,
+    GeminiConfig,
+    _strip_code_fence,
+    first_embedded_json,
+)
 
 MAX_LABEL_LEN = 80
 MAX_TERMS = 8
@@ -54,10 +59,11 @@ def _prompt(*, titles: list[str], terms: list[str]) -> str:
 
 def _parse_label(text: str) -> dict:
     """Defensively parse the model's JSON object into a clean label + capped/deduped terms (untrusted)."""
+    stripped = _strip_code_fence(text)
     try:
-        payload = json.loads(_strip_code_fence(text))
+        payload = json.loads(stripped)
     except (json.JSONDecodeError, ValueError):
-        return {}
+        payload = first_embedded_json(stripped, want=dict)
     if not isinstance(payload, dict):
         return {}
     label = str(payload.get("label") or "").strip()[:MAX_LABEL_LEN]

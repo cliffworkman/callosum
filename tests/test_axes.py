@@ -644,6 +644,92 @@ def test_suggest_axes_injected_labeler_blocked_when_egress_off(temp_db_url: str,
     )  # seam blocked the leaky labeler → local
 
 
+# ── local-model JSON robustness (the managed 1.5B target does not reliably emit BARE JSON) ──────────
+
+
+def test_parse_label_recovers_the_object_from_a_wrapped_local_model_answer() -> None:
+    """The reported regression: descriptive axis titles silently reverted to the c-TF-IDF keyword labels.
+
+    `_parse_label` returned {} for anything that was not a bare JSON document, and `apply_labels` maps an
+    empty label back onto the local one -- so a model that answered correctly but chattily was
+    indistinguishable from a model that failed. Each payload below carries the SAME correct answer.
+    """
+    from integrations.gemini.axis_cluster_labeler import _parse_label
+
+    wrapped = [
+        'Here is the JSON:\n{"label": "Traumatic Brain Injury", "terms": ["tbi", "concussion"]}',
+        '<think>The papers are about brain injury.</think>{"label": "Traumatic Brain Injury", "terms": ["tbi", "concussion"]}',
+        '{"label": "Traumatic Brain Injury", "terms": ["tbi", "concussion"]}\n\nLet me know if you want more.',
+        '```json\n{"label": "Traumatic Brain Injury", "terms": ["tbi", "concussion"]}\n```',
+    ]
+    for payload in wrapped:
+        parsed = _parse_label(payload)
+        assert parsed["label"] == "Traumatic Brain Injury", payload
+        assert parsed["terms"] == ["tbi", "concussion"], payload
+
+    # Still fails closed on genuine non-answers -- recovering a wrapped object must not invent one.
+    assert _parse_label("I cannot help with that.") == {}
+    assert _parse_label("") == {}
+
+
+def test_parse_terms_recovers_the_array_from_a_wrapped_local_model_answer() -> None:
+    """The axis-TERM suggester carries the identical latent bug: a wrapped-but-correct answer read as an
+    empty term list. Same recovery, same fail-closed floor."""
+    from integrations.gemini.axis_terms import _parse_terms
+
+    wrapped = [
+        'Here are the terms:\n["tbi", "concussion", "head injury"]',
+        '<think>Expanding the construct.</think>["tbi", "concussion", "head injury"]',
+        '["tbi", "concussion", "head injury"]\n\nHope that helps!',
+    ]
+    for payload in wrapped:
+        assert _parse_terms(payload, label="Brain", description=None) == ["tbi", "concussion", "head injury"], payload
+
+    assert _parse_terms("I cannot help with that.", label="Brain", description=None) == []
+
+
+def test_managed_local_axis_labeling_requests_a_json_grammar() -> None:
+    """The managed target gets a grammar for the exact {label, terms} object, the same mechanism primary
+    synthesis already uses -- without it a 1.5B Q4 model free-runs and the label is silently discarded."""
+    from app.backend.llm.managed_local import AXIS_LABEL_CONTRACT, _ManagedHttpClient
+
+    sent: dict = {}
+
+    class _Inner:
+        def post(self, url, json=None, headers=None, timeout=None):
+            sent.update(json or {})
+            return "ok"
+
+    _ManagedHttpClient(_Inner(), 2048, AXIS_LABEL_CONTRACT).post("/v1/chat/completions", json={"messages": []})
+    schema = sent.get("json_schema")
+    assert schema is not None, "axis labeling must constrain the managed local target's output"
+    assert schema["required"] == ["label", "terms"]
+    assert schema["properties"]["label"] == {"type": "string"}
+    assert sent["max_tokens"] == 2048
+
+    # A contract-free managed call (e.g. a feature with no grammar) must be left exactly as it was.
+    plain: dict = {}
+
+    class _Inner2:
+        def post(self, url, json=None, headers=None, timeout=None):
+            plain.update(json or {})
+            return "ok"
+
+    _ManagedHttpClient(_Inner2(), 2048, None).post("/v1/chat/completions", json={"messages": []})
+    assert "json_schema" not in plain
+
+
+def test_axis_cluster_labeler_leaves_a_cloud_provider_unconstrained() -> None:
+    """with_managed_output_contract is a no-op off managed_local, so Gemini/OpenAI keep their exact
+    historical request shape -- the grammar is a managed-target-only repair, not a global change."""
+    from types import SimpleNamespace
+
+    from app.backend.llm.managed_local import AXIS_LABEL_CONTRACT, with_managed_output_contract
+
+    cloud = SimpleNamespace(provider="gemini", model="gemini-2.5-flash-lite")
+    assert with_managed_output_contract(cloud, AXIS_LABEL_CONTRACT) is cloud
+
+
 def test_suggest_axes_terms_exclude_jats_markup(temp_db_url: str) -> None:
     # JATS-wrapped abstracts must not leak tag names ("jats", "italic", …) into the c-TF-IDF terms/labels.
     engine = make_engine(temp_db_url)

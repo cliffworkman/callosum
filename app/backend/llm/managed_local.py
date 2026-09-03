@@ -36,6 +36,20 @@ _QUALIFICATION_CONTEXT_TOKENS = 4096
 _PREVIEW_CONTEXT_TOKENS = 12_288
 _PRIMARY_SYNTHESIS_CONTRACT = "primary_synthesis"
 _OVERVIEW_CONTRACT = "synthesis_overview"
+AXIS_LABEL_CONTRACT = "axis_cluster_label"
+# The managed target is a 1.5B Q4 model: without a grammar it does not reliably emit BARE JSON (it prefixes
+# prose, appends commentary, or drifts), and axis labeling's parser then reads an empty object and silently
+# keeps the local c-TF-IDF label. Primary synthesis already solved this with a grammar; this is the same
+# mechanism for the same reason, mirroring the object the labeler's own prompt asks for.
+_AXIS_LABEL_SCHEMA = {
+    "type": "object",
+    "required": ["label", "terms"],
+    "additionalProperties": False,
+    "properties": {
+        "label": {"type": "string"},
+        "terms": {"type": "array", "minItems": 4, "maxItems": 8, "items": {"type": "string"}},
+    },
+}
 _PRIMARY_SYNTHESIS_SCHEMA = {
     "type": "array",
     "minItems": 4,
@@ -152,6 +166,8 @@ class _ManagedHttpClient:
         payload["max_tokens"] = self.output_cap
         if self.contract == _PRIMARY_SYNTHESIS_CONTRACT:
             payload["json_schema"] = _PRIMARY_SYNTHESIS_SCHEMA
+        elif self.contract == AXIS_LABEL_CONTRACT:
+            payload["json_schema"] = _AXIS_LABEL_SCHEMA
         return self.inner.post(
             url,
             json=payload,

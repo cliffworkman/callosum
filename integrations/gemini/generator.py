@@ -184,6 +184,30 @@ def _parse_response_text(text: str) -> list[CandidateSummarySentence]:
     return sentences
 
 
+def first_embedded_json(text: str, *, want: type) -> object | None:
+    """The first balanced JSON value of type ``want`` (dict or list) embedded anywhere in ``text``.
+
+    A small local model -- and occasionally a cloud one -- returns the requested JSON wrapped in prose: a
+    "Here is the JSON:" preamble, a reasoning block, or trailing commentary. A whole-string ``json.loads``
+    rejects all of that outright, so the real answer is discarded and the feature silently degrades to its
+    local fallback. Scanning for the first decodable value of the expected shape recovers the answer the
+    model actually gave. Callers still validate, cap, and dedupe every field afterwards, so this widens what
+    can be READ without widening what is TRUSTED.
+    """
+    opener = "{" if want is dict else "["
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(text):
+        if char != opener:
+            continue
+        try:
+            payload, _ = decoder.raw_decode(text, index)
+        except ValueError:
+            continue
+        if isinstance(payload, want):
+            return payload
+    return None
+
+
 def _strip_code_fence(text: str) -> str:
     stripped = text.strip()
     if stripped.startswith("```"):
