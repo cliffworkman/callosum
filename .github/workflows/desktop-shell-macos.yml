@@ -270,7 +270,12 @@ jobs:
           ready=0
           # A fresh runner intentionally exercises first-use runtime download + verification.
           for i in $(seq 1 400); do
-            PORT=$(ps aux | grep -oE "uvicorn app\.backend\.api\.app:app --host 127\.0\.0\.1 --port [0-9]+" | grep -oE "[0-9]+$" | head -1 || true)
+            # `ps auxww`, not `ps aux`: macOS truncates the command column, and the port sits at the
+            # END of a long argv (.../python3 -m uvicorn app.backend.api.app:app --host … --port N),
+            # so a truncated line can never match. Linux does not truncate when stdout is not a tty,
+            # which would explain why this check has passed there and on Windows but -- per the
+            # v0.5.3 release run, before any of the runtime work -- has never once passed on macOS.
+            PORT=$(ps auxww | grep -oE "uvicorn app\.backend\.api\.app:app --host 127\.0\.0\.1 --port [0-9]+" | grep -oE "[0-9]+$" | head -1 || true)
             if [ -n "$PORT" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/health" || true)" = "200" ]; then
               echo "healthy on port $PORT after $((i*3))s"
               ready=1
@@ -280,15 +285,20 @@ jobs:
           done
           sleep 2 # give the webview a moment to actually paint the loaded page
           sudo screencapture -x /tmp/2-running-window.png || screencapture -x /tmp/2-running-window.png || true
+          # Deliberately a WARNING on macOS, unlike Linux (Cliff's call, 2026-09-03): this check has
+          # never once reported healthy here -- including in the v0.5.3 release run, before the
+          # Python-runtime work existed -- while real macOS users run the app fine. Failing the build
+          # on a signal that predates the change under test and that no user experiences would redden
+          # CI without evidence of a defect. Promote to ::error:: + exit 1 once a run actually prints
+          # "healthy on port", which will also confirm the ps-truncation theory above.
           if [ "$ready" != "1" ]; then
-            echo "::error::backend never reported healthy within the wait budget"
+            echo "::warning::backend never reported healthy within the wait budget (known macOS-only gap)"
           fi
 
           pkill -f "$APP_NAME" || true
           if [ "$ready" != "1" ]; then
             find "$HOME/Library/Application Support" -name backend.log -type f \
               -exec sh -c 'echo "--- $1 ---"; tail -n 120 "$1"' _ {} \; || true
-            exit 1
           fi
 
       - name: Upload verification screenshots + Gatekeeper logs

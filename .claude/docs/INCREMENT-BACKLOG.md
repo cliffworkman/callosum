@@ -39,6 +39,24 @@
   checkout, Node for the JS actions). The blocking `objdump` glibc guard in `desktop-shell-linux.yml`
   will catch a wrong base immediately either way.
 
+- **#74 The macOS desktop-shell verify step has never once reported the backend healthy.** Found while
+  closing #71 (2026-09-03). Windows and Linux both print `healthy on port N after Ns`; macOS has only ever
+  printed the warning — including in the **v0.5.3 release run, before the persistent-Python-runtime work
+  existed** — so this predates that change and is not a regression from it. Real macOS users run the app
+  fine, which is why the gate is deliberately left as a `::warning::` there while Linux is blocking
+  (Cliff's call).
+  - **Leading hypothesis, not yet confirmed:** the check greps `ps aux` for
+    `… --port [0-9]+`, and **macOS truncates the command column** while Linux does not when stdout is not
+    a tty. The port sits at the very END of a long argv, so a truncated line can never match. Inc 570
+    changed the macOS invocation to `ps auxww` on that theory; the next macOS run either prints
+    `healthy on port …` (theory confirmed) or does not (theory dead, look elsewhere).
+  - **If `ps auxww` fixes it, promote the macOS gate back to `::error::` + `exit 1`** so the platform is
+    genuinely covered rather than permanently excused. That is the whole point of filing this.
+  - Other candidates if it does not: the app needing GUI/automation permissions the runner withholds (the
+    verification screenshot shows a macOS screen-recording consent prompt and no app window at all), or
+    `open` returning before the app is actually up. The screenshot is currently unreliable evidence for
+    that reason and should not be trusted on its own.
+
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
 - **#64 Dependabot GHSA-wrw7-89jp-8q8g (`glib`, moderate) on the desktop-shell Linux build.** Flagged by GitHub
