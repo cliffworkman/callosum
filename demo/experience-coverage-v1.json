@@ -190,14 +190,14 @@
     }
   },
   "review": {
-    "reviewed_at": "2026-09-02",
-    "reviewed_rev": "655b613",
-    "reviewed_increment": 565,
-    "source_fingerprint": "7f7535cc13c84b49688ae744fc863d1efdaabd0041b591483fa0c3a9642f42c7",
-    "note": "Axis-title Local AI fix: routers/axes.py changed only to attach a managed-local JSON grammar contract when constructing the cluster labeler. No endpoint contract, response shape, demo content, or user-visible capability changed -- the static demo never invokes the labeler.",
-    "declined_at": "2026-09-03",
-    "declined_rev": "6f39ef3",
-    "declined_increment": 567,
-    "decline_note": "Increment 567 changes native Intel macOS packaging and managed-runtime availability only; the static demo cannot exercise platform-specific Tauri packaging and its existing capability claims remain unchanged."
+    "reviewed_at": "2026-09-03",
+    "reviewed_rev": "7fbac02",
+    "reviewed_increment": 568,
+    "source_fingerprint": "7866e831767cda1225d937099168266d3f5d4a809ceb83e388297d3aab495a62",
+    "note": "Inc 568 adds only additive, defaulted fields to captured routers: axes.py/axes_models.py gain label_source + label_notice, settings.py gains generation_provider_detail. No endpoint was added or removed and no response field changed meaning, so every existing demo capability claim still holds. cap-axes is unaffected: the static demo is backend-free and never invokes the cluster labeler (same basis as the inc-565 review). Known, accepted gap: demo/snapshot-v1.json's captured /api/settings predates generation_provider_detail, so the demo shows generation_provider_available:false without the new reason sentence. The field is optional and absent-means-null, so nothing breaks; it will pick up the field on the next capture rather than by hand-editing a generated snapshot.",
+    "declined_at": null,
+    "declined_rev": null,
+    "declined_increment": null,
+    "decline_note": null
   }
 }
