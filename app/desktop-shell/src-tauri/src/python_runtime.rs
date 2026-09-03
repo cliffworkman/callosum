@@ -997,7 +997,18 @@ fn try_migrate_legacy(
     Ok(Some(final_dir.join(&trusted.python_relative_path)))
 }
 
-#[cfg(windows)]
+/// Describe an on-disk runtime tree in exactly the terms `tree_digest` expects.
+///
+/// Must mirror `extract_verified`'s rules precisely, since the whole point is to compare the result
+/// against the signed `tree_sha256`. Two of those rules are genuinely platform-specific and were the
+/// reason this was originally Windows-only:
+///
+/// * **Executability.** On Unix it is the mode bit (`0o111`), matching what `extract_verified` reads
+///   from the tar header. On Windows there is no such bit, so the packager's convention -- PATHEXT
+///   launcher extensions -- is what a byte-identical legacy bundle will have been recorded with.
+/// * **Symlinks.** The Unix runtime really does contain them (`bin/python3 -> python3.11`), so they
+///   are recorded as `kind: "link"` with the target as identity, exactly as extraction does. On
+///   Windows a symlink in this tree is unexpected and still fails closed.
 fn filesystem_entries(root: &Path) -> Result<Vec<TreeEntry>, RuntimeError> {
     fn visit(
         root: &Path,
@@ -1007,32 +1018,52 @@ fn filesystem_entries(root: &Path) -> Result<Vec<TreeEntry>, RuntimeError> {
         for item in std::fs::read_dir(current).map_err(|_| invalid_archive())? {
             let path = item.map_err(|_| invalid_archive())?.path();
             let metadata = std::fs::symlink_metadata(&path).map_err(|_| invalid_archive())?;
-            if metadata.is_dir() {
-                visit(root, &path, entries)?;
-            } else if metadata.is_file() {
-                let relative = path
+            let relative = || -> Result<String, RuntimeError> {
+                Ok(path
                     .strip_prefix(root)
                     .map_err(|_| invalid_archive())?
                     .to_str()
                     .ok_or_else(invalid_archive)?
-                    .replace('\\', "/");
+                    .replace('\\', "/"))
+            };
+            if metadata.is_dir() {
+                visit(root, &path, entries)?;
+                continue;
+            }
+            #[cfg(unix)]
+            if metadata.file_type().is_symlink() {
+                let target = std::fs::read_link(&path).map_err(|_| invalid_archive())?;
                 entries.push(TreeEntry {
-                    relative,
-                    kind: "file",
-                    size: metadata.len(),
-                    identity: sha256_file(&path)?,
-                    // Python's Windows stat implementation reports PATHEXT launchers as executable;
-                    // mirror the artifact packager so a byte-identical legacy bundle can migrate.
-                    executable: path.extension().is_some_and(|extension| {
-                        matches!(
-                            extension.to_string_lossy().to_ascii_lowercase().as_str(),
-                            "exe" | "com" | "bat" | "cmd"
-                        )
-                    }),
+                    relative: relative()?,
+                    kind: "link",
+                    size: 0,
+                    identity: target.to_str().ok_or_else(invalid_archive)?.to_string(),
+                    executable: false,
                 });
-            } else {
+                continue;
+            }
+            if !metadata.is_file() {
                 return Err(invalid_archive());
             }
+            #[cfg(unix)]
+            let executable = {
+                use std::os::unix::fs::PermissionsExt;
+                metadata.permissions().mode() & 0o111 != 0
+            };
+            #[cfg(not(unix))]
+            let executable = path.extension().is_some_and(|extension| {
+                matches!(
+                    extension.to_string_lossy().to_ascii_lowercase().as_str(),
+                    "exe" | "com" | "bat" | "cmd"
+                )
+            });
+            entries.push(TreeEntry {
+                relative: relative()?,
+                kind: "file",
+                size: metadata.len(),
+                identity: sha256_file(&path)?,
+                executable,
+            });
         }
         Ok(())
     }
@@ -1042,7 +1073,6 @@ fn filesystem_entries(root: &Path) -> Result<Vec<TreeEntry>, RuntimeError> {
     Ok(entries)
 }
 
-#[cfg(windows)]
 fn copy_directory(source: &Path, destination: &Path) -> Result<(), RuntimeError> {
     std::fs::create_dir(destination).map_err(|_| invalid_archive())?;
     for item in std::fs::read_dir(source).map_err(|_| invalid_archive())? {
@@ -1051,16 +1081,26 @@ fn copy_directory(source: &Path, destination: &Path) -> Result<(), RuntimeError>
         let metadata = std::fs::symlink_metadata(&path).map_err(|_| invalid_archive())?;
         if metadata.is_dir() {
             copy_directory(&path, &target)?;
-        } else if metadata.is_file() {
-            std::fs::copy(&path, &target).map_err(|_| invalid_archive())?;
-        } else {
+            continue;
+        }
+        // The Unix runtime contains real symlinks; recreate them rather than dereferencing, so the
+        // copy still digests to the same tree identity the signed manifest describes.
+        #[cfg(unix)]
+        if metadata.file_type().is_symlink() {
+            let link = std::fs::read_link(&path).map_err(|_| invalid_archive())?;
+            std::os::unix::fs::symlink(link, &target).map_err(|_| invalid_archive())?;
+            continue;
+        }
+        if !metadata.is_file() {
             return Err(invalid_archive());
         }
+        // fs::copy carries the permission bits on Unix, so the executable bit -- which is part of the
+        // tree identity there -- survives the migration.
+        std::fs::copy(&path, &target).map_err(|_| invalid_archive())?;
     }
     Ok(())
 }
 
-#[cfg(windows)]
 fn sha256_file(path: &Path) -> Result<String, RuntimeError> {
     let mut file = File::open(path).map_err(|_| invalid_archive())?;
     let mut digest = Sha256::new();
