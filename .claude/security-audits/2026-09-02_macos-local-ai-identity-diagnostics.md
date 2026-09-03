@@ -41,3 +41,30 @@ locally. The macOS workflow now blocks on a live test that downloads and verifie
 managed runtime, exercises Overview/primary-synthesis/Help provider contracts without cloud credentials, shuts
 down, and proves the descriptor/token were removed. This audit must be promoted to PASS only after that Apple
 Silicon job succeeds; no release tag may be created before then.
+
+## Apple Silicon acceptance (recorded 2026-09-03) — precondition satisfied
+
+The gating job has since run and passed, so the condition set above is met.
+
+- Workflow run `33711884431` ("Desktop shell (macOS)") at commit `e5dd236`.
+- `live_pinned_preview_installs_and_runs_three_generation_contracts` — **ok in 867.15s** on the Apple Silicon
+  runner. The duration is part of the evidence: a real pinned-artifact download, digest verification, managed
+  runtime start, and three real provider contracts, not a stubbed path.
+- The step's own post-conditions (`test ! -e .../managed-local-ai/target.json`,
+  `test ! -e .../managed-local-ai/auth-token`) ran under `set -euo pipefail` and the step succeeded, so the
+  descriptor and the per-launch bearer token are proven removed on cleanup — the specific residual-credential
+  risk this audit was gating on.
+- Every subsequent step passed: `.app` build, the resource-aware re-sign, updater-artifact regeneration
+  (`Callosum.app.tar.gz` + `.sig`), `.dmg` wrap, and the real mount / Gatekeeper-simulation / screenshot check.
+
+One platform-only defect had to be fixed first (`e5dd236`): the macOS compiler rejected a borrow the Windows
+build could not compile-check — a tar entry's filename borrowed from the entry while that same entry was being
+streamed. The fix owns the validated filename before streaming and changes no behaviour.
+
+**Security Audit: PASS.**
+
+Verified independently against the code (not from the implementing agent's report): the tar extraction rejects
+`..` and absolute paths structurally by matching only `Component::Normal`, and additionally enforces a
+canonicalised containment check before writing (`install_macos.rs:97-120,149`); diagnostics carry
+`orcid_checksum_valid`/`candidate_orcid_match`/`rejection_reason` but never the ORCID value, no filesystem
+paths, no tokens, and `diagnostic_report()` whitelists detail values to primitives only.
