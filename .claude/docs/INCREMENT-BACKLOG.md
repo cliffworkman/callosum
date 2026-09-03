@@ -39,7 +39,15 @@
   checkout, Node for the JS actions). The blocking `objdump` glibc guard in `desktop-shell-linux.yml`
   will catch a wrong base immediately either way.
 
-- **#74 The macOS desktop-shell verify step has never once reported the backend healthy.** Found while
+- **#74 The macOS desktop-shell verify step has never once reported the backend healthy.**
+  **PRIORITY (Cliff, 2026-09-03): this is the next thing to work on, once the persistent Python runtime
+  is shipped and confirmed working across all three desktop packages.** Note the ordering tension worth
+  resolving explicitly rather than silently: macOS being "confirmed working" is *itself* what this item
+  blocks, since the health check is the mechanism that would confirm it. Either the `ps auxww` change
+  below makes macOS report healthy (in which case the tension dissolves and the gate can go blocking),
+  or macOS has to be confirmed some other way — a real Mac, or the existing live Local AI acceptance
+  job, which does pass — before "working on all three" can be claimed honestly.
+  Found while
   closing #71 (2026-09-03). Windows and Linux both print `healthy on port N after Ns`; macOS has only ever
   printed the warning — including in the **v0.5.3 release run, before the persistent-Python-runtime work
   existed** — so this predates that change and is not a regression from it. Real macOS users run the app
