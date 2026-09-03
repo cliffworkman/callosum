@@ -80,6 +80,17 @@ jobs:
       - name: Install project dependencies (needed just to import app.backend for build_frontend.py)
         run: uv sync --locked
 
+      - name: Install frontend build toolchain + build callosum-app.html
+        run: |
+          npm install
+          uv run python tools/build_frontend.py
+
+      - name: Stage callosum source into resources/callosum-src
+        run: python3 app/desktop-shell/packaging/stage_source.py
+
+      # Cargo runs Tauri's build script even for this focused test, and that script validates every
+      # configured bundle resource. Keep this after stage_source.py so the live acceptance actually
+      # reaches the managed runtime instead of failing on an absent resources/callosum-src directory.
       - name: "Live Local AI acceptance: install, verify, run three provider contracts, and clean up"
         working-directory: app/desktop-shell/src-tauri
         env:
@@ -90,14 +101,6 @@ jobs:
           cargo test live_pinned_preview_installs_and_runs_three_generation_contracts -- --ignored --nocapture
           test ! -e "$CALLOSUM_LOCAL_AI_LIVE_INSTALL_DIR/managed-local-ai/target.json"
           test ! -e "$CALLOSUM_LOCAL_AI_LIVE_INSTALL_DIR/managed-local-ai/auth-token"
-
-      - name: Install frontend build toolchain + build callosum-app.html
-        run: |
-          npm install
-          uv run python tools/build_frontend.py
-
-      - name: Stage callosum source into resources/callosum-src
-        run: python3 app/desktop-shell/packaging/stage_source.py
 
       - name: "Build portable Python runtime + install real deps + smoke test (arm64, REQUIRED — blocking)"
         run: bash app/desktop-shell/packaging/build_python_macos.sh
