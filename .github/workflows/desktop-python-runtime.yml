@@ -77,12 +77,12 @@ jobs:
       - name: Build macOS runtime
         if: steps.identity.outputs.exists != 'true' && matrix.build == 'macos'
         shell: bash
-        run: app/desktop-shell/packaging/build_python_macos.sh
+        run: bash app/desktop-shell/packaging/build_python_macos.sh
 
       - name: Build Linux runtime
         if: steps.identity.outputs.exists != 'true' && matrix.build == 'linux'
         shell: bash
-        run: app/desktop-shell/packaging/build_python_linux.sh
+        run: bash app/desktop-shell/packaging/build_python_linux.sh
 
       - name: Package deterministic runtime artifact and manifest
         if: steps.identity.outputs.exists != 'true'
