@@ -21,11 +21,12 @@ def test_packaged_ml_dependency_trio_is_exact_and_smoke_checked() -> None:
     project = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     for requirement in (
         "sentence-transformers==5.6.1",
-        "transformers==5.14.1",
         "tokenizers==0.22.2",
     ):
         assert requirement in requirements
         assert f'"{requirement}"' in project
+    assert "transformers==5.14.1" in requirements
+    assert '"transformers==5.14.1;' in project
     smoke = (ROOT / "app/desktop-shell/packaging/smoke_test_backend.py").read_text(encoding="utf-8")
     assert "require_version(deps['tokenizers'])" in smoke
     assert "from sentence_transformers import CrossEncoder" in smoke
@@ -64,3 +65,13 @@ def test_intel_macos_local_ai_runtime_identity_is_pinned() -> None:
     assert "b7adecf7bd2cde577ddabee8357a72409165d8104f43b4acee9f1b98cc9c447a" in source
     assert "f3136584b712d052374aa14765bea077721dc886af647228483ce79e2d838964" in source
     assert "9621e3a085f91d8c3091540c80684cde76dd637862fa0e07910744a8f63534f3" in source
+
+
+def test_intel_macos_ml_stack_has_a_native_compatible_lane() -> None:
+    project = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+    intel_marker = "platform_machine == 'x86_64'"
+    assert "\"torch==2.2.2; sys_platform == 'darwin' and platform_machine == 'x86_64'\"" in project
+    assert "\"transformers==4.57.6; sys_platform == 'darwin' and platform_machine == 'x86_64'\"" in project
+    assert intel_marker in project
+    assert 'transformers==4.57.6 ; sys_platform == "darwin" and platform_machine == "x86_64"' in requirements

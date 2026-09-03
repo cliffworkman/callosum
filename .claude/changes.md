@@ -12,8 +12,8 @@ are the design diary; this is the chronological "what & why" record.
 ## 2026-09-03 — Increment 567: native Intel macOS desktop and Local AI
 - Adds a native `macos-15-intel` build alongside Apple Silicon, including architecture-matched portable Python,
   the exact pinned llama.cpp b10516 x64 bundle, and the full live Local AI/provider/cleanup acceptance test.
-- Pins Intel macOS to PyTorch's last official native x86_64 wheel and the compatible NumPy ABI; other platforms
-  keep their current dependency line.
+- Pins Intel macOS to PyTorch's last official native x86_64 wheel plus compatible NumPy/Transformers lines; other
+  platforms keep their current dependency stack.
 - Publishes separate arm64/x64 `.dmg` and signed updater artifacts; `latest.json` now has both
   `darwin-aarch64` and `darwin-x86_64` and fails closed if either signed Mac payload is absent.
 - Keeps Intel Local AI explicitly CPU-only; no Metal policy, routing change, cloud fallback, or model change.

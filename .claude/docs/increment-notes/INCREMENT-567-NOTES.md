@@ -14,8 +14,9 @@ run an arm64-only application merely by accepting a slower Local AI configuratio
 - `build_python_macos.sh` selects the matching pinned python-build-standalone architecture from `uname -m` and
   fails on anything else. It does not build under Rosetta or relabel one architecture as another.
 - Upstream PyTorch no longer publishes current releases for Intel macOS. The native x86_64 dependency lane
-  therefore pins the last official Intel wheel (`torch==2.2.2`) and its required NumPy 1.x ABI, while other
-  platforms retain the current dependency resolution. The packaged-runtime smoke test remains blocking.
+  therefore pins the last official Intel wheel (`torch==2.2.2`), its required NumPy 1.x ABI, and
+  `transformers==4.57.6` (the current stack's last line supporting Torch 2.2). Other platforms retain the current
+  dependency resolution. The packaged-runtime smoke test remains blocking.
 - The managed installer selects llama.cpp b10516's official x64 macOS archive at compile time. The independently
   audited identities are archive bytes `11,395,897`, archive SHA-256
   `b7adecf7bd2cde577ddabee8357a72409165d8104f43b4acee9f1b98cc9c447a`, launcher SHA-256
