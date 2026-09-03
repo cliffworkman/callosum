@@ -93,15 +93,21 @@ pub fn resolved_paths(app: &AppHandle) -> Result<ResolvedPaths, StartupError> {
     std::fs::create_dir_all(&data_dir)
         .map_err(|e| StartupError::ResolvePaths(format!("creating {}: {e}", data_dir.display())))?;
 
-    let docs_dir = app
-        .path()
-        .document_dir()
-        .map_err(|e| StartupError::ResolvePaths(format!("documents dir: {e}")))?;
-    let library_dir = docs_dir.join("callosum-library");
     let home_dir = app
         .path()
         .home_dir()
         .map_err(|e| StartupError::ResolvePaths(format!("home dir: {e}")))?;
+    // `library_dir` is only the DEFAULT location offered for the user's library -- nothing requires
+    // it to exist, and nothing about startup depends on it. It used to abort startup when Tauri
+    // could not resolve a Documents directory, which on Linux happens whenever XDG_DOCUMENTS_DIR is
+    // unset and ~/.config/user-dirs.dirs is absent: a bare Xvfb CI session, or a minimal/headless
+    // Debian install. The result was a splash stuck on "Starting…" with no backend ever spawned,
+    // indistinguishable from a genuinely broken build. Fall back instead of failing closed.
+    let library_dir = app
+        .path()
+        .document_dir()
+        .unwrap_or_else(|_| home_dir.join("Documents"))
+        .join("callosum-library");
     let callosum_home = home_dir.join(".callosum");
 
     // sqlite:/// URLs want forward slashes even on Windows.

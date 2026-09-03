@@ -47,7 +47,12 @@ concurrency:
 
 jobs:
   build-linux-shell:
-    runs-on: ubuntu-latest
+    # Build at the supported glibc floor, matching desktop-python-runtime.yml. `ubuntu-latest` is now
+    # Ubuntu 24.04 (glibc 2.39), and Rust std's process spawning pulls in pidfd_spawnp/pidfd_getpid
+    # from 2.39 -- so a shell built there cannot start at all on Debian 12 (2.36) or Ubuntu 22.04
+    # (2.35). That is backlog #71, confirmed on a real Debian 12 box: the loader refuses the binary
+    # outright, which is why the app "installs but never opens".
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v5
 
@@ -130,6 +135,23 @@ jobs:
       - name: Build the .deb
         working-directory: app/desktop-shell
         run: npx tauri build
+
+      - name: "Guard: the shell must not require a newer glibc than we support (REQUIRED — blocking)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          FLOOR=2.35   # Ubuntu 22.04; Debian 12 is 2.36, so this covers both
+          BIN=app/desktop-shell/src-tauri/target/release/callosum-shell
+          MAX=$(objdump -T "$BIN" | grep -oE 'GLIBC_[0-9]+\.[0-9]+' | sed 's/GLIBC_//' | sort -uV | tail -1)
+          echo "highest required glibc: $MAX (floor $FLOOR)"
+          # Direct regression guard for backlog #71. One cheap command catches the entire class --
+          # a binary that cannot load on a supported distro -- without needing a Debian box, which
+          # is exactly what was missing when this shipped broken.
+          if [ "$(printf '%s\n%s\n' "$FLOOR" "$MAX" | sort -V | tail -1)" != "$FLOOR" ]; then
+            echo "::error::callosum-shell requires glibc $MAX but the support floor is $FLOOR."
+            objdump -T "$BIN" | grep "GLIBC_$MAX" || true
+            exit 1
+          fi
 
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
