@@ -84,3 +84,31 @@ def test_website_navigation_reaches_the_page_and_reuses_the_favicon() -> None:
 def test_primary_local_destinations_exist(href: str, target: Path) -> None:
     assert href in _parse(WWW / "how-it-works.html").links
     assert target.exists()
+
+
+def test_showcase_hotspots_paint_no_marker_at_narrow_widths() -> None:
+    """Regression: the Showcase image map rendered a purple dot inside every hotspot below 560px.
+
+    `@media(max-width:560px)` carried `.hotspot::after{...background:var(--accent)}`, so all 53 hotspots
+    painted an accent-coloured circle over the screenshot they annotate. Portrait phones (360/390/412 CSS px)
+    are under that breakpoint while the same devices in landscape (800/844/915) are over it -- which is the
+    whole reason rotating the device appeared to "fix" it. Nothing in the CSS was orientation-aware.
+
+    Hotspot geometry was never at fault and is deliberately not asserted here: it is percentage-based against
+    the image box and was already correct at every width. What this pins is that hotspots stay visually
+    transparent AT REST, with feedback reserved for :hover / :focus-visible.
+    """
+    css = (WWW / "showcase.html").read_text(encoding="utf-8")
+    narrow = [block for block in css.split("@media") if block.lstrip().startswith("(max-width:560px)")]
+    assert narrow, "the narrow-width breakpoint should still exist"
+    rules = narrow[0]
+    assert ".hotspot::after" not in rules, "a hotspot marker dot must not be reintroduced at narrow widths"
+    assert ".hotspot::before" not in rules
+    # The narrow breakpoint must not restyle .hotspot at all -- geometry/appearance are width-independent.
+    assert ".hotspot{" not in rules
+
+    # Intentional feedback states must survive, unconditioned by width.
+    assert ".hotspot:hover,.hotspot:focus-visible{background:" in css
+    assert ".hotspot:focus-visible{outline:" in css
+    # The labelled fallback row remains the touch/no-hover discoverability affordance.
+    assert 'class="map-fallback"' in css
