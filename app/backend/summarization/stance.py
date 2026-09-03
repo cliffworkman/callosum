@@ -165,6 +165,7 @@ class NLIStanceScorer:
                     device=self.device,
                     local_files_only=self.local_files_only,
                     backend=self.backend,
+                    model_kwargs={"use_safetensors": True},
                 )
         return self._model
 

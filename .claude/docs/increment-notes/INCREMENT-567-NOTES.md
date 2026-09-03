@@ -17,6 +17,9 @@ run an arm64-only application merely by accepting a slower Local AI configuratio
   therefore pins the last official Intel wheel (`torch==2.2.2`), its required NumPy 1.x ABI, and
   `transformers==4.57.6` (the current stack's last line supporting Torch 2.2). Other platforms retain the current
   dependency resolution. The packaged-runtime smoke test remains blocking.
+- Because that legacy Intel wheel carries a critical advisory in PyTorch's pickle checkpoint loader, every
+  Callosum-owned SentenceTransformer/CrossEncoder load now requires safetensors. The pinned production model
+  revisions provide safetensors; missing safe weights fail closed instead of falling back to pickle.
 - The managed installer selects llama.cpp b10516's official x64 macOS archive at compile time. The independently
   audited identities are archive bytes `11,395,897`, archive SHA-256
   `b7adecf7bd2cde577ddabee8357a72409165d8104f43b4acee9f1b98cc9c447a`, launcher SHA-256

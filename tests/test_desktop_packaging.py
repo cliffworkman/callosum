@@ -75,3 +75,14 @@ def test_intel_macos_ml_stack_has_a_native_compatible_lane() -> None:
     assert "\"transformers==4.57.6; sys_platform == 'darwin' and platform_machine == 'x86_64'\"" in project
     assert intel_marker in project
     assert 'transformers==4.57.6 ; sys_platform == "darwin" and platform_machine == "x86_64"' in requirements
+
+
+def test_owned_transformer_loads_require_safetensors() -> None:
+    sources = [
+        ROOT / "app/backend/embeddings/models.py",
+        ROOT / "app/backend/model_runtime.py",
+        ROOT / "app/backend/summarization/verification.py",
+        ROOT / "app/backend/summarization/stance.py",
+    ]
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in sources)
+    assert combined.count('model_kwargs={"use_safetensors": True}') == 5

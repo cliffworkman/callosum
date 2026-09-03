@@ -320,6 +320,7 @@ def _load_sentence_transformer(identity: ModelRuntimeIdentity) -> object:
         device=identity.device,
         local_files_only=identity.local_files_only,
         backend=identity.backend,
+        model_kwargs={"use_safetensors": True},
     )
 
 
@@ -332,4 +333,5 @@ def _load_cross_encoder(identity: ModelRuntimeIdentity) -> object:
         device=identity.device,
         local_files_only=identity.local_files_only,
         backend=identity.backend,
+        model_kwargs={"use_safetensors": True},
     )

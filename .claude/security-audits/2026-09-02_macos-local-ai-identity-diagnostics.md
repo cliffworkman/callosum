@@ -78,3 +78,17 @@ The application, portable CPython dependency bundle, Local AI acceptance test, `
 and Gatekeeper exercise are all built on GitHub's native `macos-15-intel` runner. Apple Silicon and Intel remain
 separate artifacts and updater targets; neither architecture is mislabeled as universal. Final PASS for Intel is
 conditional on that native workflow completing successfully before release.
+
+### Intel packaged-ML compatibility boundary
+
+PyTorch 2.2.2 is upstream's final official native Intel-macOS wheel; newer upstream versions no longer publish
+x86_64 macOS wheels. That legacy wheel has known advisories, including GHSA-53q9-r3pm-6pq6 in PyTorch's pickle
+loader. Callosum mitigates the relevant model-loading path by pinning every owned Hugging Face model revision and
+requiring `use_safetensors=True` on every SentenceTransformer/CrossEncoder construction; a repository that lacks
+safetensors fails rather than falling back to a pickle checkpoint. Callosum does not invoke the separately advised
+JIT/LSTM/packed-sequence/quantized APIs with attacker-controlled tensors.
+
+This is a constrained compatibility risk, not a claim that the legacy dependency has no vulnerabilities. Moving
+Intel Macs to a current non-Torch inference runtime or retiring Intel support when the hosted runner disappears is
+the appropriate follow-up. Native packaging, backend import/health, and managed Local AI acceptance remain
+release-blocking.

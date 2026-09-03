@@ -14,6 +14,8 @@ are the design diary; this is the chronological "what & why" record.
   the exact pinned llama.cpp b10516 x64 bundle, and the full live Local AI/provider/cleanup acceptance test.
 - Pins Intel macOS to PyTorch's last official native x86_64 wheel plus compatible NumPy/Transformers lines; other
   platforms keep their current dependency stack.
+- Requires safetensors for every Callosum-owned transformer load, preventing fallback to the legacy PyTorch pickle
+  checkpoint path, and records the Intel compatibility risk explicitly.
 - Publishes separate arm64/x64 `.dmg` and signed updater artifacts; `latest.json` now has both
   `darwin-aarch64` and `darwin-x86_64` and fails closed if either signed Mac payload is absent.
 - Keeps Intel Local AI explicitly CPU-only; no Metal policy, routing change, cloud fallback, or model change.
