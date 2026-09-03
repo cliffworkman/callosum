@@ -32,6 +32,13 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _sha256_text_input(path: Path) -> str:
+    """Hash repository build inputs independent of checkout newline policy."""
+    text = path.read_text(encoding="utf-8")
+    canonical = text.replace("\r\n", "\n").replace("\r", "\n").encode()
+    return hashlib.sha256(canonical).hexdigest()
+
+
 def _canonical_json(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
 
@@ -44,7 +51,7 @@ def _identity_material(spec: dict, platform_key: str) -> dict:
         path = ROOT / relative
         if not path.is_file():
             raise SystemExit(f"runtime identity input is missing: {relative}")
-        input_hashes[relative] = _sha256_file(path)
+        input_hashes[relative] = _sha256_text_input(path)
     return {
         "schema_version": spec["schema_version"],
         "packaging_schema": spec["packaging_schema"],
