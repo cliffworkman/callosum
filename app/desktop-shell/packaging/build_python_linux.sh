@@ -10,6 +10,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RESOURCES_DIR="$SCRIPT_DIR/../resources"
 RUNTIME_DIR="$RESOURCES_DIR/python-runtime"
 ASSET="cpython-3.11.15+20260718-x86_64-unknown-linux-gnu-install_only.tar.gz"
+EXPECTED_SHA256="c2082e977138e307e3da4ea2c65421d3cb6b80f4890890b28b96fc6b422d4f0d"
 URL="https://github.com/astral-sh/python-build-standalone/releases/download/20260718/${ASSET// /%20}"
 
 rm -rf "$RUNTIME_DIR"
@@ -17,6 +18,7 @@ mkdir -p "$RESOURCES_DIR"
 
 echo "Downloading portable CPython (linux x86_64)..."
 curl -L -o "$RESOURCES_DIR/python-runtime.tar.gz" "$URL"
+echo "${EXPECTED_SHA256}  $RESOURCES_DIR/python-runtime.tar.gz" | sha256sum -c -
 
 echo "Extracting..."
 tar -xzf "$RESOURCES_DIR/python-runtime.tar.gz" -C "$RESOURCES_DIR"
@@ -24,6 +26,11 @@ mv "$RESOURCES_DIR/python" "$RUNTIME_DIR"
 rm "$RESOURCES_DIR/python-runtime.tar.gz"
 
 PYTHON_BIN="$RUNTIME_DIR/bin/python3"
+RESOLVED_REQUIREMENTS="$RESOURCES_DIR/python-runtime-requirements.lock"
+
+echo "Exporting the exact runtime dependency set from uv.lock..."
+uv export --frozen --no-dev --extra keyring --no-emit-project --no-hashes \
+  --format requirements-txt --output-file "$RESOLVED_REQUIREMENTS"
 
 echo "Installing real project dependencies (torch is large)..."
 # See build_python_windows.ps1's matching comment: callosum never uses GPU acceleration, so the
@@ -31,9 +38,11 @@ echo "Installing real project dependencies (torch is large)..."
 # a hard dynamic-link dependency on the NVIDIA driver's libcuda.so.1, which doesn't exist at all on
 # this GPU-less runner; linuxdeploy insists on resolving every dependency before bundling and hard-
 # fails on it (a real run confirmed this: "ERROR: Could not find dependency: libcuda.so.1").
-"$PYTHON_BIN" -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-"$PYTHON_BIN" -m pip install --no-cache-dir -r "$PROJECT_ROOT/requirements.txt"
-"$PYTHON_BIN" -m pip install --no-cache-dir keyring  # hard dependency in the packaged build
+"$PYTHON_BIN" -m pip install --no-cache-dir "torch==2.13.0" --index-url https://download.pytorch.org/whl/cpu
+# The frozen export contains every direct/transitive dependency. --no-deps preserves the selected
+# CPU-only torch wheel rather than letting pip resolve a second platform-specific graph.
+"$PYTHON_BIN" -m pip install --no-cache-dir --no-deps -r "$RESOLVED_REQUIREMENTS"
+rm "$RESOLVED_REQUIREMENTS"
 
 # See build_python_windows.ps1's matching comment: torch vendors ~100 deeply-nested license copies
 # for its internal C++ profiler's (kineto) own vendored build/test tools — pure attribution text,

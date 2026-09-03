@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "packaging_schema": "callosum-python-runtime-v1",
+  "repository": "cliffworkman/callosum",
+  "shared_inputs": [
+    "requirements.txt",
+    "pyproject.toml",
+    "uv.lock",
+    ".github/workflows/desktop-python-runtime.yml",
+    "app/desktop-shell/packaging/smoke_test_backend.py",
+    "app/desktop-shell/packaging/package_python_runtime.py"
+  ],
+  "platforms": {
+    "windows-x86_64": {
+      "runtime_id": "win-x86_64-py3.11-s1-fa1083b9f51e0add",
+      "os": "windows",
+      "arch": "x86_64",
+      "python_version": "3.11.15",
+      "python_build": "20260718",
+      "python_asset": "cpython-3.11.15+20260718-x86_64-pc-windows-msvc-install_only.tar.gz",
+      "python_asset_sha256": "c3d782be3733f779d585633da374ff1bd92400d4d74c0c3922aee1526446096b",
+      "python_relative_path": "python.exe",
+      "build_script": "app/desktop-shell/packaging/build_python_windows.ps1",
+      "dependency_recipe": "cpu-torch-2.13.0-then-frozen-uv-export-without-dependency-resolution"
+    },
+    "macos-aarch64": {
+      "runtime_id": "macos-aarch64-py3.11-s1-4e895ad3d4cb60a2",
+      "os": "macos",
+      "arch": "aarch64",
+      "python_version": "3.11.15",
+      "python_build": "20260718",
+      "python_asset": "cpython-3.11.15+20260718-aarch64-apple-darwin-install_only.tar.gz",
+      "python_asset_sha256": "125587d03495bebdf30ec9e549a8469c97c0925d863ff401f24f157fd44d91d6",
+      "python_relative_path": "bin/python3",
+      "build_script": "app/desktop-shell/packaging/build_python_macos.sh",
+      "dependency_recipe": "cpu-torch-2.13.0-then-frozen-uv-export-without-dependency-resolution"
+    },
+    "macos-x86_64": {
+      "runtime_id": "macos-x86_64-py3.11-s1-47a45376800521e1",
+      "os": "macos",
+      "arch": "x86_64",
+      "python_version": "3.11.15",
+      "python_build": "20260718",
+      "python_asset": "cpython-3.11.15+20260718-x86_64-apple-darwin-install_only.tar.gz",
+      "python_asset_sha256": "870df60775609536b7c3b82ad5c10c5ffbf822e6819bb86d2218e43c172a5f32",
+      "python_relative_path": "bin/python3",
+      "build_script": "app/desktop-shell/packaging/build_python_macos.sh",
+      "dependency_recipe": "numpy-1x-and-cpu-torch-2.2.2-then-frozen-uv-export-without-dependency-resolution"
+    },
+    "linux-x86_64": {
+      "runtime_id": "linux-x86_64-py3.11-s1-e8df36a3b78ebbca",
+      "os": "linux",
+      "arch": "x86_64",
+      "python_version": "3.11.15",
+      "python_build": "20260718",
+      "python_asset": "cpython-3.11.15+20260718-x86_64-unknown-linux-gnu-install_only.tar.gz",
+      "python_asset_sha256": "c2082e977138e307e3da4ea2c65421d3cb6b80f4890890b28b96fc6b422d4f0d",
+      "python_relative_path": "bin/python3",
+      "build_script": "app/desktop-shell/packaging/build_python_linux.sh",
+      "dependency_recipe": "cpu-torch-2.13.0-then-frozen-uv-export-without-dependency-resolution",
+      "glibc_min": "2.35",
+      "distribution_boundary": "ubuntu-22.04-or-newer-and-debian-12-or-newer"
+    }
+  }
+}

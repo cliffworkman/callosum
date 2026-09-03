@@ -15,6 +15,7 @@ $ResourcesDir = Join-Path $PSScriptRoot "../resources"
 $RuntimeDir = Join-Path $ResourcesDir "python-runtime"
 $PythonVersion = "3.11.15+20260718"
 $Asset = "cpython-3.11.15%2B20260718-x86_64-pc-windows-msvc-install_only.tar.gz"
+$ExpectedSha256 = "c3d782be3733f779d585633da374ff1bd92400d4d74c0c3922aee1526446096b"
 $Url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260718/$Asset"
 
 if (Test-Path $RuntimeDir) {
@@ -26,6 +27,11 @@ New-Item -ItemType Directory -Force -Path $ResourcesDir | Out-Null
 $Archive = Join-Path $ResourcesDir "python-runtime.tar.gz"
 Write-Host "Downloading portable CPython $PythonVersion (win_amd64)..."
 Invoke-WebRequest -Uri $Url -OutFile $Archive
+$ActualSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $Archive).Hash.ToLowerInvariant()
+if ($ActualSha256 -ne $ExpectedSha256) {
+    Remove-Item -LiteralPath $Archive -Force
+    throw "portable CPython archive checksum mismatch"
+}
 
 Write-Host "Extracting..."
 tar -xzf $Archive -C $ResourcesDir
@@ -33,7 +39,10 @@ Move-Item (Join-Path $ResourcesDir "python") $RuntimeDir
 Remove-Item $Archive
 
 $PythonExe = Join-Path $RuntimeDir "python.exe"
-$Requirements = Join-Path $ProjectRoot "requirements.txt"
+$ResolvedRequirements = Join-Path $ResourcesDir "python-runtime-requirements.lock"
+
+Write-Host "Exporting the exact runtime dependency set from uv.lock..."
+& uv export --frozen --no-dev --extra keyring --no-emit-project --no-hashes --format requirements-txt --output-file $ResolvedRequirements
 
 Write-Host "Installing real project dependencies (this takes a while — torch is large)..."
 # callosum never uses GPU acceleration anywhere (the embedding models are small enough to run fine
@@ -45,9 +54,12 @@ Write-Host "Installing real project dependencies (this takes a while — torch i
 # (nothing resolves it ahead of time) but it hard-fails Linux's linuxdeploy bundling step, which
 # insists on resolving every dependency before it'll even try to run. One index picked for all three
 # platform build scripts, not patched in only where it happened to break.
-& $PythonExe -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-& $PythonExe -m pip install --no-cache-dir -r $Requirements
-& $PythonExe -m pip install --no-cache-dir keyring  # hard dependency in the packaged build — see CLAUDE.md rule #2 / BYOK
+& $PythonExe -m pip install --no-cache-dir "torch==2.13.0" --index-url https://download.pytorch.org/whl/cpu
+# uv's frozen export contains every direct and transitive package. Installing it with --no-deps
+# prevents pip from resolving an alternate CUDA torch dependency graph; the already-installed
+# 2.13.0+cpu build satisfies the export's exact torch==2.13.0 requirement.
+& $PythonExe -m pip install --no-cache-dir --no-deps -r $ResolvedRequirements
+Remove-Item -LiteralPath $ResolvedRequirements -Force
 
 # torch vendors license copies for its internal C++ profiler's (kineto) OWN vendored build/test
 # tools — kineto -> libkineto -> dynolog -> {DCGM's Python test fixtures, prometheus-cpp -> civetweb

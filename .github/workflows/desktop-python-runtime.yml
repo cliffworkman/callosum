@@ -1,0 +1,126 @@
+name: Desktop Python runtime artifacts
+
+# The portable Python environment is an immutable, independently versioned dependency of the
+# desktop shell. This workflow publishes each input-derived runtime ID exactly once; ordinary app
+# releases reuse it and therefore do not rebuild or redistribute torch/numpy/site-packages.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  runtime:
+    name: runtime (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-x86_64
+            runner: windows-latest
+            build: windows
+          - platform: macos-aarch64
+            runner: macos-latest
+            build: macos
+          - platform: macos-x86_64
+            runner: macos-15-intel
+            build: macos
+          # Build at the supported glibc floor, not ubuntu-latest: the resulting user-space runtime
+          # targets Ubuntu 22.04+ and Debian 12+ rather than inheriting a newer runner ABI.
+          - platform: linux-x86_64
+            runner: ubuntu-22.04
+            build: linux
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve immutable runtime identity
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python app/desktop-shell/packaging/package_python_runtime.py verify
+          ID=$(python app/desktop-shell/packaging/package_python_runtime.py id --platform '${{ matrix.platform }}')
+          echo "runtime_id=$ID" >> "$GITHUB_OUTPUT"
+          if gh release view "python-runtime-$ID" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Reusing already-published immutable runtime $ID"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Install uv
+        if: steps.identity.outputs.exists != 'true'
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v7
+        if: steps.identity.outputs.exists != 'true'
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Stage Callosum source for the blocking backend smoke test
+        if: steps.identity.outputs.exists != 'true'
+        run: python app/desktop-shell/packaging/stage_source.py
+
+      - name: Build Windows runtime
+        if: steps.identity.outputs.exists != 'true' && matrix.build == 'windows'
+        shell: pwsh
+        run: app/desktop-shell/packaging/build_python_windows.ps1
+
+      - name: Build macOS runtime
+        if: steps.identity.outputs.exists != 'true' && matrix.build == 'macos'
+        shell: bash
+        run: app/desktop-shell/packaging/build_python_macos.sh
+
+      - name: Build Linux runtime
+        if: steps.identity.outputs.exists != 'true' && matrix.build == 'linux'
+        shell: bash
+        run: app/desktop-shell/packaging/build_python_linux.sh
+
+      - name: Package deterministic runtime artifact and manifest
+        if: steps.identity.outputs.exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python app/desktop-shell/packaging/package_python_runtime.py package \
+            --platform '${{ matrix.platform }}' \
+            --runtime-root app/desktop-shell/resources/python-runtime \
+            --output-dir runtime-dist
+          test -f "runtime-dist/${{ steps.identity.outputs.runtime_id }}.tar.gz"
+
+      - name: Sign trusted runtime manifest
+        if: steps.identity.outputs.exists != 'true'
+        working-directory: app/desktop-shell
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$TAURI_SIGNING_PRIVATE_KEY"
+          npm ci
+          npx tauri signer sign ../../runtime-dist/runtime-manifest.json
+
+      - name: Publish immutable runtime release
+        if: steps.identity.outputs.exists != 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ID='${{ steps.identity.outputs.runtime_id }}'
+          gh release create "python-runtime-$ID" \
+            runtime-dist/runtime-manifest.json \
+            runtime-dist/runtime-manifest.json.sig \
+            "runtime-dist/$ID.tar.gz" \
+            --target "$GITHUB_SHA" \
+            --title "Callosum Python runtime $ID" \
+            --notes "Immutable managed Python runtime for Callosum desktop. Its ID is derived from the platform, CPython build, dependency definitions, and packaging recipe. Ordinary Callosum releases reuse this artifact." \
+            --prerelease

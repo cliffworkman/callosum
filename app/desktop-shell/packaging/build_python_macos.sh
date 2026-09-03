@@ -12,10 +12,12 @@ case "$(uname -m)" in
   arm64|aarch64)
     PYTHON_ARCH="aarch64"
     DISPLAY_ARCH="arm64"
+    EXPECTED_SHA256="125587d03495bebdf30ec9e549a8469c97c0925d863ff401f24f157fd44d91d6"
     ;;
   x86_64)
     PYTHON_ARCH="x86_64"
     DISPLAY_ARCH="x86_64"
+    EXPECTED_SHA256="870df60775609536b7c3b82ad5c10c5ffbf822e6819bb86d2218e43c172a5f32"
     ;;
   *)
     echo "Unsupported macOS architecture: $(uname -m)" >&2
@@ -30,6 +32,7 @@ mkdir -p "$RESOURCES_DIR"
 
 echo "Downloading portable CPython (macOS ${DISPLAY_ARCH})..."
 curl -L -o "$RESOURCES_DIR/python-runtime.tar.gz" "$URL"
+echo "${EXPECTED_SHA256}  $RESOURCES_DIR/python-runtime.tar.gz" | shasum -a 256 -c -
 
 echo "Extracting..."
 tar -xzf "$RESOURCES_DIR/python-runtime.tar.gz" -C "$RESOURCES_DIR"
@@ -37,6 +40,11 @@ mv "$RESOURCES_DIR/python" "$RUNTIME_DIR"
 rm "$RESOURCES_DIR/python-runtime.tar.gz"
 
 PYTHON_BIN="$RUNTIME_DIR/bin/python3"
+RESOLVED_REQUIREMENTS="$RESOURCES_DIR/python-runtime-requirements.lock"
+
+echo "Exporting the exact runtime dependency set from uv.lock..."
+uv export --frozen --no-dev --extra keyring --no-emit-project --no-hashes \
+  --format requirements-txt --output-file "$RESOLVED_REQUIREMENTS"
 
 echo "Installing real project dependencies (torch is large)..."
 # See build_python_windows.ps1's matching comment: callosum never uses GPU acceleration, so the
@@ -49,10 +57,12 @@ if [[ "$PYTHON_ARCH" == "x86_64" ]]; then
   "$PYTHON_BIN" -m pip install --no-cache-dir \
     "torch==2.2.2" --index-url https://download.pytorch.org/whl/cpu
 else
-  "$PYTHON_BIN" -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+  "$PYTHON_BIN" -m pip install --no-cache-dir "torch==2.13.0" --index-url https://download.pytorch.org/whl/cpu
 fi
-"$PYTHON_BIN" -m pip install --no-cache-dir -r "$PROJECT_ROOT/requirements.txt"
-"$PYTHON_BIN" -m pip install --no-cache-dir keyring  # hard dependency in the packaged build
+# The frozen export contains every direct/transitive dependency. --no-deps preserves the selected
+# CPU-only torch wheel rather than letting pip resolve a second platform-specific graph.
+"$PYTHON_BIN" -m pip install --no-cache-dir --no-deps -r "$RESOLVED_REQUIREMENTS"
+rm "$RESOLVED_REQUIREMENTS"
 
 # See build_python_windows.ps1's matching comment: torch vendors ~100 deeply-nested license copies
 # for its internal C++ profiler's (kineto) own vendored build/test tools — pure attribution text,
