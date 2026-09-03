@@ -121,24 +121,51 @@
     users: the Linux job emitted `##[warning]backend never reported healthy within the wait budget` and never
     printed `healthy on port …`. Windows in the same run printed `healthy on port 57679 after 12s`. So the
     failure is reproducible in CI today without needing a local Debian box to start the investigation.
-  - **First diagnostic to pull:** the job already uploads `/tmp/running-window.png` as the
-    `callosum-linux-verification` artifact on every run — the screenshot from that release run should show
-    whether it dies at the splash, a blank webview, or never paints at all. Then check whether `callosum-shell`
-    even spawns its `uvicorn app.backend.api.app:app` child (the poll greps `ps aux` for exactly that argv), which
-    separates "Tauri shell won't start" from "shell starts but the bundled portable-CPython backend can't".
-  - **Likely suspects, unranked pending that evidence:** the bundled portable CPython under `bundle.resources`
-    not being executable / not resolving its interpreter after `dpkg` relocation; a missing runtime `.deb`
-    dependency that the build host happened to have; or an `AppImage`-vs-`.deb` path assumption. Linux is
-    `.deb`-only by an inc-395 decision (its AppImage bundler fought the embedded ML stack), so there is no
-    second Linux artifact to fall back on.
-  - **Fix the gate too, not just the bug:** make the health assertion blocking on Linux, otherwise the next
-    regression ships the same silent way. Worth deciding at the same time whether to make it blocking on all
-    three platforms — in the same release run the macOS job *also* warned, though real macOS users are running
-    the app fine, so that one looks like a runner/timing artifact rather than a user-facing break and should be
-    confirmed before being treated as the same defect.
+  - **DIAGNOSED 2026-09-03 against the real Debian 12 box (juno), not by inspection. Root cause is proven,
+    single, and unambiguous — this item is now a scoped fix, not an investigation.** Full plan:
+    `.claude/backups/plans/2026-09-03_debian-deb-glibc-fix.md`.
+
+    ```
+    /usr/bin/callosum-shell: /lib/x86_64-linux-gnu/libc.so.6:
+        version `GLIBC_2.39' not found (required by /usr/bin/callosum-shell)
+    ```
+
+    Debian 12 ships **glibc 2.36**; the shipped binary demands **2.39**. glibc is forward- but not
+    backward-compatible, so the dynamic loader refuses to start the process — which is why juno has no
+    `~/.local/share/com.callosum.desktop/` at all: not one instruction of `main()` ever ran. Exactly two
+    symbols force it, both weak references from Rust std's process spawning: `pidfd_spawnp` and
+    `pidfd_getpid`. The cause is environmental, not code — `desktop-shell-linux.yml:48` says
+    `runs-on: ubuntu-latest`, which GitHub has since rolled to **Ubuntu 24.04 (glibc 2.39)**.
+  - **All three previously-suspected causes are DISPROVEN on the real box** (recorded so nobody re-runs them):
+    the bundled interpreter works (`/usr/lib/Callosum/python-runtime/bin/python3 --version` → `Python
+    3.11.15`, exec bit intact); the whole Python/ML stack imports cleanly (`import app.backend.api.app`
+    exits 0 — torch, PyMuPDF, sqlite-vec all fine); resources resolve correctly to `/usr/lib/Callosum/…`;
+    and `ldd` reports exactly **one** missing entry — libc — so the auto-emitted
+    `Depends: libwebkit2gtk-4.1-0, libgtk-3-0` is adequate.
+  - **Second, independent bug found while diagnosing:** `resolved_paths` hard-fails at `backend.rs:98-102`
+    when `document_dir()` returns `UnknownPath`, which on Linux happens whenever `XDG_DOCUMENTS_DIR` is unset
+    and `~/.config/user-dirs.dirs` is absent (a bare Xvfb runner, or a minimal/headless Debian). It returns
+    via `?` **before** any spawn, so the splash hangs on "Starting…" forever — almost certainly what CI hits
+    on Ubuntu 24.04, where the binary *does* load yet `ps aux` never once matched the uvicorn child.
+    `library_dir` is only `docs_dir.join("callosum-library")` — a default location, not something that must
+    exist — so this should fall back rather than abort. (Juno has `user-dirs.dirs`, so Cliff will not hit it;
+    a user on a minimal install would, and it looks identical to the glibc bug from the outside.)
+  - **Agreed fix (Cliff's calls, 2026-09-03):** support **Debian 12+ and Ubuntu 22.04+** → glibc ceiling
+    **2.35**. Build in a pinned **`ubuntu:22.04` container** on `ubuntu-latest` — this is
+    [Tauri's own documented rule](https://v2.tauri.app/distribute/debian/) ("build using the oldest base
+    system you intend to support"), and 22.04 provides `libwebkit2gtk-4.1-dev` from standard repos (verified).
+    A container rather than the `ubuntu-22.04` runner label, which GitHub is retiring. Add a **one-command
+    regression guard** — `objdump -T … | grep -oE 'GLIBC_[0-9]+\.[0-9]+' | sort -uV | tail -1` must be
+    ≤ `2.35` — which catches this exact class without needing a Debian box. Make the Linux health assertion
+    blocking (`::error::` + `exit 1`) and dump `backend.log` + the shell's stderr on failure; **leave
+    macOS/Windows warning-only for now** — the macOS warning is likely a runner artifact since real macOS
+    users are fine, and turning it blocking on a false signal would redden CI.
   - Note Linux has no in-app auto-updater (needs AppImage; it gets the "Open release page" fallback instead), so
     a fixed Linux build reaches existing users only if they re-download — worth saying plainly in the release
     notes when this is fixed.
+  - **Acceptance test is available:** juno (Debian 12, `10.0.0.123`) — see
+    `_networking/SERVER.md` + `juno.ps1`. `pscp` the fixed `.deb` over, `dpkg -i`, confirm `ldd` is clean and
+    the app actually starts. Nothing short of that settles it.
 
 ---
 
