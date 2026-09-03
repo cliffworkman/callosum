@@ -17,7 +17,6 @@ use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
-#[cfg(windows)]
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -257,27 +256,43 @@ pub async fn ensure_runtime(app: AppHandle) -> Result<PathBuf, RuntimeError> {
 }
 
 fn provision_runtime(app: &AppHandle) -> Result<PathBuf, RuntimeError> {
-    let trusted = trusted_platform()?;
     let local_data = app.path().app_local_data_dir().map_err(|error| {
         RuntimeError::new(
             "PYTHON_RUNTIME_DATA_DIR_UNAVAILABLE",
             format!("Callosum could not resolve its local data directory: {error}"),
         )
     })?;
-    let root = runtime_root(&local_data);
+    let emit = |stage: &str, message: &str, done: Option<u64>, total: Option<u64>| {
+        emit_progress(app, stage, message, done, total);
+    };
+    provision_into(&local_data, &emit, Some(app))
+}
+
+/// The whole provisioning chain, addressed by a plain directory rather than a live Tauri app.
+///
+/// Split out so a real end-to-end test can drive download → checksum → extraction → smoke test →
+/// atomic activation against the actually-published artifact. That path had no coverage at all, and
+/// it is the one that decides whether a fresh install has a Python interpreter, so "it compiles" is
+/// nowhere near sufficient assurance.
+fn provision_into(
+    local_data: &Path,
+    progress: ProgressSink,
+    app: Option<&AppHandle>,
+) -> Result<PathBuf, RuntimeError> {
+    let trusted = trusted_platform()?;
+    let root = runtime_root(local_data);
     std::fs::create_dir_all(&root).map_err(|error| {
         RuntimeError::new(
             "PYTHON_RUNTIME_DIRECTORY_FAILED",
             format!("Callosum could not create its runtime directory: {error}"),
         )
     })?;
-    let final_dir = final_runtime_dir(&local_data, &trusted);
+    let final_dir = final_runtime_dir(local_data, &trusted);
     if receipt_is_valid(&final_dir, &trusted) {
         return Ok(final_dir.join(&trusted.python_relative_path));
     }
 
-    emit_progress(
-        app,
+    progress(
         "runtime_manifest",
         "Checking the managed Python runtime…",
         None,
@@ -299,32 +314,33 @@ fn provision_runtime(app: &AppHandle) -> Result<PathBuf, RuntimeError> {
     validate_manifest(&manifest, &trusted, &tag)?;
     let manifest_sha256 = sha256_bytes(&manifest_bytes);
 
-    #[cfg(windows)]
-    if let Some(path) = try_migrate_legacy(
-        app,
-        &root,
-        &final_dir,
-        &trusted,
-        &manifest,
-        &manifest_sha256,
-    )? {
-        return Ok(path);
+    if let Some(app) = app {
+        if let Some(path) = try_migrate_legacy(
+            app,
+            progress,
+            &root,
+            &final_dir,
+            &trusted,
+            &manifest,
+            &manifest_sha256,
+        )? {
+            return Ok(path);
+        }
     }
 
     let archive = root.join(format!(".{}.tar.gz.partial", trusted.runtime_id));
     if archive.exists() {
         let _ = std::fs::remove_file(&archive);
     }
-    emit_progress(
-        app,
+    progress(
         "runtime_download",
         "Downloading Callosum's one-time Python runtime…",
         Some(0),
         Some(manifest.archive_bytes),
     );
-    download_archive(app, &client, &manifest, &archive)?;
+    download_archive(progress, &client, &manifest, &archive)?;
     let result = install_archive(
-        app,
+        progress,
         &archive,
         &root,
         &final_dir,
@@ -474,8 +490,16 @@ fn validate_manifest(
     Ok(())
 }
 
+/// Where provisioning reports progress.
+///
+/// Deliberately not an `AppHandle`: the download → checksum → extract → smoke-test → activate chain
+/// is the part that must actually be proven end to end, and tying it to a live Tauri app would make
+/// that untestable. `provision_runtime` passes a sink that emits to the splash window; a test passes
+/// one that records. Arguments are `(stage, message, done, total)`.
+type ProgressSink<'a> = &'a dyn Fn(&str, &str, Option<u64>, Option<u64>);
+
 fn download_archive(
-    app: &AppHandle,
+    progress: ProgressSink,
     client: &Client,
     manifest: &RuntimeManifest,
     destination: &Path,
@@ -530,8 +554,7 @@ fn download_archive(
                 format!("Callosum could not save the runtime download: {error}"),
             )
         })?;
-        emit_progress(
-            app,
+        progress(
             "runtime_download",
             "Downloading Callosum's one-time Python runtime…",
             Some(total),
@@ -556,7 +579,7 @@ fn download_archive(
 }
 
 fn install_archive(
-    app: &AppHandle,
+    progress: ProgressSink,
     archive: &Path,
     root: &Path,
     final_dir: &Path,
@@ -564,8 +587,7 @@ fn install_archive(
     manifest: &RuntimeManifest,
     manifest_sha256: &str,
 ) -> Result<PathBuf, RuntimeError> {
-    emit_progress(
-        app,
+    progress(
         "runtime_extract",
         "Verifying and preparing Callosum's Python runtime…",
         None,
@@ -601,7 +623,7 @@ fn install_archive(
         let _ = std::fs::remove_dir_all(&staging);
     }
     install?;
-    emit_progress(app, "runtime_ready", "Python runtime ready.", None, None);
+    progress("runtime_ready", "Python runtime ready.", None, None);
     Ok(final_dir.join(&trusted.python_relative_path))
 }
 
@@ -909,9 +931,18 @@ fn write_receipt(
         .map_err(|_| invalid_archive())
 }
 
-#[cfg(windows)]
+/// Reuse the runtime already inside an older installation instead of re-downloading it.
+///
+/// Not Windows-only: the point of this work is that updating should not mean re-fetching an
+/// unchanged ~1.2 GB environment, and a macOS or Linux user upgrading from a bundled install has
+/// that runtime sitting on disk exactly like a Windows user does. The logic is platform-agnostic —
+/// resolve the legacy resource directory, require the tree digest to equal the signed manifest
+/// exactly, then copy, smoke-test and activate. Anything short of an exact match returns `Ok(None)`
+/// and provisioning falls through to the ordinary download, so being wrong here costs bandwidth,
+/// never correctness.
 fn try_migrate_legacy(
     app: &AppHandle,
+    progress: ProgressSink,
     root: &Path,
     final_dir: &Path,
     trusted: &TrustedPlatform,
@@ -925,8 +956,7 @@ fn try_migrate_legacy(
         Ok(path) if path.is_dir() => path,
         _ => return Ok(None),
     };
-    emit_progress(
-        app,
+    progress(
         "runtime_migration",
         "Reusing the Python runtime from your current Callosum installation…",
         None,
@@ -1227,5 +1257,53 @@ mod tests {
             "the published runtime manifest must verify against the built-in key -- if this fails, \
              first-run provisioning is broken for every user",
         );
+    }
+
+    /// The whole first-run path, against the artifact users will actually receive.
+    ///
+    /// Ignored because it downloads ~365 MB and unpacks ~1.2 GB; run it deliberately with
+    /// `cargo test -- --ignored provisions_the_published_runtime`. It is the only thing that proves
+    /// a fresh install ends up with a working interpreter, which since `python-runtime` left
+    /// `bundle.resources` is the difference between a working app and a dead one.
+    #[test]
+    #[ignore = "downloads and unpacks the real published Python runtime (~365 MB / ~1.2 GB)"]
+    fn provisions_the_published_runtime_end_to_end() {
+        let local_data = std::env::temp_dir().join(format!(
+            "callosum-runtime-e2e-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+        ));
+        std::fs::create_dir_all(&local_data).unwrap();
+
+        let stages = std::sync::Mutex::new(Vec::new());
+        let record = |stage: &str, _message: &str, _done: Option<u64>, _total: Option<u64>| {
+            let mut seen = stages.lock().unwrap();
+            if seen.last().map(String::as_str) != Some(stage) {
+                seen.push(stage.to_string());
+            }
+        };
+
+        let python = provision_into(&local_data, &record, None).expect("provisioning must succeed");
+
+        assert!(python.is_file(), "interpreter missing at {python:?}");
+        // The receipt is what makes a second launch skip all of this; without it every start would
+        // re-provision, which is the cost this whole architecture exists to remove.
+        let trusted = trusted_platform().unwrap();
+        assert!(receipt_is_valid(
+            &final_runtime_dir(&local_data, &trusted),
+            &trusted
+        ));
+        // Idempotence: provisioning again must reuse the installed runtime, not redownload it.
+        let again = provision_into(&local_data, &record, None).unwrap();
+        assert_eq!(python, again);
+
+        let seen = stages.lock().unwrap().clone();
+        assert!(seen.contains(&"runtime_download".to_string()), "{seen:?}");
+        assert!(seen.contains(&"runtime_ready".to_string()), "{seen:?}");
+
+        let _ = std::fs::remove_dir_all(&local_data);
     }
 }
