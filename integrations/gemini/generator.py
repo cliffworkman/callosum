@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -184,7 +185,7 @@ def _parse_response_text(text: str) -> list[CandidateSummarySentence]:
     return sentences
 
 
-def first_embedded_json(text: str, *, want: type) -> object | None:
+def first_embedded_json(text: str, *, want: type, accept: Callable[[object], bool] | None = None) -> object | None:
     """The first balanced JSON value of type ``want`` (dict or list) embedded anywhere in ``text``.
 
     A small local model -- and occasionally a cloud one -- returns the requested JSON wrapped in prose: a
@@ -193,6 +194,11 @@ def first_embedded_json(text: str, *, want: type) -> object | None:
     local fallback. Scanning for the first decodable value of the expected shape recovers the answer the
     model actually gave. Callers still validate, cap, and dedupe every field afterwards, so this widens what
     can be READ without widening what is TRUSTED.
+
+    ``accept`` narrows *which* embedded value counts. Without it the FIRST decodable value wins, so a model
+    that emits a schema echo, an empty ``{}``, or a scratch object inside a reasoning block before its real
+    answer defeats the recovery it was written for. Callers that know the shape they need (e.g. "a dict with
+    a non-empty label") pass a predicate and keep scanning past the decoys.
     """
     opener = "{" if want is dict else "["
     decoder = json.JSONDecoder()
@@ -203,7 +209,7 @@ def first_embedded_json(text: str, *, want: type) -> object | None:
             payload, _ = decoder.raw_decode(text, index)
         except ValueError:
             continue
-        if isinstance(payload, want):
+        if isinstance(payload, want) and (accept is None or accept(payload)):
             return payload
     return None
 

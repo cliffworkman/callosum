@@ -49,6 +49,9 @@ class SettingsStatus(BaseModel):
     api_key_set: bool  # is a key available for the ACTIVE provider (UI store OR env)? (local needs none)
     api_key_source: str | None  # "ui" | "env" | None — NEVER the key value itself
     generation_provider_available: bool = False
+    # Why generation is unavailable, in one sentence — None when it IS available. Silence about the cause is
+    # what let a dev-server "Local AI not reachable" masquerade as an axis-labeling model regression (inc 568).
+    generation_provider_detail: str | None = None
     provider_evidence: dict[str, str] = {}
     data_egress_enabled: bool
     egress_source: str  # "ui" (stored toggle) | "env" (CALLOSUM_ALLOW_DATA_EGRESS fallback)
@@ -121,22 +124,33 @@ def _status() -> SettingsStatus:
     else:
         egress = os.getenv("CALLOSUM_ALLOW_DATA_EGRESS", "").strip().lower() in {"1", "true", "yes"}
         egress_source = "env"
+    # `provider_detail` explains an unavailable provider; it stays None when generation IS available.
+    provider_detail: str | None = None
     if provider == "managed_local":
-        try:
-            from app.backend.llm.managed_local import load_preview_target
+        from app.backend.llm.managed_local import ManagedLocalTargetError, load_preview_target, unavailable_reason
 
+        try:
             load_preview_target()
             provider_available = True
-        except Exception:  # noqa: BLE001 - status is deliberately fail-soft; resolution remains fail-closed
+        except ManagedLocalTargetError as exc:
             provider_available = False
+            provider_detail = unavailable_reason(exc.code)
+        except Exception as exc:  # noqa: BLE001 - status is deliberately fail-soft; resolution remains fail-closed
+            provider_available = False
+            provider_detail = f"Local AI is selected, but it could not be resolved ({type(exc).__name__})."
     else:
         record = providers_store.get_provider(provider) or {}
         config_view = type("ProviderConfig", (), record)()
-        provider_available = (
-            (ui_key or env_key) and egress
-            if requires_egress(config_view)
-            else bool(record.get("base_url") and providers_store.active_model())
-        )
+        if requires_egress(config_view):
+            provider_available = (ui_key or env_key) and egress
+            if not (ui_key or env_key):
+                provider_detail = f"No API key is set for the '{provider}' provider. Add one in Settings and Save."
+            elif not egress:
+                provider_detail = f"'{provider}' needs data-egress consent, which is currently off."
+        else:
+            provider_available = bool(record.get("base_url") and providers_store.active_model())
+            if not provider_available:
+                provider_detail = f"The '{provider}' provider has no endpoint and model configured."
     stored_help = stored.get("help_assistant_enabled")
     if isinstance(stored_help, bool):
         help_enabled, help_source = stored_help, "ui"
@@ -155,6 +169,7 @@ def _status() -> SettingsStatus:
         api_key_set=ui_key or env_key,
         api_key_source="ui" if ui_key else ("env" if env_key else None),
         generation_provider_available=provider_available,
+        generation_provider_detail=provider_detail,
         provider_evidence={
             "synthesis_overview": "evaluated" if provider in {"managed_local", "gemini"} else "testing",
             "other_generative_capabilities": "testing",

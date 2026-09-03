@@ -898,3 +898,93 @@ def test_axis_label_only_falls_back_to_label_for_embedding(temp_db_url: str) -> 
 
     papers = _papers_by_id(client.get(f"/axes/{axis_id}/clusters").json())
     assert papers[ids["high"]]["status"] == "assigned"  # label fallback embedded "anomalous"
+
+
+# ── inc 568: a fallback to keyword labels must SAY SO (PRINCIPLES #6 "silence is not a certificate") ──
+
+
+def test_suggest_axes_names_the_reason_when_local_ai_is_unreachable(temp_db_url: str, monkeypatch) -> None:
+    """The reported regression, reproduced at its real cause.
+
+    With Local AI selected but the backend started outside the Tauri shell (no CALLOSUM_APP_DATA_DIR),
+    `load_preview_target()` raises `app_data_missing`, the router falls back to keyword labels, and the job
+    still reports "done". Before inc 568 that fallback was INDISTINGUISHABLE from a working run: identical
+    response shape, no detail, no log. The user reasonably read it as a model regression.
+    """
+    from app.backend import app_settings
+
+    _seed_cluster_papers(temp_db_url)
+    app_settings.set_provider("managed_local")
+    monkeypatch.delenv("CALLOSUM_APP_DATA_DIR", raising=False)
+    client = TestClient(_axes_app(temp_db_url, model=ClusterFakeModel()))
+
+    result = _run_suggest(client)
+
+    assert result["status"] == "done"  # still graceful — keyword labels remain a usable result
+    assert result["suggestions"]
+    assert all(s["label_source"] == "keywords" for s in result["suggestions"])
+    notice = result["label_notice"]
+    assert notice and "app_data_missing" in notice  # the exact code a bug report needs
+    assert "desktop app" in notice  # ...and what the user can actually act on
+
+
+def test_suggest_axes_reports_ai_labels_as_ai(temp_db_url: str, monkeypatch) -> None:
+    """The positive control: when polish genuinely happens there is no notice and the source says so.
+    Without this, a test asserting only the fallback could pass on a permanently-broken labeler."""
+    _seed_cluster_papers(temp_db_url)
+    monkeypatch.setenv("CALLOSUM_ALLOW_DATA_EGRESS", "1")
+    client = TestClient(_axes_app(temp_db_url, model=ClusterFakeModel(), cluster_labeler=FakeClusterLabeler()))
+
+    result = _run_suggest(client)
+
+    assert result["label_notice"] is None
+    assert result["suggestions"] and all(s["label_source"] == "ai" for s in result["suggestions"])
+    assert all(s["label"] == "Gemini Label" for s in result["suggestions"])
+
+
+def test_suggest_axes_reports_a_per_cluster_labeler_failure(temp_db_url: str, monkeypatch) -> None:
+    """A labeler that raises per cluster (egress off, no key, 429, timeout) also stops being silent."""
+    _seed_cluster_papers(temp_db_url)
+    monkeypatch.setenv("CALLOSUM_ALLOW_DATA_EGRESS", "1")
+    client = TestClient(_axes_app(temp_db_url, model=ClusterFakeModel(), cluster_labeler=RaisingClusterLabeler()))
+
+    result = _run_suggest(client)
+
+    assert result["status"] == "done"
+    assert all(s["label_source"] == "keywords" for s in result["suggestions"])
+    assert "DataEgressDisabledError" in (result["label_notice"] or "")
+
+
+def test_suggest_axes_counts_an_empty_label_as_a_fallback(temp_db_url: str, monkeypatch) -> None:
+    """The subtle path: a SUCCESSFUL response carrying no usable label never raises, so it never entered
+    the old `except`. It is still a fallback, and must be reported as one rather than passing as polish."""
+
+    @dataclass(frozen=True)
+    class BlankLabeler:
+        def label(self, *, titles, terms):
+            return {"label": "   ", "terms": ["ignored"]}
+
+    _seed_cluster_papers(temp_db_url)
+    monkeypatch.setenv("CALLOSUM_ALLOW_DATA_EGRESS", "1")
+    client = TestClient(_axes_app(temp_db_url, model=ClusterFakeModel(), cluster_labeler=BlankLabeler()))
+
+    result = _run_suggest(client)
+
+    assert all(s["label_source"] == "keywords" for s in result["suggestions"])
+    assert "no usable label" in (result["label_notice"] or "")
+
+
+def test_parse_label_skips_decoy_objects_before_the_real_answer() -> None:
+    """Residual hole in the inc-557 recovery: `first_embedded_json` took the FIRST decodable dict, so a
+    schema echo or a bare `{}` emitted before the answer defeated the recovery it was written for."""
+    from integrations.gemini.axis_cluster_labeler import _parse_label
+
+    decoyed = [
+        '{"type": "object", "properties": {}}\n{"label": "Traumatic Brain Injury", "terms": ["tbi"]}',
+        '<think>{}</think>{"label": "Traumatic Brain Injury", "terms": ["tbi"]}',
+        'Schema: {"required": ["label"]}. Answer: {"label": "Traumatic Brain Injury", "terms": ["tbi"]}',
+    ]
+    for payload in decoyed:
+        assert _parse_label(payload)["label"] == "Traumatic Brain Injury", payload
+
+    assert _parse_label('{"type": "object"} and nothing else') == {}  # still fails closed

@@ -765,6 +765,12 @@
     border-radius: 6px; padding: 6px 9px; margin: 4px 0; cursor: pointer; line-height: 1.4;
   }
   .axis-hint { font-size: 11.5px; color: var(--ink-3); padding: 4px 2px; line-height: 1.45; }
+  /* Labels shown without AI polish — an unresolved/uncertain STATUS, so amber (--flag), never --danger.
+     Same recipe as .axis-err above, minus the click affordance: the suggestions below are still usable. */
+  .axis-label-notice {
+    font-size: 11.5px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line);
+    border-radius: 6px; padding: 6px 9px; margin: 4px 0; line-height: 1.4;
+  }
   .axis-paper {
     display: flex; align-items: center; gap: 6px; padding: 4px 4px; border-radius: var(--radius-sm); cursor: default;
   }

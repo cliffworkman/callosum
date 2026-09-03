@@ -9,6 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-03 — Increment 568: an unpolished axis label must say so
+- **Files:** `app/backend/llm/managed_local.py`, `app/backend/api/routers/{settings,axes,axes_models}.py`,
+  `app/backend/clustering/axis_suggestion.py`, `integrations/gemini/{generator,axis_cluster_labeler}.py`,
+  `app/frontend/js/17_axes_suggest.jsx`, `app/frontend/styles.css`, `tests/test_{axes,settings}.py`,
+  `.claude/qa-routes/route_{15_axes,35_settings}.md`, `.claude/docs/INCREMENT-BACKLOG.md` (#72)
+- **What:** axis-suggest now reports *why* labels were not AI-polished (`label_source` per suggestion,
+  `label_notice` per job, plus the logging both files entirely lacked), and `GET /settings` carries a
+  `generation_provider_detail` sentence whenever generation is unavailable. Also closed a residual hole in
+  inc 557's JSON recovery (`first_embedded_json` took the *first* dict, so a schema echo or bare `{}` before
+  the real answer defeated it — it now accepts a predicate).
+- **Why:** Cliff reported axis titles reverting to keyword labels across a restart. The cause was not the
+  model: the dev PowerShell backend has no `CALLOSUM_APP_DATA_DIR` (only `backend.rs:202` sets it), so
+  Local AI resolution raised `app_data_missing` and axis-suggest — the **only** path in the backend that
+  swallows that error instead of raising a 422 — degraded silently. A live probe of the running model proved
+  the label pipeline itself was healthy under all three request shapes. The fallback was right; the silence
+  was the bug (PRINCIPLES #6).
+- **Revert:** `git revert` the inc-568 commit; all schema fields are additive and defaulted, so no migration
+  or client change is involved.
+- **Help docs:** refreshed the `suggested-axes` section only (its "Gemini labeling … local fallback" line
+  predated Local AI and promised a fallback without saying the user would be told). The
+  `HELP-DOCS-SYNCED` marker is deliberately **not** moved — incs 557–567 remain unreviewed for help drift,
+  and advancing it for a one-section edit would hide that.
+
 ## 2026-09-03 — Increment 567: native Intel macOS desktop and Local AI
 - Adds a native `macos-15-intel` build alongside Apple Silicon, including architecture-matched portable Python,
   the exact pinned llama.cpp b10516 x64 bundle, and the full live Local AI/provider/cleanup acceptance test.

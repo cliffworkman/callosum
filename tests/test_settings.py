@@ -442,3 +442,47 @@ def test_plugins_disable_env_hatch_forces_off(temp_db_url: str, monkeypatch: pyt
     assert client.get("/settings").json()["plugins_enabled"] is True
     monkeypatch.setenv("CALLOSUM_DISABLE_PLUGINS", "1")
     assert client.get("/settings").json()["plugins_enabled"] is False
+
+
+# ── inc 568: an unavailable generation provider must say WHY, not just report a bare False ──
+
+
+def test_settings_explains_an_unreachable_local_ai(temp_db_url: str, monkeypatch) -> None:
+    """`generation_provider_available` was already correct here; the reason was thrown away at the
+    `except Exception`. Five frontend surfaces gate AI features on this flag, and none of them could
+    tell the user that the cause was "this backend wasn't started by the desktop app"."""
+    app_settings.set_provider("managed_local")
+    monkeypatch.delenv("CALLOSUM_APP_DATA_DIR", raising=False)
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    status = client.get("/settings").json()
+
+    assert status["generation_provider_available"] is False
+    detail = status["generation_provider_detail"]
+    assert detail and "app_data_missing" in detail and "desktop app" in detail
+
+
+def test_settings_explains_a_cloud_provider_without_a_key(temp_db_url: str, monkeypatch) -> None:
+    """The same honesty for the ordinary cloud case — naming the missing key, not just refusing."""
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    app_settings.set_provider("gemini")
+    app_settings.set_provider_key("gemini", "")
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    status = client.get("/settings").json()
+
+    assert status["generation_provider_available"] is False
+    assert "API key" in (status["generation_provider_detail"] or "")
+
+
+def test_settings_reports_no_detail_when_generation_is_available(temp_db_url: str, monkeypatch) -> None:
+    """Positive control: the field is None when nothing is wrong, so it can never read as a standing warning."""
+    monkeypatch.setenv("CALLOSUM_ALLOW_DATA_EGRESS", "1")
+    app_settings.set_provider("gemini")
+    app_settings.set_provider_key("gemini", "sk-test-key")
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    status = client.get("/settings").json()
+
+    assert status["generation_provider_available"] is True
+    assert status["generation_provider_detail"] is None

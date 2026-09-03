@@ -116,6 +116,9 @@ class SuggestedAxisResponse(BaseModel):
     paper_ids: list[int]
     paper_titles: list[str]
     size: int
+    # "keywords" = this label came from the local c-TF-IDF pass; "ai" = a provider polished it. Without this a
+    # polished label and an unpolished one are byte-identical on the wire (inc 568).
+    label_source: Literal["ai", "keywords"] = "keywords"
 
 
 class AxisSuggestJobResponse(BaseModel):
@@ -123,3 +126,6 @@ class AxisSuggestJobResponse(BaseModel):
     status: Literal["pending", "running", "done", "error"]
     detail: str | None = None
     suggestions: list[SuggestedAxisResponse] | None = None
+    # Set when some/all labels were NOT polished, naming the cause. The job still succeeds — keyword labels are
+    # a usable result — but the user is told, rather than left to read the fallback as a model regression.
+    label_notice: str | None = None

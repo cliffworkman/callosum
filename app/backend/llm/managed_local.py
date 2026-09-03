@@ -87,6 +87,33 @@ class ManagedLocalTargetError(ValueError):
         self.code = code
 
 
+# One honest sentence per failure class, so every surface names the SAME cause rather than inventing
+# its own wording (or, as axis-suggest used to, saying nothing at all). The code is always included:
+# it is what a bug report needs, and it keeps the sentence checkable against the source.
+_UNAVAILABLE_REASONS = {
+    "app_data_missing": (
+        "Local AI is selected, but this backend was not started by the Callosum desktop app, so it "
+        "cannot reach the local model"
+    ),
+    "descriptor_missing": "Local AI is selected, but no developer descriptor path is configured",
+    "descriptor_unreadable": "Local AI is selected, but the local model is not currently running",
+}
+_MALFORMED_DESCRIPTOR_CODES = {"descriptor_location", "descriptor_symlink", "descriptor_size", "descriptor_shape"}
+
+
+def unavailable_reason(code: str) -> str:
+    """Explain a `ManagedLocalTargetError.code` in one sentence that names the code."""
+    if code in _UNAVAILABLE_REASONS:
+        sentence = _UNAVAILABLE_REASONS[code]
+    elif code in _MALFORMED_DESCRIPTOR_CODES:
+        sentence = "Local AI is selected, but its descriptor file is malformed"
+    elif code.startswith("credential_"):
+        sentence = "Local AI is selected, but its access credential could not be read"
+    else:
+        sentence = "Local AI is selected, but its descriptor does not match the expected contract"
+    return f"{sentence} ({code})."
+
+
 @dataclass(frozen=True)
 class ManagedExecutionState:
     backend: str

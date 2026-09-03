@@ -9,6 +9,7 @@ works offline. Nothing is persisted — suggestions are ephemeral; the user crea
 
 from __future__ import annotations
 
+import logging
 import math
 from collections import Counter
 from dataclasses import dataclass, replace
@@ -21,6 +22,8 @@ from app.backend.embeddings.models import EmbeddingModel, normalize_text, strip_
 from app.backend.embeddings.pipeline import paper_embedding_text
 from app.backend.metadata.abstract_display import abstract_plain_text
 from app.backend.persistence.schema import axes, papers
+
+_LOG = logging.getLogger(__name__)
 
 MIN_PAPERS = 6  # below this, clustering isn't meaningful → suggest nothing
 TARGET_CLUSTER_SIZE = 5  # aim for ~this many papers per cluster
@@ -48,6 +51,19 @@ class SuggestedAxis:
     paper_ids: list[int]
     paper_titles: list[str]
     size: int
+    # Where THIS suggestion's label came from: "keywords" = the local c-TF-IDF label; "ai" = polished by the
+    # configured provider. Defaulted, so every construction site outside `apply_labels` stays unchanged.
+    label_source: str = "keywords"
+
+
+@dataclass(frozen=True)
+class LabelPolish:
+    """What `apply_labels` actually managed to do — so a caller can say so instead of staying silent."""
+
+    suggestions: list[SuggestedAxis]
+    polished: int = 0
+    fell_back: int = 0
+    reason: str | None = None  # the FIRST failure's cause; None when nothing fell back
 
 
 def suggest_axes(
@@ -114,23 +130,43 @@ def suggest_axes(
     ]
 
 
-def apply_labels(suggestions: list[SuggestedAxis], *, labeler) -> list[SuggestedAxis]:
-    """Optionally polish labels/terms with an injected Gemini labeler. Per cluster: on ANY failure —
-    including egress-off (`DataEgressDisabledError`, raised before any genai call) — keep the local
-    label. Never raises, so suggestion always returns (offline → all local)."""
-    if not suggestions or labeler is None:
-        return suggestions
+def apply_labels(suggestions: list[SuggestedAxis], *, labeler, unavailable: str | None = None) -> LabelPolish:
+    """Optionally polish labels/terms with an injected labeler. Per cluster: on ANY failure — including
+    egress-off (`DataEgressDisabledError`, raised before any genai call) — keep the local label. Never
+    raises, so suggestion always returns (offline → all local).
+
+    It also never stays SILENT any more (inc 568): the returned `LabelPolish` records how many labels
+    were polished, how many fell back, and the first cause — so the caller can tell the user that these
+    are keyword labels rather than letting them read as a model regression. `unavailable` is the
+    caller's already-known reason for `labeler=None` (e.g. Local AI not reachable)."""
+    if not suggestions:
+        return LabelPolish(suggestions=suggestions)
+    if labeler is None:
+        return LabelPolish(suggestions=suggestions, fell_back=len(suggestions), reason=unavailable or "unavailable")
     out: list[SuggestedAxis] = []
+    polished = 0
+    reason: str | None = None
     for suggestion in suggestions:
         try:
             result = labeler.label(titles=suggestion.paper_titles, terms=suggestion.terms)
             label = str((result or {}).get("label") or "").strip()
             terms = (result or {}).get("terms")
             cleaned = [str(t).strip() for t in terms if str(t).strip()] if isinstance(terms, list) else None
-            out.append(replace(suggestion, label=label or suggestion.label, terms=cleaned or suggestion.terms))
-        except Exception:
+            if not label:
+                # A SUCCESSFUL response with no usable label never reaches `except`, but it is still a
+                # fallback — counting it is the whole point of separating "polished" from "kept".
+                reason = reason or "the model returned no usable label"
+                out.append(suggestion)
+                continue
+            polished += 1
+            out.append(replace(suggestion, label=label, terms=cleaned or suggestion.terms, label_source="ai"))
+        except Exception as exc:  # noqa: BLE001 - polish is optional; a failure must never fail the whole job
+            reason = reason or f"{type(exc).__name__}: {exc}"
             out.append(suggestion)
-    return out
+    fell_back = len(out) - polished
+    if fell_back:
+        _LOG.warning("Axis label polish fell back for %d of %d clusters (%s)", fell_back, len(out), reason)
+    return LabelPolish(suggestions=out, polished=polished, fell_back=fell_back, reason=reason if fell_back else None)
 
 
 def _l2_normalize(matrix: np.ndarray) -> np.ndarray:

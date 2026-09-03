@@ -57,13 +57,20 @@ def _prompt(*, titles: list[str], terms: list[str]) -> str:
     )
 
 
+def _has_label(payload: object) -> bool:
+    return isinstance(payload, dict) and bool(str(payload.get("label") or "").strip())
+
+
 def _parse_label(text: str) -> dict:
     """Defensively parse the model's JSON object into a clean label + capped/deduped terms (untrusted)."""
     stripped = _strip_code_fence(text)
     try:
         payload = json.loads(stripped)
     except (json.JSONDecodeError, ValueError):
-        payload = first_embedded_json(stripped, want=dict)
+        # Skip decoy objects (a schema echo, a bare `{}`, a scratch dict in a reasoning block) and take the
+        # first embedded object that actually carries a label — otherwise recovery locks onto the wrong dict
+        # and the caller silently keeps its local keyword label.
+        payload = first_embedded_json(stripped, want=dict, accept=_has_label)
     if not isinstance(payload, dict):
         return {}
     label = str(payload.get("label") or "").strip()[:MAX_LABEL_LEN]

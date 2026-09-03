@@ -9,6 +9,8 @@ similarity, never a categorical truth — the human can override (manually add/r
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -66,11 +68,11 @@ from app.backend.clustering.axis_scoring import (
     score_axis,
     update_axis,
 )
-from app.backend.clustering.axis_suggestion import apply_labels, suggest_axes
+from app.backend.clustering.axis_suggestion import LabelPolish, apply_labels, suggest_axes
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.llm.egress import EgressGatedAxisClusterLabeler, EgressGatedAxisTermSuggester
-from app.backend.llm.managed_local import ManagedLocalTargetError
+from app.backend.llm.managed_local import ManagedLocalTargetError, unavailable_reason
 from app.backend.persistence.profile_repo import get_profile
 from app.backend.persistence.repository import (
     get_axis,
@@ -90,6 +92,7 @@ from integrations.gemini import (
 )
 
 router = APIRouter()
+_LOG = logging.getLogger(__name__)
 
 # Supervised-axis scoring (inc 45): a paper is ASSIGNED to an axis at similarity >= the axis's cutoff
 # ("gain"), UNCERTAIN in [AXIS_FLOOR, cutoff), and not stored below the floor (+ a never-empty fallback).
@@ -439,13 +442,16 @@ def _run_axis_suggest_job(app: FastAPI, job_id: str) -> None:
         engine: Engine = app.state.engine
         with engine.begin() as conn:  # clustering is local; the conn closes before any Gemini call
             suggestions = suggest_axes(conn, model=model)
+        unavailable: str | None = None
         try:
             labeler = _axis_cluster_labeler(app)
-        except ManagedLocalTargetError:
-            # Local AI not ready — apply_labels(labeler=None) keeps every suggestion's local c-TF-IDF label
-            # rather than failing the whole job over an optional polish step.
-            labeler = None
-        suggestions = apply_labels(suggestions, labeler=labeler)  # egress-gated polish; local fallback
+        except ManagedLocalTargetError as exc:
+            # Local AI not ready — keep every suggestion's local c-TF-IDF label rather than failing the whole
+            # job over an optional polish step, but carry the REASON so the user is told (inc 568). Silently
+            # degrading here is what made a dev-server misconfiguration look like a labeling regression.
+            _LOG.warning("Axis label polish unavailable: %s", exc.code)
+            labeler, unavailable = None, unavailable_reason(exc.code)
+        polish = apply_labels(suggestions, labeler=labeler, unavailable=unavailable)
         jobs.mark_done(
             job_id,
             AxisSuggestJobResponse(
@@ -458,13 +464,23 @@ def _run_axis_suggest_job(app: FastAPI, job_id: str) -> None:
                         paper_ids=s.paper_ids,
                         paper_titles=s.paper_titles,
                         size=s.size,
+                        label_source=s.label_source,
                     )
-                    for s in suggestions
+                    for s in polish.suggestions
                 ],
+                label_notice=_label_notice(polish),
             ),
         )
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
+
+
+def _label_notice(polish: LabelPolish) -> str | None:
+    """One honest sentence when labels were not polished — or None when every label was."""
+    if not polish.fell_back:
+        return None
+    scope = "These are keyword labels" if not polish.polished else f"{polish.fell_back} of these are keyword labels"
+    return f"{scope} — AI naming was unavailable. {polish.reason}"
 
 
 def _embedding_model(app: FastAPI) -> EmbeddingModel:

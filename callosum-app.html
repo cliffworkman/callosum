@@ -789,6 +789,12 @@
     border-radius: 6px; padding: 6px 9px; margin: 4px 0; cursor: pointer; line-height: 1.4;
   }
   .axis-hint { font-size: 11.5px; color: var(--ink-3); padding: 4px 2px; line-height: 1.45; }
+  /* Labels shown without AI polish — an unresolved/uncertain STATUS, so amber (--flag), never --danger.
+     Same recipe as .axis-err above, minus the click affordance: the suggestions below are still usable. */
+  .axis-label-notice {
+    font-size: 11.5px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line);
+    border-radius: 6px; padding: 6px 9px; margin: 4px 0; line-height: 1.4;
+  }
   .axis-paper {
     display: flex; align-items: center; gap: 6px; padding: 4px 4px; border-radius: var(--radius-sm); cursor: default;
   }
@@ -13803,7 +13809,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
             return;
           }
           const d = r.data;
-          if (d.status === "done") setState({ status: "ready", suggestions: d.suggestions || [] });
+          if (d.status === "done") setState({ status: "ready", suggestions: d.suggestions || [], notice: d.label_notice || null });
           else if (d.status === "error") setState({ status: "error", error: d.detail || "Suggestion failed.", suggestions: [] });
           else timer = setTimeout(() => poll(jobId), 1200);
         });
@@ -13824,7 +13830,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         if (timer) clearTimeout(timer);
       };
     }, [resumeJobId]);
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Suggested axes"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Themes discovered in your library that your current axes don't already cover. Curate the terms, rename, and create the ones you want."), state.status === "loading" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Analyzing your library\u2026", managedBy: "backend-job" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't suggest axes: ", state.error), state.status === "ready" && state.suggestions.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No new themes found \u2014 your axes already cover the library, or there aren't enough papers yet."), state.status === "ready" && state.suggestions.map((s, i) => /* @__PURE__ */ React.createElement(SuggestCard, { key: i, suggestion: s, onCreated: () => setCreatedCount((c) => c + 1) })), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, createdCount ? "Done" : "Close")));
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Suggested axes"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Themes discovered in your library that your current axes don't already cover. Curate the terms, rename, and create the ones you want."), state.status === "loading" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Analyzing your library\u2026", managedBy: "backend-job" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't suggest axes: ", state.error), state.status === "ready" && state.notice && /* @__PURE__ */ React.createElement("div", { className: "axis-label-notice" }, state.notice), state.status === "ready" && state.suggestions.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No new themes found \u2014 your axes already cover the library, or there aren't enough papers yet."), state.status === "ready" && state.suggestions.map((s, i) => /* @__PURE__ */ React.createElement(SuggestCard, { key: i, suggestion: s, onCreated: () => setCreatedCount((c) => c + 1) })), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, createdCount ? "Done" : "Close")));
   }
   function flashHelpSection(id) {
     const el = document.getElementById("help-" + id);

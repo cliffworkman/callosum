@@ -664,13 +664,16 @@ The suggestion scan clusters your library locally and looks for themes that your
 
 You can rename a suggestion, toggle term chips, and click **Create axis** for the ones you want. Created suggestions become normal axes.
 
-Privacy note: the clustering is local. If Gemini labeling is enabled, Callosum may use it only to polish labels from representative paper titles. If egress is off or Gemini fails, the feature still has a local fallback.
+Privacy note: the clustering and the first-pass labels are always local. If a generative provider is active — managed Local AI or a cloud provider — Callosum may use it *only* to polish those labels from representative paper titles.
+
+If that polish cannot run, the scan still completes with the local keyword labels and **tells you so**: an amber notice above the suggestions names the reason (for example, that Local AI is selected but this copy of Callosum was not started by the desktop app, so it cannot reach the local model). Keyword labels are shorter and blunter — "Cognitive Patients" rather than "Traumatic Brain Injury" — so without that notice an unavailable provider looks like a quality drop rather than a missing step. The suggestions remain perfectly usable either way; you can rename any of them yourself.
 
 Gotchas:
 
 - Suggestions are starting points, not final taxonomy.
 - Creating a suggested axis does not mean you have finished curation. Review the terms, score it, and inspect assignments.
 - If no suggestions appear, your existing axes may already cover the library, or the library may be too small or too sparse.
+- If the labels look unusually terse, check for the notice above them before assuming the model did a poor job — the polish step may simply not have run. **Settings → AI features** reports the same reason.
 
 <!-- section: merging-axes -->
 ## Merging axes

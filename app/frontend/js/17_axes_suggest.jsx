@@ -71,7 +71,7 @@ function SuggestAxesModalBody({ onClose, resumeJobId = null }) {
         if (!live) return;
         if (!r.ok) { setState({ status: "error", error: r.error, suggestions: [] }); return; }
         const d = r.data;
-        if (d.status === "done") setState({ status: "ready", suggestions: d.suggestions || [] });
+        if (d.status === "done") setState({ status: "ready", suggestions: d.suggestions || [], notice: d.label_notice || null });
         else if (d.status === "error") setState({ status: "error", error: d.detail || "Suggestion failed.", suggestions: [] });
         else timer = setTimeout(() => poll(jobId), 1200);
       });
@@ -100,6 +100,7 @@ function SuggestAxesModalBody({ onClose, resumeJobId = null }) {
 
       {state.status === "loading" && <ProgressBar label="Analyzing your library…" managedBy="backend-job" />}
       {state.status === "error" && <div className="axis-err">Couldn't suggest axes: {state.error}</div>}
+      {state.status === "ready" && state.notice && <div className="axis-label-notice">{state.notice}</div>}
       {state.status === "ready" && state.suggestions.length === 0 &&
         <div className="axis-hint">No new themes found — your axes already cover the library, or there aren't enough papers yet.</div>}
       {state.status === "ready" && state.suggestions.map((s, i) => (
