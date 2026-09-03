@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-09-02",
-    "reviewed_rev": "d86def9",
+    "reviewed_rev": "655b613",
     "reviewed_increment": 565,
-    "source_fingerprint": "495d6cd50defde47dd9465deae5975a2cd3c805e2c28879e0f6477cccf2dd2b6",
+    "source_fingerprint": "62ffa87c9125f737755e420d87af1ef047b75f516b003c33ba3f2a0b84120400",
     "note": "Axis-title Local AI fix: integrations/gemini/{axis_cluster_labeler,axis_terms,generator}.py gained JSON-recovery parsing and routers/axes.py attaches a managed-local grammar contract. Internal model-output handling only -- no showcase claim, visual, or capability statement is affected.",
     "declined_at": null,
     "declined_rev": null,

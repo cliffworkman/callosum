@@ -191,10 +191,10 @@
   },
   "review": {
     "reviewed_at": "2026-09-02",
-    "reviewed_rev": "d86def9",
+    "reviewed_rev": "655b613",
     "reviewed_increment": 565,
-    "source_fingerprint": "62599b70a5249ece1af5c229b4abdda76662f75bfd61c71aa440ba3aaf2627f6",
-    "note": "Axis-title Local AI fix: routers/axes.py changed only to attach a managed-local JSON grammar contract when constructing the cluster labeler. No endpoint contract, response shape, demo content, or user-visible capability changed -- the demo is a static prebuilt snapshot and never invokes the labeler.",
+    "source_fingerprint": "7f7535cc13c84b49688ae744fc863d1efdaabd0041b591483fa0c3a9642f42c7",
+    "note": "Axis-title Local AI fix: routers/axes.py changed only to attach a managed-local JSON grammar contract when constructing the cluster labeler. No endpoint contract, response shape, demo content, or user-visible capability changed -- the static demo never invokes the labeler.",
     "declined_at": null,
     "declined_rev": null,
     "declined_increment": null,
