@@ -96,9 +96,14 @@ jobs:
           workspaces: app/desktop-shell/src-tauri
           # rust-cache's default key is only "Linux-x64", which does not distinguish Ubuntu 22.04
           # from 24.04. Moving this job to the glibc floor therefore restored artifacts compiled on
-          # 24.04 into a 22.04 runner and the build failed with "can't find crate for `tauri`".
-          # ImageOS (ubuntu22 / ubuntu24) keeps the two images' caches apart.
-          key: ${{ env.ImageOS }}
+          # 24.04 into a 22.04 runner, and the build failed with "can't find crate for `tauri`".
+          #
+          # This must be prefix-key, not key: restore-keys match by PREFIX, so a differing suffix
+          # still matches an old cache (observed -- `key: ${{ env.ImageOS }}` changed nothing, both
+          # because env.* in a `with:` expression sees only workflow-declared env maps and never
+          # runner variables like ImageOS, and because a suffix cannot prevent a prefix match).
+          # prefix-key leads both the key and the restore-keys, so v1- can never restore a v0- cache.
+          prefix-key: v1-rust-jammy
 
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
