@@ -47,8 +47,7 @@
   below makes macOS report healthy (in which case the tension dissolves and the gate can go blocking),
   or macOS has to be confirmed some other way — a real Mac, or the existing live Local AI acceptance
   job, which does pass — before "working on all three" can be claimed honestly.
-  Found while
-  closing #71 (2026-09-03). Windows and Linux both print `healthy on port N after Ns`; macOS has only ever
+  Found while closing #71 (2026-09-03). Windows and Linux both print `healthy on port N after Ns`; macOS has only ever
   printed the warning — including in the **v0.5.3 release run, before the persistent-Python-runtime work
   existed** — so this predates that change and is not a regression from it. Real macOS users run the app
   fine, which is why the gate is deliberately left as a `::warning::` there while Linux is blocking
@@ -147,8 +146,34 @@
 
 ## 2. Needs a design decision from Cliff (not destructive/security — just your call)
 
-*(none currently — #58 resolved 2026-08-28: Cliff's call was "don't bundle, but make the existing opt-in
-Docker setup dramatically more accessible," shipped inc 507; see `INCREMENT-BACKLOG-DONE.md`.)*
+- **#75 Debian/Ubuntu users have no update path at all — they must notice a release and re-download the
+  `.deb` by hand.** Raised by Cliff (2026-09-03). Windows and macOS get Tauri's in-app updater (silent
+  background download, prompt to restart); Linux gets only "Open release page" (`updater.rs:1-8`),
+  because Tauri's updater plugin requires AppImage and inc 395 dropped AppImage. #71 made the cost
+  concrete: anyone who installed the Linux build before inc 570 has one that never opened, and nothing
+  in the app will ever tell them a fixed build exists.
+  - **The reason AppImage was dropped no longer holds — this is the new information that reopens the
+    question.** `INCREMENT-395-NOTES.md:74-85` records four `linuxdeploy` failures, and its conclusion
+    was "a bundler fundamentally fighting a full embedded ML stack it wasn't designed around." Two of
+    the four *were* that stack: torch's rpath'd internal C++ test binaries, and scipy/scikit-learn's
+    uniquely-hashed vendored `libgfortran`/`libquadmath` (called out at the time as a genuine upstream
+    wheel-packaging quirk, not fixable by pruning). **Inc 570 removed the embedded ML stack from the
+    bundle entirely** — the `.deb` went 540.4 MB → 9.4 MB — so an AppImage would now wrap only the Rust
+    shell plus `callosum-src`. The remaining blocker, `linuxdeploy` itself needing FUSE, already has a
+    known fix in that same note (`libfuse2` + `APPIMAGE_EXTRACT_AND_RUN=1`).
+  - **Options, for Cliff's call:**
+    - **AppImage alongside the `.deb`.** Directly enables the *existing* Tauri updater, so Linux gets
+      the same UX as Windows/macOS with no new mechanism, and the signing/`latest.json` infrastructure
+      is already in place. Needs `darwin`-style platform entries added to `latest.json` and AppImage's
+      own FUSE-at-runtime caveat on the user's machine considered.
+    - **A signed APT repository** (GitHub Pages, or the existing clffwrkmn.net host). The canonical
+      Debian answer and the one experienced users expect — `apt upgrade` just works, no in-app updater
+      needed. Costs: repo GPG key management, a `sources.list.d` entry at install time, and hosting.
+    - **Flatpak/Snap.** Own update channels and wide reach, but sandboxing needs checking against
+      Callosum's real filesystem access (watched folders, `library_dir`, the user-chosen Zotero path),
+      which is not incidental for a reference manager.
+  - Whatever is chosen, the honest interim is to say plainly in Linux release notes that updating means
+    re-downloading — see #71's closure note.
 
 ---
 
