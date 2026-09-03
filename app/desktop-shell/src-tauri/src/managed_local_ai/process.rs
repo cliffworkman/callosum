@@ -4,7 +4,9 @@ use super::files::remove_private_file;
 use super::{ManagedAiError, ManagedLocalAiHandle, ManagedLocalAiState, HOST};
 use std::net::TcpListener;
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::Child;
+#[cfg(windows)]
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(4);

@@ -32,18 +32,21 @@ pub(super) fn extract_runtime(root: &Path, archive_path: &Path) -> Result<(), Ma
         .map_err(|_| ManagedAiError::Io("Local AI runtime archive invalid"))?;
     for item in entries {
         let mut entry = item.map_err(|_| ManagedAiError::Io("Local AI runtime archive invalid"))?;
-        let path = entry
-            .path()
-            .map_err(|_| ManagedAiError::Io("Local AI runtime archive path invalid"))?;
-        let Some(name) = archive_entry_name(&path)? else {
+        let name = {
+            let path = entry
+                .path()
+                .map_err(|_| ManagedAiError::Io("Local AI runtime archive path invalid"))?;
+            archive_entry_name(&path)?.map(str::to_owned)
+        };
+        let Some(name) = name else {
             continue;
         };
-        if !runtime_entry_allowed(name) {
+        if !runtime_entry_allowed(&name) {
             continue;
         }
         let kind = entry.header().entry_type();
         if kind.is_file() {
-            let destination = staging.join(name);
+            let destination = staging.join(&name);
             let mut output = OpenOptions::new()
                 .write(true)
                 .create_new(true)
@@ -66,7 +69,7 @@ pub(super) fn extract_runtime(root: &Path, archive_path: &Path) -> Result<(), Ma
             if !runtime_entry_allowed(target) {
                 return Err(ManagedAiError::Io("Local AI runtime link target invalid"));
             }
-            links.push((name.to_owned(), target.to_owned()));
+            links.push((name, target.to_owned()));
         } else {
             return Err(ManagedAiError::Io("Local AI runtime archive entry invalid"));
         }
