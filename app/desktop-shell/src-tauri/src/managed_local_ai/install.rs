@@ -1,4 +1,4 @@
-//! Pinned Windows acquisition for the Local AI Preview.
+//! Pinned platform acquisition for the Local AI Preview.
 //!
 //! This is deliberately not a model catalog. It installs one exact publisher-owned GGUF and one
 //! exact upstream llama.cpp CPU bundle, verifies both before promotion, and exposes no arbitrary URL
@@ -8,9 +8,17 @@ use super::files::{digest_file, prepare_private_dir, runtime_bundle_identity};
 use super::ManagedAiError;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::fs::{File, OpenOptions};
-use std::io::{BufReader, Read, Write};
-use std::path::{Component, Path, PathBuf};
+#[cfg(windows)]
+use std::fs::File;
+#[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
+use std::fs::OpenOptions;
+#[cfg(windows)]
+use std::io::BufReader;
+#[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
+use std::io::{Read, Write};
+#[cfg(windows)]
+use std::path::Component;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -36,8 +44,33 @@ pub(super) const RUNTIME_LAUNCHER_SHA256: &str =
 pub(super) const RUNTIME_BUNDLE_SHA256: &str =
     "7748201a13dd4e2269a97a8144aa02fc5a0325e10bb777518241ce95e721366c";
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+const RUNTIME_ARCHIVE_URL: &str = "https://github.com/ggml-org/llama.cpp/releases/download/b10516/llama-b10516-bin-macos-arm64.tar.gz";
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+const RUNTIME_ARCHIVE_SHA256: &str =
+    "ee3324327d621026ae80c24031670e65fa62a0b23a3a027dbe2f65f240affd30";
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+const RUNTIME_ARCHIVE_BYTES: u64 = 11_089_823;
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub(super) const RUNTIME_LAUNCHER_SHA256: &str =
+    "d0878274b8d6bd3c8ea26a78eb66cd1ffd943d007c62b9dff31c8aa99922d713";
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub(super) const RUNTIME_BUNDLE_SHA256: &str =
+    "3517f73521fc59ad58f7e0f5697f88a324271a39e5b0dded8e08b5db29bbbdcb";
+
 const INSTALL_DIR: &str = "managed-local-ai-install";
+#[cfg(windows)]
 const RUNTIME_DIR: &str = "llama-b10516-win-cpu-x64";
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub(super) const RUNTIME_DIR: &str = "llama-b10516-macos-arm64";
+#[cfg(windows)]
+const RUNTIME_LAUNCHER: &str = "llama-server.exe";
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+const RUNTIME_LAUNCHER: &str = "llama-server";
+#[cfg(windows)]
+const RUNTIME_PARTIAL: &str = "runtime.zip.partial";
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+const RUNTIME_PARTIAL: &str = "runtime.tar.gz.partial";
 const RECEIPT_FILENAME: &str = "install.json";
 const DOWNLOAD_BUFFER_BYTES: usize = 64 * 1024;
 
@@ -51,6 +84,7 @@ struct InstallProgress {
     downloaded_bytes: Option<u64>,
     total_bytes: Option<u64>,
     download_started: Option<Instant>,
+    error_code: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,6 +94,7 @@ pub(super) struct InstallProgressSnapshot {
     pub(super) downloaded_bytes: Option<u64>,
     pub(super) total_bytes: Option<u64>,
     pub(super) eta_seconds: Option<u64>,
+    pub(super) error_code: Option<&'static str>,
 }
 
 #[derive(Debug, Clone)]
@@ -92,6 +127,14 @@ impl LocalAiInstallState {
         *self.0.lock().expect("local AI install state poisoned") = InstallProgress {
             stage,
             detail,
+            ..InstallProgress::default()
+        };
+    }
+
+    pub(super) fn set_error(&self, error: &ManagedAiError) {
+        *self.0.lock().expect("local AI install state poisoned") = InstallProgress {
+            detail: Some(error.detail()),
+            error_code: Some(error.code()),
             ..InstallProgress::default()
         };
     }
@@ -135,6 +178,7 @@ impl LocalAiInstallState {
             downloaded_bytes: progress.downloaded_bytes,
             total_bytes: progress.total_bytes,
             eta_seconds,
+            error_code: progress.error_code,
         }
     }
 }
@@ -144,15 +188,15 @@ pub(super) fn install_root(data_dir: &Path) -> PathBuf {
 }
 
 pub(super) fn installed_paths(data_dir: &Path) -> Result<Option<InstalledPaths>, ManagedAiError> {
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, all(target_os = "macos", target_arch = "aarch64"))))]
     {
         let _ = data_dir;
         return Ok(None);
     }
-    #[cfg(windows)]
+    #[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
     {
         let root = install_root(data_dir);
-        let runtime = root.join(RUNTIME_DIR).join("llama-server.exe");
+        let runtime = root.join(RUNTIME_DIR).join(RUNTIME_LAUNCHER);
         let model = root.join(MODEL_FILENAME);
         let receipt = root.join(RECEIPT_FILENAME);
         if !runtime.is_file() || !model.is_file() || !receipt.is_file() {
@@ -165,14 +209,14 @@ pub(super) fn installed_paths(data_dir: &Path) -> Result<Option<InstalledPaths>,
     }
 }
 
-#[cfg(windows)]
-pub(super) fn install_windows(
+#[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
+pub(super) fn install_platform(
     data_dir: &Path,
     progress: &LocalAiInstallState,
 ) -> Result<InstalledPaths, ManagedAiError> {
     let root = install_root(data_dir);
     prepare_private_dir(&root)?;
-    let runtime_archive = root.join("runtime.zip.partial");
+    let runtime_archive = root.join(RUNTIME_PARTIAL);
     let model_partial = root.join(format!("{MODEL_FILENAME}.partial"));
 
     progress.begin_download("downloading_runtime", RUNTIME_ARCHIVE_BYTES);
@@ -184,7 +228,10 @@ pub(super) fn install_windows(
         progress,
     )?;
     progress.set(Some("preparing_runtime"), None);
-    extract_runtime(&root, &runtime_archive)?;
+    #[cfg(windows)]
+    extract_runtime_windows(&root, &runtime_archive)?;
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    super::install_macos::extract_runtime(&root, &runtime_archive)?;
     let _ = std::fs::remove_file(&runtime_archive);
 
     progress.begin_download("downloading_model", MODEL_BYTES);
@@ -200,7 +247,7 @@ pub(super) fn install_windows(
     replace_file(&model_partial, &model)?;
 
     let paths = InstalledPaths {
-        runtime: root.join(RUNTIME_DIR).join("llama-server.exe"),
+        runtime: root.join(RUNTIME_DIR).join(RUNTIME_LAUNCHER),
         model,
     };
     verify_install(&paths)?;
@@ -209,21 +256,21 @@ pub(super) fn install_windows(
     Ok(paths)
 }
 
-#[cfg(not(windows))]
-pub(super) fn install_windows(
+#[cfg(not(any(windows, all(target_os = "macos", target_arch = "aarch64"))))]
+pub(super) fn install_platform(
     _data_dir: &Path,
     progress: &LocalAiInstallState,
 ) -> Result<InstalledPaths, ManagedAiError> {
     progress.set(
         None,
-        Some("Local AI Preview setup currently supports Windows x64."),
+        Some("This operating-system architecture is not supported by Local AI Preview."),
     );
     Err(ManagedAiError::InvalidConfig(
-        "Local AI Preview setup currently supports Windows x64",
+        "this operating-system architecture is not supported by Local AI Preview",
     ))
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
 fn download_exact(
     url: &str,
     partial: &Path,
@@ -289,7 +336,6 @@ fn download_exact(
     Ok(())
 }
 
-#[cfg(windows)]
 fn download_host_allowed(host: &str) -> bool {
     host == "github.com"
         || host == "release-assets.githubusercontent.com"
@@ -299,7 +345,7 @@ fn download_host_allowed(host: &str) -> bool {
 }
 
 #[cfg(windows)]
-fn extract_runtime(root: &Path, archive_path: &Path) -> Result<(), ManagedAiError> {
+fn extract_runtime_windows(root: &Path, archive_path: &Path) -> Result<(), ManagedAiError> {
     let staging = root.join(format!("{RUNTIME_DIR}.partial"));
     if staging.exists() {
         std::fs::remove_dir_all(&staging)
@@ -364,7 +410,7 @@ fn runtime_entry_allowed(name: &str) -> bool {
     lower == "llama-server.exe" || lower.ends_with(".dll")
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
 fn replace_file(source: &Path, destination: &Path) -> Result<(), ManagedAiError> {
     if destination.exists() {
         std::fs::remove_file(destination)
@@ -374,7 +420,7 @@ fn replace_file(source: &Path, destination: &Path) -> Result<(), ManagedAiError>
         .map_err(|_| ManagedAiError::Io("Local AI model promotion failed"))
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
 pub(super) fn verify_install(paths: &InstalledPaths) -> Result<(), ManagedAiError> {
     if !file_identity_matches(&paths.model, MODEL_BYTES, MODEL_SHA256)? {
         return Err(ManagedAiError::Io(
@@ -403,7 +449,7 @@ fn file_identity_matches(
     Ok(digest_file(path)? == expected_sha256)
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
 fn write_receipt(root: &Path) -> Result<(), ManagedAiError> {
     let receipt = InstallReceipt {
         schema_version: 1,
@@ -530,6 +576,7 @@ mod tests {
                 downloaded_bytes: None,
                 total_bytes: None,
                 eta_seconds: None,
+                error_code: None,
             }
         );
     }

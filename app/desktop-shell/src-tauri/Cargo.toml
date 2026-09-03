@@ -27,6 +27,8 @@ tokio = { version = "1", features = ["rt-multi-thread", "time", "process"] }
 getrandom = "0.3"
 sha2 = "0.10"
 zip = { version = "4", default-features = false, features = ["deflate"] }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+tar = { version = "0.4", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
 win32job = "2"

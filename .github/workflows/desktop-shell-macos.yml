@@ -80,6 +80,17 @@ jobs:
       - name: Install project dependencies (needed just to import app.backend for build_frontend.py)
         run: uv sync --locked
 
+      - name: "Live Local AI acceptance: install, verify, run three provider contracts, and clean up"
+        working-directory: app/desktop-shell/src-tauri
+        env:
+          CALLOSUM_LOCAL_AI_LIVE_INSTALL_DIR: ${{ runner.temp }}/callosum-local-ai-live
+        run: |
+          set -euo pipefail
+          export CALLOSUM_LOCAL_AI_PYTHON="$(uv run python -c 'import sys; print(sys.executable)')"
+          cargo test live_pinned_preview_installs_and_runs_three_generation_contracts -- --ignored --nocapture
+          test ! -e "$CALLOSUM_LOCAL_AI_LIVE_INSTALL_DIR/managed-local-ai/target.json"
+          test ! -e "$CALLOSUM_LOCAL_AI_LIVE_INSTALL_DIR/managed-local-ai/auth-token"
+
       - name: Install frontend build toolchain + build callosum-app.html
         run: |
           npm install

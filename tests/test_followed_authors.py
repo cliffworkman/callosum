@@ -74,6 +74,8 @@ def test_malformed_author_id_and_oversized_name_are_rejected(temp_db_url):
     assert oversized.status_code == 422
     missing_display_name = client.post("/followed-authors", json={"author_id": "A1"})
     assert missing_display_name.status_code == 422
+    invalid_orcid = client.post("/followed-authors", json={"orcid": "0000-0002-3521-7708"})
+    assert invalid_orcid.status_code == 422
 
 
 def test_unfollow_is_idempotent(temp_db_url):

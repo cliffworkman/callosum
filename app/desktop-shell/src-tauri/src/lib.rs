@@ -36,16 +36,23 @@ async fn start_backend_and_show_main(app: AppHandle) {
     );
 
     let local_ai_state = app.state::<ManagedLocalAiState>().inner().clone();
-    let descriptor =
-        match start_for_startup(&paths.app_data_dir, &paths.settings_path, &local_ai_state).await {
-            Ok(path) => path,
-            Err(error) => {
-                // Local AI fails closed without preventing the rest of Callosum from starting. Python will
-                // preserve the selected provider as unavailable; it never substitutes a cloud target.
-                eprintln!("Managed local AI unavailable: {}", error.detail());
-                None
-            }
-        };
+    let local_ai_install_state = app.state::<LocalAiInstallState>().inner().clone();
+    let descriptor = match start_for_startup(
+        &paths.app_data_dir,
+        &paths.settings_path,
+        &local_ai_state,
+        &local_ai_install_state,
+    )
+    .await
+    {
+        Ok(path) => path,
+        Err(error) => {
+            // Local AI fails closed without preventing the rest of Callosum from starting. Python will
+            // preserve the selected provider as unavailable; it never substitutes a cloud target.
+            eprintln!("Managed local AI unavailable: {}", error.detail());
+            None
+        }
+    };
 
     let app_version = app.package_info().version.to_string();
     let (mut handle, port) = match spawn_backend(&paths, &app_version, descriptor.as_deref()) {
@@ -105,6 +112,7 @@ fn local_ai_status(
         &paths.app_data_dir,
         state.inner(),
         install_state.inner(),
+        &app.package_info().version.to_string(),
     ))
 }
 

@@ -52,6 +52,7 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
   const [starredOnly, setStarredOnly] = useState(false);  // inc 84: scope the summary draft to starred pubs
   const [missingOpen, setMissingOpen] = useState(false);  // inc 117 (#12): the missing-works review modal
   const [refreshing, setRefreshing] = useState(false);    // inc 117 (#11): the OpenAlex-card Refresh button
+  const [refreshError, setRefreshError] = useState(null);
   // inc 117 (SP1): Overview is collapsible (persisted) and shows ONE chart with a Publications⇄Citations flip.
   const [overviewOpen, setOverviewOpen] = useState(() => localStorage.getItem("callosum.mypubsOverviewCollapsed") !== "1");
   useEffect(() => { localStorage.setItem("callosum.mypubsOverviewCollapsed", overviewOpen ? "0" : "1"); }, [overviewOpen]);
@@ -80,7 +81,12 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
     api("/my-publications/dashboard").then(r => {
       if (!live) return;
       if (r.ok) { setData(r.data); setSummary(r.data.research_summary || ""); }
-      else setData({ status: "error", error: r.error });
+      else setData({ status: "error", error: r.error, diagnostic: callosumClientDiagnostic(
+        "IDENTITY_METADATA_UNAVAILABLE", "My Publications identity",
+        "Callosum could not load the My Publications dashboard.",
+        "Retry after Callosum finishes starting; copy these diagnostics if it persists.",
+        { stage: "dashboard_load", http_status: r.status || null },
+      ) });
     });
     return () => { live = false; };
   }, [axisRefresh]);
@@ -127,21 +133,38 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
   // inc 117 (#11): the OpenAlex-card refresh — re-resolve via OpenAlex (same job as Settings), then re-read the dashboard.
   const refreshMyPubs = () => {
     setRefreshing(true);
+    setRefreshError(null);
+    const failed = (diagnostic, fallback) => {
+      setRefreshing(false);
+      setRefreshError(diagnostic || callosumClientDiagnostic(
+        "IDENTITY_ENRICHMENT_OPENALEX_FAILED", "My Publications identity",
+        fallback || "Callosum could not refresh the OpenAlex profile.",
+        "Retry; if the problem continues, copy these diagnostics into Slack.",
+        { stage: "dashboard_refresh" },
+      ));
+    };
     const poll = (jobId) => api(`/my-publications/refresh/${jobId}`).then(r => {
-      if (!r.ok) { setRefreshing(false); return; }
+      if (!r.ok) { failed(null, r.error); return; }
       const d = r.data;
-      if (d.status === "done") { setRefreshing(false); refetch(); resolveAxis(); }
-      else if (d.status === "error") { setRefreshing(false); }
+      if (d.status === "done") {
+        setRefreshing(false);
+        setRefreshError(d.summary && d.summary.diagnostic ? d.summary.diagnostic : null);
+        refetch(); resolveAxis();
+      }
+      else if (d.status === "error") failed(d.diagnostic, d.detail);
       else setTimeout(() => poll(jobId), 1500);
     });
     apiPost("/my-publications/refresh", {}).then(r => {
-      if (!r.ok) { setRefreshing(false); return; }
+      if (!r.ok) { failed(null, r.error); return; }
       poll(r.data.job_id);
     });
   };
 
   if (data.status === "loading") return <div className="mypubs-dashboard"><div className="axis-hint">Loading…</div></div>;
-  if (data.status === "error") return <div className="mypubs-dashboard"><div className="axis-err">Couldn't load the dashboard: {data.error}</div></div>;
+  if (data.status === "error") return <div className="mypubs-dashboard"><div className="axis-err">
+    Couldn't load the dashboard: {data.error}
+    <div className="settings-actions"><CopyDiagnosticButton diagnostic={data.diagnostic} /></div>
+  </div></div>;
   if (data.status === "no-identity" || data.status === "not-resolved")
     return (
       <div className="mypubs-dashboard">
@@ -357,6 +380,10 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
           </button>
         </div>
         {refreshing && <ProgressBar label="Resolving via OpenAlex…" managedBy="backend-job" />}
+        {refreshError && <div className="settings-note settings-note-err">
+          {refreshError.message || "OpenAlex refresh did not complete."}
+          <div className="settings-actions"><CopyDiagnosticButton diagnostic={refreshError} /></div>
+        </div>}
         {demoMode && <div className="settings-note">Saved OpenAlex snapshot scoped to the four genuine Workman publications in this demo corpus. Refreshing public metadata requires local Callosum.</div>}
       </section>
 

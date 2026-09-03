@@ -3,7 +3,8 @@
 Mirrors the inc-74 OA-location adapter + the Crossref pattern (injectable fetcher Protocol, `external_api_cache`,
 fail-closed, frozen dataclasses, polite-pool `CALLOSUM_OPENALEX_MAILTO`). This is **metadata egress** (public
 identifiers — name/ORCID/DOIs — like the Crossref DOI lookup), NOT the Gemini library-text egress gate, and it
-is **LLM-free**. Returns dataclasses or None; never raises to the caller.
+is **LLM-free**. The compatibility resolver raises a typed availability error;
+the richer resolver reports provider/linkage state without conflating it with identity.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from typing import Any, Protocol
 from sqlalchemy import Connection, Engine
 
 from app.backend.app_settings import resolved_mailto
+from app.backend.researcher_identity import InvalidOrcid, normalize_orcid, normalize_person_name
 from integrations.api_cache import get_cached, put_cached, put_cached_committing
 from integrations.openalex.request import (
     OPENALEX_CACHE_TTL_SECONDS,
@@ -79,6 +81,20 @@ class OpenAlexAuthorUnavailable(RuntimeError):
 
 
 @dataclass(frozen=True)
+class AuthorResolution:
+    """Provider-linkage result kept distinct from the researcher's local identity."""
+
+    author: ResolvedAuthor | None
+    state: str
+    method: str | None
+    candidate_count: int = 0
+    candidate_returned: bool = False
+    candidate_orcid_match: bool | None = None
+    candidate_name_match: bool | None = None
+    rejection_reason: str | None = None
+
+
+@dataclass(frozen=True)
 class AuthorWorksResult:
     works: tuple[AuthorWork, ...]
     complete: bool
@@ -125,15 +141,50 @@ class OpenAlexAuthorClient:
         a Callosum bug — falls back to a name search rather than reporting no match, as long as a name is also
         on file. The fallback is honestly lower-confidence (``matched_by="name"``): never silently equated with
         an exact ORCID match (see ``ResolvedAuthor.matched_by``, surfaced to the user)."""
-        if orcid and orcid.strip():
-            author, state = self._fetch_by_orcid(conn, orcid)
+        result = self.resolve_author_result(conn, orcid=orcid, names=[name] if name else [])
+        if result.state == "unavailable":
+            raise OpenAlexAuthorUnavailable("OpenAlex author lookup was unavailable")
+        return result.author
+
+    def resolve_author_result(
+        self, conn: Connection, *, orcid: str | None = None, names: list[str] | None = None
+    ) -> AuthorResolution:
+        """Resolve an OpenAlex enrichment without conflating it with local identity establishment."""
+
+        canonical_orcid = normalize_orcid(orcid) if orcid and orcid.strip() else None
+        if canonical_orcid:
+            author, state = self._fetch_by_orcid(conn, canonical_orcid)
             if author is not None:
-                return author
+                linked = author.orcid == canonical_orcid
+                if linked:
+                    return AuthorResolution(author, "matched", "orcid", 1, True, True, None)
+                return AuthorResolution(
+                    None, "candidate_rejected", "orcid", 1, True, False, None, "returned_orcid_mismatch"
+                )
             if state == "unavailable":
-                raise OpenAlexAuthorUnavailable("Exact ORCID lookup was unavailable")
-        if name and name.strip():
-            return self._fetch_by_name(conn, name)
-        return None
+                return AuthorResolution(None, "unavailable", "orcid")
+
+        attempted = []
+        last_rejection: AuthorResolution | None = None
+        for candidate_name in names or []:
+            if not candidate_name or not candidate_name.strip():
+                continue
+            comparison = normalize_person_name(candidate_name)
+            if comparison in attempted:
+                continue
+            attempted.append(comparison)
+            author, state, count, reason = self._fetch_by_name(conn, candidate_name)
+            if state == "unavailable":
+                return AuthorResolution(None, "unavailable", "name", count)
+            if author is not None:
+                return AuthorResolution(author, "matched", "name", count, True, None, True)
+            if reason:
+                last_rejection = AuthorResolution(
+                    None, "candidate_rejected", "name", count, count > 0, None, False, reason
+                )
+        if last_rejection is not None:
+            return last_rejection
+        return AuthorResolution(None, "not_found", "name" if attempted else ("orcid" if canonical_orcid else None))
 
     def _fetch_by_orcid(self, conn: Connection, orcid: str) -> tuple[ResolvedAuthor | None, str]:
         key = _orcid_cache_key(orcid)
@@ -142,14 +193,15 @@ class OpenAlexAuthorClient:
         )
         return (_author_from_obj(_pick_author(body), matched_by="orcid") if body is not None else None, state)
 
-    def _fetch_by_name(self, conn: Connection, name: str) -> ResolvedAuthor | None:
+    def _fetch_by_name(self, conn: Connection, name: str) -> tuple[ResolvedAuthor | None, str, int, str | None]:
         key = _name_cache_key(name)
         url = f"{OPENALEX_ROOT}/authors"
-        params = {"filter": f"display_name.search:{name.strip()}", "per-page": "1"}
+        params = {"filter": f"display_name.search:{name.strip()}", "per-page": "10"}
         body, state = self._fetch(conn, OPENALEX_AUTHOR_PROVIDER, key, url, params)
-        if state == "unavailable":
-            raise OpenAlexAuthorUnavailable("OpenAlex name lookup was unavailable")
-        return _author_from_obj(_pick_author(body), matched_by="name") if body is not None else None
+        if state != "ok" or body is None:
+            return None, state, 0, None
+        selected, count, reason = _pick_named_author(body, name)
+        return _author_from_obj(selected, matched_by="name"), state, count, reason
 
     def cached_author(
         self, conn: Connection, *, orcid: str | None = None, name: str | None = None
@@ -159,11 +211,29 @@ class OpenAlexAuthorClient:
         already warmed this cache under the same key). Mirrors ``resolve_author``'s ORCID-first-then-name-
         fallback order so a name-fallback match resolved earlier is still found on a later cache-only read."""
         if orcid and orcid.strip():
-            author = self._cached_by_key(conn, _orcid_cache_key(orcid), matched_by="orcid")
+            try:
+                canonical_orcid = normalize_orcid(orcid)
+            except InvalidOrcid:
+                canonical_orcid = None
+            author = (
+                self._cached_by_key(conn, _orcid_cache_key(canonical_orcid), matched_by="orcid")
+                if canonical_orcid
+                else None
+            )
             if author is not None:
                 return author
         if name and name.strip():
-            return self._cached_by_key(conn, _name_cache_key(name), matched_by="name")
+            cached = get_cached(
+                conn, OPENALEX_AUTHOR_PROVIDER, _name_cache_key(name), max_age_seconds=OPENALEX_CACHE_TTL_SECONDS
+            )
+            if (
+                cached is None
+                or int(cached["status_code"] or 0) != 200
+                or not isinstance(cached["response_json"], dict)
+            ):
+                return None
+            selected, _, _ = _pick_named_author(cached["response_json"], name)
+            return _author_from_obj(selected, matched_by="name")
         return None
 
     def _cached_by_key(self, conn: Connection, key: str, *, matched_by: str) -> ResolvedAuthor | None:
@@ -354,7 +424,7 @@ def _httpx_fetcher(
 
 
 def _orcid_cache_key(orcid: str) -> str:
-    return "orcid:" + orcid.strip().lower()
+    return "orcid:" + orcid
 
 
 def _name_cache_key(name: str) -> str:
@@ -367,6 +437,27 @@ def _pick_author(body: dict[str, Any] | None) -> dict[str, Any] | None:
     if isinstance(body.get("results"), list):  # the name-filter endpoint
         return body["results"][0] if body["results"] else None
     return body if body.get("id") else None  # the by-id (orcid) endpoint returns the author object
+
+
+def _pick_named_author(body: dict[str, Any], query: str) -> tuple[dict[str, Any] | None, int, str | None]:
+    results = body.get("results")
+    if not isinstance(results, list):
+        return None, 0, "invalid_response_shape"
+    total = (
+        int((body.get("meta") or {}).get("count") or len(results))
+        if isinstance(body.get("meta"), dict)
+        else len(results)
+    )
+    normalized_query = normalize_person_name(query)
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        names = [result.get("display_name"), *(result.get("display_name_alternatives") or [])]
+        if any(normalize_person_name(value) == normalized_query for value in names if isinstance(value, str)):
+            return result, total, None
+    if total == 1 and results and isinstance(results[0], dict):
+        return results[0], total, None
+    return None, total, "ambiguous_name" if total > 1 else "no_name_match"
 
 
 def _author_from_obj(obj: dict[str, Any] | None, *, matched_by: str) -> ResolvedAuthor | None:
@@ -472,10 +563,9 @@ def _normalize_publication_date(value: Any) -> str | None:
 
 
 def _normalize_orcid(value: Any) -> str | None:
-    if not isinstance(value, str) or not value.strip():
+    if not isinstance(value, str):
         return None
-    orcid = value.strip()
-    for prefix in ("https://orcid.org/", "http://orcid.org/"):
-        if orcid.startswith(prefix):
-            orcid = orcid[len(prefix) :]
-    return orcid or None
+    try:
+        return normalize_orcid(value)
+    except InvalidOrcid:
+        return None

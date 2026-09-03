@@ -9,6 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-02 — Increment 566: macOS Local AI and first-class researcher identity
+- Replaces the misleading Windows-only Local AI dead end with a pinned, verified Apple Silicon macOS managed
+  llama.cpp installation and a live macOS CI acceptance covering install, three provider contracts, and cleanup.
+- Makes a valid ORCID the canonical local identity before optional OpenAlex enrichment; adds safe multi-name
+  matching, exact ORCID/OpenAlex linkage checks, and Vasiliki Meletaki (`A5085857730`) regression coverage.
+- Adds reusable, one-click, privacy-safe Slack diagnostics to Local AI and My Publications Settings/dashboard
+  failure states, and prevents refresh from continuing against stale identity after a failed save.
+
 ## 2026-09-02 — Increment 564: embedding/NLI integration audit, Wave 1 remediation
 - Follows the read-only audit at `2026-09-02_embedding-nli-integration-audit.md` (mirrors the LLM-provider
   audit's own Wave 1/2/3 split). Closes the mechanical, low-risk subset: batched three previously-unbatched

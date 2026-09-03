@@ -60,12 +60,12 @@ npx tauri build
 
 ## Local AI Preview
 
-On Windows x64, **Settings → AI features → Local AI → Set up Local AI** installs Callosum's one supported managed
+On Windows x64 and Apple Silicon macOS, **Settings → AI features → Local AI → Set up Local AI** installs Callosum's one supported managed
 preview configuration: the publisher-owned Qwen2.5-1.5B-Instruct Q4_K_M GGUF and an official pinned llama.cpp CPU
 runtime. Callosum downloads both from immutable sources, verifies their exact byte sizes and SHA-256 digests, and
 promotes only complete verified files. No API key, provider account, terminal, endpoint, Ollama installation, or
-manual model download is required. macOS/Linux setup currently reports that managed installation is unsupported
-rather than selecting an unvalidated package.
+manual model download is required. Intel macOS and Linux setup report their unsupported architecture explicitly
+rather than selecting an unvalidated package; current Callosum macOS releases are Apple Silicon-only.
 
 After setup, Local AI is a first-class generative provider. Compatible features resolve through the same shared
 provider seam as Gemini/OpenAI/Anthropic, but execute through the managed loopback target. A local timeout, crash,

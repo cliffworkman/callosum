@@ -29,6 +29,7 @@ from app.backend.clustering.my_publications import (
     my_publication_documents,
 )
 from app.backend.clustering.my_publications_domains import _decompose_compute
+from app.backend.diagnostic_report import diagnostic_report
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.llm.egress import DataEgressDisabledError, EgressGatedResearchSummaryGenerator
 from app.backend.llm.managed_local import ManagedLocalTargetError
@@ -47,6 +48,7 @@ from app.backend.persistence.profile_repo import (
 from app.backend.persistence.repository import find_existing_paper_by_identity, get_paper
 from app.backend.persistence.schema import axes
 from app.backend.persistence.sqlite_retry import run_write
+from app.backend.researcher_identity import InvalidOrcid
 from integrations.gemini import GeminiResearchSummaryGenerator, ResearchSummaryGenerator
 from integrations.openalex import OpenAlexAuthorClient
 
@@ -60,6 +62,9 @@ class ProfileResponse(BaseModel):
     name_variants: list[str] = []
     orcid: str | None = None
     has_author_id: bool = False
+    identity_established: bool = False
+    identity_method: str | None = None
+    enrichment_status: str = "not_started"
     dismissed: bool = False
 
 
@@ -78,6 +83,10 @@ class MyPubsSummary(BaseModel):
     confirmed: int | None = None
     candidates: int | None = None
     axis_id: int | None = None
+    identity_established: bool | None = None
+    enrichment_status: str | None = None
+    openalex_author_id: str | None = None
+    diagnostic: dict[str, Any] | None = None
 
 
 class RefreshJobResponse(BaseModel):
@@ -85,6 +94,7 @@ class RefreshJobResponse(BaseModel):
     status: Literal["pending", "running", "done", "error"]
     detail: str | None = None
     summary: MyPubsSummary | None = None
+    diagnostic: dict[str, Any] | None = None
 
 
 class DecideRequest(BaseModel):
@@ -226,7 +236,10 @@ def put_my_publications_profile(payload: ProfileUpdateRequest, engine: Engine = 
         )
         return _profile_response(profile)
 
-    return run_write(engine, _do)
+    try:
+        return run_write(engine, _do)
+    except InvalidOrcid as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
 @router.post("/my-publications/refresh", response_model=RefreshJobResponse, status_code=http_status.HTTP_202_ACCEPTED)
@@ -244,7 +257,18 @@ def refresh_my_publications_status(job_id: str, request: Request) -> RefreshJobR
         raise HTTPException(status_code=404, detail="Refresh job not found")
     if job.status == "done" and job.result is not None:
         return job.result
-    return RefreshJobResponse(job_id=job_id, status=job.status, detail=job.detail)
+    diagnostic = None
+    detail = job.detail
+    if job.status == "error":
+        detail = "Identity refresh failed before it could complete."
+        diagnostic = diagnostic_report(
+            code="IDENTITY_ENRICHMENT_OPENALEX_FAILED",
+            feature="My Publications identity",
+            message=detail,
+            suggested_action="Retry the refresh; if it fails again, copy these diagnostics into your report.",
+            details={"exception_class": job.detail or "unknown", "stage": "refresh_job"},
+        )
+    return RefreshJobResponse(job_id=job_id, status=job.status, detail=detail, diagnostic=diagnostic)
 
 
 @router.post("/my-publications/decide", status_code=http_status.HTTP_204_NO_CONTENT)
@@ -478,6 +502,11 @@ def _profile_response(profile: dict[str, Any] | None) -> ProfileResponse:
         name_variants=list(profile.get("name_variants") or []),
         orcid=profile.get("orcid"),
         has_author_id=bool(profile.get("openalex_author_id")),
+        identity_established=bool(profile.get("orcid")) or bool(profile.get("openalex_author_id")),
+        identity_method="orcid"
+        if profile.get("orcid")
+        else ("openalex_name" if profile.get("openalex_author_id") else None),
+        enrichment_status="linked" if profile.get("openalex_author_id") else "not_started",
         dismissed=bool(profile.get("my_publications_dismissed")),
     )
 
@@ -526,7 +555,9 @@ def _run_refresh_job(app: FastAPI, job_id: str) -> None:
             summary = run_write(engine, _persist)
         jobs.mark_done(job_id, RefreshJobResponse(job_id=job_id, status="done", summary=MyPubsSummary(**summary)))
     except Exception as exc:
-        jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
+        # Preserve only the exception class. Provider messages can contain request
+        # URLs or local details that do not belong in a copyable diagnostic.
+        jobs.mark_error(job_id, type(exc).__name__)
 
 
 def _run_domains_job(app: FastAPI, job_id: str) -> None:

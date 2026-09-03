@@ -157,6 +157,23 @@ function localAiSetupPhase(status) {
   return phases[status && status.state] || ["Setting up Local AI…", "Keep Callosum open while setup finishes."];
 }
 
+function localAiStatusLabel(status) {
+  const labels = {
+    ready: "Local AI: Ready",
+    installed: "Installed — ready to start",
+    not_installed: "Ready to set up",
+    unsupported: "Unsupported architecture",
+    error: "Setup needs attention",
+  };
+  return labels[status && status.state] || (status && status.state ? status.state.replaceAll("_", " ") : "Checking…");
+}
+
+function localAiFrontendDiagnostic(code, message, stage) {
+  return callosumClientDiagnostic(code, "Local AI", message,
+    "Retry Set up Local AI; if it fails again, copy these diagnostics into your report.",
+    { stage, runtime: "managed llama.cpp b10516" });
+}
+
 function localAiSetupProgress(status) {
   if (!status || !(status.total_bytes > 0) || status.downloaded_bytes == null) return null;
   const unit = 1024 * 1024;
@@ -277,11 +294,10 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
             <div className="settings-field">
               <div className="settings-sub"><b>Runs on this device.</b> No API key, provider account, endpoint, Ollama, or terminal required.</div>
               <div className="settings-sub">
-                Status: <b>{localAi && localAi.state === "ready" ? "Local AI: Ready" :
-                  localAi && localAi.state === "installed" ? "Installed — preparing required" :
-                  localAi && localAi.state ? localAi.state.replaceAll("_", " ") : "Checking…"}</b>
+                Status: <b>{localAiStatusLabel(localAi)}</b>
               </div>
               {localAi && localAi.detail && <div className="provider-egress-warn">{localAi.detail}</div>}
+              {localAi && localAi.diagnostic && <div className="settings-actions"><CopyDiagnosticButton diagnostic={localAi.diagnostic} /></div>}
               {localSetupActive && <div className="local-ai-setup-progress" role="status" aria-live="polite"
                 ref={localSetupProgressRef}>
                 <ProgressBar label={localSetupPhase[0]} progress={localSetupProgress} managedBy="local-ai-setup" />
@@ -372,11 +388,13 @@ function AiSettings({ agentSettings, onLocalAiSetupState }) {
   const refreshLocalAi = async () => {
     if (!("__TAURI__" in window)) {
       acceptLocalAiSetupStatus({ state: "unsupported", installed: false, running: false,
-        detail: "Managed Local AI setup is available in the installed desktop app." });
+        detail: "Managed Local AI setup is available in the installed desktop app.", diagnostic:
+          localAiFrontendDiagnostic("LOCAL_AI_DESKTOP_REQUIRED", "Managed Local AI requires the installed desktop app.", "runtime_detection") });
       return;
     }
     try { acceptLocalAiSetupStatus(await window.__TAURI__.core.invoke("local_ai_status")); }
-    catch (err) { acceptLocalAiSetupStatus({ state: "error", detail: String(err), installed: false, running: false }); }
+    catch (_err) { acceptLocalAiSetupStatus({ state: "error", detail: "Local AI status detection failed.", installed: false, running: false,
+      diagnostic: localAiFrontendDiagnostic("LOCAL_AI_DETECTION_FAILED", "Callosum could not inspect Local AI status.", "runtime_detection") }); }
   };
 
   const reload = async () => {
@@ -431,10 +449,10 @@ function AiSettings({ agentSettings, onLocalAiSetupState }) {
       await reload();
       setMsg("Local AI is ready and active.");
       _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, true);
-    } catch (err) {
-      acceptLocalAiSetupStatus({ state: "error", detail: String(err), installed: false, running: false });
+    } catch (_err) {
+      await refreshLocalAi();
       setMsg("Local AI setup did not finish. Retry setup or open technical details.");
-      _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, false, String(err));
+      _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, false, "Local AI setup did not finish.");
     } finally { setBusy(false); }
   };
   const saveKey = (id, val) => put({ set_api_key: true, api_key: val, api_key_provider: id }, val.trim() ? "Key saved." : "Key cleared.");

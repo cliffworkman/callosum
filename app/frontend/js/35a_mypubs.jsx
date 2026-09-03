@@ -12,6 +12,9 @@ function MyPubsSettings({ onRefreshed }) {
   // disabled attribute) before the fetch completed would PUT blank values and wipe an existing profile.
   const [loading, setLoading] = useState(true);
 
+  const localDiagnostic = (code, message, suggestedAction, details = {}) =>
+    callosumClientDiagnostic(code, "My Publications identity", message, suggestedAction, details);
+
   useEffect(() => {
     api("/my-publications/profile").then(r => {
       if (r.ok) {
@@ -20,6 +23,9 @@ function MyPubsSettings({ onRefreshed }) {
         setVariants(p.name_variants || []);
         setOrcid(p.orcid || "");
       }
+      else setRefresh({ status: "error", error: "Couldn't load the saved identity.", diagnostic:
+        localDiagnostic("IDENTITY_METADATA_UNAVAILABLE", "Callosum could not read the saved identity.",
+          "Retry after Callosum finishes starting; copy these diagnostics if it persists.", { stage: "profile_load" }) });
       setLoading(false);  // flips even on a failed GET, so the UI never sticks disabled forever
     });
   }, []);
@@ -33,13 +39,19 @@ function MyPubsSettings({ onRefreshed }) {
       orcid: orcid.trim() || null,
     });
     setSaving(false);
+    if (!r.ok) setRefresh({ status: "error", error: r.error || "Couldn't save the identity.", diagnostic:
+      localDiagnostic((r.status === 422 ? "IDENTITY_ORCID_INVALID" : "IDENTITY_METADATA_UNAVAILABLE"),
+        r.error || "Callosum could not save the identity.", "Correct the ORCID if prompted, then retry.",
+        { stage: "profile_save", http_status: r.status || null }) });
     return r.ok;
   };
   const save = async () => {
     if (loading) return;
     const draft = variantDraft.trim();
     const savedVariants = draft && !variants.some(v => v.toLowerCase() === draft.toLowerCase()) ? [...variants, draft] : variants;
-    if (await persistProfile(savedVariants) && draft) { setVariants(savedVariants); setVariantDraft(""); }
+    const saved = await persistProfile(savedVariants);
+    if (saved && draft) { setVariants(savedVariants); setVariantDraft(""); }
+    return saved;
   };
   const addVariant = async (rawValue = variantDraft) => {
     if (loading) return;
@@ -59,17 +71,21 @@ function MyPubsSettings({ onRefreshed }) {
 
   const runRefresh = async () => {
     if (loading) return;
-    await save();  // persist the latest edits first
+    if (!(await save())) return;  // never refresh stale/blank identity after a failed save
     setRefresh({ status: "running" });
     const poll = (jobId) => api(`/my-publications/refresh/${jobId}`).then(r => {
-      if (!r.ok) { setRefresh({ status: "error", error: r.error }); return; }
+      if (!r.ok) { setRefresh({ status: "error", error: r.error, diagnostic:
+        localDiagnostic("IDENTITY_ENRICHMENT_OPENALEX_FAILED", "The identity refresh status could not be read.",
+          "Retry; copy these diagnostics if it fails again.", { stage: "refresh_poll", http_status: r.status || null }) }); return; }
       const d = r.data;
-      if (d.status === "done") { setRefresh({ status: "done", summary: d.summary }); if (onRefreshed) onRefreshed(); }
-      else if (d.status === "error") setRefresh({ status: "error", error: d.detail || "Refresh failed." });
+      if (d.status === "done") { setRefresh({ status: "done", summary: d.summary, diagnostic: d.summary && d.summary.diagnostic }); if (onRefreshed) onRefreshed(); }
+      else if (d.status === "error") setRefresh({ status: "error", error: d.detail || "Refresh failed.", diagnostic: d.diagnostic });
       else setTimeout(() => poll(jobId), 1500);
     });
     const r = await apiPost("/my-publications/refresh", {});
-    if (!r.ok) { setRefresh({ status: "error", error: r.error }); return; }
+    if (!r.ok) { setRefresh({ status: "error", error: r.error, diagnostic:
+      localDiagnostic("IDENTITY_ENRICHMENT_OPENALEX_FAILED", "The identity refresh could not start.",
+        "Retry; copy these diagnostics if it fails again.", { stage: "refresh_start", http_status: r.status || null }) }); return; }
     poll(r.data.job_id);
   };
 
@@ -77,7 +93,12 @@ function MyPubsSettings({ onRefreshed }) {
   const summaryText = !s ? "" :
     s.status === "ok" ? `Found ${s.confirmed || 0} confirmed + ${s.candidates || 0} candidate${(s.candidates || 0) === 1 ? "" : "s"} (of ${s.indexed_works || 0} indexed works; ${s.in_library || 0} in your library).${s.matched_by === "name" ? " Matched by name, not ORCID (your OpenAlex profile may not be linked to it yet) — lower confidence; double-check this is you." : ""}` :
     s.status === "no-identity" ? "Add your name or ORCID first." :
-    s.status === "no-match" ? `No OpenAlex author found for ${s.name || "that identity"} — check the name / ORCID, or see Help for linking OpenAlex to ORCID.` :
+    s.status === "enrichment-not-found" ? "Your ORCID iD is saved as your Callosum identity. OpenAlex did not return a linked author profile, so publications were not gathered." :
+    s.status === "enrichment-failed" ? "Your identity is saved, but OpenAlex enrichment could not complete." :
+    s.status === "enrichment-link-mismatch" ? "Your identity is saved, but the OpenAlex candidate did not safely match it." :
+    s.status === "invalid-orcid" ? "That ORCID iD is not valid. Check all 16 characters and try again." :
+    s.status === "refresh-incomplete" ? "OpenAlex linked your profile, but the publications response was incomplete. No partial result was saved." :
+    s.status === "no-match" ? "No unambiguous OpenAlex author matched that name. Try your full published name or ORCID iD." :
     "Done.";
 
   return (
@@ -112,8 +133,8 @@ function MyPubsSettings({ onRefreshed }) {
         </div>
       </div>
       {refresh.status === "running" && <ProgressBar label="Resolving via OpenAlex…" managedBy="backend-job" />}
-      {refresh.status === "error" && <div className="settings-note settings-note-err">Refresh failed: {refresh.error}</div>}
-      {refresh.status === "done" && <div className="settings-note">{summaryText}</div>}
+      {refresh.status === "error" && <div className="settings-note settings-note-err">Refresh failed: {refresh.error}<div className="settings-actions"><CopyDiagnosticButton diagnostic={refresh.diagnostic} /></div></div>}
+      {refresh.status === "done" && <div className="settings-note">{summaryText}{refresh.diagnostic && <div className="settings-actions"><CopyDiagnosticButton diagnostic={refresh.diagnostic} /></div>}</div>}
     </>
   );
 }

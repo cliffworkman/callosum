@@ -243,11 +243,13 @@ def test_incomplete_author_refresh_preserves_existing_memberships(temp_db_url):
 def test_profile_identity_change_invalidates_cached_openalex_author(temp_db_url):
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
-        upsert_profile(conn, display_name="Ada Lovelace", name_variants=["A. Lovelace"], orcid="0000-a")
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=["A. Lovelace"], orcid="0000-0002-1825-0097")
         set_openalex_author_id(conn, "A1")
-        unchanged = upsert_profile(conn, display_name="Ada Lovelace", name_variants=["A. Lovelace"], orcid="0000-a")
+        unchanged = upsert_profile(
+            conn, display_name="Ada Lovelace", name_variants=["A. Lovelace"], orcid="0000-0002-1825-0097"
+        )
         assert unchanged["openalex_author_id"] == "A1"
-        changed = upsert_profile(conn, display_name="Grace Hopper", name_variants=[], orcid="0000-b")
+        changed = upsert_profile(conn, display_name="Grace Hopper", name_variants=[], orcid="0000-0001-5109-3700")
         assert changed["openalex_author_id"] is None
     engine.dispose()
 
@@ -304,16 +306,16 @@ def test_author_client_resolves_by_orcid(temp_db_url):
     body = {
         "id": "https://openalex.org/A1",
         "display_name": "Ada",
-        "orcid": "https://orcid.org/0000-x",
+        "orcid": "https://orcid.org/0000-0002-1825-0097",
         "works_count": 3,
     }
     client = OpenAlexAuthorClient(fetcher=_AuthorFetcher({"/authors/orcid:": (200, body)}))
     with make_engine(temp_db_url).begin() as conn:
-        author = client.resolve_author(conn, orcid="0000-x")
+        author = client.resolve_author(conn, orcid="0000-0002-1825-0097")
     assert (
         author.author_id == "A1"
         and author.matched_by == "orcid"
-        and author.orcid == "0000-x"
+        and author.orcid == "0000-0002-1825-0097"
         and author.works_count == 3
     )
 
@@ -341,11 +343,11 @@ def test_author_client_falls_back_to_name_when_orcid_unlinked(temp_db_url):
 
 
 def test_author_client_orcid_success_never_tries_name_fallback(temp_db_url):
-    body = {"id": "https://openalex.org/A1", "display_name": "Ada", "orcid": "https://orcid.org/0000-x"}
+    body = {"id": "https://openalex.org/A1", "display_name": "Ada", "orcid": "https://orcid.org/0000-0002-1825-0097"}
     fetcher = _AuthorFetcher({"/authors/orcid:": (200, body), "/authors": (200, {"results": []})})
     client = OpenAlexAuthorClient(fetcher=fetcher)
     with make_engine(temp_db_url).begin() as conn:
-        author = client.resolve_author(conn, orcid="0000-x", name="Someone Else")
+        author = client.resolve_author(conn, orcid="0000-0002-1825-0097", name="Someone Else")
     assert author.matched_by == "orcid" and len(fetcher.calls) == 1  # never reaches the name search
 
 
@@ -418,7 +420,7 @@ def test_author_client_exact_orcid_failure_does_not_fall_back_to_name(temp_db_ur
     client = OpenAlexAuthorClient(fetcher=fetcher)
     with make_engine(temp_db_url).begin() as conn:
         with pytest.raises(OpenAlexAuthorUnavailable):
-            client.resolve_author(conn, orcid="0000-x", name="Another Person")
+            client.resolve_author(conn, orcid="0000-0002-1825-0097", name="Another Person")
     assert len(fetcher.calls) == 1
 
 
@@ -435,16 +437,22 @@ def test_author_client_retries_after_a_transient_fetch_failure(temp_db_url):
             self.calls += 1
             if self.calls == 1:
                 raise RuntimeError("transient decode error")
-            return 200, {"id": "https://openalex.org/A1", "display_name": "Ada", "orcid": "https://orcid.org/0000-x"}
+            return 200, {
+                "id": "https://openalex.org/A1",
+                "display_name": "Ada",
+                "orcid": "https://orcid.org/0000-0002-1825-0097",
+            }
 
     fetcher = _FlakyThenGood()
     client = OpenAlexAuthorClient(fetcher=fetcher)
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
         with pytest.raises(OpenAlexAuthorUnavailable):
-            client.resolve_author(conn, orcid="0000-x")
+            client.resolve_author(conn, orcid="0000-0002-1825-0097")
     with engine.begin() as conn:
-        author = client.resolve_author(conn, orcid="0000-x")  # second attempt: retries rather than replaying
+        author = client.resolve_author(
+            conn, orcid="0000-0002-1825-0097"
+        )  # second attempt: retries rather than replaying
     assert author is not None and author.author_id == "A1" and fetcher.calls == 2
 
 
@@ -479,10 +487,11 @@ def test_profile_endpoints(temp_db_url):
     client = TestClient(create_app(db_url=temp_db_url))
     assert client.get("/my-publications/profile").json()["display_name"] is None
     r = client.put(
-        "/my-publications/profile", json={"display_name": "Ada", "name_variants": ["A L"], "orcid": "0000-x"}
+        "/my-publications/profile",
+        json={"display_name": "Ada", "name_variants": ["A L"], "orcid": "0000-0002-1825-0097"},
     )
     assert r.status_code == 200 and r.json()["display_name"] == "Ada" and r.json()["name_variants"] == ["A L"]
-    assert client.get("/my-publications/profile").json()["orcid"] == "0000-x"
+    assert client.get("/my-publications/profile").json()["orcid"] == "0000-0002-1825-0097"
 
 
 def test_decide_endpoint_records_and_422(temp_db_url):
@@ -512,7 +521,7 @@ def test_author_client_parses_stats_and_counts_by_year(temp_db_url):
     body = {
         "id": "https://openalex.org/A1",
         "display_name": "Ada",
-        "orcid": "https://orcid.org/0000-x",
+        "orcid": "https://orcid.org/0000-0002-1825-0097",
         "works_count": 3,
         "cited_by_count": 99,
         "summary_stats": {"h_index": 7, "i10_index": 4, "2yr_mean_citedness": 3.5},
@@ -521,7 +530,7 @@ def test_author_client_parses_stats_and_counts_by_year(temp_db_url):
     }
     client = OpenAlexAuthorClient(fetcher=_AuthorFetcher({"/authors/orcid:": (200, body)}))
     with make_engine(temp_db_url).begin() as conn:
-        author = client.resolve_author(conn, orcid="0000-x")
+        author = client.resolve_author(conn, orcid="0000-0002-1825-0097")
     assert author.cited_by_count == 99 and author.h_index == 7 and author.i10_index == 4
     assert author.counts_by_year == ({"year": 2021, "works_count": 1, "cited_by_count": 10},)
     assert author.two_year_mean_citedness == 3.5 and author.affiliation == "Analytical Engine Lab"
@@ -531,20 +540,20 @@ def test_cached_author_reads_cache_without_fetching(temp_db_url):
     body = {
         "id": "https://openalex.org/A1",
         "display_name": "Ada",
-        "orcid": "https://orcid.org/0000-x",
+        "orcid": "https://orcid.org/0000-0002-1825-0097",
         "cited_by_count": 5,
     }
     fetcher = _AuthorFetcher({"/authors/orcid:": (200, body)})
     client = OpenAlexAuthorClient(fetcher=fetcher)
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
-        assert client.cached_author(conn, orcid="0000-x") is None  # cold cache → None, and...
+        assert client.cached_author(conn, orcid="0000-0002-1825-0097") is None  # cold cache → None, and...
     assert fetcher.calls == []  # ...never fetches
     with engine.begin() as conn:
-        client.resolve_author(conn, orcid="0000-x")  # warm the cache
+        client.resolve_author(conn, orcid="0000-0002-1825-0097")  # warm the cache
     calls = len(fetcher.calls)
     with engine.begin() as conn:
-        author = client.cached_author(conn, orcid="0000-x")
+        author = client.cached_author(conn, orcid="0000-0002-1825-0097")
     assert author is not None and author.cited_by_count == 5 and len(fetcher.calls) == calls  # served from cache
 
 
@@ -623,7 +632,7 @@ def test_work_from_obj_captures_openalex_work_id():  # SP3 T1
 def test_dashboard_paper_citations(temp_db_url):  # SP3 T1 (#14)
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
-        upsert_profile(conn, display_name="Ada", name_variants=[], orcid="0000-x")
+        upsert_profile(conn, display_name="Ada", name_variants=[], orcid="0000-0002-1825-0097")
         set_openalex_author_id(conn, "A1")
         pid = create_paper(conn, title="Engine", csl_json=_csl("Engine", "10.1/engine"), doi="10.1/engine")
     works = [AuthorWork(doi="10.1/engine", title="Engine", year=1843, cited_by_count=42, openalex_work_id="W9")]
@@ -721,7 +730,7 @@ def test_clusters_response_carries_domain_for_my_pubs(temp_db_url):  # SP2 T1 (#
 def test_rename_domain_endpoint(temp_db_url):  # SP2 T2 (#15)
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
-        upsert_profile(conn, display_name="Ada", name_variants=[], orcid="0000-x")
+        upsert_profile(conn, display_name="Ada", name_variants=[], orcid="0000-0002-1825-0097")
         pid = create_paper(conn, title="Engine", csl_json=_csl("Engine", "10.1/e"), doi="10.1/e")
         set_research_domains(conn, [{"label": "Auto", "terms": ["x"], "paper_ids": [int(pid)]}])
     client = TestClient(create_app(db_url=temp_db_url))

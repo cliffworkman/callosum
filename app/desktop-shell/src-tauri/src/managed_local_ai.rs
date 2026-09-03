@@ -19,6 +19,8 @@ mod observation;
 use observation::{observe_child_output, SharedRuntimeObservation};
 mod install;
 pub use install::LocalAiInstallState;
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+mod install_macos;
 mod preview;
 pub use preview::{local_ai_status, setup_and_start, start_for_startup, LocalAiStatus};
 mod process;
@@ -79,6 +81,31 @@ impl ManagedAiError {
             Self::ExecutionMismatch => {
                 "the managed local AI runtime execution state did not match its request"
             }
+        }
+    }
+
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::InvalidConfig(message) if message.contains("architecture") => {
+                "LOCAL_AI_UNSUPPORTED_ARCHITECTURE"
+            }
+            Self::InvalidConfig(message) if message.contains("not been set up") => {
+                "LOCAL_AI_MODEL_NOT_INSTALLED"
+            }
+            Self::InvalidConfig(_) => "LOCAL_AI_CONFIGURATION_INVALID",
+            Self::Io(message)
+                if message.contains("identity mismatch") || message.contains("checksum") =>
+            {
+                "LOCAL_AI_INTEGRITY_CHECK_FAILED"
+            }
+            Self::Io(message) if message.contains("download") => "LOCAL_AI_DOWNLOAD_FAILED",
+            Self::Io(_) => "LOCAL_AI_RUNTIME_INSTALL_FAILED",
+            Self::Spawn => "LOCAL_AI_RUNTIME_NOT_STARTED",
+            Self::Exited => "LOCAL_AI_RUNTIME_EXITED",
+            Self::ReadinessTimeout => "LOCAL_AI_RUNTIME_TIMEOUT",
+            Self::ReadinessProbe => "LOCAL_AI_RUNTIME_UNREACHABLE",
+            Self::ExecutionUnverified => "LOCAL_AI_EXECUTION_UNVERIFIED",
+            Self::ExecutionMismatch => "LOCAL_AI_EXECUTION_MISMATCH",
         }
     }
 }
@@ -164,13 +191,13 @@ impl DeveloperConfig {
             max_output_tokens: PREVIEW_OUTPUT_TOKENS,
             qualification_state: "LOCAL_AI_PREVIEW",
             expected_model_digest: Some(install::MODEL_SHA256),
-            #[cfg(windows)]
+            #[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
             expected_launcher_digest: Some(install::RUNTIME_LAUNCHER_SHA256),
-            #[cfg(not(windows))]
+            #[cfg(not(any(windows, all(target_os = "macos", target_arch = "aarch64"))))]
             expected_launcher_digest: None,
-            #[cfg(windows)]
+            #[cfg(any(windows, all(target_os = "macos", target_arch = "aarch64")))]
             expected_bundle_digest: Some(install::RUNTIME_BUNDLE_SHA256),
-            #[cfg(not(windows))]
+            #[cfg(not(any(windows, all(target_os = "macos", target_arch = "aarch64"))))]
             expected_bundle_digest: None,
         }
     }

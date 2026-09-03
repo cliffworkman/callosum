@@ -30,6 +30,7 @@ from app.backend.persistence.followed_author_repo import (
     remove_followed_author,
 )
 from app.backend.persistence.sqlite_retry import run_write
+from app.backend.researcher_identity import InvalidOrcid, normalize_orcid
 from integrations.openalex import OpenAlexAuthorClient
 
 router = APIRouter()
@@ -87,9 +88,13 @@ def follow_author(payload: FollowRequest, request: Request, engine: Engine = Dep
 
     if not (payload.name or "").strip() and not (payload.orcid or "").strip():
         raise HTTPException(status_code=422, detail="A name or ORCID is required to follow an author.")
+    try:
+        canonical_orcid = normalize_orcid(payload.orcid)
+    except InvalidOrcid as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
 
     def _do_resolve(conn: Connection) -> FollowResponse:
-        author = _author_client(request.app).resolve_author(conn, orcid=payload.orcid, name=payload.name)
+        author = _author_client(request.app).resolve_author(conn, orcid=canonical_orcid, name=payload.name)
         if author is None:
             return FollowResponse(status="no-match")
         existing = get_followed_author(conn, author.author_id)

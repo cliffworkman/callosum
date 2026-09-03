@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import Connection, delete, func, insert, select, update
 
 from app.backend.persistence.schema import my_publication_decisions, profile
+from app.backend.researcher_identity import normalize_orcid
 
 
 def get_profile(conn: Connection) -> dict[str, Any] | None:
@@ -32,7 +33,9 @@ def upsert_profile(
     values = {
         "display_name": (display_name or "").strip() or None,
         "name_variants": [v.strip() for v in (name_variants or []) if v and v.strip()],
-        "orcid": (orcid or "").strip() or None,
+        # A valid ORCID establishes the local identity here. OpenAlex is a
+        # later enrichment/linkage step, not the authority that validates it.
+        "orcid": normalize_orcid(orcid),
         "updated_at": func.current_timestamp(),
     }
     if existing is None:

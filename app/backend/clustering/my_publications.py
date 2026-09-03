@@ -19,6 +19,7 @@ from app.backend.clustering.axis_assignments import (
     manual_assignment_paper_ids,
 )
 from app.backend.clustering.my_publication_gap_scope import citation_gap_domain_key
+from app.backend.clustering.my_publications_identity import resolve_identity_fetch
 from app.backend.metadata.abstract_display import abstract_plain_text
 from app.backend.persistence.profile_repo import (
     get_decisions,
@@ -47,36 +48,9 @@ def resolve_my_publications(conn: Connection, *, author_client, force: bool = Fa
 
 
 def _resolve_fetch(conn: Connection, *, author_client, force: bool):
-    """Fetch phase (inc D): identity checks + author resolve + works fetch — NO conn writes (the author client
-    caches self-committingly in a fetch-outside-lock job). Returns ``(early_status | None, author | None, works)``;
-    a non-None status short-circuits (no persist)."""
-    profile = get_profile(conn)
-    if not profile or not ((profile.get("display_name") or "").strip() or (profile.get("orcid") or "").strip()):
-        return {"status": "no-identity"}, None, []
-    if profile.get("my_publications_dismissed") and not force:
-        return {"status": "dismissed"}, None, []
-    author = author_client.resolve_author(conn, orcid=profile.get("orcid"), name=profile.get("display_name"))
-    if author is None:
-        return {"status": "no-match", "name": (profile.get("display_name") or "").strip() or None}, None, []
-    # inc 119 (SP3): refresh works on an explicit re-resolve so the cache carries fresh citation counts + the
-    # OpenAlex work ids the citing-articles feature needs (an explicit "Refresh" should actually re-fetch).
-    result_fetcher = getattr(author_client, "fetch_author_works_result", None)
-    if callable(result_fetcher):
-        result = result_fetcher(conn, author.author_id, refresh=True)
-        if not result.complete:
-            return (
-                {
-                    "status": "refresh-incomplete",
-                    "name": author.display_name or (profile.get("display_name") or "").strip() or None,
-                    "capped": bool(result.capped),
-                },
-                None,
-                [],
-            )
-        works = list(result.works)
-    else:
-        works = author_client.fetch_author_works(conn, author.author_id, refresh=True)
-    return None, author, works
+    """Compatibility seam retained for the async router's lock-free fetch phase."""
+
+    return resolve_identity_fetch(conn, author_client=author_client, force=force)
 
 
 def _resolve_persist(conn: Connection, author, works) -> dict[str, Any]:
@@ -127,6 +101,9 @@ def _resolve_persist(conn: Connection, author, works) -> dict[str, Any]:
 
     return {
         "status": "ok",
+        "identity_established": bool(profile.get("orcid")) or author is not None,
+        "enrichment_status": "linked",
+        "openalex_author_id": author.author_id,
         "axis_id": axis_id,
         "name": author.display_name or (profile.get("display_name") or "").strip() or None,
         "matched_by": author.matched_by,

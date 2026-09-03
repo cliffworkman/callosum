@@ -3851,6 +3851,50 @@
     const n = parseInt(m[1], 16);
     return `rgba(${n >> 16 & 255}, ${n >> 8 & 255}, ${n & 255}, ${alpha})`;
   }
+  function callosumDiagnosticText(diagnostic) {
+    if (!diagnostic) return "";
+    const lines = [
+      "Callosum diagnostic",
+      `Error: ${diagnostic.code || "UNKNOWN"}`,
+      `Feature: ${diagnostic.feature || "Unknown"}`,
+      `Message: ${diagnostic.message || "No detail available."}`,
+      `Suggested action: ${diagnostic.suggested_action || "Retry and report this diagnostic if the problem continues."}`,
+      `Callosum: ${diagnostic.callosum_version || "unknown"}`,
+      `Platform: ${diagnostic.platform || navigator.platform || "unknown"}`
+    ];
+    Object.entries(diagnostic.details || {}).forEach(([key, value]) => {
+      if (value !== null && value !== void 0 && value !== "") {
+        lines.push(`${key.replaceAll("_", " ")}: ${String(value)}`);
+      }
+    });
+    lines.push(`Timestamp: ${diagnostic.timestamp || (/* @__PURE__ */ new Date()).toISOString()}`);
+    return lines.join("\n");
+  }
+  function callosumClientDiagnostic(code, feature, message, suggestedAction, details = {}) {
+    return {
+      code,
+      feature,
+      message,
+      suggested_action: suggestedAction,
+      platform: navigator.platform || "unknown",
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      details
+    };
+  }
+  function CopyDiagnosticButton({ diagnostic }) {
+    const [copied, setCopied] = useState(false);
+    if (!diagnostic) return null;
+    const copy = async () => {
+      try {
+        await navigator.clipboard.writeText(callosumDiagnosticText(diagnostic));
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      } catch (_error) {
+        setCopied(false);
+      }
+    };
+    return /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost", onClick: copy }, copied ? "Diagnostics copied \u2713" : "Copy diagnostics");
+  }
   function AccessLockOverlay() {
     const [tab, setTab] = useState("token");
     const [tokenInput, setTokenInput] = useState("");
@@ -18392,6 +18436,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [starredOnly, setStarredOnly] = useState(false);
     const [missingOpen, setMissingOpen] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [refreshError, setRefreshError] = useState(null);
     const [overviewOpen, setOverviewOpen] = useState(() => localStorage.getItem("callosum.mypubsOverviewCollapsed") !== "1");
     useEffect(() => {
       localStorage.setItem("callosum.mypubsOverviewCollapsed", overviewOpen ? "0" : "1");
@@ -18430,7 +18475,13 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         if (r.ok) {
           setData(r.data);
           setSummary(r.data.research_summary || "");
-        } else setData({ status: "error", error: r.error });
+        } else setData({ status: "error", error: r.error, diagnostic: callosumClientDiagnostic(
+          "IDENTITY_METADATA_UNAVAILABLE",
+          "My Publications identity",
+          "Callosum could not load the My Publications dashboard.",
+          "Retry after Callosum finishes starting; copy these diagnostics if it persists.",
+          { stage: "dashboard_load", http_status: r.status || null }
+        ) });
       });
       return () => {
         live = false;
@@ -18492,30 +18543,41 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     });
     const refreshMyPubs = () => {
       setRefreshing(true);
+      setRefreshError(null);
+      const failed = (diagnostic, fallback) => {
+        setRefreshing(false);
+        setRefreshError(diagnostic || callosumClientDiagnostic(
+          "IDENTITY_ENRICHMENT_OPENALEX_FAILED",
+          "My Publications identity",
+          fallback || "Callosum could not refresh the OpenAlex profile.",
+          "Retry; if the problem continues, copy these diagnostics into Slack.",
+          { stage: "dashboard_refresh" }
+        ));
+      };
       const poll = (jobId) => api(`/my-publications/refresh/${jobId}`).then((r) => {
         if (!r.ok) {
-          setRefreshing(false);
+          failed(null, r.error);
           return;
         }
         const d = r.data;
         if (d.status === "done") {
           setRefreshing(false);
+          setRefreshError(d.summary && d.summary.diagnostic ? d.summary.diagnostic : null);
           refetch();
           resolveAxis();
-        } else if (d.status === "error") {
-          setRefreshing(false);
-        } else setTimeout(() => poll(jobId), 1500);
+        } else if (d.status === "error") failed(d.diagnostic, d.detail);
+        else setTimeout(() => poll(jobId), 1500);
       });
       apiPost("/my-publications/refresh", {}).then((r) => {
         if (!r.ok) {
-          setRefreshing(false);
+          failed(null, r.error);
           return;
         }
         poll(r.data.job_id);
       });
     };
     if (data.status === "loading") return /* @__PURE__ */ React.createElement("div", { className: "mypubs-dashboard" }, /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"));
-    if (data.status === "error") return /* @__PURE__ */ React.createElement("div", { className: "mypubs-dashboard" }, /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load the dashboard: ", data.error));
+    if (data.status === "error") return /* @__PURE__ */ React.createElement("div", { className: "mypubs-dashboard" }, /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load the dashboard: ", data.error, /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement(CopyDiagnosticButton, { diagnostic: data.diagnostic }))));
     if (data.status === "no-identity" || data.status === "not-resolved")
       return /* @__PURE__ */ React.createElement("div", { className: "mypubs-dashboard" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-empty" }, /* @__PURE__ */ React.createElement("h2", null, "My Publications"), /* @__PURE__ */ React.createElement("p", null, data.status === "no-identity" ? "Set your name and ORCID in \u2699 Settings \u2192 My Publications, then click Refresh to gather your publications." : "Resolve your publications first \u2014 open \u2699 Settings \u2192 My Publications and click Refresh. The dashboard reads only cached data, so it never fetches on its own.")));
     const m = data.metrics || {};
@@ -18690,7 +18752,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         title: demoMode ? "Refreshing sends public identifiers to OpenAlex and requires the local Callosum backend." : void 0
       },
       refreshing ? "Refreshing\u2026" : "\u21BB Refresh from OpenAlex"
-    )), refreshing && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Resolving via OpenAlex\u2026", managedBy: "backend-job" }), demoMode && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Saved OpenAlex snapshot scoped to the four genuine Workman publications in this demo corpus. Refreshing public metadata requires local Callosum.")), /* @__PURE__ */ React.createElement(
+    )), refreshing && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Resolving via OpenAlex\u2026", managedBy: "backend-job" }), refreshError && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, refreshError.message || "OpenAlex refresh did not complete.", /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement(CopyDiagnosticButton, { diagnostic: refreshError }))), demoMode && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Saved OpenAlex snapshot scoped to the four genuine Workman publications in this demo corpus. Refreshing public metadata requires local Callosum.")), /* @__PURE__ */ React.createElement(
       MissingWorksModal,
       {
         open: missingOpen,
@@ -19858,6 +19920,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [saving, setSaving] = useState(false);
     const [refresh, setRefresh] = useState({ status: "idle" });
     const [loading, setLoading] = useState(true);
+    const localDiagnostic = (code, message, suggestedAction, details = {}) => callosumClientDiagnostic(code, "My Publications identity", message, suggestedAction, details);
     useEffect(() => {
       api("/my-publications/profile").then((r) => {
         if (r.ok) {
@@ -19865,7 +19928,12 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           setName(p.display_name || "");
           setVariants(p.name_variants || []);
           setOrcid(p.orcid || "");
-        }
+        } else setRefresh({ status: "error", error: "Couldn't load the saved identity.", diagnostic: localDiagnostic(
+          "IDENTITY_METADATA_UNAVAILABLE",
+          "Callosum could not read the saved identity.",
+          "Retry after Callosum finishes starting; copy these diagnostics if it persists.",
+          { stage: "profile_load" }
+        ) });
         setLoading(false);
       });
     }, []);
@@ -19878,16 +19946,24 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         orcid: orcid.trim() || null
       });
       setSaving(false);
+      if (!r.ok) setRefresh({ status: "error", error: r.error || "Couldn't save the identity.", diagnostic: localDiagnostic(
+        r.status === 422 ? "IDENTITY_ORCID_INVALID" : "IDENTITY_METADATA_UNAVAILABLE",
+        r.error || "Callosum could not save the identity.",
+        "Correct the ORCID if prompted, then retry.",
+        { stage: "profile_save", http_status: r.status || null }
+      ) });
       return r.ok;
     };
     const save = async () => {
       if (loading) return;
       const draft = variantDraft.trim();
       const savedVariants = draft && !variants.some((v) => v.toLowerCase() === draft.toLowerCase()) ? [...variants, draft] : variants;
-      if (await persistProfile(savedVariants) && draft) {
+      const saved = await persistProfile(savedVariants);
+      if (saved && draft) {
         setVariants(savedVariants);
         setVariantDraft("");
       }
+      return saved;
     };
     const addVariant = async (rawValue = variantDraft) => {
       if (loading) return;
@@ -19913,29 +19989,39 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     };
     const runRefresh = async () => {
       if (loading) return;
-      await save();
+      if (!await save()) return;
       setRefresh({ status: "running" });
       const poll = (jobId) => api(`/my-publications/refresh/${jobId}`).then((r2) => {
         if (!r2.ok) {
-          setRefresh({ status: "error", error: r2.error });
+          setRefresh({ status: "error", error: r2.error, diagnostic: localDiagnostic(
+            "IDENTITY_ENRICHMENT_OPENALEX_FAILED",
+            "The identity refresh status could not be read.",
+            "Retry; copy these diagnostics if it fails again.",
+            { stage: "refresh_poll", http_status: r2.status || null }
+          ) });
           return;
         }
         const d = r2.data;
         if (d.status === "done") {
-          setRefresh({ status: "done", summary: d.summary });
+          setRefresh({ status: "done", summary: d.summary, diagnostic: d.summary && d.summary.diagnostic });
           if (onRefreshed) onRefreshed();
-        } else if (d.status === "error") setRefresh({ status: "error", error: d.detail || "Refresh failed." });
+        } else if (d.status === "error") setRefresh({ status: "error", error: d.detail || "Refresh failed.", diagnostic: d.diagnostic });
         else setTimeout(() => poll(jobId), 1500);
       });
       const r = await apiPost("/my-publications/refresh", {});
       if (!r.ok) {
-        setRefresh({ status: "error", error: r.error });
+        setRefresh({ status: "error", error: r.error, diagnostic: localDiagnostic(
+          "IDENTITY_ENRICHMENT_OPENALEX_FAILED",
+          "The identity refresh could not start.",
+          "Retry; copy these diagnostics if it fails again.",
+          { stage: "refresh_start", http_status: r.status || null }
+        ) });
         return;
       }
       poll(r.data.job_id);
     };
     const s = refresh.summary;
-    const summaryText = !s ? "" : s.status === "ok" ? `Found ${s.confirmed || 0} confirmed + ${s.candidates || 0} candidate${(s.candidates || 0) === 1 ? "" : "s"} (of ${s.indexed_works || 0} indexed works; ${s.in_library || 0} in your library).${s.matched_by === "name" ? " Matched by name, not ORCID (your OpenAlex profile may not be linked to it yet) \u2014 lower confidence; double-check this is you." : ""}` : s.status === "no-identity" ? "Add your name or ORCID first." : s.status === "no-match" ? `No OpenAlex author found for ${s.name || "that identity"} \u2014 check the name / ORCID, or see Help for linking OpenAlex to ORCID.` : "Done.";
+    const summaryText = !s ? "" : s.status === "ok" ? `Found ${s.confirmed || 0} confirmed + ${s.candidates || 0} candidate${(s.candidates || 0) === 1 ? "" : "s"} (of ${s.indexed_works || 0} indexed works; ${s.in_library || 0} in your library).${s.matched_by === "name" ? " Matched by name, not ORCID (your OpenAlex profile may not be linked to it yet) \u2014 lower confidence; double-check this is you." : ""}` : s.status === "no-identity" ? "Add your name or ORCID first." : s.status === "enrichment-not-found" ? "Your ORCID iD is saved as your Callosum identity. OpenAlex did not return a linked author profile, so publications were not gathered." : s.status === "enrichment-failed" ? "Your identity is saved, but OpenAlex enrichment could not complete." : s.status === "enrichment-link-mismatch" ? "Your identity is saved, but the OpenAlex candidate did not safely match it." : s.status === "invalid-orcid" ? "That ORCID iD is not valid. Check all 16 characters and try again." : s.status === "refresh-incomplete" ? "OpenAlex linked your profile, but the publications response was incomplete. No partial result was saved." : s.status === "no-match" ? "No unambiguous OpenAlex author matched that name. Try your full published name or ORCID iD." : "Done.";
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Your name"), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "e.g. Karen Sp\xE4rck Jones", value: name, onChange: (e) => setName(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Other published names"), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
       "input",
       {
@@ -19960,7 +20046,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onClick: () => removeVariant(index)
       },
       "\xD7"
-    ))))), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "ORCID (Recommended \u2014 gives an exact match. Resolved via OpenAlex.)"), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow settings-orcid-row" }, /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "0000-0002-1825-0097", value: orcid, onChange: (e) => setOrcid(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: loading || saving, onClick: save }, saving ? "Saving\u2026" : "Save"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: loading || refresh.status === "running" || !name.trim() && !orcid.trim(), onClick: runRefresh }, refresh.status === "running" ? "Gathering\u2026" : loading ? "Loading\u2026" : "Refresh my papers"))), refresh.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Resolving via OpenAlex\u2026", managedBy: "backend-job" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Refresh failed: ", refresh.error), refresh.status === "done" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, summaryText));
+    ))))), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "ORCID (Recommended \u2014 gives an exact match. Resolved via OpenAlex.)"), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow settings-orcid-row" }, /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "0000-0002-1825-0097", value: orcid, onChange: (e) => setOrcid(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: loading || saving, onClick: save }, saving ? "Saving\u2026" : "Save"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: loading || refresh.status === "running" || !name.trim() && !orcid.trim(), onClick: runRefresh }, refresh.status === "running" ? "Gathering\u2026" : loading ? "Loading\u2026" : "Refresh my papers"))), refresh.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Resolving via OpenAlex\u2026", managedBy: "backend-job" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Refresh failed: ", refresh.error, /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement(CopyDiagnosticButton, { diagnostic: refresh.diagnostic }))), refresh.status === "done" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, summaryText, refresh.diagnostic && /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement(CopyDiagnosticButton, { diagnostic: refresh.diagnostic }))));
   }
   const AI_KEY_URLS = {
     gemini: "https://aistudio.google.com/apikey",
@@ -20090,6 +20176,25 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     };
     return phases[status && status.state] || ["Setting up Local AI\u2026", "Keep Callosum open while setup finishes."];
   }
+  function localAiStatusLabel(status) {
+    const labels = {
+      ready: "Local AI: Ready",
+      installed: "Installed \u2014 ready to start",
+      not_installed: "Ready to set up",
+      unsupported: "Unsupported architecture",
+      error: "Setup needs attention"
+    };
+    return labels[status && status.state] || (status && status.state ? status.state.replaceAll("_", " ") : "Checking\u2026");
+  }
+  function localAiFrontendDiagnostic(code, message, stage) {
+    return callosumClientDiagnostic(
+      code,
+      "Local AI",
+      message,
+      "Retry Set up Local AI; if it fails again, copy these diagnostics into your report.",
+      { stage, runtime: "managed llama.cpp b10516" }
+    );
+  }
   function localAiSetupProgress(status) {
     if (!status || !(status.total_bytes > 0) || status.downloaded_bytes == null) return null;
     const unit = 1024 * 1024;
@@ -20198,7 +20303,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       };
       if (await onUpdate(p.id, patch, "Saved.")) setEditing(false);
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "provider-card" + (active ? " is-active" : "") }, /* @__PURE__ */ React.createElement("div", { className: "provider-card-head" }, /* @__PURE__ */ React.createElement("div", { className: "provider-identity" }, /* @__PURE__ */ React.createElement("span", { className: "provider-name" }, p.name), /* @__PURE__ */ React.createElement("span", { className: "provider-badge" }, WIRE_LABELS[p.wire_format] || p.wire_format)), /* @__PURE__ */ React.createElement("span", { className: "provider-actions" }, active ? /* @__PURE__ */ React.createElement("span", { className: "provider-active" }, "Active") : !isManagedLocal && /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: () => onActivate(p.id) }, "Use"), !p.builtin && /* @__PURE__ */ React.createElement("button", { className: "btn-link danger", disabled: busy, onClick: () => onDelete(p.id) }, "Delete"))), /* @__PURE__ */ React.createElement("div", { className: "provider-body" }, needsConsent && !editing && /* @__PURE__ */ React.createElement("div", { className: "provider-egress-warn" }, "\u26A0 AI features are off \u2014 Callosum won't contact ", /* @__PURE__ */ React.createElement("b", null, p.name), " until you turn on ", /* @__PURE__ */ React.createElement("b", null, "Allow AI features"), " below."), !editing && endpointUrl && /* @__PURE__ */ React.createElement("div", { className: "settings-sub provider-endpoint" }, "Sends to ", /* @__PURE__ */ React.createElement("code", null, endpointUrl), " \u2014 your library text goes there when you generate a summary.", isLoopbackUrl(endpointUrl) ? /* @__PURE__ */ React.createElement(React.Fragment, null, " This is a loopback address \u2014 ", /* @__PURE__ */ React.createElement("b", null, "nothing leaves your machine"), ".") : null), !editing && (isManagedLocal || p.id === "gemini") && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Overview \u2014 ", /* @__PURE__ */ React.createElement("b", null, "Evaluated"), " \xB7 Other generative capabilities \u2014 ", /* @__PURE__ */ React.createElement("b", null, "Testing")), isManagedLocal ? /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("b", null, "Runs on this device."), " No API key, provider account, endpoint, Ollama, or terminal required."), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Status: ", /* @__PURE__ */ React.createElement("b", null, localAi && localAi.state === "ready" ? "Local AI: Ready" : localAi && localAi.state === "installed" ? "Installed \u2014 preparing required" : localAi && localAi.state ? localAi.state.replaceAll("_", " ") : "Checking\u2026")), localAi && localAi.detail && /* @__PURE__ */ React.createElement("div", { className: "provider-egress-warn" }, localAi.detail), localSetupActive && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "provider-card" + (active ? " is-active" : "") }, /* @__PURE__ */ React.createElement("div", { className: "provider-card-head" }, /* @__PURE__ */ React.createElement("div", { className: "provider-identity" }, /* @__PURE__ */ React.createElement("span", { className: "provider-name" }, p.name), /* @__PURE__ */ React.createElement("span", { className: "provider-badge" }, WIRE_LABELS[p.wire_format] || p.wire_format)), /* @__PURE__ */ React.createElement("span", { className: "provider-actions" }, active ? /* @__PURE__ */ React.createElement("span", { className: "provider-active" }, "Active") : !isManagedLocal && /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: () => onActivate(p.id) }, "Use"), !p.builtin && /* @__PURE__ */ React.createElement("button", { className: "btn-link danger", disabled: busy, onClick: () => onDelete(p.id) }, "Delete"))), /* @__PURE__ */ React.createElement("div", { className: "provider-body" }, needsConsent && !editing && /* @__PURE__ */ React.createElement("div", { className: "provider-egress-warn" }, "\u26A0 AI features are off \u2014 Callosum won't contact ", /* @__PURE__ */ React.createElement("b", null, p.name), " until you turn on ", /* @__PURE__ */ React.createElement("b", null, "Allow AI features"), " below."), !editing && endpointUrl && /* @__PURE__ */ React.createElement("div", { className: "settings-sub provider-endpoint" }, "Sends to ", /* @__PURE__ */ React.createElement("code", null, endpointUrl), " \u2014 your library text goes there when you generate a summary.", isLoopbackUrl(endpointUrl) ? /* @__PURE__ */ React.createElement(React.Fragment, null, " This is a loopback address \u2014 ", /* @__PURE__ */ React.createElement("b", null, "nothing leaves your machine"), ".") : null), !editing && (isManagedLocal || p.id === "gemini") && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Overview \u2014 ", /* @__PURE__ */ React.createElement("b", null, "Evaluated"), " \xB7 Other generative capabilities \u2014 ", /* @__PURE__ */ React.createElement("b", null, "Testing")), isManagedLocal ? /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("b", null, "Runs on this device."), " No API key, provider account, endpoint, Ollama, or terminal required."), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Status: ", /* @__PURE__ */ React.createElement("b", null, localAiStatusLabel(localAi))), localAi && localAi.detail && /* @__PURE__ */ React.createElement("div", { className: "provider-egress-warn" }, localAi.detail), localAi && localAi.diagnostic && /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement(CopyDiagnosticButton, { diagnostic: localAi.diagnostic })), localSetupActive && /* @__PURE__ */ React.createElement(
       "div",
       {
         className: "local-ai-setup-progress",
@@ -20244,14 +20349,21 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           state: "unsupported",
           installed: false,
           running: false,
-          detail: "Managed Local AI setup is available in the installed desktop app."
+          detail: "Managed Local AI setup is available in the installed desktop app.",
+          diagnostic: localAiFrontendDiagnostic("LOCAL_AI_DESKTOP_REQUIRED", "Managed Local AI requires the installed desktop app.", "runtime_detection")
         });
         return;
       }
       try {
         acceptLocalAiSetupStatus(await window.__TAURI__.core.invoke("local_ai_status"));
-      } catch (err) {
-        acceptLocalAiSetupStatus({ state: "error", detail: String(err), installed: false, running: false });
+      } catch (_err) {
+        acceptLocalAiSetupStatus({
+          state: "error",
+          detail: "Local AI status detection failed.",
+          installed: false,
+          running: false,
+          diagnostic: localAiFrontendDiagnostic("LOCAL_AI_DETECTION_FAILED", "Callosum could not inspect Local AI status.", "runtime_detection")
+        });
       }
     };
     const reload = async () => {
@@ -20320,10 +20432,10 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         await reload();
         setMsg("Local AI is ready and active.");
         _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, true);
-      } catch (err) {
-        acceptLocalAiSetupStatus({ state: "error", detail: String(err), installed: false, running: false });
+      } catch (_err) {
+        await refreshLocalAi();
         setMsg("Local AI setup did not finish. Retry setup or open technical details.");
-        _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, false, String(err));
+        _finishClientStatus(LOCAL_AI_SETUP_STATUS_ID, false, "Local AI setup did not finish.");
       } finally {
         setBusy(false);
       }
