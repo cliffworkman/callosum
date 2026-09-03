@@ -9,6 +9,33 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-03 — Increment 570: the Python runtime leaves the app package (closes #71)
+- **Files:** `app/desktop-shell/src-tauri/src/{python_runtime.rs,backend.rs,lib.rs}`, `Cargo.toml`,
+  `tauri.conf.json`, `app/desktop-shell/packaging/*`, `.github/workflows/desktop-python-runtime.yml`
+  (new) + `desktop-shell-{linux,macos,windows}.yml`, `tests/test_desktop_packaging.py`,
+  `.claude/security-audits/2026-09-03_persistent-python-runtime.md` (new), `.claude/CLAUDE.md`,
+  `.claude/docs/INCREMENT-BACKLOG{,-DONE}.md`
+- **What:** the ~1.2 GB Python environment is no longer bundled in the app package. A deterministic
+  `runtime_id` keys an immutable artifact built once, published as its own release, reused across
+  Callosum releases, and provisioned at first run into per-user local app data (signature → archive
+  hash → extracted-tree digest → smoke test → atomic activation). Upgrades from a bundled install
+  reuse the on-disk runtime rather than downloading. Also closes backlog #71.
+- **Why:** every update re-shipped and reinstalled an unchanged torch/numpy/sentence-transformers
+  environment, making updating "something you have to budget time around" (Cliff). Architecture is
+  Codex's; it ran out of credits mid-refactor with the core module untracked, and this increment took
+  the handoff, proved it, and fixed what was broken.
+- **Three defects, none found by reading the code:** first-run provisioning could never have worked
+  (`tauri signer sign` writes `.sig` base64-encoded; the verifier fed raw bytes to minisign, so every
+  genuine manifest was rejected — and with no bundled interpreter that means a dead fresh install);
+  `try_migrate_legacy` was Windows-only, denying macOS/Linux the very saving this work exists for; and
+  a CI failure that read as "22.04 can't build Tauri" was actually `rust-cache` restoring 24.04
+  artifacts (jammy installs `libwebkit2gtk-4.1-dev` fine). Fixing the last one also recorded that
+  `env.*` in a `with:` expression never sees runner variables, and that restore-keys match by prefix.
+- **Verified:** full provisioning against the real published artifact, 547 s on Windows, with a second
+  run correctly reusing it. `cargo test` 48/0/6 ignored; clippy + fmt clean. Security audit PASS.
+- **Revert:** `git revert` the inc-570 range; restoring `python-runtime` to `bundle.resources` returns
+  the old behaviour, since the provisioning module is additive.
+
 ## 2026-09-03 — Increment 569: Local AI in the dev browser build (backlog #72)
 - **Files:** `tools/run_local_ai.py` (new), `tools/run_dev.py`, `app/frontend/js/35b_providers.jsx`,
   `tests/test_run_local_ai.py` (new), `.claude/CLAUDE.md`, `.claude/docs/INCREMENT-BACKLOG{,-DONE}.md`,

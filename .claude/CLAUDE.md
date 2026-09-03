@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 569** (see Increment workflow) with **2763 passed, 3 skipped in the last completed root-suite
+It is currently at **Increment 570** (see Increment workflow) with **2763 passed, 3 skipped in the last completed root-suite
 pass** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
 The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
 receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
@@ -1066,9 +1066,27 @@ the full per-increment narrative for all other increments now lives in the reloc
   conservatively serialize access to a shared runtime without locking DB/retrieval/provider work or unrelated
   identities. Explicit injected models/scorers always win, and lifespan shutdown releases app-owned references.
 - **Desktop packaging (backlog #21, incs 394-395):** `app/desktop-shell/` — a Tauri v2 shell that
-  spawns callosum's own FastAPI/uvicorn backend as a child process (a bundled portable CPython + this
-  project's real dependencies via `bundle.resources`, CPU-only torch, not PyInstaller/Nuitka freezing)
-  and shows the real UI in a native window once `GET /health` returns 200. **All three platforms now
+  spawns callosum's own FastAPI/uvicorn backend as a child process (a portable CPython + this
+  project's real dependencies, CPU-only torch, not PyInstaller/Nuitka freezing)
+  and shows the real UI in a native window once `GET /health` returns 200.
+  **The Python runtime no longer ships inside the app package (inc 570).** Re-shipping an unchanged
+  ~1.2 GB environment (torch/numpy/sentence-transformers) on every update made updating something users
+  had to budget time around. Only `callosum-src` is in `bundle.resources` now; a deterministic
+  `runtime_id` (OS/arch/CPython build/dependency-lock hash/schema — plus a **glibc floor** on Linux, see
+  `packaging/python-runtime-inputs.json`) keys an immutable artifact built once by
+  `desktop-python-runtime.yml`, published as a `python-runtime-<id>` release and **reused across
+  Callosum releases**. `src-tauri/src/python_runtime.rs` provisions it at first run into the per-user
+  local app-data dir — signature (the *existing* Tauri updater key) → archive sha256 → canonical digest
+  of the extracted tree → smoke test → atomic activation, preserving any previous known-good runtime.
+  An upgrade from a bundled install reuses the on-disk runtime instead of downloading, on all platforms.
+  Two standing constraints that are invisible in the code and **will** be re-broken otherwise:
+  **(a) both Linux lanes must build at the glibc floor** — `ubuntu-latest` is Ubuntu 24.04/glibc 2.39,
+  and Rust std's `pidfd_spawnp`/`pidfd_getpid` then make the binary refuse to start on Debian 12 (2.36).
+  That was backlog #71: the `.deb` installed and never opened. A blocking `objdump` guard in
+  `desktop-shell-linux.yml` now fails the build if the floor is exceeded; see backlog #73 for the
+  runner-label durability follow-up. **(b) `tauri signer sign` writes `.sig` files base64-encoded** —
+  verifying one requires decoding first, and getting that wrong rejects every genuine runtime with no
+  bundled interpreter to fall back on. Audit: `.claude/security-audits/2026-09-03_persistent-python-runtime.md`. **All three platforms now
   have a CI workflow that builds AND actually verifies the real installer** (`.github/workflows/
   desktop-shell-{windows,macos,linux}.yml`) — Windows/macOS runners keep a real interactive desktop
   session, so these mount/install the real artifact, launch it for real, and screenshot the actual
@@ -1507,7 +1525,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 569). Each increment of real work
+callosum is built in **numbered increments** (currently at 570). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
