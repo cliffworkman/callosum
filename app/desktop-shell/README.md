@@ -18,15 +18,23 @@ version tag (see `.claude/CLAUDE.md`'s Backup & snapshot protocol §5 for the re
 
 ## How it works
 
-Tauri doesn't run Python. This bundles a **portable CPython 3.11** (from
-[python-build-standalone](https://github.com/astral-sh/python-build-standalone)) plus this project's
-real dependencies (installed via `pip`, not frozen with PyInstaller/Nuitka — that was evaluated and
-rejected as too fragile for this dependency stack, see the future-tracks doc above) as a `bundle.
-resources` directory, and spawns that interpreter directly with `std::process::Command`:
+Tauri doesn't run Python. Callosum manages a **portable CPython 3.11** (from
+[python-build-standalone](https://github.com/astral-sh/python-build-standalone)) plus the exact
+dependency set exported from `uv.lock`, then spawns that interpreter directly with
+`std::process::Command`:
 
 ```
-python-runtime/python.exe -m uvicorn app.backend.api.app:app --host 127.0.0.1 --port <dynamic>
+<app-local-data>/python-runtimes/<runtime-id>/python.exe -m uvicorn app.backend.api.app:app ...
 ```
+
+The Python environment is not a Tauri bundle resource. It is an independently published immutable
+artifact keyed by OS, CPU architecture, CPython build, dependency lock, packaging schema, and build
+recipe—never by Callosum's app version. On first use, `src-tauri/src/python_runtime.rs` downloads a
+Minisign-authenticated manifest and exact archive, enforces size/path bounds, verifies archive and
+canonical extracted-tree SHA-256 identities, smoke-tests key imports, and atomically promotes the
+staging directory under Tauri's per-user `app_local_data_dir()`. Later app updates continue to ship
+the shell, frontend, and `callosum-src`, while reusing the same runtime ID without reinstalling it.
+Old IDs are retained as known-good rollback material rather than incrementally changed with pip.
 
 The Rust shell (`src-tauri/src/backend.rs`) picks a free loopback port, overrides
 `CALLOSUM_DB_URL`/`CALLOSUM_LIBRARY_DIR` to point at per-user app-data/documents directories (the
@@ -44,19 +52,28 @@ npm install && python tools/build_frontend.py
 # 2. Stage the real source tree into resources/callosum-src/
 python app/desktop-shell/packaging/stage_source.py
 
-# 3. Build the portable Python runtime into resources/python-runtime/ (Windows)
-pwsh app/desktop-shell/packaging/build_python_windows.ps1
-# ...or on macOS (CI only — see .github/workflows/desktop-shell-macos.yml):
-# bash app/desktop-shell/packaging/build_python_macos.sh
+# 3. Confirm this platform's immutable runtime release already exists. Maintainers build/publish a
+# new runtime only when package_python_runtime.py derives a new ID; see
+# .github/workflows/desktop-python-runtime.yml.
+python app/desktop-shell/packaging/package_python_runtime.py verify
 
-# 4. Build the installer
+# 4. Build the (runtime-free) installer
 cd app/desktop-shell
 npm install
 npx tauri build
 ```
 
-`packaging/smoke_test_backend.py` spawns the bundled interpreter standalone (no Tauri) and confirms
-`/health` — run it after step 3 to catch a broken dependency bundle before touching Rust at all.
+`packaging/build_python_{windows,macos,linux}.*` plus `package_python_runtime.py` are CI artifact
+factory inputs, not ordinary app-build steps. The factory verifies the pinned base CPython archive,
+installs locked dependencies, runs `smoke_test_backend.py`, packages deterministically, and signs the
+manifest with the same Minisign trust root used by the Tauri updater.
+
+Windows upgrades from the former bundled-runtime layout retain that legacy resource long enough for
+the new shell to reuse it only when its complete tree matches the signed manifest. macOS app
+replacement and Debian package replacement cannot reliably preserve an old app resource, so their
+first persistent-runtime build performs one verified download. On Debian/Ubuntu, the `.deb` itself is
+still upgraded through the package/release-page flow; the runtime lives under the user's XDG local
+data directory, not root-owned `/usr/lib`, and survives `dpkg` replacement.
 
 ## Local AI Preview
 

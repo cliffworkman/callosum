@@ -10,8 +10,8 @@ name: Desktop shell (macOS)
 # but it is still not a human's eyes on the screen; treat the uploaded screenshots as evidence to
 # review, not as a substitute for actually trying the installer yourself.
 #
-# Not on push/PR — this is a slow, heavy build (portable CPython + the full ML dependency tree) that
-# doesn't need to run on every commit. Trigger manually or when the shell/packaging itself changes.
+# The independently versioned Python environment is built by desktop-python-runtime.yml only when
+# its input-derived runtime ID changes; this ordinary app build never rebuilds or bundles it.
 
 on:
   workflow_dispatch: {}
@@ -27,6 +27,8 @@ on:
       - "app/desktop-shell/**"
       - "app/backend/**"
       - "requirements.txt"
+      - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/desktop-shell-macos.yml"
 
 concurrency:
@@ -88,6 +90,18 @@ jobs:
           node-version: "24"
           cache: npm
 
+      - name: Verify referenced immutable Python runtime is published
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ID=$(python app/desktop-shell/packaging/package_python_runtime.py id --platform 'macos-${{ matrix.bundle_arch }}')
+          ASSETS=$(gh release view "python-runtime-$ID" --json assets --jq '.assets[].name')
+          grep -Fx "$ID.tar.gz" <<<"$ASSETS"
+          grep -Fx "runtime-manifest.json" <<<"$ASSETS"
+          grep -Fx "runtime-manifest.json.sig" <<<"$ASSETS"
+
       - name: Install project dependencies (needed just to import app.backend for build_frontend.py)
         run: uv sync --locked
 
@@ -99,12 +113,6 @@ jobs:
       - name: Stage callosum source into resources/callosum-src
         run: python3 app/desktop-shell/packaging/stage_source.py
 
-      - name: "Build native portable Python runtime + install real deps + smoke test (REQUIRED — blocking)"
-        run: bash app/desktop-shell/packaging/build_python_macos.sh
-
-      # Cargo runs Tauri's build script even for this focused test, and that script validates every
-      # configured bundle resource. Keep this after both resource-staging steps so the live acceptance
-      # actually reaches the managed runtime under the same resource topology as the shipped app.
       - name: "Live Local AI acceptance: install, verify, run three provider contracts, and clean up"
         working-directory: app/desktop-shell/src-tauri
         env:
@@ -206,7 +214,7 @@ jobs:
 
       - name: "Verify: mount the real .dmg, simulate Gatekeeper, screenshot the real running window"
         id: verify
-        timeout-minutes: 10 # a real run showed `open` on a quarantined app can hang indefinitely
+        timeout-minutes: 25 # includes one-time Python runtime provisioning on a fresh runner
         # waiting on a Gatekeeper dialog nobody can click in headless CI — see the backgrounded
         # `open` calls below for the actual fix; this is a defense-in-depth ceiling on top of it.
         run: |
@@ -260,7 +268,8 @@ jobs:
           disown
           echo "--- waiting for the real backend to report healthy ---"
           ready=0
-          for i in $(seq 1 40); do
+          # A fresh runner intentionally exercises first-use runtime download + verification.
+          for i in $(seq 1 400); do
             PORT=$(ps aux | grep -oE "uvicorn app\.backend\.api\.app:app --host 127\.0\.0\.1 --port [0-9]+" | grep -oE "[0-9]+$" | head -1 || true)
             if [ -n "$PORT" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/health" || true)" = "200" ]; then
               echo "healthy on port $PORT after $((i*3))s"
@@ -272,10 +281,15 @@ jobs:
           sleep 2 # give the webview a moment to actually paint the loaded page
           sudo screencapture -x /tmp/2-running-window.png || screencapture -x /tmp/2-running-window.png || true
           if [ "$ready" != "1" ]; then
-            echo "::warning::backend never reported healthy within the wait budget — screenshot may show only the splash"
+            echo "::error::backend never reported healthy within the wait budget"
           fi
 
           pkill -f "$APP_NAME" || true
+          if [ "$ready" != "1" ]; then
+            find "$HOME/Library/Application Support" -name backend.log -type f \
+              -exec sh -c 'echo "--- $1 ---"; tail -n 120 "$1"' _ {} \; || true
+            exit 1
+          fi
 
       - name: Upload verification screenshots + Gatekeeper logs
         if: always()

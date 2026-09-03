@@ -40,6 +40,23 @@ body {
   min-height: 1.2em;
 }
 
+.progress-wrap {
+  width: 300px;
+  margin: 14px auto 0;
+}
+
+.progress-wrap progress {
+  width: 100%;
+  height: 8px;
+  accent-color: #6d6dfa;
+}
+
+.progress-detail {
+  margin-top: 5px;
+  color: #85859a;
+  font-size: 12px;
+}
+
 .retry {
   margin-top: 14px;
   padding: 6px 16px;

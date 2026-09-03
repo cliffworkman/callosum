@@ -22,8 +22,8 @@ name: Desktop shell (Linux)
 # interactive session) — this workflow starts a virtual framebuffer (Xvfb) specifically so the real
 # app can actually render, and screenshots it.
 #
-# Not on push/PR — this is a slow, heavy build (portable CPython + the full ML dependency tree) that
-# doesn't need to run on every commit. Trigger manually or when the shell/packaging itself changes.
+# The independently versioned Python environment is built by desktop-python-runtime.yml only when
+# its input-derived runtime ID changes; this ordinary .deb build never rebuilds or bundles it.
 
 on:
   workflow_dispatch: {}
@@ -34,6 +34,8 @@ on:
       - "app/desktop-shell/**"
       - "app/backend/**"
       - "requirements.txt"
+      - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/desktop-shell-linux.yml"
 
 concurrency:
@@ -99,6 +101,17 @@ jobs:
           node-version: "24"
           cache: npm
 
+      - name: Verify referenced immutable Python runtime is published
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ID=$(python app/desktop-shell/packaging/package_python_runtime.py id --platform linux-x86_64)
+          ASSETS=$(gh release view "python-runtime-$ID" --json assets --jq '.assets[].name')
+          grep -Fx "$ID.tar.gz" <<<"$ASSETS"
+          grep -Fx "runtime-manifest.json" <<<"$ASSETS"
+          grep -Fx "runtime-manifest.json.sig" <<<"$ASSETS"
+
       - name: Install project dependencies (needed just to import app.backend for build_frontend.py)
         run: uv sync --locked
 
@@ -109,9 +122,6 @@ jobs:
 
       - name: Stage callosum source into resources/callosum-src
         run: python3 app/desktop-shell/packaging/stage_source.py
-
-      - name: "Build portable Python runtime + install real deps + smoke test (x86_64, REQUIRED — blocking)"
-        run: bash app/desktop-shell/packaging/build_python_linux.sh
 
       - name: Install Tauri CLI
         working-directory: app/desktop-shell
@@ -130,7 +140,7 @@ jobs:
 
       - name: "Verify: install the real .deb, run it under Xvfb, screenshot the real running window"
         id: verify
-        timeout-minutes: 10
+        timeout-minutes: 25
         run: |
           set -x
           DEB=$(ls app/desktop-shell/src-tauri/target/release/bundle/deb/*.deb)
@@ -144,7 +154,8 @@ jobs:
           disown
 
           ready=0
-          for i in $(seq 1 40); do
+          # A fresh runner intentionally exercises first-use runtime download + verification.
+          for i in $(seq 1 400); do
             PORT=$(ps aux | grep -oE "uvicorn app\.backend\.api\.app:app --host 127\.0\.0\.1 --port [0-9]+" | grep -oE "[0-9]+$" | head -1 || true)
             if [ -n "$PORT" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/health" || true)" = "200" ]; then
               echo "healthy on port $PORT after $((i*3))s"
@@ -157,10 +168,15 @@ jobs:
 
           import -window root /tmp/running-window.png
           if [ "$ready" != "1" ]; then
-            echo "::warning::backend never reported healthy within the wait budget — screenshot may show only the splash"
+            echo "::error::backend never reported healthy within the wait budget"
           fi
 
           pkill -f callosum-shell 2>/dev/null || true
+          if [ "$ready" != "1" ]; then
+            find "$HOME/.local/share" -maxdepth 6 -name backend.log -type f \
+              -exec sh -c 'echo "--- $1 ---"; tail -n 120 "$1"' _ {} \; || true
+            exit 1
+          fi
 
       - name: Upload verification screenshot
         if: always()

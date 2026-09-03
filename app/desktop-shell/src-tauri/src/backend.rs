@@ -1,6 +1,6 @@
 //! Launches callosum's own FastAPI/uvicorn backend as a child process, waits for it to become
 //! healthy, and tears it down cleanly on shutdown. See `.claude/docs/increment-notes/` for the
-//! packaging design this implements (bundle a portable CPython + real deps via `bundle.resources`,
+//! packaging design this implements (use the separately versioned app-local CPython runtime and
 //! spawn it directly with `std::process::Command` — no `tauri-plugin-shell`/sidecar needed, since
 //! nothing here is invoked from the webview).
 
@@ -81,10 +81,8 @@ pub fn resolved_paths(app: &AppHandle) -> Result<ResolvedPaths, StartupError> {
             .map_err(|e| StartupError::ResolvePaths(format!("{rel}: {e}")))
     };
 
-    #[cfg(windows)]
-    let python_exe = resolve("python-runtime/python.exe")?;
-    #[cfg(not(windows))]
-    let python_exe = resolve("python-runtime/bin/python3")?;
+    let python_exe = crate::python_runtime::installed_python(app)
+        .map_err(|error| StartupError::ResolvePaths(error.detail()))?;
 
     let source_root = resolve("callosum-src")?;
 
@@ -201,6 +199,10 @@ pub fn spawn_backend(
         .env("CALLOSUM_APP_VERSION", app_version)
         .env("CALLOSUM_APP_DATA_DIR", &paths.app_data_dir)
         .env("CALLOSUM_WORD_HTTPS_DIR", &paths.word_https_dir)
+        .env("PYTHONNOUSERSITE", "1")
+        .env("PYTHONDONTWRITEBYTECODE", "1")
+        .env_remove("PYTHONHOME")
+        .env_remove("PYTHONPATH")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
         if let Some(path) = managed_local_ai_descriptor {
@@ -308,6 +310,10 @@ pub fn spawn_word_https(
         .env("CALLOSUM_APP_VERSION", app_version)
         .env("CALLOSUM_WORD_HTTPS_DIR", &paths.word_https_dir)
         .env("CALLOSUM_DISABLE_REMOTE_ACCESS", "1")
+        .env("PYTHONNOUSERSITE", "1")
+        .env("PYTHONDONTWRITEBYTECODE", "1")
+        .env_remove("PYTHONHOME")
+        .env_remove("PYTHONPATH")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .env_remove(crate::managed_local_ai::DESCRIPTOR_ENV);

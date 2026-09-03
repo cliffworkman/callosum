@@ -1,5 +1,6 @@
 mod backend;
 mod managed_local_ai;
+mod python_runtime;
 mod quick_tunnel;
 mod updater;
 
@@ -21,6 +22,15 @@ use updater::UpdateState;
 /// Resolve paths, spawn the backend, poll it healthy, then swap the splash window for the real
 /// callosum UI. Shared between first launch (`setup()`) and the splash page's Retry button.
 async fn start_backend_and_show_main(app: AppHandle) {
+    emit_status(
+        &app,
+        "runtime_check",
+        "Checking Callosum's managed Python runtime…",
+    );
+    if let Err(error) = python_runtime::ensure_runtime(app.clone()).await {
+        emit_status(&app, "failed", &error.detail());
+        return;
+    }
     let paths = match resolved_paths(&app) {
         Ok(p) => p,
         Err(e) => {

@@ -36,7 +36,6 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../resources/python-runtime": "python-runtime",
       "../resources/callosum-src": "callosum-src"
     },
     "windows": {

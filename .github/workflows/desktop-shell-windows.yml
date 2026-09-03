@@ -8,8 +8,8 @@ name: Desktop shell (Windows)
 # thing to a human click-through available without asking Cliff to do it by hand each time, but it
 # is still not a human's eyes on the screen; treat the uploaded screenshot as evidence to review.
 #
-# Not on push/PR — this is a slow, heavy build (portable CPython + the full ML dependency tree) that
-# doesn't need to run on every commit. Trigger manually or when the shell/packaging itself changes.
+# The independently versioned Python environment is built by desktop-python-runtime.yml only when
+# its input-derived runtime ID changes; this ordinary app build never rebuilds or bundles it.
 
 on:
   workflow_dispatch: {}
@@ -25,6 +25,8 @@ on:
       - "app/desktop-shell/**"
       - "app/backend/**"
       - "requirements.txt"
+      - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/desktop-shell-windows.yml"
 
 concurrency:
@@ -74,6 +76,18 @@ jobs:
           node-version: "24"
           cache: npm
 
+      - name: Verify referenced immutable Python runtime is published
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ID=$(python app/desktop-shell/packaging/package_python_runtime.py id --platform windows-x86_64)
+          ASSETS=$(gh release view "python-runtime-$ID" --json assets --jq '.assets[].name')
+          grep -Fx "$ID.tar.gz" <<<"$ASSETS"
+          grep -Fx "runtime-manifest.json" <<<"$ASSETS"
+          grep -Fx "runtime-manifest.json.sig" <<<"$ASSETS"
+
       - name: Install project dependencies (needed just to import app.backend for build_frontend.py)
         run: uv sync --locked
 
@@ -84,9 +98,6 @@ jobs:
 
       - name: Stage callosum source into resources/callosum-src
         run: python app/desktop-shell/packaging/stage_source.py
-
-      - name: "Build portable Python runtime + install real deps + smoke test (REQUIRED — blocking)"
-        run: pwsh app/desktop-shell/packaging/build_python_windows.ps1
 
       - name: Install Tauri CLI
         working-directory: app/desktop-shell
@@ -134,6 +145,7 @@ jobs:
 
       - name: "Verify: silent-install the real installer, launch it, screenshot the real running window"
         id: verify
+        timeout-minutes: 25
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -150,7 +162,8 @@ jobs:
 
           $ready = $false
           $port = $null
-          for ($i = 0; $i -lt 40; $i++) {
+          # A fresh runner intentionally exercises first-use runtime download + verification.
+          for ($i = 0; $i -lt 400; $i++) {
             $proc = Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
               Where-Object { $_.CommandLine -match "Callosum.*uvicorn.*--port (\d+)" }
             if ($proc) {
@@ -173,7 +186,7 @@ jobs:
           $bitmap.Save("$env:RUNNER_TEMP\running-window.png")
 
           if (-not $ready) {
-            Write-Host "::warning::backend never reported healthy within the wait budget — screenshot may show only the splash"
+            Write-Host "::error::backend never reported healthy within the wait budget"
           }
 
           # Verify closing the app actually cleans up the spawned backend (Job Object working).
@@ -186,6 +199,11 @@ jobs:
             Stop-Process -Id $orphan.ProcessId -Force -ErrorAction SilentlyContinue
           } else {
             Write-Host "confirmed: no orphaned backend process after killing the shell"
+          }
+          if (-not $ready -or $orphan) {
+            Get-ChildItem "$env:APPDATA" -Filter backend.log -Recurse -ErrorAction SilentlyContinue |
+              ForEach-Object { Write-Host "--- $($_.FullName) ---"; Get-Content $_.FullName -Tail 120 }
+            throw "installed Windows application lifecycle verification failed"
           }
 
       - name: Upload verification screenshot
