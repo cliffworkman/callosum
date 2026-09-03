@@ -35,10 +35,7 @@ def test_python_runtime_ids_are_current_deterministic_and_platform_specific() ->
     linux = spec["platforms"]["linux-x86_64"]
     assert linux["glibc_min"] == "2.35"
     assert linux["distribution_boundary"] == "ubuntu-22.04-or-newer-and-debian-12-or-newer"
-    assert all(
-        len(platform["python_asset_sha256"]) == 64
-        for platform in spec["platforms"].values()
-    )
+    assert all(len(platform["python_asset_sha256"]) == 64 for platform in spec["platforms"].values())
 
 
 def test_python_runtime_identity_ignores_checkout_line_endings(tmp_path: Path) -> None:
@@ -93,9 +90,7 @@ def test_windows_update_replaces_source_but_preserves_legacy_runtime_for_migrati
 
 
 def test_python_runtime_is_not_a_tauri_bundle_resource() -> None:
-    config = json.loads(
-        (ROOT / "app/desktop-shell/src-tauri/tauri.conf.json").read_text(encoding="utf-8")
-    )
+    config = json.loads((ROOT / "app/desktop-shell/src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     resources = config["bundle"]["resources"]
     assert "../resources/callosum-src" in resources
     assert all("python-runtime" not in source for source in resources)
@@ -103,9 +98,7 @@ def test_python_runtime_is_not_a_tauri_bundle_resource() -> None:
 
 def test_desktop_app_workflows_reuse_published_runtime_artifacts() -> None:
     for platform in ("windows", "macos", "linux"):
-        workflow = (
-            ROOT / f".github/workflows/desktop-shell-{platform}.yml"
-        ).read_text(encoding="utf-8")
+        workflow = (ROOT / f".github/workflows/desktop-shell-{platform}.yml").read_text(encoding="utf-8")
         assert "Verify referenced immutable Python runtime is published" in workflow
         assert "package_python_runtime.py id --platform" in workflow
         assert "runtime-manifest.json.sig" in workflow
@@ -114,9 +107,7 @@ def test_desktop_app_workflows_reuse_published_runtime_artifacts() -> None:
 
 
 def test_runtime_artifact_workflow_covers_every_shipped_platform() -> None:
-    workflow = (ROOT / ".github/workflows/desktop-python-runtime.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = (ROOT / ".github/workflows/desktop-python-runtime.yml").read_text(encoding="utf-8")
     for platform in (
         "windows-x86_64",
         "macos-aarch64",
