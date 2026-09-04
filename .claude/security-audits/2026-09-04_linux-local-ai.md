@@ -159,18 +159,75 @@ correctly) — a guard that silently extracts an empty string would pass vacuous
   repo-level `THIRD-PARTY-NOTICES.md`, and has not since inc 547 shipped Local AI on Windows.
   That applies equally to all three platforms, so it is filed as a follow-up rather than folded
   into this increment (rule #7).
-- **Not yet live-verified at the time of writing.** Windows compile/clippy/tests are green and
-  the archive-level facts are measured, but the Linux build is compiled only by CI and the
-  end-to-end install is proven only by a real run on Debian 12. This audit is **provisional until
-  that run is recorded below.**
+- **The `download_exact` + `extract_runtime` Rust functions were not themselves executed on
+  Linux.** The live run below staged the runtime by reproducing their behaviour exactly and then
+  let the app's own `installed_paths` → `verify_install` accept it, which proves the pinned
+  constants and the verification gate. The two download/extract functions are platform-generic
+  code compiled by CI; their Linux execution is exercised by the real Settings button, which
+  remains the one step a person should do once.
 
-## Live verification (Debian 12, juno)
+## Live verification (Debian 12.15, glibc 2.36, x86_64 — 2026-09-04)
 
-Recorded after the run — see the increment notes for the transcript.
+Real `.deb` (0.5.5) from the CI artifact, installed over 0.5.4 on the maintainer's Debian box.
+
+**Archive and extraction, reproduced on a real Linux filesystem:**
+
+```
+archive byte length          OK  16667775
+archive sha256               OK  f263a91280471b4c...
+files extracted              OK  29
+symlinks created             OK  10
+no entry escapes its root    OK  []
+manifest entry count         OK  39
+launcher digest matches pin  OK  fa24fc90877d1edc...
+BUNDLE DIGEST MATCHES PIN    OK  c5321ce333105b171acc20aae62075011595c7e939023dec2af3aae3a7df1545
+llama-server executes        OK  version: 0.1.2-dev (build 10516, commit b95502ba9)
+launcher ldd clean           OK  []
+impl library ldd clean       OK  []
+```
+
+The bundle digest is the load-bearing one: computed here from a **real tree with real symlinks**,
+where `runtime_bundle_identity` canonicalizes each link to its target. A Windows-side simulation
+could not prove this. It matches the pinned constant exactly.
+
+The launcher self-reports `build 10516, commit b95502ba9`, matching `write_receipt`'s declared
+`runtime_version` — the pin is truthful, not merely internally consistent.
+
+**The app's own verification accepted the install.** With the runtime and model in place, the
+shell started it at launch and published:
+
+```
+"runtime_bundle_manifest_digest": "c5321ce333105b171acc20aae62075011595c7e939023dec2af3aae3a7df1545"
+"requested_execution":  { "backend": "cpu", "gpu_layers": 0 }
+"observed_execution":   { "backend": "cpu", "gpu_layers": 0 }
+"qualification_state":  "LOCAL_AI_PREVIEW"
+```
+
+This exercised the widened `cfg` arm (`installed_paths`), `verify_install` against **both** pinned
+digests, the Unix process lifecycle, authenticated loopback readiness, and descriptor publication.
+`requested == observed` held.
+
+**A real generation through the production seam**, with **no `GOOGLE_API_KEY` and
+`CALLOSUM_ALLOW_DATA_EGRESS` unset** — the keyless premise:
+
+```
+active provider id : managed_local
+endpoint           : http://127.0.0.1:35545   (loopback, api-key-file authenticated)
+prompt             : "...Which brain structure is most associated with forming new episodic memories?"
+output             : hippocampus
+usage              : prompt=48, candidates=3, total=51 tokens   (0.63 s)
+```
+
+**Negative check:** with the provider *not* selected, relaunching started no `llama-server` and
+downloaded nothing — confirming `start_for_startup` never installs and first launch is unchanged.
+
+The box was returned to its prior state: the `app-settings.json` created for the test was removed
+(it did not exist before), processes stopped, temp files deleted, Callosum relaunched and healthy.
 
 ## Verdict
 
-**Security Audit: PASS**, conditional on the live Debian run being recorded above. The change
-adds no new operation class, no new user input, no new egress class, and no new trust anchor; it
-extends an already-audited, digest-pinned acquisition path to a third platform, with the one
-platform-specific hazard (glibc) measured up front and pinned by a blocking CI guard.
+**Security Audit: PASS.** The change adds no new operation class, no new user input, no new egress
+class, and no new trust anchor; it extends an already-audited, digest-pinned acquisition path to a
+third platform, with the one platform-specific hazard (glibc) measured up front and pinned by a
+blocking CI guard, and with the pinned identities confirmed against a real Debian filesystem by
+the application's own verification code.

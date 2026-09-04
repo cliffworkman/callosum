@@ -99,15 +99,49 @@ three pins extracted correctly); a guard that silently extracts an empty string 
   but it was run rather than reasoned about.
 - Security audit: `.claude/security-audits/2026-09-04_linux-local-ai.md`.
 
+- **CI (Linux) green**, including the new guard doing real work — its independent measurement
+  matched the local one exactly: `runtime.tar.gz: OK`, `scanning 29 installed binaries`,
+  `highest required glibc: 2.34 (floor 2.35)`.
+- The Linux allowlist was additionally compiled and run as **real Rust** (standalone `rustc`)
+  against the real archive listing: 39 kept / 23 dropped, exact agreement with the manifest
+  walker — the same 39 the pinned digest was computed over, reached independently.
+
+### Live verification — Debian 12.15, glibc 2.36 (juno)
+
+The real CI `.deb` (0.5.5), installed over 0.5.4. Full transcript in the security audit. The two
+results that matter:
+
+**The pinned bundle digest holds on a real filesystem.** Recomputed from a real tree with real
+symlinks — where `runtime_bundle_identity` canonicalizes each link to its target, which a
+Windows-side simulation cannot reproduce — it matched `c5321ce3…` exactly. The launcher also
+self-reports `build 10516, commit b95502ba9`, matching `write_receipt`'s declared
+`runtime_version`, so the pin is truthful rather than merely self-consistent.
+
+**A real generation, keyless.** The shell's own code accepted the install (`installed_paths` →
+`verify_install` against both digests → start → descriptor with `requested == observed`), and with
+**no `GOOGLE_API_KEY` and egress unset**:
+
+```
+active provider id : managed_local
+endpoint           : http://127.0.0.1:35545
+output             : hippocampus          (48+3 tokens, 0.63 s)
+```
+
+Negative check: with the provider not selected, relaunching started no `llama-server` and
+downloaded nothing. The box was returned to its prior state afterwards.
+
 ### Honest limits
 
-- **macOS and Linux compile only in CI.** They cannot be built on this machine, so the Linux arm's
-  *compilation* is proven by `desktop-shell-linux.yml`, not locally. Everything provable locally —
-  the digests, the archive structure, the predicate agreement, the glibc headroom, Windows
-  non-regression — was proven locally.
-- **The end-to-end install is proven only by a live run on Debian 12 (juno).** Until that is
-  recorded, the audit is explicitly provisional. Unit tests cannot prove a download-verify-execute
-  path.
+- **macOS and Linux compile only in CI.** Everything provable locally — digests, archive
+  structure, predicate agreement, glibc headroom, Windows non-regression — was proven locally;
+  compilation is proven by `desktop-shell-linux.yml`.
+- **`download_exact` and `extract_runtime` were not themselves executed on Linux.** The live run
+  reproduced their behaviour exactly and let the app's own verification accept the result, which
+  proves the pinned constants and the gate. Their Linux execution is what the real Settings button
+  does — one click, still worth doing once by hand.
+- **An abrupt `pkill` of the shell left `llama-server` orphaned.** That bypasses the graceful
+  `RunEvent::Exit` handler, so it is not evidence of a teardown bug; normal quit was not
+  separately tested and this is *not* claimed as either working or broken.
 
 ## Follow-up found, not fixed
 
