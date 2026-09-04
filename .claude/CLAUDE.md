@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 574** (see Increment workflow) with **2792 passed, 4 skipped in the last completed root-suite
+It is currently at **Increment 575** (see Increment workflow) with **2792 passed, 4 skipped in the last completed root-suite
 pass** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
 The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
 receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
@@ -40,6 +40,21 @@ the full per-increment narrative for all other increments now lives in the reloc
 
 **Stack:**
 - **Backend:** Python 3.11+, FastAPI + Uvicorn (`app/backend/api/app.py`).
+- **Generation output ceilings must cover what the schema permits (inc 575).** `_PRIMARY_SYNTHESIS_SCHEMA`
+  allows 7 claims × 3 citations, and the "no quote may exceed 80 words" instruction is *prose the grammar
+  does not enforce* — so an unbounded `quote` string could consume the whole allowance. A citation-dense
+  question therefore truncated mid-JSON **by construction** and reached a real user as a raw
+  `JSONDecodeError: Unterminated string`. Two standing rules: **(a)** every schema field that can grow
+  needs a `maxLength`, and the worst case it permits must fit the output cap —
+  `tests/test_truncated_generation.py` recomputes that from the schema itself, so loosening one without
+  the other fails loudly. **(b)** the Local AI output cap lives in **four** places that must move in
+  lockstep — Rust `PREVIEW_OUTPUT_TOKENS` (→ `--n-predict`), Python `expected_output_tokens`, the cache
+  signature, and `tools/run_local_ai.py`. `_require()` fails **closed**, so a one-sided edit does not
+  break a test; it breaks Local AI on a real machine *after* a successful install. A cross-language test
+  pins the Rust and Python constants together. Note also that `providers.py` is a frozen input of the
+  **preregistered** synthesis-overview-v1 qualification profile: editing it trips that freeze, and
+  re-freezing is a maintainer decision requiring documentation in the profile README (see inc 557 and
+  inc 575 for the two precedents), never a silent regeneration to make a test pass.
 - **Persistence:** SQLite via SQLAlchemy Core 2.0; Alembic migrations (`alembic/`).
   **Never bind an unbounded id list into `IN (...)` — batch it through `persistence/sql_batch.py`
   (inc 573).** SQLite's `SQLITE_MAX_VARIABLE_NUMBER` is a **build-time property of whichever SQLite the
@@ -1567,7 +1582,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 574). Each increment of real work
+callosum is built in **numbered increments** (currently at 575). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from app.backend.llm.managed_local import (
+    _PREVIEW_OUTPUT_TOKENS,
     EXPECTED_PREVIEW_MODEL_DIGEST,
     ManagedLocalTargetError,
     load_preview_target,
@@ -52,7 +53,9 @@ def test_published_descriptor_is_accepted_by_the_production_loader(tmp_path: Pat
     assert target.endpoint == "http://127.0.0.1:60683"  # literal loopback, re-checked by _strict_endpoint
     assert target.qualification_state == "LOCAL_AI_PREVIEW"
     assert target.requested_execution == target.observed_execution
-    assert target.context_tokens == 12_288 and target.max_output_tokens == 2048
+    # Sourced from the module, not restated, so the cap can move without this drifting (it went
+    # 2048 -> 4096 in inc 575 to cover the worst answer the synthesis schema permits).
+    assert target.context_tokens == 12_288 and target.max_output_tokens == _PREVIEW_OUTPUT_TOKENS
     assert target.credential_ref.name == "auth-token"
     assert target.credential_ref.parent == tmp_path / "managed-local-ai"
 

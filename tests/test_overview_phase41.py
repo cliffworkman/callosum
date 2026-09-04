@@ -12,8 +12,14 @@ RECEIPTS = overview_battery.PROFILE_DIR / "phase4-1-receipt-index.json"
 def test_phase41_cohort_keeps_the_base_battery_frozen() -> None:
     # Re-frozen 2026-09-01 (inc 557) alongside test_overview_cloud_calibration.py's identical witness -- see
     # that file's comment for why this re-freeze is behaviorally neutral for what the study tested.
+    # inc 575: providers.py moved again, fixing a truncated model answer that surfaced to a real user as a
+    # raw JSONDecodeError. Confirmed behaviourally neutral for what THIS study tested: the additions read the
+    # finish_reason/stop_reason the provider already returned (no request field changes), and the one real
+    # generation-setting change (_MAX_TOKENS 2048 -> 4096) governs only the Anthropic `messages` wire, which
+    # none of this battery's local GGUF candidates use -- their Overview cap is the unchanged 256. The
+    # recorded null result stays reproducible. See INCREMENT-575-NOTES.md and the profile README.
     assert overview_battery.verify_freeze()["aggregate_sha256"] == (
-        "944213c0b1aaf6c6f43717d0ba7a243d336875f5156af26d9930575c8f68ed9b"
+        "3591ed8dcd424fa0dbbc2b8b71f9858adb6da9c81ae90a6996aef1588d6a6bc3"
     )
     freeze = overview_phase41.verify_search_freeze()
     assert freeze["base_battery_aggregate_sha256"] == overview_battery.verify_freeze()["aggregate_sha256"]

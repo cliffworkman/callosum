@@ -10,6 +10,26 @@ are the design diary; this is the chronological "what & why" record.
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
 <!-- HELP-DOCS-SYNCED inc-574 2026-09-04 -->
+## 2026-09-04 — Increment 575: we asked the model for more than we allowed it to say
+- **Files:** `app/backend/llm/providers.py`, `app/backend/llm/managed_local.py`,
+  `app/backend/summarization/{pipeline,generators}.py`, `app/backend/api/routers/summaries_response.py`,
+  `integrations/gemini/generator.py`, `app/frontend/js/{19_synthesis_failures,20_synthesis}.jsx`,
+  `app/desktop-shell/src-tauri/src/managed_local_ai.rs`, `tools/run_local_ai.py`,
+  `.claude/qualification/**` (re-freeze + README), `tests/test_truncated_generation.py` (new),
+  `.claude/docs/increment-notes/INCREMENT-575-NOTES.md`
+- **What:** the synthesis schema permitted 21 quotes with no length limit (~3,800 tokens) while Local AI
+  allowed 2,048, so a citation-dense question truncated mid-JSON and surfaced as a raw
+  `JSONDecodeError`. Bounded the ask (`quote` `maxLength: 500`, grammar-enforced) and raised the ceiling
+  to 4,096 across the four places that must move together. Also: every provider reports why it stopped
+  and we discarded it — `CompletionResult.truncated` now carries it; a truncated response salvages the
+  claims it completed, disclosed via `generation_truncated`, never silently.
+- **Why:** reported by Vasiliki on Local AI — her second blocked synthesis in two days.
+- **Note:** tripped the preregistered synthesis-overview-v1 freeze (`providers.py` is a frozen input).
+  Re-frozen on Cliff's explicit call after confirming no generation setting the battery uses changed —
+  its candidates are local GGUFs on the managed path, whose Overview cap (256) is untouched. Documented
+  in the profile README; `starting_head` deliberately preserved.
+- **Revert:** `git revert` the increment commit; no schema, migration, or API contract changed.
+
 ## 2026-09-04 — Increment 574: reconnect missing PDFs without losing library work
 - **Files:** `app/backend/pdf_processing/library_scan.py`, `app/backend/api/routers/{library,paper_files}.py`,
   `app/frontend/js/{27_scan,30_viewer,30c_frame,30h_pdf_unavailable,40_app}.jsx`, `app/frontend/styles.css`,

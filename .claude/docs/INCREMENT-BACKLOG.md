@@ -86,6 +86,49 @@
     speed — a correct slow operation that looks broken is still a bad outcome.
   - Non-blocking: the feature works today at every library size, just slowly at the top end.
 
+- **#82 Reference lists are the largest thing synthesis retrieval can find, and it finds them.** Measured
+  during inc 575's live verification against the 219-paper testing library, not inferred. `references` is
+  the **single biggest section in the corpus — 5,635 of 23,875 chunks (24%)** — and a bibliography entry
+  is keyword-dense across many topics, so a multi-construct question finds it irresistible. A real
+  four-construct query retrieved **4 of 8 chunks from `section='references'`**, i.e. half the evidence
+  budget went to citation lists like *"Moll, J., de Oliveira-Souza, R., … J Cogn Neurosci 21(7):1396"*.
+  - **A reference-list entry can never be the verbatim evidence for a scientific claim** — it is a
+    pointer to a finding, not a finding. So excluding it from the synthesis candidate pool is
+    principled, not merely a quality heuristic.
+  - **Measured effect, same question, same library, same model.** With references excluded via the
+    existing `sections` filter, claims went from vacuous (*"Depression has been studied using fMRI to
+    investigate the neural correlates of rumination"*) to substantive (*"individuals with TBI showed
+    increased neural activity in the insula, anterior cingulate…"*), and distinct chunks cited went 1 → 2.
+    **Honest limit: verified citations stayed 0/4 in both runs** — better grounding, not yet correct
+    attribution, because the 1.5B local model still stretched one paper across four constructs. This
+    improves the evidence offered, not the model's reasoning over it.
+  - Cheap: `_source_chunks_for_scope` already filters by `chunks.section`, `SUMMARY_SECTION_KEYS` already
+    lists `references`, and the UI already exposes a section picker — so the change is defaulting the
+    query scope to exclude references, not building anything.
+  - Care needed: `chunks.section` is the pre-existing *heuristic* labeller (every chunk in this sample had
+    `grobid_section_id = NULL`), and 4,282 chunks are labelled `None`, so exclusion is partial and can
+    mislabel. Prefer GROBID's mapped sections where they exist (inc 479), and keep it a default the user
+    can turn off rather than a hard filter.
+
+- **#83 `run_dev.py` leaves orphaned children on teardown — including one it has just made
+  unidentifiable.** Found during inc 575's live verification, which leaked **three** processes across two
+  sessions: `llama-server` twice and `run_https.py` once (still holding its TLS port). `run_dev` prints
+  "stopping the rest" and clears the Local AI descriptor, but children it did not spawn *directly* —
+  `llama-server` is a grandchild via `run_local_ai.py` — survive. The `llama-server` case is the worst
+  of the three: a ~1.5 GB CPU-bound process left running *after* deleting the descriptor that names it,
+  so nothing can identify it afterwards. All three had to be found by inspecting command lines
+  (`--api-key-file` against the dev app-data path; the TLS port) and killed by PID, taking care not to
+  hit the packaged app's own Local AI or a developer's separate server.
+  - Directly contradicts the "no orphan" post-condition inc 569's own security audit asserts, and the
+    hazard `test_a_stale_descriptor_is_removed_before_a_new_run` exists to prevent.
+  - Fix: `run_local_ai.py` should terminate its child on any exit path (process group, as
+    `managed_local_ai/process.rs` already does under `#[cfg(unix)]`), and/or `run_dev` should stop the
+    grandchild before clearing the descriptor rather than after.
+  - Related, same session: `run_dev` printed `serving on http://127.0.0.1:8888` and *then* exited on
+    `[Errno 10048] address already in use`. Because another server already held the port, `/health`
+    answered 200 the whole time — so the tooling looked healthy while serving someone else's instance.
+    A port preflight (or not announcing until bound) would remove a genuinely misleading failure.
+
 - **#73 Both Linux lanes pin `runs-on: ubuntu-22.04`, a runner label GitHub is retiring.** Introduced
   deliberately in inc 570: the shell and the Python-runtime artifact must both be built at the supported
   glibc floor (2.35) so the `.deb` runs on Debian 12 (2.36) and Ubuntu 22.04+ — see backlog #71's closure
@@ -224,6 +267,55 @@
 ---
 
 ## 2. Needs a design decision from Cliff (not destructive/security — just your call)
+
+- **#81 An answer's length should be proportionate to the question: split-and-stitch synthesis.**
+  Raised by Cliff (2026-09-04), in his words: *"I'd rather get back 16 statements than 8 when I ask a
+  question sufficiently complex to require 16 statements for the response to feel complete."* Prompted
+  by Vasiliki's real question — *"What neural findings have been reported for fascination, comfort,
+  hominess, or preference in built environments? Separate findings by construct and cite the supporting
+  text."* Inc 575 stopped that crashing, but only by making the ask fit the allowance. **The real limit
+  is untouched:** every synthesis is one call producing `minItems: 4, maxItems: 7` claims with 1–3
+  citations — **21 quotes total, however complex the question**. Four constructs split that budget, so
+  each gets 1–2 claims.
+  - **Why this cannot be fixed by raising the cap again — the arithmetic decides the design.** Claim
+    count and evidence richness compete for the *same* context window, and on the managed local model
+    that window is 12,288 tokens:
+
+    | claims | output tokens | + input (~3,257) | vs 12,288 |
+    |---|---|---|---|
+    | 7 (today) | 3,778 | 7,035 | fits |
+    | 12 | 6,464 | 9,721 | fits |
+    | 16 | 8,613 | 11,870 | **418 tokens of margin** |
+    | 20 | 10,761 | 14,018 | **exceeds the context** |
+
+    So 16 claims is *just barely* reachable in one call — and only by starving the evidence side, since
+    every output token spent on a longer answer is one not available for retrieved chunks. Splitting
+    across calls is the only way to grow the answer **and** the evidence together, because each call
+    gets a fresh window. That is the argument for this item, and it is why "raise `maxItems` again" is
+    not a substitute.
+  - **Splitting is the mechanism; one coherent answer is the goal.** Cliff wants 16 statements, not four
+    separate mini-reports — so stitching back into a single ordered answer is part of the requirement,
+    not an optional presentation choice.
+  - **Let the user name the parts where they already have.** Deciding how to decompose a question is the
+    model making a structural claim about the literature — judgment, not narration, and the wrong side
+    of PRINCIPLES #4 (deterministic substrate as source of truth) and #5 (the human is the filter).
+    Vasiliki's question already listed its four constructs. Prefer a user-visible facet list (parsed and
+    then *editable*, or entered explicitly); if the model ever proposes the split, show it before it is
+    used, never silently.
+  - **Per-facet retrieval is the other half of "some claims require more evidence."** One `top_k`
+    (default 8, max 50) currently serves the whole question, so a four-construct question retrieves for
+    all four at once and the rarest construct loses. A per-part retrieval budget fixes that at the
+    evidence layer rather than by letting the model write longer.
+  - **The honesty constraint on stitching:** claims may be *ordered* into one answer and must keep their
+    own evidence and verification (each part is an ordinary `summarize_scope` run, so invariant #1,
+    coordinate honesty, and caching all work unchanged). Do **not** generate a connecting or summarizing
+    sentence across parts — no retrieved chunk supports a claim about the relationship *between* parts,
+    so it would be exactly the unbacked narration the charter forbids. If two parts' claims disagree,
+    that must remain visible rather than be smoothed away.
+  - Cost/latency: N parts means N provider calls and N verification passes — minutes at Local AI speeds.
+    Needs real progress reporting (invariant #5) and likely an explicit opt-in rather than becoming the
+    default for every question.
+
 
 - **#75 Debian/Ubuntu users have no update path at all — they must notice a release and re-download the
   `.deb` by hand.** Raised by Cliff (2026-09-03). Windows and macOS get Tauri's in-app updater (silent

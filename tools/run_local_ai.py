@@ -55,12 +55,16 @@ sys.path.insert(0, str(ROOT))  # script mode omits the project root (the inc-508
 # validator accepts, so a silent drift between the two would be the one bug most likely to waste a day.
 from app.backend.llm.managed_local import (  # noqa: E402
     _PREVIEW_CONTEXT_TOKENS,
+    _PREVIEW_OUTPUT_TOKENS,
     EXPECTED_PREVIEW_MODEL_DIGEST,
     MODEL_ALIAS,
     PREVIEW_QUALIFICATION_STATE,
 )
 
-PREVIEW_MAX_OUTPUT_TOKENS = 2048  # `_target_from_payload` pins this for a non-developer qualification state
+# Imported, never restated: `_target_from_payload` pins this exact value for a non-developer
+# qualification state and fails CLOSED on a mismatch, so a hardcoded copy here silently breaks the dev
+# launcher the moment the real cap moves -- which is exactly what happened when it went 2048 -> 4096.
+PREVIEW_MAX_OUTPUT_TOKENS = _PREVIEW_OUTPUT_TOKENS
 READINESS_TIMEOUT = 300.0  # a cold 1.04 GiB model load on CPU is slow; this is a ceiling, not an expectation
 READINESS_INTERVAL = 1.0
 HASH_CHUNK = 1024 * 1024

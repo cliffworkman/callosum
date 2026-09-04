@@ -17,8 +17,14 @@ def test_historical_battery_remains_frozen() -> None:
     # already hardcoded False before and after, and the managed target is hard-pinned to a literal 127.0.0.1,
     # never 0.0.0.0 -- so the qualification's already-recorded null result remains reproducible against the
     # re-frozen code. See .claude/docs/increment-notes/INCREMENT-557-NOTES.md.
+    # inc 575: providers.py moved again, fixing a truncated model answer that surfaced to a real user as a
+    # raw JSONDecodeError. Confirmed behaviourally neutral for what THIS study tested: the additions read the
+    # finish_reason/stop_reason the provider already returned (no request field changes), and the one real
+    # generation-setting change (_MAX_TOKENS 2048 -> 4096) governs only the Anthropic `messages` wire, which
+    # none of this battery's local GGUF candidates use -- their Overview cap is the unchanged 256. The
+    # recorded null result stays reproducible. See INCREMENT-575-NOTES.md and the profile README.
     assert overview_battery.verify_freeze()["aggregate_sha256"] == (
-        "944213c0b1aaf6c6f43717d0ba7a243d336875f5156af26d9930575c8f68ed9b"
+        "3591ed8dcd424fa0dbbc2b8b71f9858adb6da9c81ae90a6996aef1588d6a6bc3"
     )
 
 
