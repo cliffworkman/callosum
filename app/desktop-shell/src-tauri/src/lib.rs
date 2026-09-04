@@ -144,11 +144,51 @@ fn stop_local_ai(state: tauri::State<'_, ManagedLocalAiState>) {
 }
 
 fn emit_status(app: &AppHandle, state: &str, detail: &str) {
+    if state == "failed" {
+        record_startup_failure(app, detail);
+    }
     let _ = app.emit_to(
         "splash",
         "backend-status",
         serde_json::json!({ "state": state, "detail": detail }),
     );
+}
+
+/// Also write a startup failure somewhere readable, not only onto the splash window.
+///
+/// When startup fails the app stays alive showing the reason on the splash and never writes
+/// `backend.log`, because that file is only created after the backend child spawns. The reason
+/// therefore exists solely as pixels — unreadable over SSH, unreadable in CI (where a screenshot can
+/// be blocked by a screen-recording consent prompt), and unaskable of a user who can only say "it
+/// says starting forever". This is the same silence inc 568 removed from axis labelling, in the one
+/// place where nothing else can speak.
+///
+/// The app-data directory is preferred, but a failure to resolve it is itself a plausible cause, so
+/// the temp directory is the fallback rather than giving up.
+fn record_startup_failure(app: &AppHandle, detail: &str) {
+    let line = format!(
+        "{} startup failed: {detail}\n",
+        chrono_free_timestamp_or_default()
+    );
+    let target = app
+        .path()
+        .app_data_dir()
+        .ok()
+        .map(|dir| {
+            let _ = std::fs::create_dir_all(&dir);
+            dir.join("startup-error.log")
+        })
+        .unwrap_or_else(|| std::env::temp_dir().join("callosum-startup-error.log"));
+    let _ = std::fs::write(&target, line);
+}
+
+/// Seconds since the Unix epoch. No date crate is a dependency here and one is not worth adding for
+/// a diagnostic line; the ordering is what matters, not a human-formatted date.
+fn chrono_free_timestamp_or_default() -> String {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|value| format!("t={}", value.as_secs()))
+        .unwrap_or_else(|_| "t=unknown".to_string())
 }
 
 #[tauri::command]

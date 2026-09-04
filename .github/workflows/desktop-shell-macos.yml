@@ -277,6 +277,18 @@ jobs:
             echo "CONFIRMED: Gatekeeper blocked the plain-open attempt, as FIRST-LAUNCH-NOTE.md describes"
           fi
 
+          # Stop the quarantined instance before trusting the app. Without this the whole rest of the
+          # step tests the WRONG PROCESS: the quarantined launch above is App Translocated -- macOS
+          # runs a quarantined app from a randomised read-only
+          # /private/var/folders/.../AppTranslocation/<uuid>/d/ copy, not from /Applications -- and it
+          # stays alive, so the second `open` below merely re-activates that same translocated PID
+          # instead of starting a fresh trusted one. Observed directly: one PID (61716) persisted
+          # across all three probes 20 minutes apart, running from an AppTranslocation path.
+          pkill -f "$APP_PROC" || true
+          sleep 3
+          echo "--- after stopping the quarantined instance ---"
+          report_processes
+
           # The documented workaround is Finder's right-click -> Open, which clears the OS's distrust
           # of this specific file the same way removing the quarantine attribute does; this is the
           # closest scriptable proxy to that gesture available in a non-interactive CI shell.
@@ -338,6 +350,10 @@ jobs:
             echo "--- backend.log (expected empty while the failure precedes backend spawn) ---"
             find "$HOME/Library/Application Support" -name backend.log -type f \
               -exec sh -c 'echo "--- $1 ---"; tail -n 120 "$1"' _ {} \; || true
+            # The reason the startup failed, written by record_startup_failure() -- the splash text
+            # is otherwise the only place it exists, and a screenshot cannot be relied on here.
+            echo "--- startup-error.log (the failure reason, if the app reached emit_status) ---"
+            cat "$HOME/Library/Application Support/com.callosum.desktop/startup-error.log" 2>/dev/null               || cat "$TMPDIR/callosum-startup-error.log" 2>/dev/null               || echo "(no startup-error.log — the app never reached a failure status)"
             echo "--- did the runtime get provisioned at all? ---"
             ls -la "$HOME/Library/Application Support/com.callosum.desktop/python-runtimes/" 2>/dev/null \
               || echo "(no python-runtimes directory — ensure_runtime never completed)"
