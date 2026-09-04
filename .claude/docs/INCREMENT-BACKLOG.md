@@ -52,11 +52,17 @@
   existed** — so this predates that change and is not a regression from it. Real macOS users run the app
   fine, which is why the gate is deliberately left as a `::warning::` there while Linux is blocking
   (Cliff's call).
-  - **Leading hypothesis, not yet confirmed:** the check greps `ps aux` for
-    `… --port [0-9]+`, and **macOS truncates the command column** while Linux does not when stdout is not
-    a tty. The port sits at the very END of a long argv, so a truncated line can never match. Inc 570
-    changed the macOS invocation to `ps auxww` on that theory; the next macOS run either prints
-    `healthy on port …` (theory confirmed) or does not (theory dead, look elsewhere).
+  - **DISPROVEN (2026-09-03): it is not `ps` truncation.** The theory was that macOS truncates the
+    command column while Linux does not, so a port at the end of a long argv could never match. Inc 570
+    changed the macOS invocation to `ps auxww` and **both jobs still ran the full 20-minute budget
+    without ever matching** (run `1009d84`, arm64 23:43→00:04, x64 23:39→00:00). Recorded so nobody
+    spends the idea twice. `ps auxww` was kept regardless — strictly more informative, no downside.
+  - **What the evidence now narrows it to:** the `find … -name backend.log` dump on failure produces
+    **no output at all**, so no backend log is ever created, so the failure happens *before* the backend
+    is spawned — i.e. inside `ensure_runtime` / `resolved_paths`, not in Python. The next diagnostic
+    should therefore prove whether the app process is even alive (`pgrep -f Callosum` before the
+    `pkill`), and dump `~/Library/Logs/DiagnosticReports` for a crash report, rather than inferring from
+    the screenshot.
   - **If `ps auxww` fixes it, promote the macOS gate back to `::error::` + `exit 1`** so the platform is
     genuinely covered rather than permanently excused. That is the whole point of filing this.
   - Other candidates if it does not: the app needing GUI/automation permissions the runner withholds (the
