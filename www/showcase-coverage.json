@@ -13,7 +13,7 @@
     "reviewed_at": "2026-09-04",
     "reviewed_rev": "b76ef28",
     "reviewed_increment": 574,
-    "source_fingerprint": "d578b20d8f85ad5f2d7514608916e647492a9734acebef9fd6c2f02b58f3e383",
+    "source_fingerprint": "99e97896c18872c2800620b42501a4c515b96852e4cec79003526a31898ea6df",
     "note": "Inc 574 (auto-updater fix + help): reviewed every affected website claim and visual. The change is the desktop updater's event/seeding plumbing, the Settings copy for it, and a new help bullet documenting it. The website makes no claim about updating at all (grep for 'updat' across index.html and showcase.html returns nothing), and no figure depicts Settings > Desktop app. Nothing shown on the site is stale.",
     "declined_at": null,
     "declined_rev": null,
