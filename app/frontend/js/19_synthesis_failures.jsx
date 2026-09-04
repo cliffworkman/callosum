@@ -1,6 +1,27 @@
+// A SQLAlchemy error embeds the whole failing statement as "[SQL: ...] [parameters: ...]". Every
+// heuristic below is a substring test, and column names like `chunks.chunk_version` match probes
+// meant for application messages -- which is how a "too many SQL variables" failure was reported to
+// a real user as "A cached draft citation could not be read", offering a Repair-cache button that
+// could not have helped. Classify on the message only; the full text is still shown verbatim under
+// Technical detail, so nothing is hidden.
+function synthesisFailureProbeText(detail) {
+  return String(detail || "").split(/\[SQL:/i)[0].toLowerCase();
+}
+
 function classifySynthesisFailure(error) {
   const detail = String(error || "Summarization failed.");
-  const lower = detail.toLowerCase();
+  const lower = synthesisFailureProbeText(detail);
+  if (lower.includes("too many sql variables") || lower.includes("operationalerror")) {
+    return {
+      kind: "retry",
+      title: "Your library was too large for this request to complete.",
+      message:
+        "This is a limitation in Callosum, not a problem with your library or your PDFs. " +
+        "Please update to the latest version; if it persists, send this technical detail with a bug report.",
+      primary: "Retry",
+      detail,
+    };
+  }
   if (lower.includes("local ai is not ready")) {
     return {
       kind: "settings",
@@ -93,7 +114,12 @@ function SynthesisFailure({ error, diagnostic, onOpenSettings, onOpenTextHealth,
 }
 
 function synthesisSourceDiagnostic(body, textHealthItems, sourceChunkCount, error) {
-  const detail = String(error || "").toLowerCase();
+  // Same embedded-SQL hazard as classifySynthesisFailure: `chunks.chunk_version` inside a database
+  // error would otherwise satisfy the "chunk" probe and assert "No source chunks matched this
+  // query" to someone whose library is full of chunks. Never claim a fact about their library from
+  // an error that says nothing about it.
+  const detail = synthesisFailureProbeText(error);
+  if (detail.includes("too many sql variables") || detail.includes("operationalerror")) return null;
   if (sourceChunkCount !== 0 && !detail.includes("chunk") && !detail.includes("retrievable")) return null;
   const sections = body && body.sections && body.sections.length ? body.sections.map(sectionLabel).join(" + ") : "";
   const paperIds = body && body.paper_ids ? body.paper_ids.map(Number).filter(Boolean) : [];

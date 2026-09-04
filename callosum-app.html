@@ -14321,9 +14321,21 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       "un-dismiss"
     )))), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));
   }
+  function synthesisFailureProbeText(detail) {
+    return String(detail || "").split(/\[SQL:/i)[0].toLowerCase();
+  }
   function classifySynthesisFailure(error) {
     const detail = String(error || "Summarization failed.");
-    const lower = detail.toLowerCase();
+    const lower = synthesisFailureProbeText(detail);
+    if (lower.includes("too many sql variables") || lower.includes("operationalerror")) {
+      return {
+        kind: "retry",
+        title: "Your library was too large for this request to complete.",
+        message: "This is a limitation in Callosum, not a problem with your library or your PDFs. Please update to the latest version; if it persists, send this technical detail with a bug report.",
+        primary: "Retry",
+        detail
+      };
+    }
     if (lower.includes("local ai is not ready")) {
       return {
         kind: "settings",
@@ -14397,7 +14409,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     return /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "14px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, failure.title), /* @__PURE__ */ React.createElement("br", null), failure.message, /* @__PURE__ */ React.createElement(SynthesisSourceDiagnostic, { diagnostic, onOpenTextHealth }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 } }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: primary, disabled: failure.kind !== "settings" && failure.kind !== "text-health" && !canRetry }, failure.primary), failure.kind !== "settings" && onOpenSettings && /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: onOpenSettings }, "Open Settings")), /* @__PURE__ */ React.createElement("details", { style: { marginTop: 8 } }, /* @__PURE__ */ React.createElement("summary", null, "Technical detail"), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 6, wordBreak: "break-word" } }, failure.detail)));
   }
   function synthesisSourceDiagnostic(body, textHealthItems, sourceChunkCount, error) {
-    const detail = String(error || "").toLowerCase();
+    const detail = synthesisFailureProbeText(error);
+    if (detail.includes("too many sql variables") || detail.includes("operationalerror")) return null;
     if (sourceChunkCount !== 0 && !detail.includes("chunk") && !detail.includes("retrievable")) return null;
     const sections = body && body.sections && body.sections.length ? body.sections.map(sectionLabel).join(" + ") : "";
     const paperIds = body && body.paper_ids ? body.paper_ids.map(Number).filter(Boolean) : [];

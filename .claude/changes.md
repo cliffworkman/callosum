@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-04 — Increment 573: Synthesize → Ask crashed on a real user's library
+- **Files:** `app/backend/persistence/sql_batch.py` (new), `app/backend/embeddings/pipeline.py`,
+  `app/backend/summarization/pipeline.py`, `app/frontend/js/19_synthesis_failures.jsx`,
+  `tests/test_sql_batch.py` (new), `callosum-app.html`,
+  `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/docs/increment-notes/INCREMENT-573-NOTES.md`
+- **What:** a query-scope synthesis passed every chunk id in the library into one `IN (...)`, exceeding
+  SQLite's host-parameter cap (`too many SQL variables`). Id lists are now batched at 900; `embed_chunks`
+  classifies in one set query instead of once per row; and the ranking path classifies first so
+  `embed_chunks` is skipped when everything is already embedded. **19× faster** on a real 23,875-chunk
+  library, and the crash is gone. Also fixed the error UI, which told the user their cache was broken and
+  that "no source chunks matched" — both false, caused by substring-matching the embedded SQL.
+- **Why:** reported by Vasiliki Meletaki (716,670 chunks). It could never reproduce here: the limit is a
+  **build-time** property — 250,000 on the dev interpreter, 32,766 in the packaged runtime — so Ask breaks
+  for any packaged-app library over roughly 150–300 papers.
+- **Revert:** `git revert` the increment commit; no schema, migration, or API contract changed.
+
 ## 2026-09-04 — Increment 572: Local AI on Debian/Ubuntu (closes #76)
 - **Files:** `app/desktop-shell/src-tauri/src/managed_local_ai.rs`,
   `app/desktop-shell/src-tauri/src/managed_local_ai/{install.rs,install_macos.rs→install_unix.rs,preview.rs,tests.rs}`,

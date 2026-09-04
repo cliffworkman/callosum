@@ -64,7 +64,19 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
       no local PDF, no extracted text, stale extraction, or missing section labels; query/all-library zero-source
       cases should say no source chunks matched the query or active section filter.
     - provider timeout/rate/HTTP failure -> **Retry** plus an optional Settings link.
+    - **database/scale failure (inc 573) -> Retry, and the copy must blame Callosum, not the library.**
+      Force a detail containing `sqlite3.OperationalError: too many SQL variables` **with a realistic
+      `[SQL: SELECT chunks.id, …, chunks.chunk_version …]` payload attached**, and confirm: (a) it is NOT
+      classified as a cache failure, (b) no **Repair cache and retry** button is offered, and (c) the pane
+      does NOT claim "No source chunks matched this query." The embedded SQL is the whole point of this
+      case: every probe in `classifySynthesisFailure`/`synthesisSourceDiagnostic` is a substring test, and
+      `chunks.chunk_version` contains `chunk_`, which is exactly how a real user with a 716,670-chunk
+      library was told her cache was broken and her query matched nothing — two false statements plus a
+      button that could not have helped. A route that supplies a bare error string without the SQL payload
+      does not exercise this and will pass vacuously.
     The wording must not say the repair verified, improved, or certified the synthesis; it only removes malformed cached AI draft rows or routes the user to existing maintenance surfaces.
+    No failure message may assert a fact about the user's library (its size, its chunks, its text health)
+    that the error itself does not establish.
 
 ## Pass criteria
 

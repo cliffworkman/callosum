@@ -9,7 +9,7 @@ from typing import Literal
 from sqlalchemy import Connection, Engine, func, insert, select
 
 from app.backend.embeddings.models import EmbeddingModel
-from app.backend.embeddings.pipeline import embed_chunks
+from app.backend.embeddings.pipeline import current_chunk_embedding_ids, embed_chunks
 from app.backend.embeddings.vector_store import VectorStore
 from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
 from app.backend.persistence.schema import (
@@ -319,10 +319,24 @@ def _rank_chunks_for_query(
 ) -> list[SourceChunk]:
     if not source_chunks:
         return []
-    embed_chunks(conn, model=model, vector_store=vector_store, chunk_ids=[chunk.chunk_id for chunk in source_chunks])
-    embedding_to_chunk = _chunk_embedding_ids_for_chunks(
-        conn, model=model, chunk_ids=[chunk.chunk_id for chunk in source_chunks]
+    # The candidate pool here is every article chunk in the library for a query-scoped synthesis, and in the
+    # overwhelmingly common case every one of them is already embedded. Classify first, using the chunk_version
+    # each SourceChunk already carries, and only call embed_chunks for the stragglers: embed_chunks re-reads
+    # every row it is given (all columns, including text) purely to decide "does this need embedding?", which at
+    # library scale costs more than the entire rest of the ranking pass. Handing it only the chunks that really
+    # need work keeps the semantics identical -- embed_chunks would classify these same chunks the same way --
+    # while making the cost proportional to what changed rather than to library size.
+    current = current_chunk_embedding_ids(
+        conn, ((chunk.chunk_id, chunk.chunk_version) for chunk in source_chunks), model=model
     )
+    missing = [chunk for chunk in source_chunks if chunk.chunk_id not in current]
+    if missing:
+        embed_chunks(conn, model=model, vector_store=vector_store, chunk_ids=[c.chunk_id for c in missing])
+        # Re-read only the chunks that were just embedded, not the whole pool again. Their ids come from
+        # the same set query rather than from embed_chunks' return order, so nothing here depends on the
+        # positional correspondence between its input list and its returned ids.
+        current.update(current_chunk_embedding_ids(conn, ((c.chunk_id, c.chunk_version) for c in missing), model=model))
+    embedding_to_chunk = {embedding_id: chunk_id for chunk_id, embedding_id in current.items()}
     hits = vector_store.search(
         conn,
         vector=model.encode_texts([query])[0],
@@ -446,27 +460,6 @@ def _source_chunk_from_row(row) -> SourceChunk:  # type: ignore[no-untyped-def]
         bbox_json=row["bbox_json"],
         section=row["section"],
     )
-
-
-def _chunk_embedding_ids_for_chunks(
-    conn: Connection,
-    *,
-    model: EmbeddingModel,
-    chunk_ids: list[int],
-) -> dict[int, int]:
-    from app.backend.persistence.schema import embeddings
-
-    embedding_rows = conn.execute(
-        select(embeddings.c.id, embeddings.c.target_id).where(
-            embeddings.c.target_type == "chunk",
-            embeddings.c.target_id.in_(chunk_ids),
-            embeddings.c.model_name == model.name,
-            embeddings.c.model_version == model.version,
-            embeddings.c.dimension == model.dimension,
-            embeddings.c.normalization == model.normalization,
-        )
-    )
-    return {int(row.id): int(row.target_id) for row in embedding_rows}
 
 
 def _combined_chunk_version(verifications: list[VerificationResult]) -> str:

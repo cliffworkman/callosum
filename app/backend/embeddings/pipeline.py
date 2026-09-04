@@ -12,6 +12,7 @@ from app.backend.embeddings.models import EmbeddingModel, normalize_text
 from app.backend.embeddings.vector_store import VectorStore
 from app.backend.persistence.document_roles import attachment_document_role_clause
 from app.backend.persistence.schema import attachments, chunks, embeddings, papers
+from app.backend.persistence.sql_batch import batched_rows
 
 PAPER_TEXT_VERSION = "paper-metadata-v1"
 TargetType = Literal["chunk", "paper"]
@@ -37,25 +38,23 @@ def embed_chunks(
     rows = _chunk_rows(conn, chunk_ids, document_roles=document_roles)
     total = len(rows)
     # inc 418: one batched encode_texts() call for every row needing a fresh embedding, instead of one call per
-    # row — same vectors out, computed together. Phase 1 classifies each row (existing embedding vs. needs one,
-    # a cheap per-row DB lookup, not a model call — left as-is); phase 2 batch-encodes; phase 3 walks rows again
-    # in original order to report progress + do the existing insert/vector-store bookkeeping, preserving the
-    # exact per-row on_progress sequence tests assert on.
+    # row — same vectors out, computed together. Phase 1 classifies each row (existing embedding vs. needs one);
+    # phase 2 batch-encodes; phase 3 walks rows again in original order to report progress + do the existing
+    # insert/vector-store bookkeeping, preserving the exact per-row on_progress sequence tests assert on.
+    #
+    # Phase 1 was a per-row DB lookup ("cheap", and it is — once). At library scale it is the dominant cost of
+    # the whole call: ~120s of pure lookups for a 716,670-chunk library, on a query-scoped synthesis where the
+    # answer is almost always "every one of them is already embedded". It is now one batched set query with the
+    # identical predicate — same rows classified the same way, asked once instead of once each.
+    current = current_chunk_embedding_ids(
+        conn, ((int(row["id"]), str(row["chunk_version"])) for row in rows), model=model
+    )
     existing_ids: list[int | None] = []
     pending_texts: list[str] = []
     for row in rows:
-        existing = _current_embedding(
-            conn,
-            target_type="chunk",
-            target_id=int(row["id"]),
-            model=model,
-            source_text_version=str(row["chunk_version"]),
-            source_chunk_version=str(row["chunk_version"]),
-        )
-        if existing is not None:
-            existing_ids.append(int(existing["id"]))
-        else:
-            existing_ids.append(None)
+        existing_id = current.get(int(row["id"]))
+        existing_ids.append(existing_id)
+        if existing_id is None:
             pending_texts.append(str(row["text"]))
 
     vectors = iter(model.encode_texts(pending_texts) if pending_texts else [])
@@ -195,7 +194,13 @@ def _chunk_rows(
             raise ValueError("Pass chunk_ids or document_roles, not both")
         if not chunk_ids:
             return []
-        stmt = select(chunks).where(chunks.c.id.in_(chunk_ids))
+        # Batched: a library-wide caller passes every chunk id it holds, which overruns SQLite's
+        # per-statement parameter cap on the runtime the packaged app ships. See sql_batch.
+        rows = batched_rows(
+            lambda batch: conn.execute(select(chunks).where(chunks.c.id.in_(batch))).mappings().all(),
+            chunk_ids,
+        )
+        return sorted(rows, key=lambda row: int(row["id"]))  # batches arrive separately; restore id order
     else:
         if document_roles is None:
             raise ValueError("Embedding all chunks requires an explicit document_roles scope")
@@ -212,6 +217,62 @@ def _paper_rows(conn: Connection, paper_ids: list[int] | None) -> list[RowMappin
     if paper_ids:
         stmt = stmt.where(papers.c.id.in_(paper_ids))
     return list(conn.execute(stmt.order_by(papers.c.id)).mappings())
+
+
+def current_chunk_embedding_ids(
+    conn: Connection, pairs: Iterable[tuple[int, str]], *, model: EmbeddingModel
+) -> dict[int, int]:
+    """Set-based equivalent of ``_current_embedding`` for many chunks at once.
+
+    Takes ``(chunk_id, chunk_version)`` pairs and returns ``{chunk_id: embedding_id}`` for exactly
+    those chunks that already have a **current** embedding — the same predicate as
+    ``_current_embedding`` (model identity plus both version columns equal to the chunk's own
+    ``chunk_version``), evaluated once per batch instead of once per chunk.
+
+    It takes pairs rather than rows so a caller that already holds the chunks (the synthesis
+    ranking path holds ``SourceChunk``s, which carry ``chunk_version``) can classify them without
+    re-reading every row back out of the database.
+
+    ``_current_embedding`` takes ``.first()`` with no ORDER BY, so with duplicate rows for one key
+    its choice is whatever SQLite returns first. This picks the **lowest** embedding id, which is
+    both deterministic and the same row that ordering normally yields — the inc-438 tie-break
+    convention (oldest embedding wins) rather than an arbitrary one.
+    """
+    wanted = {int(chunk_id): str(version) for chunk_id, version in pairs}
+    if not wanted:
+        return {}
+    found = batched_rows(
+        lambda batch: conn.execute(
+            select(
+                embeddings.c.id,
+                embeddings.c.target_id,
+                embeddings.c.source_text_version,
+                embeddings.c.source_chunk_version,
+            ).where(
+                and_(
+                    embeddings.c.target_type == "chunk",
+                    embeddings.c.target_id.in_(batch),
+                    embeddings.c.model_name == model.name,
+                    embeddings.c.model_version == model.version,
+                    embeddings.c.dimension == model.dimension,
+                    embeddings.c.normalization == model.normalization,
+                )
+            )
+        ).all(),
+        list(wanted),
+    )
+    current: dict[int, int] = {}
+    for embedding_id, target_id, text_version, chunk_version in found:
+        version = wanted.get(int(target_id))
+        # Both version columns must equal the chunk's own version, or the embedding is stale and the
+        # chunk still needs re-embedding — the distinction that keeps edited text from being verified
+        # against a vector of its previous wording.
+        if version is None or text_version != version or chunk_version != version:
+            continue
+        existing = current.get(int(target_id))
+        if existing is None or int(embedding_id) < existing:
+            current[int(target_id)] = int(embedding_id)
+    return current
 
 
 def _current_embedding(

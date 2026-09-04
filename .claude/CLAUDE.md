@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 572** (see Increment workflow) with **2792 passed, 4 skipped in the last completed root-suite
+It is currently at **Increment 573** (see Increment workflow) with **2792 passed, 4 skipped in the last completed root-suite
 pass** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
 The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
 receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
@@ -41,6 +41,20 @@ the full per-increment narrative for all other increments now lives in the reloc
 **Stack:**
 - **Backend:** Python 3.11+, FastAPI + Uvicorn (`app/backend/api/app.py`).
 - **Persistence:** SQLite via SQLAlchemy Core 2.0; Alembic migrations (`alembic/`).
+  **Never bind an unbounded id list into `IN (...)` — batch it through `persistence/sql_batch.py`
+  (inc 573).** SQLite's `SQLITE_MAX_VARIABLE_NUMBER` is a **build-time property of whichever SQLite the
+  interpreter was linked against**, so this cannot be caught by testing here: the dev interpreter on this
+  machine reports **250,000** while the CPython runtime bundled in the packaged desktop app reports the
+  upstream default **32,766**. Synthesize → Ask therefore crashed for the first user with a real-sized
+  library (716,670 chunks) on a path that had never once failed in development — and at ~100–200 chunks
+  per paper, 32,766 is reached at roughly 150–300 papers, i.e. an ordinary library. Batch at
+  `SQL_VARIABLE_BATCH` (900, below even the pre-3.32 default of 999) rather than detecting the limit at
+  runtime; making correctness depend on a per-machine value is the bug, not the fix. A caller must
+  re-establish its own ordering, since each batch is a separate statement. The vector store's
+  `_search_candidates` shows the other sanctioned shape for large id sets: a **temp table**, never `IN`.
+  Regression coverage (`tests/test_sql_batch.py`) *lowers the connection's own parameter limit* so it
+  reproduces a user's failure on any build — copy that technique rather than sizing a fixture to whatever
+  the local SQLite happens to allow.
 - **Vectors:** `sqlite-vec` (in-process, no separate daemon) + sentence-transformers
   (default embed model `all-MiniLM-L6-v2`; `bge-base-en-v1.5` also supported).
 - **Clustering:** scikit-learn agglomerative clustering + local axis scoring.
@@ -1537,7 +1551,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 572). Each increment of real work
+callosum is built in **numbered increments** (currently at 573). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

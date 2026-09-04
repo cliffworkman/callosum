@@ -28,6 +28,38 @@
 
 ## 1. Near-term (small, self-contained, no design decision needed)
 
+- **#79 A query-scope synthesis materializes the entire library to pick 8 chunks.** Surfaced by inc 573's
+  crash fix (backlog #78-adjacent, reported by Vasiliki Meletaki with a 716,670-chunk library). The crash
+  is fixed and the path is ~19x faster, but it is still O(library) where it should be O(top_k). Measured on
+  a real 23,782-chunk library and extrapolated (30.1x) to hers:
+
+  | phase | 23,782 chunks | ~716,670 chunks |
+  |---|---|---|
+  | load all candidate rows (all columns, incl. `text`) | 10.5s | **~315s** |
+  | `exclude_repeated_boilerplate_chunks` | 4.1s | ~123s |
+  | classify current embeddings | 2.4s | ~72s |
+  | **total** | **16.9s** | **~8.5 min** |
+
+  `_source_chunks_for_scope` (`app/backend/summarization/pipeline.py`) builds the candidate pool by
+  selecting **every** article chunk of every live paper, then ranks it. For the `papers`/`cluster_node`
+  scopes that pool is genuinely bounded by the selection; for the **query** scope it is the whole library.
+  - **The aligned shape already exists:** `SQLiteVecVectorStore.search` does a real KNN and its
+    `_search_candidates` already uses a **temp table**, not an `IN (...)`. A query scope could search
+    globally and fetch rows only for the hits, making cost proportional to `top_k`.
+  - **Two real obstacles, not incidental:** (1) the live-paper + `ARTICLE_DOCUMENT_ROLES` filters currently
+    run *before* ranking, so a global KNN must over-fetch and filter after, and can under-deliver `top_k`;
+    (2) `exclude_repeated_boilerplate_chunks` is per-paper over the candidate pool — running it only on the
+    hits changes which chunks survive. Both are behaviour changes at the margin, so this needs its own
+    increment with before/after retrieval comparisons on a real library, not a drive-by.
+  - **UX consequence, from inc 573's experience pass (rule #11):** `summarize_scope` reports this stage as
+    `on_stage("preparing_sources", …, None, False)` — total unknown, indeterminate. That is correct under
+    invariant #5 (never invent a percentage), but it means a large-library user watches an indeterminate
+    "Preparing sources" for ~5 minutes before anything else happens, which reads as a hang. Even without
+    the architectural fix, this stage *is* countable (the candidate pool size is known once loaded), so it
+    could report honest determinate progress. Whoever takes #79 should fix the signal too, not only the
+    speed — a correct slow operation that looks broken is still a bad outcome.
+  - Non-blocking: the feature works today at every library size, just slowly at the top end.
+
 - **#73 Both Linux lanes pin `runs-on: ubuntu-22.04`, a runner label GitHub is retiring.** Introduced
   deliberately in inc 570: the shell and the Python-runtime artifact must both be built at the supported
   glibc floor (2.35) so the `.deb` runs on Debian 12 (2.36) and Ubuntu 22.04+ — see backlog #71's closure
@@ -47,6 +79,43 @@
   the repo-level notices file only, not a missing disclosure in the product. Cheap: two entries.
   `.claude/CREDIT-THE-LINEAGE.md` is the governing value (credit a prior tool by citation, never by
   appropriating its name).
+
+- **#78 Make the desktop startup loader branded, stateful, and genuinely informative.** Raised from a real
+  Windows 0.5.3 → 0.5.5 upgrade on 2026-09-04: the 0.5.5 shell and WebView were healthy, but no Python/backend
+  child existed yet because startup was walking and hashing the old bundled Python environment before deciding
+  whether it could be migrated. The candidate runtime is about **1.315 GB across 41,338 entries**; if migration
+  rejects it, the fallback archive is another **382,932,668-byte download**. During the tree walk the persistent
+  runtime directory remains empty, write progress is zero, and the current migration event carries no files,
+  bytes, elapsed time, or ETA, so this legitimate work looks exactly like a hung application. This is a loader UX
+  requirement, not merely a special case for Python-runtime migration.
+  - **Visual hierarchy:** the top half of the window should use Callosum's actual product identity — the real
+    logo beside **“Callosum” with a capital C**, matching the in-app presentation rather than a generic/lowercase
+    loading window. The bottom half must answer, in ordinary language, **“What is going on, and how much longer
+    until I can use Callosum?”**
+  - **Truthful stages:** distinguish at least checking the managed runtime; inspecting an existing runtime;
+    reusing/copying it; downloading a required runtime; verifying integrity; extracting/installing;
+    smoke-testing; starting Local AI when applicable; starting the Python backend; waiting for backend health;
+    and ready. Do not collapse all pre-backend work into “Loading” or “Starting.” Explain that the one-time
+    runtime step may be longer after an upgrade and that later launches will be faster.
+  - **Progress and time:** for every measurable stage emit current/total bytes or entries, percentage, transfer/
+    processing rate, elapsed time, and a conservative ETA. For stages that cannot yet be estimated, show an
+    explicit indeterminate state plus elapsed time and explain what completion signal is being awaited; never
+    invent a countdown. Preserve progress when the window subscribes late — startup state needs a queryable/
+    replayable snapshot so an early `backend-status` event cannot be lost before `splash.js` registers its
+    listener.
+  - **Stalls and failures:** define stage-specific stall detection without treating slow disks/networks as
+    failures. On a real failure, keep the window open with a stable error code, concise remediation, Retry, and
+    one-click copyable sanitized diagnostics; do not require screenshots or expose credentials/private paths.
+  - **Underlying migration follow-up:** measure why the legacy tree-digest pass is slow on real Windows installs
+    (small-file enumeration, antivirus/Defender, cache state, and the later full copy are plausible factors).
+    Preserve exact-manifest verification and immutable-runtime safety, but add an authenticated cheap-rejection
+    check or a safer/faster migration route if evidence supports one. UX progress is required even if the
+    operation is optimized.
+  - **Coverage:** test stage transitions, byte/entry formatting, ETA behavior, late-listener recovery, unknown
+    totals, retry/failure diagnostics, accessibility/live-region semantics, capitalization/logo regression, and
+    a real old-bundled-runtime → persistent-runtime upgrade on Windows, macOS, and Linux. The acceptance test is
+    that at every point a nontechnical user can tell that Callosum is working, what it is doing, whether their
+    action is required, and approximately when the application will be usable.
 
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
