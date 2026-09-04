@@ -314,7 +314,8 @@ pub fn run() {
             stop_local_ai,
             updater::install_update_now,
             updater::open_release_page,
-            updater::check_for_updates_now
+            updater::check_for_updates_now,
+            updater::current_update_state
         ])
         .setup(|app| {
             let handle = app.handle().clone();

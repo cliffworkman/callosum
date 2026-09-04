@@ -74,6 +74,70 @@ pub struct UpdateState {
     notified: Mutex<Option<String>>,
 }
 
+/// The updater's current phase, in exactly the shape `useDesktopUpdate` already keeps in state, so
+/// seeding from this is indistinguishable from having received the events live.
+///
+/// **Why this exists.** The check loop starts on `setup()` and fires 30s later, but the `main`
+/// window is only created once the backend is healthy -- a cold start that the splash itself warns
+/// "can take a minute the first time". So `update-downloading`/`update-ready` are routinely
+/// broadcast *before any window is listening*, and Tauri does not replay events: the toast never
+/// appears, the Status popover stays empty, and the update is invisible even though it downloaded
+/// fine. Polling once on mount closes that race instead of narrowing it (a longer startup delay
+/// would only make the window smaller, never zero). Same hazard the splash's own `backend-status`
+/// event has -- see backlog #78.
+#[derive(Serialize, Clone)]
+#[serde(tag = "phase", rename_all = "lowercase")]
+pub enum UpdateSnapshot {
+    Idle,
+    Downloading {
+        version: String,
+        downloaded: u64,
+        total: Option<u64>,
+    },
+    Ready {
+        version: String,
+        notes: Option<String>,
+        action: &'static str,
+    },
+}
+
+#[tauri::command]
+pub fn current_update_state(app: AppHandle) -> UpdateSnapshot {
+    use tauri::Manager;
+    let state = app.state::<UpdateState>();
+    #[cfg(any(target_os = "macos", windows))]
+    {
+        if let Some((update, _)) = state.ready.lock().unwrap().as_ref() {
+            return UpdateSnapshot::Ready {
+                version: update.version.clone(),
+                notes: update.body.clone(),
+                action: "restart",
+            };
+        }
+        if let Some(version) = state.downloading.lock().unwrap().clone() {
+            // Byte counts are not retained across the seam; the live progress events carry them.
+            // Reporting an honest unknown beats inventing a figure (invariant #5).
+            return UpdateSnapshot::Downloading {
+                version,
+                downloaded: 0,
+                total: None,
+            };
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(version) = state.notified.lock().unwrap().clone() {
+            return UpdateSnapshot::Ready {
+                version,
+                notes: None,
+                action: "open-page",
+            };
+        }
+    }
+    let _ = &state;
+    UpdateSnapshot::Idle
+}
+
 pub async fn run_periodic_check(app: AppHandle) {
     tokio::time::sleep(STARTUP_DELAY).await;
     loop {
@@ -108,11 +172,29 @@ async fn check_desktop(app: &AppHandle) -> CheckOutcome {
     use tauri::Manager;
     let state = app.state::<UpdateState>();
     if let Some((existing, _)) = state.ready.lock().unwrap().as_ref() {
+        // Re-emit rather than returning silently. The first `update-ready` may have been broadcast
+        // before the main window existed (see `current_update_state`), and a Tauri event is never
+        // replayed -- so without this, an update that went ready early could never surface a toast
+        // again for the rest of the session, no matter how many times the user checked.
+        let _ = app.emit(
+            "update-ready",
+            UpdateReadyPayload {
+                version: existing.version.clone(),
+                notes: existing.body.clone(),
+                action: "restart",
+            },
+        );
         return CheckOutcome::Ready {
             version: existing.version.clone(),
         };
     }
     if let Some(version) = state.downloading.lock().unwrap().clone() {
+        let _ = app.emit(
+            "update-downloading",
+            DownloadingPayload {
+                version: version.clone(),
+            },
+        );
         return CheckOutcome::Downloading { version };
     }
     let Ok(updater) = app.updater() else {

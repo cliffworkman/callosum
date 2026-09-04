@@ -19,6 +19,11 @@ description = "Allows checking for updates on demand (Settings > Account & sync 
 commands.allow = ["check_for_updates_now"]
 
 [[permission]]
+identifier = "allow-current-update-state"
+description = "Allows the UI to read the updater's current phase on mount, so a window created after an update-ready event still shows it (inc 574)."
+commands.allow = ["current_update_state"]
+
+[[permission]]
 identifier = "allow-start-word-https-companion"
 description = "Allows the packaged Settings window to start its explicitly enabled local Word HTTPS companion."
 commands.allow = ["start_word_https_companion"]

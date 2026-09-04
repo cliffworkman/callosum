@@ -434,49 +434,9 @@ function DemoExternalInterfaces() {
 }
 
 // inc 280 (stage 3): the Settings center view (the menu-bar "Settings" utility workspace) — formerly a modal.
-// Desktop-shell only (updater.rs) — a plain browser tab / the remote-access tunnel has no Tauri
-// bridge, so this renders nothing rather than a dead button. The live `desktopUpdate` state (shared
-// with the toast + Status popover, 04d_update.jsx) supersedes a stale one-shot check result once a
-// download it kicked off actually finishes — e.g. the user checks, then leaves Settings open.
-function DesktopUpdateSettings({ desktopUpdate }) {
-  const [outcome, setOutcome] = useState(null); // the manual check's own one-shot result, or null
-  const [checking, setChecking] = useState(false);
-  if (!("__TAURI__" in window)) return null;
-
-  const check = async () => {
-    setChecking(true); setOutcome(null);
-    try {
-      setOutcome(await window.__TAURI__.core.invoke("check_for_updates_now"));
-    } catch (e) {
-      setOutcome({ kind: "Failed", detail: String(e) });
-    }
-    setChecking(false);
-  };
-
-  const live = desktopUpdate && desktopUpdate.phase !== "idle" ? desktopUpdate : null;
-  let statusText = null;
-  if (live && live.phase === "ready") statusText = `Update ready — v${live.version}. Restart to install.`;
-  else if (live && live.phase === "downloading") statusText = `Downloading v${live.version}…`;
-  else if (outcome) {
-    if (outcome.kind === "UpToDate") statusText = "You're up to date.";
-    else if (outcome.kind === "Downloading") statusText = `Found v${outcome.version} — downloading…`;
-    else if (outcome.kind === "Ready") statusText = `Update v${outcome.version} ready. Restart to install.`;
-    else if (outcome.kind === "Failed") statusText = `Couldn't check for updates: ${outcome.detail}`;
-  }
-
-  return (
-    <div className="settings-subsection">
-      <p className="eyebrow">Desktop app</p>
-      <div className="settings-row">
-        <span className="settings-field-label">Updates</span>
-        <button className="btn btn-ghost" disabled={checking} onClick={check}>
-          {checking ? "Checking…" : "Check for updates"}
-        </button>
-      </div>
-      {statusText && <span className="settings-sub">{statusText}</span>}
-    </div>
-  );
-}
+// `DesktopUpdateSettings` lives in 04d_update.jsx beside the rest of the updater surface (hoisted
+// across the shared IIFE — the inc-208/222/256 precedent); it moved there in inc 574 both to keep
+// every "what is the updater doing" string in one file and to keep this one under the 600-line cap.
 
 function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, onRetractionRan, desktopUpdate }) {
   const dark = theme === "dark";

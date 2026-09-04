@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 573** (see Increment workflow) with **2792 passed, 4 skipped in the last completed root-suite
+It is currently at **Increment 574** (see Increment workflow) with **2792 passed, 4 skipped in the last completed root-suite
 pass** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
 The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
 receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
@@ -73,6 +73,11 @@ the full per-increment narrative for all other increments now lives in the reloc
   paths cannot read registration chunks by fallback; exact attachment reads remain available for future paired
   comparison. Legacy `primary`/null/supplement roles are normalized without a destructive migration, and an AST
   regression test rejects new ambiguous paper-level chunk, embedding, or semantic-retrieval calls.
+- **PDF recovery (inc 574):** a folder scan may reconnect an unavailable attachment only when the file's SHA-256
+  exactly matches the stored checksum. It updates only location/availability metadata, preserving the attachment id,
+  paper, chunks, annotations, and provenance; filename/title similarity is never recovery evidence. Removed-file
+  reconciliation is scoped to the one folder being scanned, so scanning folder B cannot mark folder A's records
+  missing. PDF 404s carry stable, path-free diagnostic headers rather than collapsing every cause into metadata-only.
 - **Registration references (inc 426):** Transparency distinguishes registration language from an actionable,
   evidence-bearing reference; local extraction covers OSF/AsPredicted/ClinicalTrials.gov/PROSPERO plus contextual
   DOI/URL references and PDF link targets hidden behind text such as “here.” References are persisted separately from
@@ -1170,7 +1175,18 @@ the full per-increment narrative for all other increments now lives in the reloc
   content (including another loopback server) needs its own matching `remote.urls` entry, or its commands
   will fail identically even with a correct permission grant** — verify by confirming
   `gen/schemas/capabilities.json`'s capability gained a `"remote"` key after `cargo check`, same empirical
-  method, now covering both axes.
+  method, now covering both axes. **Inc 574 adds a third, different trap on the same seam: an event
+  emitted before its window exists is lost forever.** `setup()` starts background work immediately, but
+  the `main` window is only created *after* the backend is healthy — a cold start the splash itself warns
+  "can take a minute the first time" — so anything emitted from a spawned task in between (the updater's
+  `update-downloading`/`update-ready` fire at 30s) is broadcast into a window that does not exist, and
+  **Tauri never replays an event**. The auto-updater was therefore completely invisible: no Status row, no
+  toast, for two releases. **Any Rust→frontend state a window must not miss needs a queryable command
+  alongside the event** (`updater::current_update_state` is the pattern: it returns the phase in exactly
+  the shape the frontend hook already keeps, so seeding on mount is indistinguishable from receiving the
+  event, and a live event wins over the seed). Do not "fix" this class by lengthening a startup delay —
+  that narrows the race and makes it rarer and harder to diagnose, never zero. The splash's own
+  `backend-status` event has the identical hazard (backlog #78).
 
 > **README:** brought current in **inc 178** (the contributor front door — accurate feature list + the
 > `npm install`/`build_frontend` step + privacy/security notes). Shipped as a **draft pending the maintainer's
@@ -1551,7 +1567,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 573). Each increment of real work
+callosum is built in **numbered increments** (currently at 574). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

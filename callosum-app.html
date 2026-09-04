@@ -2930,6 +2930,8 @@
   .scan-row { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
   .scan-row .wanted-add { flex: 1; }
   .scan-summary { font-size: 12px; color: var(--ink-2); margin: 8px 0; }
+  .pdf-unavailable-state { max-width: 560px; margin: 0 auto; padding: 24px; }
+  .pdf-unavailable-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 14px 0 10px; }
   /* inc 155: a collapsible "which entries were skipped/failed, and why" list in the scan/import done-summary. */
   .scan-errors { margin: 6px 0 0; font-size: 11.5px; color: var(--flag-ink); }
   .scan-errors summary { cursor: pointer; color: var(--flag-ink); }
@@ -5689,6 +5691,12 @@
         total: e.payload.total
       }));
       on("update-ready", (e) => setUpdate({ phase: "ready", version: e.payload.version, notes: e.payload.notes, action: e.payload.action }));
+      window.__TAURI__.core.invoke("current_update_state").then((snapshot) => {
+        if (snapshot && snapshot.phase && snapshot.phase !== "idle") {
+          setUpdate((current) => current.phase === "idle" ? snapshot : current);
+        }
+      }).catch(() => {
+      });
       return () => unlisten.forEach((f) => f());
     }, []);
     return update;
@@ -5704,6 +5712,47 @@
       return /* @__PURE__ */ React.createElement("button", { className: "update-pill", onClick: () => setDismissed(false), title: `Update ready \u2014 v${update.version}` }, "Update ready");
     }
     return /* @__PURE__ */ React.createElement("div", { className: "update-toast", role: "status" }, /* @__PURE__ */ React.createElement("span", { className: "update-toast-text" }, "Update ready \u2014 v", update.version), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: act }, label), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setDismissed(true) }, "Later"));
+  }
+  function DesktopUpdateSettings({ desktopUpdate }) {
+    const [outcome, setOutcome] = useState(null);
+    const [checking, setChecking] = useState(false);
+    const [version, setVersion] = useState(null);
+    useEffect(() => {
+      let active = true;
+      api("/health").then((response) => {
+        if (active && response.ok && response.data) setVersion(response.data.app_version || null);
+      }).catch(() => {
+      });
+      return () => {
+        active = false;
+      };
+    }, []);
+    if (!("__TAURI__" in window)) return null;
+    const check = async () => {
+      setChecking(true);
+      setOutcome(null);
+      try {
+        setOutcome(await window.__TAURI__.core.invoke("check_for_updates_now"));
+      } catch (e) {
+        setOutcome({ kind: "Failed", detail: String(e) });
+      }
+      setChecking(false);
+    };
+    const live = desktopUpdate && desktopUpdate.phase !== "idle" ? desktopUpdate : null;
+    const ready = live && live.phase === "ready" ? live : null;
+    const readyVersion = ready ? ready.version : null;
+    let statusText = null;
+    if (live && live.phase === "downloading") statusText = `Downloading v${live.version}\u2026`;
+    else if (outcome && !ready) {
+      if (outcome.kind === "UpToDate") statusText = "You're up to date.";
+      else if (outcome.kind === "Downloading") statusText = `Found v${outcome.version} \u2014 downloading\u2026`;
+      else if (outcome.kind === "Ready") statusText = `Update v${outcome.version} is ready.`;
+      else if (outcome.kind === "Failed") statusText = `Couldn't check for updates: ${outcome.detail}`;
+    }
+    const installable = ready && ready.action === "restart";
+    return /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Desktop app"), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, version ? `Version ${version}` : "Version \u2026"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Updates"), readyVersion ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: () => window.__TAURI__.core.invoke(
+      installable ? "install_update_now" : "open_release_page"
+    ) }, installable ? `Install v${readyVersion} and restart` : `Get v${readyVersion}`) : /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: checking, onClick: check }, checking ? "Checking\u2026" : "Check for updates")), readyVersion && /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, installable ? "Downloaded and ready. Use this button to install it \u2014 quitting Callosum without installing discards the download, and it will be offered again next time." : "Linux updates are installed by hand: this opens the release page so you can download the .deb."), statusText && /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, statusText));
   }
   const ONBOARDING_STEPS = ["identity", "ai", "library", "import", "axis", "done"];
   const ONBOARDING_REFRESH_STEPS = ["ai", "done"];
@@ -16245,6 +16294,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       }
     });
     const [scan, setScan] = useState({ status: "idle" });
+    const [browsing, setBrowsing] = useState(false);
     const [watched, setWatched] = useState([]);
     const loadWatched = () => api("/library/watched").then((r) => {
       if (r.ok) setWatched(r.data);
@@ -16331,7 +16381,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       loadWatched();
     };
     const s = scan.summary;
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Watched folders"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Your ", /* @__PURE__ */ React.createElement("b", null, "library folder"), " is watched by default (shown below) \u2014 drop a PDF into it and it's picked up automatically on launch (and when you switch back to Callosum). Add more folders to watch them the same way. New files are added (text extracted, chunked, embedded, Crossref-enriched); files already in your library are skipped. PDFs stay where they are; nothing is moved or copied."), watched.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "watched-list" }, watched.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.id, className: "watched-row" + (w.is_default ? " is-default" : "") }, /* @__PURE__ */ React.createElement("div", { className: "watched-info" }, /* @__PURE__ */ React.createElement("div", { className: "watched-path", title: w.path }, w.path), /* @__PURE__ */ React.createElement("div", { className: "watched-meta" }, w.is_default ? "your library folder \xB7 always watched" : w.last_scanned_at ? "last scanned " + w.last_scanned_at.slice(0, 10) : "not yet scanned")), w.is_default ? /* @__PURE__ */ React.createElement("span", { className: "watched-default-note", title: "Your library folder is always watched \u2014 it can't be removed" }, "default") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", title: "Stop watching (keeps the imported papers)", onClick: () => unwatch(w.id) }, "Remove"))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: scan.status === "running", onClick: rescanAll }, scan.status === "running" ? "Working\u2026" : "Re-scan all")), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Watched folders"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Your ", /* @__PURE__ */ React.createElement("b", null, "library folder"), " is watched by default (shown below) \u2014 drop a PDF into it and it's picked up automatically on launch (and when you switch back to Callosum). Add more folders to watch them the same way. New files are added (text extracted, chunked, embedded, Crossref-enriched); files already in your library are skipped. Exact copies of missing PDFs are reconnected without reprocessing. PDFs stay where they are; nothing is moved or copied."), watched.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "watched-list" }, watched.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.id, className: "watched-row" + (w.is_default ? " is-default" : "") }, /* @__PURE__ */ React.createElement("div", { className: "watched-info" }, /* @__PURE__ */ React.createElement("div", { className: "watched-path", title: w.path }, w.path), /* @__PURE__ */ React.createElement("div", { className: "watched-meta" }, w.is_default ? "your library folder \xB7 always watched" : w.last_scanned_at ? "last scanned " + w.last_scanned_at.slice(0, 10) : "not yet scanned")), w.is_default ? /* @__PURE__ */ React.createElement("span", { className: "watched-default-note", title: "Your library folder is always watched \u2014 it can't be removed" }, "default") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", title: "Stop watching (keeps the imported papers)", onClick: () => unwatch(w.id) }, "Remove"))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: scan.status === "running", onClick: rescanAll }, scan.status === "running" ? "Working\u2026" : "Re-scan all")), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "wanted-add",
@@ -16342,10 +16392,20 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           if (e.key === "Enter") run();
         }
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: scan.status === "running" || !folder.trim(), onClick: run }, scan.status === "running" ? "Scanning\u2026" : "Add + scan")), scan.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Scanning + processing PDFs\u2026", progress: scan.progress, managedBy: "backend-job" }), scan.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Scan failed: ", scan.error), scan.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.added), " added \xB7 ", s.unchanged, " unchanged \xB7 ", s.removed, " missing", s.errors ? ` \xB7 ${s.errors} error${s.errors === 1 ? "" : "s"}` : "", s.error_details && s.error_details.length > 0 && /* @__PURE__ */ React.createElement("details", { className: "scan-errors" }, /* @__PURE__ */ React.createElement("summary", null, s.errors, " file", s.errors === 1 ? "" : "s", " couldn't be read"), /* @__PURE__ */ React.createElement("ul", null, s.error_details.map((e, i) => /* @__PURE__ */ React.createElement("li", { key: i }, /* @__PURE__ */ React.createElement("span", { className: "scan-err-path", title: e.path }, e.path.split(/[\\/]/).pop()), " \u2014 ", e.error))), s.errors > s.error_details.length && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "\u2026and ", s.errors - s.error_details.length, " more.")), s.added > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "New papers are in your library \u2014 any whose DOI didn't resolve need a look.", onShowUnsorted && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => {
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: scan.status === "running", onClick: () => setBrowsing(true) }, "Browse\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: scan.status === "running" || !folder.trim(), onClick: run }, scan.status === "running" ? "Scanning\u2026" : "Add + Scan")), scan.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Scanning + processing PDFs\u2026", progress: scan.progress, managedBy: "backend-job" }), scan.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Scan failed: ", scan.error), scan.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.added), " added \xB7 ", s.relinked || 0, " reconnected \xB7 ", s.unchanged, " unchanged \xB7 ", s.removed, " missing", s.errors ? ` \xB7 ${s.errors} error${s.errors === 1 ? "" : "s"}` : "", s.error_details && s.error_details.length > 0 && /* @__PURE__ */ React.createElement("details", { className: "scan-errors" }, /* @__PURE__ */ React.createElement("summary", null, s.errors, " file", s.errors === 1 ? "" : "s", " couldn't be read"), /* @__PURE__ */ React.createElement("ul", null, s.error_details.map((e, i) => /* @__PURE__ */ React.createElement("li", { key: i }, /* @__PURE__ */ React.createElement("span", { className: "scan-err-path", title: e.path }, e.path.split(/[\\/]/).pop()), " \u2014 ", e.error))), s.errors > s.error_details.length && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "\u2026and ", s.errors - s.error_details.length, " more.")), s.added > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "New papers are in your library \u2014 any whose DOI didn't resolve need a look.", onShowUnsorted && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => {
       onShowUnsorted();
       onClose();
-    } }, "Review unsorted \u2192")))), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")));
+    } }, "Review unsorted \u2192")))), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")), browsing && /* @__PURE__ */ React.createElement(
+      FolderBrowserModal,
+      {
+        title: "Choose a PDF folder",
+        onCancel: () => setBrowsing(false),
+        onSelect: (path) => {
+          setFolder(path);
+          setBrowsing(false);
+        }
+      }
+    ));
   }
   const ZOTERO_IMPORT_JOB_KEY = "callosum.zoteroImportJob";
   function ZoteroImportModal({ onClose, onImported }) {
@@ -16854,8 +16914,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       /* @__PURE__ */ React.createElement("span", { className: "pcurve-test-p" }, "z = ", t.z.toFixed(2))
     )))), /* @__PURE__ */ React.createElement("div", { className: "pcurve-coverage" }, "Coverage: z-curve reads only inline APA-style NHST tests with exact statistics (tables, Bayesian, and CI-only reporting are invisible); it includes every extracted significant test rather than each study's chosen focal statistic. Run it on a large, curated set for the most meaningful estimate.")), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " z-curve 2.0 \u2014 Barto\u0161 & Schimmack (2022), ", /* @__PURE__ */ React.createElement("i", null, "Meta-Psychology"), " 6, MP.2021.2720.", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [BS2022_CSL], onChanged }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; reference implementation: ", /* @__PURE__ */ React.createElement("i", null, "zcurve"), " (Franti\u0161ek Barto\u0161)."), /* @__PURE__ */ React.createElement(LakensCredit, null))));
   }
-  function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf }) {
+  function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf, onOpenRepair }) {
     const [state, setState] = useState({ status: "loading" });
+    const [reloadKey, setReloadKey] = useState(0);
     const [scale, setScale] = useState(1.15);
     const [page, setPage] = useState(1);
     const [annotations, setAnnotations] = useState([]);
@@ -16914,7 +16975,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       const token = ++tokenRef.current;
       setPage(1);
       if (knownNoPdf) {
-        setState({ status: "unavailable" });
+        setState({ status: "unavailable", issue: pdfUnavailableIssue("PDF_ATTACHMENT_NOT_FOUND", null, { paperId }) });
         return;
       }
       setState({ status: "loading" });
@@ -16934,7 +16995,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           return;
         }
         if (res.status === 404) {
-          if (!cancelled) setState({ status: "unavailable" });
+          const issue = await pdfUnavailableFromResponse(res, paperId);
+          if (!cancelled) setState({ status: "unavailable", issue });
           return;
         }
         if (!res.ok) {
@@ -16965,7 +17027,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       return () => {
         cancelled = true;
       };
-    }, [paperId, target?.attachmentId]);
+    }, [paperId, target?.attachmentId, knownNoPdf, reloadKey]);
     useEffect(() => {
       setAnnotations([]);
       setPicker(null);
@@ -17348,7 +17410,14 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         style: mobile ? { touchAction: "pan-x pan-y" } : void 0
       },
       state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Opening PDF\u2026"), "Streaming and rendering the document."),
-      state.status === "unavailable" && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "PDF not available locally"), "This paper has no local PDF file \u2014 it may be a URL-only or metadata-only entry."),
+      state.status === "unavailable" && /* @__PURE__ */ React.createElement(
+        PdfUnavailableState,
+        {
+          issue: state.issue,
+          onRetry: () => setReloadKey((value) => value + 1),
+          onReconnect: onOpenRepair
+        }
+      ),
       state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "18px" } }, /* @__PURE__ */ React.createElement("b", null, "Couldn't open this PDF."), /* @__PURE__ */ React.createElement("br", null), state.error),
       /* @__PURE__ */ React.createElement(
         "div",
@@ -17429,7 +17498,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   }
   const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
   const WIP_TAB_DRAG_TYPE = "application/x-callosum-wiptab";
-  function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi }) {
+  function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi, onOpenLibraryFolders }) {
     const [dragOverKey, setDragOverKey] = useState(null);
     const openSelectedPaper = () => {
       if (!selectedPaperTab) return;
@@ -17576,6 +17645,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         annoRefresh,
         mobile,
         knownNoPdf: t.hasPdf === false,
+        onOpenRepair: onOpenLibraryFolders,
         armedCapture: capture && !capture.result && capture.paperId === t.paperId ? capture : null,
         onCaptureAnchor,
         onCancelCapture
@@ -18425,6 +18495,85 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         suffix: ctx.suffix
       });
     }, []);
+  }
+  const PDF_UNAVAILABLE_COPY = {
+    PDF_LIBRARY_FOLDER_MISSING: {
+      title: "Callosum's library folder is unavailable",
+      message: "The folder that holds managed PDFs is not currently visible. If it is synced, reconnect or restart the sync service, then retry.",
+      action: "Reconnect the library folder or make it available on this device, then retry."
+    },
+    PDF_ATTACHMENT_UNREADABLE: {
+      title: "This PDF is temporarily unreadable",
+      message: "The file is present, but its drive or sync provider did not make the contents readable.",
+      action: "Reconnect the drive or make the PDF available offline, then retry."
+    },
+    PDF_ATTACHMENT_MARKED_MISSING: {
+      title: "Callosum can't find this PDF",
+      message: "The attachment was previously marked missing. You can reconnect an exact copy without losing its chunks, notes, or annotations.",
+      action: "Choose the folder containing the PDF and scan it again."
+    },
+    PDF_ATTACHMENT_FILE_MISSING: {
+      title: "Callosum can't find this PDF",
+      message: "The recorded attachment has moved or its folder is unavailable. An exact copy can be reconnected safely.",
+      action: "Choose the folder containing the PDF and scan it again."
+    },
+    PDF_ATTACHMENT_PATH_MISSING: {
+      title: "This PDF needs to be reconnected",
+      message: "The library record has no usable local file location.",
+      action: "Choose the folder containing the PDF and scan it again."
+    },
+    PDF_REMOTE_ONLY: {
+      title: "No local PDF is attached",
+      message: "This paper currently has a web link or metadata, but no PDF stored on this device.",
+      action: "Add a local PDF if you want to read and annotate it in Callosum."
+    },
+    PDF_ATTACHMENT_NOT_PDF: {
+      title: "This attachment is not a PDF",
+      message: "The selected attachment cannot be opened in the PDF reader.",
+      action: "Choose a PDF attachment for this paper."
+    },
+    PDF_ATTACHMENT_NOT_FOUND: {
+      title: "No local PDF is attached",
+      message: "This paper may be a URL-only or metadata-only library entry.",
+      action: "Add a local PDF if you want to read and annotate it in Callosum."
+    }
+  };
+  function pdfUnavailableIssue(code, apiDetail, metadata = {}) {
+    const safeCode = code || "PDF_LOCAL_FILE_UNAVAILABLE";
+    const copy = PDF_UNAVAILABLE_COPY[safeCode] || {
+      title: "PDF not available locally",
+      message: apiDetail || "Callosum could not open this paper's local PDF.",
+      action: "Retry, then reconnect the PDF if the problem continues."
+    };
+    const diagnostic = callosumClientDiagnostic(safeCode, "PDF reader", apiDetail || copy.message, copy.action, {
+      http_status: metadata.httpStatus,
+      paper_id: metadata.paperId,
+      attachment_id: metadata.attachmentId,
+      storage_mode: metadata.storageMode,
+      recorded_availability: metadata.availability
+    });
+    diagnostic.callosum_version = metadata.appVersion || void 0;
+    return { ...copy, diagnostic };
+  }
+  async function pdfUnavailableFromResponse(response, paperId) {
+    let detail = "PDF not available locally.";
+    try {
+      const body = await response.json();
+      if (body && typeof body.detail === "string") detail = body.detail;
+    } catch (_error) {
+    }
+    return pdfUnavailableIssue(response.headers.get("x-callosum-error-code"), detail, {
+      httpStatus: response.status,
+      paperId,
+      attachmentId: response.headers.get("x-callosum-attachment-id"),
+      storageMode: response.headers.get("x-callosum-storage-mode"),
+      availability: response.headers.get("x-callosum-attachment-availability"),
+      appVersion: response.headers.get("x-callosum-app-version")
+    });
+  }
+  function PdfUnavailableState({ issue, onRetry, onReconnect }) {
+    const value = issue || pdfUnavailableIssue("PDF_LOCAL_FILE_UNAVAILABLE");
+    return /* @__PURE__ */ React.createElement("div", { className: "state pdf-unavailable-state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, value.title), /* @__PURE__ */ React.createElement("div", null, value.message), /* @__PURE__ */ React.createElement("div", { className: "pdf-unavailable-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-primary", onClick: onRetry }, "Retry"), onReconnect && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost", onClick: onReconnect }, "Find or Reconnect PDF"), /* @__PURE__ */ React.createElement(CopyDiagnosticButton, { diagnostic: value.diagnostic })), /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Exact matching uses the PDF's checksum; existing chunks, notes, and annotations are preserved."));
   }
   function MyPubsTile({ label, value }) {
     return /* @__PURE__ */ React.createElement("div", { className: "metric-tile" }, /* @__PURE__ */ React.createElement("div", { className: "metric-value" }, (value == null ? 0 : value).toLocaleString()), /* @__PURE__ */ React.createElement("div", { className: "metric-label" }, label));
@@ -19867,32 +20016,6 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
   function DemoExternalInterfaces() {
     if (!isDemoMode()) return null;
     return /* @__PURE__ */ React.createElement(SettingsCard, { title: "Other interfaces & first run" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "First-run onboarding"), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The installed app starts with a guided choice: import an existing Zotero library, scan a PDF folder, or begin with an empty local library. This public demo skips setup and opens the curated Library so no visitor is stranded before the evidence workflow.")), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Terminal client"), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("code", null, "python -m tui"), " provides keyboard-first access to the same local API in the installed app. It cannot run in a browser-only static site.")), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "MCP agent interface"), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The local MCP server exposes five read tools. Four write tools appear only after the explicit agent-write gate is enabled; every agent change is labeled, logged, and reversible. The public demo exposes no agent endpoint."))));
-  }
-  function DesktopUpdateSettings({ desktopUpdate }) {
-    const [outcome, setOutcome] = useState(null);
-    const [checking, setChecking] = useState(false);
-    if (!("__TAURI__" in window)) return null;
-    const check = async () => {
-      setChecking(true);
-      setOutcome(null);
-      try {
-        setOutcome(await window.__TAURI__.core.invoke("check_for_updates_now"));
-      } catch (e) {
-        setOutcome({ kind: "Failed", detail: String(e) });
-      }
-      setChecking(false);
-    };
-    const live = desktopUpdate && desktopUpdate.phase !== "idle" ? desktopUpdate : null;
-    let statusText = null;
-    if (live && live.phase === "ready") statusText = `Update ready \u2014 v${live.version}. Restart to install.`;
-    else if (live && live.phase === "downloading") statusText = `Downloading v${live.version}\u2026`;
-    else if (outcome) {
-      if (outcome.kind === "UpToDate") statusText = "You're up to date.";
-      else if (outcome.kind === "Downloading") statusText = `Found v${outcome.version} \u2014 downloading\u2026`;
-      else if (outcome.kind === "Ready") statusText = `Update v${outcome.version} ready. Restart to install.`;
-      else if (outcome.kind === "Failed") statusText = `Couldn't check for updates: ${outcome.detail}`;
-    }
-    return /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Desktop app"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Updates"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: checking, onClick: check }, checking ? "Checking\u2026" : "Check for updates")), statusText && /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, statusText));
   }
   function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, onRetractionRan, desktopUpdate }) {
     const dark = theme === "dark";
@@ -23451,7 +23574,8 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         capture,
         onCaptureAnchor: captureAnchor,
         onCancelCapture: clearCapture,
-        onOpenLocalAi: () => setOnboarding((s) => ({ ...s, done: false, refresh: true }))
+        onOpenLocalAi: () => setOnboarding((s) => ({ ...s, done: false, refresh: true })),
+        onOpenLibraryFolders: () => setScanOpen(true)
       }
     )), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "profile" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
       MyPubsDashboard,

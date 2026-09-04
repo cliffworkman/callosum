@@ -12,6 +12,7 @@
     "allow-install-update-now",
     "allow-open-release-page",
     "allow-check-for-updates-now",
+    "allow-current-update-state",
     "allow-start-word-https-companion",
     "allow-stop-word-https-companion",
     "allow-quick-tunnel-status",

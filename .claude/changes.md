@@ -9,6 +9,38 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED inc-574 2026-09-04 -->
+## 2026-09-04 — Increment 574: reconnect missing PDFs without losing library work
+- **Files:** `app/backend/pdf_processing/library_scan.py`, `app/backend/api/routers/{library,paper_files}.py`,
+  `app/frontend/js/{27_scan,30_viewer,30c_frame,30h_pdf_unavailable,40_app}.jsx`, `app/frontend/styles.css`,
+  `app/backend/help/help_content.md`, tests, generated `callosum-app.html`, design/security/increment docs.
+- **What:** exact-checksum matches now reconnect missing/moved PDF attachments in place—same attachment id, paper,
+  chunks, highlights, notes, and provenance—rather than being skipped as duplicates. Removed-file reconciliation is
+  scoped to the folder actually scanned (fixing a second bug where folder B could mark folder A missing). The PDF
+  reader now distinguishes URL-only, missing file, missing managed-library folder, and unreadable synced-file states;
+  it offers Retry, a browsable recovery path, and privacy-safe one-click diagnostics.
+- **Why:** a cloud-backed Documents folder became temporarily unavailable while every database/chunk record remained
+  intact. The old UI falsely called the paper metadata-only and gave no repair route; re-scanning an original exact
+  copy also skipped it instead of repairing the stale attachment path.
+- **Revert:** `git revert` the increment commit; no migration or destructive data rewrite is involved.
+
+## 2026-09-04 — Increment 574: the auto-updater was invisible, and then it lied
+- **Files:** `app/desktop-shell/src-tauri/src/updater.rs`, `.../src/lib.rs`,
+  `.../permissions/default.toml`, `.../capabilities/default.json`,
+  `app/frontend/js/04d_update.jsx`, `app/frontend/js/35_settings.jsx`, `callosum-app.html`,
+  `.claude/docs/increment-notes/INCREMENT-574-NOTES.md`
+- **What:** update events (`update-downloading`/`update-ready`) fire ~30s after launch but the main
+  window only exists once the backend is healthy, so they were broadcast before any listener existed
+  and Tauri never replays them — no Status row, no toast. `check_desktop` then early-returned
+  `Ready` *without* re-emitting, making it permanent for the session. Added a queryable
+  `current_update_state` the UI seeds from on mount (plus re-emit on early return). Separately,
+  Settings claimed "Restart to install" — false, since the download lives in memory and only
+  `install_update_now` applies it — and offered no install button at all; it now offers the real
+  action and says what happens if you don't take it. Settings also now shows the running version.
+- **Why:** Cliff on 0.5.5 never saw 0.5.6 offered, then followed Settings' instruction to restart
+  and lost the download. The one working path was invisible; the visible path was wrong.
+- **Revert:** `git revert` the increment commit; no schema, migration, or API contract changed.
+
 ## 2026-09-04 — Increment 573: Synthesize → Ask crashed on a real user's library
 - **Files:** `app/backend/persistence/sql_batch.py` (new), `app/backend/embeddings/pipeline.py`,
   `app/backend/summarization/pipeline.py`, `app/frontend/js/19_synthesis_failures.jsx`,
