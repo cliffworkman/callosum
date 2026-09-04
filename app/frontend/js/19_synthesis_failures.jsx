@@ -49,6 +49,19 @@ function classifySynthesisFailure(error) {
       detail,
     };
   }
+  // Checked BEFORE the cache probe below: a truncated response's JSONDecodeError names the position it
+  // stopped at, not a cache fault, and "Repair cache and retry" would achieve nothing.
+  if (lower.includes("cut off") || lower.includes("unterminated string") || lower.includes("jsondecodeerror")) {
+    return {
+      kind: "retry",
+      title: "The AI's answer was cut off before it finished.",
+      message:
+        "It ran out of room mid-answer. Asking about fewer things at once — or narrowing the sections " +
+        "or papers in scope — gives it room to finish. Any claims it did complete are shown below.",
+      primary: "Retry",
+      detail,
+    };
+  }
   if (lower.includes("chunk_") || lower.includes("invalid literal for int") || lower.includes("malformed cached")) {
     return {
       kind: "cache",

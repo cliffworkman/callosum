@@ -48,7 +48,11 @@ const MODEL_ALIAS: &str = "callosum-managed-local";
 const QUALIFICATION_CONTEXT_TOKENS: u32 = 4096;
 const PREVIEW_CONTEXT_TOKENS: u32 = 12_288;
 const OVERVIEW_OUTPUT_TOKENS: u32 = 256;
-const PREVIEW_OUTPUT_TOKENS: u32 = 2048;
+// Must cover the worst answer the synthesis schema PERMITS (7 claims x 3 citations x a 500-char
+// quote cap ~= 3,300-3,800 tokens). At 2048 a citation-dense question truncated by construction,
+// surfacing to a real user as a raw `JSONDecodeError: Unterminated string`. Python's
+// `expected_output_tokens` must match this exactly or the descriptor fails closed.
+const PREVIEW_OUTPUT_TOKENS: u32 = 4096;
 const READINESS_TIMEOUT: Duration = Duration::from_secs(180);
 const POLL_INTERVAL: Duration = Duration::from_millis(300);
 

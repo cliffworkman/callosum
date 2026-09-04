@@ -331,6 +331,16 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
             summary #{state.result.summary_id} · {state.result.summary_status}
             {` · ${verifiedCount} verified · ${flaggedCount} flagged`}
           </div>
+          {/* The model hit its output ceiling before finishing. The claims below are real and were
+              verified normally — but they are not the whole answer it set out to give, and a partial
+              synthesis must never read as a complete one (PRINCIPLES #6: silence is not a certificate). */}
+          {state.result.generation_truncated &&
+            <div className="errbox" style={{ margin: "10px 0 0" }} role="status">
+              <b>This answer is incomplete.</b><br />
+              The AI ran out of room before it finished, so {verifiedCount + flaggedCount} claim
+              {verifiedCount + flaggedCount === 1 ? " is" : "s are"} shown rather than everything it set out to say.
+              Asking about fewer things at once — or narrowing the sections or papers in scope — gives it room to finish.
+            </div>}
           {!readOnly && onCriticalReviewSources && citedPaperIds.length >= 2 && citedPaperIds.length <= 12 &&
             <div className="synth-critical-review">
               <button className="btn btn-link" onClick={() => onCriticalReviewSources(citedPaperIds)}

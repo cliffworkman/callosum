@@ -23,7 +23,12 @@ from app.backend.persistence.schema import (
     summary_sentences,
 )
 from app.backend.summarization.chunk_filtering import exclude_repeated_boilerplate_chunks, is_front_matter_chunk
-from app.backend.summarization.generators import CandidateCitation, SourceChunk, SummaryGenerator
+from app.backend.summarization.generators import (
+    CandidateCitation,
+    SourceChunk,
+    SummaryGenerator,
+    TruncatedGenerationError,
+)
 from app.backend.summarization.verification import (
     LocalCitationVerifier,
     SupportScorer,
@@ -117,7 +122,13 @@ def summarize_scope(
     # connections around this call and holds none of them open during it -- see cache.py.
     if on_stage is not None:
         on_stage("generating_synthesis", "Generating synthesis", len(source_chunks), True)
-    candidates = generator.generate(source_chunks=source_chunks, scope_ref=scope.to_ref(), engine=engine)
+    # A provider that hit its output ceiling still finished some claims; keep them and record that the
+    # answer is incomplete, so the result can say so rather than passing for a whole one.
+    generation_truncated = False
+    try:
+        candidates = generator.generate(source_chunks=source_chunks, scope_ref=scope.to_ref(), engine=engine)
+    except TruncatedGenerationError as truncation:
+        candidates, generation_truncated = truncation.sentences, True
 
     with engine.begin() as conn:
         fresh_source_chunks = _refresh_source_chunks(conn, source_chunks)
@@ -170,6 +181,7 @@ def summarize_scope(
             source_chunk_count=len(source_chunks),
             status=summary_status,
             overview_status=overview_status,
+            generation_truncated=generation_truncated,
         )
         sentence_results = []
         for ordinal, (candidate, verifications) in enumerate(zip(candidates, verification_rows, strict=False)):
@@ -387,9 +399,14 @@ def _insert_summary(
     source_chunk_count: int,
     status: str,
     overview_status: str,
+    generation_truncated: bool = False,
 ) -> int:
     scope_ref = scope.to_ref()
     scope_ref["source_chunk_count"] = source_chunk_count
+    if generation_truncated:
+        # Recorded beside source_chunk_count in the same extensible blob, so the disclosure
+        # survives a reload without a schema change. Absent means not truncated.
+        scope_ref["generation_truncated"] = True
     result = conn.execute(
         insert(summaries).values(
             scope_type=scope.scope_type,

@@ -37,7 +37,10 @@ _LOOPBACK_HOSTS = {
     "::1",
 }  # NOT 0.0.0.0 -- a bind-all address, not a client-reachable loopback
 _HTTP_TIMEOUT = 60.0
-_MAX_TOKENS = 2048  # anthropic requires an explicit cap; a generous bound for our prompts
+# Anthropic requires an explicit cap. 2048 was not in fact generous: the synthesis schema permits
+# 7 claims x 3 citations of ~80-word quotes (~3,300+ tokens), so a citation-dense question hit the
+# ceiling and truncated mid-JSON. Sized to cover the worst answer we actually ask for.
+_MAX_TOKENS = 4096
 _ANTHROPIC_VERSION = "2023-06-01"
 
 # Back-compat: derive the wire format + a default endpoint from a builtin provider NAME when a config carries no
@@ -108,6 +111,30 @@ class _Usage:
 class CompletionResult:
     text: str
     usage_metadata: object  # duck-typed for log_usage (prompt_/candidates_/total_token_count)
+    # Did the provider stop because it hit the output-token ceiling, rather than because the model
+    # finished? Every provider tells us this and we used to drop it on the floor, which made a
+    # truncated answer indistinguishable from a malformed one: a synthesis cut off mid-JSON surfaced
+    # to a real user as a bare `JSONDecodeError: Unterminated string`, and we could not even tell
+    # which provider had run out of room. Defaulted so no existing construction site changes.
+    truncated: bool = False
+
+
+"""Each provider spells "I ran out of output room" differently. Matched case-insensitively against the
+whole reported reason because SDKs vary between a bare string, an enum, and an enum whose ``str()`` is
+``FinishReason.MAX_TOKENS`` — comparing against a normalized substring set survives all three without
+pinning any one SDK's representation."""
+_TRUNCATION_REASONS = frozenset({"max_tokens", "maxtokens", "length", "incomplete", "max_output_tokens"})
+
+
+def _is_truncation_reason(reason: object) -> bool:
+    if reason is None:
+        return False
+    text = str(getattr(reason, "value", reason) or "").strip().lower()
+    if not text:
+        return False
+    # `FinishReason.MAX_TOKENS` -> `max_tokens`; a bare `"length"` is unchanged.
+    tail = text.rsplit(".", 1)[-1]
+    return tail in _TRUNCATION_REASONS or text in _TRUNCATION_REASONS
 
 
 def requires_egress(config_or_provider) -> bool:
@@ -226,8 +253,12 @@ def _complete_gemini(
             response = generate(genai.Client(api_key=api_key))
     except Exception as exc:  # noqa: BLE001
         raise ProviderError(_redact(str(exc), api_key)) from exc
+    candidates = getattr(response, "candidates", None) or []
+    finish_reason = getattr(candidates[0], "finish_reason", None) if candidates else None
     return CompletionResult(
-        text=str(getattr(response, "text", "") or ""), usage_metadata=getattr(response, "usage_metadata", None)
+        text=str(getattr(response, "text", "") or ""),
+        usage_metadata=getattr(response, "usage_metadata", None),
+        truncated=_is_truncation_reason(finish_reason),
     )
 
 
@@ -240,7 +271,8 @@ def _complete_openai_compatible(
     payload = {"model": model, "messages": [{"role": "user", "content": prompt}]}
     data = _post(f"{base}/v1/chat/completions", payload, headers, api_key, http_client)
     try:
-        text = data["choices"][0]["message"]["content"]
+        choice = data["choices"][0]
+        text = choice["message"]["content"]
         usage = data.get("usage") or {}
         meta = _Usage(
             prompt_token_count=usage.get("prompt_tokens"),
@@ -249,7 +281,9 @@ def _complete_openai_compatible(
         )
     except (KeyError, IndexError, TypeError) as exc:
         raise ProviderError("Malformed chat-completions response.") from exc
-    return CompletionResult(text=str(text or ""), usage_metadata=meta)
+    # Also the managed Local AI path, which posts to this same wire format.
+    truncated = _is_truncation_reason(choice.get("finish_reason") if isinstance(choice, dict) else None)
+    return CompletionResult(text=str(text or ""), usage_metadata=meta, truncated=truncated)
 
 
 def _complete_anthropic(base: str, model: str, api_key: str | None, prompt: str, http_client) -> CompletionResult:
@@ -271,7 +305,9 @@ def _complete_anthropic(base: str, model: str, api_key: str | None, prompt: str,
         )
     except (KeyError, IndexError, TypeError) as exc:
         raise ProviderError("Malformed Anthropic response.") from exc
-    return CompletionResult(text=str(text or ""), usage_metadata=meta)
+    return CompletionResult(
+        text=str(text or ""), usage_metadata=meta, truncated=_is_truncation_reason(data.get("stop_reason"))
+    )
 
 
 def _complete_responses(base: str, model: str, api_key: str | None, prompt: str, http_client) -> CompletionResult:
@@ -290,7 +326,12 @@ def _complete_responses(base: str, model: str, api_key: str | None, prompt: str,
         meta = _Usage(prompt_token_count=inp, candidates_token_count=out, total_token_count=total)
     except (KeyError, IndexError, TypeError, AttributeError) as exc:
         raise ProviderError("Malformed Responses API response.") from exc
-    return CompletionResult(text=str(text or ""), usage_metadata=meta)
+    # The Responses API reports `status: "incomplete"` with the reason under `incomplete_details`.
+    details = data.get("incomplete_details") or {}
+    truncated = _is_truncation_reason(data.get("status")) or _is_truncation_reason(
+        details.get("reason") if isinstance(details, dict) else None
+    )
+    return CompletionResult(text=str(text or ""), usage_metadata=meta, truncated=truncated)
 
 
 def _responses_text(data: dict) -> str:

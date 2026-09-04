@@ -14410,6 +14410,15 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         detail
       };
     }
+    if (lower.includes("cut off") || lower.includes("unterminated string") || lower.includes("jsondecodeerror")) {
+      return {
+        kind: "retry",
+        title: "The AI's answer was cut off before it finished.",
+        message: "It ran out of room mid-answer. Asking about fewer things at once \u2014 or narrowing the sections or papers in scope \u2014 gives it room to finish. Any claims it did complete are shown below.",
+        primary: "Retry",
+        detail
+      };
+    }
     if (lower.includes("chunk_") || lower.includes("invalid literal for int") || lower.includes("malformed cached")) {
       return {
         kind: "cache",
@@ -14838,7 +14847,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         }
       },
       "\u2715 Close"
-    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), !readOnly && onCriticalReviewSources && citedPaperIds.length >= 2 && citedPaperIds.length <= 12 && /* @__PURE__ */ React.createElement("div", { className: "synth-critical-review" }, /* @__PURE__ */ React.createElement(
+    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), state.result.generation_truncated && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "10px 0 0" }, role: "status" }, /* @__PURE__ */ React.createElement("b", null, "This answer is incomplete."), /* @__PURE__ */ React.createElement("br", null), "The AI ran out of room before it finished, so ", verifiedCount + flaggedCount, " claim", verifiedCount + flaggedCount === 1 ? " is" : "s are", " shown rather than everything it set out to say. Asking about fewer things at once \u2014 or narrowing the sections or papers in scope \u2014 gives it room to finish."), !readOnly && onCriticalReviewSources && citedPaperIds.length >= 2 && citedPaperIds.length <= 12 && /* @__PURE__ */ React.createElement("div", { className: "synth-critical-review" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-link",

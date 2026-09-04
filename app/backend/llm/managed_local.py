@@ -50,6 +50,18 @@ _AXIS_LABEL_SCHEMA = {
         "terms": {"type": "array", "minItems": 4, "maxItems": 8, "items": {"type": "string"}},
     },
 }
+# Mirrors PREVIEW_OUTPUT_TOKENS in managed_local_ai.rs; the descriptor check below fails closed if
+# they drift apart.
+_PREVIEW_OUTPUT_TOKENS = 4096
+# ~80 words at ~6 chars/word -- the limit the synthesis prompt already states in prose.
+_QUOTE_MAX_CHARS = 500
+# The worst answer the schema PERMITS: 7 claims x 3 citations, each quote at the cap, plus sentence
+# text and JSON scaffolding. The output-token ceiling must cover this, or a citation-dense question
+# truncates by construction -- which is exactly how a real user's synthesis died mid-JSON with an
+# `Unterminated string`. `tests/test_managed_local_contract.py` pins the two against each other so
+# raising one without the other cannot pass silently again.
+_WORST_CASE_OUTPUT_CHARS = 7 * (200 + 3 * (_QUOTE_MAX_CHARS + 60)) + 64
+
 _PRIMARY_SYNTHESIS_SCHEMA = {
     "type": "array",
     "minItems": 4,
@@ -70,7 +82,11 @@ _PRIMARY_SYNTHESIS_SCHEMA = {
                     "additionalProperties": False,
                     "properties": {
                         "chunk_id": {"type": "integer"},
-                        "quote": {"type": "string"},
+                        # The prompt says "no quote may exceed 80 words", but prose is advisory and the
+                        # grammar is not: an unbounded string let the model spend its whole output
+                        # allowance on one quote. 7 items x 3 citations x this cap is the worst case the
+                        # output ceiling must cover -- see _WORST_CASE_OUTPUT_CHARS below.
+                        "quote": {"type": "string", "maxLength": _QUOTE_MAX_CHARS},
                     },
                 },
             },
@@ -213,7 +229,7 @@ class ManagedContractSummaryGenerator:
 
     @property
     def cache_signature(self) -> str:
-        return f"{self.inner.cache_signature}|{self.contract}|max-output-2048|schema-v1"
+        return f"{self.inner.cache_signature}|{self.contract}|max-output-{_PREVIEW_OUTPUT_TOKENS}|schema-v2"
 
     def generate(self, **kwargs):  # type: ignore[no-untyped-def]
         return self.inner.generate(**kwargs)
@@ -402,7 +418,7 @@ def _target_from_payload(
         else _PREVIEW_CONTEXT_TOKENS
     )
     _require(payload.get("context_tokens") == expected_context_tokens, "context_tokens")
-    expected_output_tokens = 256 if qualification_state == DEVELOPER_QUALIFICATION_STATE else 2048
+    expected_output_tokens = 256 if qualification_state == DEVELOPER_QUALIFICATION_STATE else _PREVIEW_OUTPUT_TOKENS
     _require(payload.get("max_output_tokens") == expected_output_tokens, "max_output_tokens")
     temperature = payload.get("temperature")
     _require(

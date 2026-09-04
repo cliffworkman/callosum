@@ -68,6 +68,9 @@ class SummarizeJobResponse(BaseModel):
     summary_id: int | None = None
     summary_status: str | None = None
     source_chunk_count: int | None = None
+    # True when the provider stopped at its output-token ceiling before the model finished. The
+    # claims present are real and verified; the answer is simply incomplete, and must say so.
+    generation_truncated: bool = False
     section_filter: list[str] = []
     sentences: list[SummarySentenceResponse] | None = None
     overview: list[OverviewItemResponse] | None = None
@@ -116,6 +119,7 @@ def _persisted_summary_response(conn: Connection, *, summary_id: int, job_id: st
         summary_id=summary_id,
         summary_status=summary["status"],
         source_chunk_count=_source_chunk_count_from_ref(summary["scope_ref_json"]),
+        generation_truncated=_generation_truncated_from_ref(summary["scope_ref_json"]),
         section_filter=_section_filter_from_ref(summary["scope_ref_json"]),
         sentences=[_summary_sentence_response(conn, sentence) for sentence in sentence_rows],
         overview=overview,
@@ -295,6 +299,12 @@ def _source_chunk_count_from_ref(scope_ref: Any) -> int | None:
         return int(scope_ref["source_chunk_count"])
     except (TypeError, ValueError):
         return None
+
+
+def _generation_truncated_from_ref(scope_ref: Any) -> bool:
+    """Rides ``scope_ref_json`` beside ``source_chunk_count`` -- an already-extensible blob for
+    per-run metadata -- so disclosing truncation needs no migration and survives a reload."""
+    return bool(scope_ref.get("generation_truncated")) if isinstance(scope_ref, dict) else False
 
 
 def _section_filter_from_ref(scope_ref: Any) -> list[str]:

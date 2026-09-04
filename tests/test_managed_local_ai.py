@@ -12,6 +12,7 @@ from app.backend.api.app import create_app
 from app.backend.api.dependencies import resolve_llm_config
 from app.backend.api.routers.summary_overview import resolve_overview_generator
 from app.backend.llm.managed_local import (
+    _PREVIEW_OUTPUT_TOKENS,
     DESCRIPTOR_ENV,
     ENABLE_ENV,
     EXPECTED_PREVIEW_MODEL_DIGEST,
@@ -84,7 +85,9 @@ def _preview_descriptor(tmp_path: Path) -> Path:
     payload["qualification_state"] = "LOCAL_AI_PREVIEW"
     payload["model_artifact_digest"] = EXPECTED_PREVIEW_MODEL_DIGEST
     payload["context_tokens"] = 12_288
-    payload["max_output_tokens"] = 2048
+    # Sourced from the module rather than restated, so this fixture cannot silently disagree with the
+    # contract it is meant to satisfy when the cap moves (it moved 2048 -> 4096 in inc 575).
+    payload["max_output_tokens"] = _PREVIEW_OUTPUT_TOKENS
     descriptor.write_text(json.dumps(payload), encoding="utf-8")
     return descriptor
 

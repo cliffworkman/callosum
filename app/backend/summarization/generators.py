@@ -34,6 +34,21 @@ class CandidateSummarySentence:
     citations: list[CandidateCitation]
 
 
+class TruncatedGenerationError(RuntimeError):
+    """The provider stopped at its output-token ceiling before the model finished answering.
+
+    Carries the claims that WERE completed. Raised rather than returned so the partial answer cannot
+    travel any further without a caller deciding what to disclose: a synthesis that is missing claims
+    it meant to make must never render as a whole one (PRINCIPLES #6 -- silence is not a certificate).
+    It also stops ``CachedSummaryGenerator`` storing a truncated answer under the same key a complete
+    one would use, which would make one bad run permanent.
+    """
+
+    def __init__(self, *, sentences: list[CandidateSummarySentence]) -> None:
+        super().__init__(f"The model's answer was cut off after {len(sentences)} complete claims.")
+        self.sentences = sentences
+
+
 class SummaryGenerator(Protocol):
     name: str
 

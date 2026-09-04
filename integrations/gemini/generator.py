@@ -11,7 +11,12 @@ from typing import TYPE_CHECKING
 from app.backend.llm.cache import synthesis_generation_cache_signature
 from app.backend.llm.egress import DataEgressDisabledError
 from app.backend.llm.usage import log_usage
-from app.backend.summarization.generators import CandidateCitation, CandidateSummarySentence, SourceChunk
+from app.backend.summarization.generators import (
+    CandidateCitation,
+    CandidateSummarySentence,
+    SourceChunk,
+    TruncatedGenerationError,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy import Engine
@@ -129,7 +134,22 @@ class GeminiSummaryGenerator:
             _prompt(source_chunks=source_chunks, scope_ref=scope_ref, provider=getattr(self.config, "provider", None)),
         )
         log_usage("summary", self.config.model, result)
-        return _parse_response_text(str(result.text or "[]"))
+        text = str(result.text or "[]")
+        try:
+            sentences = _parse_response_text(text)
+        except (ValueError, KeyError, TypeError):
+            # The model ran out of output room mid-JSON. The claims it finished are whole and still
+            # face the full local verification pipeline, so keep them rather than discarding a long
+            # wait entirely -- but never silently: TruncatedGenerationError forces every caller to
+            # decide what to tell the user, and stops the cache wrapper storing a partial answer as
+            # if it were a complete one.
+            salvaged = _sentences_from(salvage_complete_objects(text))
+            if not salvaged:
+                raise
+            raise TruncatedGenerationError(sentences=salvaged) from None
+        if result.truncated and sentences:
+            raise TruncatedGenerationError(sentences=sentences)
+        return sentences
 
 
 # The managed Local AI preview runs a fixed 12,288-token context (2,048 reserved for output — see
@@ -175,14 +195,53 @@ def _prompt(*, source_chunks: list[SourceChunk], scope_ref: dict[str, object], p
 
 def _parse_response_text(text: str) -> list[CandidateSummarySentence]:
     payload = json.loads(_strip_code_fence(text))
+    return _sentences_from(payload)
+
+
+def _sentences_from(payload: object) -> list[CandidateSummarySentence]:
     sentences = []
-    for item in payload:
+    for item in payload:  # type: ignore[union-attr]
         citations = [
             CandidateCitation(chunk_id=int(citation["chunk_id"]), quote=str(citation["quote"]))
             for citation in item.get("citations", [])
         ]
         sentences.append(CandidateSummarySentence(text=str(item["text"]), citations=citations))
     return sentences
+
+
+def salvage_complete_objects(text: str) -> list[dict]:
+    """Every complete object at the start of a truncated JSON array.
+
+    A response that stopped mid-token — the model hit its output ceiling — is not garbage: the claims
+    it finished before running out are whole, and each one still faces the full local verification
+    pipeline afterwards (invariant #1), so this widens what can be READ without widening what is
+    TRUSTED. That is the same rationale ``first_embedded_json`` above documents for itself, and this
+    reuses its ``raw_decode`` technique rather than introducing a second parser.
+
+    Returns only objects, never a partial one: decoding stops at the first element that does not
+    decode cleanly. An empty list means nothing survived and the caller must fail rather than present
+    an empty synthesis as an answer.
+    """
+    body = _strip_code_fence(text)
+    start = body.find("[")
+    if start < 0:
+        return []
+    decoder = json.JSONDecoder()
+    objects: list[dict] = []
+    index = start + 1
+    while index < len(body):
+        while index < len(body) and body[index] in " \t\r\n,":
+            index += 1
+        if index >= len(body) or body[index] != "{":
+            break
+        try:
+            value, index = decoder.raw_decode(body, index)
+        except ValueError:
+            break  # the element the model was mid-way through when it ran out
+        if not isinstance(value, dict):
+            break
+        objects.append(value)
+    return objects
 
 
 def first_embedded_json(text: str, *, want: type, accept: Callable[[object], bool] | None = None) -> object | None:
