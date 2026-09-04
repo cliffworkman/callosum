@@ -320,14 +320,13 @@ jobs:
           done
           sleep 2 # give the webview a moment to actually paint the loaded page
           sudo screencapture -x /tmp/2-running-window.png || screencapture -x /tmp/2-running-window.png || true
-          # Deliberately a WARNING on macOS, unlike Linux (Cliff's call, 2026-09-03): this check has
-          # never once reported healthy here -- including in the v0.5.3 release run, before the
-          # Python-runtime work existed -- while real macOS users run the app fine. Failing the build
-          # on a signal that predates the change under test and that no user experiences would redden
-          # CI without evidence of a defect. Promote to ::error:: + exit 1 once a run actually prints
-          # "healthy on port", which will also confirm the ps-truncation theory above.
+          # BLOCKING, matching Linux and Windows (backlog #74 closed, 2026-09-04). This was a warning
+          # only while the check had never once succeeded here and the cause was unknown. It has now
+          # succeeded on both architectures -- x64 in 45s, arm64 in 33s -- so a failure is real
+          # evidence of a defect rather than an unexplained macOS quirk, and a gate that cannot fail
+          # is what let a broken .deb ship in the first place (#71).
           if [ "$ready" != "1" ]; then
-            echo "::warning::backend never reported healthy within the wait budget (known macOS-only gap)"
+            echo "::error::backend never reported healthy within the wait budget"
           fi
 
           if [ "$ready" != "1" ]; then
@@ -361,6 +360,9 @@ jobs:
           fi
 
           pkill -f "$APP_PROC" || true
+          if [ "$ready" != "1" ]; then
+            exit 1
+          fi
 
       - name: Upload verification screenshots + Gatekeeper logs
         if: always()

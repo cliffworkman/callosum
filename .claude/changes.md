@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-04 — Increment 571: the macOS verify step was watching the wrong process (closes #74)
+- **Files:** `.github/workflows/desktop-shell-macos.yml`, `app/desktop-shell/src-tauri/src/{lib.rs,python_runtime.rs}`,
+  `.claude/docs/INCREMENT-BACKLOG{,-DONE}.md`, `.claude/docs/increment-notes/INCREMENT-571-NOTES.md`
+- **What:** macOS CI now reports the backend healthy for the first time ever (x64 45s, arm64 33s) and
+  the gate is blocking like Linux and Windows.
+- **Why:** the step quarantines the app to exercise Gatekeeper, and **macOS App Translocation** runs a
+  quarantined app from a randomised read-only copy. That instance stayed alive, so the later trusted
+  `open` re-activated it and the health poll watched a process that was never the one under test —
+  proven by one PID persisting across probes twenty minutes apart. The app was never broken; the
+  observation was.
+- **Also fixed, each worthwhile alone:** `smoke_test` no longer discards the interpreter's output;
+  `emit_status("failed")` writes `startup-error.log`, so a user who can only say "it says starting
+  forever" has something to send (backend.log is never created when the failure precedes the spawn);
+  and the startup task is supervised, so a swallowed panic can no longer pass as a slow launch.
+- **Disproven en route:** `ps` truncation, and a hung `open` — both recorded so they are not retried.
+- **Consequence:** inc 570's caveat is retired — first-run provisioning is now proven on **all three**
+  platforms on fresh runners.
+- **Revert:** `git revert` the inc-571 commits; the gate returns to warning-only and the diagnostics
+  are additive.
+
 ## 2026-09-03 — Increment 570: the Python runtime leaves the app package (closes #71)
 - **Files:** `app/desktop-shell/src-tauri/src/{python_runtime.rs,backend.rs,lib.rs}`, `Cargo.toml`,
   `tauri.conf.json`, `app/desktop-shell/packaging/*`, `.github/workflows/desktop-python-runtime.yml`

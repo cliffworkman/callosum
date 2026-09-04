@@ -318,7 +318,22 @@ pub fn run() {
         ])
         .setup(|app| {
             let handle = app.handle().clone();
-            tauri::async_runtime::spawn(start_backend_and_show_main(handle));
+            // Supervise the startup task rather than firing and forgetting it. A panic inside a
+            // spawned task is swallowed by the async runtime: no crash report, no status, no log --
+            // the splash would simply sit on "Checking Callosum's managed Python runtime…" forever,
+            // which is indistinguishable from a slow first-run download. Turning that into a visible,
+            // recorded failure is the difference between a diagnosable report and "it hangs".
+            let supervised = tauri::async_runtime::spawn(start_backend_and_show_main(handle));
+            let watchdog = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if supervised.await.is_err() {
+                    emit_status(
+                        &watchdog,
+                        "failed",
+                        "Callosum's startup task stopped unexpectedly before the backend could start.",
+                    );
+                }
+            });
             let handle2 = app.handle().clone();
             tauri::async_runtime::spawn(updater::run_periodic_check(handle2));
             Ok(())

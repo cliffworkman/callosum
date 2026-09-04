@@ -39,37 +39,6 @@
   checkout, Node for the JS actions). The blocking `objdump` glibc guard in `desktop-shell-linux.yml`
   will catch a wrong base immediately either way.
 
-- **#74 The macOS desktop-shell verify step has never once reported the backend healthy.**
-  **PRIORITY (Cliff, 2026-09-03): this is the next thing to work on, once the persistent Python runtime
-  is shipped and confirmed working across all three desktop packages.** Note the ordering tension worth
-  resolving explicitly rather than silently: macOS being "confirmed working" is *itself* what this item
-  blocks, since the health check is the mechanism that would confirm it. Either the `ps auxww` change
-  below makes macOS report healthy (in which case the tension dissolves and the gate can go blocking),
-  or macOS has to be confirmed some other way — a real Mac, or the existing live Local AI acceptance
-  job, which does pass — before "working on all three" can be claimed honestly.
-  Found while closing #71 (2026-09-03). Windows and Linux both print `healthy on port N after Ns`; macOS has only ever
-  printed the warning — including in the **v0.5.3 release run, before the persistent-Python-runtime work
-  existed** — so this predates that change and is not a regression from it. Real macOS users run the app
-  fine, which is why the gate is deliberately left as a `::warning::` there while Linux is blocking
-  (Cliff's call).
-  - **DISPROVEN (2026-09-03): it is not `ps` truncation.** The theory was that macOS truncates the
-    command column while Linux does not, so a port at the end of a long argv could never match. Inc 570
-    changed the macOS invocation to `ps auxww` and **both jobs still ran the full 20-minute budget
-    without ever matching** (run `1009d84`, arm64 23:43→00:04, x64 23:39→00:00). Recorded so nobody
-    spends the idea twice. `ps auxww` was kept regardless — strictly more informative, no downside.
-  - **What the evidence now narrows it to:** the `find … -name backend.log` dump on failure produces
-    **no output at all**, so no backend log is ever created, so the failure happens *before* the backend
-    is spawned — i.e. inside `ensure_runtime` / `resolved_paths`, not in Python. The next diagnostic
-    should therefore prove whether the app process is even alive (`pgrep -f Callosum` before the
-    `pkill`), and dump `~/Library/Logs/DiagnosticReports` for a crash report, rather than inferring from
-    the screenshot.
-  - **If `ps auxww` fixes it, promote the macOS gate back to `::error::` + `exit 1`** so the platform is
-    genuinely covered rather than permanently excused. That is the whole point of filing this.
-  - Other candidates if it does not: the app needing GUI/automation permissions the runner withholds (the
-    verification screenshot shows a macOS screen-recording consent prompt and no app window at all), or
-    `open` returning before the app is actually up. The screenshot is currently unreliable evidence for
-    that reason and should not be trusted on its own.
-
 - **#76 Local AI is Windows + macOS only; Debian/Ubuntu users get "Unsupported architecture".** Raised by
   Cliff (2026-09-03). `install.rs:206-211` returns `Ok(None)` under
   `#[cfg(not(any(windows, target_os = "macos")))]`, so `installed_paths` reports nothing installable and
