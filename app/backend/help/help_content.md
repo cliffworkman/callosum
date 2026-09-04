@@ -71,7 +71,7 @@ so Callosum can restore nested parent/child relationships that older imports did
 
 Gotchas:
 
-- If a paper says **PDF not available locally**, the imported record may be URL-only, metadata-only, or pointed at a file that is no longer available on disk.
+- If a PDF cannot open, the reader distinguishes a URL/metadata-only record from a moved file, a missing managed-library folder, and a temporarily unreadable synced file. Use **Retry**, **Find or Reconnect PDF**, or **Copy diagnostics** directly from that screen.
 - A paper with **metadata not yet resolved** or **needs DOI** usually came from a raw or sparse record. Add or fix the DOI in Detail, then use the `🔎` button to re-resolve it from Crossref.
 - Imported PDF text quality depends on the PDF. Scanned image-only pages may not produce useful selectable text or exact citation coordinates.
 - Imported highlights need the same local PDF they were created against. Unsupported annotation types, malformed locations, and rotated pages remain preserved as records but are not drawn at an invented position.
@@ -88,12 +88,13 @@ Zotero documents that this carries the personal library's data, files, and folde
 
 <!-- section: scanning-a-folder -->
 ## Watched folders (scanning for PDFs)
-Your **library folder is watched by default** — it's pinned at the top of the **+ Add → Watched folders…** dialog as the "always watched" default (you can't remove it). Drop a PDF into it and Callosum picks it up on its own (see below). To watch additional folders, open that dialog, enter a folder's path on this computer, and click **Add + scan**. (The library folder is where Callosum keeps acquired PDFs; set a custom location with the `CALLOSUM_LIBRARY_DIR` environment variable.)
+Your **library folder is watched by default** — it's pinned at the top of the **+ Add → Watched folders…** dialog as the "always watched" default (you can't remove it). Drop a PDF into it and Callosum picks it up on its own (see below). To watch additional folders, open that dialog, type a folder's path or click **Browse…**, then click **Add + Scan**. (The library folder is where Callosum keeps acquired PDFs; set a custom location with the `CALLOSUM_LIBRARY_DIR` environment variable.)
 
 Callosum walks the folder for PDFs and reconciles them with your library:
 
 - **New** PDFs are added — text extracted, chunked, embedded, and metadata fetched from Crossref where a DOI is found. Any whose DOI doesn't resolve land under **Unsorted** so you can fix them.
 - **Unchanged** PDFs (already in the library, matched by **content**, not filename or folder provenance) are skipped — re-scanning is safe and never creates duplicates.
+- **Reconnected** PDFs are exact checksum matches for attachments whose old location is unavailable. Callosum updates only the file location and availability; the existing paper, extracted chunks, notes, highlights, and provenance stay attached without reprocessing.
 - **Removed** PDFs (a previously-scanned file that's now gone from the folder) are flagged as missing, not deleted.
 
 Once you've added a folder it becomes a **watched folder**: Callosum re-scans your watched folders **automatically each time the app starts and whenever you switch back to the app** — so if you drop a new PDF into a watched folder and return to Callosum, it appears on its own within a moment (you can also click **Re-scan all** in the dialog). If a scan or re-scan is already running, another scan request reuses that active job instead of starting a second writer. A newly-picked-up PDF has its DOI read from the file, its metadata filled in from Crossref, and checked automatically for registry retractions or explicit correction records. The dialog lists your watched folders with when each was last scanned; **remove** stops watching a folder but keeps the papers it already imported. Because matching is by content, the folder your existing library came from is safe to add — re-scanning it just confirms everything's already there. You can turn the on-launch re-scan off in **⚙ Settings → Library**.
@@ -1480,6 +1481,8 @@ Available settings include:
 - **Metadata access (contact email):** an email address sent as the polite-pool contact for public metadata services — **Crossref**, **OpenAlex**, and the **Retraction Watch** database — so they can reach you about heavy use. It's optional for everyday metadata enrichment but **required to download the Retraction Watch database** (Library → Integrity ↻, or Settings → Local maintenance → Refresh database). It is **not** an AI feature — no library text or PDF is sent — and, unlike an API key, it isn't a secret, so Settings shows it back to you. (The `CALLOSUM_CROSSREF_MAILTO` / `CALLOSUM_OPENALEX_MAILTO` environment variables still work as the fallback.)
 - **Your usage:** a small local, private log of five specific actions — exporting a citation, resolving a duplicate, re-resolving a paper's metadata, locating a quoted passage, and reviewing a flagged reference — counted as timestamps only, never the content of what you did (no PDF text, no queries, no titles). Nothing here ever leaves your machine, so unlike every other toggle in Settings this one is **on by default**; a plain switch turns it off anytime. Read it as a count of actions, not a score — for the tedious ones, doing them *less* is the actual win. **Export usage log** downloads the raw counts as JSON; **Clear usage log** deletes them (your library, PDFs, and citations are never touched by either).
 
+- **Desktop app (version and updates):** shows the exact version you are running — quote it in a bug report — and a **Check for updates** button. On Windows and macOS an available update downloads quietly in the background; when it is ready, use the **Install and restart** button here, or **Restart now** on the banner that appears. **Use one of those buttons rather than quitting and reopening Callosum:** the downloaded update is held in memory until you install it, so closing the app discards it (Callosum will simply offer it again next time — nothing is broken, it just has to download again). Linux (`.deb`) has no in-app update path: the button opens the releases page so you can download and install the new package yourself. Callosum never installs an update without you asking.
+
 The Callosum logo also carries connection status:
 
 - Connected: the logo shows the connected state, and its tooltip says **Connected** with the verifier version when available.
@@ -1693,7 +1696,7 @@ Only verified citations with exact coordinates can be saved as precise highlight
 Ordinary hand edits are protected from batch updates, but clicking `🔎` asks Callosum to re-resolve from Crossref and refresh the record from that DOI. Use re-resolve intentionally.
 
 ### Why does a paper say PDF not available locally?
-The record may be metadata-only, URL-only, or linked to a file that is not present on disk. The paper can still be managed bibliographically, but PDF reading and exact citation jumps need a local PDF.
+The reader now explains which state Callosum can establish: the record may be metadata-only/URL-only, its linked file may have moved, the managed library folder may be unavailable, or a synced file may be temporarily unreadable. Try **Retry** after reconnecting a drive or sync service. If the file moved, choose **Find or Reconnect PDF**, browse to the folder containing it, and scan. Callosum reconnects only an exact checksum match, preserving the existing chunks, notes, highlights, and provenance. **Copy diagnostics** provides a privacy-safe report if recovery still fails; it does not include the file path or paper title.
 
 ### Why does synthesis say my AI provider needs attention?
 Open **Settings → AI features**. For an API-key-free path, choose **Local AI**, click **Set up Local AI**, and wait for **Local AI: Ready**. Keep Callosum open; you can leave the wizard with **Continue in background** and follow or reopen setup through **Status → Setting up Local AI**. If Local AI is already selected but unavailable, retry setup or repair the local installation; Callosum will not ask for a cloud key as the required fix. If you deliberately selected a cloud provider, save its key and turn on **Allow AI features**.

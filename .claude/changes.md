@@ -39,6 +39,11 @@ are the design diary; this is the chronological "what & why" record.
   action and says what happens if you don't take it. Settings also now shows the running version.
 - **Why:** Cliff on 0.5.5 never saw 0.5.6 offered, then followed Settings' instruction to restart
   and lost the download. The one working path was invisible; the visible path was wrong.
+- **Help:** added a **Desktop app (version and updates)** bullet to `help_content.md`'s "Settings and
+  connection status" — the desktop updater had never been documented at all (the corpus's existing
+  "Check for updates" text is about *citation styles*), and the install-vs-quit distinction is exactly
+  what two users got wrong. The `HELP-DOCS-SYNCED` marker is deliberately **not** moved: this closed one
+  known gap, it was not a full corpus review, and moving it would falsely claim otherwise.
 - **Revert:** `git revert` the increment commit; no schema, migration, or API contract changed.
 
 ## 2026-09-04 — Increment 573: Synthesize → Ask crashed on a real user's library
