@@ -28,6 +28,32 @@
 
 ## 1. Near-term (small, self-contained, no design decision needed)
 
+- **#80 Automate the release *bump*, not the Tauri build — the build is already automated.** Raised by
+  Cliff (2026-09-04) as "a GitHub action to automate our Tauri builds." **Checked before scoping, and the
+  framing turned out to be stale:** `desktop-shell-{windows,macos,linux}.yml` already build *and* verify
+  the real installer on every push (launch it, screenshot the running window, assert backend health), and
+  `desktop-shell-release.yml` already fires on a `v*` tag, calls all three as reusable workflows, signs the
+  updater artifacts, and publishes one GitHub Release with all three installers only if all three succeed.
+  There is no missing build automation. What is genuinely manual is everything *around* it:
+  - **The version bump is five hand-edited files** — `tauri.conf.json`, `package.json`, `Cargo.toml`, plus
+    `package-lock.json` (two self-references, and the *only* two: a naive replace-all would rewrite
+    dependency versions) and `Cargo.lock` (the `callosum-shell` stanza alone). Done by hand for 0.5.6 this
+    session. The tag-time preflight catches a *mismatch*, but nothing prevents the error or does the work.
+    Wanted: `python tools/bump_version.py 0.5.6` that edits exactly those five, refuses on any unexpected
+    occurrence count, validates the JSON, and prints the diff. Cheap, and removes the whole error class.
+  - **`desktop-shell-release.yml` has no `workflow_dispatch`** (the three platform workflows all do). If
+    the `publish` job fails after three successful builds — a transient GitHub API error, a missing
+    secret — the only recovery is deleting and re-pushing the tag. A dispatch trigger taking a tag name
+    would make that a button.
+  - **Optional, and NOT an obvious win: migrating to the official `tauri-apps/tauri-action`.** The current
+    workflows are hand-rolled `npx tauri build`, and they carry a lot of hard-won project-specific logic
+    that the generic action does not have: the blocking `objdump` glibc-floor guards (backlog #71/#76), the
+    macOS re-sign-after-resources step (without which Gatekeeper reports the app as *damaged*, inc 395),
+    App-Translocation-aware verification (inc 571), and the immutable-Python-runtime provisioning check
+    (inc 570). Migrating risks silently dropping those. Treat as a research task with an explicit
+    "what would we lose" inventory first, not a default modernization.
+  - Not urgent: releases work today, and 0.5.6 shipped on this machinery.
+
 - **#79 A query-scope synthesis materializes the entire library to pick 8 chunks.** Surfaced by inc 573's
   crash fix (backlog #78-adjacent, reported by Vasiliki Meletaki with a 716,670-chunk library). The crash
   is fixed and the path is ~19x faster, but it is still O(library) where it should be O(top_k). Measured on
