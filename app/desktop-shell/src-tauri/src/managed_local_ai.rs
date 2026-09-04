@@ -19,8 +19,8 @@ mod observation;
 use observation::{observe_child_output, SharedRuntimeObservation};
 mod install;
 pub use install::LocalAiInstallState;
-#[cfg(target_os = "macos")]
-mod install_macos;
+#[cfg(any(target_os = "macos", all(target_os = "linux", target_arch = "x86_64")))]
+mod install_unix;
 mod preview;
 pub use preview::{local_ai_status, setup_and_start, start_for_startup, LocalAiStatus};
 mod process;

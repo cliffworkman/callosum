@@ -846,7 +846,11 @@ runtime.close()
     std::fs::remove_dir_all(root).unwrap();
 }
 
-#[cfg(any(windows, target_os = "macos"))]
+#[cfg(any(
+    windows,
+    target_os = "macos",
+    all(target_os = "linux", target_arch = "x86_64")
+))]
 #[test]
 #[ignore = "downloads the pinned preview runtime/model into CALLOSUM_LOCAL_AI_LIVE_INSTALL_DIR"]
 fn live_pinned_preview_installs_and_runs_three_generation_contracts() {

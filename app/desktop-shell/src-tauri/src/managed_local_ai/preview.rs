@@ -87,7 +87,11 @@ pub async fn setup_and_start(
     let progress = install_state.clone();
     let install_result = tokio::task::spawn_blocking(move || {
         if let Some(paths) = install::installed_paths(&data_dir_owned)? {
-            #[cfg(any(windows, target_os = "macos"))]
+            #[cfg(any(
+                windows,
+                target_os = "macos",
+                all(target_os = "linux", target_arch = "x86_64")
+            ))]
             if install::verify_install(&paths).is_ok() {
                 progress.set(None, None);
                 return Ok(paths);
@@ -146,7 +150,8 @@ pub fn local_ai_status(
         all(
             target_os = "macos",
             any(target_arch = "aarch64", target_arch = "x86_64")
-        )
+        ),
+        all(target_os = "linux", target_arch = "x86_64")
     ));
     let (status, detail) = if let Some(stage) = progress.stage {
         (stage, None)

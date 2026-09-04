@@ -163,6 +163,45 @@ jobs:
             exit 1
           fi
 
+      - name: "Guard: the pinned Local AI runtime must not require a newer glibc than we support (REQUIRED — blocking)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          FLOOR=2.35
+          SRC=app/desktop-shell/src-tauri/src/managed_local_ai/install.rs
+          # Read the pins out of the code itself. Restating them here would create a second source
+          # of truth that silently drifts the moment the runtime is re-pinned -- and this guard is
+          # worth nothing if it checks a build the app no longer downloads.
+          BLOCK=$(sed -n '/ubuntu-x64\.tar\.gz/,/^const INSTALL_DIR/p' "$SRC")
+          URL=$(printf '%s' "$BLOCK" | grep -oE 'https://[^"]+ubuntu-x64\.tar\.gz' | head -1)
+          SHA=$(printf '%s' "$BLOCK" | grep -oE '"[0-9a-f]{64}"' | head -1 | tr -d '"')
+          BYTES=$(printf '%s' "$BLOCK" | grep -oE 'RUNTIME_ARCHIVE_BYTES: u64 = [0-9_]+' | grep -oE '[0-9_]+$' | tr -d '_')
+          echo "pinned runtime: $URL"
+
+          curl -fsSL "$URL" -o runtime.tar.gz
+          echo "$SHA  runtime.tar.gz" | sha256sum -c -
+          ACTUAL=$(stat -c%s runtime.tar.gz)
+          if [ "$ACTUAL" != "$BYTES" ]; then
+            echo "::error::pinned Local AI runtime is $ACTUAL bytes but install.rs declares $BYTES."
+            exit 1
+          fi
+
+          mkdir -p rt && tar -xzf runtime.tar.gz -C rt
+          # Exactly the set the extractor keeps: the launcher plus the runtime libraries.
+          mapfile -t SCAN < <(find rt -maxdepth 2 -type f \
+            \( -name 'llama-server' -o -name 'libggml*.so*' -o -name 'libllama*.so*' -o -name 'libmtmd*.so*' \))
+          echo "scanning ${#SCAN[@]} installed binaries"
+          MAX=$(objdump -T "${SCAN[@]}" | grep -oE 'GLIBC_[0-9]+\.[0-9]+' | sed 's/GLIBC_//' | sort -uV | tail -1)
+          echo "highest required glibc: $MAX (floor $FLOOR)"
+          # Same class of failure as backlog #71, one layer further out: a Local AI that installs
+          # cleanly and then cannot start is worse than one that was never offered.
+          if [ "$(printf '%s\n%s\n' "$FLOOR" "$MAX" | sort -V | tail -1)" != "$FLOOR" ]; then
+            echo "::error::the pinned Local AI runtime requires glibc $MAX but the support floor is $FLOOR."
+            objdump -T "${SCAN[@]}" | grep "GLIBC_$MAX" || true
+            exit 1
+          fi
+          rm -rf rt runtime.tar.gz
+
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:

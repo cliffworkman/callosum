@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 571** (see Increment workflow) with **2792 passed, 4 skipped in the last completed root-suite
+It is currently at **Increment 572** (see Increment workflow) with **2792 passed, 4 skipped in the last completed root-suite
 pass** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
 The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
 receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
@@ -1000,6 +1000,18 @@ the full per-increment narrative for all other increments now lives in the reloc
   `Testing` otherwise). The clean default remains Gemini, manual endpoints remain distinct, and specialized local
   embedding/NLI/OCR paths are unchanged. Exact identities and the provider-gated feature audit are in
   `INCREMENT-547-NOTES.md`.
+  **Local AI now covers all three desktop platforms** — Windows (inc 547), macOS arm64/x64 (inc 567), and
+  **Linux x86_64 (inc 572, backlog #76)** — all on the same pinned llama.cpp `b10516` build and the same
+  platform-independent GGUF, so no version drift exists between them. Two standing constraints for anyone
+  extending this: **(a)** a platform's runtime-library allowlist in `managed_local_ai/install_unix.rs` must
+  agree exactly with `files.rs::is_runtime_library`, because the first decides what lands on disk and the
+  second decides what the pinned bundle manifest hashes — if they disagree, a *correct* install fails its own
+  identity check; note Linux libraries are versioned (`libllama.so.0.1.2`) reached through symlink chains, so
+  the test is `contains(".so")`, never `ends_with`. **(b)** `RUNTIME_BUNDLE_SHA256` covers symlinks too, since
+  `runtime_bundle_identity` canonicalizes — each symlink appears under its own name with its *target's* size
+  and digest. When re-pinning, validate the digest algorithm against an already-pinned platform's known-good
+  value before trusting a newly computed one. A blocking `objdump` guard in `desktop-shell-linux.yml` holds
+  the runtime to the same glibc floor as the shell (see the desktop-packaging entry's constraint (a)).
   **"Tauri alone owns the lifecycle" has exactly one deliberate exception (inc 569, backlog #72):**
   `tools/run_local_ai.py` starts the same llama-server for a **dev browser session**, because
   `CALLOSUM_APP_DATA_DIR` is set only by `backend.rs` — so a source-checkout backend otherwise fails every
@@ -1525,7 +1537,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 571). Each increment of real work
+callosum is built in **numbered increments** (currently at 572). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

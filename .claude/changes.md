@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-04 — Increment 572: Local AI on Debian/Ubuntu (closes #76)
+- **Files:** `app/desktop-shell/src-tauri/src/managed_local_ai.rs`,
+  `app/desktop-shell/src-tauri/src/managed_local_ai/{install.rs,install_macos.rs→install_unix.rs,preview.rs,tests.rs}`,
+  `.github/workflows/desktop-shell-linux.yml`, `.claude/security-audits/2026-09-04_linux-local-ai.md`,
+  `.claude/docs/INCREMENT-BACKLOG{,-DONE}.md`, `.claude/docs/increment-notes/INCREMENT-572-NOTES.md`
+- **What:** Linux x86_64 installs the same pinned `b10516` llama.cpp runtime as Windows/macOS, so
+  Debian/Ubuntu users get keyless Local AI instead of "Unsupported architecture". The macOS extractor
+  is generalised to `install_unix.rs` with a **per-platform** library allowlist (never one widened
+  predicate); a new blocking CI guard `objdump`s the pinned runtime against the glibc floor, reading
+  its pins out of `install.rs` so it can't drift.
+- **Why:** `installed_paths` returned `Ok(None)` on Linux, so a Linux user could use no AI feature at
+  all without a cloud key — against Local AI's whole premise (inc 547) that no account or key is needed.
+- **Revert:** `git revert` the increment commit; the change is `#[cfg]`-scoped and touches no Python,
+  frontend, API, or schema.
+
 ## 2026-09-04 — Increment 571: the macOS verify step was watching the wrong process (closes #74)
 - **Files:** `.github/workflows/desktop-shell-macos.yml`, `app/desktop-shell/src-tauri/src/{lib.rs,python_runtime.rs}`,
   `.claude/docs/INCREMENT-BACKLOG{,-DONE}.md`, `.claude/docs/increment-notes/INCREMENT-571-NOTES.md`

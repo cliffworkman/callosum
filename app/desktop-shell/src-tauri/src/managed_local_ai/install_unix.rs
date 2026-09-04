@@ -1,4 +1,10 @@
-//! Safe extraction for the pinned official llama.cpp native macOS archive.
+//! Safe extraction for the pinned official llama.cpp native `.tar.gz` archives (macOS and Linux).
+//!
+//! Both platforms publish the same archive shape — one pinned root, a flat entry list, versioned
+//! shared libraries reached through symlink chains — so the extraction, containment and promotion
+//! logic is shared. Only the library suffix differs, and each platform keeps its own exact
+//! allowlist below rather than one widened predicate that would let a macOS bundle carry `.so`
+//! files or a Linux bundle carry `.dylib`s.
 
 use super::install::RUNTIME_DIR;
 use super::ManagedAiError;
@@ -124,8 +130,23 @@ fn single_safe_name(path: &Path) -> Result<&str, ManagedAiError> {
         .ok_or(ManagedAiError::Io("Local AI runtime link target invalid"))
 }
 
+#[cfg(target_os = "macos")]
 fn runtime_entry_allowed(name: &str) -> bool {
     name == LAUNCHER || name.to_ascii_lowercase().ends_with(".dylib")
+}
+
+/// Linux shared objects are versioned (`libllama.so.0.1.2`), so a `.so` *suffix* test would drop
+/// every real library and keep only the symlinks pointing at them. This mirrors
+/// `files::is_runtime_library` exactly: the extracted set and the set the bundle manifest hashes
+/// must agree, or a correct install fails its own identity check.
+#[cfg(target_os = "linux")]
+fn runtime_entry_allowed(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    name == LAUNCHER
+        || (["libggml", "libllama", "libmtmd"]
+            .iter()
+            .any(|prefix| lower.starts_with(prefix))
+            && lower.contains(".so"))
 }
 
 fn validate_runtime_links(root: &Path) -> Result<(), ManagedAiError> {
@@ -163,7 +184,20 @@ mod tests {
             archive_entry_name(Path::new("llama-b10516/llama-server")).unwrap(),
             Some("llama-server")
         );
+        #[cfg(target_os = "macos")]
         assert!(runtime_entry_allowed("libggml-metal.0.20.2.dylib"));
+        #[cfg(target_os = "linux")]
+        {
+            // Versioned targets and the symlinks that reach them are all kept; unprefixed
+            // binaries the archive also carries are not.
+            assert!(runtime_entry_allowed("libllama.so.0.1.2"));
+            assert!(runtime_entry_allowed("libllama.so"));
+            assert!(runtime_entry_allowed("libggml-base.so.0.20.2"));
+            assert!(runtime_entry_allowed("libmtmd.so.0"));
+            assert!(runtime_entry_allowed("libllama-server-impl.so"));
+            assert!(!runtime_entry_allowed("ggml-rpc-server"));
+            assert!(!runtime_entry_allowed("LICENSE"));
+        }
         assert!(!runtime_entry_allowed("llama-cli"));
         assert!(archive_entry_name(Path::new("../llama-server")).is_err());
         assert!(archive_entry_name(Path::new("other/llama-server")).is_err());
