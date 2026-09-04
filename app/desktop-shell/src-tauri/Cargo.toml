@@ -1,6 +1,6 @@
 [package]
 name = "callosum-shell"
-version = "0.5.6"
+version = "0.5.7"
 description = "Callosum desktop shell — launches the local callosum backend and shows its UI in a native window"
 authors = ["Cliff Workman"]
 edition = "2021"
