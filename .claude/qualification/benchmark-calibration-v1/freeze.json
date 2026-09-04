@@ -3,7 +3,7 @@
   "calibration_profile": "benchmark-calibration-v1",
   "starting_head": "2ba735abb1808644bbe388a14ccb6963bf95b9ab",
   "frozen_before_provider_output": true,
-  "base_battery_aggregate_sha256": "3591ed8dcd424fa0dbbc2b8b71f9858adb6da9c81ae90a6996aef1588d6a6bc3",
+  "base_battery_aggregate_sha256": "3d948872563c8ea27b5600a34b866c42887ac115d0837d4c68e10c24c5cbff58",
   "files": {
     ".claude/qualification/benchmark-calibration-v1/preregistration.json": "6324ef6a455ae16b89b43d7b61be0e28638390ec7d33e99cc514a86305722cdb",
     ".claude/qualification/benchmark-calibration-v1/protocol-amendment-1.json": "e7b97b35a7ac49c1e88d546a1b6fdbc2d891225ee9d582937a1956ef80242ebc",

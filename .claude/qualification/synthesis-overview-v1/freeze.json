@@ -11,8 +11,8 @@
     "integrations/gemini/overview.py": "08bbf9ff8fa6a02afb7a5c2cbf1500c068d7b572addbe0c2b85138181e917103",
     "app/backend/summarization/overview.py": "7de0d4f79068abf2e08d1bf81f028032997b89dd18fdc479afe76ba8bdb93be4",
     "app/backend/summarization/overview_lifecycle.py": "bfa1ebdf38e38fc3338276fa4c0ae74b1673e6f57bfeb428e6c573a39d6fd61a",
-    "app/backend/llm/providers.py": "abc53adb761523b2ca2dbb7f2f8691d6de5428e8e47cd3aeb1d82a8b751ec44a",
+    "app/backend/llm/providers.py": "67065f72ef69e0d1132c0645f73897ac774ca746eea7f5ed77e93513e897ab5d",
     "tools/qualification/overview_battery.py": "390c8aa9f354fc9993312f5b76fc7c8bd3d311000436f992e9f057251bb9dc9a"
   },
-  "aggregate_sha256": "3591ed8dcd424fa0dbbc2b8b71f9858adb6da9c81ae90a6996aef1588d6a6bc3"
+  "aggregate_sha256": "3d948872563c8ea27b5600a34b866c42887ac115d0837d4c68e10c24c5cbff58"
 }

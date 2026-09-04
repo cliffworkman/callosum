@@ -24,7 +24,7 @@ def test_historical_battery_remains_frozen() -> None:
     # none of this battery's local GGUF candidates use -- their Overview cap is the unchanged 256. The
     # recorded null result stays reproducible. See INCREMENT-575-NOTES.md and the profile README.
     assert overview_battery.verify_freeze()["aggregate_sha256"] == (
-        "3591ed8dcd424fa0dbbc2b8b71f9858adb6da9c81ae90a6996aef1588d6a6bc3"
+        "3d948872563c8ea27b5600a34b866c42887ac115d0837d4c68e10c24c5cbff58"
     )
 
 
