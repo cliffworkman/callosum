@@ -1,3 +1,16 @@
+# REPO-WIDE DEFAULT (inc 575): every text file is LF in the working tree, on every platform.
+#
+# Three drift gates -- tools/qa/check_website_coverage.py, tools/qa/check_demo_experience_coverage.py,
+# and tools/qualification/overview_battery.py's freeze -- hash RAW FILE BYTES. Linux CI checks out LF;
+# a Windows checkout with core.autocrlf=true gets CRLF. A receipt generated on Windows therefore records
+# hashes CI can never reproduce: green locally, red in CI. That cost three separate CI failures in one
+# session, and every per-path rule below was added after one of these incidents -- each fixing the
+# instance and never the class. This line fixes the class.
+#
+# `text=auto` still lets git detect and skip real binaries (PNGs, fonts), so this is safe globally.
+# The specific rules below are now redundant, kept as the record of what taught us this.
+* text=auto eol=lf
+
 # tools/qa/check_website_coverage.py and tools/qa/check_demo_experience_coverage.py (inc 555) hash the
 # exact bytes of these directories/files to fingerprint "user-facing source" for their drift checks, and
 # tools/demo/generate_demo_wip_state.py hashes tools/demo/fixtures/*.md byte-for-byte into the committed
