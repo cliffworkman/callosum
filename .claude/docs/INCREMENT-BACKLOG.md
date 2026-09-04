@@ -70,6 +70,38 @@
     `open` returning before the app is actually up. The screenshot is currently unreliable evidence for
     that reason and should not be trusted on its own.
 
+- **#76 Local AI is Windows + macOS only; Debian/Ubuntu users get "Unsupported architecture".** Raised by
+  Cliff (2026-09-03). `install.rs:206-211` returns `Ok(None)` under
+  `#[cfg(not(any(windows, target_os = "macos")))]`, so `installed_paths` reports nothing installable and
+  the Settings card falls through to the `LOCAL_AI_UNSUPPORTED_ARCHITECTURE` state. Linux users therefore
+  cannot use any AI feature without a cloud key, while the whole point of Local AI (inc 547) is that no
+  account or key is required.
+  - **More tractable than a fresh integration — the pieces already exist:**
+    - Upstream publishes **`llama-b10516-bin-ubuntu-x64.tar.gz` (16.7 MB) at the exact build already
+      pinned** for Windows/macOS, so no re-pinning or version drift is involved (verified against the
+      `ggml-org/llama.cpp` b10516 release).
+    - `install_macos.rs` is the direct precedent: same `.tar.gz` shape, same allowlisted extraction with
+      `Component::Normal` matching and a canonicalised containment check. A Linux arm is that file with
+      `.so` in place of `.dylib` in the runtime-library allowlist.
+    - The **Unix process lifecycle is already implemented** for macOS — `process.rs` uses
+      `process_group(0)` and `SIGTERM` to the negative pgid under `#[cfg(unix)]`, so Linux inherits
+      teardown, crash monitoring and descriptor cleanup rather than needing new work.
+    - The GGUF model artifact is platform-independent and already pinned/verified.
+  - **The one genuinely new risk is the same one that caused #71: glibc.** The upstream `ubuntu-x64`
+    build is compiled on whatever image llama.cpp's CI uses, which may require a newer glibc than the
+    2.35 floor Callosum's own `.deb` now targets. **Check the downloaded launcher with `objdump -T` before
+    designing around it** — if it needs >2.35, Debian 12 users would install Local AI successfully and
+    then have it fail to start, which is precisely the #71 failure mode wearing a different hat. That
+    check is one command and should come first.
+  - **Decision needed:** which upstream variant. `ubuntu-x64` (CPU) matches the existing Windows/macOS
+    CPU-only posture and is the obvious v1; `vulkan-x64` and the SYCL/OpenVINO builds would bring GPU
+    acceleration but multiply the qualification surface (`observation.rs` would need to verify a
+    non-CPU backend honestly, and `requested == observed` is enforced). `ubuntu-arm64` also exists, but
+    Callosum ships no arm64 Linux package today, so it is moot until it does.
+  - Triggers the security audit gate (new download-and-execute path); the existing
+    `2026-09-02_macos-local-ai-identity-diagnostics.md` is the template, and its extraction-safety
+    findings transfer directly.
+
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
 - **#64 Dependabot GHSA-wrw7-89jp-8q8g (`glib`, moderate) on the desktop-shell Linux build.** Flagged by GitHub
