@@ -219,9 +219,25 @@ def salvage_complete_objects(text: str) -> list[dict]:
     reuses its ``raw_decode`` technique rather than introducing a second parser.
 
     Returns only objects, never a partial one: decoding stops at the first element that does not
-    decode cleanly. An empty list means nothing survived and the caller must fail rather than present
-    an empty synthesis as an answer.
+    decode cleanly, and any object missing the fields a claim needs is dropped. Syntactic completeness
+    is NOT sufficient -- only the managed-local path constrains output with a grammar, so a cloud
+    provider can emit a well-formed object whose citation has no ``quote`` at all. Converting that
+    raised ``KeyError`` from inside the recovery path, turning a salvageable truncation into a crash.
+    An empty list means nothing survived and the caller must fail rather than present an empty
+    synthesis as an answer.
     """
+
+    def usable(value: object) -> bool:
+        if not isinstance(value, dict) or not isinstance(value.get("text"), str):
+            return False
+        citations = value.get("citations")
+        if not isinstance(citations, list):
+            return False
+        return all(
+            isinstance(citation, dict) and citation.get("chunk_id") is not None and citation.get("quote") is not None
+            for citation in citations
+        )
+
     body = _strip_code_fence(text)
     start = body.find("[")
     if start < 0:
@@ -240,6 +256,8 @@ def salvage_complete_objects(text: str) -> list[dict]:
             break  # the element the model was mid-way through when it ran out
         if not isinstance(value, dict):
             break
+        if not usable(value):
+            break  # the element the model was mid-way through, or one the grammar never constrained
         objects.append(value)
     return objects
 
