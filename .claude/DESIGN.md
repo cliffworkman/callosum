@@ -367,6 +367,13 @@ indeterminate bar and explicitly say completion/ETA are not measurable; never in
 Keep finished/error receipts dismissible. Status navigation is a bounded descriptor, never a URL/callback, and must
 not contain prompts, document passages, results, secrets, or file paths. Structural tests pin both coverage rules.
 
+**Recoverable local-document failures (inc 576).** A missing/unreadable PDF is a bounded recovery surface, not a
+generic empty state: `.pdf-unavailable-state` keeps the ordinary centered `.state` typography and adds one wrapping
+`.pdf-unavailable-actions` row using only canonical primary/ghost buttons. The row offers **Retry**, **Find or
+Reconnect PDF**, and the shared privacy-safe **Copy diagnostics** action. No new status color is introduced; the
+message explains the established failure state in text, and exact-checksum recovery preserves the paper's existing
+chunks, notes, and annotations. Reuse this action-row shape when another local document can be safely reconnected.
+
 ---
 
 ## B5 read-only companion (inc 237/238)

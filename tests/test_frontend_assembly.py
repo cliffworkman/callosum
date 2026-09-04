@@ -1214,7 +1214,20 @@ def test_qa_20260719_mobile_batch_and_pdf_404_fix():
     # console error) instead of relying on the 404 being handled gracefully after the fact
     assert "const hasPdf = paper.attachment_count == null ? null : paper.attachment_count > 0;" in raw
     assert "knownNoPdf={t.hasPdf === false}" in raw
-    assert 'if (knownNoPdf) { setState({ status: "unavailable" }); return; }' in raw
+    assert 'pdfUnavailableIssue("PDF_ATTACHMENT_NOT_FOUND", null, { paperId })' in raw
+
+
+def test_pdf_unavailable_is_actionable_diagnostic_and_scan_can_reconnect():
+    raw = assemble_jsx()
+    assert 'response.headers.get("x-callosum-error-code")' in raw
+    assert "PDF_LIBRARY_FOLDER_MISSING" in raw
+    assert "Find or Reconnect PDF" in raw
+    assert "<CopyDiagnosticButton diagnostic={value.diagnostic} />" in raw
+    assert "existing chunks, notes, and annotations are preserved" in raw
+    assert "onOpenLibraryFolders={() => setScanOpen(true)}" in raw
+    assert '<FolderBrowserModal title="Choose a PDF folder"' in raw
+    assert "Exact copies of missing PDFs are reconnected without reprocessing" in raw
+    assert "{s.relinked || 0} reconnected" in raw
 
 
 def test_padding_sweep_ws_pad_on_six_workspace_tabs_only():

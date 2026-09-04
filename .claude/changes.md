@@ -9,7 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED inc-574 2026-09-04 -->
+<!-- HELP-DOCS-SYNCED inc-576 2026-09-04 -->
+## 2026-09-04 — Increment 576: reconnect missing PDFs without losing library work
+- **Files:** `app/backend/pdf_processing/library_scan.py`, `app/backend/api/routers/{library,paper_files}.py`,
+  `app/frontend/js/{27_scan,30_viewer,30c_frame,30h_pdf_unavailable,40_app}.jsx`, `app/frontend/styles.css`,
+  `app/backend/help/help_content.md`, tests, generated `callosum-app.html`, design/security/increment docs.
+- **What:** exact-checksum matches now reconnect missing/moved PDF attachments in place—same attachment id, paper,
+  chunks, highlights, notes, and provenance—rather than being skipped as duplicates. Removed-file reconciliation is
+  scoped to the folder actually scanned (fixing a second bug where folder B could mark folder A missing). The PDF
+  reader now distinguishes URL-only, missing file, missing managed-library folder, and unreadable synced-file states;
+  it offers Retry, a browsable recovery path, and privacy-safe one-click diagnostics.
+- **Why:** a cloud-backed Documents folder became temporarily unavailable while every database/chunk record remained
+  intact. The old UI falsely called the paper metadata-only and gave no repair route; re-scanning an original exact
+  copy also skipped it instead of repairing the stale attachment path.
+- **Revert:** `git revert` the increment commit; no migration or destructive data rewrite is involved.
+
 ## 2026-09-04 — Increment 575: we asked the model for more than we allowed it to say
 - **Files:** `app/backend/llm/providers.py`, `app/backend/llm/managed_local.py`,
   `app/backend/summarization/{pipeline,generators}.py`, `app/backend/api/routers/summaries_response.py`,
@@ -29,20 +43,6 @@ are the design diary; this is the chronological "what & why" record.
   its candidates are local GGUFs on the managed path, whose Overview cap (256) is untouched. Documented
   in the profile README; `starting_head` deliberately preserved.
 - **Revert:** `git revert` the increment commit; no schema, migration, or API contract changed.
-
-## 2026-09-04 — Increment 574: reconnect missing PDFs without losing library work
-- **Files:** `app/backend/pdf_processing/library_scan.py`, `app/backend/api/routers/{library,paper_files}.py`,
-  `app/frontend/js/{27_scan,30_viewer,30c_frame,30h_pdf_unavailable,40_app}.jsx`, `app/frontend/styles.css`,
-  `app/backend/help/help_content.md`, tests, generated `callosum-app.html`, design/security/increment docs.
-- **What:** exact-checksum matches now reconnect missing/moved PDF attachments in place—same attachment id, paper,
-  chunks, highlights, notes, and provenance—rather than being skipped as duplicates. Removed-file reconciliation is
-  scoped to the folder actually scanned (fixing a second bug where folder B could mark folder A missing). The PDF
-  reader now distinguishes URL-only, missing file, missing managed-library folder, and unreadable synced-file states;
-  it offers Retry, a browsable recovery path, and privacy-safe one-click diagnostics.
-- **Why:** a cloud-backed Documents folder became temporarily unavailable while every database/chunk record remained
-  intact. The old UI falsely called the paper metadata-only and gave no repair route; re-scanning an original exact
-  copy also skipped it instead of repairing the stale attachment path.
-- **Revert:** `git revert` the increment commit; no migration or destructive data rewrite is involved.
 
 ## 2026-09-04 — Increment 574: the auto-updater was invisible, and then it lied
 - **Files:** `app/desktop-shell/src-tauri/src/updater.rs`, `.../src/lib.rs`,

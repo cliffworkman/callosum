@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 575** (see Increment workflow) with **2792 passed, 4 skipped in the last completed root-suite
+It is currently at **Increment 576** (see Increment workflow) with **2792 passed, 4 skipped in the last completed root-suite
 pass** (+ 11 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
 The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
 receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
@@ -88,7 +88,7 @@ the full per-increment narrative for all other increments now lives in the reloc
   paths cannot read registration chunks by fallback; exact attachment reads remain available for future paired
   comparison. Legacy `primary`/null/supplement roles are normalized without a destructive migration, and an AST
   regression test rejects new ambiguous paper-level chunk, embedding, or semantic-retrieval calls.
-- **PDF recovery (inc 574):** a folder scan may reconnect an unavailable attachment only when the file's SHA-256
+- **PDF recovery (inc 576):** a folder scan may reconnect an unavailable attachment only when the file's SHA-256
   exactly matches the stored checksum. It updates only location/availability metadata, preserving the attachment id,
   paper, chunks, annotations, and provenance; filename/title similarity is never recovery evidence. Removed-file
   reconciliation is scoped to the one folder being scanned, so scanning folder B cannot mark folder A's records

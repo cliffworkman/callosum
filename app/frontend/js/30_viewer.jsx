@@ -1,6 +1,7 @@
 // buildAnnotationDigest (the highlights/notes Markdown digest) lives in 00_lib.jsx (a pure util; relocated inc 175).
-function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf }) {
+function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf, onOpenRepair }) {
   const [state, setState] = useState({ status: "loading" });
+  const [reloadKey, setReloadKey] = useState(0);
   const [scale, setScale] = useState(1.15);
   const [page, setPage] = useState(1);
   const [annotations, setAnnotations] = useState([]);
@@ -61,7 +62,10 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
     setPage(1);
     // inc 308 (QA): a caller that already knows (via attachment_count) this paper has no PDF skips the doomed
     // fetch entirely — same "unavailable" null-state, no predictable 404 / console error.
-    if (knownNoPdf) { setState({ status: "unavailable" }); return; }
+    if (knownNoPdf) {
+      setState({ status: "unavailable", issue: pdfUnavailableIssue("PDF_ATTACHMENT_NOT_FOUND", null, { paperId }) });
+      return;
+    }
     setState({ status: "loading" });
     (async () => {
       let pdfjsLib;
@@ -79,7 +83,11 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
         if (!cancelled) setState({ status: "error", error: `Could not reach the ${API_LABEL}. Is uvicorn running?` });
         return;
       }
-      if (res.status === 404) { if (!cancelled) setState({ status: "unavailable" }); return; }
+      if (res.status === 404) {
+        const issue = await pdfUnavailableFromResponse(res, paperId);
+        if (!cancelled) setState({ status: "unavailable", issue });
+        return;
+      }
       if (!res.ok) { if (!cancelled) setState({ status: "error", error: `HTTP ${res.status} fetching the PDF.` }); return; }
       try {
         const buf = await res.arrayBuffer();
@@ -101,7 +109,7 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
       }
     })();
     return () => { cancelled = true; };
-  }, [paperId, target?.attachmentId]);
+  }, [paperId, target?.attachmentId, knownNoPdf, reloadKey]);
   // Reset annotations/transient UI when the active paper or PDF attachment changes.
   useEffect(() => {
     setAnnotations([]);
@@ -530,10 +538,8 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
           {state.status === "loading" &&
             <div className="state"><div className="big">Opening PDF…</div>Streaming and rendering the document.</div>}
           {state.status === "unavailable" &&
-            <div className="state">
-              <div className="big">PDF not available locally</div>
-              This paper has no local PDF file — it may be a URL-only or metadata-only entry.
-            </div>}
+            <PdfUnavailableState issue={state.issue} onRetry={() => setReloadKey(value => value + 1)}
+              onReconnect={onOpenRepair} />}
           {state.status === "error" &&
             <div className="errbox" style={{ margin: "18px" }}>
               <b>Couldn't open this PDF.</b><br />{state.error}

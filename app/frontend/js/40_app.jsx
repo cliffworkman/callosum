@@ -450,7 +450,7 @@ function App() {
           readingMode={readingMode} onToggleReading={toggleReading}
           mobile={mobile}
           capture={capture} onCaptureAnchor={captureAnchor} onCancelCapture={clearCapture}
-          onOpenLocalAi={() => setOnboarding(s => ({ ...s, done: false, refresh: true }))}
+          onOpenLocalAi={() => setOnboarding(s => ({ ...s, done: false, refresh: true }))} onOpenLibraryFolders={() => setScanOpen(true)}
         />
       </div>
       <div className="workspace-slot" style={{ display: activeWorkspace === "profile" ? "flex" : "none" }}>

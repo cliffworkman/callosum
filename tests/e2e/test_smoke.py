@@ -265,6 +265,42 @@ def _mount_app(page, server: str) -> list[str]:
     return errors
 
 
+def test_missing_pdf_explains_the_cause_and_opens_recovery(server: str):
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+        page = browser.new_page(viewport={"width": 1366, "height": 900})
+        page.route(
+            "**/papers/*/pdf",
+            lambda route: route.fulfill(
+                status=404,
+                json={"detail": "PDF not available locally for this paper"},
+                headers={
+                    "X-Callosum-Error-Code": "PDF_LIBRARY_FOLDER_MISSING",
+                    "X-Callosum-Attachment-Id": "123",
+                    "X-Callosum-Storage-Mode": "managed",
+                    "X-Callosum-Attachment-Availability": "available",
+                    "X-Callosum-App-Version": "0.5.6",
+                },
+            ),
+        )
+        errors = _mount_app(page, server)
+
+        page.locator(".paper").first.dblclick()
+        page.get_by_text("Callosum's library folder is unavailable", exact=True).wait_for()
+        assert page.get_by_role("button", name="Retry", exact=True).is_visible()
+        assert page.get_by_role("button", name="Copy diagnostics", exact=True).is_visible()
+        page.get_by_role("button", name="Find or Reconnect PDF", exact=True).click()
+        page.get_by_text("Watched folders", exact=True).wait_for()
+        assert page.get_by_role("button", name="Browse…", exact=True).is_visible()
+
+        errors = [message for message in errors if "status of 404" not in message]
+        assert errors == []
+        browser.close()
+
+
 def _run_wip_checklists_e2e(server: str, tmp_path):
     folder = tmp_path / "WIP Checklist Draft"
     folder.mkdir()

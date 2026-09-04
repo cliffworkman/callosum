@@ -23,6 +23,7 @@ function ScanModalBody({ onClose, onScanned, onShowUnsorted }) {
     try { return localStorage.getItem("callosum.scanFolder") || ""; } catch (e) { return ""; }
   });
   const [scan, setScan] = useState({ status: "idle" });   // idle | running | done | error
+  const [browsing, setBrowsing] = useState(false);
   const [watched, setWatched] = useState([]);
   const loadWatched = () => api("/library/watched").then(r => { if (r.ok) setWatched(r.data); });
   useEffect(() => { loadWatched(); }, []);
@@ -85,7 +86,8 @@ function ScanModalBody({ onClose, onScanned, onShowUnsorted }) {
         Your <b>library folder</b> is watched by default (shown below) — drop a PDF into it and it's picked up
         automatically on launch (and when you switch back to Callosum). Add more folders to watch them the same
         way. New files are added (text extracted, chunked, embedded, Crossref-enriched); files already in your
-        library are skipped. PDFs stay where they are; nothing is moved or copied.
+        library are skipped. Exact copies of missing PDFs are reconnected without reprocessing. PDFs stay where
+        they are; nothing is moved or copied.
       </div>
       {watched.length > 0 &&
         <div className="watched-list">
@@ -108,15 +110,18 @@ function ScanModalBody({ onClose, onScanned, onShowUnsorted }) {
         <input className="wanted-add" placeholder="/path/to/your/pdfs" value={folder}
           onChange={e => setFolder(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") run(); }} />
+        <button className="btn btn-ghost" disabled={scan.status === "running"} onClick={() => setBrowsing(true)}>
+          Browse…
+        </button>
         <button className="btn btn-primary" disabled={scan.status === "running" || !folder.trim()} onClick={run}>
-          {scan.status === "running" ? "Scanning…" : "Add + scan"}
+          {scan.status === "running" ? "Scanning…" : "Add + Scan"}
         </button>
       </div>
       {scan.status === "running" && <ProgressBar label="Scanning + processing PDFs…" progress={scan.progress} managedBy="backend-job" />}
       {scan.status === "error" && <div className="axis-err">Scan failed: {scan.error}</div>}
       {scan.status === "done" && s &&
         <div className="scan-summary">
-          <b>{s.added}</b> added · {s.unchanged} unchanged · {s.removed} missing
+          <b>{s.added}</b> added · {s.relinked || 0} reconnected · {s.unchanged} unchanged · {s.removed} missing
           {s.errors ? ` · ${s.errors} error${s.errors === 1 ? "" : "s"}` : ""}
           {s.error_details && s.error_details.length > 0 &&
             <details className="scan-errors">
@@ -134,6 +139,8 @@ function ScanModalBody({ onClose, onScanned, onShowUnsorted }) {
       <div className="axis-form-actions">
         <button className="axis-link" onClick={onClose}>Close</button>
       </div>
+      {browsing && <FolderBrowserModal title="Choose a PDF folder"
+        onCancel={() => setBrowsing(false)} onSelect={path => { setFolder(path); setBrowsing(false); }} />}
     </>
   );
 }

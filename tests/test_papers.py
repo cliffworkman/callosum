@@ -541,6 +541,7 @@ def test_paper_pdf_404_with_honest_detail_when_no_local_file(temp_db_url: str) -
 
     assert response.status_code == 404
     assert response.json() == {"detail": "PDF not available locally for this paper"}
+    assert response.headers["x-callosum-error-code"] == "PDF_REMOTE_ONLY"
 
 
 def test_paper_pdf_404_when_file_missing_on_disk(temp_db_url: str, tmp_path: Path) -> None:
@@ -570,6 +571,43 @@ def test_paper_pdf_404_when_file_missing_on_disk(temp_db_url: str, tmp_path: Pat
 
     assert response.status_code == 404
     assert response.json() == {"detail": "PDF not available locally for this paper"}
+    assert response.headers["x-callosum-error-code"] == "PDF_ATTACHMENT_FILE_MISSING"
+
+
+def test_paper_pdf_distinguishes_a_missing_managed_library_folder(
+    temp_db_url: str, tmp_path: Path, monkeypatch
+) -> None:
+    missing_library = tmp_path / "disconnected-library"
+    monkeypatch.setenv("CALLOSUM_LIBRARY_DIR", str(missing_library))
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(
+            conn,
+            title="Managed PDF In Missing Library",
+            csl_json={"type": "article-journal", "title": "Managed PDF In Missing Library"},
+            processing_tier="fully-chunked",
+        )
+        create_attachment(
+            conn,
+            paper_id=paper_id,
+            storage_mode="managed",
+            availability="available",
+            original_path=str(missing_library / "paper.pdf"),
+            resolved_path=str(missing_library / "paper.pdf"),
+            content_type="application/pdf",
+            attachment_type="pdf",
+            role="primary",
+        )
+    engine.dispose()
+
+    response = TestClient(create_app(db_url=temp_db_url)).get(f"/papers/{paper_id}/pdf")
+
+    assert response.status_code == 404
+    assert response.headers["x-callosum-error-code"] == "PDF_LIBRARY_FOLDER_MISSING"
+    assert response.headers["x-callosum-storage-mode"] == "managed"
+    assert response.headers["x-callosum-attachment-availability"] == "available"
+    assert str(missing_library) not in str(response.headers)
+    assert str(missing_library) not in response.text
 
 
 def test_paper_pdf_attachment_id_serves_the_chosen_non_primary_attachment(temp_db_url: str, tmp_path: Path) -> None:
@@ -655,6 +693,7 @@ def test_paper_pdf_attachment_id_404s_for_another_papers_attachment(temp_db_url:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Attachment not found for this paper"}
+    assert response.headers["x-callosum-error-code"] == "PDF_ATTACHMENT_NOT_FOUND"
 
 
 def test_paper_pdf_attachment_id_404s_for_nonexistent_id(temp_db_url: str) -> None:
@@ -704,6 +743,7 @@ def test_paper_pdf_attachment_id_404s_for_a_non_pdf_attachment(temp_db_url: str,
 
     assert response.status_code == 404
     assert response.json() == {"detail": "This attachment is not a PDF"}
+    assert response.headers["x-callosum-error-code"] == "PDF_ATTACHMENT_NOT_PDF"
 
 
 def test_paper_pdf_attachment_id_404s_when_chosen_attachment_unavailable_on_disk(
@@ -735,6 +775,7 @@ def test_paper_pdf_attachment_id_404s_when_chosen_attachment_unavailable_on_disk
 
     assert response.status_code == 404
     assert response.json() == {"detail": "PDF not available locally for this attachment"}
+    assert response.headers["x-callosum-error-code"] == "PDF_ATTACHMENT_FILE_MISSING"
 
 
 def test_paper_detail_cleans_jats_abstract_without_mutating_stored_value(temp_db_url: str) -> None:

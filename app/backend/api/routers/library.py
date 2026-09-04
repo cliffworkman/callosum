@@ -79,6 +79,7 @@ class ScanError(BaseModel):
 
 class ScanSummary(BaseModel):
     added: int = 0
+    relinked: int = 0
     unchanged: int = 0
     removed: int = 0
     errors: int = 0
@@ -152,6 +153,7 @@ def _process_scan_result(
 def _scan_summary(scanned) -> ScanSummary:
     return ScanSummary(
         added=len(scanned["added"]),
+        relinked=len(scanned["relinked"]),
         unchanged=len(scanned["unchanged"]),
         removed=len(scanned["removed"]),
         errors=len(scanned["errors"]),
@@ -260,7 +262,7 @@ def _run_watched_rescan_job(app: FastAPI, job_id: str) -> None:
         store = _vector_store(app)
         crossref = app.state.crossref_client
         engine = app.state.engine
-        agg = {"added": 0, "unchanged": 0, "removed": 0, "errors": 0}
+        agg = {"added": 0, "relinked": 0, "unchanged": 0, "removed": 0, "errors": 0}
         error_details: list[ScanError] = []  # inc 155: per-file failures across all watched folders (capped)
         # inc 160: the library folder is ALWAYS rescanned (the pinned default) — even with no registered rows, so
         # a PDF dropped into it is picked up on launch/focus. Then the user-added folders (skip the library folder

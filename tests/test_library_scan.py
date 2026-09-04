@@ -14,7 +14,7 @@ from app.backend.pdf_processing.extraction import file_sha256
 from app.backend.pdf_processing.library_scan import scan_library_folder
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_paper
-from app.backend.persistence.schema import attachments, embeddings, papers
+from app.backend.persistence.schema import attachments, chunks, embeddings, papers
 
 
 def _make_pdf(path: Path, text: str) -> Path:
@@ -118,6 +118,89 @@ def test_scan_dedups_same_content_from_different_source_path_and_provenance(temp
     assert unchanged["attachment_id"] == attachment_id
     assert unchanged["import_source"] == "zotero"
     assert paper_count == 1
+
+
+def test_scan_reconnects_exact_moved_pdf_without_reprocessing(temp_db_url, tmp_path):
+    original_dir = tmp_path / "original"
+    recovered_dir = tmp_path / "recovered"
+    original_dir.mkdir()
+    recovered_dir.mkdir()
+    original = _make_pdf(original_dir / "paper.pdf", "The attachment and its chunks must survive relocation.")
+    engine = make_engine(temp_db_url)
+
+    first = scan_library_folder(engine, original_dir)
+    assert len(first["added"]) == 1
+    paper_id = first["added"][0]["paper_id"]
+    with engine.connect() as conn:
+        before = conn.execute(
+            select(attachments.c.id, attachments.c.checksum).where(attachments.c.paper_id == paper_id)
+        ).one()
+        chunk_ids_before = list(conn.execute(select(chunks.c.id).where(chunks.c.attachment_id == before.id)).scalars())
+
+    recovered = recovered_dir / "renamed.pdf"
+    original.replace(recovered)
+    second = scan_library_folder(engine, recovered_dir)
+
+    assert not second["added"] and not second["removed"] and not second["unchanged"]
+    assert len(second["relinked"]) == 1
+    assert second["relinked"][0]["paper_id"] == paper_id
+    assert second["relinked"][0]["attachment_id"] == before.id
+    with engine.connect() as conn:
+        after = conn.execute(select(attachments).where(attachments.c.id == before.id)).mappings().one()
+        chunk_ids_after = list(conn.execute(select(chunks.c.id).where(chunks.c.attachment_id == before.id)).scalars())
+        assert conn.execute(select(func.count()).select_from(papers)).scalar_one() == 1
+    assert after["availability"] == "available"
+    assert after["storage_mode"] == "linked"
+    assert after["resolved_path"] == str(recovered.resolve())
+    assert after["checksum"] == before.checksum
+    assert chunk_ids_after == chunk_ids_before and chunk_ids_after
+
+
+def test_scan_endpoint_reports_reconnected_pdf_and_serves_it(temp_db_url, tmp_path):
+    original_dir = tmp_path / "old"
+    recovered_dir = tmp_path / "new"
+    original_dir.mkdir()
+    recovered_dir.mkdir()
+    original = _make_pdf(original_dir / "paper.pdf", "An API-level reconnection regression fixture.")
+    engine = make_engine(temp_db_url)
+    first = scan_library_folder(engine, original_dir)
+    paper_id = first["added"][0]["paper_id"]
+    recovered = recovered_dir / "paper.pdf"
+    original.replace(recovered)
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=_FakeModel(), crossref_client=_NoCrossref()))
+
+    started = client.post("/library/scan", json={"folder": str(recovered_dir)})
+    job_id = started.json()["job_id"]
+    result = {}
+    for _ in range(30):
+        result = client.get(f"/library/scan/{job_id}").json()
+        if result["status"] in ("done", "error"):
+            break
+
+    assert result["status"] == "done", result
+    assert result["summary"]["relinked"] == 1
+    assert result["summary"]["added"] == 0
+    assert client.get(f"/papers/{paper_id}/pdf").content == recovered.read_bytes()
+
+
+def test_scanning_one_watched_folder_does_not_mark_another_folder_missing(temp_db_url, tmp_path):
+    folder_a = tmp_path / "a"
+    folder_b = tmp_path / "b"
+    folder_a.mkdir()
+    folder_b.mkdir()
+    _make_pdf(folder_a / "a.pdf", "Alpha lives in watched folder A.")
+    _make_pdf(folder_b / "b.pdf", "Beta lives in watched folder B.")
+    engine = make_engine(temp_db_url)
+
+    scan_library_folder(engine, folder_a)
+    scan_library_folder(engine, folder_b)
+    rescanned = scan_library_folder(engine, folder_a)
+
+    assert not rescanned["removed"]
+    with engine.connect() as conn:
+        availability = list(conn.execute(select(attachments.c.availability)).scalars())
+    assert availability == ["available", "available"]
 
 
 def test_scan_progress_reports_the_per_file_basename(temp_db_url, tmp_path):

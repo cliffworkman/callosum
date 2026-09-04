@@ -32,7 +32,7 @@ function LocalAiWhatsNewHint({ readOnly, mobile, onOpenLocalAi }) {
 const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
 const WIP_TAB_DRAG_TYPE = "application/x-callosum-wiptab";
 
-function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi }) {
+function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi, onOpenLibraryFolders }) {
   const [dragOverKey, setDragOverKey] = useState(null);
   const openSelectedPaper = () => {
     if (!selectedPaperTab) return;
@@ -157,6 +157,7 @@ function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, select
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>
           <PdfViewer paperId={t.paperId} title={t.title} target={t.target || null} annoRefresh={annoRefresh} mobile={mobile}
             knownNoPdf={t.hasPdf === false}
+            onOpenRepair={onOpenLibraryFolders}
             armedCapture={capture && !capture.result && capture.paperId === t.paperId ? capture : null}
             onCaptureAnchor={onCaptureAnchor} onCancelCapture={onCancelCapture} />
         </div>
