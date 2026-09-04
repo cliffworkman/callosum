@@ -860,6 +860,38 @@ fn smoke_test(python: &Path) -> Result<(), RuntimeError> {
             "The verified runtime did not contain its expected Python interpreter.",
         ));
     }
+    // Capture the interpreter's output to a file rather than discarding it. A bare "did not pass its
+    // import check" with no reason is unactionable, and this is the single most likely place for a
+    // platform-specific failure to disappear: it is the first execution of a freshly downloaded,
+    // unsigned binary, where macOS in particular can refuse or kill the process for reasons only the
+    // child itself reports. A file rather than a pipe because the wait loop below uses try_wait, and a
+    // filled pipe with no reader would deadlock.
+    let transcript = std::env::temp_dir().join(format!(
+        "callosum-runtime-smoke-{}-{}.log",
+        std::process::id(),
+        Instant::now().elapsed().as_nanos()
+    ));
+    let capture = File::create(&transcript).ok();
+    let sink = |file: &Option<File>| match file.as_ref().and_then(|handle| handle.try_clone().ok())
+    {
+        Some(handle) => Stdio::from(handle),
+        None => Stdio::null(),
+    };
+    let smoke_detail = |fallback: &str| -> String {
+        let text = std::fs::read_to_string(&transcript).unwrap_or_default();
+        let tail: String = text
+            .lines()
+            .rfind(|line| !line.trim().is_empty())
+            .unwrap_or("")
+            .chars()
+            .take(300)
+            .collect();
+        if tail.is_empty() {
+            fallback.to_string()
+        } else {
+            format!("{fallback} ({tail})")
+        }
+    };
     let mut child = Command::new(python)
         .args([
             "-c",
@@ -867,10 +899,11 @@ fn smoke_test(python: &Path) -> Result<(), RuntimeError> {
         ])
         .env("PYTHONNOUSERSITE", "1")
         .env("PYTHONDONTWRITEBYTECODE", "1")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stdout(sink(&capture))
+        .stderr(sink(&capture))
         .spawn()
         .map_err(|error| {
+            let _ = std::fs::remove_file(&transcript);
             RuntimeError::new(
                 "PYTHON_RUNTIME_SMOKE_START_FAILED",
                 format!("The managed Python runtime could not start: {error}"),
@@ -879,27 +912,31 @@ fn smoke_test(python: &Path) -> Result<(), RuntimeError> {
     let deadline = Instant::now() + Duration::from_secs(180);
     loop {
         match child.try_wait() {
-            Ok(Some(status)) if status.success() => return Ok(()),
-            Ok(Some(_)) => {
-                return Err(RuntimeError::new(
-                    "PYTHON_RUNTIME_SMOKE_FAILED",
-                    "The managed Python runtime did not pass its import check.",
-                ))
+            Ok(Some(status)) if status.success() => {
+                let _ = std::fs::remove_file(&transcript);
+                return Ok(());
+            }
+            Ok(Some(status)) => {
+                let detail = smoke_detail(&format!(
+                    "The managed Python runtime did not pass its import check; it exited with {status}"
+                ));
+                let _ = std::fs::remove_file(&transcript);
+                return Err(RuntimeError::new("PYTHON_RUNTIME_SMOKE_FAILED", detail));
             }
             Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(100)),
             Ok(None) => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return Err(RuntimeError::new(
-                    "PYTHON_RUNTIME_SMOKE_TIMEOUT",
-                    "The managed Python runtime import check timed out.",
-                ));
+                let detail = smoke_detail("The managed Python runtime import check timed out.");
+                let _ = std::fs::remove_file(&transcript);
+                return Err(RuntimeError::new("PYTHON_RUNTIME_SMOKE_TIMEOUT", detail));
             }
             Err(_) => {
+                let _ = std::fs::remove_file(&transcript);
                 return Err(RuntimeError::new(
                     "PYTHON_RUNTIME_SMOKE_FAILED",
                     "Callosum could not observe the managed Python runtime import check.",
-                ))
+                ));
             }
         }
     }

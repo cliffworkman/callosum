@@ -230,6 +230,25 @@ jobs:
           hdiutil detach "$MOUNT"
           INSTALLED="/Applications/$APP_NAME"
 
+          # Report the REAL executable rather than assuming it. mainBinaryName is unset and
+          # productName is "Callosum", so the binary is probably Contents/MacOS/Callosum and NOT
+          # callosum-shell -- but an assumed process identity is exactly what made this step lie for
+          # months (see APP_PROC below), so have CI state the fact instead.
+          echo "--- what is actually inside the bundle ---"
+          ls -l "$INSTALLED/Contents/MacOS/" || true
+          # Match on the bundle's executable PATH. `pgrep -f "$APP_NAME"` cannot distinguish the app
+          # from the `open "/Applications/Callosum.app"` command that launches it -- both contain
+          # "Callosum.app" in their argv -- so every previous "process launched" reading may have been
+          # detecting a HUNG `open` (inc 395 recorded one hanging 25+ minutes on a Gatekeeper dialog),
+          # not the app. This pattern appears in `open`'s argument but never as its own executable.
+          APP_PROC="$APP_NAME/Contents/MacOS/"
+
+          app_running() { pgrep -f "$APP_PROC" >/dev/null 2>&1; }
+          report_processes() {
+            echo "  app processes:  $(pgrep -fl "$APP_PROC" 2>/dev/null || echo '(none)')"
+            echo "  open processes: $(pgrep -fl "^/usr/bin/open|[[:space:]]open " 2>/dev/null || echo '(none)')"
+          }
+
           # GitHub's own checkout/build never applies a quarantine flag, but a real download (email,
           # Slack, a browser) does -- tag it manually so this test faces the same Gatekeeper posture
           # the labmate actually will, not the more lenient "locally built" posture.
@@ -251,8 +270,9 @@ jobs:
           # (captured a permission-request dialog instead of the real window) -- try sudo first,
           # since root sometimes has a separate, already-granted TCC profile on these runners.
           sudo screencapture -x /tmp/1-after-open-while-quarantined.png || screencapture -x /tmp/1-after-open-while-quarantined.png || true
-          if pgrep -f "$APP_NAME" >/dev/null; then
-            echo "UNEXPECTED: process launched despite quarantine"
+          report_processes
+          if app_running; then
+            echo "UNEXPECTED: the app itself launched despite quarantine"
           else
             echo "CONFIRMED: Gatekeeper blocked the plain-open attempt, as FIRST-LAUNCH-NOTE.md describes"
           fi
@@ -266,6 +286,9 @@ jobs:
 
           open "$INSTALLED" &
           disown
+          sleep 10
+          echo "--- did the app itself actually start this time? ---"
+          report_processes
           echo "--- waiting for the real backend to report healthy ---"
           ready=0
           # A fresh runner intentionally exercises first-use runtime download + verification.
@@ -295,11 +318,33 @@ jobs:
             echo "::warning::backend never reported healthy within the wait budget (known macOS-only gap)"
           fi
 
-          pkill -f "$APP_NAME" || true
           if [ "$ready" != "1" ]; then
+            echo "===== #74 DIAGNOSTICS ====="
+            echo "--- process state at failure ---"
+            report_processes
+            # An `open`-launched app is detached, so its stdout/stderr and any Rust panic never reach
+            # this log -- which is why this step has produced no explanation in months. The unified log
+            # is the macOS-native way to read a detached app's output.
+            echo "--- unified log for the app process ---"
+            EXE=$(basename "$(ls "$INSTALLED/Contents/MacOS/" | head -1)" 2>/dev/null || echo Callosum)
+            log show --predicate "process == \"$EXE\"" --last 25m --info --debug 2>/dev/null | tail -n 120 \
+              || echo "(no unified-log entries for process $EXE)"
+            # If the app started and died, the reason is here.
+            echo "--- crash reports ---"
+            ls -lt "$HOME/Library/Logs/DiagnosticReports/" 2>/dev/null | head -10 || echo "(none)"
+            find "$HOME/Library/Logs/DiagnosticReports" -name "*allosum*" -o -name "*$EXE*" 2>/dev/null \
+              | head -3 | while read -r report; do echo "--- $report ---"; head -n 60 "$report"; done
+            # Absent today because the backend never spawns; kept so the picture is complete once it does.
+            echo "--- backend.log (expected empty while the failure precedes backend spawn) ---"
             find "$HOME/Library/Application Support" -name backend.log -type f \
               -exec sh -c 'echo "--- $1 ---"; tail -n 120 "$1"' _ {} \; || true
+            echo "--- did the runtime get provisioned at all? ---"
+            ls -la "$HOME/Library/Application Support/com.callosum.desktop/python-runtimes/" 2>/dev/null \
+              || echo "(no python-runtimes directory — ensure_runtime never completed)"
+            echo "===== END #74 DIAGNOSTICS ====="
           fi
+
+          pkill -f "$APP_PROC" || true
 
       - name: Upload verification screenshots + Gatekeeper logs
         if: always()
