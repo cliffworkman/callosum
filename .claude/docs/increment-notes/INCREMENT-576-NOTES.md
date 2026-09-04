@@ -28,9 +28,9 @@ instead of repairing the stale attachment location.
 - Focused backend/frontend/help tests: 183 passed before the final shared-tree integration.
 - Real Chromium recovery smoke: passed; it opened the cause-specific reader state, copied the repair path into the
   watched-folders flow, and opened the native folder browser.
-- Root suite: 2801 passed, 4 skipped; its three failures were the expected stale generated frontend and website/demo
-  review receipts after concurrent updater work. Those generated artifacts and review receipts are rebuilt and
-  independently rechecked after this feature commit.
+- Clean-worktree root suite: **2824 passed, 5 skipped** after mounting the repository's intentionally gitignored,
+  already-generated `dist-demo/` deployment artifact. The first isolated run's sole failure was that missing test
+  prerequisite; its exact three-case destination test then passed before the full green rerun.
 - Ruff format/check, Bandit, Tach, line-budget, and `git diff --check`: passed before final receipt refresh.
 
 ## Manual recovery path
