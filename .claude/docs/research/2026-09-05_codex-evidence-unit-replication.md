@@ -1,7 +1,9 @@
 # Independent Evidence-Unit / PDF Reconstruction Replication
 
-Date: 2026-09-05  
-Status: independent findings frozen; no production implementation  
+Date: 2026-09-05
+
+Status: independent findings frozen; no production implementation
+
 Deterministic seed: `20260905`
 
 ## 1. Executive Summary
