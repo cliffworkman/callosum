@@ -12,6 +12,7 @@ import json
 import math
 import random
 import sqlite3
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Iterable
@@ -21,6 +22,7 @@ import fitz
 SEED = 20260905
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / ".local" / "h1b-source-component-audit"
+sys.path.insert(0, str(ROOT))
 FLOAT_TOLERANCE_PT = 0.0001
 DIRECTION_TOLERANCE = 0.000001
 DERIVATION_VERSION = "source-components-v1"
@@ -88,9 +90,14 @@ def snapshot(db: Path, output: Path) -> dict[str, Any]:
         # Hash sqlite-vec's ordinary shadow tables directly. Opening the virtual root with the
         # stdlib sqlite3 module requires loading vec0; the row-id and vector blobs we need for an
         # invariant live in the shadow tables and are readable without executing an extension.
-        targets = ["chunks", "embeddings", "attachments"] + sorted(
-            name for name in tables if name.startswith("callosum_vec_embeddings_384_")
-        )
+        targets = [
+            "chunks",
+            "embeddings",
+            "attachments",
+            "source_pages",
+            "source_components",
+            "paper_figures",
+        ] + sorted(name for name in tables if name.startswith("callosum_vec_embeddings_384_"))
         for name in targets:
             if name not in tables:
                 continue
@@ -348,7 +355,18 @@ def _compare_scalar(field: str, left: Any, right: Any) -> tuple[bool, bool]:
 
 
 def _compare_trees(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
-    fields = ("page_number", "width", "height", "rotation")
+    fields = ["page_number", "width", "height", "rotation"]
+    fields.extend(
+        field
+        for field in (
+            "coordinate_system",
+            "extraction_tool",
+            "extraction_version",
+            "derivation_version",
+            "source_checksum",
+        )
+        if field in right
+    )
     counts: Counter[str] = Counter()
     mismatches: Counter[str] = Counter()
     tolerant: Counter[str] = Counter()
@@ -433,13 +451,18 @@ def _raw_tree(page: fitz.Page) -> dict[str, Any]:
             "dir_y": None,
             "wmode": None,
         }
-        components.append(base)
         if block_type == 1:
+            components.append(base)
             continue
+        valid_lines = []
         for line_order, line in enumerate(block.get("lines", []) or []):
             spans = [s for s in (line.get("spans", []) or []) if s.get("text", "")]
-            if not spans:
-                continue
+            if spans:
+                valid_lines.append((line_order, line, spans))
+        if not valid_lines:
+            continue
+        components.append(base)
+        for line_order, line, _spans in valid_lines:
             line_bbox = tuple(line.get("bbox", (None, None, None, None)))[:4]
             direction = line.get("dir")
             dir_x = dir_y = None
@@ -525,11 +548,11 @@ def _column_proxy(tree: dict[str, Any]) -> str:
     substantial = [row for row in blocks if float(row["x1"] - row["x0"]) >= width * 0.2]
     if len(substantial) < 4:
         return "uncertain"
-    centers = sorted((float(row["x0"] + row["x1"]) / 2, row) for row in substantial)
+    centers = sorted((float(row["x0"] + row["x1"]) / 2, index, row) for index, row in enumerate(substantial))
     gaps = [(centers[i + 1][0] - centers[i][0], i) for i in range(len(centers) - 1)]
     gap, index = max(gaps, default=(0.0, 0))
-    left = [row for _, row in centers[: index + 1]]
-    right = [row for _, row in centers[index + 1 :]]
+    left = [row for _, _, row in centers[: index + 1]]
+    right = [row for _, _, row in centers[index + 1 :]]
     if gap >= width * 0.18 and len(left) >= 2 and len(right) >= 2:
         overlap = 0
         for a in left:
@@ -743,7 +766,7 @@ def raw_sample(db: Path, output: Path) -> dict[str, Any]:
         }
         cases = []
         missing = Counter()
-        for (attachment_id, page_number), labels in sorted(selected.items())[:30]:
+        for (attachment_id, page_number), labels in sorted(selected.items()):
             target = targets.get(attachment_id)
             if target is None:
                 missing["attachment_not_live"] += 1
@@ -853,6 +876,61 @@ def artifact_hashes(output: Path) -> dict[str, Any]:
     return result
 
 
+def _vector_queries(db: Path, query_ids: list[int]) -> list[dict[str, Any]]:
+    import sqlite_vec
+
+    conn = sqlite3.connect(f"file:{db.resolve().as_posix()}?mode=ro", uri=True)
+    conn.enable_load_extension(True)
+    try:
+        sqlite_vec.load(conn)
+    finally:
+        conn.enable_load_extension(False)
+    results = []
+    for query_id in query_ids:
+        row = conn.execute("SELECT embedding FROM callosum_vec_embeddings_384 WHERE rowid=?", (query_id,)).fetchone()
+        if row is None:
+            continue
+        hits = conn.execute(
+            """
+            SELECT rowid,distance FROM callosum_vec_embeddings_384
+            WHERE embedding MATCH ? ORDER BY distance LIMIT 20
+            """,
+            (row[0],),
+        ).fetchall()
+        results.append(
+            {
+                "query_embedding_id": query_id,
+                "hits": [[int(hit[0]), float(hit[1]).hex()] for hit in hits],
+            }
+        )
+    conn.close()
+    return results
+
+
+def retrieval_identity(before: Path, after: Path, output: Path) -> dict[str, Any]:
+    with _connect(before) as conn:
+        query_ids = [
+            int(row[0])
+            for row in conn.execute("SELECT rowid FROM callosum_vec_embeddings_384_rowids ORDER BY rowid LIMIT 10")
+        ]
+    left = _vector_queries(before, query_ids)
+    right = _vector_queries(after, query_ids)
+    result = {
+        "schema": "codex-h1b-retrieval-identity-v1",
+        "query_ids": query_ids,
+        "queries_compared": len(left),
+        "exactly_equal": left == right,
+        "before_sha256": hashlib.sha256(
+            json.dumps(left, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest(),
+        "after_sha256": hashlib.sha256(
+            json.dumps(right, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest(),
+    }
+    output.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
@@ -864,6 +942,10 @@ def main() -> None:
             item.add_argument("--attachment-id", type=int, action="append", required=True)
     hashes = sub.add_parser("artifact-hashes")
     hashes.add_argument("--out", type=Path, required=True)
+    retrieval = sub.add_parser("retrieval-identity")
+    retrieval.add_argument("--before", type=Path, required=True)
+    retrieval.add_argument("--after", type=Path, required=True)
+    retrieval.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "snapshot":
         result = snapshot(args.db, args.out)
@@ -875,8 +957,10 @@ def main() -> None:
         result = raw_sample(args.db, args.out)
     elif args.command == "locator":
         result = locator_snapshot(args.db, args.attachment_id, args.out)
-    else:
+    elif args.command == "artifact-hashes":
         result = artifact_hashes(args.out)
+    else:
+        result = retrieval_identity(args.before, args.after, args.out)
     print(json.dumps(result, indent=2))
 
 
