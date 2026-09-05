@@ -18,6 +18,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+import fitz
+
 SEED = 20260905
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / ".local" / "evidence-unit-replication"
@@ -259,9 +261,18 @@ def sample() -> None:
             used.add(row["chunk_id"])
 
     stress_order = [
-        "short_truncated", "heading_body", "body_null_unknown_scientific", "results_prose",
-        "methods_statistics", "captions_panels", "simple_table", "complex_table",
-        "isolated_rows_cells", "significance_footnotes", "multi_column", "multi_page_table",
+        "short_truncated",
+        "heading_body",
+        "body_null_unknown_scientific",
+        "results_prose",
+        "methods_statistics",
+        "captions_panels",
+        "simple_table",
+        "complex_table",
+        "isolated_rows_cells",
+        "significance_footnotes",
+        "multi_column",
+        "multi_page_table",
     ]
     stress_available: dict[str, int] = {}
     for tag in stress_order:
@@ -286,7 +297,9 @@ def sample() -> None:
     n_by_type = Counter(row["chunk_type"] for row in rows)
     for index, (arm, stratum, row) in enumerate(selected):
         case_id = id_for_index[index]
-        probability = allocation.get(row["chunk_type"], 0) / n_by_type[row["chunk_type"]] if arm == "probability" else None
+        probability = (
+            allocation.get(row["chunk_type"], 0) / n_by_type[row["chunk_type"]] if arm == "probability" else None
+        )
         item = {
             "case_id": case_id,
             "arm": arm,
@@ -298,11 +311,28 @@ def sample() -> None:
             "text_sha256": _sha(row["text"]),
         }
         private.append(item)
-        safe.append({key: item[key] for key in (
-            "case_id", "arm", "primary_stratum", "secondary_tags", "inclusion_probability",
-            "paper_id", "attachment_id", "chunk_id", "page_start", "page_end", "chunk_type",
-            "evidence_role", "text_sha256", "source_attachment_checksum", "chunk_version",
-        )})
+        safe.append(
+            {
+                key: item[key]
+                for key in (
+                    "case_id",
+                    "arm",
+                    "primary_stratum",
+                    "secondary_tags",
+                    "inclusion_probability",
+                    "paper_id",
+                    "attachment_id",
+                    "chunk_id",
+                    "page_start",
+                    "page_end",
+                    "chunk_type",
+                    "evidence_role",
+                    "text_sha256",
+                    "source_attachment_checksum",
+                    "chunk_version",
+                )
+            }
+        )
         pass_a.append({"case_id": case_id, "text": row["text"]})
     rng.shuffle(pass_a)
 
@@ -329,9 +359,10 @@ def sample() -> None:
         ("sample-summary.json", summary),
     ):
         (OUT / name).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    hashes = {name: _file_sha(OUT / name) for name in (
-        "sample-private.json", "sample-manifest.json", "pass-a-blind.json", "sample-summary.json"
-    )}
+    hashes = {
+        name: _file_sha(OUT / name)
+        for name in ("sample-private.json", "sample-manifest.json", "pass-a-blind.json", "sample-summary.json")
+    }
     (OUT / "sample-hashes.json").write_text(json.dumps(hashes, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
     print(json.dumps(hashes, indent=2))
@@ -342,20 +373,287 @@ def sample() -> None:
 # every judgment reproducible without placing source text in a tracked artifact.
 PASS_A_SAMPLE_SHA256 = "18d42df6ab344706e60aa1fb3bf51826a28def0e92fd9ba1ca1ced2912f3b97a"
 PASS_A_PROPOSITION_YES = {
-    2, 9, 14, 18, 23, 26, 29, 42, 50, 64, 68, 70, 72, 75, 88, 92, 93, 95,
-    102, 104, 110, 112, 113, 118, 119, 126, 128, 136, 151, 154, 160, 164,
-    170, 173, 179,
+    2,
+    9,
+    14,
+    18,
+    23,
+    26,
+    29,
+    42,
+    50,
+    64,
+    68,
+    70,
+    72,
+    75,
+    88,
+    92,
+    93,
+    95,
+    102,
+    104,
+    110,
+    112,
+    113,
+    118,
+    119,
+    126,
+    128,
+    136,
+    151,
+    154,
+    160,
+    164,
+    170,
+    173,
+    179,
 }
 PASS_A_MEANING_YES = PASS_A_PROPOSITION_YES | {
-    6, 7, 20, 22, 28, 31, 36, 41, 47, 48, 51, 55, 57, 67, 71, 73, 76, 77,
-    81, 83, 84, 86, 89, 94, 97, 98, 99, 101, 106, 111, 114, 116, 117, 123,
-    125, 131, 132, 134, 138, 140, 147, 150, 152, 158, 163, 167, 175,
+    6,
+    7,
+    20,
+    22,
+    28,
+    31,
+    36,
+    41,
+    47,
+    48,
+    51,
+    55,
+    57,
+    67,
+    71,
+    73,
+    76,
+    77,
+    81,
+    83,
+    84,
+    86,
+    89,
+    94,
+    97,
+    98,
+    99,
+    101,
+    106,
+    111,
+    114,
+    116,
+    117,
+    123,
+    125,
+    131,
+    132,
+    134,
+    138,
+    140,
+    147,
+    150,
+    152,
+    158,
+    163,
+    167,
+    175,
 }
 PASS_A_MEANING_AMBIGUOUS = {
-    3, 5, 12, 16, 19, 21, 24, 30, 32, 34, 37, 38, 40, 43, 44, 45, 49,
-    52, 54, 58, 59, 60, 63, 66, 71, 74, 79, 85, 87, 91, 100, 108, 109,
-    120, 121, 122, 124, 127, 135, 137, 139, 144, 145, 149, 153, 165, 169,
-    177, 178,
+    3,
+    5,
+    12,
+    16,
+    19,
+    21,
+    24,
+    30,
+    32,
+    34,
+    37,
+    38,
+    40,
+    43,
+    44,
+    45,
+    49,
+    52,
+    54,
+    58,
+    59,
+    60,
+    63,
+    66,
+    71,
+    74,
+    79,
+    85,
+    87,
+    91,
+    100,
+    108,
+    109,
+    120,
+    121,
+    122,
+    124,
+    127,
+    135,
+    137,
+    139,
+    144,
+    145,
+    149,
+    153,
+    165,
+    169,
+    177,
+    178,
+}
+
+# Pass-B investigator coding was made after inspecting DB neighborhoods, stored geometry, the
+# reread PyMuPDF hierarchy, and targeted rendered-page checks. It intentionally distinguishes
+# proposition recovery from preserving a context-only component (heading/caption/axis label).
+PASS_B_CURRENT_RECOVERABLE = {
+    # conservative same-column prose reunion
+    11,
+    22,
+    28,
+    36,
+    76,
+    77,
+    83,
+    86,
+    97,
+    116,
+    147,
+    163,
+    175,
+    176,
+    # data-bearing table rows whose labels/context can be associated from stored page geometry
+    3,
+    16,
+    21,
+    37,
+    52,
+    60,
+    67,
+    79,
+    85,
+    87,
+    91,
+    109,
+    139,
+}
+PASS_B_CURRENT_AMBIGUOUS_PDF_RECOVERABLE = {
+    # fragmented/complex tables: the values survive, but safe row/column or continuation identity
+    # is not explicit in current storage; PDF hierarchy or visual geometry resolves the sampled case
+    19,
+    30,
+    38,
+    40,
+    54,
+    66,
+    74,
+    100,
+    108,
+    111,
+    124,
+    127,
+    # multi-column / cross-page prose whose semantic reading order is not emitted order
+    6,
+    114,
+}
+PASS_B_CONTEXT_COMPONENT_ONLY = {
+    # headings, table/figure captions, column headers, and structural labels that should be linked
+    # to evidence but are not themselves a recovered scientific proposition
+    7,
+    17,
+    20,
+    31,
+    39,
+    47,
+    48,
+    51,
+    55,
+    57,
+    59,
+    61,
+    73,
+    78,
+    94,
+    98,
+    101,
+    106,
+    117,
+    121,
+    123,
+    131,
+    134,
+    138,
+    150,
+    152,
+    158,
+    167,
+}
+PASS_B_UNRESOLVED_SCIENTIFIC_FRAGMENT = {
+    # equations, unlabeled chart/table fragments, or orphan values for which adding nearby text
+    # would still require an unsafe semantic inference in this sample
+    5,
+    10,
+    12,
+    24,
+    32,
+    34,
+    43,
+    44,
+    45,
+    49,
+    58,
+    63,
+    71,
+    122,
+    132,
+    135,
+    137,
+    144,
+    145,
+    149,
+    153,
+    165,
+    169,
+    177,
+    178,
+}
+PASS_B_FALSE_JOIN_HAZARDS: dict[int, list[str]] = {
+    5: ["figure_axis_misclassified_as_table", "wrong_caption_or_table_semantics"],
+    6: ["cross_page_continuation", "cross_column_neighbor"],
+    19: ["wrong_row_or_column"],
+    30: ["wrong_row_or_column", "multi_page_table_context"],
+    34: ["figure_axis_misclassified_as_table"],
+    38: ["wrong_row_or_column", "wrong_table_caption"],
+    40: ["wrong_row_or_column"],
+    43: ["figure_axis_misclassified_as_table"],
+    44: ["figure_axis_misclassified_as_table"],
+    45: ["figure_axis_misclassified_as_table"],
+    54: ["wrong_row_or_column", "multi_page_table_context"],
+    66: ["wrong_row_or_column", "multi_page_table_context"],
+    68: ["body_prose_near_table"],
+    74: ["wrong_row_or_column"],
+    85: ["two_side_by_side_tables"],
+    91: ["multi_page_table_context", "wrong_row_or_column"],
+    100: ["wrong_row_or_column"],
+    104: ["cross_column_neighbor", "cross_page_continuation"],
+    108: ["wrong_row_or_column"],
+    109: ["wrong_row_or_column", "multiple_nearby_captions"],
+    111: ["wrong_row_or_column", "duplicate_interaction_label"],
+    114: ["cross_column_neighbor", "emitted_order_reversal"],
+    122: ["figure_axis_misclassified_as_table"],
+    124: ["wrong_row_or_column"],
+    127: ["wrong_row_or_column", "multi_page_table_context"],
+    137: ["figure_panel_label_misclassified_as_table"],
+    139: ["wrong_row_or_column", "multiple_nearby_tables"],
+    144: ["figure_axis_misclassified_as_table"],
+    147: ["cross_column_neighbor"],
 }
 
 
@@ -418,14 +716,405 @@ def rate_pass_a() -> None:
     print(json.dumps(summary, indent=2))
 
 
+def rate_pass_b() -> None:
+    cases = json.loads((OUT / "revealed-context.json").read_text(encoding="utf-8"))
+    pass_a_order = json.loads((OUT / "pass-a-blind.json").read_text(encoding="utf-8"))
+    by_code = {case["case_id"]: case for case in cases}
+    if len(by_code) != 180 or len(pass_a_order) != 180:
+        raise RuntimeError("Pass-B inputs must contain the frozen 180-case sample")
+    ratings = []
+    for index, blind in enumerate(pass_a_order):
+        case = by_code[blind["case_id"]]
+        proposition = case["pass_a"]["standalone_proposition_bearing"]
+        meaningful = case["pass_a"]["scientifically_meaningful_as_extracted"]
+        if proposition == "yes":
+            current = pdf = "already_proposition_bearing"
+            representation = "authoritative_source_text"
+        elif index in PASS_B_CURRENT_RECOVERABLE:
+            current = pdf = "faithfully_reconstructable"
+            representation = "derived_multi_region_evidence_unit"
+        elif index in PASS_B_CURRENT_AMBIGUOUS_PDF_RECOVERABLE:
+            current = "ambiguous_not_safe_to_activate"
+            pdf = "faithfully_reconstructable"
+            representation = "derived_multi_region_evidence_unit"
+        elif index in PASS_B_CONTEXT_COMPONENT_ONLY:
+            current = pdf = "context_component_only"
+            representation = "linked_source_component"
+        elif index in PASS_B_UNRESOLVED_SCIENTIFIC_FRAGMENT or meaningful == "ambiguous":
+            current = pdf = "unresolved_without_semantic_inference"
+            representation = "preserve_ambiguity"
+        else:
+            current = pdf = "not_target_scientific_evidence"
+            representation = "exclude_from_evidence_units"
+        ratings.append(
+            {
+                "case_id": case["case_id"],
+                "current_storage_recoverability": current,
+                "pdf_reread_recoverability": pdf,
+                "expected_representation": representation,
+                "false_join_hazards": PASS_B_FALSE_JOIN_HAZARDS.get(index, []),
+                "pdf_derived_provenance_confirmed": case["pdf_status"] == "read",
+            }
+        )
+    payload = {
+        "schema": "evidence-unit-pass-b-ratings-v1",
+        "pass_a_ratings_sha256": "acce3518863d44fb71706a050339392fc0c97e33c7f54e60af8d98c94a37253b",
+        "ratings": ratings,
+    }
+    target = OUT / "pass-b-ratings.json"
+    target.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    summary = {
+        "ratings": len(ratings),
+        "current_storage_recoverability": dict(Counter(x["current_storage_recoverability"] for x in ratings)),
+        "pdf_reread_recoverability": dict(Counter(x["pdf_reread_recoverability"] for x in ratings)),
+        "cases_with_false_join_hazard": sum(bool(x["false_join_hazards"]) for x in ratings),
+        "false_join_hazards": dict(Counter(h for x in ratings for h in x["false_join_hazards"])),
+        "sha256": _file_sha(target),
+    }
+    (OUT / "pass-b-summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    print(json.dumps(summary, indent=2))
+
+
+def _pdf_block_text(block: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
+    lines: list[str] = []
+    exported_spans: list[dict[str, Any]] = []
+    for line_number, line in enumerate(block.get("lines", [])):
+        parts: list[str] = []
+        for span_number, span in enumerate(line.get("spans", [])):
+            text = str(span.get("text", ""))
+            parts.append(text)
+            if text.strip():
+                exported_spans.append(
+                    {
+                        "line": line_number,
+                        "span": span_number,
+                        "text": text,
+                        "bbox": [float(v) for v in span.get("bbox", (0, 0, 0, 0))],
+                        "font": span.get("font"),
+                        "size": span.get("size"),
+                        "flags": span.get("flags"),
+                    }
+                )
+        joined = "".join(parts).strip()
+        if joined:
+            lines.append(joined)
+    return "\n".join(lines).strip(), exported_spans
+
+
+def _safe_pdf_path(case: dict[str, Any]) -> Path | None:
+    for value in (case.get("resolved_path"), case.get("original_path")):
+        if not value:
+            continue
+        path = Path(value)
+        if not path.is_absolute():
+            path = ROOT / path
+        if path.is_file():
+            return path
+    return None
+
+
+def reveal_context() -> None:
+    """Reveal identifiers/context only after the committed Pass-A blindness boundary."""
+    private = json.loads((OUT / "sample-private.json").read_text(encoding="utf-8"))
+    rating_payload = json.loads((OUT / "pass-a-ratings.json").read_text(encoding="utf-8"))
+    ratings = {item["case_id"]: item for item in rating_payload["ratings"]}
+    if _file_sha(OUT / "pass-a-ratings.json") != "acce3518863d44fb71706a050339392fc0c97e33c7f54e60af8d98c94a37253b":
+        raise RuntimeError("Pass-A ratings changed after freeze")
+
+    with _connect() as conn:
+        all_rows = [
+            dict(row)
+            for row in conn.execute(
+                "SELECT id chunk_id,attachment_id,paper_id,page_start,page_end,text,section,bbox_json "
+                "FROM chunks ORDER BY attachment_id,page_start,id"
+            ).fetchall()
+        ]
+    by_attachment: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for row in all_rows:
+        row["bbox_json"] = _spans(row["bbox_json"])
+        by_attachment[int(row["attachment_id"])].append(row)
+    position = {
+        int(row["chunk_id"]): (attachment_id, index)
+        for attachment_id, rows in by_attachment.items()
+        for index, row in enumerate(rows)
+    }
+
+    documents: dict[str, fitz.Document] = {}
+    cases: list[dict[str, Any]] = []
+    try:
+        for case in private:
+            attachment_id, index = position[int(case["chunk_id"])]
+            ordered = by_attachment[attachment_id]
+            db_neighbors = []
+            for offset in (-3, -2, -1, 1, 2, 3):
+                candidate_index = index + offset
+                if 0 <= candidate_index < len(ordered):
+                    row = ordered[candidate_index]
+                    db_neighbors.append(
+                        {
+                            "offset": offset,
+                            "chunk_id": row["chunk_id"],
+                            "page": row["page_start"],
+                            "section": row["section"],
+                            "text": row["text"],
+                            "bbox_json": row["bbox_json"],
+                        }
+                    )
+
+            pdf_path = _safe_pdf_path(case)
+            page_export: dict[str, Any] | None = None
+            pdf_status = "missing"
+            if pdf_path is not None:
+                key = str(pdf_path)
+                if key not in documents:
+                    documents[key] = fitz.open(pdf_path)
+                document = documents[key]
+                page_index = int(case["page_start"]) - 1
+                if 0 <= page_index < document.page_count:
+                    page = document[page_index]
+                    text_dict = page.get_text("dict", sort=True)
+                    pdf_blocks = []
+                    for block_number, block in enumerate(text_dict.get("blocks", [])):
+                        if block.get("type") != 0:
+                            continue
+                        block_text, spans = _pdf_block_text(block)
+                        if block_text:
+                            pdf_blocks.append(
+                                {
+                                    "block": block_number,
+                                    "bbox": [float(v) for v in block.get("bbox", (0, 0, 0, 0))],
+                                    "text": block_text,
+                                    "normalized_text": " ".join(block_text.split()),
+                                    "spans": spans,
+                                }
+                            )
+                    target_blocks = sorted(
+                        {
+                            int(span["block"])
+                            for span in case.get("bbox_json", [])
+                            if isinstance(span, dict) and "block" in span
+                        }
+                    )
+                    page_export = {
+                        "page": int(case["page_start"]),
+                        "width": float(page.rect.width),
+                        "height": float(page.rect.height),
+                        "target_block_numbers": target_blocks,
+                        "blocks": pdf_blocks,
+                    }
+                    pdf_status = "read"
+            cases.append(
+                {
+                    **case,
+                    "pass_a": ratings[case["case_id"]],
+                    "db_neighbors": db_neighbors,
+                    "pdf_status": pdf_status,
+                    "pdf_page": page_export,
+                }
+            )
+    finally:
+        for document in documents.values():
+            document.close()
+
+    target = OUT / "revealed-context.json"
+    target.write_text(json.dumps(cases, ensure_ascii=False, indent=2), encoding="utf-8")
+    status = Counter(case["pdf_status"] for case in cases)
+    match = Counter()
+    for case in cases:
+        page = case["pdf_page"] or {}
+        targets = set(page.get("target_block_numbers", []))
+        blocks = [b for b in page.get("blocks", []) if b["block"] in targets]
+        exact = any(b["normalized_text"] == case["text"] for b in blocks)
+        any_exact = any(b["normalized_text"] == case["text"] for b in page.get("blocks", []))
+        match["target_block_exact" if exact else "target_block_not_exact"] += 1
+        if any_exact:
+            match["page_any_exact"] += 1
+    summary = {
+        "cases": len(cases),
+        "pdf_status": dict(status),
+        "block_match": dict(match),
+        "sha256": _file_sha(target),
+    }
+    (OUT / "revealed-context-summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    print(json.dumps(summary, indent=2))
+
+
+def _union_box(spans: list[dict[str, Any]]) -> fitz.Rect | None:
+    if not spans:
+        return None
+    try:
+        return fitz.Rect(
+            min(float(span["x0"]) for span in spans),
+            min(float(span["y0"]) for span in spans),
+            max(float(span["x1"]) for span in spans),
+            max(float(span["y1"]) for span in spans),
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def measure_reread() -> None:
+    """Measure information regained by deterministic PDF reread; makes no production writes."""
+    cases = json.loads((OUT / "revealed-context.json").read_text(encoding="utf-8"))
+    with _connect() as conn:
+        rows = [
+            dict(row)
+            for row in conn.execute(
+                "SELECT id chunk_id,attachment_id,page_start,text,bbox_json FROM chunks ORDER BY id"
+            ).fetchall()
+        ]
+    page_chunks: dict[tuple[int, int], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        row["bbox_json"] = _spans(row["bbox_json"])
+        page_chunks[(int(row["attachment_id"]), int(row["page_start"]))].append(row)
+
+    page_specs: dict[tuple[int, int], dict[str, Any]] = {}
+    for case in cases:
+        page_specs[(int(case["attachment_id"]), int(case["page_start"]))] = case
+    page_results: dict[tuple[int, int], dict[str, Any]] = {}
+    documents: dict[str, fitz.Document] = {}
+    try:
+        for key, exemplar in page_specs.items():
+            path = _safe_pdf_path(exemplar)
+            if path is None:
+                page_results[key] = {"status": "missing"}
+                continue
+            path_key = str(path)
+            if path_key not in documents:
+                documents[path_key] = fitz.open(path)
+            page = documents[path_key][key[1] - 1]
+            text_dict = page.get_text("dict", sort=True)
+            blocks = []
+            for block_number, block in enumerate(text_dict.get("blocks", [])):
+                if block.get("type") != 0:
+                    continue
+                text_value, spans = _pdf_block_text(block)
+                if text_value.strip():
+                    blocks.append(
+                        {
+                            "block": block_number,
+                            "bbox": [float(v) for v in block.get("bbox", (0, 0, 0, 0))],
+                            "text": text_value,
+                            "normalized_text": " ".join(text_value.split()),
+                            "spans": spans,
+                        }
+                    )
+            stored = page_chunks.get(key, [])
+            stored_texts = Counter(" ".join((row["text"] or "").split()) for row in stored)
+            unmatched = []
+            remaining = stored_texts.copy()
+            for block in blocks:
+                normalized = block["normalized_text"]
+                if remaining[normalized] > 0:
+                    remaining[normalized] -= 1
+                else:
+                    unmatched.append(block)
+
+            tables = []
+            try:
+                for table in page.find_tables().tables:
+                    extracted = table.extract()
+                    tables.append(
+                        {
+                            "bbox": [float(v) for v in table.bbox],
+                            "row_count": int(table.row_count),
+                            "col_count": int(table.col_count),
+                            "extract": extracted,
+                        }
+                    )
+            except (AttributeError, RuntimeError, ValueError) as exc:
+                tables.append({"error": f"{type(exc).__name__}: {exc}"})
+
+            block_sequence = []
+            for row in stored:
+                numbers = sorted({int(span["block"]) for span in row["bbox_json"] if "block" in span})
+                if numbers:
+                    block_sequence.append((int(row["chunk_id"]), numbers[0]))
+            inversions = sum(
+                left[1] > right[1] for left, right in zip(block_sequence, block_sequence[1:], strict=False)
+            )
+            page_results[key] = {
+                "status": "read",
+                "width": float(page.rect.width),
+                "height": float(page.rect.height),
+                "pdf_text_blocks": len(blocks),
+                "stored_chunks": len(stored),
+                "unmatched_pdf_blocks": unmatched,
+                "stored_id_block_inversions": inversions,
+                "tables": tables,
+            }
+    finally:
+        for document in documents.values():
+            document.close()
+
+    case_results = []
+    for case in cases:
+        key = (int(case["attachment_id"]), int(case["page_start"]))
+        page_result = page_results[key]
+        target_box = _union_box(case.get("bbox_json", []))
+        intersecting = []
+        if target_box is not None:
+            for table_index, table in enumerate(page_result.get("tables", [])):
+                if "bbox" in table and fitz.Rect(table["bbox"]).intersects(target_box):
+                    flat = " ".join(str(cell or "") for row in table.get("extract", []) for cell in (row or []))
+                    intersecting.append(
+                        {
+                            "table_index": table_index,
+                            "row_count": table["row_count"],
+                            "col_count": table["col_count"],
+                            "target_text_in_extract": " ".join(case["text"].split()) in " ".join(flat.split()),
+                        }
+                    )
+        case_results.append(
+            {
+                "case_id": case["case_id"],
+                "intersecting_tables": intersecting,
+                "pdf_unmatched_block_count": len(page_result.get("unmatched_pdf_blocks", [])),
+                "page_id_block_inversions": page_result.get("stored_id_block_inversions"),
+            }
+        )
+
+    serial_pages = {f"{attachment_id}:{page}": value for (attachment_id, page), value in page_results.items()}
+    payload = {"schema": "evidence-unit-reread-measurement-v1", "pages": serial_pages, "cases": case_results}
+    target = OUT / "reread-measurements.json"
+    target.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    table_cases = [case for case in case_results if case["intersecting_tables"]]
+    summary = {
+        "sample_pages": len(page_results),
+        "pages_read": sum(value.get("status") == "read" for value in page_results.values()),
+        "pages_with_unmatched_pdf_blocks": sum(
+            bool(value.get("unmatched_pdf_blocks")) for value in page_results.values()
+        ),
+        "unmatched_pdf_blocks": sum(len(value.get("unmatched_pdf_blocks", [])) for value in page_results.values()),
+        "pages_with_id_block_inversions": sum(
+            bool(value.get("stored_id_block_inversions")) for value in page_results.values()
+        ),
+        "id_block_inversions": sum(value.get("stored_id_block_inversions", 0) for value in page_results.values()),
+        "pages_with_detected_tables": sum(
+            any("bbox" in t for t in value.get("tables", [])) for value in page_results.values()
+        ),
+        "detected_tables": sum(sum("bbox" in t for t in value.get("tables", [])) for value in page_results.values()),
+        "sample_cases_intersecting_detected_table": len(table_cases),
+        "sha256": _file_sha(target),
+    }
+    (OUT / "reread-summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    print(json.dumps(summary, indent=2))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("sample", "pass-a-rate"))
+    parser.add_argument("command", choices=("sample", "pass-a-rate", "pass-b-rate", "reveal-context", "measure-reread"))
     args = parser.parse_args()
     if args.command == "sample":
         sample()
     elif args.command == "pass-a-rate":
         rate_pass_a()
+    elif args.command == "pass-b-rate":
+        rate_pass_b()
+    elif args.command == "reveal-context":
+        reveal_context()
+    elif args.command == "measure-reread":
+        measure_reread()
 
 
 if __name__ == "__main__":
