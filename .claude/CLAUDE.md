@@ -1034,6 +1034,47 @@ the full per-increment narrative for all other increments now lives in the reloc
   **specified, not built** (`.claude/docs/specs/2026-09-05-evidence-unit-contract.md`) — its
   load-bearing rule is that `canonical_text_contains` must never be relaxed to accept an assembled
   string. No reconstruction, merging, caption-table activation or evidence assembly exists.
+- **Source-representation completeness + durable identity, H1b.1 (inc 579):** an independent Codex
+  audit (`.claude/docs/research/2026-09-05_codex-h1b-source-component-audit.md`, frozen `7f9e4fc`)
+  validated H1b's fidelity exhaustively — 1,628/1,628 pages and 1,089,546/1,089,546 components exact
+  against both fresh production extraction and a separately-coded raw-PyMuPDF walker — and found
+  **one blocker**: with the component cap lowered, a write that persisted one page and zero
+  components was still classified *current*, because checksum and derivation version matched, so an
+  ordinary backfill would have skipped that partial graph forever. Migration 0081 adds one sibling
+  table (`source_representations`) and two columns (`source_components.component_path`,
+  `.geometry_state`). Still non-load-bearing: a test asserts nine retrieval/generation modules
+  reference none of it. Four standing rules:
+  **(a) `current` requires `complete`, and completeness is a fact about the graph, not the envelope.**
+  Identity is necessary but not sufficient: currentness additionally requires
+  `state='complete'`, every extracted page written with **none skipped**, and the rows *actually
+  present* matching the counts the record claims — for **components as well as pages**, since a
+  status row can outlive the graph it describes. No code path may infer currentness from the mere
+  existence of `source_pages`/`source_components` rows.
+  **(b) the completeness marker is written LAST**, in the same transaction as the graph, and
+  destroyed *first* on rewrite — so it can never outlive an interrupted write. A bounded partial
+  output is `truncated` (the cap now rolls back the page whose components it dropped); a page the
+  schema cannot represent is `incomplete`, **failing closed** even though that means the developer
+  backfill retries it forever — avoiding a retry loop is not a reason to call an incomplete graph
+  complete. `record_source_failure` declines when a rollback restored a still-valid representation:
+  the state of the persisted graph and the outcome of the latest attempt are different facts.
+  **(c) durable provenance names a component by `SourceLocator`, never by a row id.** A forced
+  rebuild changes every surrogate id, and worse — ids are allocated from `max(id)+1`, so a rebuilt
+  attachment holding the top of the id space is handed its **old ids back, now naming different
+  content**; a stale reference resolves successfully to the wrong thing. The locator is source
+  checksum + extraction tool + **extraction version** + derivation version + page + `component_path`
+  (`b{sorted}[/l{child}[/s{child}]]`), every constituent inspectable, and `resolve_locator` fails
+  closed on any drift. Measured zero collisions over the full corpus on the *durable identity
+  fields* — a `GROUP BY source_page_id` is only a local sanity check, since that id is replaceable.
+  **(d) raw geometry is never rewritten; validity is a separate judgment.** `geometry_state` is
+  `valid`/`invalid`/`unknown` from a tolerance **frozen at 2.0pt before corpus validation** and
+  never tuned to a count. Inverted and out-of-page bboxes keep their exact coordinates and are
+  marked unusable so a future association study fails closed.
+  Migration 0081 **promotes nothing** — a pre-H1b.1 library is `absent` until the backfill re-derives
+  it, which is both the conservative choice and the necessary one (the new columns are NULL on old
+  rows anyway). H1b.1's own cost is **+65 ms/paper** against H1b's +2.57 s/paper. Explicitly
+  deferred, not fixed: character offsets (they need a canonical page-text serialization first), and
+  every GROBID gap the audit found — table notes, cell roles, multi-page regions, grid-truncation
+  markers, richer TEI provenance.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

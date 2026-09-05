@@ -30,6 +30,26 @@ from app.backend.persistence.schema_source_components import (
     source_pages,
 )
 
+# Completeness state and durable logical identity live in a sibling module (rule #1). They are
+# re-exported below so existing call sites keep importing from one place (the inc-137/220 pattern).
+from app.backend.persistence.source_representation_repo import (
+    STATE_COMPLETE,
+    STATE_FAILED,
+    STATE_INCOMPLETE,
+    STATE_TRUNCATED,
+    SourceLocator,
+    SourceWriteReceipt,
+    _replace_representation,
+    attachments_with_current_source,
+    clear_representation,
+    is_source_current,
+    locator_for_component,
+    record_source_failure,
+    resolve_locator,
+    source_representation_for,
+    source_representation_report,
+)
+
 _log = logging.getLogger(__name__)
 
 # Rule #4 bound on untrusted input: a pathological PDF must not be able to write unbounded rows.
@@ -91,6 +111,8 @@ def _flatten(page_id: int, page: SourcePage, next_id: int) -> tuple[list[dict[st
                 "dir_x": component.dir_x,
                 "dir_y": component.dir_y,
                 "wmode": component.wmode,
+                "component_path": component.component_path,
+                "geometry_state": component.geometry_state,
             }
         )
         cursor = allocated + 1
@@ -114,78 +136,118 @@ def replace_attachment_source(
     extraction_version: str,
     source_checksum: str,
     derivation_version: str = SOURCE_DERIVATION_VERSION,
-) -> dict[str, int]:
-    """Replace every source page/component for one attachment. Idempotent."""
+) -> SourceWriteReceipt:
+    """Replace every source page/component for one attachment, then finalize its state. Idempotent.
+
+    **Finalization order is the whole point.** The completeness record is destroyed *before* the
+    graph it describes and rewritten only *after* the graph is fully persisted, inside the one
+    transaction the caller owns. So a complete marker can never outlive an interrupted write, and an
+    interruption at any point leaves either the previous committed representation or nothing.
+
+    ``expected_pages`` is what extraction produced. That proves persistence completeness relative to
+    deterministic extraction output; it is NOT an independent check that the extractor itself
+    observed every page in the PDF, which is held instead by a regression test pinning
+    ``len(extract_pdf(f).source_pages)`` to the document page count -- reading it here would mean a
+    second PDF open on the ingest critical path.
+    """
+    # The old completeness claim dies first: from here until the final insert, no row asserts that
+    # this attachment is current, whatever happens next.
+    clear_representation(conn, attachment_id)
     # CASCADE on source_pages removes the component rows; deleting the parent alone is enough.
     conn.execute(delete(source_pages).where(source_pages.c.attachment_id == attachment_id))
 
+    expected_pages = len(pages)
     written_pages = 0
+    skipped_pages = 0
     component_rows: list[dict[str, Any]] = []
-    truncated = 0
+    truncated = False
     next_id = int(conn.execute(select(func.coalesce(func.max(source_components.c.id), 0))).scalar_one()) + 1
 
     for page in pages:
         if page.width <= 0 or page.height <= 0:
-            # The schema requires positive dimensions; a degenerate page is skipped rather than
-            # failing an ingest whose chunks are perfectly usable.
+            # The schema requires positive dimensions, so this page cannot be represented at all. It
+            # is counted, never silently dropped, and it makes the representation INCOMPLETE: an
+            # unrepresentable page is not "everything representable happened to be written".
+            skipped_pages += 1
             continue
-        result = conn.execute(
-            source_pages.insert().values(
-                attachment_id=attachment_id,
-                page_number=page.page_number,
-                width=page.width,
-                height=page.height,
-                rotation=page.rotation,
-                coordinate_system=coordinate_system,
-                extraction_tool=extraction_tool,
-                extraction_version=extraction_version,
-                derivation_version=derivation_version,
-                source_checksum=source_checksum,
-            )
+        page_id = int(
+            conn.execute(
+                source_pages.insert().values(
+                    attachment_id=attachment_id,
+                    page_number=page.page_number,
+                    width=page.width,
+                    height=page.height,
+                    rotation=page.rotation,
+                    coordinate_system=coordinate_system,
+                    extraction_tool=extraction_tool,
+                    extraction_version=extraction_version,
+                    derivation_version=derivation_version,
+                    source_checksum=source_checksum,
+                )
+            ).inserted_primary_key[0]
         )
-        written_pages += 1
-        page_rows, next_id = _flatten(int(result.inserted_primary_key[0]), page, next_id)
+        page_rows, next_id = _flatten(page_id, page, next_id)
         if len(component_rows) + len(page_rows) > MAX_COMPONENTS_PER_ATTACHMENT:
-            truncated = 1
+            # Bounded partial output is NOT a complete source representation. The page row is removed
+            # with its components so the graph stays internally consistent, rather than leaving the
+            # orphan page-with-zero-components shape the independent audit caught.
+            conn.execute(delete(source_pages).where(source_pages.c.id == page_id))
+            truncated = True
             _log.warning(
-                "source components truncated at %d rows for attachment %s (page %d)",
+                "source components truncated at %d rows for attachment %s (page %d of %d)",
                 MAX_COMPONENTS_PER_ATTACHMENT,
                 attachment_id,
                 page.page_number,
+                expected_pages,
             )
             break
+        written_pages += 1
         component_rows.extend(page_rows)
 
     if component_rows:
         conn.execute(source_components.insert(), component_rows)
-    return {"pages": written_pages, "components": len(component_rows), "truncated": truncated}
 
+    if not expected_pages:
+        # "Complete representation of nothing" is a contradiction, not a success. Production never
+        # reaches here (ingest returns early and the backfill counts it as no_structure), but a
+        # direct call must not be able to mint a complete record over an empty graph.
+        state, reason = STATE_INCOMPLETE, "no_pages"
+    elif truncated:
+        # Checked ahead of the page arithmetic, and independently of it: if the cap trips on the LAST
+        # page, `written_pages == expected_pages` would otherwise still read as complete.
+        state, reason = STATE_TRUNCATED, "component_cap"
+    elif skipped_pages:
+        state, reason = STATE_INCOMPLETE, "degenerate_pages"
+    elif written_pages != expected_pages:
+        state, reason = STATE_INCOMPLETE, "page_gap"
+    else:
+        state, reason = STATE_COMPLETE, None
 
-def attachments_with_current_source(conn: Connection, derivation_version: str = SOURCE_DERIVATION_VERSION) -> set[int]:
-    """Attachment ids whose source rows are present and match the live checksum + derivation version.
-
-    This is what makes an interrupted backfill resumable without a cursor file. An attachment with
-    no rows, stale rows, or rows from an older derivation version is simply absent from the set.
-    """
-    stmt = select(
-        source_pages.c.attachment_id,
-        attachments.c.checksum,
-        source_pages.c.source_checksum,
-        source_pages.c.derivation_version,
-    ).select_from(source_pages.join(attachments, attachments.c.id == source_pages.c.attachment_id))
-    seen: set[int] = set()
-    incomplete: set[int] = set()
-    for row in conn.execute(stmt).mappings():
-        attachment_id = int(row["attachment_id"])
-        seen.add(attachment_id)
-        current = (
-            row["derivation_version"] == derivation_version
-            and (row["source_checksum"] or "") == (row["checksum"] or "")
-            and bool(row["checksum"])
-        )
-        if not current:
-            incomplete.add(attachment_id)
-    return seen - incomplete
+    receipt = SourceWriteReceipt(
+        expected_pages=expected_pages,
+        written_pages=written_pages,
+        skipped_pages=skipped_pages,
+        written_components=len(component_rows),
+        state=state,
+        state_reason=reason,
+    )
+    _replace_representation(
+        conn,
+        attachment_id,
+        {
+            "source_checksum": source_checksum,
+            "extraction_tool": extraction_tool,
+            "extraction_version": extraction_version,
+            "derivation_version": derivation_version,
+            "expected_pages": receipt.expected_pages,
+            "written_pages": receipt.written_pages,
+            "skipped_pages": receipt.skipped_pages,
+            "written_components": receipt.written_components,
+            "state": receipt.state,
+            "state_reason": receipt.state_reason,
+        },
+    )
+    return receipt
 
 
 def source_page_for(conn: Connection, attachment_id: int, page_number: int) -> StoredSourcePage | None:
@@ -285,11 +347,23 @@ def figures_for_paper(conn: Connection, paper_id: int) -> list[dict[str, Any]]:
 
 __all__ = [
     "MAX_COMPONENTS_PER_ATTACHMENT",
+    "STATE_COMPLETE",
+    "STATE_FAILED",
+    "STATE_INCOMPLETE",
+    "STATE_TRUNCATED",
+    "SourceLocator",
+    "SourceWriteReceipt",
     "StoredSourcePage",
     "attachments_with_current_source",
     "components_for_page",
     "figures_for_paper",
+    "is_source_current",
+    "locator_for_component",
+    "record_source_failure",
     "replace_attachment_source",
     "replace_paper_figures",
+    "resolve_locator",
     "source_page_for",
+    "source_representation_for",
+    "source_representation_report",
 ]

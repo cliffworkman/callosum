@@ -538,11 +538,14 @@ from app.backend.persistence.schema_reference_integrity import (  # noqa: E402,F
 # rationale and for why native and sorted block order are kept as separate columns.
 from app.backend.persistence.schema_source_components import (  # noqa: E402,F401
     FIGURE_SOURCES,
+    GEOMETRY_STATES,
     SOURCE_COMPONENT_KINDS,
     SOURCE_DERIVATION_VERSION,
+    SOURCE_REPRESENTATION_STATES,
     paper_figures,
     source_components,
     source_pages,
+    source_representations,
 )
 
 # Summary / citation-mapping / evidence-quote tables (inc 262 split) — same split rationale; re-exported so

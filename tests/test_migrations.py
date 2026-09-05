@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from sqlalchemy import Column, ForeignKey, Integer, MetaData, String, Table, Text, create_engine, inspect
+from sqlalchemy import Column, ForeignKey, Integer, MetaData, String, Table, Text, create_engine, inspect, text
 
 from alembic import command
 from alembic.config import Config
@@ -304,6 +304,9 @@ def test_0080_source_components_tables_are_at_head(tmp_path: Path) -> None:
         "dir_x",
         "dir_y",
         "wmode",
+        # inc 579 (H1b.1) additions -- see test_0081_source_representations_is_at_head
+        "component_path",
+        "geometry_state",
     }
     assert "native_order" in component_columns and "sorted_order" in component_columns
     assert {c["name"] for c in inspector.get_columns("paper_figures")} == {
@@ -329,3 +332,56 @@ def test_0080_source_components_tables_are_at_head(tmp_path: Path) -> None:
     # `chunks` gained no column: H1b is a sibling representation, never a retrofit.
     assert "source_page_id" not in {c["name"] for c in inspector.get_columns("chunks")}
     engine.dispose()
+
+
+def test_0081_source_representations_is_at_head(tmp_path: Path) -> None:
+    """H1b.1's completeness record and the two locator/geometry columns (inc 579).
+
+    Pins the shape the currentness contract depends on: the arithmetic fields must all be present,
+    because "complete" is decided from them rather than from the mere existence of source rows --
+    the defect an independent audit found in H1b.
+    """
+    db_url = f"sqlite:///{(tmp_path / 'h1b1.sqlite').as_posix()}"
+    command.upgrade(_config_for(db_url), "head")
+
+    engine = create_engine(db_url)
+    inspector = inspect(engine)
+
+    assert {c["name"] for c in inspector.get_columns("source_representations")} == {
+        "id",
+        "attachment_id",
+        "source_checksum",
+        "extraction_tool",
+        "extraction_version",
+        "derivation_version",
+        "expected_pages",
+        "written_pages",
+        "skipped_pages",
+        "written_components",
+        "state",
+        "state_reason",
+        "created_at",
+        "updated_at",
+    }
+    component_columns = {c["name"] for c in inspector.get_columns("source_components")}
+    assert {"component_path", "geometry_state"} <= component_columns
+
+    # Still a sibling representation: no column landed on chunks or attachments.
+    assert "component_path" not in {c["name"] for c in inspector.get_columns("chunks")}
+    assert "source_state" not in {c["name"] for c in inspector.get_columns("attachments")}
+
+    # The state vocabulary is enforced by the database, not only by Python.
+    with engine.begin() as conn:
+        try:
+            conn.execute(
+                text(
+                    "INSERT INTO source_representations (attachment_id, source_checksum, extraction_tool,"
+                    " extraction_version, derivation_version, expected_pages, written_pages, skipped_pages,"
+                    " written_components, state) VALUES (1, 'x', 'pymupdf', '1', 'v1', 1, 1, 0, 1, 'bogus')"
+                )
+            )
+            rejected = False
+        except Exception:
+            rejected = True
+    engine.dispose()
+    assert rejected, "an unknown representation state must be refused by the CHECK constraint"

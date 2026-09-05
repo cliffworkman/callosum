@@ -42,6 +42,48 @@ _BLOCK_TYPE_IMAGE = 1
 
 _VALID_ROTATIONS = (0, 90, 180, 270)
 
+# Geometry validity (inc 579, H1b.1), mirroring persistence.schema_source_components.GEOMETRY_STATES.
+GEOMETRY_VALID = "valid"
+GEOMETRY_INVALID = "invalid"
+GEOMETRY_UNKNOWN = "unknown"
+
+# How far outside the page a bbox may sit and still be usable, in PDF points.
+#
+# **Frozen before corpus validation, and justified on mechanism rather than on the count it
+# produces.** A MediaBox/CropBox difference, a glyph outline overshooting its advance width, and
+# float rounding through the coordinate transform all routinely put an edge a fraction of a point
+# outside the page rectangle; none of those is a malformed observation. 2.0pt is ~0.7mm -- larger
+# than every one of those effects, and far smaller than any region a spatial association could
+# meaningfully use. Tuning this after seeing which historical rasters it classifies would be
+# choosing a threshold for a desired corpus count, so it is fixed here and reported as measured.
+GEOMETRY_PAGE_TOLERANCE_PT = 2.0
+
+
+def classify_geometry(
+    bbox: tuple[float, float, float, float] | None,
+    *,
+    page_width: float,
+    page_height: float,
+) -> tuple[str, str | None]:
+    """An explicit judgment ABOUT a raw bbox. The bbox itself is never rewritten.
+
+    The independent H1b audit found 363 inverted raster bboxes and one out-of-page bbox faithfully
+    preserved. That is fidelity working correctly -- and precisely why a separate validity signal is
+    needed: a future association study must be able to fail closed on a region that cannot be
+    intersected, without normalizing, clamping or swapping the coordinates the extractor actually
+    reported. Returns ``(state, reason)``; the reason is for inspection and reporting and is not
+    stored.
+    """
+    if bbox is None or any(value is None for value in bbox):
+        return GEOMETRY_UNKNOWN, "missing"
+    x0, y0, x1, y1 = bbox
+    if x1 < x0 or y1 < y0:
+        return GEOMETRY_INVALID, "inverted"
+    tol = GEOMETRY_PAGE_TOLERANCE_PT
+    if x0 < -tol or y0 < -tol or x1 > page_width + tol or y1 > page_height + tol:
+        return GEOMETRY_INVALID, "out_of_page"
+    return GEOMETRY_VALID, None
+
 
 @dataclass(frozen=True)
 class SourceComponent:
@@ -62,6 +104,13 @@ class SourceComponent:
     dir_x: float | None = None
     dir_y: float | None = None
     wmode: int | None = None
+    # The stable logical locator path within its page (inc 579, H1b.1):
+    # "b{sorted_order}[/l{child_order}[/s{child_order}]]". Durable provenance references a
+    # component by this path plus the source/extractor/derivation identity and page number --
+    # never by a surrogate row id, which a forced rebuild changes while this path does not.
+    component_path: str | None = None
+    # An explicit judgment about `bbox`, which is itself never altered. See `classify_geometry`.
+    geometry_state: str | None = None
     children: tuple[SourceComponent, ...] = field(default_factory=tuple)
 
 
@@ -96,31 +145,39 @@ def _normalize_rotation(rotation: Any) -> int:
     return value if value in _VALID_ROTATIONS else 0
 
 
-def _spans_of_line(line: dict[str, Any]) -> list[SourceComponent]:
+def _spans_of_line(line: dict[str, Any], prefix: str, width: float, height: float) -> list[SourceComponent]:
     spans: list[SourceComponent] = []
     for span_index, span in enumerate(line.get("spans", []) or []):
         text = span.get("text", "")
         if not text:
             continue
         size = span.get("size")
+        bbox = _rect(span.get("bbox"))
+        geometry_state, _ = classify_geometry(bbox, page_width=width, page_height=height)
         spans.append(
             SourceComponent(
                 kind=SPAN,
                 child_order=span_index,
-                bbox=_rect(span.get("bbox")),
+                bbox=bbox,
                 text=text,
                 font=span.get("font") or None,
                 font_size=float(size) if isinstance(size, (int, float)) else None,
                 flags=span.get("flags") if isinstance(span.get("flags"), int) else None,
+                # Skipped empty-text spans leave gaps in this index, never duplicates, so the path
+                # stays unique within its line -- and stable, because the index is the extractor's
+                # own ordering rather than an ordinal we re-assign.
+                component_path=f"{prefix}/s{span_index}",
+                geometry_state=geometry_state,
             )
         )
     return spans
 
 
-def _lines_of_block(block: dict[str, Any]) -> list[SourceComponent]:
+def _lines_of_block(block: dict[str, Any], prefix: str, width: float, height: float) -> list[SourceComponent]:
     lines: list[SourceComponent] = []
     for line_index, line in enumerate(block.get("lines", []) or []):
-        spans = _spans_of_line(line)
+        line_path = f"{prefix}/l{line_index}"
+        spans = _spans_of_line(line, line_path, width, height)
         if not spans:
             continue
         direction = line.get("dir")
@@ -130,14 +187,18 @@ def _lines_of_block(block: dict[str, Any]) -> list[SourceComponent]:
                 dir_x, dir_y = float(direction[0]), float(direction[1])
             except (TypeError, ValueError):
                 dir_x = dir_y = None
+        line_bbox = _rect(line.get("bbox"))
+        line_geometry, _ = classify_geometry(line_bbox, page_width=width, page_height=height)
         lines.append(
             SourceComponent(
                 kind=LINE,
                 child_order=line_index,
-                bbox=_rect(line.get("bbox")),
+                bbox=line_bbox,
                 dir_x=dir_x,
                 dir_y=dir_y,
                 wmode=line.get("wmode") if isinstance(line.get("wmode"), int) else None,
+                component_path=line_path,
+                geometry_state=line_geometry,
                 children=tuple(spans),
             )
         )
@@ -169,11 +230,18 @@ def build_page(
     (already geometrically sorted) list, so it is directly comparable with the ``"block"`` key in
     ``chunks.bbox_json``; ``native_order`` is MuPDF's own untouched block number.
     """
+    width = float(width)
+    height = float(height)
     components: list[SourceComponent] = []
     for sorted_index, block in enumerate(text_dict.get("blocks", []) or []):
         native = block.get("number")
         native_order = native if isinstance(native, int) else None
         bbox = _rect(block.get("bbox"))
+        # `sorted_order` roots the path because it is the enumerate index over the already-sorted
+        # block list: always present at top level and unique per page, where `native_order` may be
+        # absent. Skipped blocks leave gaps, never duplicates.
+        block_path = f"b{sorted_index}"
+        block_geometry, _ = classify_geometry(bbox, page_width=width, page_height=height)
 
         if block.get("type") == _BLOCK_TYPE_IMAGE:
             # Structural bounds only. No pixels, no interpretation, no figure claim -- a raster
@@ -185,6 +253,8 @@ def build_page(
                     native_order=native_order,
                     sorted_order=sorted_index,
                     bbox=bbox,
+                    component_path=block_path,
+                    geometry_state=block_geometry,
                 )
             )
             continue
@@ -192,7 +262,7 @@ def build_page(
         if block.get("type") != _BLOCK_TYPE_TEXT:
             continue
 
-        lines = _lines_of_block(block)
+        lines = _lines_of_block(block, block_path, width, height)
         if not lines:
             continue
 
@@ -208,14 +278,16 @@ def build_page(
                 sorted_order=sorted_index,
                 bbox=bbox,
                 text=_block_text(lines) if is_pure_heading else None,
+                component_path=block_path,
+                geometry_state=block_geometry,
                 children=tuple(lines),
             )
         )
 
     return SourcePage(
         page_number=page_number,
-        width=float(width),
-        height=float(height),
+        width=width,
+        height=height,
         rotation=_normalize_rotation(rotation),
         components=tuple(components),
     )
@@ -237,6 +309,10 @@ def component_counts(pages: list[SourcePage]) -> dict[str, int]:
 
 
 __all__ = [
+    "GEOMETRY_INVALID",
+    "GEOMETRY_PAGE_TOLERANCE_PT",
+    "GEOMETRY_UNKNOWN",
+    "GEOMETRY_VALID",
     "HEADING",
     "IMAGE",
     "LINE",
@@ -245,5 +321,6 @@ __all__ = [
     "SourceComponent",
     "SourcePage",
     "build_page",
+    "classify_geometry",
     "component_counts",
 ]

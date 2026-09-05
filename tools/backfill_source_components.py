@@ -12,9 +12,11 @@ how a library imported *before* inc 578 catches up, and how a failed ingest-time
   own file from disk and re-runs the same pure extraction ingest uses.
 * **Additive and non-destructive.** Raw chunk text, embeddings, sections and every ingest-time
   column are untouched. Only ``source_pages``/``source_components`` are written.
-* **Per-attachment commit, so an interrupted run resumes** by simply re-running: an attachment
-  whose rows are missing or stale is re-derived, everything else is skipped. Ctrl-C mid-attachment
-  rolls back only that attachment.
+* **Per-attachment commit, so an interrupted run resumes** by simply re-running. Only an attachment
+  whose representation is recorded ``complete`` AND current is skipped (inc 579, H1b.1); a
+  ``truncated``, ``incomplete``, ``failed``, stale or entirely absent representation is re-derived by
+  an ordinary rerun with no extra flag. Ctrl-C mid-attachment rolls back only that attachment, and
+  because the completeness record is written last it can never survive a half-written graph.
 * **Idempotent.** The write is replace-per-attachment, so a re-run cannot duplicate rows.
 * **Live coverage only.** Papers in the Trash (``papers.deleted_at IS NOT NULL``) are outside
   normal coverage by design -- a soft delete keeps chunk rows physically present, but the
@@ -37,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy import func, select  # noqa: E402
 
-from app.backend.pdf_processing.extraction import extract_pdf, file_sha256  # noqa: E402
+from app.backend.pdf_processing.extraction import EXTRACTION_TOOL, extract_pdf, file_sha256  # noqa: E402
 from app.backend.persistence.database import make_engine  # noqa: E402
 from app.backend.persistence.schema import attachments, papers  # noqa: E402
 from app.backend.persistence.schema_source_components import (  # noqa: E402
@@ -49,8 +51,11 @@ from app.backend.persistence.schema_source_components import (  # noqa: E402
 from app.backend.persistence.source_components_repo import (  # noqa: E402
     attachments_with_current_source,
     components_for_page,
+    record_source_failure,
     replace_attachment_source,
     source_page_for,
+    source_representation_for,
+    source_representation_report,
 )
 
 DEFAULT_DB_URL = "sqlite:///.local/validation/validation.sqlite"
@@ -82,11 +87,17 @@ def backfill(engine, *, paper_id=None, attachment_id=None, limit=None, force=Fal
         "missing_file": 0,
         "checksum_mismatch": 0,
         "no_structure": 0,
+        "complete": 0,
         "truncated": 0,
+        "incomplete": 0,
+        "failed": 0,
+        "repaired": 0,
     }
     with engine.begin() as conn:
         targets = _pdf_targets(conn, paper_id=paper_id, attachment_id=attachment_id, include_trashed=include_trashed)
         done = set() if force else attachments_with_current_source(conn, SOURCE_DERIVATION_VERSION)
+        # What each non-current attachment is being repaired FROM, captured before anything changes.
+        prior = {int(t["id"]): (source_representation_for(conn, int(t["id"])) or {}).get("state") for t in targets}
 
     for target in targets:
         aid = int(target["id"])
@@ -111,13 +122,31 @@ def backfill(engine, *, paper_id=None, attachment_id=None, limit=None, force=Fal
             stats["checksum_mismatch"] += 1
             continue
 
-        extraction = extract_pdf(path)
+        try:
+            extraction = extract_pdf(path)
+        except Exception as error:  # noqa: BLE001 - one bad PDF must not abort the run or vanish
+            print(f"  attachment {aid}: extraction failed ({type(error).__name__}); recorded as failed")
+            with engine.begin() as conn:
+                record_source_failure(
+                    conn,
+                    attachment_id=aid,
+                    source_checksum=actual,
+                    extraction_tool=EXTRACTION_TOOL,
+                    # The version is only knowable from a successful extraction, and this path is
+                    # the one where extraction itself failed. Recorded honestly as unknown rather
+                    # than guessed from the installed library, which may not be what ran.
+                    extraction_version="unknown",
+                    reason=f"extraction_error:{type(error).__name__}",
+                )
+            stats["failed"] += 1
+            continue
+
         if not extraction.source_pages:
             stats["no_structure"] += 1
             continue
 
         with engine.begin() as conn:  # per-attachment commit: an interrupted run simply resumes
-            written = replace_attachment_source(
+            receipt = replace_attachment_source(
                 conn,
                 attachment_id=aid,
                 pages=list(extraction.source_pages),
@@ -127,9 +156,17 @@ def backfill(engine, *, paper_id=None, attachment_id=None, limit=None, force=Fal
                 source_checksum=actual,
             )
         stats["attachments"] += 1
-        stats["pages"] += written["pages"]
-        stats["components"] += written["components"]
-        stats["truncated"] += written["truncated"]
+        stats["pages"] += receipt.written_pages
+        stats["components"] += receipt.written_components
+        stats[receipt.state] += 1
+        if receipt.is_complete and prior.get(aid) in {"truncated", "incomplete", "failed"}:
+            stats["repaired"] += 1
+        if not receipt.is_complete:
+            print(
+                f"  attachment {aid}: {receipt.state} ({receipt.state_reason}) -- "
+                f"{receipt.written_pages}/{receipt.expected_pages} pages, "
+                f"{receipt.skipped_pages} skipped; NOT current, rerun to repair"
+            )
     return stats
 
 
@@ -158,6 +195,13 @@ def inspect_page(engine, attachment_id: int, page_number: int) -> None:
         print(f"  coordinates     : {page.coordinate_system}")
         print(f"  extractor       : {page.extraction_tool} {page.extraction_version}")
         print(f"  derivation      : {page.derivation_version}{'  [STALE]' if page.is_stale else ''}")
+        representation = source_representation_for(conn, attachment_id) or {}
+        print(
+            f"  representation  : {representation.get('state', 'ABSENT')}"
+            f"{' (' + representation['state_reason'] + ')' if representation.get('state_reason') else ''}"
+            f"  {representation.get('written_pages', '?')}/{representation.get('expected_pages', '?')} pages,"
+            f" {representation.get('written_components', '?')} components"
+        )
 
         rows = components_for_page(conn, page.id)
         by_parent: dict[int | None, list[dict]] = {}
@@ -165,8 +209,8 @@ def inspect_page(engine, attachment_id: int, page_number: int) -> None:
             by_parent.setdefault(component["parent_id"], []).append(component)
 
         print(f"  components      : {len(rows)}")
-        print("\n  native  sorted  kind        bbox                                text / style")
-        print("  " + "-" * 100)
+        print("\n  native  sorted  locator path    kind        bbox                                text / style")
+        print("  " + "-" * 116)
 
         def show(component: dict, depth: int) -> None:
             pad = "  " + "   " * depth
@@ -177,6 +221,8 @@ def inspect_page(engine, attachment_id: int, page_number: int) -> None:
                 )
             native = "" if component["native_order"] is None else str(component["native_order"])
             sorted_o = "" if component["sorted_order"] is None else str(component["sorted_order"])
+            if component["geometry_state"] and component["geometry_state"] != "valid":
+                bbox += f"  [{component['geometry_state'].upper()}]"
             detail = ""
             if component["text"]:
                 detail = repr(component["text"][:46])
@@ -184,7 +230,8 @@ def inspect_page(engine, attachment_id: int, page_number: int) -> None:
                 detail += f"  {component['font']} {component['font_size'] or 0:.1f}pt flags={component['flags']}"
             if component["dir_x"] is not None:
                 detail += f"  dir=({component['dir_x']:.2f},{component['dir_y']:.2f}) wmode={component['wmode']}"
-            print(f"  {native:>6}  {sorted_o:>6}  {pad}{component['kind']:<11} {bbox:<38} {detail}")
+            path = component["component_path"] or ""
+            print(f"  {native:>6}  {sorted_o:>6}  {path:<14}  {pad}{component['kind']:<11} {bbox:<38} {detail}")
             for child in by_parent.get(component["id"], []):
                 show(child, depth + 1)
 
@@ -228,21 +275,37 @@ def summarize(engine) -> None:
             .select_from(attachments.join(papers, papers.c.id == attachments.c.paper_id))
             .where(attachments.c.content_type == "application/pdf", papers.c.deleted_at.is_not(None))
         ).scalar_one()
-        covered = len(attachments_with_current_source(conn, SOURCE_DERIVATION_VERSION))
+        report = source_representation_report(conn, SOURCE_DERIVATION_VERSION)
         pages = conn.execute(select(func.count()).select_from(source_pages)).scalar_one()
         counts = dict(
             conn.execute(select(source_components.c.kind, func.count()).group_by(source_components.c.kind)).all()
+        )
+        geometry = dict(
+            conn.execute(
+                select(source_components.c.geometry_state, func.count()).group_by(source_components.c.geometry_state)
+            ).all()
         )
         figures = conn.execute(select(func.count()).select_from(paper_figures)).scalar_one()
 
     total = sum(counts.values())
     print(f"derivation version : {SOURCE_DERIVATION_VERSION}")
-    print(f"live PDF attachments with current source rows : {covered} / {live}")
+    print(f"live PDF attachments with a CURRENT source representation : {report['current']} / {live}")
     print(f"soft-deleted (Trash) PDF attachments          : {trashed}  <- outside live coverage BY DESIGN")
+    print("representation state over live PDF attachments:")
+    for state in ("complete", "truncated", "incomplete", "failed", "absent"):
+        note = ""
+        if state == "complete" and report[state] != report["current"]:
+            note = "  <- some are complete but STALE (checksum/derivation moved)"
+        elif state not in ("complete", "absent") and report[state]:
+            note = "  <- NOT current; an ordinary rerun repairs these"
+        print(f"  {state:<12}{report[state]:>6}{note}")
     print(f"source pages       : {pages}")
     print(f"source components  : {total}")
     for kind, n in sorted(counts.items(), key=lambda kv: -kv[1]):
         print(f"  {kind:<14}{n:>10}{100 * n / total if total else 0:>7.1f}%")
+    print("geometry validity  : an explicit judgment; raw coordinates are never rewritten")
+    for state, n in sorted(geometry.items(), key=lambda kv: -kv[1]):
+        print(f"  {str(state):<14}{n:>10}{100 * n / total if total else 0:>7.1f}%")
     print(f"GROBID figure rows : {figures}")
 
 
@@ -281,9 +344,13 @@ def main(argv: list[str] | None = None) -> None:
     print(
         f"recorded {stats['components']} components across {stats['pages']} pages "
         f"of {stats['attachments']} attachments "
-        f"({stats['skipped_current']} already current, {stats['missing_file']} file missing, "
-        f"{stats['checksum_mismatch']} checksum mismatch, {stats['no_structure']} no structure, "
-        f"{stats['truncated']} truncated)"
+        f"({stats['complete']} complete, {stats['truncated']} truncated, "
+        f"{stats['incomplete']} incomplete, {stats['failed']} failed, "
+        f"{stats['repaired']} repaired from a prior incomplete state)"
+    )
+    print(
+        f"  skipped: {stats['skipped_current']} already current, {stats['missing_file']} file missing, "
+        f"{stats['checksum_mismatch']} checksum mismatch, {stats['no_structure']} no structure"
     )
 
 

@@ -36,7 +36,10 @@ from app.backend.persistence.repository import (
     refresh_processing_tier,
 )
 from app.backend.persistence.schema import attachments, chunks
-from app.backend.persistence.source_components_repo import replace_attachment_source
+from app.backend.persistence.source_components_repo import (
+    record_source_failure,
+    replace_attachment_source,
+)
 
 if TYPE_CHECKING:
     from app.backend.embeddings.models import EmbeddingModel
@@ -81,7 +84,7 @@ def _persist_source_components(conn: Connection, attachment_id: int, extraction:
         return
     try:
         with conn.begin_nested():
-            replace_attachment_source(
+            receipt = replace_attachment_source(
                 conn,
                 attachment_id=attachment_id,
                 pages=list(source_pages),
@@ -90,12 +93,49 @@ def _persist_source_components(conn: Connection, attachment_id: int, extraction:
                 extraction_version=extraction.extraction_version,
                 source_checksum=checksum,
             )
-    except Exception:  # noqa: BLE001 - never let observational substrate break a real ingest
+    except Exception as error:  # noqa: BLE001 - never let observational substrate break a real ingest
         _log.warning(
             "source-component persistence failed for attachment %s; chunks are unaffected and "
             "tools/backfill_source_components.py can repair it",
             attachment_id,
             exc_info=True,
+        )
+        # A second savepoint, so even the bookkeeping cannot break the authoritative chunk write.
+        # `record_source_failure` declines when the rollback restored a still-valid representation:
+        # the outcome of this attempt and the state of the persisted graph are different facts, and
+        # only the second decides currentness.
+        try:
+            with conn.begin_nested():
+                recorded = record_source_failure(
+                    conn,
+                    attachment_id=attachment_id,
+                    source_checksum=checksum,
+                    extraction_tool=extraction.extraction_tool,
+                    extraction_version=extraction.extraction_version,
+                    reason=f"persistence_error:{type(error).__name__}",
+                )
+            if not recorded:
+                _log.warning(
+                    "attachment %s kept its previously complete source representation; only the rebuild attempt failed",
+                    attachment_id,
+                )
+        except Exception:  # noqa: BLE001 - bookkeeping must never escalate into a chunk failure
+            _log.warning(
+                "could not record the source-representation failure for attachment %s",
+                attachment_id,
+                exc_info=True,
+            )
+        return
+    if not receipt.is_complete:
+        # Honest, non-silent, and non-current: an ordinary backfill rerun will repair it.
+        _log.warning(
+            "source representation for attachment %s is %s (%s): %d/%d pages, %d components",
+            attachment_id,
+            receipt.state,
+            receipt.state_reason,
+            receipt.written_pages,
+            receipt.expected_pages,
+            receipt.written_components,
         )
 
 

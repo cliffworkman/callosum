@@ -71,6 +71,25 @@ FIGURE_SOURCES = ("grobid",)
 # Bump to invalidate every derived row; the next backfill re-derives with no migration.
 SOURCE_DERIVATION_VERSION = "source-components-v1"
 
+# Attachment-level representation states (inc 579, H1b.1). `complete` is the ONLY state that may
+# satisfy currentness, and it means every page extraction produced was persisted in full.
+#
+#   complete    every expected page written, no page skipped, no bound hit
+#   truncated   a bound stopped the write (the component cap)
+#   incomplete  a page extraction produced could not be represented -- today only a page whose
+#               width/height violate the `source_pages` CHECK. It fails CLOSED: an unrepresentable
+#               page is not "everything representable happened to be written", it is an incomplete
+#               source graph, and an explicit developer backfill retrying it forever is the honest
+#               cost. Avoiding a retry loop is NOT a reason to call an incomplete graph complete.
+#   failed      the derivation raised
+#
+# Every non-complete state stays eligible for ordinary backfill repair forever.
+SOURCE_REPRESENTATION_STATES = ("complete", "truncated", "incomplete", "failed")
+
+# Component geometry validity, judged deterministically at persistence time from the raw bbox and
+# the page dimensions. Never a rewrite of the observation -- see `classify_geometry`.
+GEOMETRY_STATES = ("valid", "invalid", "unknown")
+
 source_pages = Table(
     "source_pages",
     metadata,
@@ -131,9 +150,27 @@ source_components = Table(
     Column("dir_x", Float),
     Column("dir_y", Float),
     Column("wmode", Integer),
+    # --- H1b.1 (inc 579) -------------------------------------------------------------------
+    # The stable logical locator path: "b{sorted_order}[/l{child_order}[/s{child_order}]]".
+    # Durable provenance must reference a component by (checksum, extractor, derivation, page,
+    # this path) -- NEVER by `id`, which the independent audit proved changes on every forced
+    # rebuild while the logical tree stays exact. Unique within a page by construction: a block's
+    # sorted_order is its enumerate index over the already-sorted block list, and child_order is
+    # the original line/span index within its parent, so skipped nodes leave gaps but never
+    # duplicates. NULL only on pre-H1b.1 rows, which are not current and are re-derived.
+    Column("component_path", Text),
+    # An explicit judgment ABOUT the raw geometry above, which is never rewritten. The audit found
+    # 363 inverted raster bboxes and one out-of-page bbox faithfully preserved; fidelity is not
+    # validity, so a future association study must be able to fail closed on a malformed region
+    # without re-deriving the rule. `unknown` is first-class (a component with no parsable bbox).
+    Column("geometry_state", Text),
     CheckConstraint(
         "kind IN ('text_block', 'line', 'span', 'heading', 'image')",
         name="kind_known",
+    ),
+    CheckConstraint(
+        "geometry_state IS NULL OR geometry_state IN ('valid', 'invalid', 'unknown')",
+        name="geometry_state_known",
     ),
     # Two indexes only. The composite serves both page-scoped and (page, kind) reads because
     # source_page_id is its leftmost column, so a separate single-column index would be dead
@@ -183,11 +220,68 @@ paper_figures = Table(
     Index("ix_paper_figures_attachment_id", "attachment_id"),
 )
 
+# The attachment-level completeness record (inc 579, H1b.1). It exists because H1b had no way to
+# tell a whole source graph from a partial one: an independent audit lowered the component cap,
+# wrote one page with zero components, and `attachments_with_current_source` still called that
+# graph current -- because its checksum and derivation version matched -- so an ordinary backfill
+# would have skipped it forever. Presence of `source_pages` rows is therefore NO LONGER a
+# completeness signal; this row is, and it is written last, in the same transaction as the graph
+# it describes, so a complete marker can never outlive an interrupted write.
+source_representations = Table(
+    "source_representations",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column(
+        "attachment_id",
+        ForeignKey("attachments.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    ),
+    # Identity of what was derived. With `derivation_version` these decide staleness against the
+    # live attachment exactly as the page rows do -- necessary, but no longer sufficient.
+    Column("source_checksum", Text, nullable=False),
+    Column("extraction_tool", Text, nullable=False),
+    Column("extraction_version", Text, nullable=False),
+    Column("derivation_version", Text, nullable=False),
+    # Completeness arithmetic. `expected_pages` is what extraction produced for this attachment --
+    # which proves persistence completeness *relative to deterministic extraction output*, not that
+    # the extractor itself saw every page in the PDF. That second guarantee is held by a regression
+    # test pinning `len(extract_pdf(f).source_pages)` to the document's own page count, because
+    # reading it here would mean a second PDF open on the ingest critical path.
+    # `skipped_pages` counts pages the schema cannot represent; it is retained for diagnostics and
+    # NEVER contributes to completeness. There is deliberately NO expected component count:
+    # production cannot know one reliably before persistence, and inventing a number would
+    # manufacture precision that does not exist. `written_components` is instead cross-checked
+    # against the rows actually present, which is a fact rather than a prediction.
+    Column("expected_pages", Integer, nullable=False),
+    Column("written_pages", Integer, nullable=False),
+    Column("skipped_pages", Integer, nullable=False),
+    Column("written_components", Integer, nullable=False),
+    Column("state", Text, nullable=False),
+    # Why a state was reached: 'component_cap', 'degenerate_pages', 'page_gap',
+    # 'persistence_error:<class>'. Inspectable, never a silent condition.
+    Column("state_reason", Text),
+    Column("created_at", Text, server_default=func.current_timestamp(), nullable=False),
+    Column("updated_at", Text, server_default=func.current_timestamp(), nullable=False),
+    CheckConstraint(
+        "state IN ('complete', 'truncated', 'incomplete', 'failed')",
+        name="state_known",
+    ),
+    CheckConstraint(
+        "expected_pages >= 0 AND written_pages >= 0 AND skipped_pages >= 0 AND written_components >= 0",
+        name="counts_non_negative",
+    ),
+    non_empty_check("source_checksum", "source_checksum_non_empty"),
+)
+
 __all__ = [
     "FIGURE_SOURCES",
+    "GEOMETRY_STATES",
     "SOURCE_COMPONENT_KINDS",
     "SOURCE_DERIVATION_VERSION",
+    "SOURCE_REPRESENTATION_STATES",
     "paper_figures",
     "source_components",
     "source_pages",
+    "source_representations",
 ]

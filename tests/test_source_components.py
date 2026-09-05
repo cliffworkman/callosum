@@ -456,8 +456,8 @@ def _sample_pages() -> list:
 def test_persisted_page_geometry_and_hierarchy_round_trip(temp_db_url: str) -> None:
     engine, _, attachment_id = _seed_attachment(temp_db_url)
     written = _store(engine, attachment_id, _sample_pages())
-    assert written["pages"] == 1
-    assert written["truncated"] == 0
+    assert written.written_pages == 1
+    assert written.state == "complete"
 
     with engine.begin() as conn:
         page = source_page_for(conn, attachment_id, 1)
@@ -517,7 +517,9 @@ def test_replace_is_idempotent(temp_db_url: str) -> None:
     assert first == second
     with engine.begin() as conn:
         assert conn.execute(select(func.count()).select_from(source_pages)).scalar_one() == 1
-        assert conn.execute(select(func.count()).select_from(source_components)).scalar_one() == first["components"]
+        assert (
+            conn.execute(select(func.count()).select_from(source_components)).scalar_one() == first.written_components
+        )
 
 
 def test_trashed_papers_are_outside_live_coverage_by_design(temp_db_url: str) -> None:

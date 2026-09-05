@@ -675,3 +675,72 @@ Caption↔table association precision is still unmeasured — the rate (41% asso
 That remains H1c's cheapest first task. One new constraint for it: GROBID's `type="table"` figures
 arrive with a caption and grid but frequently **no coordinates at all**, so a geometry study must
 take regions from PyMuPDF or re-parse with the new `teiCoordinates` request first.
+
+
+---
+
+## Appendix B — H1b.1 (inc 579): what an independent audit changed
+
+An independent Codex audit of H1b (`2026-09-05_codex-h1b-source-component-audit.md`, preregistered
+`955c606`, findings frozen `7f9e4fc` before reading any of H1b's own notes) reproduced the fidelity
+results above from a separately-coded raw-PyMuPDF walker and found **one blocker plus two provenance
+gaps**. All three are closed by increment 579; none of H1b's fidelity findings are revised.
+
+### The blocker: identity is not completeness
+
+With the component cap lowered inside the harness, H1b persisted one page and zero components and
+still classified that graph as **current** — its `source_checksum` and `derivation_version` matched,
+which was everything H1b checked. An ordinary backfill would then have skipped the partial
+representation forever.
+
+The conflation is the interesting part. Checksum and derivation version answer *"is this derived from
+the current file by the current code?"* — a question about **identity**. Nothing answered *"is this
+derived graph whole?"* — a question about **completeness**. In the happy path the two coincide, which
+is why neither the corpus nor ordinary idempotence testing exposed it. Only adversarial state testing
+did, and that is the transferable lesson: perfect corpus coverage says nothing about the bounded
+paths the corpus never exercises.
+
+H1b.1 adds a `source_representations` record whose sole job is the completeness answer, written last
+so it cannot lie, and cross-checked against the rows actually present — pages **and** components —
+so it cannot go stale in place. `current` now requires `complete`.
+
+### Gap 1: surrogate ids are not provenance — and are worse than unstable
+
+The audit showed every sampled `source_pages.id` / `source_components.id` changes on a forced
+rebuild while the logical tree stays exact. Writing H1b.1's regression tests surfaced a sharper
+finding the audit did not report: ids are allocated from `max(id) + 1`, so an attachment holding the
+top of the id space is handed **its own old ids back**, now naming different content. A stale
+reference does not fail — it resolves successfully to the wrong component.
+
+Durable provenance therefore uses `SourceLocator` (source checksum + extraction tool + **extraction
+version** + derivation version + page + `component_path`), materialized as
+`b{sorted}[/l{child}[/s{child}]]` and unique within a page by construction. Measured **zero
+collisions** across the corpus on the durable identity fields — a `GROUP BY source_page_id` is only a
+local sanity check, since that id is itself replaceable.
+
+### Gap 2: fidelity is not validity
+
+The audit found 363 inverted raster bboxes and one out-of-page bbox **faithfully preserved**. That is
+extraction fidelity working correctly, and precisely why a separate signal was needed: a future
+association study must fail closed on a region it cannot intersect, without anyone normalizing,
+clamping or swapping the coordinates the extractor actually reported. `geometry_state` records the
+judgment beside the untouched observation, at a tolerance **frozen at 2.0pt before measurement**.
+
+### What this changes for H1c
+
+The sequencing disagreement in the audit's §19 is resolved in the audit's favour: caption↔table
+precision remains the cheapest and most natural first task, but it could not begin until a truncated
+graph was provably unable to masquerade as current. It now is. Two constraints carry forward into any
+association work:
+
+1. only components from a representation that is `complete` **and** current may be used — a unit
+   assembled from a partial graph is missing pieces silently, and looks no different from a correct
+   one;
+2. only components whose `geometry_state` is `valid` may enter a spatial association.
+
+### Still deferred, deliberately
+
+Character offsets (they require settling a canonical page-text serialization first), and every GROBID
+gap the audit found — table `<note>` preservation, cell roles and attributes, multi-page regions
+currently unioned onto the first page, persisted grid-truncation markers, and richer TEI provenance
+on `paper_figures`. Real findings, but none caused the gate failure.
