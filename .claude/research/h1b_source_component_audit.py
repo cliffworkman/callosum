@@ -876,6 +876,359 @@ def artifact_hashes(output: Path) -> dict[str, Any]:
     return result
 
 
+def structural_audit(db: Path, output: Path) -> dict[str, Any]:
+    """Schema-level safety checks plus stable logical-locator uniqueness."""
+    with _connect(db) as conn:
+        scalar_queries = {
+            "orphan_source_page": """
+                SELECT count(*) FROM source_components sc
+                LEFT JOIN source_pages sp ON sp.id=sc.source_page_id WHERE sp.id IS NULL
+            """,
+            "orphan_parent": """
+                SELECT count(*) FROM source_components sc
+                LEFT JOIN source_components parent ON parent.id=sc.parent_id
+                WHERE sc.parent_id IS NOT NULL AND parent.id IS NULL
+            """,
+            "cross_page_parent": """
+                SELECT count(*) FROM source_components sc
+                JOIN source_components parent ON parent.id=sc.parent_id
+                WHERE parent.source_page_id != sc.source_page_id
+            """,
+            "invalid_top_kind": """
+                SELECT count(*) FROM source_components
+                WHERE parent_id IS NULL AND kind NOT IN ('text_block','heading','image')
+            """,
+            "invalid_line_parent": """
+                SELECT count(*) FROM source_components sc
+                JOIN source_components parent ON parent.id=sc.parent_id
+                WHERE sc.kind='line' AND parent.kind NOT IN ('text_block','heading')
+            """,
+            "invalid_span_parent": """
+                SELECT count(*) FROM source_components sc
+                JOIN source_components parent ON parent.id=sc.parent_id
+                WHERE sc.kind='span' AND parent.kind!='line'
+            """,
+            "partial_bbox": """
+                SELECT count(*) FROM source_components
+                WHERE (x0 IS NULL OR y0 IS NULL OR x1 IS NULL OR y1 IS NULL)
+                  AND NOT (x0 IS NULL AND y0 IS NULL AND x1 IS NULL AND y1 IS NULL)
+            """,
+            "inverted_bbox": """
+                SELECT count(*) FROM source_components
+                WHERE x0 IS NOT NULL AND (x1 < x0 OR y1 < y0)
+            """,
+            "inverted_text_bbox": """
+                SELECT count(*) FROM source_components
+                WHERE kind!='image' AND x0 IS NOT NULL AND (x1 < x0 OR y1 < y0)
+            """,
+            "inverted_image_bbox": """
+                SELECT count(*) FROM source_components
+                WHERE kind='image' AND x0 IS NOT NULL AND (x1 < x0 OR y1 < y0)
+            """,
+            "null_image_bbox": """
+                SELECT count(*) FROM source_components
+                WHERE kind='image' AND x0 IS NULL AND y0 IS NULL AND x1 IS NULL AND y1 IS NULL
+            """,
+            "image_bbox_outside_page": """
+                SELECT count(*) FROM source_components sc
+                JOIN source_pages sp ON sp.id=sc.source_page_id
+                WHERE sc.kind='image' AND sc.x0 IS NOT NULL
+                  AND (sc.x0<0 OR sc.y0<0 OR sc.x1>sp.width OR sc.y1>sp.height)
+            """,
+            "empty_span_text": "SELECT count(*) FROM source_components WHERE kind='span' AND text=''",
+            "heading_rows": "SELECT count(*) FROM source_components WHERE kind='heading'",
+            "image_rows": "SELECT count(*) FROM source_components WHERE kind='image'",
+            "heading_blocks_in_chunks": """
+                SELECT count(DISTINCT sc.id)
+                FROM source_components sc JOIN source_pages sp ON sp.id=sc.source_page_id
+                JOIN chunks c ON c.attachment_id=sp.attachment_id AND c.page_start=sp.page_number
+                JOIN json_each(c.bbox_json) box
+                WHERE sc.kind='heading'
+                  AND json_extract(box.value,'$.page')=sp.page_number
+                  AND json_extract(box.value,'$.block')=sc.sorted_order
+            """,
+            "image_blocks_in_chunks": """
+                SELECT count(DISTINCT sc.id)
+                FROM source_components sc JOIN source_pages sp ON sp.id=sc.source_page_id
+                JOIN chunks c ON c.attachment_id=sp.attachment_id AND c.page_start=sp.page_number
+                JOIN json_each(c.bbox_json) box
+                WHERE sc.kind='image'
+                  AND json_extract(box.value,'$.page')=sp.page_number
+                  AND json_extract(box.value,'$.block')=sc.sorted_order
+            """,
+            "styled_spans": """
+                SELECT count(*) FROM source_components
+                WHERE kind='span' AND (font IS NOT NULL OR font_size IS NOT NULL OR flags IS NOT NULL)
+            """,
+            "directed_lines": """
+                SELECT count(*) FROM source_components
+                WHERE kind='line' AND dir_x IS NOT NULL AND dir_y IS NOT NULL
+            """,
+            "rotated_pages": "SELECT count(*) FROM source_pages WHERE rotation != 0",
+        }
+        counts = {name: int(conn.execute(sql).fetchone()[0]) for name, sql in scalar_queries.items()}
+
+        locator_count = 0
+        locator_collisions = 0
+        order_totals: dict[str, dict[str, float | int]] = defaultdict(
+            lambda: {"pages": 0, "disagreement_pages": 0, "pair_disagreement_sum": 0.0}
+        )
+        for page in conn.execute(
+            "SELECT attachment_id,page_number,source_checksum,derivation_version FROM source_pages "
+            "ORDER BY attachment_id,page_number"
+        ):
+            tree = _stored_page_tree(conn, int(page["attachment_id"]), int(page["page_number"]))
+            assert tree is not None
+            paths = [tuple(item["path"]) for item in tree["components"]]
+            locator_count += len(paths)
+            locator_collisions += len(paths) - len(set(paths))
+            layout = _column_proxy(tree)
+            disagreement = float(_order_stats(tree)["pair_disagreement"])
+            order_totals[layout]["pages"] += 1
+            order_totals[layout]["disagreement_pages"] += int(disagreement > 0)
+            order_totals[layout]["pair_disagreement_sum"] += disagreement
+
+        order_summary = {}
+        for layout, item in sorted(order_totals.items()):
+            pages = int(item["pages"])
+            order_summary[layout] = {
+                "pages": pages,
+                "disagreement_pages": int(item["disagreement_pages"]),
+                "mean_pair_disagreement": float(item["pair_disagreement_sum"]) / pages if pages else 0.0,
+            }
+
+    result = {
+        "schema": "codex-h1b-structural-audit-v1",
+        "counts": counts,
+        "logical_locator": {
+            "basis": "attachment source checksum + derivation version + page number + component path",
+            "components": locator_count,
+            "within_page_path_collisions": locator_collisions,
+        },
+        "native_vs_sorted_order_all_pages": order_summary,
+    }
+    output.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    return result
+
+
+def grobid_fixture_audit(output: Path) -> dict[str, Any]:
+    """Compare production figure parsing with an independent ElementTree walk of the tracked TEI."""
+    import xml.etree.ElementTree as ET
+
+    from integrations.grobid.tei_parse import parse_figures
+
+    fixture = ROOT / "tests" / "fixtures" / "grobid" / "sample_fulltext.tei.xml"
+    payload = fixture.read_bytes()
+    root = ET.fromstring(payload)
+    ns = {"tei": "http://www.tei-c.org/ns/1.0"}
+    raw = root.findall(".//tei:text/tei:body/tei:figure", ns)
+    parsed = parse_figures(payload)
+    xml_key = "{http://www.w3.org/XML/1998/namespace}id"
+    raw_ids = [node.get(xml_key) for node in raw]
+    parsed_ids = [item.xml_id for item in parsed]
+    raw_tables = [node for node in raw if node.get("type") == "table"]
+    raw_grid_shape = []
+    raw_note_count = 0
+    for table in raw_tables:
+        rows = table.findall("tei:table/tei:row", ns)
+        raw_grid_shape.append([len(row.findall("tei:cell", ns)) for row in rows])
+        raw_note_count += len(table.findall("tei:note", ns))
+    parsed_tables = [item for item in parsed if item.figure_type == "table"]
+    result = {
+        "schema": "codex-h1b-grobid-fixture-audit-v1",
+        "fixture_sha256": _file_sha(fixture),
+        "raw_figure_count": len(raw),
+        "parsed_figure_count": len(parsed),
+        "xml_ids_exact": raw_ids == parsed_ids,
+        "raw_table_count": len(raw_tables),
+        "parsed_table_count": len(parsed_tables),
+        "raw_grid_row_cell_counts": raw_grid_shape,
+        "parsed_grid_row_cell_counts": [[len(row) for row in item.table_grid] for item in parsed_tables],
+        "grid_shapes_exact": raw_grid_shape == [[len(row) for row in item.table_grid] for item in parsed_tables],
+        "raw_table_note_elements": raw_note_count,
+        "table_notes_have_destination_field": False,
+        "figures_with_page_geometry": sum(item.page_number is not None and item.bbox is not None for item in parsed),
+        "figures_without_page_geometry": sum(item.page_number is None or item.bbox is None for item in parsed),
+    }
+    output.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    return result
+
+
+def heading_audit(db: Path, output: Path) -> dict[str, Any]:
+    """Verify preserved headings remain absent from freshly generated current chunk drafts."""
+    from app.backend.pdf_processing.extraction import extract_pdf, make_chunk_drafts
+
+    with _connect(db) as conn:
+        headings = [
+            dict(row)
+            for row in conn.execute(
+                """
+                SELECT sc.id,sp.attachment_id,sp.page_number,sc.sorted_order,sc.text,
+                       a.resolved_path,a.checksum
+                FROM source_components sc
+                JOIN source_pages sp ON sp.id=sc.source_page_id
+                JOIN attachments a ON a.id=sp.attachment_id
+                JOIN papers p ON p.id=a.paper_id
+                WHERE sc.kind='heading' AND p.deleted_at IS NULL
+                ORDER BY sp.attachment_id,sp.page_number,sc.sorted_order
+                """
+            )
+        ]
+        legacy_matches = int(
+            conn.execute(
+                """
+                SELECT count(DISTINCT sc.id)
+                FROM source_components sc JOIN source_pages sp ON sp.id=sc.source_page_id
+                JOIN chunks c ON c.attachment_id=sp.attachment_id AND c.page_start=sp.page_number
+                JOIN json_each(c.bbox_json) box
+                WHERE sc.kind='heading'
+                  AND json_extract(box.value,'$.page')=sp.page_number
+                  AND json_extract(box.value,'$.block')=sc.sorted_order
+                """
+            ).fetchone()[0]
+        )
+        legacy_dates = conn.execute(
+            """
+            SELECT min(c.created_at),max(c.created_at)
+            FROM source_components sc JOIN source_pages sp ON sp.id=sc.source_page_id
+            JOIN chunks c ON c.attachment_id=sp.attachment_id AND c.page_start=sp.page_number
+            JOIN json_each(c.bbox_json) box
+            WHERE sc.kind='heading'
+              AND json_extract(box.value,'$.page')=sp.page_number
+              AND json_extract(box.value,'$.block')=sc.sorted_order
+            """
+        ).fetchone()
+
+    rng = random.Random(SEED)
+    sample = sorted(rng.sample(headings, min(20, len(headings))), key=lambda row: int(row["id"]))
+    by_attachment: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for row in sample:
+        by_attachment[int(row["attachment_id"])].append(row)
+    current_draft_matches = 0
+    safe_cases = []
+    for _attachment_id, rows in by_attachment.items():
+        extraction = extract_pdf(Path(rows[0]["resolved_path"]))
+        drafts = make_chunk_drafts(extraction, source_attachment_checksum=rows[0]["checksum"])
+        draft_blocks = {
+            (int(box["page"]), int(box["block"]))
+            for draft in drafts
+            for box in draft.bbox_json
+            if "page" in box and "block" in box
+        }
+        for row in rows:
+            matched = (int(row["page_number"]), int(row["sorted_order"])) in draft_blocks
+            current_draft_matches += int(matched)
+            opaque = hashlib.sha256(f"heading:{SEED}:{row['id']}".encode("ascii")).hexdigest()[:12].upper()
+            safe_cases.append({"opaque_id": f"H1B-H-{opaque}", "present_in_current_chunk_drafts": matched})
+    result = {
+        "schema": "codex-h1b-heading-audit-v1",
+        "heading_population": len(headings),
+        "sample_n": len(sample),
+        "current_chunk_draft_matches": current_draft_matches,
+        "legacy_stored_chunk_matches": legacy_matches,
+        "legacy_match_created_at_min": legacy_dates[0],
+        "legacy_match_created_at_max": legacy_dates[1],
+        "cases": safe_cases,
+    }
+    output.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    return result
+
+
+def edge_case_audit(db: Path, truncation_attachment: int, resume_attachment: int, output: Path) -> dict[str, Any]:
+    """Mutating checks for a disposable audit DB clone only."""
+    from sqlalchemy import select, update
+
+    from app.backend.pdf_processing.extraction import extract_pdf
+    from app.backend.persistence import source_components_repo as repo
+    from app.backend.persistence.database import make_engine
+    from app.backend.persistence.schema import attachments
+    from app.backend.persistence.schema_source_components import source_components, source_pages
+    from tools.backfill_source_components import backfill
+
+    engine = make_engine(f"sqlite:///{db.resolve().as_posix()}")
+    with engine.begin() as conn:
+        target = conn.execute(
+            select(attachments.c.resolved_path, attachments.c.checksum).where(attachments.c.id == truncation_attachment)
+        ).mappings().one()
+    extraction = extract_pdf(Path(target["resolved_path"]))
+    old_max = repo.MAX_COMPONENTS_PER_ATTACHMENT
+    try:
+        repo.MAX_COMPONENTS_PER_ATTACHMENT = 10
+        with engine.begin() as conn:
+            truncated = repo.replace_attachment_source(
+                conn,
+                attachment_id=truncation_attachment,
+                pages=list(extraction.source_pages),
+                coordinate_system=extraction.coordinate_system,
+                extraction_tool=extraction.extraction_tool,
+                extraction_version=extraction.extraction_version,
+                source_checksum=target["checksum"],
+            )
+        with engine.begin() as conn:
+            current_after_truncation = truncation_attachment in repo.attachments_with_current_source(conn)
+            truncated_pages = int(
+                conn.execute(
+                    select(__import__("sqlalchemy").func.count()).select_from(source_pages).where(
+                        source_pages.c.attachment_id == truncation_attachment
+                    )
+                ).scalar_one()
+            )
+            truncated_components = int(
+                conn.execute(
+                    select(__import__("sqlalchemy").func.count())
+                    .select_from(source_components.join(source_pages))
+                    .where(source_pages.c.attachment_id == truncation_attachment)
+                ).scalar_one()
+            )
+    finally:
+        repo.MAX_COMPONENTS_PER_ATTACHMENT = old_max
+
+    with engine.begin() as conn:
+        original_checksum = conn.execute(
+            select(attachments.c.checksum).where(attachments.c.id == truncation_attachment)
+        ).scalar_one()
+        conn.execute(
+            update(attachments).where(attachments.c.id == truncation_attachment).values(checksum="0" * 64)
+        )
+        stale_excluded = truncation_attachment not in repo.attachments_with_current_source(conn)
+        conn.execute(
+            update(attachments).where(attachments.c.id == truncation_attachment).values(checksum=original_checksum)
+        )
+
+    with engine.begin() as conn:
+        conn.execute(source_pages.delete().where(source_pages.c.attachment_id == resume_attachment))
+    first = backfill(engine, attachment_id=resume_attachment)
+    second = backfill(engine, attachment_id=resume_attachment)
+    with engine.begin() as conn:
+        resume_pages = int(
+            conn.execute(
+                select(__import__("sqlalchemy").func.count()).select_from(source_pages).where(
+                    source_pages.c.attachment_id == resume_attachment
+                )
+            ).scalar_one()
+        )
+
+    result = {
+        "schema": "codex-h1b-edge-case-audit-v1",
+        "truncation": {
+            "attachment": truncation_attachment,
+            "write_result": truncated,
+            "stored_pages": truncated_pages,
+            "stored_components": truncated_components,
+            "classified_current": current_after_truncation,
+        },
+        "stale_checksum_excluded": stale_excluded,
+        "resume": {
+            "attachment": resume_attachment,
+            "first_run": first,
+            "second_run": second,
+            "stored_pages": resume_pages,
+        },
+    }
+    output.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    return result
+
+
 def _vector_queries(db: Path, query_ids: list[int]) -> list[dict[str, Any]]:
     import sqlite_vec
 
@@ -946,6 +1299,19 @@ def main() -> None:
     retrieval.add_argument("--before", type=Path, required=True)
     retrieval.add_argument("--after", type=Path, required=True)
     retrieval.add_argument("--out", type=Path, required=True)
+    structural = sub.add_parser("structural-audit")
+    structural.add_argument("--db", type=Path, required=True)
+    structural.add_argument("--out", type=Path, required=True)
+    grobid = sub.add_parser("grobid-fixture-audit")
+    grobid.add_argument("--out", type=Path, required=True)
+    headings = sub.add_parser("heading-audit")
+    headings.add_argument("--db", type=Path, required=True)
+    headings.add_argument("--out", type=Path, required=True)
+    edge = sub.add_parser("edge-case-audit")
+    edge.add_argument("--db", type=Path, required=True)
+    edge.add_argument("--truncation-attachment", type=int, required=True)
+    edge.add_argument("--resume-attachment", type=int, required=True)
+    edge.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "snapshot":
         result = snapshot(args.db, args.out)
@@ -959,8 +1325,16 @@ def main() -> None:
         result = locator_snapshot(args.db, args.attachment_id, args.out)
     elif args.command == "artifact-hashes":
         result = artifact_hashes(args.out)
-    else:
+    elif args.command == "retrieval-identity":
         result = retrieval_identity(args.before, args.after, args.out)
+    elif args.command == "structural-audit":
+        result = structural_audit(args.db, args.out)
+    elif args.command == "grobid-fixture-audit":
+        result = grobid_fixture_audit(args.out)
+    elif args.command == "heading-audit":
+        result = heading_audit(args.db, args.out)
+    else:
+        result = edge_case_audit(args.db, args.truncation_attachment, args.resume_attachment, args.out)
     print(json.dumps(result, indent=2))
 
 
