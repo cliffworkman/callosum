@@ -1,0 +1,36 @@
+{
+  "schema": "evidence-unit-pass-a-freeze-v1",
+  "study": "codex-evidence-unit-replication-20260905",
+  "h1a_commit": "614338b25739afe6a92f4fa0a5faea93aea090e0",
+  "preregistration_commit": "eeb63a1951acfa2a40f51ba5f67ffe476e31d866",
+  "method_amendment_commits": [
+    "413add64fb80514c7f1529b557d220ad493b5b12",
+    "c49c43da5f3cd37dbe859cefd6232da89e574dd2",
+    "3b8226b7f02f1cbeb7b5d08ef9350164e779b8c7"
+  ],
+  "frozen_at_utc": "2026-09-05T05:22:51.7846433Z",
+  "seed": 20260905,
+  "sample_size": 180,
+  "sample_arms": {
+    "probability": 120,
+    "stress": 60
+  },
+  "blind_sample_sha256": "18d42df6ab344706e60aa1fb3bf51826a28def0e92fd9ba1ca1ced2912f3b97a",
+  "blind_ratings_sha256": "acce3518863d44fb71706a050339392fc0c97e33c7f54e60af8d98c94a37253b",
+  "research_harness_sha256": "3667ceac8f12c696d72bedc3528a653850914d9b8e55922572bb6b937d1e1829",
+  "text_only_results": {
+    "standalone_proposition_bearing": {
+      "yes": 35,
+      "no": 145
+    },
+    "scientifically_meaningful_as_extracted": {
+      "yes": 82,
+      "no": 50,
+      "ambiguous": 48
+    }
+  },
+  "blindness_boundary": "Ratings were completed from shuffled extracted text and opaque case IDs only. Chunk identity, H1a class, paper, attachment, page, geometry, neighboring chunks, and source PDFs had not been revealed.",
+  "independence_boundary": "The prohibited parallel-agent evidence-unit report and scratch outputs had not been accessed.",
+  "provider_or_model_calls": false,
+  "production_mutations": false
+}
