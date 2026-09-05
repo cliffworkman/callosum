@@ -25,15 +25,25 @@ H1a was committed before any measurement, so every number below traces to one id
 | Geometry parseable | 4,000 / 4,000 sampled |
 | `chunk_structure` coverage | 23,782 / 23,875 chunks — **93 unclassified (0.4%)** |
 
-**An observed gap, reported rather than explained away.** All 93 unclassified chunks belong to a
-single paper (paper 2). My first diagnosis — that its attachment carries the legacy `primary` role
-and was filtered out — is **wrong**: `document_roles.py:46` explicitly maps `primary` →
-`article-fulltext`, and `tools/backfill_chunk_structure.py:222` uses that clause. A second attempt
-to reproduce the filter directly was malformed (it cross-joined) and proved nothing. Rather than
-mutate the frozen study DB to investigate, the gap is recorded as **undiagnosed** and listed as a
-follow-up in §16. It affects 0.4% of the corpus and no finding below depends on it: the proposition
-analysis runs over all 23,875 chunks, and unclassified units appear as their own `(unclassified)`
-stratum in §4 rather than being silently folded into another class.
+**Diagnosed: correct behaviour, not a defect.** All 93 unclassified chunks belong to one paper —
+id 2, *"Association between serotonin denervation and resting-state functional connectivity in mild
+cognitive impairment"* (Barrett et al., 2017, Hum Brain Mapp, `10.1002/hbm.23595`) — which was
+**moved to the trash on 2026-08-28** (`papers.deleted_at`). Trash is a soft delete, so its chunk
+rows remain in `chunks`, while `tools/backfill_chunk_structure.py:251` enumerates only
+`papers.deleted_at IS NULL`. The backfill was right to skip it; the raw `COUNT(*)` was simply
+counting rows the application itself treats as deleted.
+
+Two earlier diagnoses were wrong and are recorded so the reasoning is auditable: the legacy
+`primary` attachment role is **not** the cause (`document_roles.py:46` explicitly maps `primary` →
+`article-fulltext`), and a follow-up attempt to reproduce the role filter directly was malformed
+(it cross-joined) and proved nothing.
+
+**Contamination check.** Ten papers in the study DB are trashed, but only paper 2 still has chunks.
+Those 93 chunks (0.39%) *are* included in the §5 proposition-bearing baseline, which is therefore
+very slightly inflated by a deleted paper. Four of the 179 sampled fixture cases come from it — all
+in the `(unclassified)` stratum — and **none of them appear among the 44 adjudicated cases**, so
+every §6A / §10 headline figure is unaffected. A future run should scope the baseline to
+`deleted_at IS NULL` for exact agreement with the backfill.
 
 The corpus-level sanity gate exists because of an inc-577 defect that fixtures alone could not
 catch: `chunks.bbox_json` is a SQLAlchemy `JSON` column, so a DB read returns a decoded list while
@@ -575,9 +585,11 @@ disqualified — and the distinction matters for what H1c should attempt:
    recovery path. Is retaining it unchanged-but-labelled acceptable indefinitely?
 3. **CRLF renormalization** is a repo-wide hygiene action (~186 files) currently blocked by parallel
    work. When should it be scheduled?
-4. **The 93 unclassified chunks** (§0). One paper received no `chunk_structure` rows from the inc-577
-   backfill and the cause is not yet established. Worth a few minutes on a scratch copy before H1b
-   builds anything on top of that metadata.
+4. **Trashed-paper chunks linger in `chunks`** (§0). A soft-deleted paper keeps its chunk rows, so
+   any analysis reading `chunks` directly silently includes deleted papers unless it joins `papers`
+   and filters `deleted_at`. That bit this study (0.39%, harmless here) and would bite a
+   re-embedding or re-chunking pass harder. Worth deciding whether purge-on-trash or a documented
+   read convention is the right answer before H1b.
 
 ---
 
