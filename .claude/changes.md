@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-05 — inc 577: H1a instrumented hygiene baseline (non-load-bearing)
+- **Files:** `app/backend/persistence/schema_chunk_structure.py`, `chunk_structure_repo.py`,
+  `app/backend/pdf_processing/chunk_structure.py`, `alembic/versions/0079_chunk_structure.py`,
+  `tools/backfill_chunk_structure.py`, `app/backend/summarization/{chunk_filtering,pipeline}.py`,
+  `tests/test_chunk_structure.py`, `tests/test_chunk_filtering.py`, `tests/test_pdf_processing.py`
+- **What:** additive `chunk_structure` table + a pure classifier (`chunk_type`, `evidence_role`,
+  reason codes, derivation version) derived by a `tools/` backfill; fixed the repeated-boilerplate
+  scope defect so detection is paper-global while filtering stays scoped; added a real-locator
+  exact-anchor regression test.
+- **Why:** the evidence-hygiene study found NO exclusion reason code clears the ≥95% held-out
+  precision gate, so the substrate must be observable and auditable before any of it changes
+  behavior. Ships instrumentation for the coming re-chunking study.
+- **Revert:** `DROP TABLE chunk_structure` + revert the two `summarization/` files; nothing on the
+  retrieval path reads the new table.
+
 <!-- HELP-DOCS-SYNCED inc-576 2026-09-04 -->
 ## 2026-09-04 — Increment 576: reconnect missing PDFs without losing library work
 - **Files:** `app/backend/pdf_processing/library_scan.py`, `app/backend/api/routers/{library,paper_files}.py`,

@@ -22,7 +22,11 @@ from app.backend.persistence.schema import (
     summaries,
     summary_sentences,
 )
-from app.backend.summarization.chunk_filtering import exclude_repeated_boilerplate_chunks, is_front_matter_chunk
+from app.backend.summarization.chunk_filtering import (
+    exclude_repeated_boilerplate_chunks,
+    is_front_matter_chunk,
+    repeated_boilerplate_keys,
+)
 from app.backend.summarization.generators import (
     CandidateCitation,
     SourceChunk,
@@ -271,10 +275,24 @@ def _source_chunks_for_scope(
             )
         ]
         stmt = stmt.where(chunks.c.paper_id.in_(paper_ids)) if paper_ids else stmt.where(False)
+    # Repeated-boilerplate DETECTION must see the paper's whole chunk set; the section filter narrows
+    # only what is RETURNED (inc 577). Fusing the two made the answer depend on which section-filtered
+    # list was handed in -- measured, a `sections=['methods']` synthesis kept 112 running-head chunks
+    # that whole-paper scope removes, because a header on five pages survived into too few selected
+    # chunks to reach the page-count floor.
+    #
+    # The extra query runs ONLY when a section filter exists: without one the candidate rows already
+    # ARE the whole-paper pool, so re-reading it would be pure cost on the path that already carries
+    # the O(library) query-scope expense. It also selects just the three columns the detector needs,
+    # never a second full chunk materialization.
+    boilerplate_keys = None
     if scope.sections:
+        boilerplate_keys = repeated_boilerplate_keys(
+            conn.execute(stmt.with_only_columns(chunks.c.paper_id, chunks.c.page_start, chunks.c.text).order_by(None))
+        )
         stmt = stmt.where(chunks.c.section.in_(scope.sections))
     rows = [_source_chunk_from_row(row) for row in conn.execute(stmt).mappings()]
-    rows = exclude_repeated_boilerplate_chunks(rows)
+    rows = exclude_repeated_boilerplate_chunks(rows, keys=boilerplate_keys)
     if scope.query:
         return _rank_chunks_for_query(
             conn,

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from app.backend.summarization.chunk_filtering import exclude_repeated_boilerplate_chunks, is_front_matter_chunk
+from app.backend.summarization.chunk_filtering import (
+    exclude_repeated_boilerplate_chunks,
+    is_front_matter_chunk,
+    repeated_boilerplate_keys,
+)
 from app.backend.summarization.generators import SourceChunk
 
 # The masthead/front-matter strings are the actual degenerate "sentences" from validation summary #7
@@ -131,3 +135,45 @@ def test_a_paper_is_never_left_with_zero_chunks() -> None:
     chunks = [_chunk(i, paper_id=1, page=i, text=HEADER_TEXT) for i in range(1, 4)]
     result = exclude_repeated_boilerplate_chunks(chunks)
     assert {c.chunk_id for c in result} == {1, 2, 3}
+
+
+def test_detection_is_independent_of_a_section_filtered_candidate_list() -> None:
+    """inc 577: DETECTION must see the whole paper; the section filter narrows only what is returned.
+
+    Before the split, the two were fused, so the verdict depended on which candidate list happened to
+    be handed in. Measured on the real library, a sections=['methods'] synthesis kept 112
+    running-head chunks that whole-paper scope removes -- a header on five pages survived into too
+    few of the selected-section chunks to reach the three-page floor.
+    """
+    whole_paper = [
+        _chunk(1, paper_id=1, page=1, text=HEADER_TEXT),
+        _chunk(2, paper_id=1, page=2, text=HEADER_TEXT),
+        _chunk(3, paper_id=1, page=3, text=HEADER_TEXT),
+        _chunk(4, paper_id=1, page=3, text="Anomalous faces were rated as less trustworthy than typical faces."),
+    ]
+    # The 'methods' section contributes only ONE of the header's occurrences.
+    section_scoped = [whole_paper[0], whole_paper[3]]
+
+    # Fused (old) behaviour: one occurrence never reaches the floor, so the header survives.
+    assert {c.chunk_id for c in exclude_repeated_boilerplate_chunks(section_scoped)} == {1, 4}
+
+    # Split (new) behaviour: keys come from the whole paper, so the header is excluded even though
+    # the candidate list contains it only once.
+    keys = repeated_boilerplate_keys(whole_paper)
+    assert {c.chunk_id for c in exclude_repeated_boilerplate_chunks(section_scoped, keys=keys)} == {4}
+
+
+def test_precomputed_keys_still_never_empty_a_paper() -> None:
+    """The safety valve survives the split: a paper is never left with zero chunks."""
+    whole_paper = [_chunk(i, paper_id=1, page=i, text=HEADER_TEXT) for i in range(1, 4)]
+    keys = repeated_boilerplate_keys(whole_paper)
+    result = exclude_repeated_boilerplate_chunks([whole_paper[0]], keys=keys)
+    assert {c.chunk_id for c in result} == {1}
+
+
+def test_omitting_keys_reproduces_the_previous_behaviour_exactly() -> None:
+    chunks = [_chunk(i, paper_id=1, page=i, text=HEADER_TEXT) for i in range(1, 4)]
+    chunks.append(_chunk(9, paper_id=1, page=3, text="Real content that should always survive."))
+    assert {c.chunk_id for c in exclude_repeated_boilerplate_chunks(chunks)} == {
+        c.chunk_id for c in exclude_repeated_boilerplate_chunks(chunks, keys=repeated_boilerplate_keys(chunks))
+    }

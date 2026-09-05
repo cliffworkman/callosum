@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 576** (see Increment workflow) with **2824 passed, 5 skipped in the last completed root-suite
+It is currently at **Increment 577** (see Increment workflow) with **2824 passed, 5 skipped in the last completed root-suite
 pass** (+ 12 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
 The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
 receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
@@ -974,6 +974,38 @@ the full per-increment narrative for all other increments now lives in the reloc
   handling, and byte-preserving fallback. Existing foreign fields remain owned by their source tool; vendor
   flattening produces static text, not editable migration. Research:
   `.claude/docs/research/2026-08-21_word_citation_migration_formats.md`.
+- **Evidence hygiene, H1a instrumented baseline (inc 577):** `chunks` now has an additive derived
+  sibling, `chunk_structure` (`chunk_type`, `evidence_role`, reason codes, `derivation_version`,
+  full `raw_sha` + `chunk_version` for staleness). It is **deliberately non-load-bearing: nothing on
+  the retrieval path reads it**, because the evidence-hygiene study
+  (`.claude/docs/research/2026-09-04_evidence-hygiene-architecture.md`) found that **no exclusion
+  reason code clears a ≥95% held-out precision gate** — the best sit at 100% on n=6/n=9 (Wilson
+  lower bounds 0.61/0.70) and three adjudicated false positives would have deleted real scientific
+  evidence. Classification is shipped to be *observed*, not obeyed. Two standing rules: **(a)**
+  `evidence_role` is `scientific | bibliographic | structural | unknown`, never a boolean — a
+  reference entry is not claim evidence but IS evidence for "what did this paper cite?", so
+  eligibility is task-relative and must stay computed per question; and `unknown` is first-class and
+  never implies ineligibility (measured, it holds real fragmentary statistics). **(b)**
+  `pdf_processing/chunk_structure.py` is **pure** — no connection, client, network call or PDF read;
+  `tools/backfill_chunk_structure.py` owns all I/O and hands resolved inputs in, which is what makes
+  it testable from literals. The backfill is cache-only (opening a library never needs the network),
+  per-paper committed, resumable and idempotent; `--inspect <chunk_id>` / `--summary` are the audit
+  surface, and there is deliberately **no API endpoint** (that surface would attach the
+  security-audit gate, a QA route and Status obligations to metadata not yet trusted).
+  **The same increment fixed a real defect in `exclude_repeated_boilerplate_chunks` (backlog #79's
+  scope half):** detection was fused to the candidate list `pipeline.py` had already
+  section-filtered, so a header on five pages could survive into too few selected-section chunks to
+  reach the three-page floor — measured, `sections=['methods']` kept **112** running-head chunks that
+  whole-paper scope removes. Detection is now paper-global (`repeated_boilerplate_keys`) while
+  filtering stays scoped, and **the extra SELECT runs only when a section filter exists** (without
+  one the candidate rows already ARE the whole-paper pool), fetching just
+  `paper_id, page_start, text`. The default Ask path is byte-identical and issues no extra query.
+  A **real trap found here and worth remembering: `chunks.bbox_json` is a SQLAlchemy `JSON` column**,
+  so a DB read returns an already-decoded list while a fixture returns a string; `json.loads()` on
+  the list raised `TypeError` that a broad `except` swallowed, silently disabling every geometry rule
+  (3,228 repeats detected, all misfiled `middle_band`, zero running heads). Parse sites must accept
+  both forms, and prototype-to-production parity must be checked on **distributions**, not just unit
+  cases — this failure was invisible per-chunk and obvious in aggregate.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

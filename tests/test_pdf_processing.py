@@ -646,3 +646,130 @@ def _fake_word_tokens_with_lines(words: list[tuple[str, int]]) -> tuple[list[_Wo
             )
         )
     return tokens, "".join(pieces)
+
+
+# --- exact-anchor regression, through the REAL locator (inc 577) --------------------------------
+#
+# The evidence-hygiene study found this failure class INVISIBLE to the existing suite:
+# tests/test_quote_matching.py monkeypatches `locate_quote` away, so a change that improved
+# retrieval while silently degrading in-PDF highlighting would pass everything. These cases run
+# `locate_quote_for_attachment` for real, against real PDFs, through a real attachment row.
+#
+# The distinction being protected is the one production already makes and must keep making:
+#
+#   semantic quote verification  !=  PDF coordinate localization
+#
+# Failing to recover a rectangle degrades PRECISION to region; it must never retroactively make an
+# already-verified quote semantically false (see pdf_processing/location.py's own docstring).
+
+EXACT_ANCHOR_CASES = [
+    {
+        "name": "ordinary-exact",
+        "pdf": "_make_fixture_pdf",
+        "quote": "Alpha beta gamma appears on page one.",
+        "expect_exact": True,
+    },
+    {
+        # A discretionary hyphen split across a line break: the canonicalizer's own reason for being.
+        "name": "line-break-hyphen",
+        "pdf": "_make_hyphenated_line_break_pdf",
+        "quote": "The study described beautiful faces in the condition.",
+        "expect_exact": True,
+    },
+    {
+        # A genuine compound must survive as a compound, not be silently joined.
+        "name": "genuine-compound",
+        "pdf": "_make_same_line_compound_pdf",
+        "quote": None,  # resolved from the fixture's own text below
+        "expect_exact": True,
+    },
+    {
+        "name": "absent-quote-is-not-anchored",
+        "pdf": "_make_fixture_pdf",
+        "quote": "This sentence is absent from the document entirely.",
+        "expect_exact": False,
+    },
+]
+
+
+def _attach_pdf(conn, pdf_path: Path) -> int:
+    paper_id = create_paper(conn, title="Anchor Fixture", csl_json={"title": "Anchor Fixture"})
+    return create_attachment(
+        conn,
+        paper_id=paper_id,
+        storage_mode="linked",
+        availability="available",
+        original_path=str(pdf_path),
+        resolved_path=str(pdf_path),
+        checksum="anchor-fixture",
+        file_size=pdf_path.stat().st_size,
+        content_type="application/pdf",
+        attachment_type="pdf",
+        role="primary",
+    )
+
+
+def test_exact_anchor_rate_through_the_real_locator(tmp_path: Path) -> None:
+    """Locks the exact-anchor rate in. No monkeypatching: this is the real PDF path."""
+    from app.backend.pdf_processing.location import locate_quote_for_attachment
+
+    url = f"sqlite:///{tmp_path / 'anchors.sqlite'}"
+    config = Config("alembic.ini")
+    config.set_main_option("sqlalchemy.url", url)
+    command.upgrade(config, "head")
+    engine = make_engine(url)
+
+    generators = {
+        "_make_fixture_pdf": _make_fixture_pdf,
+        "_make_hyphenated_line_break_pdf": _make_hyphenated_line_break_pdf,
+        "_make_same_line_compound_pdf": _make_same_line_compound_pdf,
+    }
+    exact = 0
+    expected_exact = 0
+    for case in EXACT_ANCHOR_CASES:
+        pdf_path = generators[case["pdf"]](tmp_path / f"{case['name']}.pdf")
+        quote = case["quote"]
+        if quote is None:
+            page_text = fitz.open(pdf_path)[0].get_text().split("\n")
+            quote = " ".join(line.strip() for line in page_text if line.strip())
+        with engine.begin() as conn:
+            attachment_id = _attach_pdf(conn, pdf_path)
+            match = locate_quote_for_attachment(conn, attachment_id, quote)
+
+        got_exact = bool(match.found and match.rectangles)
+        assert got_exact == case["expect_exact"], f"{case['name']}: exact={got_exact}"
+        exact += int(got_exact)
+        expected_exact += int(case["expect_exact"])
+        if got_exact:
+            for rect in match.rectangles:
+                assert rect["x1"] > rect["x0"] and rect["y1"] > rect["y0"], case["name"]
+
+    assert exact == expected_exact
+
+
+def test_a_missing_pdf_degrades_precision_without_falsifying_the_quote(tmp_path: Path) -> None:
+    """The production invariant, pinned: an unlocatable rectangle is a PRECISION fact, not a
+    semantic one. `_quote_confidence` establishes verbatim-in-chunk BEFORE any PDF access, so a
+    moved file must degrade exact -> region rather than make a verified quote false."""
+    from app.backend.pdf_processing.extraction import canonical_text_contains
+    from app.backend.pdf_processing.location import locate_quote_for_attachment
+
+    url = f"sqlite:///{tmp_path / 'missing.sqlite'}"
+    config = Config("alembic.ini")
+    config.set_main_option("sqlalchemy.url", url)
+    command.upgrade(config, "head")
+    engine = make_engine(url)
+
+    pdf_path = _make_fixture_pdf(tmp_path / "will-move.pdf")
+    quote = "Alpha beta gamma appears on page one."
+    chunk_text = f"Preamble. {quote} Trailing sentence."
+    with engine.begin() as conn:
+        attachment_id = _attach_pdf(conn, pdf_path)
+    pdf_path.unlink()  # the file moves after extraction, as linked files do
+
+    with engine.begin() as conn:
+        match = locate_quote_for_attachment(conn, attachment_id, quote)
+
+    assert match.found is False  # no rectangle: coordinate localization failed
+    # ...but the SEMANTIC question is answered from the stored chunk text and is unaffected.
+    assert canonical_text_contains(needle=quote, haystack=chunk_text) is True

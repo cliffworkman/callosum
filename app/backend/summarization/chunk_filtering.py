@@ -11,6 +11,8 @@ masthead/DOI/journal-header/author-line garbage is flagged.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
+from typing import Protocol
 
 from app.backend.summarization.generators import SourceChunk
 
@@ -122,6 +124,15 @@ def is_front_matter_chunk(text: str) -> bool:
     return False
 
 
+class BoilerplateRow(Protocol):
+    """The minimal row shape repetition detection needs. `SourceChunk` satisfies it structurally,
+    and so does a narrow SELECT of (paper_id, page_start, text)."""
+
+    paper_id: int
+    page_start: int
+    text: str
+
+
 REPEATED_BOILERPLATE_MAX_WORDS = 25
 REPEATED_BOILERPLATE_MIN_PAGE_COUNT = 3
 _TRAILING_NUMBER = re.compile(r"\s*\d+\s*$")
@@ -140,7 +151,36 @@ def _repetition_key(text: str) -> str:
     return _TRAILING_NUMBER.sub("", _normalize_space(text))
 
 
-def exclude_repeated_boilerplate_chunks(chunks: list[SourceChunk]) -> list[SourceChunk]:
+def repeated_boilerplate_keys(rows: Iterable[BoilerplateRow]) -> dict[int, set[str]]:
+    """Per paper, the repetition keys that qualify as running header/footer noise.
+
+    Split out (inc 577) so DETECTION can run over a paper's whole chunk set while FILTERING stays
+    scoped to the caller's candidate list. Previously the two were fused, so the answer depended on
+    which section-filtered list happened to be handed in: measured on the testing library, a
+    ``sections=['methods']`` synthesis kept 112 running-head chunks that whole-paper scope removes,
+    because a header appearing on five pages survived into too few of the selected-section chunks to
+    reach the page-count floor.
+
+    Takes only the three fields the rule needs -- ``paper_id``, ``page_start``, ``text`` -- so the
+    caller can satisfy it with a narrow SELECT rather than a second full chunk materialization.
+    """
+    pages_by_text: dict[int, dict[str, set[int]]] = {}
+    for row in rows:
+        by_text = pages_by_text.setdefault(row.paper_id, {})
+        by_text.setdefault(_repetition_key(row.text), set()).add(row.page_start)
+    return {
+        paper_id: {
+            key
+            for key, pages in by_text.items()
+            if len(key.split()) <= REPEATED_BOILERPLATE_MAX_WORDS and len(pages) >= REPEATED_BOILERPLATE_MIN_PAGE_COUNT
+        }
+        for paper_id, by_text in pages_by_text.items()
+    }
+
+
+def exclude_repeated_boilerplate_chunks(
+    chunks: list[SourceChunk], *, keys: dict[int, set[str]] | None = None
+) -> list[SourceChunk]:
     """Drop chunks whose text is short and recurs verbatim (modulo a trailing page number) across several of
     the SAME paper's own pages -- a running header/footer, not real content (complementary to
     is_front_matter_chunk above, which is purely content-pattern-based and doesn't catch a plain title-case
@@ -148,20 +188,19 @@ def exclude_repeated_boilerplate_chunks(chunks: list[SourceChunk]) -> list[Sourc
     a paper's ENTIRE candidate set (falls back to the unfiltered chunks for that paper if every one of its
     chunks would otherwise qualify) -- mirrors this codebase's existing "front matter is never dropped
     outright" philosophy (_select_no_query's own docstring) at the paper level, while still excluding real
-    noise at the chunk level for the common case."""
+    noise at the chunk level for the common case.
+
+    ``keys`` supplies a precomputed, paper-global key set (inc 577). Omitted, the keys are derived from
+    ``chunks`` itself, which is exactly the previous behavior -- and is correct whenever the caller's list
+    already IS the paper's whole chunk set.
+    """
     by_paper: dict[int, list[SourceChunk]] = {}
     for chunk in chunks:
         by_paper.setdefault(chunk.paper_id, []).append(chunk)
+    derived = keys if keys is not None else repeated_boilerplate_keys(chunks)
     kept_ids: set[int] = set()
-    for paper_chunks in by_paper.values():
-        pages_by_text: dict[str, set[int]] = {}
-        for chunk in paper_chunks:
-            pages_by_text.setdefault(_repetition_key(chunk.text), set()).add(chunk.page_start)
-        boilerplate_keys = {
-            key
-            for key, pages in pages_by_text.items()
-            if len(key.split()) <= REPEATED_BOILERPLATE_MAX_WORDS and len(pages) >= REPEATED_BOILERPLATE_MIN_PAGE_COUNT
-        }
+    for paper_id, paper_chunks in by_paper.items():
+        boilerplate_keys = derived.get(paper_id, set())
         survivors = [c for c in paper_chunks if _repetition_key(c.text) not in boilerplate_keys]
         kept_ids.update((c.chunk_id for c in (survivors if survivors else paper_chunks)))
     return [c for c in chunks if c.chunk_id in kept_ids]
