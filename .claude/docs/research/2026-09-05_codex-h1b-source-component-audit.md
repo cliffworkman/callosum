@@ -439,3 +439,40 @@ non-load-bearing for current retrieval, and its core page/block/line/span/headin
 has excellent deterministic source fidelity. It is not yet safe to begin H1c under the approved
 gate because a truncated graph can masquerade as current. A narrow completeness and stable-locator
 hardening increment should precede any reconstruction study.
+
+## 19. Post-hoc Claude comparison
+
+This section was appended only after sections 1-18 were frozen in commit
+`7f9e4fcb1194752b7d95e158839f57712d47077d` (pre-comparison report SHA-256
+`08dd7a2dafeb232c0004a5af5dba78f1e73a3c2b6c6755331596d7a4f551376f`). I then read
+`INCREMENT-578-NOTES.md`, the H1b appendix appended to Claude's proposition-preserving report, and
+the H1b entries in the project/change documentation. I did not alter the frozen findings.
+
+| Major conclusion | Classification | Comparison |
+|---|---|---|
+| H1b is additive/non-load-bearing for retrieval | **AGREEMENT** | Both audits found no new-table reader in retrieval/generation and exact preservation of chunks/embeddings/vectors. Codex additionally ran ten exact before/after vector queries. |
+| Live coverage is 114 PDFs; one trashed attachment is outside scope | **AGREEMENT** | Both independently resolve the 93 H1a rows to soft-deleted paper 2. |
+| Native and sorted order are distinct | **AGREEMENT** | Both obtain exactly 1,356/1,628 disagreement pages. Codex additionally stratifies one-/two-column disagreement and independently raw-rereads 31 pages. |
+| “Native” is semantic reading order | **AGREEMENT (rejected)** | Both source code and notes say neither order proves continuity. Claude's phrase that H1c needs no reread “for reading order” should be read as native-number recovery, not semantic order validation. |
+| Page/block/line/span/style structure is faithfully persisted | **AGREEMENT** | Claude's implementation tests and counts align with Codex's zero-mismatch 1,628-page full round trip and separate zero-mismatch raw-PyMuPDF sample. |
+| Pure headings are preserved without becoming new chunks | **AGREEMENT** | Both report 598 headings. Codex separately finds 0/20 in fresh drafts and explains 28 legacy heading chunks. |
+| Raster blocks remain structural and uninterpreted | **AGREEMENT** | Both report 7,413 bounds and no figure interpretation. Codex-only inspection identifies 363 faithfully preserved inverted image bboxes and one out-of-page bbox. |
+| GROBID figures/descriptions/grids are additive | **AGREEMENT** | Both get three tracked-fixture figures, one located raster figure, and two unlocated tables. |
+| GROBID substrate is sufficient for future table provenance | **CODEX-ONLY qualification** | Claude notes missing table coordinates; Codex additionally finds discarded table notes, first-page-only multi-region union, unmarked grid truncation, and missing checksum/parser/TEI provenance. |
+| Backfill is idempotent and resumable | **PARTIAL AGREEMENT** | Normal and missing-row paths behave as Claude reports. Codex's unanticipated cap experiment shows a truncated partial graph is nevertheless marked current and then skipped, so the general claim requires a completeness qualifier. |
+| Stable component provenance exists | **CODEX-ONLY** | Claude's docs do not audit surrogate replacement. Codex shows every sampled surrogate changes on force rebuild while logical trees remain exact, and requires the derivable stable path to be formalized. |
+| H1c can proceed directly to caption/table precision | **DISAGREEMENT on sequencing** | Claude identifies caption/table precision as the cheapest H1c task. Under the maintainer-approved Codex gate, the confirmed partial-current defect blocks that probe until a narrow completeness repair is independently verified. This is a sequencing disagreement, not disagreement that caption/table precision matters. |
+| Guarded digit-masked key uses a corrected word definition | **AGREEMENT on committed target** | Both observe the two-alphabetic-character guard and research-only status. Codex directly verifies the statistical examples decline, but cannot verify the alleged earlier implementation because it is absent from committed parent history. |
+| H1b performance/storage overhead | **NOT COMPARABLE** | Claude reports +2.57 seconds/paper and about 2.1 MB/paper. Codex did not preregister or repeat this benchmark and therefore does not adopt it as an independent finding. |
+| Repository-wide validation baseline | **NOT COMPARABLE / compatible** | Claude ran a full suite and reports six preexisting frozen-battery failures caused by CRLF/LF drift. Codex did not rerun the full suite, but independently confirms a separate Ruff baseline of 22 pre-H1b versus 20 at H1b, with no new H1b Ruff failure. These are different checks and do not conflict. |
+
+The strongest combined conclusion is that H1b's central representation is unusually well supported:
+implementation tests, Claude's corpus audit, Codex's full production-extractor round trip, and
+Codex's independent raw-PyMuPDF sample all converge. The cross-agent comparison also demonstrates
+why adversarial state testing matters even when corpus coverage is perfect: neither ordinary
+idempotence nor the real library exercised the bounded truncation path.
+
+The discriminating next check is small and deterministic: add an explicit completeness record,
+force a capped/truncated write and an interrupted write, and prove neither enters the current set;
+then rerun the same H1b invariant/fidelity checks. Only after that should H1c measure caption/table
+or same-column associations, with harmful false association reported before recovery.
