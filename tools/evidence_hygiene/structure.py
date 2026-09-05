@@ -30,14 +30,14 @@ from tools.evidence_hygiene.features import Features
 
 _TRAILING_NUMBER = re.compile(r"\s*\d+\s*$")
 
-BIBLIO_HOT = 2.0          # per-chunk score at which a chunk looks bibliographic
-REGION_MIN_HOT = 5        # a real reference list is many entries, not one stray citation
-REGION_MIN_DENSITY = 0.45 # tolerate interleaved page furniture inside the region
+BIBLIO_HOT = 2.0  # per-chunk score at which a chunk looks bibliographic
+REGION_MIN_HOT = 5  # a real reference list is many entries, not one stray citation
+REGION_MIN_DENSITY = 0.45  # tolerate interleaved page furniture inside the region
 REGION_MIN_TAIL_FRACTION = 0.30  # a reference list lives in the paper's tail, never its opening
-REGION_WINDOW = 8         # scoreable chunks per sliding density window
+REGION_WINDOW = 8  # scoreable chunks per sliding density window
 REPEAT_MIN_PAGES = 3
 REPEAT_MAX_WORDS = 25
-REPEAT_X_SIGMA = 6.0      # pt; a running head sits at a stable x across pages
+REPEAT_X_SIGMA = 6.0  # pt; a running head sits at a stable x across pages
 
 
 def repetition_key(text: str) -> str:
@@ -51,6 +51,48 @@ def repetition_key(text: str) -> str:
     """
     canon = _canonical_characters(text or "")
     return _TRAILING_NUMBER.sub("", " ".join(canon.split()))
+
+
+# Minimum real (non-numeric) words a digit-masked key must retain to be usable. Below this the
+# masked key degenerates toward "<N> <N>" and starts colliding with genuine numeric results.
+GUARDED_MASK_MIN_WORDS = 3
+_INTERIOR_DIGITS = re.compile(r"\d+")
+
+
+def guarded_digit_masked_key(text: str) -> str | None:
+    """EXPERIMENTAL, NOT PRODUCTION-QUALIFIED. Never wired to retrieval (inc 578, H1b §L).
+
+    A running head that embeds a page number *inside* the line ("Journal of X, Vol 12, No 3, 2021")
+    defeats `repetition_key`, which strips only a TRAILING number. Masking every digit run fixes
+    that -- and, done naively, is dangerous: a chunk that is mostly numbers ("M = 3.41, SD = 1.02")
+    collapses to a key shared with every other numeric result, so real scientific evidence would be
+    detected as repeated boilerplate and dropped.
+
+    The guard is what makes it survivable: a masked key is returned ONLY when at least
+    `GUARDED_MASK_MIN_WORDS` genuinely non-numeric words remain. Otherwise this returns None,
+    meaning "this rule declines to have an opinion" -- the caller falls back to the ordinary key.
+
+    In the H1b predecessor research this raised observed boilerplate recall from 31% to 56% with no
+    added numerical casualties in the sample. **That sample is not qualification.** Before this may
+    influence anything a user sees it must clear the same held-out gate H1a used: >=95% precision
+    with an adequate sample size and a reported confidence bound. Until then it lives here, beside
+    the offline `repetition_key`, and production's `_repetition_key` in
+    `app/backend/summarization/chunk_filtering.py` remains untouched and unreferenced by it.
+    """
+    canon = _canonical_characters(text or "")
+    collapsed = " ".join(canon.split())
+    if not collapsed:
+        return None
+    # A "real word" must carry at least two alphabetic characters. Counting any digit-free token
+    # is not enough, and the difference is load-bearing: in "M = 3.41, SD = 1.02" the tokens
+    # M, =, SD, = are all digit-free, so a naive count reaches 4 and the guard would let a genuine
+    # reported result be masked into "M = #.#, SD = #.#" -- precisely the numerical casualty this
+    # rule exists to avoid. Requiring two alphabetic characters leaves that case with one real
+    # word (SD) and correctly declines it, while an ordinary running head keeps five or more.
+    real_words = [w for w in collapsed.split() if sum(ch.isalpha() for ch in w) >= 2]
+    if len(real_words) < GUARDED_MASK_MIN_WORDS:
+        return None
+    return _INTERIOR_DIGITS.sub("#", collapsed)
 
 
 def bibliography_regions(
@@ -83,7 +125,8 @@ def bibliography_regions(
         # 100380") was measured falling below the density floor and going undetected entirely.
         rep = repeated or {}
         scoreable = [
-            i for i, c in enumerate(ordered)
+            i
+            for i, c in enumerate(ordered)
             if c.chunk_id in feats
             and feats[c.chunk_id].n_words >= 8
             and c.chunk_id not in rep
@@ -101,10 +144,11 @@ def bibliography_regions(
         # (extraction.py:227-228), but a merged "References 1. Fusick AJ..." block survives and the
         # prefix scan recovers it.
         heading_at = next(
-            (i for i, c in enumerate(ordered)
-             if i >= earliest
-             and c.chunk_id in feats
-             and feats[c.chunk_id].heading_prefix_key == "references"),
+            (
+                i
+                for i, c in enumerate(ordered)
+                if i >= earliest and c.chunk_id in feats and feats[c.chunk_id].heading_prefix_key == "references"
+            ),
             None,
         )
 
@@ -119,9 +163,9 @@ def bibliography_regions(
         hot_flags = [feats[ordered[j].chunk_id].biblio_score >= BIBLIO_HOT for j in scoreable]
         window = min(REGION_WINDOW, len(scoreable))
         marked = [
-            k for k in range(len(scoreable) - window + 1)
-            if scoreable[k] >= earliest
-            and sum(hot_flags[k : k + window]) / window >= REGION_MIN_DENSITY
+            k
+            for k in range(len(scoreable) - window + 1)
+            if scoreable[k] >= earliest and sum(hot_flags[k : k + window]) / window >= REGION_MIN_DENSITY
         ]
         density_span = None
         if marked:
@@ -156,9 +200,7 @@ def bibliography_regions(
     return regions
 
 
-def layout_repetition(
-    chunks: list[Chunk], feats: dict[int, Features], biblio: dict[int, set[int]]
-) -> dict[int, dict]:
+def layout_repetition(chunks: list[Chunk], feats: dict[int, Features], biblio: dict[int, set[int]]) -> dict[int, dict]:
     """Whole-paper repeated short text at a stable page position -> running head / footer.
 
     Returns {chunk_id: {key, n_pages, x0_sigma, y_band}}. Bibliography-region chunks are excluded
@@ -171,7 +213,7 @@ def layout_repetition(
         by_paper[c.paper_id].append(c)
 
     flagged: dict[int, dict] = {}
-    for paper_id, cs in by_paper.items():
+    for _paper_id, cs in by_paper.items():
         groups: dict[str, list[Chunk]] = defaultdict(list)
         for c in cs:
             key = repetition_key(c.text)
@@ -190,15 +232,21 @@ def layout_repetition(
             # makes hard exclusion defensible rather than merely plausible.
             if sigma > REPEAT_X_SIGMA:
                 continue
-            tops = [feats[c.chunk_id].y_top_frac for c in members
-                    if c.chunk_id in feats and feats[c.chunk_id].y_top_frac is not None]
+            tops = [
+                feats[c.chunk_id].y_top_frac
+                for c in members
+                if c.chunk_id in feats and feats[c.chunk_id].y_top_frac is not None
+            ]
             band = "middle"
             if tops:
                 mt = statistics.median(tops)
                 band = "top" if mt < 0.12 else ("bottom" if mt > 0.85 else "middle")
             for c in members:
                 flagged[c.chunk_id] = {
-                    "key": key, "n_pages": len(pages), "x0_sigma": round(sigma, 2), "y_band": band,
+                    "key": key,
+                    "n_pages": len(pages),
+                    "x0_sigma": round(sigma, 2),
+                    "y_band": band,
                 }
     return flagged
 
@@ -206,7 +254,7 @@ def layout_repetition(
 def main() -> None:
     from tools.evidence_hygiene.corpus import calibrate, load_chunks
     from tools.evidence_hygiene.features import compute
-    from tools.evidence_hygiene.store import connect, raw_sha
+    from tools.evidence_hygiene.store import connect
 
     chunks = load_chunks()
     cal = calibrate(chunks)
@@ -222,8 +270,7 @@ def main() -> None:
     rep = layout_repetition(chunks, feats, biblio)
 
     n_bib = sum(len(v) for v in biblio.values())
-    print(f"bibliography region: {n_bib} chunks across "
-          f"{sum(1 for v in biblio.values() if v)}/{len(biblio)} papers")
+    print(f"bibliography region: {n_bib} chunks across {sum(1 for v in biblio.values() if v)}/{len(biblio)} papers")
 
     # Reconcile against the heuristic label -- the disagreements are the acceptance targets.
     labeled = {c.chunk_id for c in chunks if (c.section or "") == "references"}
@@ -234,8 +281,10 @@ def main() -> None:
     print(f"  detector only (label false negative): {len(detected - labeled)}")
     print(f"  label only  (detector says prose)   : {len(labeled - detected)}")
 
-    print(f"\nlayout repetition: {len(rep)} chunks flagged across "
-          f"{len({c.paper_id for c in chunks if c.chunk_id in rep})} papers")
+    print(
+        f"\nlayout repetition: {len(rep)} chunks flagged across "
+        f"{len({c.paper_id for c in chunks if c.chunk_id in rep})} papers"
+    )
     bands = defaultdict(int)
     for v in rep.values():
         bands[v["y_band"]] += 1
@@ -245,17 +294,23 @@ def main() -> None:
         if c.chunk_id in rep and rep[c.chunk_id]["key"] not in seen and len(seen) < 8:
             seen.add(rep[c.chunk_id]["key"])
             v = rep[c.chunk_id]
-            print(f"    p{c.paper_id} x{v['n_pages']}pg sigma={v['x0_sigma']} {v['y_band']}: "
-                  f"{v['key'][:80]}")
+            print(f"    p{c.paper_id} x{v['n_pages']}pg sigma={v['x0_sigma']} {v['y_band']}: {v['key'][:80]}")
 
     conn = connect()
     conn.executemany(
         "INSERT OR REPLACE INTO repetition_layout VALUES (?,?,?,?,?,?,?)",
         [
-            (c.paper_id, rep[c.chunk_id]["key"][:64], rep[c.chunk_id]["n_pages"],
-             rep[c.chunk_id]["x0_sigma"], rep[c.chunk_id]["y_band"], str(c.chunk_id),
-             rep[c.chunk_id]["key"][:200])
-            for c in chunks if c.chunk_id in rep
+            (
+                c.paper_id,
+                rep[c.chunk_id]["key"][:64],
+                rep[c.chunk_id]["n_pages"],
+                rep[c.chunk_id]["x0_sigma"],
+                rep[c.chunk_id]["y_band"],
+                str(c.chunk_id),
+                rep[c.chunk_id]["key"][:200],
+            )
+            for c in chunks
+            if c.chunk_id in rep
         ],
     )
     conn.commit()

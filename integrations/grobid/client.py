@@ -57,7 +57,13 @@ def parse_fulltext(
                     # regardless of cause -- a TEI-XML response is already bounded by METADATA_RESPONSE_CAP, so
                     # the larger uncompressed transfer is an acceptable, bounded trade for correctness.
                     headers={"Accept-Encoding": "identity"},
-                    data={"teiCoordinates": ["div", "head", "p"]},
+                    # "figure" added inc 578 (H1b) so a figure/table region carries @coords. Without
+                    # it GROBID locates only a bitmap figure's nested <graphic>, and a `type="table"`
+                    # figure gets no coordinates at all. Purely additive to the request: existing
+                    # parses that predate it stay valid, and a missing figure bbox remains an honest
+                    # permanent NULL rather than a staleness signal -- H1b never auto-reparses a
+                    # library merely because it could now preserve more.
+                    data={"teiCoordinates": ["div", "head", "p", "figure"]},
                     files={"input": ("document.pdf", pdf_bytes, "application/pdf")},
                 )
             except ResponseTooLargeError as exc:

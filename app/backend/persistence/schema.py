@@ -533,6 +533,18 @@ from app.backend.persistence.schema_reference_integrity import (  # noqa: E402,F
     reference_signals,
 )
 
+# Deterministic PDF source structure (inc 578, H1b) — sibling tables to ``chunks``, never a retrofit. Additive,
+# derived, re-derivable, and read by nothing on the retrieval path; see schema_source_components for the full
+# rationale and for why native and sorted block order are kept as separate columns.
+from app.backend.persistence.schema_source_components import (  # noqa: E402,F401
+    FIGURE_SOURCES,
+    SOURCE_COMPONENT_KINDS,
+    SOURCE_DERIVATION_VERSION,
+    paper_figures,
+    source_components,
+    source_pages,
+)
+
 # Summary / citation-mapping / evidence-quote tables (inc 262 split) — same split rationale; re-exported so
 # existing ``from app.backend.persistence.schema import summaries`` (etc.) imports keep working and importing this
 # module registers them on the shared metadata.

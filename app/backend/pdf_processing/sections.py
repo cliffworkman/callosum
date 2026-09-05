@@ -84,14 +84,27 @@ class SectionTracker:
         whether the block is *only* that heading — so the caller skips emitting a pure heading as its
         own chunk while still labeling merged heading+body blocks with the section they open.
         """
-        lines = [line for line in block_text.split("\n") if line.strip()]
-        heading: SectionHeading | None = None
-        for line in lines:
-            heading = detect_section_heading(line)
-            if heading is not None:
-                self.current_section = heading.key
-                break
-        return heading is not None and len(lines) == 1
+        heading, line_count = scan_block_heading(block_text)
+        if heading is not None:
+            self.current_section = heading.key
+        return heading is not None and line_count == 1
+
+
+def scan_block_heading(block_text: str) -> tuple[SectionHeading | None, int]:
+    """Pure scan: the first recognized heading in a block, plus its non-blank line count.
+
+    Shared (inc 578) by ``SectionTracker.observe_block``, which also advances section state, and by
+    the H1b source-component builder, which must recognize a pure-heading block *without* mutating
+    any tracker -- calling ``observe_block`` a second time over the same page would double-advance
+    the section. A block is a *pure* heading iff a heading was found and it is the block's only
+    non-blank line.
+    """
+    lines = [line for line in block_text.split("\n") if line.strip()]
+    for line in lines:
+        heading = detect_section_heading(line)
+        if heading is not None:
+            return heading, len(lines)
+    return None, len(lines)
 
 
 def detect_section_heading(text: str) -> SectionHeading | None:

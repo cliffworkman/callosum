@@ -604,3 +604,74 @@ disqualified — and the distinction matters for what H1c should attempt:
 - False-reconstruction rate is reported **before** recovery rate throughout (§11).
 - No file under `.local/evidence-units/`, `tools/evidence_units/`, or any other agent's 2026-09-05
   artifacts was read.
+
+---
+
+## Appendix A — H1b implementation (increment 578)
+
+Added 2026-09-05, after this report was frozen. The report's findings are **not** revised here; this
+records what §15's "minimum recommended H1b" became in production, including where implementation
+contradicted or sharpened the research.
+
+### What shipped
+
+| §15 recommendation | Shipped as |
+|---|---|
+| 1. Preserve block bbox + page dimensions | `source_pages` (w/h/**rotation**) + `source_components` bbox at every level |
+| 2. Record native MuPDF order alongside the existing index | separate `native_order` / `sorted_order` columns, pinned by a migration test |
+| 3. Guarded digit-masked key, gated | `tools/evidence_hygiene/structure.py::guarded_digit_masked_key` — offline, unreferenced by production |
+| 4. Parse GROBID `<figure>`/`<figDesc>` | `tei_parse.parse_figures` + `paper_figures`, plus `figure` added to `teiCoordinates` |
+| 5. Hygiene precedes reconstruction | recorded as an invariant in the increment notes and the EvidenceUnit spec; no reconstruction exists to order |
+| 6. Design `evidence_form` without building it | `.claude/docs/specs/2026-09-05-evidence-unit-contract.md` |
+
+Deliberately beyond §15, on the maintainer's explicit decision: source components are written
+**during normal ingest** as well as by the backfill, so newly imported papers are not structurally
+incomplete until someone runs a research tool. The write is SAVEPOINT-isolated so it can never roll
+back a chunk write.
+
+### Three things implementation established that the study could not
+
+**1. Native order needs no PDF re-read.** The study measured native-vs-sorted disagreement through a
+separate re-extraction arm (`reread.json`). In fact `block["number"]` is present in the *same*
+`get_text("dict", sort=True)` mapping the pipeline already builds — PyMuPDF's `extractDICT` sorts
+the list in place and never renumbers. Confirmed in PyMuPDF's own source and measured across the
+whole 114-PDF / 1,628-page validation library: **1,356 of 1,628 pages (83.3%) have the two orders
+out of sequence** — higher than this study's own 70% estimate. H1c does not need a re-read arm for
+reading order.
+
+**2. `sorted_order` reproduces `bbox_json["block"]` exactly, gaps included.** The report noted the
+stored ordinal counts image blocks that are then dropped. That is now pinned by a regression test:
+for a page whose middle block is an image, text blocks carry `sorted_order` `[0, 2]` while
+`native_order` is `[0, 1]`. The two numbering spaces are structurally separated, so no future
+reconstruction can silently inherit the wrong one.
+
+**3. The guarded digit-masked key needed a stricter guard than "≥3 real words".** Implemented
+literally — any digit-free token counts — the rule *fails on the exact case it exists to protect*:
+`M = 3.41, SD = 1.02` yields four digit-free tokens (`M`, `=`, `SD`, `=`), passes the guard, and
+collapses a genuine reported result into a key shared with every other numeric result. A real word
+must carry **at least two alphabetic characters**; that case then retains one (`SD`) and correctly
+declines. This does not change the report's recall finding, but any future qualification run must
+use the corrected guard — the naive reading is unsafe in a way the sample-level numbers did not
+surface.
+
+### Correction carried forward
+
+The 93 unclassified chunks are confirmed **correct behaviour, not a backfill defect**: they belong
+to paper 2, soft-deleted on 2026-08-28, and the backfill enumerates only `deleted_at IS NULL`. The
+H1b tooling reports live coverage and trashed attachments as **separate lines** rather than folding
+the latter into a gap, and reproduces the same split on the real library: **114 live PDF
+attachments + 1 soft-deleted = 115**. `--include-trashed` exists solely for debugging.
+
+### Measured cost
+
+Writing at ingest costs **≈2.57 s/paper (+12.5%)** on a 20.50 s/paper baseline (0.15 s structural
+walk, 2.42 s persistence) and **≈2.1 MB/paper**. Spans are 89.7% of components, consistent with the
+measured 655.7 spans/page.
+
+### Still open, unchanged by H1b
+
+Caption↔table association precision is still unmeasured — the rate (41% associable, median gap
+6.9pt) is known; whether an associated caption is the **right** caption has never been adjudicated.
+That remains H1c's cheapest first task. One new constraint for it: GROBID's `type="table"` figures
+arrive with a caption and grid but frequently **no coordinates at all**, so a geometry study must
+take regions from PyMuPDF or re-parse with the new `teiCoordinates` request first.

@@ -254,3 +254,78 @@ def test_followed_authors_migration_upgrades_an_existing_0068_database(tmp_path)
             duplicate_rejected = True
     engine.dispose()
     assert duplicate_rejected  # the UNIQUE constraint on author_id survived the real ALTER-based upgrade path
+
+
+def test_0080_source_components_tables_are_at_head(tmp_path: Path) -> None:
+    """H1b's three sibling tables exist with exactly their expected column sets (inc 578).
+
+    Also pins the two-column split that the whole increment turns on: `native_order` (MuPDF's own
+    block number) and `sorted_order` (the post-sort ordinal `chunks.bbox_json["block"]` carries)
+    must remain SEPARATE columns. Collapsing them would silently hand every future reconstruction
+    the wrong reading order.
+    """
+    db_url = f"sqlite:///{(tmp_path / 'h1b.sqlite').as_posix()}"
+    command.upgrade(_config_for(db_url), "head")
+
+    engine = create_engine(db_url)
+    inspector = inspect(engine)
+
+    assert {c["name"] for c in inspector.get_columns("source_pages")} == {
+        "id",
+        "attachment_id",
+        "page_number",
+        "width",
+        "height",
+        "rotation",
+        "coordinate_system",
+        "extraction_tool",
+        "extraction_version",
+        "derivation_version",
+        "source_checksum",
+        "created_at",
+    }
+    component_columns = {c["name"] for c in inspector.get_columns("source_components")}
+    assert component_columns == {
+        "id",
+        "source_page_id",
+        "parent_id",
+        "kind",
+        "native_order",
+        "sorted_order",
+        "child_order",
+        "x0",
+        "y0",
+        "x1",
+        "y1",
+        "text",
+        "font",
+        "font_size",
+        "flags",
+        "dir_x",
+        "dir_y",
+        "wmode",
+    }
+    assert "native_order" in component_columns and "sorted_order" in component_columns
+    assert {c["name"] for c in inspector.get_columns("paper_figures")} == {
+        "id",
+        "paper_id",
+        "attachment_id",
+        "source",
+        "xml_id",
+        "figure_type",
+        "label",
+        "head",
+        "description",
+        "table_grid_json",
+        "page_number",
+        "x0",
+        "y0",
+        "x1",
+        "y1",
+        "order_index",
+        "created_at",
+    }
+
+    # `chunks` gained no column: H1b is a sibling representation, never a retrofit.
+    assert "source_page_id" not in {c["name"] for c in inspector.get_columns("chunks")}
+    engine.dispose()

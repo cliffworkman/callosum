@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 
 import pytest
@@ -9,6 +10,7 @@ from app.backend.grobid_pipeline import paper_ids_with_sections, parse_paper_str
 from app.backend.persistence.repository import create_attachment, create_paper
 from app.backend.persistence.schema import chunks
 from app.backend.persistence.schema_grobid import paper_sections
+from app.backend.persistence.schema_source_components import paper_figures
 from integrations.grobid.client import GrobidError
 from integrations.grobid.tei_parse import GrobidParseError, SectionSpan
 
@@ -105,7 +107,7 @@ def test_parse_paper_structure_maps_overlapping_chunk_by_coordinates(temp_db_url
         mapped = conn.execute(select(chunks.c.grobid_section_id).where(chunks.c.id == chunk_id)).scalar_one()
         section_row = conn.execute(select(paper_sections.c.title, paper_sections.c.section_kind)).mappings().first()
     eng.dispose()
-    assert result == {"sections_found": 1, "chunks_mapped": 1}
+    assert result == {"sections_found": 1, "chunks_mapped": 1, "figures_recorded": 0}
     assert mapped is not None
     assert section_row["title"] == "3. Methods" and section_row["section_kind"] == "methods"
 
@@ -166,7 +168,7 @@ def test_parse_paper_structure_zero_sections_is_not_an_error(temp_db_url: str) -
         ):
             result = parse_paper_structure(conn, pid, aid, b"pdf-bytes", "http://127.0.0.1:8070")
     eng.dispose()
-    assert result == {"sections_found": 0, "chunks_mapped": 0}
+    assert result == {"sections_found": 0, "chunks_mapped": 0, "figures_recorded": 0}
 
 
 def test_parse_paper_structure_never_writes_chunks_section(temp_db_url: str) -> None:
@@ -224,9 +226,9 @@ def test_parse_paper_structure_reparse_is_idempotent_not_additive(temp_db_url: s
         section_rows = conn.execute(select(paper_sections.c.id).where(paper_sections.c.paper_id == pid)).fetchall()
     eng.dispose()
 
-    assert first == {"sections_found": 1, "chunks_mapped": 1}
+    assert first == {"sections_found": 1, "chunks_mapped": 1, "figures_recorded": 0}
     assert mapped_after_first is not None  # mapped by the first parse's "Methods" span
-    assert second == {"sections_found": 1, "chunks_mapped": 0}
+    assert second == {"sections_found": 1, "chunks_mapped": 0, "figures_recorded": 0}
     assert mapped_after_second is None  # stale mapping cleared, not left pointing at a deleted section
     assert len(section_rows) == 1  # replaced, not appended -- still exactly the second parse's one section
 
@@ -273,6 +275,59 @@ def test_parse_paper_structure_scopes_mapping_to_parsed_attachment_only(temp_db_
         ).scalar_one()
     eng.dispose()
 
-    assert result == {"sections_found": 1, "chunks_mapped": 1}  # only the primary attachment's chunk counted
+    assert result == {
+        "sections_found": 1,
+        "chunks_mapped": 1,
+        "figures_recorded": 0,
+    }  # only the primary attachment's chunk counted
     assert primary_mapped is not None
     assert supplement_mapped is None  # never touched, despite the identical overlapping bbox
+
+
+def test_parse_paper_structure_records_grobid_figures_as_structural_metadata(temp_db_url: str) -> None:
+    """GROBID figure/table records persist (inc 578, H1b) -- caption + supplied grid, never a reading.
+
+    A figure GROBID did not locate keeps NULL geometry: an honest permanent absence for a parse that
+    predates the `figure` teiCoordinates request, never a staleness or error state.
+    """
+    from integrations.grobid.tei_parse import FigureRecord
+
+    eng = create_engine(temp_db_url)
+    located = FigureRecord(
+        xml_id="fig_0",
+        figure_type=None,
+        label="1",
+        head="Fig 1 .",
+        description="Results of the connectivity analysis.",
+        page_number=10,
+        bbox=(93.15, 78.01, 576.0, 654.01),
+    )
+    unlocated_table = FigureRecord(
+        xml_id="tab_0",
+        figure_type="table",
+        label="1",
+        head="Table 1 . Descriptive data.",
+        description=None,
+        table_grid=(("Measure", "Controls", "p"), ("Age", "24.1", ".761")),
+    )
+    with eng.begin() as conn:
+        pid, aid, _ = _seed_paper_with_chunk(conn)
+        fake_span = SectionSpan(title="Methods", page_start=1, page_end=1, bboxes=[(1, 0, 0, 100, 100)])
+        with (
+            patch("app.backend.grobid_pipeline.parse_fulltext", return_value=b"<TEI/>"),
+            patch("app.backend.grobid_pipeline.parse_tei", return_value=[fake_span]),
+            patch("app.backend.grobid_pipeline.parse_figures", return_value=[located, unlocated_table]),
+        ):
+            result = parse_paper_structure(conn, pid, aid, b"pdf-bytes", "http://127.0.0.1:8070")
+        rows = conn.execute(select(paper_figures).order_by(paper_figures.c.order_index)).mappings().all()
+    eng.dispose()
+
+    assert result["figures_recorded"] == 2
+    assert [r["xml_id"] for r in rows] == ["fig_0", "tab_0"]
+    assert rows[0]["page_number"] == 10 and rows[0]["x0"] == 93.15
+    assert rows[0]["figure_type"] is None, "GROBID's own @type is never inferred"
+    # the unlocated table keeps its caption and GROBID's supplied grid, with an honest NULL region
+    assert rows[1]["figure_type"] == "table"
+    assert rows[1]["page_number"] is None and rows[1]["x0"] is None
+    assert json.loads(rows[1]["table_grid_json"])[0] == ["Measure", "Controls", "p"]
+    assert all(r["source"] == "grobid" for r in rows)

@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from integrations.grobid.tei_parse import SectionSpan, parse_tei
+import pytest
+
+from integrations.grobid.tei_parse import (
+    FigureRecord,
+    GrobidParseError,
+    SectionSpan,
+    parse_figures,
+    parse_tei,
+)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "grobid" / "sample_fulltext.tei.xml"
 
@@ -152,3 +160,72 @@ def test_parse_tei_ignores_back_matter_divs():
     spans = parse_tei(tei)
     titles = {s.title for s in spans}
     assert titles == {"Introduction"}
+
+
+# --- GROBID figure/caption preservation (inc 578, H1b) ---
+
+
+def test_parse_figures_extracts_figures_and_tables():
+    """<figure> elements are siblings of <div> under <body>, which is why parse_tei never saw them."""
+    figures = parse_figures(FIXTURE.read_bytes())
+    assert len(figures) == 3
+    assert all(isinstance(f, FigureRecord) for f in figures)
+    assert [f.xml_id for f in figures] == ["fig_0", "tab_0", "tab_1"]
+
+
+def test_a_table_figure_keeps_grobids_own_type_and_grid():
+    """GROBID emits tables as <figure type="table"> with a <table><row><cell> grid it supplies
+    itself. Preserving that is not a reconstruction by us -- document_tables.py's PyMuPDF row
+    evidence is a separate system H1b does not touch."""
+    table = next(f for f in parse_figures(FIXTURE.read_bytes()) if f.xml_id == "tab_0")
+    assert table.figure_type == "table"
+    assert table.head.startswith("Table 1")
+    assert table.table_grid[0] == ("Musical activity", "Matched controls", "Test statistics", "p")
+
+
+def test_an_ordinary_figure_keeps_its_caption_and_has_no_table_grid():
+    figure = next(f for f in parse_figures(FIXTURE.read_bytes()) if f.xml_id == "fig_0")
+    assert figure.figure_type is None, "GROBID's @type is never inferred; an ordinary figure has none"
+    assert figure.description.startswith("Fig 1. Results of the local")
+    assert figure.table_grid == ()
+
+
+def test_missing_figure_coordinates_are_an_honest_absence_not_an_error():
+    """This fixture predates inc 578's teiCoordinates request, so its table figures carry no
+    coords at all. That must stay a plain NULL region -- never a staleness signal, never a
+    fabricated bbox, and never a reason to refuse the record."""
+    figures = {f.xml_id: f for f in parse_figures(FIXTURE.read_bytes())}
+    assert figures["tab_0"].page_number is None and figures["tab_0"].bbox is None
+    assert figures["tab_1"].page_number is None and figures["tab_1"].bbox is None
+    # the record still exists and is fully inspectable despite having no location
+    assert figures["tab_0"].head
+
+
+def test_a_bitmap_figure_is_located_through_its_nested_graphic():
+    """A <graphic coords> was already present before inc 578; the parser uses it when the figure
+    itself carries none, so pre-existing parses gain locations without a re-parse."""
+    figure = next(f for f in parse_figures(FIXTURE.read_bytes()) if f.xml_id == "fig_0")
+    assert figure.page_number == 10
+    x0, y0, x1, y1 = figure.bbox
+    assert x1 > x0 and y1 > y0
+
+
+def test_parse_figures_applies_the_same_doctype_guard_as_parse_tei():
+    with pytest.raises(GrobidParseError):
+        parse_figures(b'<!DOCTYPE t [<!ENTITY a "b">]><TEI xmlns="http://www.tei-c.org/ns/1.0"></TEI>')
+
+
+def test_parse_figures_skips_a_figure_with_nothing_inspectable():
+    tei = (
+        b'<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body>'
+        b'<figure xml:id="empty"></figure>'
+        b'<figure xml:id="real"><head>Fig 1.</head></figure>'
+        b"</body></text></TEI>"
+    )
+    assert [f.xml_id for f in parse_figures(tei)] == ["real"]
+
+
+def test_parse_tei_is_unaffected_by_figure_parsing():
+    """The shipped section mapping must be byte-identical; H1b only added a sibling function."""
+    spans = parse_tei(FIXTURE.read_bytes())
+    assert len(spans) == 28

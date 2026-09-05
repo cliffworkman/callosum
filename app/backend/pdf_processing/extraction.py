@@ -16,6 +16,7 @@ import fitz
 
 from app.backend.pdf_processing.pdf_links import PdfLinkAnnotation, extract_page_link_annotations
 from app.backend.pdf_processing.sections import SectionTracker
+from app.backend.pdf_processing.source_components import SourcePage, build_page
 
 COORDINATE_SYSTEM = "pdf-points-top-left"
 EXTRACTION_TOOL = "pymupdf"
@@ -99,6 +100,11 @@ class ExtractionResult:
     coordinate_system: str
     pages: tuple[ExtractedPage, ...]
     links: tuple[PdfLinkAnnotation, ...] = ()
+    # Deterministic source structure (inc 578, H1b): page geometry, native + sorted block
+    # order, the line/span tree, per-span style, pure headings and raster bounds -- all of
+    # which this module otherwise computes and discards. Nothing on the chunk or retrieval
+    # path reads it; `make_chunk_drafts` ignores it entirely.
+    source_pages: tuple[SourcePage, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -134,11 +140,23 @@ def extract_pdf(pdf_path: str | Path) -> ExtractionResult:
     path = Path(pdf_path)
     pages: list[ExtractedPage] = []
     links: list[PdfLinkAnnotation] = []
+    source_pages: list[SourcePage] = []
 
     with fitz.open(path) as document:
         for page_index, page in enumerate(document):
             page_number = page_index + 1
             text_dict = page.get_text("dict", sort=True)
+            # H1b: capture the structure this loop is about to flatten away. Pure, and over
+            # the dict already in hand -- no second get_text, no re-parse of the page.
+            source_pages.append(
+                build_page(
+                    text_dict,
+                    page_number=page_number,
+                    width=page.rect.width,
+                    height=page.rect.height,
+                    rotation=page.rotation,
+                )
+            )
             blocks: list[TextBlock] = []
 
             for block_index, block in enumerate(text_dict.get("blocks", [])):
@@ -198,6 +216,7 @@ def extract_pdf(pdf_path: str | Path) -> ExtractionResult:
         extraction_version=_pymupdf_version(),
         coordinate_system=COORDINATE_SYSTEM,
         pages=tuple(pages),
+        source_pages=tuple(source_pages),
         links=tuple(links),
     )
 

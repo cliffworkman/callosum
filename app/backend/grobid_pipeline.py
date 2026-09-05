@@ -12,9 +12,10 @@ from sqlalchemy import Connection, select
 
 from app.backend.persistence.schema import chunks
 from app.backend.persistence.schema_grobid import paper_sections
+from app.backend.persistence.source_components_repo import replace_paper_figures
 from integrations.grobid.client import parse_fulltext
 from integrations.grobid.section_classify import classify_section_title
-from integrations.grobid.tei_parse import SectionSpan, parse_tei
+from integrations.grobid.tei_parse import SectionSpan, parse_figures, parse_tei
 
 
 def _bboxes_overlap(a: tuple[int, float, float, float, float], b: dict) -> bool:
@@ -53,6 +54,10 @@ def parse_paper_structure(conn: Connection, paper_id: int, attachment_id: int, p
     """
     tei_xml = parse_fulltext(pdf_bytes, base_url)
     spans = parse_tei(tei_xml)
+    # Figures/tables GROBID explicitly reported (inc 578, H1b). Structural metadata only: caption
+    # text, GROBID's own @type, its supplied row/cell grid, and a region where the build located
+    # one. Never retrieval-facing, never interpreted, never proof of scientific meaning.
+    figures = parse_figures(tei_xml)
 
     conn.execute(
         chunks.update()
@@ -96,7 +101,8 @@ def parse_paper_structure(conn: Connection, paper_id: int, attachment_id: int, p
                 chunks_mapped += 1
                 break  # first overlapping span wins -- spans shouldn't overlap each other in a well-formed TEI
 
-    return {"sections_found": len(spans), "chunks_mapped": chunks_mapped}
+    figures_recorded = replace_paper_figures(conn, paper_id=paper_id, attachment_id=attachment_id, figures=figures)
+    return {"sections_found": len(spans), "chunks_mapped": chunks_mapped, "figures_recorded": figures_recorded}
 
 
 def paper_ids_with_sections(conn: Connection) -> set[int]:

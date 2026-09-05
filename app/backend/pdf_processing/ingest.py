@@ -7,6 +7,7 @@ fetched PDF to an already-existing paper).
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -35,6 +36,7 @@ from app.backend.persistence.repository import (
     refresh_processing_tier,
 )
 from app.backend.persistence.schema import attachments, chunks
+from app.backend.persistence.source_components_repo import replace_attachment_source
 
 if TYPE_CHECKING:
     from app.backend.embeddings.models import EmbeddingModel
@@ -58,6 +60,43 @@ def _registration_references_for_role(role: str, drafts: list, *, hyperlinks=())
     if role.casefold() not in _REGISTRATION_REFERENCE_SOURCE_ROLES:
         return []
     return extract_registration_references(drafts, hyperlinks=hyperlinks)
+
+
+_log = logging.getLogger(__name__)
+
+
+def _persist_source_components(conn: Connection, attachment_id: int, extraction: Any, checksum: str) -> None:
+    """Record the deterministic source structure this extraction observed (inc 578, H1b).
+
+    **Isolated in a SAVEPOINT on purpose.** These rows are observational substrate that nothing on
+    the retrieval path reads, while the chunk writes in the same transaction are authoritative
+    product state. A failure here must therefore never roll back the chunks -- ``begin_nested``
+    rolls back only to the savepoint and leaves the outer transaction usable. The failure is logged
+    at WARNING with the attachment id rather than swallowed silently (inc 577 lost every geometry
+    rule to a broad ``except``), and ``tools/backfill_source_components.py`` repairs it later:
+    the representation is replace-per-attachment, so a re-run is idempotent.
+    """
+    source_pages = getattr(extraction, "source_pages", ()) or ()
+    if not source_pages:
+        return
+    try:
+        with conn.begin_nested():
+            replace_attachment_source(
+                conn,
+                attachment_id=attachment_id,
+                pages=list(source_pages),
+                coordinate_system=extraction.coordinate_system,
+                extraction_tool=extraction.extraction_tool,
+                extraction_version=extraction.extraction_version,
+                source_checksum=checksum,
+            )
+    except Exception:  # noqa: BLE001 - never let observational substrate break a real ingest
+        _log.warning(
+            "source-component persistence failed for attachment %s; chunks are unaffected and "
+            "tools/backfill_source_components.py can repair it",
+            attachment_id,
+            exc_info=True,
+        )
 
 
 def attach_pdf_to_paper(
@@ -121,6 +160,7 @@ def attach_pdf_to_paper(
         attachment_id,
         _registration_references_for_role(role, drafts, hyperlinks=extraction.links),
     )
+    _persist_source_components(conn, attachment_id, extraction, checksum)
     refresh_processing_tier(conn, paper_id)
     return {
         "attachment_id": attachment_id,
@@ -185,6 +225,7 @@ def reprocess_pdf_attachment(
         attachment_id,
         _registration_references_for_role(attachment_role or "primary", drafts, hyperlinks=extraction.links),
     )
+    _persist_source_components(conn, attachment_id, extraction, checksum)
     # Re-embed the fresh chunks: delete_chunks_for_attachment removed the OLD chunks' vector embeddings, so
     # without this the reprocessed paper would silently drop out of vector-search retrieval (find-related,
     # gap-finder, axis scoring, library-wide citation suggest). embed_chunks is idempotent per chunk_version.

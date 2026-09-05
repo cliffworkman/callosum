@@ -22,7 +22,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 577** (see Increment workflow) with **2824 passed, 5 skipped in the last completed root-suite
+It is currently at **Increment 578** (see Increment workflow) with **2824 passed, 5 skipped in the last completed root-suite
 pass** (+ 12 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
 The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
 receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
@@ -1006,6 +1006,34 @@ the full per-increment narrative for all other increments now lives in the reloc
   (3,228 repeats detected, all misfiled `middle_band`, zero running heads). Parse sites must accept
   both forms, and prototype-to-production parity must be checked on **distributions**, not just unit
   cases — this failure was invisible per-chunk and obvious in aggregate.
+- **Source-component preservation, H1b substrate (inc 578):** three additive sibling tables
+  (`source_pages`, `source_components`, `paper_figures`; migration 0080) preserve the deterministic
+  PDF structure `extract_pdf` observes and then discards — page width/height/**rotation**, block bbox,
+  the line/span hierarchy, exact **un-normalized** per-span text with font/size/flags, **pure headings**
+  (which produce no chunk at all today), and raster image bounds — plus GROBID `<figure>`/`<figDesc>`/
+  label/table-grid records. Like H1a it is **non-load-bearing: nothing on the retrieval path reads it**,
+  and a test asserts 11 retrieval/generation modules never reference it. Four standing rules:
+  **(a) native and sorted block order are separate columns and neither is "reading order."**
+  `get_text("dict", sort=True)` reorders blocks by (bottom-y, left-x) and does **not** renumber
+  `block["number"]` (verified in PyMuPDF's `extractDICT`), so `chunks.bbox_json["block"]` is a post-sort
+  ordinal that also counts the image blocks ingest drops — it has gaps — while `quote_matching.py` stores
+  the *native* number under the same key name. `source_components.native_order` vs `sorted_order` keeps
+  them apart; measured across the whole 114-PDF validation library, they disagree on **1,356 of
+  1,628 pages (83.3%)**. Neither establishes paragraph continuity.
+  **(b) `pdf_processing/source_components.py` is pure** — no connection, client, network call or PDF
+  read; it consumes the page dict `extract_pdf` already built, which is what makes it testable from
+  literals. **(c) the ingest write is SAVEPOINT-isolated** (`conn.begin_nested()`): observational
+  substrate must never roll back the authoritative chunk write in the same transaction, and the failure
+  is logged, never swallowed. **(d) a missing GROBID figure bbox is an honest permanent NULL**, not a
+  staleness state — `teiCoordinates` gained `figure` in this increment, but pre-existing parses stay
+  valid and the library is **never** auto-reparsed. Ingest cost is measured at **+2.57 s/paper (+12.5%)**
+  and **~2.1 MB/paper**. `tools/backfill_source_components.py` covers existing libraries (no endpoint,
+  no UI, no JobStore, local PDFs only, resumable, idempotent, checksum-aware) with `--inspect-page` /
+  `--summary` as the audit surface; **soft-deleted papers are outside live coverage by design** and are
+  reported on their own line rather than as a gap. `evidence_form = verbatim | assembled` is
+  **specified, not built** (`.claude/docs/specs/2026-09-05-evidence-unit-contract.md`) — its
+  load-bearing rule is that `canonical_text_contains` must never be relaxed to accept an assembled
+  string. No reconstruction, merging, caption-table activation or evidence assembly exists.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**
