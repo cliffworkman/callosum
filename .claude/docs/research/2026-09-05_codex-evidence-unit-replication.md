@@ -663,3 +663,76 @@ a limited prototype.**
 
 These observations, interpretations, and recommendations are frozen independently before any
 post-hoc comparison with the parallel agent.
+
+## 18. Post-Hoc Comparison With Claude Code
+
+This section was written only after the independent findings above had been frozen in commit
+`7e0f9489219dd512dab021baf591643ac60d611c`. The compared report was the then-untracked
+`.claude/docs/research/2026-09-05_proposition-preserving-evidence-units.md` in the primary
+worktree, SHA-256
+`81871e8c1d5d994c819da9c4848c3a219f5db4361a3f932a1234a94a740bf891`. Its scratch reread
+summary had SHA-256
+`1f6ccfb147f18d1a0db7b8928e8aa32501104dd54a9951eefd1b3230f1cae667`. Neither source was
+opened before the independent freeze. Nothing in Sections 1-17 was rescored or revised after
+comparison.
+
+### Comparison of major findings
+
+| Finding | Classification | Comparison |
+|---|---|---|
+| H1a is a valid non-load-bearing observability baseline; raw chunk text remains authoritative | AGREEMENT | Both code/database audits found additive metadata rather than rewritten chunks, embeddings, or retrieval behavior. |
+| Current chunks frequently fail to preserve proposition-level meaning | AGREEMENT | Both studies found that a majority of current units are not safely usable as standalone propositions, despite different estimators and rubrics. |
+| Standalone proposition-bearing prevalence | PARTIAL AGREEMENT | This study's blinded, stratified probability-arm estimate is 15.94% (approximate design interval 10.14-21.75%). Claude's deterministic full-corpus proxy reports 22.3%. Both support the same qualitative conclusion, but the proxy and human-coded estimand are not interchangeable. |
+| Conservative prose reunion can recover some true fragmentation | PARTIAL AGREEMENT | This study recovered 14/16 independently identified true prose fragments. Claude's general candidate generator produced only 12 correct joins among 44 proposals, with 26 false joins. Together these results locate the hard problem at safe candidate identification: known true fragments are often geometrically recoverable, but broad automatic proposal generation is not yet precise enough. |
+| General neighbor/chunk-id merging is unsafe | AGREEMENT | Both studies measured substantial false-join/order hazards and reject deployment. Claude additionally quantified median stored/native order disagreement at 0.267 and found that chunk-id adjacency matched the native successor only 65.6% of the time. |
+| Pure headings are discarded and heading scope should be preserved | AGREEMENT | Both rereads independently observed source headings absent from stored chunks and recommend additive preservation rather than synthetic inference. |
+| Tables require caption, row, column, and footnote context rather than isolated cells | AGREEMENT | Both studies reject cell proximity as semantic proof and reject load-bearing table reconstruction now. |
+| Default `page.find_tables()` yield | NOT COMPARABLE | Claude found 2 tables on 105 pages from 8 PDFs; this study found 80 proposed tables on 161 pages spanning 76 papers, with 17 true and 10 false proposals intersecting sampled targets. Both used PyMuPDF 1.27.2.3 and the default call. The PDF/page populations differ radically, so neither count falsifies the other. A frozen identical-page rerun is required. |
+| PyMuPDF table detection is production-ready | AGREEMENT | Despite different raw yields, both manual audits conclude it is not: this study observed false positives, misses, and only 5/17 true detections with directly usable hierarchy; Claude observed near-total misses under the default strategy and catastrophic prose-as-table behavior under the text strategy. |
+| Richer deterministic PDF structure should be retained at ingestion | AGREEMENT | Both recommend page dimensions, geometry, and explicit source/native order while keeping current retrieval unchanged. |
+| Minimum H1b field set | PARTIAL AGREEMENT | Claude favors a smaller floor of page dimensions, block bbox, native order, guarded boilerplate evidence, and existing GROBID descriptions. This study additionally recommends line/span hierarchy, per-span text/style, raw and sorted order, headings, and image bounds because sampled table/context reconstruction needed component-level text-to-geometry mappings. This is an implementation-scope decision for the maintainer, not an empirical conflict about whether the current representation is insufficient. |
+| Reconstructed units need explicit multi-region provenance | AGREEMENT | Both distinguish contiguous verbatim source from assembled evidence and prohibit presenting a derived multi-region unit as one contiguous quote. |
+| Figure interpretation belongs outside this increment | AGREEMENT | Both limit this track to structural metadata/caption association and make no scientific interpretation of plots. |
+| Retrieval or model changes should wait | AGREEMENT | Both favor fixing and validating the evidence substrate before retrieval, prompt, planner, or model-capacity experiments. |
+
+### Findings unique to either investigation
+
+**CODEX-ONLY:** blinded text-only Pass A before geometry/PDF reveal; a 180-case stratified
+design-based estimate; all-PDF context audit across 76 papers; the estimate that PDF reread raises
+faithful standalone recovery from 27.73% to 32.60%; the probability-sample finding that 4/11 H1a
+`table_cell` cases were true scientific values and all four lacked standalone referents; and the
+target-intersection manual audit of default table candidates.
+
+**CLAUDE-ONLY:** full-corpus deterministic proxy classification; quantitative native-versus-stored
+reading-order discordance; the broad bounded-neighbor candidate-generator audit; guarded
+digit-masked repeated-header/footer detection; detailed inspection of the existing GROBID and
+`document_tables.py` pathways; and a counterfactual residual false-reconstruction estimate after
+H1a hygiene filtering.
+
+These are complementary observations, not replications of identical estimands.
+
+### Unresolved disagreement and discriminating experiment
+
+The only conspicuous numeric divergence is default table-detection yield. The compared scratch
+receipt shows Claude's 105 pages came from only 8 attachments, while this study's 161 distinct
+pages were selected through a 180-case sample across 76 papers. The next table-methodology check
+should therefore freeze one list of attachment checksums and page numbers, one PyMuPDF build, and
+the exact `find_tables()` arguments; run both harnesses on those same bytes; and compare hashed
+per-page table bboxes, row counts, headers, exceptions, and rendered-page adjudication. If outputs
+still differ, the harnesses—not corpus composition—are the target of diagnosis.
+
+This discrepancy does not change the independent decision: neither observed behavior supports
+load-bearing table reconstruction.
+
+### Post-hoc synthesis
+
+The strongest joint conclusion is narrower than either a general re-chunker or a table parser:
+preserve deterministic source components and provenance first, keep them non-load-bearing, and
+evaluate reconstruction methods against false-join fixtures before changing retrieval. The two
+studies independently disfavor adjacent-chunk merging, production table reconstruction, and any
+attempt to use retrieval gains as a substitute for semantic fidelity.
+
+The sequencing choice that remains for maintainer approval is how much component detail H1b should
+persist initially. A conservative decision is to retain the richer component hierarchy once per
+ingestion, while exposing only the smaller page/block/order subset to the first limited prototype.
+That preserves future table/heading work without making unvalidated semantics operational.
