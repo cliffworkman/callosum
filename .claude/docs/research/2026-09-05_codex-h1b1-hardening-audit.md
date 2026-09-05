@@ -342,5 +342,64 @@ Validation completed before freeze:
 
 ## 18. Post-hoc Claude comparison
 
-Not performed before the independent findings freeze. This section will be appended only after the
-independent report and harness are committed.
+The independent sections above were frozen first in commit
+`2aa9df7434aba804d00fdc84e91300e83d237b70`; their pre-comparison report SHA-256 was
+`9915361136208e408ad23e9dd3ba761629503692c45068805b879909507510bf`. Only then were
+`INCREMENT-579-NOTES.md`, the H1b.1 appendix in
+`2026-09-05_proposition-preserving-evidence-units.md`, and the corresponding changes entry read.
+
+### AGREEMENT
+
+- The original component-cap and last-page truncation failure is closed: partial graphs are
+  explicitly truncated, non-current, and repaired by an ordinary rerun.
+- Migration promotes no old H1b rows; the real copied corpus converges to 114/114 complete/current
+  with 1,628 pages and 1,089,546 components, while the trashed PDF remains outside coverage.
+- Interruption and rollback semantics are sound, including preservation of a previously valid graph
+  after a failed rebuild.
+- Surrogate IDs are not durable and can be reused for different content. Logical paths survive an
+  unchanged rebuild and locator resolution fails on locator identity drift.
+- The single duplicated PDF pair accounts for 3,342 equal durable keys; attachment context
+  disambiguates instances and no same-key/different-content collision was found.
+- Geometry totals agree exactly: 1,088,070 valid, 1,476 invalid (363 inverted and 1,113 outside the
+  frozen tolerance), and three zero-area cases. Zero area is measured, not made an H1b.1 failure.
+- Chunks, embeddings, attachment identities, vector mappings/blobs, retrieval, prompts, providers,
+  and verifier behavior remain unchanged; the substrate is non-load-bearing.
+
+### PARTIAL AGREEMENT
+
+- Both investigations call the currentness query bounded and acceptable for backfill. Claude
+  measured 90 ms at 306,000 components and extrapolated about 320 ms; this audit measured the full
+  1,089,546-component corpus directly at 162.66–192.42 ms (median 169.72 ms). Different measurement
+  shapes make the exact timing non-comparable, but the operational conclusion agrees.
+- Both found zero durable-key/different-content collisions. This audit additionally preregistered and
+  materialized a canonical payload containing hierarchy, geometry, text, ordering, and style, and
+  independently recomputed every component path. Those stronger tests support rather than overturn
+  Claude's conclusion.
+
+### DISAGREEMENT
+
+- Claude concluded that all H1c substrate gates were closed and H1c could begin. The independent
+  preregistered negative tests found two remaining fail-closed defects, so this audit concludes
+  `H1c GATE = BLOCKED`.
+- Claude's documented currentness predicate checks representation state/counts, live attachment
+  checksum, and requested derivation version. It does not test representation/page identity
+  coherence. Direct mutation showed six checksum/extraction/derivation disagreement cases still
+  classified current. Claude did not report testing these cases.
+- Claude's geometry contract tests missing, inverted, and out-of-page values but does not reject
+  NaN. Direct persistence showed NaN becoming a NULL coordinate while retaining `valid`. Claude did
+  not report a non-finite adversarial case.
+
+These disagreements are caused by test coverage, not conflicting corpus observations. The corpus
+contains no observed non-finite geometry and its normal representation/page identities agree, so
+happy-path validation cannot discriminate the two interpretations. The decisive follow-up is the
+narrow adversarial rerun specified in §17 after the two conditions are hardened; no H1c work should
+start before it passes.
+
+### NOT COMPARABLE
+
+- Claude measured H1b.1 incremental ingest cost relative to H1b. This focused audit measured only
+  the full currentness query and idempotent skip run, so it neither reproduces nor disputes the
+  reported +0.36 seconds/paper ingest estimate.
+- Claude tested a killed real-corpus process and sharded validation workers. This audit used four
+  deterministic transaction-boundary fault injections and an ordinary serial corpus run. Both are
+  useful but are not pooled as one interruption sample.
