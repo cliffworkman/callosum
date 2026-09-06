@@ -23,6 +23,7 @@ order, and neither establishes that two adjacent components continue one another
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -73,10 +74,24 @@ def classify_geometry(
     intersected, without normalizing, clamping or swapping the coordinates the extractor actually
     reported. Returns ``(state, reason)``; the reason is for inspection and reporting and is not
     stored.
+
+    **Non-finite coordinates fail closed (inc 580, H1b.2).** A focused independent audit found that
+    ``NaN`` satisfies none of the comparisons below -- ``nan < 0`` and ``nan > 612`` are both False --
+    so it fell through every clause and was classified ``valid``. SQLite then stored that coordinate
+    as NULL, producing a partial bbox that explicitly claimed validity: the exact inverse of this
+    module's contract. Finiteness is therefore tested explicitly rather than inferred from comparison
+    behaviour, which cannot detect NaN. The guard runs **after** the missing/partial check, so
+    ``math.isfinite`` is never handed a ``None``, and **before** any numeric comparison.
+
+    Infinity was already ``invalid``, but incidentally -- it tripped the out-of-page clause. It is now
+    rejected for the honest reason. The *state* is unchanged and reasons are not stored, so this
+    renames a judgment rather than altering one.
     """
     if bbox is None or any(value is None for value in bbox):
         return GEOMETRY_UNKNOWN, "missing"
     x0, y0, x1, y1 = bbox
+    if not all(math.isfinite(value) for value in (x0, y0, x1, y1)):
+        return GEOMETRY_INVALID, "non_finite"
     if x1 < x0 or y1 < y0:
         return GEOMETRY_INVALID, "inverted"
     tol = GEOMETRY_PAGE_TOLERANCE_PT

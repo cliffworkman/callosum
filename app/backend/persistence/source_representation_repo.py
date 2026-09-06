@@ -11,7 +11,8 @@ Two concerns live here, and both exist so that a future study can reference this
   written, and whether the result is ``complete`` / ``truncated`` / ``incomplete`` / ``failed``.
   Only ``complete`` may be current, and currentness additionally cross-checks the rows actually
   present against the counts the record claims -- for pages *and* components, because a graph with
-  an intact page envelope but missing components is not a complete graph.
+  an intact page envelope but missing components is not a complete graph -- and (inc 580) that every
+  persisted page agrees with its own envelope about which deterministic source it came from.
 * **Durable identity.** A forced rebuild changes every ``source_pages.id`` and
   ``source_components.id`` while leaving the logical tree exact, so surrogate keys are not
   provenance. ``SourceLocator`` names a component by source checksum + extraction tool + extraction
@@ -26,7 +27,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.engine import Connection
 
 from app.backend.persistence.schema import attachments, papers
@@ -125,11 +126,25 @@ def _current_source_stmt(derivation_version: str):
                  AND every page extraction produced was written, none skipped
                  AND the rows actually present match the counts the record claims
 
-    The last clause is not decoration. A status row can outlive the graph it describes -- the
+    The count clauses are not decoration. A status row can outlive the graph it describes -- the
     independent audit deleted an attachment's rows and reran -- and without the cross-check that
     combination reads as current. It is checked for **both** pages and components: a graph with an
     intact page envelope but missing component rows is not a complete source graph, and the
     invariant is about the completeness of the graph rather than of its envelope.
+
+    **Internal identity coherence (inc 580, H1b.2).** Counts alone were still not enough. A focused
+    independent audit built six graphs whose envelope and pages disagreed about *which deterministic
+    source* they describe -- representation tool/version mismatch, and page
+    checksum/derivation/tool/version mismatch -- and every one still read as current, because nothing
+    compared the persisted ``source_pages`` rows against the ``source_representations`` row claiming
+    to describe them. A representation is now current only when **no page disagrees with its own
+    envelope**. One rule closes all six cases: mutating the envelope and mutating a page are the same
+    violation seen from opposite ends. All four identity columns are NOT NULL on both tables, so the
+    inequality can never evaluate to NULL and let a mismatch through.
+
+    This is deliberately *internal* coherence. It does not compare either side against the currently
+    installed PyMuPDF, and it establishes no global extractor-upgrade invalidation policy -- that is
+    a separate architectural decision, not this one.
     """
     page_counts = (
         select(source_pages.c.attachment_id.label("aid"), func.count().label("n"))
@@ -143,12 +158,31 @@ def _current_source_stmt(derivation_version: str):
         .subquery()
     )
     rep = source_representations
+    # Pages that disagree with the very envelope claiming to describe them. Counting the violations
+    # rather than asserting agreement keeps this in the same inspectable shape as the count
+    # subqueries above, and it scans `source_pages` (1,628 rows on the validation corpus), not the
+    # ~1.09M component rows.
+    incoherent_pages = (
+        select(source_pages.c.attachment_id.label("aid"), func.count().label("n"))
+        .select_from(source_pages.join(rep, rep.c.attachment_id == source_pages.c.attachment_id))
+        .where(
+            or_(
+                source_pages.c.source_checksum != rep.c.source_checksum,
+                source_pages.c.extraction_tool != rep.c.extraction_tool,
+                source_pages.c.extraction_version != rep.c.extraction_version,
+                source_pages.c.derivation_version != rep.c.derivation_version,
+            )
+        )
+        .group_by(source_pages.c.attachment_id)
+        .subquery()
+    )
     return (
         select(rep.c.attachment_id)
         .select_from(
             rep.join(attachments, attachments.c.id == rep.c.attachment_id)
             .outerjoin(page_counts, page_counts.c.aid == rep.c.attachment_id)
             .outerjoin(component_counts, component_counts.c.aid == rep.c.attachment_id)
+            .outerjoin(incoherent_pages, incoherent_pages.c.aid == rep.c.attachment_id)
         )
         .where(
             rep.c.state == STATE_COMPLETE,
@@ -161,6 +195,8 @@ def _current_source_stmt(derivation_version: str):
             rep.c.skipped_pages == 0,
             func.coalesce(page_counts.c.n, 0) == rep.c.written_pages,
             func.coalesce(component_counts.c.n, 0) == rep.c.written_components,
+            # Not one page may disagree with its envelope about which source this is.
+            func.coalesce(incoherent_pages.c.n, 0) == 0,
         )
     )
 

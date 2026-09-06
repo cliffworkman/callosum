@@ -21,11 +21,12 @@ The cap-truncation case is the one the audit actually discovered; it is reproduc
 from __future__ import annotations
 
 import hashlib
+import math
 from pathlib import Path
 
 import fitz
 import pytest
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 
 from app.backend.pdf_processing.extraction import extract_pdf
 from app.backend.pdf_processing.source_components import (
@@ -796,3 +797,228 @@ def test_the_backfill_reports_every_non_current_state(temp_db_url: str, monkeypa
 def attachments_with_current_source_ids(engine) -> set[int]:
     with engine.begin() as conn:
         return attachments_with_current_source(conn)
+
+
+# --- inc 580 (H1b.2): internal identity coherence between envelope and graph ---
+#
+# A focused independent audit built six graphs whose `source_representations` envelope and
+# `source_pages` rows disagreed about which deterministic source they describe. Every one still read
+# as CURRENT, because nothing compared the two. The envelope could therefore describe one source
+# identity while the persisted graph carried another.
+
+
+def _mutate_representation(engine, attachment_id: int, **values) -> None:
+    with engine.begin() as conn:
+        conn.execute(
+            source_representations.update()
+            .where(source_representations.c.attachment_id == attachment_id)
+            .values(**values)
+        )
+
+
+def _mutate_one_page(engine, attachment_id: int, page_number: int, **values) -> None:
+    with engine.begin() as conn:
+        conn.execute(
+            source_pages.update()
+            .where(
+                source_pages.c.attachment_id == attachment_id,
+                source_pages.c.page_number == page_number,
+            )
+            .values(**values)
+        )
+
+
+def test_a_coherent_complete_representation_stays_current(temp_db_url: str) -> None:
+    """The control. The coherence rule must not make a healthy representation non-current."""
+    engine, _, attachment_id = _seed(temp_db_url)
+    _store(engine, attachment_id, _pages(count=3))
+    with engine.begin() as conn:
+        assert attachments_with_current_source(conn) == {attachment_id}
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("extraction_tool", "some-other-extractor"),
+        ("extraction_version", "9.9.9"),
+    ],
+)
+def test_a_representation_disagreeing_with_its_pages_is_not_current(temp_db_url: str, field: str, value: str) -> None:
+    """Audit cases 1-2: the envelope drifts away from the graph it claims to describe."""
+    engine, _, attachment_id = _seed(temp_db_url)
+    _store(engine, attachment_id, _pages(count=3))
+    with engine.begin() as conn:
+        assert attachments_with_current_source(conn) == {attachment_id}
+
+    _mutate_representation(engine, attachment_id, **{field: value})
+    with engine.begin() as conn:
+        assert attachments_with_current_source(conn) == set(), (
+            f"a representation whose {field} disagrees with its pages must not be current"
+        )
+        assert is_source_current(conn, attachment_id) is False
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("source_checksum", "a-different-file"),
+        ("derivation_version", "source-components-v99"),
+        ("extraction_tool", "some-other-extractor"),
+        ("extraction_version", "9.9.9"),
+    ],
+)
+def test_a_single_disagreeing_page_invalidates_the_whole_representation(
+    temp_db_url: str, field: str, value: str
+) -> None:
+    """Audit cases 3-6, on a MULTI-PAGE graph where only ONE page drifts.
+
+    Coherence is a property of the whole attachment: one page that cannot have come from the source
+    the envelope names is enough to make the representation untrustworthy, because nothing downstream
+    would know which pages to distrust.
+    """
+    engine, _, attachment_id = _seed(temp_db_url)
+    _store(engine, attachment_id, _pages(count=3))
+    with engine.begin() as conn:
+        assert attachments_with_current_source(conn) == {attachment_id}
+        assert conn.execute(select(func.count()).select_from(source_pages)).scalar_one() == 3
+
+    _mutate_one_page(engine, attachment_id, 2, **{field: value})
+    with engine.begin() as conn:
+        assert attachments_with_current_source(conn) == set(), (
+            f"one page whose {field} disagrees with the envelope must invalidate the attachment"
+        )
+        assert is_source_current(conn, attachment_id) is False
+        # The other two pages are untouched: this is a coherence failure, not a count failure.
+        assert conn.execute(select(func.count()).select_from(source_pages)).scalar_one() == 3
+
+
+def test_identity_coherence_does_not_weaken_any_existing_currentness_check(temp_db_url: str) -> None:
+    """The H1b.1 contract still holds beside the new clause."""
+    engine, _, attachment_id = _seed(temp_db_url)
+    _store(engine, attachment_id, _pages(count=2))
+    with engine.begin() as conn:
+        assert attachments_with_current_source(conn) == {attachment_id}
+
+    _mutate_representation(engine, attachment_id, state=STATE_TRUNCATED)
+    with engine.begin() as conn:
+        assert attachments_with_current_source(conn) == set()
+    _mutate_representation(engine, attachment_id, state=STATE_COMPLETE, written_components=999_999)
+    with engine.begin() as conn:
+        assert attachments_with_current_source(conn) == set()
+
+
+# --- inc 580 (H1b.2): non-finite geometry fails closed ---
+
+
+@pytest.mark.parametrize("index", [0, 1, 2, 3])
+def test_a_nan_coordinate_is_never_valid(index: int) -> None:
+    """NaN satisfies none of the ordinary comparisons -- `nan < 0` and `nan > 612` are both False --
+    so before this guard it fell through every clause and was classified `valid`."""
+    bbox = [10.0, 10.0, 100.0, 50.0]
+    bbox[index] = float("nan")
+    state, reason = classify_geometry(tuple(bbox), page_width=612.0, page_height=792.0)
+    assert (state, reason) == (GEOMETRY_INVALID, "non_finite")
+
+
+@pytest.mark.parametrize("value", [float("inf"), float("-inf")])
+def test_infinite_coordinates_remain_invalid(value: float) -> None:
+    """Already invalid before H1b.2, but incidentally, via the out-of-page clause. The state is
+    unchanged; only the reason is now honest."""
+    state, _ = classify_geometry((10.0, 10.0, value, 50.0), page_width=612.0, page_height=792.0)
+    assert state == GEOMETRY_INVALID
+    state, _ = classify_geometry((value, 10.0, 100.0, 50.0), page_width=612.0, page_height=792.0)
+    assert state == GEOMETRY_INVALID
+
+
+def test_a_partial_bbox_keeps_its_fail_closed_unknown_behaviour(temp_db_url: str) -> None:
+    """The finiteness guard runs AFTER the missing check, so `math.isfinite` is never handed a None.
+
+    A partial bbox must still classify `unknown` and must not raise.
+    """
+    for bbox in (
+        (10.0, None, 100.0, 50.0),
+        (None, 10.0, 100.0, 50.0),
+        (10.0, 10.0, None, 50.0),
+        (10.0, 10.0, 100.0, None),
+        None,
+    ):
+        assert classify_geometry(bbox, page_width=612.0, page_height=792.0) == (GEOMETRY_UNKNOWN, "missing")
+
+
+def test_finite_geometry_behaviour_is_completely_unchanged() -> None:
+    """H1b.2 must not disturb anything the previous audits already validated."""
+    assert classify_geometry((72.0, 100.0, 400.0, 112.0), page_width=612.0, page_height=792.0) == (
+        GEOMETRY_VALID,
+        None,
+    )
+    assert classify_geometry((100.0, 10.0, 10.0, 50.0), page_width=612.0, page_height=792.0) == (
+        GEOMETRY_INVALID,
+        "inverted",
+    )
+    assert classify_geometry((10.0, 10.0, 900.0, 50.0), page_width=612.0, page_height=792.0) == (
+        GEOMETRY_INVALID,
+        "out_of_page",
+    )
+    # the frozen tolerance is untouched
+    assert GEOMETRY_PAGE_TOLERANCE_PT == 2.0
+    assert classify_geometry((-1.5, 0.0, 612.0, 792.0), page_width=612.0, page_height=792.0) == (
+        GEOMETRY_VALID,
+        None,
+    )
+    assert classify_geometry((-2.5, 0.0, 612.0, 792.0), page_width=612.0, page_height=792.0) == (
+        GEOMETRY_INVALID,
+        "out_of_page",
+    )
+    # zero-area stays valid: an H1c association qualification, deliberately not an H1b.2 failure
+    assert classify_geometry((10.0, 10.0, 10.0, 50.0), page_width=612.0, page_height=792.0) == (
+        GEOMETRY_VALID,
+        None,
+    )
+
+
+def test_a_persisted_nan_observation_can_never_claim_validity(temp_db_url: str) -> None:
+    """The persistence seam, not just the pure classifier.
+
+    SQLite genuinely cannot represent NaN -- it binds to NULL -- so the stored row ends up with a
+    partial bbox. Before H1b.2 that partial bbox carried `geometry_state='valid'`, which is the
+    forbidden combination. The raw coordinate is NOT manufactured into a finite value to keep it;
+    the judgment simply travels with the observation instead of being re-derivable from what SQLite
+    could store.
+    """
+    engine, _, attachment_id = _seed(temp_db_url)
+    nan = float("nan")
+    page = _page(1, [_image_block(0, (10.0, nan, 100.0, 50.0)), _prose_block(1, 100.0)])
+
+    # pre-persistence: the builder itself already refuses to call it valid
+    image_component = next(c for c in page.components if c.kind == "image")
+    assert image_component.geometry_state == GEOMETRY_INVALID
+    assert math.isnan(image_component.bbox[1]), "the raw observation is not rewritten"
+
+    _store(engine, attachment_id, [page])
+
+    with engine.begin() as conn:
+        row = conn.execute(select(source_components).where(source_components.c.kind == "image")).mappings().one()
+        # post-persistence: SQLite stored the NaN as NULL...
+        assert row["y0"] is None
+        # ...and the surviving coordinates are untouched
+        assert (row["x0"], row["x1"], row["y1"]) == (10.0, 100.0, 50.0)
+        # ...but the row can never claim validity, which is the invariant that matters
+        assert row["geometry_state"] == GEOMETRY_INVALID
+
+        # and the forbidden combination is unreachable corpus-wide
+        assert (
+            conn.execute(
+                select(func.count())
+                .select_from(source_components)
+                .where(
+                    source_components.c.geometry_state == GEOMETRY_VALID,
+                    or_(
+                        source_components.c.x0.is_(None),
+                        source_components.c.y0.is_(None),
+                        source_components.c.x1.is_(None),
+                        source_components.c.y1.is_(None),
+                    ),
+                )
+            ).scalar_one()
+            == 0
+        )

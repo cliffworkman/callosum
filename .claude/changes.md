@@ -9,6 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-05 — inc 580: H1b.2 source-envelope coherence + non-finite geometry
+- **Files:** `app/backend/persistence/source_representation_repo.py`,
+  `app/backend/pdf_processing/source_components.py`, `tests/test_source_representation.py`,
+  `.claude/docs/increment-notes/INCREMENT-580-NOTES.md`
+- **What:** preserve every H1b.1 currentness condition and additionally reject a representation when
+  any persisted page disagrees with its envelope on source checksum, extraction tool/version, or
+  derivation version. Explicitly classify every present NaN/infinite bbox as `invalid/non_finite`
+  after the existing missing/partial guard, preventing SQLite's NaN→NULL conversion from leaving a
+  partial bbox marked `valid`. Raw geometry, finite rules, the frozen 2.0-point tolerance, and
+  zero-area semantics are unchanged.
+- **Why:** the independent H1b.1 audit found six identity-drift graphs that still read current and a
+  real persistence seam where NaN became NULL after being misclassified valid. Both are fail-open
+  substrate defects. H1b.2 closes only those blockers: no migration, no H1c, and no retrieval,
+  embedding, prompt, provider, verifier, or threshold change.
+- **Verification:** 111 focused source/component/migration tests + 81 adjacent PDF/H1a/GROBID tests +
+  9 explicit non-coupling cases pass. A force-rebuild of the 114-live-PDF validation corpus produced
+  1,628 coherent pages and 1,089,546 components; 114/114 remain complete/current, all four identity
+  mismatch counts are zero, geometry remains 363 inverted + 1,113 out-of-page + three zero-area
+  images with zero non-finite or partial-valid rows, core data/vector hashes are unchanged, and ten
+  fixed-vector retrieval receipts are byte-identical. Full-suite receipt is in the increment note.
+- **Revert:** revert the two production files and focused tests; currentness returns to count-only
+  graph validation and non-finite coordinates again rely incorrectly on ordinary comparisons.
+
 ## 2026-09-05 — inc 579: H1b.1 source-representation completeness + durable identity
 - **Files:** `app/backend/persistence/source_representation_repo.py` (new), `alembic/versions/0081_source_representations.py` (new), `tests/test_source_representation.py` (new); edited `app/backend/persistence/schema_source_components.py`, `.../source_components_repo.py`, `.../schema.py`, `app/backend/pdf_processing/source_components.py`, `.../ingest.py`, `tools/backfill_source_components.py`, `tests/test_migrations.py`, `tests/test_source_components.py`, `.claude/docs/specs/2026-09-05-evidence-unit-contract.md`
 - **What:** close the one blocker an independent Codex audit found in H1b. A new `source_representations` table records per attachment what was expected, what was written, and whether the result is `complete`/`truncated`/`incomplete`/`failed`; **only `complete` may be current**, and currentness additionally cross-checks the page *and component* rows actually present against the counts the record claims. The marker is written last in the same transaction as the graph and destroyed first on rewrite. `source_components` gains `component_path` (the stable logical locator, `b{sorted}[/l{child}[/s{child}]]`) and `geometry_state` (`valid`/`invalid`/`unknown` at a tolerance frozen at 2.0pt), with raw coordinates never rewritten. `SourceLocator` composes durable identity from source checksum + extraction tool + extraction version + derivation version + page + path, and fails closed on any drift.
