@@ -195,9 +195,9 @@
     "reviewed_increment": 576,
     "source_fingerprint": "a3d51bd64e6c47ebb5ae5901b0da8404b3e041324cb05ea76c88bc0e824c5c24",
     "note": "Reviewed inc 576 exact-checksum PDF reconnection and cause-specific unavailable states. Recovery depends on local filesystem failures, so the backend-free demo remains intentionally unchanged.",
-    "declined_at": null,
-    "declined_rev": null,
-    "declined_increment": null,
-    "decline_note": null
+    "declined_at": "2026-09-07",
+    "declined_rev": "c0dd2e5",
+    "declined_increment": 581,
+    "decline_note": "0.5.8 release: retain the immutable saved pre-faceted synthesis demo. It does not demonstrate inc 581 broad-query planning or facet coverage. New source-substrate metadata in incs 577-580 is not assembled evidence. Recapturing a licensed broad-Ask demo is deferred; no model run or snapshot regeneration performed for this receipt."
   }
 }

@@ -15,10 +15,10 @@
     "reviewed_increment": 576,
     "source_fingerprint": "45ba80f0516b1b8b242878c3b76f8b1520c3f4bc1ed1827d05930df4d97105c3",
     "note": "Reviewed inc 576 PDF recovery against every affected website claim and visual. Existing library/PDF claims remain accurate; no public copy or screenshot change is needed.",
-    "declined_at": null,
-    "declined_rev": null,
-    "declined_increment": null,
-    "decline_note": null
+    "declined_at": "2026-09-07",
+    "declined_rev": "c0dd2e5",
+    "declined_increment": 581,
+    "decline_note": "0.5.8 release: explicitly defer recapturing the broad-Ask facet-coverage visual introduced in inc 581. The current showcase remains a historical saved workflow, not a demonstration of the new broad-Ask layout. No visual-equivalence review or new acceptance claim is asserted; refresh the affected synthesis showcase in a dedicated follow-up."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

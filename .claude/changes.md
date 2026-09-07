@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-07 — prepare Desktop v0.5.8
+- **Files:** Desktop package/Tauri/Cargo version fields and lockfiles; website/demo review ledgers.
+- **What:** synchronize Desktop version 0.5.8, leaving Python-package/runtime identities unchanged.
+  Release includes the already-committed inc 575 Local AI 4096-token truncation fix, PDF recovery,
+  source-substrate hardening, and inc 581 broad-Ask planning/coverage. No new inference policy.
+- **Why:** installed 0.5.7 legitimately continues launching its native 2048-token owner. A complete
+  new Desktop install/restart, not a descriptor edit or validator relaxation, delivers the coordinated fix.
+- **Website/demo limitation:** explicitly acknowledge, through the existing decline mechanism,
+  that the saved showcase/demo do not yet illustrate inc 581 faceted Ask. No new visual review,
+  source capture or model run is claimed. Recapture remains a follow-up, not a silent green receipt.
+- **Release gate:** push main, require green product CI and Windows/macOS/Linux builds before
+  pushing the annotated v0.5.8 tag. The tag message is the public release note. Publication and the
+  signed updater manifest must be verified afterward; version bump alone is not a shipped release.
+- **Upgrade follow-up:** verify actual 0.5.7-to-0.5.8 restart replaces the owner, regenerates a 4096
+  descriptor accepted by the unchanged loader, and leaves no old owner. Do not infer local-model
+  performance from packaging checks. No Qwen acceptance rerun, H1c work or live database mutation.
+- **Revert:** revert the version preparation before tagging; never move an already-published tag.
+
 ## 2026-09-07 — release preflight: mechanical research-tool CI cleanup
 - **Files:** `tools/evidence_hygiene/*.py`, `.claude/research/claude_h1b2_gate_review.py`,
   `.claude/research/h1b_source_component_audit.py` (only files with existing lint/format failures).
