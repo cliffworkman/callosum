@@ -1,0 +1,4 @@
+# Experimental run outputs contain library-derived text (quotes, propositions) — never commit them.
+runs/
+__pycache__/
+*.pyc
