@@ -14574,6 +14574,17 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     }, [summaryId, retrying]);
     return { retry, retrying };
   }
+  const FACET_COVERAGE_LABEL = {
+    supported: "supported",
+    partial: "partial",
+    retrieved_unverified: "no verified evidence",
+    no_evidence_retrieved: "no evidence retrieved"
+  };
+  function FacetCoverageStrip({ coverage }) {
+    if (!coverage || !coverage.length) return null;
+    const withVerified = coverage.filter((c) => c.verified_claim_count > 0).length;
+    return /* @__PURE__ */ React.createElement("div", { className: "synth-coverage", role: "status", style: { marginTop: 10 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("b", null, "Facet coverage"), " \u2014 ", withVerified, " of ", coverage.length, " facet", coverage.length === 1 ? "" : "s", " have verified evidence."), /* @__PURE__ */ React.createElement("ul", { style: { listStyle: "none", margin: "6px 0 0", padding: 0 } }, coverage.map((c, i) => /* @__PURE__ */ React.createElement("li", { key: i, style: { display: "flex", gap: 8, alignItems: "baseline", margin: "3px 0" } }, /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (c.status === "supported" ? "verified" : "flagged") }, FACET_COVERAGE_LABEL[c.status] || c.status), /* @__PURE__ */ React.createElement("span", null, c.label), /* @__PURE__ */ React.createElement("span", { style: { opacity: 0.7 } }, c.verified_claim_count, " verified", c.flagged_claim_count ? " \xB7 " + c.flagged_claim_count + " unverified" : "", " \xB7 ", c.retrieved_chunk_count, " passage", c.retrieved_chunk_count === 1 ? "" : "s")))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 4 } }, "\u201CNo verified evidence\u201D / \u201Cno evidence retrieved\u201D means none was found in the retrieved passages \u2014 not that your library lacks the topic."));
+  }
   function citeStatusClass(status) {
     return status === "verified" ? "verified" : status === "contradicted" ? "contradicted" : "flagged";
   }
@@ -14849,7 +14860,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         }
       },
       "\u2715 Close"
-    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), state.result.generation_truncated && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "10px 0 0" }, role: "status" }, /* @__PURE__ */ React.createElement("b", null, "This answer is incomplete."), /* @__PURE__ */ React.createElement("br", null), "The AI ran out of room before it finished, so ", verifiedCount + flaggedCount, " claim", verifiedCount + flaggedCount === 1 ? " is" : "s are", " shown rather than everything it set out to say. Asking about fewer things at once \u2014 or narrowing the sections or papers in scope \u2014 gives it room to finish."), !readOnly && onCriticalReviewSources && citedPaperIds.length >= 2 && citedPaperIds.length <= 12 && /* @__PURE__ */ React.createElement("div", { className: "synth-critical-review" }, /* @__PURE__ */ React.createElement(
+    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), state.result.coverage && /* @__PURE__ */ React.createElement(FacetCoverageStrip, { coverage: state.result.coverage }), state.result.generation_truncated && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "10px 0 0" }, role: "status" }, /* @__PURE__ */ React.createElement("b", null, "This answer is incomplete."), /* @__PURE__ */ React.createElement("br", null), "The AI ran out of room before it finished, so ", verifiedCount + flaggedCount, " claim", verifiedCount + flaggedCount === 1 ? " is" : "s are", " shown rather than everything it set out to say. Asking about fewer things at once \u2014 or narrowing the sections or papers in scope \u2014 gives it room to finish."), !readOnly && onCriticalReviewSources && citedPaperIds.length >= 2 && citedPaperIds.length <= 12 && /* @__PURE__ */ React.createElement("div", { className: "synth-critical-review" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-link",

@@ -331,6 +331,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
             summary #{state.result.summary_id} · {state.result.summary_status}
             {` · ${verifiedCount} verified · ${flaggedCount} flagged`}
           </div>
+          {state.result.coverage && <FacetCoverageStrip coverage={state.result.coverage} />}
           {/* The model hit its output ceiling before finishing. The claims below are real and were
               verified normally — but they are not the whole answer it set out to give, and a partial
               synthesis must never read as a complete one (PRINCIPLES #6: silence is not a certificate). */}

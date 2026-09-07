@@ -20,7 +20,7 @@ from sqlalchemy.engine import Connection
 
 from app.backend.pdf_processing.chunk_structure import ChunkStructure
 from app.backend.persistence.schema import chunks
-from app.backend.persistence.schema_chunk_structure import chunk_structure
+from app.backend.persistence.schema_chunk_structure import DERIVATION_VERSION, chunk_structure
 
 
 def raw_sha(text: str) -> str:
@@ -119,6 +119,50 @@ def structure_for_chunk(conn: Connection, chunk_id: int) -> StoredStructure | No
         repeated_boilerplate=(None if row["repeated_boilerplate"] is None else bool(row["repeated_boilerplate"])),
         is_stale=stale,
     )
+
+
+def current_structure_roles(
+    conn: Connection,
+    chunk_ids: list[int],
+    *,
+    derivation_version: str = DERIVATION_VERSION,
+) -> dict[int, tuple[str, str]]:
+    """``{chunk_id: (chunk_type, evidence_role)}`` for chunks whose derived structure is present AND
+    current (matching ``derivation_version`` and the live ``(raw_sha, chunk_version)``).
+
+    Used ONLY by the broad-Ask evidence-hygiene seam (inc 581) as a **deprioritization** signal --
+    the H1a study found no reason code clears the >=95% precision gate, so this is never a hard
+    exclusion. A missing or stale row is simply omitted: the caller treats an absent chunk as
+    ``unknown`` at full priority, so the seam degrades to a safe no-op on an un-backfilled library
+    and can neither delete nor manufacture evidence. ``chunk_ids`` is bounded by the retrieval budget
+    (a few dozen), well under any SQLite variable limit.
+    """
+    if not chunk_ids:
+        return {}
+    rows = conn.execute(
+        select(
+            chunk_structure.c.chunk_id,
+            chunk_structure.c.chunk_type,
+            chunk_structure.c.evidence_role,
+            chunk_structure.c.raw_sha,
+            chunk_structure.c.chunk_version.label("derived_version"),
+            chunk_structure.c.derivation_version,
+            chunks.c.text.label("live_text"),
+            chunks.c.chunk_version.label("live_version"),
+        )
+        .select_from(chunk_structure.join(chunks, chunks.c.id == chunk_structure.c.chunk_id))
+        .where(chunk_structure.c.chunk_id.in_(chunk_ids))
+    ).mappings()
+    out: dict[int, tuple[str, str]] = {}
+    for row in rows:
+        current = (
+            row["derivation_version"] == derivation_version
+            and row["raw_sha"] == raw_sha(row["live_text"] or "")
+            and row["derived_version"] == (row["live_version"] or "")
+        )
+        if current:
+            out[int(row["chunk_id"])] = (row["chunk_type"], row["evidence_role"])
+    return out
 
 
 def papers_with_current_structure(conn: Connection, derivation_version: str) -> set[int]:

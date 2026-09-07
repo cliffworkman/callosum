@@ -61,6 +61,18 @@ class OverviewItemResponse(BaseModel):
     claim_ordinals: list[int]  # ordinals of the verified sentences this Overview sentence restates
 
 
+class FacetCoverageResponse(BaseModel):
+    """Per-facet coverage for a broad (faceted) synthesis (inc 581). ``status`` is one of
+    supported / partial / retrieved_unverified / no_evidence_retrieved -- the latter two mean no
+    verifying evidence was found in the RETRIEVED passages, never that the library lacks the topic."""
+
+    label: str
+    status: str
+    retrieved_chunk_count: int
+    verified_claim_count: int
+    flagged_claim_count: int
+
+
 class SummarizeJobResponse(BaseModel):
     job_id: str
     status: Literal["pending", "running", "done", "error"]
@@ -77,6 +89,8 @@ class SummarizeJobResponse(BaseModel):
     overview_status: OverviewStatus = "not_requested"
     overview_updated_at: datetime | None = None
     imported: bool = False  # B2 SP2: a relayed synthesis — the sender's assessment, region precision, not re-verified
+    # inc 581: per-facet coverage for a broad (faceted) synthesis; None for narrow/paper/cluster scopes.
+    coverage: list[FacetCoverageResponse] | None = None
 
 
 class SummaryListItem(BaseModel):
@@ -125,6 +139,7 @@ def _persisted_summary_response(conn: Connection, *, summary_id: int, job_id: st
         overview=overview,
         overview_status=overview_status_for_row(summary),
         overview_updated_at=summary["overview_updated_at"],
+        coverage=_coverage_from_ref(summary["scope_ref_json"]),
     )
 
 
@@ -305,6 +320,30 @@ def _generation_truncated_from_ref(scope_ref: Any) -> bool:
     """Rides ``scope_ref_json`` beside ``source_chunk_count`` -- an already-extensible blob for
     per-run metadata -- so disclosing truncation needs no migration and survives a reload."""
     return bool(scope_ref.get("generation_truncated")) if isinstance(scope_ref, dict) else False
+
+
+def _coverage_from_ref(scope_ref: Any) -> list[FacetCoverageResponse] | None:
+    """Per-facet coverage for a faceted synthesis, read from the extensible ``scope_ref_json`` blob
+    (inc 581). None for a non-faceted summary, so the narrow/paper/cluster response is unchanged."""
+    if not isinstance(scope_ref, dict) or not isinstance(scope_ref.get("coverage"), list):
+        return None
+    out: list[FacetCoverageResponse] = []
+    for item in scope_ref["coverage"]:
+        if not isinstance(item, dict) or not item.get("label"):
+            continue
+        try:
+            out.append(
+                FacetCoverageResponse(
+                    label=str(item["label"]),
+                    status=str(item.get("status") or ""),
+                    retrieved_chunk_count=int(item.get("retrieved_chunk_count") or 0),
+                    verified_claim_count=int(item.get("verified_claim_count") or 0),
+                    flagged_claim_count=int(item.get("flagged_claim_count") or 0),
+                )
+            )
+        except (TypeError, ValueError):
+            continue
+    return out or None
 
 
 def _section_filter_from_ref(scope_ref: Any) -> list[str]:

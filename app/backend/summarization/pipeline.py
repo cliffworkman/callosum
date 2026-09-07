@@ -28,7 +28,6 @@ from app.backend.summarization.chunk_filtering import (
     repeated_boilerplate_keys,
 )
 from app.backend.summarization.generators import (
-    CandidateCitation,
     SourceChunk,
     SummaryGenerator,
     TruncatedGenerationError,
@@ -146,72 +145,31 @@ def summarize_scope(
         # above stay un-instrumented on purpose — the LLM call is a single opaque blocking request with no
         # sub-progress signal, and a cache hit would make a naive elapsed-time ETA misleading — so `on_progress`
         # is only ever called here, once N (the candidate count) is known.
-        # inc 418: every (candidate, citation) pair across the WHOLE summary is verified in ONE verify_many() call
-        # (one batched embedding-encode + one batched NLI call) instead of one verify() call per citation — same
-        # per-item logic and thresholds, just batched. Results are unzipped back into their per-candidate rows
-        # before on_progress fires, so the reported sequence is unchanged: still exactly one call per candidate,
-        # in order.
-        total_candidates = len(candidates)
-        flat_items: list[tuple[str, CandidateCitation]] = [
-            (candidate.text, citation) for candidate in candidates for citation in candidate.citations
-        ]
+        # inc 418: every (candidate, citation) pair across the WHOLE summary is verified in ONE verify_many() call.
+        # inc 581: that verify + persist is now shared with the faceted broad path via the two helpers below;
+        # this narrow path's DB writes, status, and progress sequence are unchanged.
+        flat_count = sum(len(candidate.citations) for candidate in candidates)
         if on_stage is not None:
-            on_stage("verifying_citations", "Verifying citations", len(flat_items), False)
-        flat_results = verifier.verify_many(conn, items=flat_items, source_chunks=fresh_source_chunks)
-        verification_rows: list[list[VerificationResult]] = []
-        cursor = 0
-        for index, candidate in enumerate(candidates, start=1):
-            count = len(candidate.citations)
-            verification_rows.append(flat_results[cursor : cursor + count])
-            cursor += count
-            if on_progress is not None:
-                on_progress(index, total_candidates, "Verifying claim")
-        summary_status = (
-            "verified" if all(all(item.verified for item in row) and row for row in verification_rows) else "flagged"
+            on_stage("verifying_citations", "Verifying citations", flat_count, False)
+        verification_rows = _verify_candidates(
+            conn, verifier=verifier, candidates=candidates, source_chunks=fresh_source_chunks
         )
-        overview_status = (
-            "pending"
-            if overview_requested and any(row and all(item.verified for item in row) for row in verification_rows)
-            else "not_requested"
-        )
+        if on_progress is not None:
+            for index in range(1, len(candidates) + 1):
+                on_progress(index, len(candidates), "Verifying claim")
         if on_stage is not None:
             on_stage("finalizing_result", "Finalizing result", len(candidates), False)
-        summary_id = _insert_summary(
+        result = _persist_verified_summary(
             conn,
             scope=scope,
-            content=" ".join(candidate.text for candidate in candidates),
+            candidates=candidates,
+            verification_rows=verification_rows,
             generated_by=generator.name,
-            verifications=[item for row in verification_rows for item in row],
             source_chunk_count=len(source_chunks),
-            status=summary_status,
-            overview_status=overview_status,
+            overview_requested=overview_requested,
             generation_truncated=generation_truncated,
         )
-        sentence_results = []
-        for ordinal, (candidate, verifications) in enumerate(zip(candidates, verification_rows, strict=False)):
-            sentence_id = conn.execute(
-                insert(summary_sentences).values(summary_id=summary_id, ordinal=ordinal, text=candidate.text)
-            ).inserted_primary_key[0]
-            citation_results = [
-                _persist_verification(conn, sentence_id=int(sentence_id), verification=verification)
-                for verification in verifications
-            ]
-            sentence_results.append(
-                SummarySentencePersistenceResult(
-                    sentence_id=int(sentence_id),
-                    ordinal=ordinal,
-                    text=candidate.text,
-                    flagged=not citation_results or any(result.status != "verified" for result in citation_results),
-                    citations=citation_results,
-                )
-            )
-    return SummaryPersistenceResult(
-        summary_id=summary_id,
-        status=summary_status,
-        sentences=sentence_results,
-        source_chunk_count=len(source_chunks),
-        section_filter=scope.sections or [],
-    )
+    return result
 
 
 def _refresh_source_chunks(conn: Connection, source_chunks: list[SourceChunk]) -> list[SourceChunk]:
@@ -407,6 +365,89 @@ def _select_ranked_with_paper_coverage(ranked: list[SourceChunk], top_k: int) ->
     return [chunk for chunk in ranked if chunk.chunk_id in selected]
 
 
+def _verify_candidates(
+    conn: Connection,
+    *,
+    verifier: LocalCitationVerifier,
+    candidates: list,
+    source_chunks: list[SourceChunk],
+) -> list[list[VerificationResult]]:
+    """Verify EVERY (candidate, citation) pair in ONE batched ``verify_many`` call, regrouped per
+    candidate (inc 418). Shared by the narrow path and the faceted path (inc 581) so both use the
+    same single batched embedding-encode + NLI call and the identical per-item thresholds."""
+    flat_items = [(candidate.text, citation) for candidate in candidates for citation in candidate.citations]
+    flat_results = verifier.verify_many(conn, items=flat_items, source_chunks=source_chunks)
+    rows: list[list[VerificationResult]] = []
+    cursor = 0
+    for candidate in candidates:
+        count = len(candidate.citations)
+        rows.append(flat_results[cursor : cursor + count])
+        cursor += count
+    return rows
+
+
+def _persist_verified_summary(
+    conn: Connection,
+    *,
+    scope: SummaryScope,
+    candidates: list,
+    verification_rows: list[list[VerificationResult]],
+    generated_by: str,
+    source_chunk_count: int,
+    overview_requested: bool,
+    generation_truncated: bool = False,
+    extra_scope_ref: dict[str, object] | None = None,
+) -> SummaryPersistenceResult:
+    """Persist one summary + its sentences + verified citations. Shared by the narrow and faceted
+    paths; ``extra_scope_ref`` carries the faceted path's coverage/facets into the extensible
+    ``scope_ref_json`` blob without a schema change."""
+    summary_status = (
+        "verified" if all(all(item.verified for item in row) and row for row in verification_rows) else "flagged"
+    )
+    overview_status = (
+        "pending"
+        if overview_requested and any(row and all(item.verified for item in row) for row in verification_rows)
+        else "not_requested"
+    )
+    summary_id = _insert_summary(
+        conn,
+        scope=scope,
+        content=" ".join(candidate.text for candidate in candidates),
+        generated_by=generated_by,
+        verifications=[item for row in verification_rows for item in row],
+        source_chunk_count=source_chunk_count,
+        status=summary_status,
+        overview_status=overview_status,
+        generation_truncated=generation_truncated,
+        extra_scope_ref=extra_scope_ref,
+    )
+    sentence_results = []
+    for ordinal, (candidate, verifications) in enumerate(zip(candidates, verification_rows, strict=False)):
+        sentence_id = conn.execute(
+            insert(summary_sentences).values(summary_id=summary_id, ordinal=ordinal, text=candidate.text)
+        ).inserted_primary_key[0]
+        citation_results = [
+            _persist_verification(conn, sentence_id=int(sentence_id), verification=verification)
+            for verification in verifications
+        ]
+        sentence_results.append(
+            SummarySentencePersistenceResult(
+                sentence_id=int(sentence_id),
+                ordinal=ordinal,
+                text=candidate.text,
+                flagged=not citation_results or any(result.status != "verified" for result in citation_results),
+                citations=citation_results,
+            )
+        )
+    return SummaryPersistenceResult(
+        summary_id=summary_id,
+        status=summary_status,
+        sentences=sentence_results,
+        source_chunk_count=source_chunk_count,
+        section_filter=scope.sections or [],
+    )
+
+
 def _insert_summary(
     conn: Connection,
     *,
@@ -418,6 +459,7 @@ def _insert_summary(
     status: str,
     overview_status: str,
     generation_truncated: bool = False,
+    extra_scope_ref: dict[str, object] | None = None,
 ) -> int:
     scope_ref = scope.to_ref()
     scope_ref["source_chunk_count"] = source_chunk_count
@@ -425,6 +467,9 @@ def _insert_summary(
         # Recorded beside source_chunk_count in the same extensible blob, so the disclosure
         # survives a reload without a schema change. Absent means not truncated.
         scope_ref["generation_truncated"] = True
+    if extra_scope_ref:
+        # The faceted path's facet plan + per-facet coverage ride the same extensible blob.
+        scope_ref.update(extra_scope_ref)
     result = conn.execute(
         insert(summaries).values(
             scope_type=scope.scope_type,

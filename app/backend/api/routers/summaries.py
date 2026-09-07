@@ -52,9 +52,11 @@ from app.backend.llm.cache import CachedSummaryGenerator
 from app.backend.llm.egress import EgressGatedSummaryGenerator
 from app.backend.persistence.repository import delete_summary, get_summary, list_summaries
 from app.backend.persistence.sqlite_retry import run_write
+from app.backend.summarization.faceted_pipeline import summarize_faceted
 from app.backend.summarization.generators import SummaryGenerator
 from app.backend.summarization.overview_lifecycle import generate_overview
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
+from app.backend.summarization.query_planner import plan_query
 from app.backend.summarization.reverify import NotImportedError, reverify_imported_summary
 
 router = APIRouter()
@@ -249,19 +251,42 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
         # summarize_scope manages its own short internal transactions (retrieval, then verify+persist)
         # and holds no connection open during the generation call in between -- no outer `engine.begin()`
         # wrapper here (the primary-synthesis transaction-boundary redesign; see pipeline.py).
-        result = summarize_scope(
-            engine,
-            scope=_summary_scope_from_request(request),
-            generator=generator,
-            model=model,
-            vector_store=store,
-            top_k=request.top_k,
-            verifier_config=config,
-            support_scorer=support_scorer,
-            overview_requested=overview_generator is not None,
-            on_progress=lambda i, n, label: jobs.mark_progress(job_id, i, n, label),
-            on_stage=stage_reporter(jobs, job_id, calibration_key),
-        )
+        # inc 581: a broad, multifaceted query-scope question routes through the bounded facet planner
+        # (one egress-gated structured provider call) to the faceted pipeline; a narrow question, a
+        # planner/validation failure, a section-filtered query, or any non-query scope stays on the
+        # exact existing single-query path. The planner sends only the question and can only ever
+        # degrade to today's behavior.
+        plan = None
+        if request.scope_type == "query" and request.query and request.query.strip() and not request.sections:
+            plan = plan_query(request.query.strip(), config=llm_config, complete_fn=_gated_complete)
+        if plan is not None and plan.is_broad:
+            result = summarize_faceted(
+                engine,
+                question=request.query.strip(),
+                plan=plan,
+                generator=generator,
+                model=model,
+                vector_store=store,
+                verifier_config=config,
+                support_scorer=support_scorer,
+                overview_requested=overview_generator is not None,
+                on_progress=lambda i, n, label: jobs.mark_progress(job_id, i, n, label),
+                on_stage=stage_reporter(jobs, job_id, calibration_key),
+            )
+        else:
+            result = summarize_scope(
+                engine,
+                scope=_summary_scope_from_request(request),
+                generator=generator,
+                model=model,
+                vector_store=store,
+                top_k=request.top_k,
+                verifier_config=config,
+                support_scorer=support_scorer,
+                overview_requested=overview_generator is not None,
+                on_progress=lambda i, n, label: jobs.mark_progress(job_id, i, n, label),
+                on_stage=stage_reporter(jobs, job_id, calibration_key),
+            )
         # Phase A has committed. Reread the authoritative trust spine from a fresh connection before
         # publishing completion; no generated-but-unverified or uncommitted response can reach JobStore.
         with engine.connect() as conn:
@@ -319,6 +344,19 @@ def _summary_generator(api: FastAPI) -> SummaryGenerator:
         wire_format=config.wire_format,
         base_url=config.base_url,
     )
+
+
+def _gated_complete(config: object, prompt: str) -> object:
+    """Egress-gated completion for the query planner (inc 581). The planner sends only the user's
+    question, but it must honor the same consent gate as generation: if the active provider needs
+    egress and consent is off, refuse before any network call. ``plan_query`` catches this and falls
+    back to the narrow path, so the question never leaves when egress is disabled."""
+    from app.backend.llm.egress import DataEgressDisabledError
+    from app.backend.llm.providers import complete, requires_egress
+
+    if requires_egress(config) and not getattr(config, "data_egress_enabled", False):
+        raise DataEgressDisabledError("Query planning requires data-egress consent.")
+    return complete(config, prompt)
 
 
 def _embedding_model(api: FastAPI) -> EmbeddingModel:
