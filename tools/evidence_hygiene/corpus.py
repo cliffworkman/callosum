@@ -247,21 +247,22 @@ def main() -> None:
     print(f"column estimate: {dict(ncol)}  (0 = uncalibratable, width rules must be skipped)")
     widths = [c.col_w for c in cal.values() if c.n_columns]
     if widths:
-        print(f"col_w across papers: median {statistics.median(widths):.0f}pt  "
-              f"min {min(widths):.0f}  max {max(widths):.0f}")
+        print(
+            f"col_w across papers: median {statistics.median(widths):.0f}pt  "
+            f"min {min(widths):.0f}  max {max(widths):.0f}"
+        )
     ph = [c.page_h for c in cal.values()]
     pw = [c.page_w for c in cal.values()]
-    print(f"estimated page box: median {statistics.median(pw):.0f} x {statistics.median(ph):.0f} pt "
-          f"(US Letter = 612x792, A4 = 595x842)")
+    print(
+        f"estimated page box: median {statistics.median(pw):.0f} x {statistics.median(ph):.0f} pt "
+        f"(US Letter = 612x792, A4 = 595x842)"
+    )
     from tools.evidence_hygiene.store import connect
 
     conn = connect()
     conn.executemany(
         "INSERT OR REPLACE INTO paper_calibration VALUES (?,?,?,?,?,?,?,?,?,?)",
-        [
-            (c.paper_id, c.col_w, *c.page_box, c.n_columns, c.body_median_span_h, c.n_chunks, None)
-            for c in cal.values()
-        ],
+        [(c.paper_id, c.col_w, *c.page_box, c.n_columns, c.body_median_span_h, c.n_chunks, None) for c in cal.values()],
     )
     conn.commit()
     print(f"wrote {len(cal)} calibration rows to the sidecar")

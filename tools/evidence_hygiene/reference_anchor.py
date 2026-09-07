@@ -32,9 +32,9 @@ from sqlalchemy import text as sqltext
 from tools.evidence_hygiene.corpus import Chunk
 from tools.evidence_hygiene.store import LIBRARY_DB
 
-NGRAM = 6          # consecutive title words that must appear verbatim
+NGRAM = 6  # consecutive title words that must appear verbatim
 MIN_TITLE_WORDS = 8
-MIN_HITS = 3       # a paper needs several matched references before a region is claimed
+MIN_HITS = 3  # a paper needs several matched references before a region is claimed
 TAIL_FRACTION = 0.35  # a reference list lives in the paper's tail, never its opening
 
 _WORD = re.compile(r"[a-z0-9]+")
@@ -66,9 +66,7 @@ def load_reference_records() -> dict[int, list[dict]]:
     with engine.connect() as conn:
         dois = {
             (r[1] or "").lower().strip(): int(r[0])
-            for r in conn.execute(
-                sqltext("SELECT id, doi FROM papers WHERE doi IS NOT NULL AND deleted_at IS NULL")
-            )
+            for r in conn.execute(sqltext("SELECT id, doi FROM papers WHERE doi IS NOT NULL AND deleted_at IS NULL"))
         }
         rows = conn.execute(
             sqltext("SELECT cache_key, response_json FROM external_api_cache WHERE provider = 'crossref'")
@@ -112,14 +110,10 @@ def load_reference_titles() -> dict[int, list[str]]:
     with engine.connect() as conn:
         dois = {
             (r[1] or "").lower().strip(): int(r[0])
-            for r in conn.execute(
-                sqltext("SELECT id, doi FROM papers WHERE doi IS NOT NULL AND deleted_at IS NULL")
-            )
+            for r in conn.execute(sqltext("SELECT id, doi FROM papers WHERE doi IS NOT NULL AND deleted_at IS NULL"))
         }
         rows = conn.execute(
-            sqltext(
-                "SELECT cache_key, response_json FROM external_api_cache WHERE provider = 'crossref'"
-            )
+            sqltext("SELECT cache_key, response_json FROM external_api_cache WHERE provider = 'crossref'")
         ).fetchall()
     for key, payload in rows:
         paper_id = dois.get((key or "").lower().strip())
@@ -221,7 +215,7 @@ def anchored_regions(
         # a reference list they appear in roughly citation order. A low value means the anchor is
         # matching scattered body mentions and the region should be distrusted.
         ordinals = [o for _, o in tail]
-        rises = sum(1 for a, b in zip(ordinals, ordinals[1:]) if b >= a)
+        rises = sum(1 for a, b in zip(ordinals, ordinals[1:], strict=False) if b >= a)
         monotonicity = round(rises / max(len(ordinals) - 1, 1), 3)
         # Fragments between and just after matched entries belong to the list they sit in.
         while end + 1 < len(ordered) and len(_norm_words(ordered[end + 1].text)) < MIN_TITLE_WORDS:
@@ -249,8 +243,9 @@ def main() -> None:
     chunks = load_chunks()
     titles = load_reference_titles()
     print(f"papers with a cached Crossref reference list: {len(titles)}")
-    print(f"  median references per paper: "
-          f"{sorted(len(v) for v in titles.values())[len(titles) // 2] if titles else 0}")
+    print(
+        f"  median references per paper: {sorted(len(v) for v in titles.values())[len(titles) // 2] if titles else 0}"
+    )
 
     regions, diag = anchored_regions(chunks, titles)
     st = Counter(d["status"] for d in diag.values())
@@ -258,13 +253,15 @@ def main() -> None:
     anchored = [d for d in diag.values() if d["status"] == "anchored"]
     if anchored:
         spans = sorted(d["span_frac"] for d in anchored)
-        print(f"  region span as a fraction of the paper: median {spans[len(spans) // 2]:.2f}  "
-              f"min {spans[0]:.2f}  max {spans[-1]:.2f}")
+        print(
+            f"  region span as a fraction of the paper: median {spans[len(spans) // 2]:.2f}  "
+            f"min {spans[0]:.2f}  max {spans[-1]:.2f}"
+        )
         hits = sorted(d["hits"] / d["n_refs"] for d in anchored)
         print(f"  matched references / known references: median {hits[len(hits) // 2]:.2f}")
     print(f"  chunks in anchored regions: {sum(len(v) for v in regions.values())}")
 
-    labeled = {c.chunk_id for c in chunks if (c.section or "") == "references"}
+    _labeled = {c.chunk_id for c in chunks if (c.section or "") == "references"}
     detected = {cid for v in regions.values() for cid in v}
     covered = {c.paper_id for c in chunks if c.paper_id in regions}
     lab_in_covered = {c.chunk_id for c in chunks if c.paper_id in covered and (c.section or "") == "references"}

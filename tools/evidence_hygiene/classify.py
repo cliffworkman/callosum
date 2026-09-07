@@ -43,13 +43,7 @@ class Label:
 
 def _is_clear_prose(f: Features) -> bool:
     """Unambiguously running prose: long, stopword-rich, sentence-terminated, not bibliographic."""
-    return (
-        f.n_words >= 20
-        and f.stop_frac >= 0.22
-        and f.terminal_punct
-        and f.biblio_score < 1.5
-        and f.caps_frac < 0.45
-    )
+    return f.n_words >= 20 and f.stop_frac >= 0.22 and f.terminal_punct and f.biblio_score < 1.5 and f.caps_frac < 0.45
 
 
 def classify(
@@ -68,10 +62,11 @@ def classify(
         in_ref = c.chunk_id in biblio.get(c.paper_id, set())
         rep = repeated.get(c.chunk_id)
         ev: dict = {}
-        t = c.text.strip()
+        _t = c.text.strip()
 
         def emit(kind: str, conf: float, rule: str) -> None:
-            labels.append(Label(c.chunk_id, f.raw_sha, kind, conf, rule, dict(ev)))
+            # Called immediately in this iteration; ev is intentionally read after reassignment.
+            labels.append(Label(c.chunk_id, f.raw_sha, kind, conf, rule, dict(ev)))  # noqa: B023
 
         # --- 1. Running head / footer. Position + x-stability across >=3 pages of ONE paper.
         # This is the half production's text-only detector lacks, and what makes exclusion
@@ -166,18 +161,17 @@ def classify(
 
 def build_all():
     """Run the full deterministic pipeline in dependency order and return every intermediate."""
-    from tools.evidence_hygiene.corpus import calibrate, load_chunks
-    from tools.evidence_hygiene.features import compute
-    from tools.evidence_hygiene.structure import bibliography_regions, layout_repetition
-
     from collections import defaultdict
 
+    from tools.evidence_hygiene.corpus import calibrate, load_chunks
+    from tools.evidence_hygiene.features import compute
     from tools.evidence_hygiene.refregion import (
         build_index,
         infer_region,
         load_references,
         match_positions,
     )
+    from tools.evidence_hygiene.structure import bibliography_regions, layout_repetition
 
     chunks = load_chunks()
     cal = calibrate(chunks)
@@ -210,15 +204,15 @@ def build_all():
         start, end = region
         anchored[paper_id] = {c.chunk_id for c in idx.ordered[start : end + 1]}
         anchor_diag[paper_id] = {
-            "status": "anchored", "n_refs": len(refs), "start": start, "end": end,
+            "status": "anchored",
+            "n_refs": len(refs),
+            "start": start,
+            "end": end,
             "matched": len({o for s in hits.values() for o in s}),
         }
 
     heuristic = bibliography_regions(chunks, feats, repeated=rep0)
-    biblio = {
-        paper_id: anchored.get(paper_id) or heuristic.get(paper_id, set())
-        for paper_id in per_paper
-    }
+    biblio = {paper_id: anchored.get(paper_id) or heuristic.get(paper_id, set()) for paper_id in per_paper}
     rep = layout_repetition(chunks, feats, biblio)
     labels = classify(chunks, feats, cal, biblio, rep)
     return chunks, cal, feats, biblio, rep, labels, anchor_diag
@@ -251,10 +245,7 @@ def main() -> None:
     conn = connect()
     conn.executemany(
         "INSERT OR REPLACE INTO chunk_label VALUES (?,?,?,?,?,?)",
-        [
-            (x.chunk_id, x.raw_sha, x.chunk_type, x.confidence, x.rule_id, str(x.evidence))
-            for x in labels
-        ],
+        [(x.chunk_id, x.raw_sha, x.chunk_type, x.confidence, x.rule_id, str(x.evidence)) for x in labels],
     )
     conn.commit()
     print(f"\nwrote {len(labels)} labels to the sidecar")

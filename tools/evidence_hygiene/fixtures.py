@@ -104,17 +104,21 @@ def build() -> list[dict]:
             picked.setdefault(cid, name)
 
     targeted("hyphen_artifact", lambda c: _HYPHEN_ARTIFACT.search(c.text or ""), 8)
-    targeted("null_section_prose",
-             lambda c: c.section is None and len((c.text or "").split()) >= 40, 6)
-    targeted("label_says_references_but_prose",
-             lambda c: (c.section or "") == "references"
-             and len((c.text or "").split()) >= 30
-             and feats[c.chunk_id].biblio_score < 1.0, 6)
-    targeted("unlabeled_bibliography",
-             lambda c: (c.section or "") != "references" and c.chunk_id in ref_hit, 6)
-    targeted("short_but_substantive",
-             lambda c: 4 <= len((c.text or "").split()) <= 14
-             and re.search(r"\bp\s*[<=>]|\bd\s*=|95%\s*CI|\br\s*=", c.text or ""), 6)
+    targeted("null_section_prose", lambda c: c.section is None and len((c.text or "").split()) >= 40, 6)
+    targeted(
+        "label_says_references_but_prose",
+        lambda c: (c.section or "") == "references"
+        and len((c.text or "").split()) >= 30
+        and feats[c.chunk_id].biblio_score < 1.0,
+        6,
+    )
+    targeted("unlabeled_bibliography", lambda c: (c.section or "") != "references" and c.chunk_id in ref_hit, 6)
+    targeted(
+        "short_but_substantive",
+        lambda c: 4 <= len((c.text or "").split()) <= 14
+        and re.search(r"\bp\s*[<=>]|\bd\s*=|95%\s*CI|\br\s*=", c.text or ""),
+        6,
+    )
 
     out: list[dict] = []
     for cid, stratum in picked.items():
@@ -122,30 +126,36 @@ def build() -> list[dict]:
         lab = label_of.get(cid)
         mech = adjudicate_mechanical(c, f, rep, cid in ref_hit)
         box = c.box
-        out.append({
-            "fixture_id": f"F{cid}",
-            "stratum": stratum,
-            "paper_id": c.paper_id,
-            "attachment_id": c.attachment_id,
-            "chunk_id": cid,
-            "page": c.page_start,
-            "raw_text": c.text,
-            "current_section": c.section,
-            "geometry": None if not box else {
-                "n_spans": f.n_spans, "n_lines": f.n_lines,
-                "width_ratio": f.width_ratio, "y_top_frac": f.y_top_frac,
-                "grid_support": f.grid_support,
-            },
-            "in_reference_region": cid in biblio.get(c.paper_id, set()),
-            "matches_known_citation": cid in ref_hit,
-            "predicted_type": lab.chunk_type if lab else None,
-            "predicted_rule": lab.rule_id if lab else None,
-            "expected_type": mech[0] if mech else None,
-            "rationale": mech[1] if mech else None,
-            "adjudication": "mechanical" if mech else "contestable",
-            "expected_claim_eligible": None,
-            "expected_normalization": None,
-        })
+        out.append(
+            {
+                "fixture_id": f"F{cid}",
+                "stratum": stratum,
+                "paper_id": c.paper_id,
+                "attachment_id": c.attachment_id,
+                "chunk_id": cid,
+                "page": c.page_start,
+                "raw_text": c.text,
+                "current_section": c.section,
+                "geometry": None
+                if not box
+                else {
+                    "n_spans": f.n_spans,
+                    "n_lines": f.n_lines,
+                    "width_ratio": f.width_ratio,
+                    "y_top_frac": f.y_top_frac,
+                    "grid_support": f.grid_support,
+                },
+                "in_reference_region": cid in biblio.get(c.paper_id, set()),
+                "matches_known_citation": cid in ref_hit,
+                "predicted_type": lab.chunk_type if lab else None,
+                "predicted_rule": lab.rule_id if lab else None,
+                "expected_type": mech[0] if mech else None,
+                "rationale": mech[1] if mech else None,
+                "adjudication": "mechanical" if mech else "contestable",
+                "expected_claim_eligible": None,
+                "expected_normalization": None,
+            }
+        )
     return out
 
 
@@ -159,6 +169,7 @@ def main() -> None:
     print(f"  mechanically adjudicated : {len(mech)}")
     print(f"  contestable (need review): {len(cont)}")
     from collections import Counter
+
     print(f"  strata: {dict(Counter(f['stratum'] for f in fixtures))}")
     print(f"  mechanical expected types: {dict(Counter(f['expected_type'] for f in mech))}")
 

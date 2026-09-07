@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-07 — release preflight: mechanical research-tool CI cleanup
+- **Files:** `tools/evidence_hygiene/*.py`, `.claude/research/claude_h1b2_gate_review.py`,
+  `.claude/research/h1b_source_component_audit.py` (only files with existing lint/format failures).
+- **What:** remove unused imports/exception binding, sort imports, format, explicitly retain
+  non-strict adjacent-pair zip, and mark unused local values without changing their evaluation.
+  Two synchronous per-iteration closures retain their existing late-bound behavior with explained
+  B023 annotations; notably the classifier must read `ev` after its branch assigns it.
+- **Why:** maintainer authorized clearing the pre-existing CI blockers before releasing 0.5.8.
+- **Verification:** Ruff check and format pass across 897 Python files; all 13 edited scripts have
+  equal ASTs after explicit normalization of imports, unused binding names, exception binding,
+  constant-only f-strings and default-equivalent `strict=False`. This is a mechanical comparison,
+  not a rerun or requalification of scientific studies. Line budget and Tach pass; focused Desktop,
+  truncation, planner and faceted-synthesis tests: 61 passed, 1 skipped.
+- **Frozen-history boundary:** historical reports, rule freezes, receipts and their hashes remain
+  unchanged. Reproduce historical experiments from their recorded commits, not these reformatted
+  harness bytes. No production source, model cap, threshold, corpus, or research outcome changed.
+- **Revert:** revert this cleanup commit; prior research bytes remain available in Git history.
+
 ## 2026-09-05 — inc 580: H1b.2 source-envelope coherence + non-finite geometry
 - **Files:** `app/backend/persistence/source_representation_repo.py`,
   `app/backend/pdf_processing/source_components.py`, `tests/test_source_representation.py`,

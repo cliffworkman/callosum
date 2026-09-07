@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import random
-from collections import Counter, defaultdict
+from collections import defaultdict
 
 from tools.evidence_hygiene.corpus import load_chunks
 from tools.evidence_hygiene.refregion import (
@@ -54,9 +54,7 @@ def main() -> None:
             idx = build_index(cs)
             hits = match_positions(idx, refs, prong)
             # Corroboration-only prongs may not establish a region alone.
-            if prong == "title_author" and not any(
-                match_positions(idx, refs, "title").values()
-            ):
+            if prong == "title_author" and not any(match_positions(idx, refs, "title").values()):
                 continue
             region = infer_region(idx, hits)
             if region is None:
@@ -72,9 +70,11 @@ def main() -> None:
             "median_span_frac": round(med(spans), 3),
             "median_refs_matched": round(med(matched), 3),
         }
-        print(f"\nprong={prong:<13} fired on {fired}/{len(refs_by_paper)} papers | "
-              f"median region span {med(spans):.2f} of paper | "
-              f"median references matched {med(matched):.2f}")
+        print(
+            f"\nprong={prong:<13} fired on {fired}/{len(refs_by_paper)} papers | "
+            f"median region span {med(spans):.2f} of paper | "
+            f"median references matched {med(matched):.2f}"
+        )
 
     # ---- gold set: papers stratified by the conditions Cliff asked to be covered ----
     gold_ids = _stratified_gold(by_paper, refs_by_paper, regions_by_prong["combined"])

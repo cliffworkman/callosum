@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 import statistics
 from collections import defaultdict
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 
 from app.backend.pdf_processing.sections import (
     MAX_HEADING_WORDS,
@@ -18,9 +18,43 @@ from app.backend.pdf_processing.sections import (
 from tools.evidence_hygiene.corpus import Chunk, PaperCalibration
 
 _STOPWORDS = {
-    "the", "of", "and", "in", "to", "a", "is", "was", "were", "for", "with", "that", "as", "on",
-    "by", "at", "from", "this", "these", "we", "our", "are", "be", "been", "not", "but", "or",
-    "an", "it", "its", "than", "which", "their", "there", "have", "has", "had",
+    "the",
+    "of",
+    "and",
+    "in",
+    "to",
+    "a",
+    "is",
+    "was",
+    "were",
+    "for",
+    "with",
+    "that",
+    "as",
+    "on",
+    "by",
+    "at",
+    "from",
+    "this",
+    "these",
+    "we",
+    "our",
+    "are",
+    "be",
+    "been",
+    "not",
+    "but",
+    "or",
+    "an",
+    "it",
+    "its",
+    "than",
+    "which",
+    "their",
+    "there",
+    "have",
+    "has",
+    "had",
 }
 
 _CAPTION = re.compile(r"^\s*(table|fig(?:ure)?\.?|figs?\.|scheme|panel|appendix)\s*[0-9ivxIVX]+\b", re.I)
@@ -278,26 +312,55 @@ def main() -> None:
     conn.executemany(
         "INSERT OR REPLACE INTO chunk_geom VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [
-            (f.chunk_id, f.raw_sha, f.n_spans, f.n_lines, f.x0, f.y0, f.x1, f.y1,
-             f.width_ratio, f.line_fill, f.y_top_frac, f.y_bot_frac, f.mean_span_h,
-             f.grid_support, f.col_index)
+            (
+                f.chunk_id,
+                f.raw_sha,
+                f.n_spans,
+                f.n_lines,
+                f.x0,
+                f.y0,
+                f.x1,
+                f.y1,
+                f.width_ratio,
+                f.line_fill,
+                f.y_top_frac,
+                f.y_bot_frac,
+                f.mean_span_h,
+                f.grid_support,
+                f.col_index,
+            )
             for f in feats
         ],
     )
     conn.executemany(
         "INSERT OR REPLACE INTO chunk_shape VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [
-            (f.chunk_id, f.raw_sha, f.n_words, f.n_chars, f.alpha_ratio, f.digit_ratio,
-             f.punct_ratio, int(f.terminal_punct), f.caps_frac, f.stop_frac, f.biblio_score,
-             int(f.caption_match), f.heading_prefix_key, f.contamination_ratio)
+            (
+                f.chunk_id,
+                f.raw_sha,
+                f.n_words,
+                f.n_chars,
+                f.alpha_ratio,
+                f.digit_ratio,
+                f.punct_ratio,
+                int(f.terminal_punct),
+                f.caps_frac,
+                f.stop_frac,
+                f.biblio_score,
+                int(f.caption_match),
+                f.heading_prefix_key,
+                f.contamination_ratio,
+            )
             for f in feats
         ],
     )
     conn.commit()
     print(f"computed features for {len(feats)} chunks")
     print(f"  caption_match      {sum(f.caption_match for f in feats):>6}")
-    print(f"  heading_prefix     {sum(f.heading_prefix_key is not None for f in feats):>6} "
-          f"(heading-only {sum(f.heading_only for f in feats)})")
+    print(
+        f"  heading_prefix     {sum(f.heading_prefix_key is not None for f in feats):>6} "
+        f"(heading-only {sum(f.heading_only for f in feats)})"
+    )
     print(f"  keyword_line       {sum(f.keyword_line for f in feats):>6}")
     print(f"  cite_instruction   {sum(f.cite_instruction for f in feats):>6}")
     print(f"  publication_meta   {sum(f.publication_meta for f in feats):>6}")

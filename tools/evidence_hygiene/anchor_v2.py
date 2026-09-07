@@ -14,22 +14,19 @@ a Nature-format Methods section printed after the list.
 
 from __future__ import annotations
 
-import json
 import re
-import statistics
 from collections import defaultdict
 
 from tools.evidence_hygiene.corpus import Chunk
 from tools.evidence_hygiene.reference_anchor import (
     NGRAM,
     _norm_words,
-    _title_ngrams,
     load_reference_records,
     reference_signals,
 )
 
-MIN_DISTINCT_REFS = 4   # a cluster must reproduce several different works to be a reference list
-CLUSTER_GAP = 25        # chunk positions; a reference list tolerates unmatched entries between hits
+MIN_DISTINCT_REFS = 4  # a cluster must reproduce several different works to be a reference list
+CLUSTER_GAP = 25  # chunk positions; a reference list tolerates unmatched entries between hits
 DOI_RE = re.compile(r"10\.\d{4,9}/[^\s\"'<>,;)\]]+", re.I)
 _YEAR_RE = re.compile(r"\b(1[89]\d{2}|20\d{2})\b")
 
@@ -120,9 +117,7 @@ def anchored_regions(chunks: list[Chunk]) -> tuple[dict[int, set[int]], dict[int
         scored = [(len({o for _, s, _ in cl for o in s}), cl) for cl in clusters]
         n_distinct, best = max(scored, key=lambda t: t[0])
         if n_distinct < MIN_DISTINCT_REFS:
-            diag[paper_id] = {
-                "status": "no_dense_cluster", "n_refs": len(refs), "best_distinct": n_distinct
-            }
+            diag[paper_id] = {"status": "no_dense_cluster", "n_refs": len(refs), "best_distinct": n_distinct}
             continue
 
         start, end = best[0][0], best[-1][0]
@@ -133,13 +128,15 @@ def anchored_regions(chunks: list[Chunk]) -> tuple[dict[int, set[int]], dict[int
         # in-text citation elsewhere in the paper can never pull the region toward it.
         sy_map = _surname_year_map(refs)
         if sy_map:
+
             def corroborates(pos: int) -> bool:
-                t = ordered[pos].text or ""
+                # Called synchronously below; this closure never escapes the paper iteration.
+                t = ordered[pos].text or ""  # noqa: B023
                 years = set(_YEAR_RE.findall(t))
                 if not years:
                     return False
                 names = set(_norm_words(t))
-                return any((s, y) in sy_map for s in names for y in years)
+                return any((s, y) in sy_map for s in names for y in years)  # noqa: B023
 
             while start - 1 >= 0 and corroborates(start - 1):
                 start -= 1
@@ -179,15 +176,21 @@ def main() -> None:
     if ok:
         cov = sorted(d["coverage"] for d in ok)
         span = sorted(d["span_frac"] for d in ok)
-        print(f"  distinct references matched / known: median {cov[len(cov) // 2]:.2f}  "
-              f"min {cov[0]:.2f}  max {cov[-1]:.2f}")
-        print(f"  region span as a fraction of paper : median {span[len(span) // 2]:.2f}  "
-              f"min {span[0]:.2f}  max {span[-1]:.2f}")
-        print(f"  hits carried by DOI: {sum(d['by_doi'] for d in ok)} of "
-              f"{sum(d['distinct_matched'] for d in ok)} matched references")
+        print(
+            f"  distinct references matched / known: median {cov[len(cov) // 2]:.2f}  "
+            f"min {cov[0]:.2f}  max {cov[-1]:.2f}"
+        )
+        print(
+            f"  region span as a fraction of paper : median {span[len(span) // 2]:.2f}  "
+            f"min {span[0]:.2f}  max {span[-1]:.2f}"
+        )
+        print(
+            f"  hits carried by DOI: {sum(d['by_doi'] for d in ok)} of "
+            f"{sum(d['distinct_matched'] for d in ok)} matched references"
+        )
     print(f"  chunks in anchored regions: {sum(len(v) for v in regions.values())}")
 
-    labeled = {c.chunk_id for c in chunks if (c.section or "") == "references"}
+    _labeled = {c.chunk_id for c in chunks if (c.section or "") == "references"}
     detected = {cid for v in regions.values() for cid in v}
     covered = set(regions)
     lab = {c.chunk_id for c in chunks if c.paper_id in covered and (c.section or "") == "references"}

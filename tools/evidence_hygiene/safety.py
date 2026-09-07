@@ -53,7 +53,7 @@ def normalize_chunk(text: str, paper_blob: str) -> tuple[str, Counter]:
     """Character canonicalization + per-occurrence hyphen resolution. Unresolved left untouched."""
     out, counts, pos = [], Counter(), 0
     for m in ARTIFACT.finditer(text or ""):
-        out.append(text[pos:m.start()])
+        out.append(text[pos : m.start()])
         d = resolve(paper_blob, m.group(1).lower(), m.group(2).lower())
         counts[d] += 1
         if d == "join":
@@ -61,7 +61,7 @@ def normalize_chunk(text: str, paper_blob: str) -> tuple[str, Counter]:
         elif d == "keep":
             out.append(f"{m.group(1)}-{m.group(2)}")
         else:
-            out.append(m.group(0))          # unresolved: leave the raw form in place
+            out.append(m.group(0))  # unresolved: leave the raw form in place
         pos = m.end()
     out.append(text[pos:])
     return _canonical_characters("".join(out)), counts
@@ -99,10 +99,12 @@ def main() -> None:
     print(f"  chunks with >=1 hyphen artifact     : {touched}")
     print(f"  hyphen decisions                    : {dict(decisions)}")
     print(f"  FAIL, character canonicalization only : {levels['char_only']}")
-    print(f"  FAIL, character + per-occurrence hyphen: {levels['char+hyphen']} "
-          f"({100 * levels['char+hyphen'] / max(touched, 1):.1f}% of touched chunks)")
+    print(
+        f"  FAIL, character + per-occurrence hyphen: {levels['char+hyphen']} "
+        f"({100 * levels['char+hyphen'] / max(touched, 1):.1f}% of touched chunks)"
+    )
     by_mix = Counter()
-    for c, counts in fails["char+hyphen"][:2000]:
+    for _c, counts in fails["char+hyphen"][:2000]:
         mix = "+".join(sorted(k for k in counts if counts[k]))
         by_mix[mix] += 1
     print(f"  failure causes by decision mix      : {dict(by_mix)}")
@@ -134,7 +136,7 @@ def main() -> None:
             try:
                 m_raw = locate_quote_for_attachment(conn, c.attachment_id, quote)
                 m_norm = locate_quote_for_attachment(conn, c.attachment_id, nquote)
-            except Exception as exc:
+            except Exception:
                 stats["raw"]["error"] += 1
                 continue
             k_raw = "exact" if (m_raw.found and m_raw.rectangles) else ("region" if m_raw.found else "miss")
@@ -149,20 +151,36 @@ def main() -> None:
     for surface in ("raw", "normalized"):
         s = stats[surface]
         ex = s.get("exact", 0)
-        print(f"  {surface:<11} exact {ex:>4} ({100 * ex / max(n, 1):>5.1f}%)  "
-              f"region {s.get('region', 0):>4}  miss {s.get('miss', 0):>4}")
+        print(
+            f"  {surface:<11} exact {ex:>4} ({100 * ex / max(n, 1):>5.1f}%)  "
+            f"region {s.get('region', 0):>4}  miss {s.get('miss', 0):>4}"
+        )
     print(f"  exact -> non-exact REGRESSIONS: {len(regressions)}")
     for c, k, counts in regressions[:5]:
         print(f"    c{c.chunk_id} p{c.paper_id} -> {k}  decisions={counts}")
         print(f"       {' '.join((c.text or '').split())[:86]}")
 
-    (study_dir() / "safety_r1_r2.json").write_text(json.dumps({
-        "r1": {"touched": touched, "decisions": dict(decisions),
-               "fail_char_only": levels["char_only"], "fail_char_hyphen": levels["char+hyphen"],
-               "failure_mix": dict(by_mix)},
-        "r2": {"n": n, "raw": dict(stats["raw"]), "normalized": dict(stats["normalized"]),
-               "regressions": len(regressions)},
-    }, indent=1), encoding="utf-8")
+    (study_dir() / "safety_r1_r2.json").write_text(
+        json.dumps(
+            {
+                "r1": {
+                    "touched": touched,
+                    "decisions": dict(decisions),
+                    "fail_char_only": levels["char_only"],
+                    "fail_char_hyphen": levels["char+hyphen"],
+                    "failure_mix": dict(by_mix),
+                },
+                "r2": {
+                    "n": n,
+                    "raw": dict(stats["raw"]),
+                    "normalized": dict(stats["normalized"]),
+                    "regressions": len(regressions),
+                },
+            },
+            indent=1,
+        ),
+        encoding="utf-8",
+    )
     print("\nwrote safety_r1_r2.json")
 
 

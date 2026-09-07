@@ -1147,9 +1147,15 @@ def edge_case_audit(db: Path, truncation_attachment: int, resume_attachment: int
 
     engine = make_engine(f"sqlite:///{db.resolve().as_posix()}")
     with engine.begin() as conn:
-        target = conn.execute(
-            select(attachments.c.resolved_path, attachments.c.checksum).where(attachments.c.id == truncation_attachment)
-        ).mappings().one()
+        target = (
+            conn.execute(
+                select(attachments.c.resolved_path, attachments.c.checksum).where(
+                    attachments.c.id == truncation_attachment
+                )
+            )
+            .mappings()
+            .one()
+        )
     extraction = extract_pdf(Path(target["resolved_path"]))
     old_max = repo.MAX_COMPONENTS_PER_ATTACHMENT
     try:
@@ -1168,9 +1174,9 @@ def edge_case_audit(db: Path, truncation_attachment: int, resume_attachment: int
             current_after_truncation = truncation_attachment in repo.attachments_with_current_source(conn)
             truncated_pages = int(
                 conn.execute(
-                    select(__import__("sqlalchemy").func.count()).select_from(source_pages).where(
-                        source_pages.c.attachment_id == truncation_attachment
-                    )
+                    select(__import__("sqlalchemy").func.count())
+                    .select_from(source_pages)
+                    .where(source_pages.c.attachment_id == truncation_attachment)
                 ).scalar_one()
             )
             truncated_components = int(
@@ -1187,9 +1193,7 @@ def edge_case_audit(db: Path, truncation_attachment: int, resume_attachment: int
         original_checksum = conn.execute(
             select(attachments.c.checksum).where(attachments.c.id == truncation_attachment)
         ).scalar_one()
-        conn.execute(
-            update(attachments).where(attachments.c.id == truncation_attachment).values(checksum="0" * 64)
-        )
+        conn.execute(update(attachments).where(attachments.c.id == truncation_attachment).values(checksum="0" * 64))
         stale_excluded = truncation_attachment not in repo.attachments_with_current_source(conn)
         conn.execute(
             update(attachments).where(attachments.c.id == truncation_attachment).values(checksum=original_checksum)
@@ -1202,9 +1206,9 @@ def edge_case_audit(db: Path, truncation_attachment: int, resume_attachment: int
     with engine.begin() as conn:
         resume_pages = int(
             conn.execute(
-                select(__import__("sqlalchemy").func.count()).select_from(source_pages).where(
-                    source_pages.c.attachment_id == resume_attachment
-                )
+                select(__import__("sqlalchemy").func.count())
+                .select_from(source_pages)
+                .where(source_pages.c.attachment_id == resume_attachment)
             ).scalar_one()
         )
 

@@ -50,7 +50,7 @@ from app.backend.pdf_processing.extraction import _canonical_characters
 from tools.evidence_hygiene.corpus import Chunk
 from tools.evidence_hygiene.store import LIBRARY_DB
 
-MIN_TITLE_KEY = 28      # dense chars; shorter titles collide with ordinary prose
+MIN_TITLE_KEY = 28  # dense chars; shorter titles collide with ordinary prose
 DOI_RE = re.compile(r"10\.\d{4,9}/[^\s\"'<>,;)\]]+", re.I)
 _YEAR_RE = re.compile(r"\b(1[89]\d{2}|20\d{2})\b")
 _NONALNUM = re.compile(r"[^a-z0-9]+")
@@ -58,10 +58,10 @@ _NONALNUM = re.compile(r"[^a-z0-9]+")
 
 def dense_key(text: str) -> str:
     """Aggressively normalized, whitespace-free comparison key. Reuses existing utilities."""
-    canon = _canonical_characters(text or "")                 # ligatures, soft hyphen, NFC, dashes
+    canon = _canonical_characters(text or "")  # ligatures, soft hyphen, NFC, dashes
     canon = unicodedata.normalize("NFKD", canon)
-    canon = normalize_text(strip_punctuation(canon))          # punctuation -> space, lower, collapse
-    return _NONALNUM.sub("", canon)                           # the one new step
+    canon = normalize_text(strip_punctuation(canon))  # punctuation -> space, lower, collapse
+    return _NONALNUM.sub("", canon)  # the one new step
 
 
 @dataclass
@@ -88,17 +88,16 @@ def load_references() -> dict[int, list[Reference]]:
     with engine.connect() as conn:
         by_doi = {
             (r[1] or "").lower().strip(): int(r[0])
-            for r in conn.execute(
-                sqltext("SELECT id, doi FROM papers WHERE doi IS NOT NULL AND deleted_at IS NULL")
-            )
+            for r in conn.execute(sqltext("SELECT id, doi FROM papers WHERE doi IS NOT NULL AND deleted_at IS NULL"))
         }
         rows = conn.execute(
-            sqltext("SELECT provider, cache_key, response_json FROM external_api_cache "
-                    "WHERE provider IN ('crossref', 'openalex')")
+            sqltext(
+                "SELECT provider, cache_key, response_json FROM external_api_cache "
+                "WHERE provider IN ('crossref', 'openalex')"
+            )
         ).fetchall()
         inst = conn.execute(
-            sqltext("SELECT citing_paper_id, source_ordinal, title, doi, authors_json, year "
-                    "FROM reference_instances")
+            sqltext("SELECT citing_paper_id, source_ordinal, title, doi, authors_json, year FROM reference_instances")
         ).fetchall()
 
     out: dict[int, list[Reference]] = defaultdict(list)
@@ -154,7 +153,7 @@ class PaperIndex:
 
     ordered: list[Chunk]
     dense: str
-    starts: list[int]      # dense-string offset where each chunk begins
+    starts: list[int]  # dense-string offset where each chunk begins
 
     def position_of(self, offset: int) -> int:
         lo, hi = 0, len(self.starts) - 1
@@ -178,9 +177,7 @@ def build_index(chunks: list[Chunk]) -> PaperIndex:
     return PaperIndex(ordered=ordered, dense="".join(parts), starts=starts)
 
 
-def match_positions(
-    idx: PaperIndex, refs: list[Reference], prong: str
-) -> dict[int, set[int]]:
+def match_positions(idx: PaperIndex, refs: list[Reference], prong: str) -> dict[int, set[int]]:
     """{chunk position -> matched reference ordinals} for one prong."""
     hits: dict[int, set[int]] = defaultdict(set)
 
@@ -219,9 +216,7 @@ def match_positions(
     return dict(hits)
 
 
-def infer_region(
-    idx: PaperIndex, hits: dict[int, set[int]], *, min_distinct: int = 4
-) -> tuple[int, int] | None:
+def infer_region(idx: PaperIndex, hits: dict[int, set[int]], *, min_distinct: int = 4) -> tuple[int, int] | None:
     """The sustained cluster where bibliographic density spikes above the paper's own baseline."""
     n = len(idx.ordered)
     if not hits or n == 0:
@@ -283,9 +278,7 @@ def infer_region(
             end += 1
         # A short fragment is crossed only when a real entry follows within two positions, so the
         # walk cannot run away through page furniture into the next section.
-        elif short_fragment(end + 1) and any(
-            end + k < n and looks_bibliographic(end + k) for k in (2, 3)
-        ):
+        elif short_fragment(end + 1) and any(end + k < n and looks_bibliographic(end + k) for k in (2, 3)):
             end += 1
         else:
             break

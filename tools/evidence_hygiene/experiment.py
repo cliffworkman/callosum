@@ -32,20 +32,35 @@ POLICIES: dict[str, set[str]] = {
     "P1b_debris": {C.RUNNING_HEAD, C.TABLE_CELL_DEBRIS},
     "P1c_references": {C.RUNNING_HEAD, C.TABLE_CELL_DEBRIS, C.REFERENCE_ENTRY},
     "P1d_publisher": {
-        C.RUNNING_HEAD, C.TABLE_CELL_DEBRIS, C.REFERENCE_ENTRY,
-        C.PUBLICATION_METADATA, C.CITATION_INSTRUCTION, C.KEYWORD_LINE,
+        C.RUNNING_HEAD,
+        C.TABLE_CELL_DEBRIS,
+        C.REFERENCE_ENTRY,
+        C.PUBLICATION_METADATA,
+        C.CITATION_INSTRUCTION,
+        C.KEYWORD_LINE,
     },
     "P1f_headings": {
-        C.RUNNING_HEAD, C.TABLE_CELL_DEBRIS, C.REFERENCE_ENTRY,
-        C.PUBLICATION_METADATA, C.CITATION_INSTRUCTION, C.KEYWORD_LINE,
-        C.HEADING_FRAGMENT, C.MATH_OR_SYMBOL,
+        C.RUNNING_HEAD,
+        C.TABLE_CELL_DEBRIS,
+        C.REFERENCE_ENTRY,
+        C.PUBLICATION_METADATA,
+        C.CITATION_INSTRUCTION,
+        C.KEYWORD_LINE,
+        C.HEADING_FRAGMENT,
+        C.MATH_OR_SYMBOL,
     },
     # Captions are tested SEPARATELY and last. They are not assumed universally non-evidential:
     # a caption can carry a real result, it just cannot carry the proposition Ask needs.
     "P1g_plus_captions": {
-        C.RUNNING_HEAD, C.TABLE_CELL_DEBRIS, C.REFERENCE_ENTRY,
-        C.PUBLICATION_METADATA, C.CITATION_INSTRUCTION, C.KEYWORD_LINE,
-        C.HEADING_FRAGMENT, C.MATH_OR_SYMBOL, C.CAPTION,
+        C.RUNNING_HEAD,
+        C.TABLE_CELL_DEBRIS,
+        C.REFERENCE_ENTRY,
+        C.PUBLICATION_METADATA,
+        C.CITATION_INSTRUCTION,
+        C.KEYWORD_LINE,
+        C.HEADING_FRAGMENT,
+        C.MATH_OR_SYMBOL,
+        C.CAPTION,
     },
 }
 
@@ -96,9 +111,7 @@ def main() -> None:
             )
         }
         pool = [c for c in chunks if c.paper_id in axis_papers]
-        current = current_chunk_embedding_ids(
-            conn, ((c.chunk_id, c.chunk_version) for c in pool), model=model
-        )
+        current = current_chunk_embedding_ids(conn, ((c.chunk_id, c.chunk_version) for c in pool), model=model)
         emb_to_chunk = {e: c for c, e in current.items()}
 
         report: dict = {"top_k": TOP_K, "pool_chunks": len(current), "questions": {}}
@@ -112,22 +125,15 @@ def main() -> None:
 
             baseline_ids: list[int] = []
             for pname, banned in POLICIES.items():
-                eligible = {
-                    e for e, cid in emb_to_chunk.items() if label_of.get(cid, C.UNKNOWN) not in banned
-                }
+                eligible = {e for e, cid in emb_to_chunk.items() if label_of.get(cid, C.UNKNOWN) not in banned}
                 # Full-depth once, sliced offline -- see the module docstring.
-                hits = store.search(
-                    conn, vector=qvec, top_k=len(eligible), candidate_embedding_ids=eligible
-                )
+                hits = store.search(conn, vector=qvec, top_k=len(eligible), candidate_embedding_ids=eligible)
                 ranked = [emb_to_chunk[h.embedding_id] for h in hits]
                 top = ranked[:TOP_K]
                 if pname == "P0_production":
                     baseline_ids = list(top)
                 kinds = Counter(label_of.get(cid, C.UNKNOWN) for cid in top)
-                junk = sum(
-                    1 for cid in top
-                    if label_of.get(cid, C.UNKNOWN) in POLICIES["P1g_plus_captions"]
-                )
+                junk = sum(1 for cid in top if label_of.get(cid, C.UNKNOWN) in POLICIES["P1g_plus_captions"])
                 papers = len({byid[cid].paper_id for cid in top})
                 comp = ", ".join(f"{k}:{v}" for k, v in kinds.most_common(4))
                 print(f"  {pname:<20}{len(emb_to_chunk) - len(eligible):>9}{junk:>9}/8{papers:>8}  {comp}")
@@ -144,17 +150,23 @@ def main() -> None:
                 }
 
             arms = report["questions"][qname]["arms"]
-            print(f"\n  displacement vs P0 (Jaccard of top-8): "
-                  + ", ".join(f"{k.split('_')[0]}={v['jaccard_vs_P0']}" for k, v in arms.items()))
-            print(f"  context chars in top-8: "
-                  + ", ".join(f"{k.split('_')[0]}={v['chars_in_top_k']}" for k, v in arms.items()))
+            print(
+                "\n  displacement vs P0 (Jaccard of top-8): "
+                + ", ".join(f"{k.split('_')[0]}={v['jaccard_vs_P0']}" for k, v in arms.items())
+            )
+            print(
+                "  context chars in top-8: "
+                + ", ".join(f"{k.split('_')[0]}={v['chars_in_top_k']}" for k, v in arms.items())
+            )
 
             best = arms["P1g_plus_captions"]["top_k_chunk_ids"]
             print(f"\n  P1g top-8 for {qname}:")
             for i, cid in enumerate(best, 1):
                 c = byid[cid]
-                print(f"    #{i} c{cid} p{c.paper_id} [{c.section or 'NULL'}] "
-                      f"({label_of.get(cid)}) {' '.join(c.text.split())[:92]}")
+                print(
+                    f"    #{i} c{cid} p{c.paper_id} [{c.section or 'NULL'}] "
+                    f"({label_of.get(cid)}) {' '.join(c.text.split())[:92]}"
+                )
             print()
 
     out = study_dir() / "b0_vs_b1_retrieval.json"

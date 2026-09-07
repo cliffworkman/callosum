@@ -4,7 +4,6 @@ Builds fresh adversarial states against the COMMITTED code at aab95f27. Uses thr
 databases; touches no production data and modifies no production code.
 """
 
-import math
 import sqlite3
 import sys
 import tempfile
@@ -13,10 +12,10 @@ from pathlib import Path
 ROOT = Path("C:/Users/cliff/Dropbox/Dropbox/01_Work/callosum")
 sys.path.insert(0, str(ROOT))
 
-from alembic import command  # noqa: E402
-from alembic.config import Config  # noqa: E402
 from sqlalchemy import func, or_, select  # noqa: E402
 
+from alembic import command  # noqa: E402
+from alembic.config import Config  # noqa: E402
 from app.backend.pdf_processing.source_components import (  # noqa: E402
     GEOMETRY_INVALID,
     GEOMETRY_PAGE_TOLERANCE_PT,
