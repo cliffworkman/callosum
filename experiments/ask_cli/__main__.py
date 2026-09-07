@@ -241,7 +241,7 @@ def run(db_path: str, out_dir: str, terminal: str) -> int:
                 "elapsed_seconds": round(time.monotonic() - started, 1),
             },
         )
-        print(f"[ask-cli] done in {round(time.monotonic() - started, 1)}s → {out_dir}")
+        print(f"[ask-cli] done in {round(time.monotonic() - started, 1)}s -> {out_dir}")
         return 0
     finally:
         rt.close()
