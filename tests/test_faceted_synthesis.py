@@ -105,9 +105,10 @@ def test_verified_first_and_coverage_partial():
         (0, _cand("flagged-b")),
     ]
     rows = [_row(True, 0.7), _row(True, 0.95), _row(False), _row(False)]
-    ordered, ordered_rows, coverage = _assemble(
+    ordered, ordered_rows, coverage, responsiveness = _assemble(
         plan=plan, facet_candidates=facet_candidates, verification_rows=rows, retrieved_counts={0: 6}
     )
+    assert len(responsiveness) == len(ordered)  # inc 582: ordinal-aligned, one label per claim
     texts = [c.text for c in ordered]
     assert texts[:2] == ["v-hi", "v-lo"]  # verified first, strongest support first
     assert set(texts[2:]) == {"flagged-a", "flagged-b"}  # flagged after
@@ -118,7 +119,7 @@ def test_verified_first_and_coverage_partial():
 
 def test_coverage_supported_when_no_flagged():
     plan = QueryPlan(scope="broad", facets=_facets(1))
-    _, _, coverage = _assemble(
+    _, _, coverage, _ = _assemble(
         plan=plan, facet_candidates=[(0, _cand("v"))], verification_rows=[_row(True)], retrieved_counts={0: 3}
     )
     assert coverage[0].status == "supported"
@@ -126,7 +127,7 @@ def test_coverage_supported_when_no_flagged():
 
 def test_coverage_retrieved_unverified():
     plan = QueryPlan(scope="broad", facets=_facets(1))
-    _, _, coverage = _assemble(
+    _, _, coverage, _ = _assemble(
         plan=plan, facet_candidates=[(0, _cand("x"))], verification_rows=[_row(False)], retrieved_counts={0: 4}
     )
     assert coverage[0].status == "retrieved_unverified"  # evidence retrieved, none verified -- NOT absence
@@ -134,8 +135,11 @@ def test_coverage_retrieved_unverified():
 
 def test_coverage_no_evidence_retrieved_is_not_absence():
     plan = QueryPlan(scope="broad", facets=_facets(1))
-    ordered, _, coverage = _assemble(plan=plan, facet_candidates=[], verification_rows=[], retrieved_counts={0: 0})
+    ordered, _, coverage, responsiveness = _assemble(
+        plan=plan, facet_candidates=[], verification_rows=[], retrieved_counts={0: 0}
+    )
     assert ordered == []
+    assert responsiveness == []
     assert coverage[0].status == "no_evidence_retrieved"
 
 
@@ -143,7 +147,7 @@ def test_per_facet_verified_cap():
     plan = QueryPlan(scope="broad", facets=_facets(1))
     facet_candidates = [(0, _cand(f"v{i}")) for i in range(5)]
     rows = [_row(True, 0.5 + i * 0.1) for i in range(5)]
-    ordered, _, coverage = _assemble(
+    ordered, _, coverage, _ = _assemble(
         plan=plan, facet_candidates=facet_candidates, verification_rows=rows, retrieved_counts={0: 6}
     )
     assert len(ordered) == MAX_VERIFIED_PER_FACET == 3
@@ -154,7 +158,7 @@ def test_per_facet_flagged_cap():
     plan = QueryPlan(scope="broad", facets=_facets(1))
     facet_candidates = [(0, _cand(f"f{i}")) for i in range(5)]
     rows = [_row(False) for _ in range(5)]
-    ordered, _, coverage = _assemble(
+    ordered, _, coverage, _ = _assemble(
         plan=plan, facet_candidates=facet_candidates, verification_rows=rows, retrieved_counts={0: 6}
     )
     assert len(ordered) == MAX_FLAGGED_PER_FACET == 2
@@ -165,10 +169,49 @@ def test_verified_first_across_facets():
     plan = QueryPlan(scope="broad", facets=_facets(2))
     facet_candidates = [(0, _cand("f0-verified")), (0, _cand("f0-flagged")), (1, _cand("f1-verified"))]
     rows = [_row(True), _row(False), _row(True)]
-    ordered, _, _ = _assemble(
+    ordered, _, _, _ = _assemble(
         plan=plan, facet_candidates=facet_candidates, verification_rows=rows, retrieved_counts={0: 3, 1: 3}
     )
     texts = [c.text for c in ordered]
     # both facets' verified claims precede any flagged claim
     assert texts.index("f0-verified") < texts.index("f0-flagged")
     assert texts.index("f1-verified") < texts.index("f0-flagged")
+
+
+# ---- inc 582 responsiveness (presentation label; never changes status/order) --------------------
+
+
+def test_responsiveness_is_ordinal_aligned_and_labels_findings_vs_descriptive():
+    plan = QueryPlan(scope="broad", facets=_facets(1))
+    facet_candidates = [
+        (0, _cand("Higher amyloid burden was observed in late-life depressed patients.")),  # verified finding
+        (0, _cand("This study investigates structural imaging in late-life depression.")),  # verified descriptive
+        (0, _cand("Research has investigated glucose metabolism.")),  # FLAGGED descriptive
+    ]
+    rows = [_row(True, 0.9), _row(True, 0.8), _row(False)]
+    ordered, ordered_rows, _, responsiveness = _assemble(
+        plan=plan, facet_candidates=facet_candidates, verification_rows=rows, retrieved_counts={0: 6}
+    )
+    # one label per claim, aligned to final order (== persisted ordinal)
+    assert len(responsiveness) == len(ordered) == 3
+    by_text = {c.text: responsiveness[i] for i, c in enumerate(ordered)}
+    assert by_text["Higher amyloid burden was observed in late-life depressed patients."] == "finding"
+    assert by_text["This study investigates structural imaging in late-life depression."] == "descriptive"
+    # #8: the flagged claim keeps its flagged status (verified flag comes from its row, unchanged) and is
+    # never promoted -- responsiveness is orthogonal metadata, it does not verify anything.
+    assert ordered_rows[-1][0].verified is False
+    assert ordered[-1].text == "Research has investigated glucose metabolism."
+
+
+def test_responsiveness_from_ref_reader():
+    from app.backend.api.routers.summaries_response import _responsiveness_from_ref
+
+    # narrow / non-faceted summary -> None (unchanged response)
+    assert _responsiveness_from_ref({"source_chunk_count": 8}) is None
+    assert _responsiveness_from_ref(None) is None
+    # faceted -> the ordinal-aligned list, with an unrecognized value failing open to "unknown"
+    assert _responsiveness_from_ref({"responsiveness": ["finding", "descriptive", "bogus"]}) == [
+        "finding",
+        "descriptive",
+        "unknown",
+    ]

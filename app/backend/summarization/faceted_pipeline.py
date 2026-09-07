@@ -39,6 +39,7 @@ from app.backend.summarization.pipeline import (
     _verify_candidates,
 )
 from app.backend.summarization.query_planner import QueryPlan
+from app.backend.summarization.responsiveness import classify_responsiveness
 from app.backend.summarization.verification import (
     LocalCitationVerifier,
     SupportScorer,
@@ -149,7 +150,7 @@ def summarize_faceted(
             for i in range(1, len(candidates) + 1):
                 on_progress(i, len(candidates), "Verifying claim")
 
-        ordered_candidates, ordered_rows, coverage = _assemble(
+        ordered_candidates, ordered_rows, coverage, responsiveness = _assemble(
             plan=plan,
             facet_candidates=facet_candidates,
             verification_rows=verification_rows,
@@ -160,6 +161,9 @@ def summarize_faceted(
             "question": question,
             "facets": [{"label": f.label, "query": f.query} for f in plan.facets],
             "coverage": [asdict(c) for c in coverage],
+            # inc 582: per-claim responsiveness label (finding/descriptive/unknown), ordinal-aligned to
+            # the persisted sentences below. Presentation only -- no verification status/score change.
+            "responsiveness": responsiveness,
         }
         if on_stage is not None:
             on_stage("finalizing_result", "Finalizing result", len(ordered_candidates), False)
@@ -297,8 +301,10 @@ def _assemble(
     verification_rows: list,
     retrieved_counts: dict[int, int],
 ):
-    """Split each facet's claims into verified/flagged, cap them, order verified-first, and build
-    per-facet coverage. Returns (ordered_candidates, ordered_rows, coverage)."""
+    """Split each facet's claims into verified/flagged, cap them, order verified-first, build per-facet
+    coverage, and attach a per-claim responsiveness label (inc 582 -- presentation only, does NOT
+    reorder ordinals or touch any verification status/score). Returns
+    (ordered_candidates, ordered_rows, coverage, responsiveness)."""
     by_facet: dict[int, list[tuple[CandidateSummarySentence, list]]] = defaultdict(list)
     for (facet_index, candidate), row in zip(facet_candidates, verification_rows, strict=True):
         by_facet[facet_index].append((candidate, row))
@@ -340,4 +346,9 @@ def _assemble(
     ordered = verified_seq + flagged_seq  # verified first (main synthesis), flagged after (secondary)
     ordered_candidates = [c for c, _ in ordered]
     ordered_rows = [r for _, r in ordered]
-    return ordered_candidates, ordered_rows, coverage
+    # inc 582: classify every claim's responsiveness AFTER final ordering, so the list index is exactly
+    # the persisted ordinal. Claim-semantics only (evidence metadata is reserved). Never changes order,
+    # status, or which claims are verified -- the UI uses it only to group verified claims into
+    # findings vs study-context.
+    responsiveness = [classify_responsiveness(candidate.text) for candidate in ordered_candidates]
+    return ordered_candidates, ordered_rows, coverage, responsiveness

@@ -54,6 +54,10 @@ class SummarySentenceResponse(BaseModel):
     text: str
     flagged: bool
     citations: list[SummaryCitationResponse]
+    # inc 582: presentation-only responsiveness label for a broad (faceted) synthesis --
+    # "finding" / "descriptive" / "unknown". None for narrow/paper/cluster/imported summaries. NEVER a
+    # verification signal: "descriptive" means verified-but-lower-answer-value, not lower confidence.
+    responsiveness: str | None = None
 
 
 class OverviewItemResponse(BaseModel):
@@ -117,6 +121,7 @@ def _persisted_summary_response(conn: Connection, *, summary_id: int, job_id: st
             .order_by(summary_sentences.c.ordinal, summary_sentences.c.id)
         ).mappings()
     )
+    responsiveness = _responsiveness_from_ref(summary["scope_ref_json"])
     overview_raw = summary["overview_json"] if "overview_json" in summary else None
     overview = (
         [
@@ -135,7 +140,9 @@ def _persisted_summary_response(conn: Connection, *, summary_id: int, job_id: st
         source_chunk_count=_source_chunk_count_from_ref(summary["scope_ref_json"]),
         generation_truncated=_generation_truncated_from_ref(summary["scope_ref_json"]),
         section_filter=_section_filter_from_ref(summary["scope_ref_json"]),
-        sentences=[_summary_sentence_response(conn, sentence) for sentence in sentence_rows],
+        sentences=[
+            _summary_sentence_response(conn, sentence, responsiveness=responsiveness) for sentence in sentence_rows
+        ],
         overview=overview,
         overview_status=overview_status_for_row(summary),
         overview_updated_at=summary["overview_updated_at"],
@@ -199,14 +206,21 @@ def _imported_summary_response(blob: Any, *, summary_id: int, job_id: str) -> Su
     )
 
 
-def _summary_sentence_response(conn: Connection, sentence: Any) -> SummarySentenceResponse:
+def _summary_sentence_response(
+    conn: Connection, sentence: Any, *, responsiveness: list[str] | None = None
+) -> SummarySentenceResponse:
     citations = [_summary_citation_response(row) for row in _summary_citation_rows(conn, int(sentence["id"]))]
+    ordinal = int(sentence["ordinal"])
+    # inc 582: the responsiveness list is ordinal-aligned; a broad synthesis has one label per sentence,
+    # a narrow one has None. Out-of-range/absent -> None (unchanged response).
+    label = responsiveness[ordinal] if responsiveness is not None and 0 <= ordinal < len(responsiveness) else None
     return SummarySentenceResponse(
         sentence_id=int(sentence["id"]),
-        ordinal=int(sentence["ordinal"]),
+        ordinal=ordinal,
         text=sentence["text"],
         flagged=not citations or any(citation.status != "verified" for citation in citations),
         citations=citations,
+        responsiveness=label,
     )
 
 
@@ -344,6 +358,18 @@ def _coverage_from_ref(scope_ref: Any) -> list[FacetCoverageResponse] | None:
         except (TypeError, ValueError):
             continue
     return out or None
+
+
+_RESPONSIVENESS_VALUES = {"finding", "descriptive", "unknown"}
+
+
+def _responsiveness_from_ref(scope_ref: Any) -> list[str] | None:
+    """Per-claim responsiveness labels for a faceted synthesis, read from the extensible
+    ``scope_ref_json`` blob (inc 582). None for a non-faceted summary (narrow/paper/cluster), so those
+    responses are unchanged. An unrecognized entry degrades to ``unknown`` (fail open -- never demotes)."""
+    if not isinstance(scope_ref, dict) or not isinstance(scope_ref.get("responsiveness"), list):
+        return None
+    return [str(item) if item in _RESPONSIVENESS_VALUES else "unknown" for item in scope_ref["responsiveness"]]
 
 
 def _section_filter_from_ref(scope_ref: Any) -> list[str]:

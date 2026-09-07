@@ -432,40 +432,8 @@ function SummaryHistory({ state, activeSummaryId, onLoad, onDelete, readOnly }) 
   );
 }
 
-function GroupedSummarySentences({ sentences, onOpenCitation, onSaveHighlight }) {
-  const ordered = [...sentences].sort((a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0));
-  const verified = ordered.filter(sentence => !sentence.flagged);
-  const flagged = ordered.filter(sentence => sentence.flagged);
-  return (
-    <>
-      {verified.length > 0 &&
-        <section className="summary-section verified">
-          <div className="summary-section-head">
-            <span className="label">Verified</span>
-            <span className="summary-section-note">{verified.length} stood-up sentence{verified.length === 1 ? "" : "s"}</span>
-          </div>
-          {verified.map(sentence => (
-            <SummarySentence key={sentence.sentence_id} sentence={sentence} onOpenCitation={onOpenCitation} onSaveHighlight={onSaveHighlight} />
-          ))}
-        </section>}
-
-      {flagged.length > 0 &&
-        <section className="summary-section flagged">
-          <div className="summary-section-head">
-            <span className="label">Flagged · needs review</span>
-            <span className="summary-section-note">{flagged.length} sentence{flagged.length === 1 ? "" : "s"} could not be fully verified</span>
-          </div>
-          {verified.length === 0 &&
-            <div className="errbox" style={{ margin: "0 0 10px" }}>
-              No sentence in this synthesis cleared verification. Review the evidence below before relying on it.
-            </div>}
-          {flagged.map(sentence => (
-            <SummarySentence key={sentence.sentence_id} sentence={sentence} onOpenCitation={onOpenCitation} onSaveHighlight={onSaveHighlight} />
-          ))}
-        </section>}
-    </>
-  );
-}
+// GroupedSummarySentences moved to 20b_summary_groups.jsx (inc 582, rule #1 line cap). It's a
+// function declaration hoisted across the shared IIFE, so SynthesisPane above calls it unchanged.
 
 function SummarySentence({ sentence, onOpenCitation, onSaveHighlight }) {
   const flagged = !!sentence.flagged;
