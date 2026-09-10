@@ -2,7 +2,7 @@
 
 The longer-horizon vision for Callosum: a complete, **inspectable** ecosystem for engaging the scientific
 literature responsibly and efficiently. These are design-toward documents (mostly self-contained build
-prompts), **not** the near-term increment queue — that lives in [`../INCREMENT-BACKLOG.md`](../INCREMENT-BACKLOG.md).
+prompts), **not** the near-term increment queue — that lives in [GitHub issues](https://github.com/cliffworkman/callosum/issues) (`future-track`-labeled for these).
 Nothing here is built until it passes the **Principles alignment gate** (`.claude/PRINCIPLES.md`): every track
 below is a *signal / suggestion / retrieval that stays inspectable and non-authoritative* — none may auto-apply
 a judgment, fold a weak signal into a hidden score, or fabricate a link or source.

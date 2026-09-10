@@ -35,8 +35,8 @@ signal/output — make one deliberate pass **inhabiting the end user of the thin
    be desired.
 
 It is a **reflective pause, not a block** (like the Principles gate). Its output is a **finding**: if the
-experience leaves something to be desired, **fix it in the same increment when cheap, else file a UX follow-up to
-`INCREMENT-BACKLOG.md`** — and say which. The pass is *not* satisfied by "the surface works + is covered" (that's
+experience leaves something to be desired, **fix it in the same increment when cheap, else open a UX follow-up
+GitHub issue** — and say which. The pass is *not* satisfied by "the surface works + is covered" (that's
 QA, #10) or "it looks consistent" (DESIGN, #8); it asks the harder question of whether the thing **serves the
 user's actual task**.
 
@@ -157,6 +157,6 @@ is exactly the kind of finding this pass produces, and it is the first thing to 
   output. (A pure refactor or backend-only change with no UX delta has a trivial pass — note that and move on.)
 - **Run the pass:** ask the two questions yourself; for a **newly rolled-out or materially-changed** feature,
   **dispatch a persona agent** (or more than one) per §2.
-- **Deliverable:** the finding(s). Fix what's cheap in the same increment; file the rest to
-  `INCREMENT-BACKLOG.md` as a UX follow-up, tagged to the persona whose task it blocks. Record the pass in the
+- **Deliverable:** the finding(s). Fix what's cheap in the same increment; open a GitHub issue for the rest
+  as a UX follow-up, labeled with the persona whose task it blocks. Record the pass in the
   increment notes (one line: which persona(s), what was found, what you did).

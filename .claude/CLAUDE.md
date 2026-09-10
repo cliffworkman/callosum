@@ -1654,8 +1654,8 @@ circumvention, an opaque score — is **declined** per #9 + APPROACH-AVOIDANCE, 
 rolled-out or materially-changed** feature, **dispatch a persona-grounded experience agent** (or more than one) per
 the doc's mechanism — a subagent *in character* as a concrete user with a goal-in-the-moment (e.g. the **deadline
 citer** vetting a paper's stats before citing it), driving the feature and reporting what's left to be desired. A
-**reflective pause, not a block**; the output is a finding — fix what's cheap in the same increment, else file a UX
-follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record the pass in the increment notes.
+**reflective pause, not a block**; the output is a finding — fix what's cheap in the same increment, else open a UX
+follow-up **GitHub issue** (label it with the persona it blocks) and record the pass in the increment notes.
 
 ### 12. Latency and model-backed backend work
 
@@ -1700,17 +1700,19 @@ number. These notes are the running design diary; read the most recent few at se
 `.claude/session-kickoff-log.md`) — CLAUDE.md itself carries **no per-increment footer**; don't
 recreate one here.
 
-**Backlog closure discipline (2026-08-09).** `.claude/docs/INCREMENT-BACKLOG.md` is the **open queue only** —
-every entry there describes work not yet done. When an item closes: **delete its entry from
-`INCREMENT-BACKLOG.md` entirely** (never leave a growing "✅ CLOSED [paragraph]" bullet in place — that
-paragraph-in-place growth is exactly the drift that made the file balloon past 900 lines by inc 465) and
-**append exactly one compressed `- [x]` line to `INCREMENT-BACKLOG-DONE.md`**, keyed by the item's stable `#N`
-tag where it has one (numbers are never reassigned, so `grep "#N" INCREMENT-BACKLOG-DONE.md` finds it
-precisely) and pointing at the relevant `INCREMENT-NN-NOTES.md` for full narrative — the increment notes are
-already the source of truth for *what happened*; the DONE file is an index, not a second diary, so don't
-re-narrate there either. A partially-closed item (some sub-pieces shipped, one genuinely still open) gets
-trimmed in place to just its open remainder in `INCREMENT-BACKLOG.md`, with the shipped detail moved to the
-DONE file the same way. This keeps the open file cheap to read in full every session, which is the point.
+**Backlog workflow — GitHub issues (moved 2026-09-10).** The live open backlog is now **GitHub issues**
+(<https://github.com/cliffworkman/callosum/issues>), not a markdown file. **New work → open a GitHub issue**
+with a category label (`near-term` / `needs-decision` / `future-track` / `blocked`); never re-open a
+markdown file as a queue. **When an item closes → close its issue** and reference the increment in the close
+comment or commit (`Closes #NN`) — the per-increment `INCREMENT-NN-NOTES.md` stays the source of truth for
+*what happened*, so don't re-narrate the story on the issue either. Two markdown files remain, both **frozen**:
+`.claude/docs/INCREMENT-BACKLOG.md` is now a **pointer stub** carrying the legacy `#N` → GitHub-issue map (the
+~1,800 historical "backlog #N" references resolve through it), and `INCREMENT-BACKLOG-DONE.md` is the **frozen
+archive** of everything that shipped before the migration (`grep "#N" INCREMENT-BACKLOG-DONE.md` still resolves
+a closed legacy tag). Do not append new items to either. **Legacy `#N` ≠ GitHub issue number** — GitHub
+auto-numbered the migrated issues, so e.g. legacy `#57` is issue #56; use the stub's map to translate, and cite
+GitHub `#NN` for anything opened after the migration. Gated maintainer/secrets items (legacy #42/#49/#52/#15)
+live in the gitignored `.claude/MAINTAINER-TODO.md`, not the public tracker.
 
 ---
 
@@ -2020,11 +2022,13 @@ before large design changes:
 | `.claude/QA-POLICY.md` | **The QA contract — read before changing any end-user surface (rule #10): the fixture contract, the computed coverage gate (`tools/qa/build_surface_map.py`), the honesty-invariant assertions, the severity rubric, and the Codex-exec supervisor + watched-inbox loop. Add/extend a QA route in the same increment as a surface change.** |
 | `.claude/EXPERIENCE-PASS.md` | **The end-user experience pass — read before calling any user-facing change done (rule #11): the two questions (reception / intended-use, the latter bounded by the #9 + A-A vetoes), the persona-grounded experience-agent mechanism (dispatch a subagent in-character as a concrete user with a goal-in-the-moment), the extensible persona/scenario library (deadline citer / corpus builder / skeptical synthesizer), and the statcheck worked example. A reflective pause → a finding (fix-cheap or backlog). The 4th gate: DESIGN=looks, PRINCIPLES=honest, QA=works+covered, EXPERIENCE=serves the user.** |
 | `.claude/LATENCY.md` | **The latency contract — read before adding or modifying local/remote model work, provider-client use, model-backed jobs, or latency-sensitive inference (rule #12). It records the live batching, runtime reuse, provider reuse, token-shape, long-poll, measurement, and scientific-equivalence invariants that performance-sensitive changes must preserve or intentionally revalidate.** |
-| `.claude/docs/future-tracks/` | The 7 longer-horizon track docs (statcheck/open-science, word-plugin, highlight-to-suggest/evaluate, full-text acquisition, my-publications, theory/methods, plugins, gapfinder, library Feed/Search). Referenced by `INCREMENT-BACKLOG.md`. |
+| `.claude/docs/future-tracks/` | The 7 longer-horizon track docs (statcheck/open-science, word-plugin, highlight-to-suggest/evaluate, full-text acquisition, my-publications, theory/methods, plugins, gapfinder, library Feed/Search). Referenced by the `future-track`-labeled GitHub issues. |
 | `.claude/staged-harnesses/REGISTRY.md` | **Dormant fitness-function drafts (backlog #20 ratchet, session-kickoff #11): Pyright, tach, a coverage gate, Hypothesis property tests, an embedding-drift harness, performance monitoring, bandit — each drafted with its activation trigger, not wired in until the trigger fires.** |
 | `app/backend/help/help_content.md` | **The served help corpus (inc 59) — the source of truth for user-facing help.** Edit here (then it renders in the `?` modal). Keep current via the `HELP-DOCS-SYNCED` marker. |
 | `.claude/HELP.md` | Historical tip text (superseded by the served corpus above; kept as a dev note) |
-| `.claude/docs/INCREMENT-BACKLOG.md` | The running nearer-term to-do list — **open items only** (reference-manager-first). Shipped/closed items live in `INCREMENT-BACKLOG-DONE.md` (split 2026-06-20). |
+| **GitHub issues** (<https://github.com/cliffworkman/callosum/issues>) | **The live open backlog (moved here 2026-09-10).** Filter by `near-term` / `needs-decision` / `future-track` / `blocked`. Gated maintainer/secrets items are in the gitignored `.claude/MAINTAINER-TODO.md`. |
+| `.claude/docs/INCREMENT-BACKLOG.md` | **Pointer stub only** (frozen 2026-09-10) — carries the legacy `#N` → GitHub-issue map so historical "backlog #N" refs resolve, plus the verbatim Declined list. Not a live queue. |
+| `.claude/docs/INCREMENT-BACKLOG-DONE.md` | **Frozen archive** of everything shipped before the migration; `grep "#N"` resolves closed legacy tags. |
 | `.claude/docs/product-scope.md` | What's in/out of scope |
 | `.claude/docs/architecture.md` | Intended architecture |
 | `.claude/docs/data-contracts.md` | Schema + payload contracts |
@@ -2076,13 +2080,13 @@ When starting any non-trivial work:
    normally sits empty bar its `README.md` + the items the README's **Parked** list names — **anything else is
    unprocessed input a prior session or the user dropped in.** For each new file, **surface it to the user**
    (report it, never act silently) and handle it per the inbox `README.md`: a genuine **future-track** → run the
-   Principles + `APPROACH-AVOIDANCE.md` gate framing, fold it into `INCREMENT-BACKLOG.md` + the
-   `future-tracks/README.md` index, then **move** it to `future-tracks/`; a **meta / CLAUDE.md directive** →
+   Principles + `APPROACH-AVOIDANCE.md` gate framing, **open a GitHub issue** (`future-track` label) + fold it
+   into the `future-tracks/README.md` index, then **move** it to `future-tracks/`; a **meta / CLAUDE.md directive** →
    action it, then remove it; a **counsel-gated / sensitive** drop → leave it **parked** (it stays in the
    gitignored inbox, named in the README's Parked list — never auto-processed or published).
 11. **Check the QA inbox.** Glance at `.claude/qa-inbox/` (gitignored, local-only — like the future-tracks
    inbox). It is normally empty bar `_processed/`. For each unprocessed `<run-id>/`, read its `run-summary.md`
-   (Critical/High first): **fix Critical/High in-session**, file Medium/Low to `INCREMENT-BACKLOG.md`, open a
+   (Critical/High first): **fix Critical/High in-session**, open a **GitHub issue** for Medium/Low, open a
    `security-audits/` stub for any security-class finding, then move the run to `.claude/qa-inbox/_processed/`.
    Do not act on a run silently — surface what you found and what you're fixing. The supervisor
    (`tools/qa/supervisor.py`) deposits these via headless Codex `exec` runs (the QA-POLICY loop, rule #10).

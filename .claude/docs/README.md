@@ -4,8 +4,9 @@
 
 ## Current Live Docs
 
-- `INCREMENT-BACKLOG.md`: near-term increment queue and current planning source — **open items only** (split 2026-06-20).
-- `INCREMENT-BACKLOG-DONE.md`: the shipped/closed half of the backlog (archive; what landed + which increment).
+- **GitHub issues** (<https://github.com/cliffworkman/callosum/issues>): the **live open backlog** (moved there 2026-09-10). Filter by `near-term` / `needs-decision` / `future-track` / `blocked`.
+- `INCREMENT-BACKLOG.md`: **pointer stub only** (frozen 2026-09-10) — the legacy `#N` → GitHub-issue map + the verbatim Declined list. Not a live queue.
+- `INCREMENT-BACKLOG-DONE.md`: **frozen archive** of the pre-migration shipped/closed backlog (what landed + which increment).
 - `future-tracks/`: longer-horizon design-toward prompts.
 - `future-tracks/README.md`: index for the future-track documents.
 - `future-tracks-import/`: watched inbox for future-track material before it is folded into the plan — **checked
@@ -30,4 +31,4 @@ These project-level references live in `.claude/`, not this directory:
 
 ## Archived
 
-`roadmap.md` and `backlog-future-tracks.md` are archived in `.claude/deprecated/`. Do not treat them as live planning docs; use `INCREMENT-BACKLOG.md` and `future-tracks/` instead.
+`roadmap.md` and `backlog-future-tracks.md` are archived in `.claude/deprecated/`. Do not treat them as live planning docs; use the **GitHub issue queue** and `future-tracks/` instead.

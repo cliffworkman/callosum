@@ -1,5 +1,11 @@
 # Increment backlog — DONE (shipped / closed items)
 
+> **FROZEN ARCHIVE (2026-09-10).** The open backlog moved to **GitHub issues**
+> (<https://github.com/cliffworkman/callosum/issues>); see [`INCREMENT-BACKLOG.md`](INCREMENT-BACKLOG.md) for the
+> pointer stub + the legacy `#N` → issue map. **This file is now a frozen historical index** of everything that
+> shipped *before* the migration — `grep "#N" INCREMENT-BACKLOG-DONE.md` still resolves a closed legacy tag.
+> New closures are **not** appended here anymore; instead, close the GitHub issue (referencing the increment).
+
 The completed half of the backlog, split out of [`INCREMENT-BACKLOG.md`](INCREMENT-BACKLOG.md) on 2026-06-20 so
 the open queue stays scannable. This is the one-line *"what landed, which increment"* map; the per-increment
 design diary (`increment-notes/INCREMENT-NN-NOTES.md`) and `changes.md` hold the detail. Items here are closed —
