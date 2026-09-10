@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-10 — backlog moved to GitHub issues
+- **Files:** `.claude/docs/INCREMENT-BACKLOG.md` (→ pointer stub), `INCREMENT-BACKLOG-DONE.md` (frozen note),
+  `.claude/CLAUDE.md`, `.claude/QA-POLICY.md`, `.claude/EXPERIENCE-PASS.md`, `.claude/docs/README.md`,
+  `.claude/docs/future-tracks{,-import}/README.md`, `.gitignore`; new gitignored `.claude/MAINTAINER-TODO.md`;
+  24 new GitHub issues (#33–#56) + category labels on #21–#32.
+- **What:** migrated the entire open backlog to GitHub issues (`cliffworkman/callosum`). All open items across
+  §1–§4 became labeled issues (`near-term`/`needs-decision`/`future-track`/`blocked`), each carrying its legacy
+  `#N` in the body; the §3 gated maintainer/secrets items (legacy #42/#49/#52/#15) went to a private gitignored
+  `MAINTAINER-TODO.md` instead; §6 Declined stays verbatim in the stub. Rewrote the closure-discipline paragraph,
+  rules #10/#11, and session-kickoff #10/#11 so new work = open an issue, closure = close the issue.
+- **Why:** Cliff shifted the backlogging workflow to GitHub issues; the 733-line markdown queue was a recurring
+  full-read token cost and the repo is now public with external contributors.
+- **Note:** the ~1,800 historical "backlog #N" references (increment notes, plan backups, session log) were left
+  untouched as immutable history — they resolve through the stub's legacy `#N` → GitHub-issue map. **Legacy #N ≠
+  GitHub issue number** (GitHub auto-numbered: legacy #57 = issue #56, #33/#34 = #49).
+- **Revert:** `INCREMENT-BACKLOG.md` full pre-migration content is in git history + `.claude/backups/plans/`;
+  close/delete the 24 issues (#33–#56) and remove the four category labels to undo the tracker side.
+
 ## 2026-09-07 — prepare Desktop v0.5.8
 - **Files:** Desktop package/Tauri/Cargo version fields and lockfiles; website/demo review ledgers.
 - **What:** synchronize Desktop version 0.5.8, leaving Python-package/runtime identities unchanged.

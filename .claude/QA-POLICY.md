@@ -130,7 +130,7 @@ least Medium; a page error is High.
   so the inbox never trains you to ignore it.
 - `.claude/qa-inbox/` is **gitignored, local-only** (a dropzone, like `future-tracks-import/`).
 - **Session-kickoff (CLAUDE.md):** glance at `.claude/qa-inbox/`. For each unprocessed run: triage by
-  severity; fix Critical/High in-session; file Medium/Low into `INCREMENT-BACKLOG.md`; open audit stubs for
+  severity; fix Critical/High in-session; open a GitHub issue for Medium/Low; open audit stubs for
   security-class findings; then move the run to `.claude/qa-inbox/_processed/`.
 
 ---
