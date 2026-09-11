@@ -316,6 +316,20 @@ with each project). Grouped by license:
 `sentence-transformers/allenai-specter` for the overlooked-work + where-to-submit tools) are distributed by their
 authors on the Hugging Face Hub under their own licenses; Callosum does not redistribute them.
 
+### Managed Local AI — inference runtime + model (inc 547)
+The optional **Local AI** provider runs generation entirely on the user's machine with no cloud key. On explicit
+setup the Tauri desktop shell downloads and manages two pinned artifacts (never bundled in the installer),
+verifies each by SHA-256, and records their provenance into the install receipt (`runtime_source`/`model_source`
+etc., `app/desktop-shell/src-tauri/src/managed_local_ai/install.rs`). Callosum does **not** redistribute either —
+each is fetched on demand from its own publisher:
+- **llama.cpp / ggml** — the local inference server (`llama-server`). © Georgi Gerganov and the llama.cpp/ggml
+  contributors; **MIT**. Pinned to release **b10516** (`ggml-org/llama.cpp`,
+  <https://github.com/ggml-org/llama.cpp>) — the official prebuilt CPU binary bundle per platform (Windows x64,
+  macOS arm64/x64, Linux x64). It runs as a separate managed process; the name is credited, not appropriated.
+- **Qwen2.5-1.5B-Instruct** — the language model (GGUF, Q4_K_M quantization). © Alibaba Cloud / the Qwen team;
+  **Apache-2.0**. Obtained from a pinned revision of <https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF>.
+  Runs **locally**; no library text leaves the machine.
+
 ---
 
 ## Corresponding source (AGPL §13)
