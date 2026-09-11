@@ -1464,6 +1464,7 @@ Run from the project root. The shell is **PowerShell** (Windows).
 | `python tools/validation_harness.py` | Run the PDF→extract→embed→retrieve→summarize validation harness (writes a `validation.sqlite` + report + debug images under `.local/`) |
 | `python tools/enrich_metadata.py` | Batch metadata enrichment (OpenAlex/Crossref) |
 | `python tools/backfill_keyword_tags.py` | Backfill Crossref `subject` categories as `keyword:crossref` tags across the library (cache-first; tag-only; idempotent — inc 73) |
+| `python tools/bump_version.py X.Y.Z` | Bump the desktop-shell version across all five lockstep files (refuses on any unexpected occurrence count; validates JSON/TOML; prints the diff; `--dry-run` to preview) — the first step of the release flow below |
 | `$env:GOOGLE_API_KEY = "..."; $env:CALLOSUM_ALLOW_DATA_EGRESS = "1"` | Enable Gemini summary generation (off by default) |
 
 `CALLOSUM_FRONTEND_PATH` overrides the served frontend with a single prebuilt HTML file; unset (the
@@ -1924,10 +1925,14 @@ callosum is a **git repo** (remote `origin` → `github.com/cliffworkman/callosu
    "commit + push to `main` by default" is unchanged and still happens every session — but since real
    colleagues now run real installers, **`main` moving is not the same event as a release reaching
    anyone.** A release is a separate, deliberate act, gated on a **version tag**:
-   - Bump the three desktop-shell version fields **in lockstep** — `app/desktop-shell/src-tauri/
-     tauri.conf.json`, `src-tauri/Cargo.toml`, `app/desktop-shell/package.json` (+ their lockfiles) —
-     to the new `X.Y.Z`. **Never bump `pyproject.toml` for this** — it's inert Python-package metadata
-     with its own independent lifecycle, unrelated to the desktop shell's version.
+   - **Run `python tools/bump_version.py X.Y.Z`** — it edits the five desktop-shell version files in
+     lockstep (`src-tauri/tauri.conf.json`, `package.json`, `src-tauri/Cargo.toml`, plus the two
+     self-references in `package-lock.json` and the `callosum-shell` stanza in `src-tauri/Cargo.lock`),
+     **refuses on any unexpected occurrence count** (a half-done bump, or a dependency that coincidentally
+     shares the version), validates the JSON/TOML still parses, and prints the diff. `--dry-run` previews
+     without writing. This replaces the old by-hand edit and removes the whole error class the tag-time
+     preflight only *caught*. **Never bump `pyproject.toml` for this** — it's inert Python-package metadata
+     with its own independent lifecycle, unrelated to the desktop shell's version (the tool leaves it alone).
    - Commit + push that bump to `main` exactly like any other change; confirm the three
      `desktop-shell-{windows,macos,linux}.yml` CI runs (they trigger on this push same as always) are
      green.

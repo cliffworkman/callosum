@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-10 — release version-bump tool (issue #33 / legacy backlog #80)
+- **Files:** new `tools/bump_version.py`; `.claude/CLAUDE.md` (release flow + Commands table).
+- **What:** `python tools/bump_version.py X.Y.Z` edits the five desktop-shell version files in lockstep
+  (tauri.conf.json, package.json, Cargo.toml + the two package-lock.json self-refs + the Cargo.lock
+  `callosum-shell` stanza), refuses on any unexpected occurrence count, validates the result parses as
+  JSON/TOML, and prints a unified diff (`--dry-run` previews). Anchors the Cargo.lock edit to the
+  `callosum-shell` name line so the coincidental *other* crate at the same version is never touched.
+- **Why:** the bump was five hand-edited files; the tag-time preflight only *caught* a mismatch, nothing
+  did the work or prevented the error. Removes the whole error class (GitHub issue #33).
+- **Scope:** only the `bump_version.py` sub-item of #33. The `workflow_dispatch` on the release workflow
+  and the optional `tauri-action` migration research remain open on the issue.
+- **Verify:** dry-run + real write to 0.5.9 (minimal 1–2 line diffs, CRLF preserved, only callosum-shell
+  moved in Cargo.lock) + inconsistency-guard refusal, then reverted; both ruff gates green.
+- **Revert:** `git rm tools/bump_version.py` + revert the CLAUDE.md hunks.
+
 ## 2026-09-10 — backlog moved to GitHub issues
 - **Files:** `.claude/docs/INCREMENT-BACKLOG.md` (→ pointer stub), `INCREMENT-BACKLOG-DONE.md` (frozen note),
   `.claude/CLAUDE.md`, `.claude/QA-POLICY.md`, `.claude/EXPERIENCE-PASS.md`, `.claude/docs/README.md`,
