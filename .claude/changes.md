@@ -9,6 +9,16 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-10 — credit llama.cpp/ggml + Qwen in THIRD-PARTY-NOTICES (issue #38 / legacy #77)
+- **Files:** `THIRD-PARTY-NOTICES.md`.
+- **What:** added a "Managed Local AI — inference runtime + model (inc 547)" subsection crediting
+  **llama.cpp/ggml** (MIT, pinned `ggml-org/llama.cpp` release b10516) and **Qwen2.5-1.5B-Instruct**
+  (Apache-2.0, `Qwen/Qwen2.5-1.5B-Instruct-GGUF`) — the two artifacts the Local AI provider downloads
+  and manages. Provenance strings verified against `managed_local_ai/install.rs`.
+- **Why:** both were absent from the repo notices file since inc 547 (per-install receipts already
+  record them, but the notices file didn't) — a CREDIT-THE-LINEAGE gap (issue #38 / legacy #77).
+- **Revert:** remove the subsection.
+
 ## 2026-09-10 — inc 583: exclude reference lists from Ask evidence by default (issue #35 / legacy #82)
 - **Files:** `app/backend/summarization/pipeline.py`, `.../faceted_pipeline.py`,
   `app/backend/api/routers/summaries.py`, `app/frontend/js/20_synthesis.jsx`,
