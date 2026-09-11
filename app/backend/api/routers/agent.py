@@ -20,7 +20,8 @@ from app.backend import app_settings
 from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.clustering.axis_assignments import add_manual_assignment, remove_assignment
 from app.backend.clustering.my_publications import MY_PUBLICATIONS_KIND
-from app.backend.metadata.enrichment import AI_AGENT_SOURCE, AI_AGENT_TAG_SOURCE, _paper_values_from_csl
+from app.backend.metadata.doi_add import add_paper_by_doi
+from app.backend.metadata.enrichment import AI_AGENT_SOURCE, AI_AGENT_TAG_SOURCE
 from app.backend.persistence.agent_repo import (
     delete_note,
     get_agent_write,
@@ -29,14 +30,13 @@ from app.backend.persistence.agent_repo import (
     record_agent_write,
 )
 from app.backend.persistence.repository import (
-    create_paper,
-    find_existing_paper_by_identity,
     get_paper,
     soft_delete_paper,
 )
 from app.backend.persistence.schema import axes, notes, papers
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.persistence.tags_repo import add_tag_to_paper, remove_tag_from_paper
+from integrations.crossref import CrossrefClient
 
 router = APIRouter()
 
@@ -112,29 +112,27 @@ class RefBody(BaseModel):
 
 @router.post("/agent/references", dependencies=[Depends(_require_writes)])
 def agent_save_reference(body: RefBody, request: Request, conn: Connection = Depends(get_connection)) -> dict[str, Any]:
-    doi = body.identifier.strip().lower().removeprefix("https://doi.org/").removeprefix("doi:").strip()
-    if not doi:
+    # Shared DOI-add primitive (backlog #58) — the same resolve → dedup → create logic the Library
+    # "Add with DOI…" endpoint uses, so there is no second DOI silo. Metadata-only (no PDF fetch), exactly
+    # as before: the agent surface does not acquire full text.
+    # Fall back to a default CrossrefClient when app.state has none (only set when injected — e.g. tests);
+    # mirrors paper_enrich._crossref, so the agent resolves DOIs in a running app too (backlog #58/#59 wave).
+    crossref_client = request.app.state.crossref_client or CrossrefClient()
+    result = add_paper_by_doi(conn, body.identifier, crossref_client=crossref_client, imported_source=AI_AGENT_SOURCE)
+    if result.status == "invalid":
         raise HTTPException(status_code=422, detail="An identifier (DOI) is required.")
-    existing = find_existing_paper_by_identity(conn, doi=doi)
-    if existing is not None:
-        pid = int(existing[1]["id"])
-        write_id = record_agent_write(
-            conn, action="reference", target_paper_id=pid, detail={"doi": doi, "created": False}, tool="save_reference"
-        )
-        conn.commit()
-        return {"write_id": write_id, "paper_id": pid, "created": False}
-    crossref = request.app.state.crossref_client
-    res = crossref.resolve_doi(conn, doi) if crossref is not None else None
-    if res is None or not res.resolved or not res.csl_json:
-        raise HTTPException(status_code=422, detail=f"Could not resolve '{doi}' to a real record — not saved.")
-    # Build the paper directly from the resolved CSL (no second enrich → the ai-agent stamp survives).
-    values = _paper_values_from_csl({**res.csl_json, "DOI": doi}, imported_source=AI_AGENT_SOURCE)
-    pid = create_paper(conn, **values)
+    if result.status == "unresolved":
+        raise HTTPException(status_code=422, detail=f"Could not resolve '{result.doi}' to a real record — not saved.")
+    created = result.status == "created"
     write_id = record_agent_write(
-        conn, action="reference", target_paper_id=pid, detail={"doi": doi, "created": True}, tool="save_reference"
+        conn,
+        action="reference",
+        target_paper_id=result.paper_id,
+        detail={"doi": result.doi, "created": created},
+        tool="save_reference",
     )
     conn.commit()
-    return {"write_id": write_id, "paper_id": pid, "created": True}
+    return {"write_id": write_id, "paper_id": result.paper_id, "created": created}
 
 
 class NoteBody(BaseModel):

@@ -9,6 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-11 — inc 585: Bella's 3 reports (#57/#58/#59), shipped in 0.5.9
+- **Files:** `app/backend/acquisition/{fetch,acquire,wanted}.py`, `app/backend/api/routers/{acquisition,agent}.py`,
+  `app/backend/metadata/{doi,doi_add}.py`, `app/frontend/js/{10b_libmenus,10_pdf_layer,10d_papercard,03_library,40_app,28e_add_doi,40c_library_add_modals}.jsx`,
+  `callosum-app.html`, QA routes 56/40, `tests/test_{acquisition_cascade,doi_add}.py` (+ `test_wanted.py`),
+  `.claude/security-audits/2026-09-11_add-by-doi.md`, `.claude/docs/increment-notes/INCREMENT-585-NOTES.md`.
+- **#59 (bug):** OA acquisition now falls back across legitimate candidates when one returns HTTP 403/404
+  (was: first-hit-only → terminal). New `acquire_first_working` lazy cascade (dedup by URL, resolver priority
+  preserved, only `OaFetchError` triggers fallback); structured `OaFetchError.reason_code`/`http_status`;
+  three distinct outcome states (imported / no-candidate / candidates-exhausted) + unexpected-error.
+- **#58:** **Add with DOI…** in the Library + Add menu → resolves real metadata (shared `add_paper_by_doi`
+  primitive, one canonical `normalize_doi`; agent refactored onto it) → creates → backend-orchestrated auto-OA
+  as a distinct job. Fail-honest (invalid/unresolvable → nothing added); dedup surfaces existing.
+- **#57:** always-visible per-card `⋯` → **Move to Trash** (shared `trashPapers` primitive; keyboard-accessible,
+  click-isolated, existing confirm/trash/restore).
+- **Real bug caught by the live smoke test:** `app.state.crossref_client` was `None` in a running app →
+  DOI resolution silently failed; fixed with `or CrossrefClient()` in the endpoint + agent.
+- **Verify:** live Playwright smoke of #57/#58 (incl. a real OA PDF downloaded via #59's cascade); affected
+  suites green; frontend assembly 87; line budget OK (`40c_library_add_modals.jsx` split); ruff clean; QA + audit.
+- **Pre-existing follow-up (not fixed here, out of scope):** trashing a currently-open paper leaves its
+  citation preview logging a benign `422 /citations/render`; filed as a separate issue.
+- **Revert:** revert the listed files + delete the two new backend modules, `28e_add_doi.jsx`,
+  `40c_library_add_modals.jsx`, `acquire.py`, the two new test files, the audit, and the notes.
+
 ## 2026-09-11 — inc 584: explain how Ask reads a question + a broadening hint (issue #30)
 - **Files:** `app/backend/summarization/query_planner.py` (`broadening_hint_applies`),
   `app/backend/api/routers/summaries.py` (`POST /summarize/query-shape`), `app/backend/help/help_content.md`

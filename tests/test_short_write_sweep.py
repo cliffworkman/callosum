@@ -25,7 +25,8 @@ ALLOWED_RAW_COMMITS = {
     "analytic_flexibility.py": 1,  # propose_analytic_flexibility — the LLM candidate-proposal call (egress)
     # I/O-mixed — a retry could double-fire an external fetch or a secret write.
     "paper_enrich.py": 2,  # re-resolve + fill-metadata FORCE a fresh Crossref/OpenAlex fetch (double-egress on retry)
-    "agent.py": 2,  # agent_save_reference resolves a DOI via Crossref, caching through the request connection
+    "agent.py": 1,  # agent_save_reference resolves a DOI via Crossref (shared add_paper_by_doi, backlog #58 — one commit)
+    "acquisition.py": 1,  # add-by-DOI resolves a DOI via Crossref before creating the paper (backlog #58, egress-mixed)
     "sync.py": 1,  # sync setup round-trips the sync server before the commit
 }
 

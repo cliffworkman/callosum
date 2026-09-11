@@ -670,6 +670,11 @@ def test_oa_acquire_auto_checks_retraction(temp_db_url, monkeypatch, tmp_path):
         def resolve(self, conn, ref):
             return OaLocation(pdf_url="https://e.org/x.pdf", oa_color="gold", version="vor", source="openalex")
 
+        def resolvers(self):
+            # The candidate cascade (backlog #59) iterates registry.resolvers(); as a one-resolver fake this
+            # registry is itself the sole resolver.
+            return (self,)
+
     monkeypatch.setattr(acq, "build_default_registry", lambda **kw: _Reg())
     monkeypatch.setattr(acq, "download_oa_pdf", lambda location: str(pdf))
 

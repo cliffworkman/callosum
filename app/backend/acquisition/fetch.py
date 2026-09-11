@@ -36,7 +36,19 @@ _MAX_FILENAME_BASE = 180
 
 
 class OaFetchError(RuntimeError):
-    """A fetched OA copy could not be retrieved or validated (oversize, non-PDF, network, or unsafe URL)."""
+    """A fetched OA copy could not be retrieved or validated (oversize, non-PDF, network, or unsafe URL).
+
+    Carries a **structured** ``reason_code`` (and ``http_status`` when the failure was an HTTP status) so
+    the candidate-cascade (``acquisition/acquire.py``) and callers can branch on machine-readable state
+    instead of parsing the human message (backlog #59). The message stays the human-readable detail.
+    Reason codes: ``http_error`` / ``not_a_pdf`` / ``oversize`` / ``redirect_error`` / ``unsafe_url`` /
+    ``save_error`` / ``fetch_failed`` (the generic default).
+    """
+
+    def __init__(self, message: str, *, reason_code: str = "fetch_failed", http_status: int | None = None) -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+        self.http_status = http_status
 
 
 class PdfFetcher(Protocol):
@@ -53,17 +65,17 @@ def download_oa_pdf(location: OaLocation, *, fetcher: PdfFetcher | None = None, 
     fetch = fetcher or _httpx_pdf_fetcher
     data = fetch(location.pdf_url, timeout=timeout, max_bytes=MAX_OA_PDF_BYTES)
     if len(data) > MAX_OA_PDF_BYTES:  # defense-in-depth: the streaming fetcher also caps mid-download
-        raise OaFetchError(f"downloaded PDF exceeds the {MAX_OA_PDF_BYTES}-byte cap")
+        raise OaFetchError(f"downloaded PDF exceeds the {MAX_OA_PDF_BYTES}-byte cap", reason_code="oversize")
     if not data.startswith(b"%PDF-"):
-        raise OaFetchError("downloaded bytes are not a PDF (missing %PDF- header)")
+        raise OaFetchError("downloaded bytes are not a PDF (missing %PDF- header)", reason_code="not_a_pdf")
     try:
         doc = fitz.open(stream=data, filetype="pdf")
         page_count = doc.page_count
         doc.close()
     except Exception as exc:  # corrupt / not actually a PDF
-        raise OaFetchError(f"downloaded PDF did not open: {exc}") from exc
+        raise OaFetchError(f"downloaded PDF did not open: {exc}", reason_code="not_a_pdf") from exc
     if page_count < 1:
-        raise OaFetchError("downloaded PDF has no pages")
+        raise OaFetchError("downloaded PDF has no pages", reason_code="not_a_pdf")
     temp_dir = _acquire_temp_dir()
     temp_path = temp_dir / f"oa-{uuid4().hex}.pdf"  # name from uuid, never from metadata
     try:
@@ -71,7 +83,9 @@ def download_oa_pdf(location: OaLocation, *, fetcher: PdfFetcher | None = None, 
         temp_path.write_bytes(data)
     except OSError as exc:
         temp_path.unlink(missing_ok=True)  # in case a partial file was left (e.g. disk-full mid-write)
-        raise OaFetchError(f"could not save the downloaded PDF to a temp location: {exc}") from exc
+        raise OaFetchError(
+            f"could not save the downloaded PDF to a temp location: {exc}", reason_code="save_error"
+        ) from exc
     return temp_path
 
 
@@ -236,25 +250,36 @@ def _httpx_pdf_fetcher(url: str, *, timeout: float, max_bytes: int, client: http
     http = client or httpx.Client(timeout=timeout, follow_redirects=False)
     try:
         for _ in range(6):
-            _require_safe_https(current)
+            try:
+                _require_safe_https(current)
+            except ValueError as exc:
+                # A redirect hop pointing at a non-https / IP-literal target is a bad CANDIDATE, not a
+                # programming error — reject it as an OaFetchError so the cascade tries the next candidate
+                # (backlog #59) rather than aborting the whole acquisition with a raw ValueError. (Hop 0's
+                # url comes from an already-validated OaLocation, so this only fires on a redirect target.)
+                raise OaFetchError(str(exc), reason_code="unsafe_url") from exc
             with http.stream("GET", current, headers=headers) as response:
                 if response.is_redirect:
                     location_header = response.headers.get("location")
                     if not location_header:
-                        raise OaFetchError("redirect without a Location header")
+                        raise OaFetchError("redirect without a Location header", reason_code="redirect_error")
                     current = str(httpx.URL(current).join(location_header))
                     continue
                 if response.status_code != 200:
-                    raise OaFetchError(f"download returned HTTP {response.status_code}")
+                    raise OaFetchError(
+                        f"download returned HTTP {response.status_code}",
+                        reason_code="http_error",
+                        http_status=response.status_code,
+                    )
                 chunks: list[bytes] = []
                 total = 0
                 for chunk in response.iter_bytes():
                     total += len(chunk)
                     if total > max_bytes:
-                        raise OaFetchError(f"download exceeds the {max_bytes}-byte cap")
+                        raise OaFetchError(f"download exceeds the {max_bytes}-byte cap", reason_code="oversize")
                     chunks.append(chunk)
                 return b"".join(chunks)
-        raise OaFetchError("too many redirects")
+        raise OaFetchError("too many redirects", reason_code="redirect_error")
     finally:
         if owned_client:
             http.close()

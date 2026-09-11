@@ -195,9 +195,9 @@
     "reviewed_increment": 576,
     "source_fingerprint": "a3d51bd64e6c47ebb5ae5901b0da8404b3e041324cb05ea76c88bc0e824c5c24",
     "note": "Reviewed inc 576 exact-checksum PDF reconnection and cause-specific unavailable states. Recovery depends on local filesystem failures, so the backend-free demo remains intentionally unchanged.",
-    "declined_at": "2026-09-07",
-    "declined_rev": "c0dd2e5",
-    "declined_increment": 581,
-    "decline_note": "0.5.8 release: retain the immutable saved pre-faceted synthesis demo. It does not demonstrate inc 581 broad-query planning or facet coverage. New source-substrate metadata in incs 577-580 is not assembled evidence. Recapturing a licensed broad-Ask demo is deferred; no model run or snapshot regeneration performed for this receipt."
+    "declined_at": "2026-09-11",
+    "declined_rev": "e5b6224b",
+    "declined_increment": 585,
+    "decline_note": "0.5.9 patch (#57/#58/#59): the touched library frontend (per-card \u22ef delete, Add-with-DOI menu) is demo-locked and does not change any showcased capability; the static demo needs no re-capture for these fixes. A full demo-currency re-review across incs 577-585 is deliberately out of scope for this fast patch and remains tracked (backlog #70)."
   }
 }

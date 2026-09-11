@@ -48,7 +48,40 @@ function PaperCopyButton({ paperId }) {
 // inc 117 (My-Pubs SP1): the per-paper library card, extracted from PaperList so the My Publications tab can
 // render the same aesthetic + parity (#13). `selecting` shows the copy button + checkbox; `footExtra` lets a
 // caller append context buttons (the library passes its focus/trash buttons here).
-function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly, onReadingChanged }) {
+// #57: a small always-visible per-card overflow menu, so deleting a single paper is discoverable without
+// first learning the checkbox-selection workflow. Reuses the existing `.priority-pop` dropdown pattern (no
+// new CSS). Keyboard-reachable + labelled; Escape/outside-click close and return focus to the trigger; every
+// handler stops propagation so it never selects/opens the surrounding card. The destructive action routes
+// through the shared `onTrash` primitive (its own window.confirm + soft-delete → Trash), so there is no
+// accidental one-click delete and the confirm/trash/restore semantics are preserved.
+function PaperCardMenu({ paperId, onTrash }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  const btnRef = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") { setOpen(false); if (btnRef.current) btnRef.current.focus(); } };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+  const close = () => { setOpen(false); if (btnRef.current) btnRef.current.focus(); };
+  return (
+    <span className="paper-priority-wrap" ref={wrapRef}>
+      <button ref={btnRef} type="button" className="paper-priority" aria-haspopup="menu" aria-expanded={open}
+        aria-label="More actions for this paper" title="More actions"
+        onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }}>⋯</button>
+      {open &&
+        <div className="priority-pop" role="menu" onClick={(e) => e.stopPropagation()}>
+          <button type="button" role="menuitem" className="paper-priority"
+            onClick={(e) => { e.stopPropagation(); close(); onTrash(paperId); }}>Move to Trash</button>
+        </div>}
+    </span>
+  );
+}
+
+function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly, onReadingChanged, onTrash }) {
   const unresolved = needsMetadata(p);
   const retracted = p.retraction_status === "retracted";
   const hasCorrection = p.correction_evidence_linked === true;
@@ -123,6 +156,7 @@ function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked,
               title={citeInfo.asOf ? `Cited by ${citeInfo.count}, per OpenAlex · as of ${String(citeInfo.asOf).slice(0, 10)}` : "Cited-by count, per OpenAlex"}>{citeInfo.count} cited-by</span>)}
         {footExtra}
         {(!readOnly || isDemoMode()) && <ReadPriorityControl paper={p} onChanged={onReadingChanged} demoLocked={readOnly && isDemoMode()} />}  {/* inc 220: read toggle + priority (user markers); the demo shows saved values but locks persistence. */}
+        {onTrash && <PaperCardMenu paperId={p.id} onTrash={onTrash} />}  {/* #57: discoverable per-card delete */}
       </div>
     </div>
   );

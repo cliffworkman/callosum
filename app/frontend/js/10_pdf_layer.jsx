@@ -186,7 +186,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     focusAxis, focusMembers, focusPending, onToggleFocusPaper, onSaveFocus, onCancelFocus,
                     trashView, selectedLibraryIds, librarySort, onSortChange, librarySearchField, onSearchFieldChange,
                     libraryItemType, itemTypes, onItemTypeChange, libraryReading, onReadingFilter,
-                    onToggleLibrarySelect, onClearLibrarySelect, onBulkDelete,
+                    onToggleLibrarySelect, onClearLibrarySelect, onTrashPaper, onBulkDelete,
                     onBulkSummarize, onBulkPcurve, onBulkZcurve, onBulkMerge, onBulkCriticalRead, onBulkExport, onBulkExportBundle, onBulkShare, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     onBulkReferenceCheckDone,
                     libraryTagFilter, onClearTagFilter,
@@ -197,7 +197,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
                     openDataDetected, onShowTransparencyReview, lmmFlagged, onShowLmmFlagged, metaFlagged, onShowMetaFlagged, bayesFlagged, onShowBayesFlagged,
                     findingsToReview, onShowFindingsToReview, findingsByPaper, referenceWarningsByPaper,
-                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenScan, onOpenImport, onOpenImportZotero, onOpenImportBundle, onOpenSharedWithMe, onExportBundle,
+                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenScan, onOpenImport, onOpenAddDoi, onOpenImportZotero, onOpenImportBundle, onOpenSharedWithMe, onExportBundle,
                     onCitationsRefreshed, onEnriched, onRetractionRan, onOpenTextHealth, onOpenReferenceWarnings,
                     savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch, readOnly, onReadingChanged,
                     libraryMissingPdf, onToggleMissingPdf }) {
@@ -248,6 +248,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           <p className="eyebrow">{trashView ? "Trash" : "Library"}</p>
           {libraryActionsVisible && <span className="lib-head-actions">
             {!trashView && <AddMenu
+              onAddDoi={demoMode ? () => explainDemoLock("Adding a paper by DOI resolves live metadata and creates a persistent library record. The static browser demo has no backend; use local Callosum to add papers by DOI.", "/papers/by-doi") : onOpenAddDoi}
               onScan={demoMode ? () => explainDemoLock("Watched folders read local directories and persist their paths. The static browser demo has no filesystem or backend; use local Callosum to add and watch PDF folders.", "/library/scan") : onOpenScan}
               onImport={demoMode ? () => explainDemoLock("Citation import creates persistent library records. The static demo keeps its curated five-paper library immutable; use local Callosum to import BibTeX, RIS, or CSL-JSON.", "/papers/import") : onOpenImport}
               onImportZotero={demoMode
@@ -580,6 +581,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             onOpenReferenceWarnings={onOpenReferenceWarnings}
             citeInfo={p.cited_by_count != null ? { count: p.cited_by_count, asOf: p.cited_by_as_of } : undefined}
             footExtra={footExtra} readOnly={readOnly} onReadingChanged={onReadingChanged}
+            onTrash={trashView ? null : onTrashPaper}
           />
         );
       })}

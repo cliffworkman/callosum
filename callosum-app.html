@@ -4139,16 +4139,24 @@
     }, []);
     const clearLibrarySelect = useCallback(() => setSelectedLibraryIds(/* @__PURE__ */ new Set()), []);
     const selectAllLibrary = useCallback((ids) => setSelectedLibraryIds(new Set(ids)), []);
-    const bulkDeletePapers = useCallback(() => {
-      const ids = [...selectedLibraryIds];
-      if (!ids.length) return;
-      if (!window.confirm(`Move ${ids.length} ${ids.length === 1 ? "paper" : "papers"} to Trash? You can restore from Trash.`)) return;
-      Promise.all(ids.map((id) => apiDelete(`/papers/${id}`))).then(() => {
-        setSelectedLibraryIds(/* @__PURE__ */ new Set());
-        setSelected((prev) => ids.includes(prev) ? null : prev);
-        setLibRefresh((n) => n + 1);
+    const trashPapers = useCallback((ids) => {
+      const targets = [...new Set((ids || []).filter((id) => id != null))];
+      if (!targets.length) return;
+      const n = targets.length;
+      if (!window.confirm(`Move ${n} ${n === 1 ? "paper" : "papers"} to Trash? You can restore from Trash.`)) return;
+      Promise.all(targets.map((id) => apiDelete(`/papers/${id}`))).then(() => {
+        setSelectedLibraryIds((prev) => {
+          const next = new Set(prev);
+          targets.forEach((id) => next.delete(id));
+          return next;
+        });
+        setSelected((prev) => targets.includes(prev) ? null : prev);
+        setLibRefresh((n2) => n2 + 1);
       });
-    }, [selectedLibraryIds, setSelected]);
+    }, [setSelected]);
+    const bulkDeletePapers = useCallback(() => {
+      trashPapers([...selectedLibraryIds]);
+    }, [selectedLibraryIds, trashPapers]);
     const bulkSummarizePapers = useCallback((focus) => {
       const ids = [...selectedLibraryIds];
       if (!ids.length) return;
@@ -4832,6 +4840,8 @@
       },
       onToggleLibrarySelect: toggleLibrarySelect,
       onClearLibrarySelect: clearLibrarySelect,
+      onTrashPaper: (id) => trashPapers([id]),
+      // #57: per-card "Move to Trash" (shares the bulk primitive)
       onBulkDelete: bulkDeletePapers,
       onBulkSummarize: bulkSummarizePapers,
       onBulkPcurve: bulkPcurvePapers,
@@ -10512,6 +10522,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     onReadingFilter,
     onToggleLibrarySelect,
     onClearLibrarySelect,
+    onTrashPaper,
     onBulkDelete,
     onBulkSummarize,
     onBulkPcurve,
@@ -10562,6 +10573,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     onFindDuplicates,
     onOpenScan,
     onOpenImport,
+    onOpenAddDoi,
     onOpenImportZotero,
     onOpenImportBundle,
     onOpenSharedWithMe,
@@ -10611,6 +10623,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), libraryActionsVisible && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(
       AddMenu,
       {
+        onAddDoi: demoMode ? () => explainDemoLock("Adding a paper by DOI resolves live metadata and creates a persistent library record. The static browser demo has no backend; use local Callosum to add papers by DOI.", "/papers/by-doi") : onOpenAddDoi,
         onScan: demoMode ? () => explainDemoLock("Watched folders read local directories and persist their paths. The static browser demo has no filesystem or backend; use local Callosum to add and watch PDF folders.", "/library/scan") : onOpenScan,
         onImport: demoMode ? () => explainDemoLock("Citation import creates persistent library records. The static demo keeps its curated five-paper library immutable; use local Callosum to import BibTeX, RIS, or CSL-JSON.", "/papers/import") : onOpenImport,
         onImportZotero: demoMode ? () => explainDemoLock("Reading a Zotero library copies a local zotero.sqlite file and creates persistent library records \u2014 full fidelity (PDFs, notes, tags, collections). The static browser demo has no filesystem or backend; use local Callosum to read your Zotero library.", "/library/zotero/import") : onOpenImportZotero,
@@ -10897,7 +10910,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           citeInfo: p.cited_by_count != null ? { count: p.cited_by_count, asOf: p.cited_by_as_of } : void 0,
           footExtra,
           readOnly,
-          onReadingChanged
+          onReadingChanged,
+          onTrash: trashView ? null : onTrashPaper
         }
       );
     }), state.status === "ready" && (page > 0 || hasNextPage) && /* @__PURE__ */ React.createElement("div", { className: "pginate" }, /* @__PURE__ */ React.createElement("button", { disabled: page === 0, onClick: () => onPage(page - 1) }, "\u2190 Prev"), /* @__PURE__ */ React.createElement("button", { disabled: !hasNextPage, onClick: () => onPage(page + 1) }, "Next \u2192"))));
@@ -10913,7 +10927,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       label
     );
   }
-  function AddMenu({ onScan, onImport, onImportZotero, onImportBundle, onExportBundle, onSharedWithMe }) {
+  function AddMenu({ onScan, onImport, onImportZotero, onImportBundle, onExportBundle, onSharedWithMe, onAddDoi }) {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
     useEffect(() => {
@@ -10928,7 +10942,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       setOpen(false);
       fn();
     };
-    return /* @__PURE__ */ React.createElement("span", { className: "add-menu", ref }, /* @__PURE__ */ React.createElement("button", { className: "trash-toggle add", onClick: () => setOpen((o) => !o), title: "Add papers to the library" }, "+ Add \u25BE"), open && /* @__PURE__ */ React.createElement("div", { className: "add-menu-pop" }, /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onScan), title: "Add & watch folders of PDFs \u2014 new files are picked up automatically" }, "Watched folders\u2026"), onImportZotero && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("span", { className: "add-menu", ref }, /* @__PURE__ */ React.createElement("button", { className: "trash-toggle add", onClick: () => setOpen((o) => !o), title: "Add papers to the library" }, "+ Add \u25BE"), open && /* @__PURE__ */ React.createElement("div", { className: "add-menu-pop" }, onAddDoi && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onAddDoi), title: "Paste a DOI to add a paper \u2014 resolves authoritative metadata and fetches a free open-access PDF if one exists" }, "Add with DOI\u2026"), /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onScan), title: "Add & watch folders of PDFs \u2014 new files are picked up automatically" }, "Watched folders\u2026"), onImportZotero && /* @__PURE__ */ React.createElement(
       "button",
       {
         onClick: () => pick(onImportZotero),
@@ -11318,7 +11332,64 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       copied ? /* @__PURE__ */ React.createElement(CheckIcon, null) : /* @__PURE__ */ React.createElement(ClipboardIcon, null)
     );
   }
-  function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly, onReadingChanged }) {
+  function PaperCardMenu({ paperId, onTrash }) {
+    const [open, setOpen] = useState(false);
+    const wrapRef = useRef(null);
+    const btnRef = useRef(null);
+    useEffect(() => {
+      if (!open) return;
+      const onDoc = (e) => {
+        if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+      };
+      const onKey = (e) => {
+        if (e.key === "Escape") {
+          setOpen(false);
+          if (btnRef.current) btnRef.current.focus();
+        }
+      };
+      document.addEventListener("mousedown", onDoc);
+      document.addEventListener("keydown", onKey);
+      return () => {
+        document.removeEventListener("mousedown", onDoc);
+        document.removeEventListener("keydown", onKey);
+      };
+    }, [open]);
+    const close = () => {
+      setOpen(false);
+      if (btnRef.current) btnRef.current.focus();
+    };
+    return /* @__PURE__ */ React.createElement("span", { className: "paper-priority-wrap", ref: wrapRef }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        ref: btnRef,
+        type: "button",
+        className: "paper-priority",
+        "aria-haspopup": "menu",
+        "aria-expanded": open,
+        "aria-label": "More actions for this paper",
+        title: "More actions",
+        onClick: (e) => {
+          e.stopPropagation();
+          setOpen((o) => !o);
+        }
+      },
+      "\u22EF"
+    ), open && /* @__PURE__ */ React.createElement("div", { className: "priority-pop", role: "menu", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        role: "menuitem",
+        className: "paper-priority",
+        onClick: (e) => {
+          e.stopPropagation();
+          close();
+          onTrash(paperId);
+        }
+      },
+      "Move to Trash"
+    )));
+  }
+  function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly, onReadingChanged, onTrash }) {
     const unresolved = needsMetadata(p);
     const retracted = p.retraction_status === "retracted";
     const hasCorrection = p.correction_evidence_linked === true;
@@ -11401,7 +11472,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         },
         citeInfo.count,
         " cited-by"
-      )), footExtra, (!readOnly || isDemoMode()) && /* @__PURE__ */ React.createElement(ReadPriorityControl, { paper: p, onChanged: onReadingChanged, demoLocked: readOnly && isDemoMode() }), "  ")
+      )), footExtra, (!readOnly || isDemoMode()) && /* @__PURE__ */ React.createElement(ReadPriorityControl, { paper: p, onChanged: onReadingChanged, demoLocked: readOnly && isDemoMode() }), "  ", onTrash && /* @__PURE__ */ React.createElement(PaperCardMenu, { paperId: p.id, onTrash }), "  ")
     );
   }
   function _groupTagsBySource(list) {
@@ -16865,6 +16936,66 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onChange: (e) => setPassphrase(e.target.value)
       }
     ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !passphrase, onClick: run }, "Decrypt & import")), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Decrypting + merging\u2026", progress: imp.progress, managedBy: "backend-job" }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't import: ", imp.error)), !done && /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, !importing && imp.status !== "running" && /* @__PURE__ */ React.createElement(React.Fragment, null, !row.revoked && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => setImporting(true) }, "Import"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onDismiss }, "Dismiss"), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", onClick: onBlock }, "Block Sender"))));
+  }
+  function AddDoiModal({ onClose, onImported }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(AddDoiModalBody, { onClose, onImported })));
+  }
+  function AddDoiModalBody({ onClose, onImported }) {
+    const [doi, setDoi] = useState("");
+    const [meta, setMeta] = useState({ status: "idle" });
+    const [oa, setOa] = useState(null);
+    const pollOa = (jobId) => api(`/papers/acquire-oa/${jobId}`).then((r) => {
+      if (!r.ok) {
+        setOa({ status: "done", found: false, detail: "Could not check OA status." });
+        return;
+      }
+      const d = r.data;
+      if (d.status === "done") setOa({ status: "done", found: !!d.found, detail: d.detail });
+      else if (d.status === "error") setOa({ status: "done", found: false, detail: d.detail || "OA fetch failed." });
+      else {
+        setOa({ status: "running" });
+        setTimeout(() => pollOa(jobId), 1500);
+      }
+    });
+    const run = () => {
+      const value = doi.trim();
+      if (!value) return;
+      setMeta({ status: "running" });
+      setOa(null);
+      apiPost("/papers/by-doi", { doi: value, acquire_oa: true }).then((r) => {
+        if (!r.ok) {
+          setMeta({ status: "error", error: r.error || "Could not add that DOI." });
+          return;
+        }
+        const d = r.data;
+        setMeta({ status: d.status, title: d.title, doi: d.doi });
+        if (onImported) onImported();
+        if (d.acquire_job_id) {
+          setOa({ status: "running" });
+          pollOa(d.acquire_job_id);
+        }
+      });
+    };
+    const onKey = (e) => {
+      if (e.key === "Enter" && meta.status !== "running") {
+        e.preventDefault();
+        run();
+      }
+    };
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Add with DOI"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Paste a ", /* @__PURE__ */ React.createElement("b", null, "DOI"), " \u2014 bare (", /* @__PURE__ */ React.createElement("code", null, "10.1037/a0033242"), "), ", /* @__PURE__ */ React.createElement("code", null, "doi:"), " form, or a", " ", /* @__PURE__ */ React.createElement("code", null, "https://doi.org/\u2026"), " link. Callosum resolves it to authoritative metadata and adds it to your library; if a legal open-access PDF exists, it's fetched automatically afterward. Nothing is invented \u2014 an unrecognised DOI is reported, not saved."), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        className: "axis-input",
+        style: { flex: 1 },
+        placeholder: "10.1037/a0033242",
+        "aria-label": "DOI to add",
+        value: doi,
+        disabled: meta.status === "running",
+        onChange: (e) => setDoi(e.target.value),
+        onKeyDown: onKey
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: meta.status === "running" || !doi.trim(), onClick: run }, meta.status === "running" ? "Adding\u2026" : "Add")), meta.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, meta.error), meta.status === "created" && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, "Added."), " ", meta.title || meta.doi, " is now in your library."), meta.status === "existing" && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, "Already in your library."), " ", meta.title || meta.doi, " \u2014 surfaced, not duplicated."), oa && oa.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Fetching open-access PDF\u2026", managedBy: "backend-job" }), oa && oa.status === "done" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, oa.found ? "Open-access PDF added." : `No open-access PDF added${oa.detail ? " \u2014 " + oa.detail : "."}`), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")));
   }
   const SNS2014_CSL = {
     type: "article-journal",
@@ -23223,6 +23354,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [beyondSavedOpen, setBeyondSavedOpen] = useState(false);
     const [scanOpen, setScanOpen] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
+    const [addDoiOpen, setAddDoiOpen] = useState(false);
     const [zoteroImportOpen, setZoteroImportOpen] = useState(false);
     const [bundleImportOpen, setBundleImportOpen] = useState(false);
     const [sharedWithMeOpen, setSharedWithMeOpen] = useState(false);
@@ -23505,7 +23637,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setHealthLoaded(true);
       });
     }, []);
-    const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || zoteroImportOpen || bundleImportOpen || sharedWithMeOpen || !!pcurvePapers || !!zcurvePapers;
+    const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || addDoiOpen || zoteroImportOpen || bundleImportOpen || sharedWithMeOpen || !!pcurvePapers || !!zcurvePapers;
     useEffect(() => {
       if (!readingMode) return;
       const onKey = (e) => {
@@ -23649,6 +23781,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           onOpenReferenceWarnings: openReferenceWarnings,
           onOpenScan: () => setScanOpen(true),
           onOpenImport: () => setImportOpen(true),
+          onOpenAddDoi: () => setAddDoiOpen(true),
           onOpenImportZotero: () => setZoteroImportOpen(true),
           onOpenImportBundle: () => setBundleImportOpen(true),
           onOpenSharedWithMe: () => setSharedWithMeOpen(true),
@@ -23749,55 +23882,32 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onChanged: () => setLibRefresh((n) => n + 1),
         context: textHealthContext
       }
-    ), gapsOpen && /* @__PURE__ */ React.createElement(GapsModal, { onClose: () => setGapsOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), overlookedOpen && /* @__PURE__ */ React.createElement(OverlookedLensModal, { onClose: () => setOverlookedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), beyondSavedOpen && /* @__PURE__ */ React.createElement(BeyondLibrarySavedModal, { onClose: () => setBeyondSavedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), zcurvePapers && /* @__PURE__ */ React.createElement(ZcurveModal, { paperIds: zcurvePapers, onClose: () => setZcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), scanOpen && /* @__PURE__ */ React.createElement(
-      ScanModal,
+    ), gapsOpen && /* @__PURE__ */ React.createElement(GapsModal, { onClose: () => setGapsOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), overlookedOpen && /* @__PURE__ */ React.createElement(OverlookedLensModal, { onClose: () => setOverlookedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), beyondSavedOpen && /* @__PURE__ */ React.createElement(BeyondLibrarySavedModal, { onClose: () => setBeyondSavedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), zcurvePapers && /* @__PURE__ */ React.createElement(ZcurveModal, { paperIds: zcurvePapers, onClose: () => setZcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), /* @__PURE__ */ React.createElement(
+      LibraryAddModals,
       {
-        onClose: () => setScanOpen(false),
-        onScanned: () => {
+        scanOpen,
+        importOpen,
+        addDoiOpen,
+        zoteroImportOpen,
+        bundleImportOpen,
+        sharedWithMeOpen,
+        onCloseScan: () => setScanOpen(false),
+        onCloseImport: () => setImportOpen(false),
+        onCloseAddDoi: () => setAddDoiOpen(false),
+        onCloseZotero: () => setZoteroImportOpen(false),
+        onCloseBundle: () => setBundleImportOpen(false),
+        onCloseShared: () => setSharedWithMeOpen(false),
+        onShowUnsorted: showNeedsReview,
+        refreshLibrary: () => {
           setLibRefresh((n) => n + 1);
           libraryBits.onPage(0);
         },
-        onShowUnsorted: showNeedsReview
-      }
-    ), importOpen && /* @__PURE__ */ React.createElement(
-      ImportModal,
-      {
-        onClose: () => setImportOpen(false),
-        onImported: () => {
-          setLibRefresh((n) => n + 1);
-          libraryBits.onPage(0);
-        }
-      }
-    ), zoteroImportOpen && /* @__PURE__ */ React.createElement(
-      ZoteroImportModal,
-      {
-        onClose: () => setZoteroImportOpen(false),
-        onImported: () => {
-          setLibRefresh((n) => n + 1);
-          setAxisRefresh((n) => n + 1);
-          libraryBits.onPage(0);
-        }
-      }
-    ), bundleImportOpen && /* @__PURE__ */ React.createElement(
-      BundleImportModal,
-      {
-        onClose: () => setBundleImportOpen(false),
-        onImported: () => {
-          setLibRefresh((n) => n + 1);
-          setAxisRefresh((n) => n + 1);
-          libraryBits.onPage(0);
-        }
-      }
-    ), sharedWithMeOpen && /* @__PURE__ */ React.createElement(
-      SharedWithMeModal,
-      {
-        onClose: () => setSharedWithMeOpen(false),
-        onImported: () => {
+        refreshLibraryAndAxes: () => {
           setLibRefresh((n) => n + 1);
           setAxisRefresh((n) => n + 1);
           libraryBits.onPage(0);
         },
-        onOpenSettings: () => {
+        onSharedOpenSettings: () => {
           setSharedWithMeOpen(false);
           selectWorkspace("settings");
         }
@@ -23899,6 +24009,26 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       const qs = params.toString();
       window.history.replaceState(null, "", window.location.pathname + (qs ? "?" + qs : ""));
     }, [openPdf]);
+  }
+  function LibraryAddModals({
+    scanOpen,
+    importOpen,
+    addDoiOpen,
+    zoteroImportOpen,
+    bundleImportOpen,
+    sharedWithMeOpen,
+    onCloseScan,
+    onCloseImport,
+    onCloseAddDoi,
+    onCloseZotero,
+    onCloseBundle,
+    onCloseShared,
+    onShowUnsorted,
+    refreshLibrary,
+    refreshLibraryAndAxes,
+    onSharedOpenSettings
+  }) {
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, scanOpen && /* @__PURE__ */ React.createElement(ScanModal, { onClose: onCloseScan, onScanned: refreshLibrary, onShowUnsorted }), importOpen && /* @__PURE__ */ React.createElement(ImportModal, { onClose: onCloseImport, onImported: refreshLibrary }), addDoiOpen && /* @__PURE__ */ React.createElement(AddDoiModal, { onClose: onCloseAddDoi, onImported: refreshLibrary }), zoteroImportOpen && /* @__PURE__ */ React.createElement(ZoteroImportModal, { onClose: onCloseZotero, onImported: refreshLibraryAndAxes }), bundleImportOpen && /* @__PURE__ */ React.createElement(BundleImportModal, { onClose: onCloseBundle, onImported: refreshLibraryAndAxes }), sharedWithMeOpen && /* @__PURE__ */ React.createElement(SharedWithMeModal, { onClose: onCloseShared, onImported: refreshLibraryAndAxes, onOpenSettings: onSharedOpenSettings }));
   }
   const WB_DESIGNS = [
     { key: "two_group_continuous", label: "Two-group continuous (means + SDs \u2192 Hedges' g)" },

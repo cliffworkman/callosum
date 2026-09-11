@@ -32,7 +32,9 @@ def _loc(color="gold", version="vor", url="https://oa.example/x.pdf", source="op
 
 
 class _FakeRegistry:
-    """Resolves by lower-cased DOI; records every resolve so a test can prove OA-only routing."""
+    """A single-resolver registry that resolves by lower-cased DOI; records every resolve so a test can
+    prove OA-only routing. Exposes ``resolvers()`` (matching the real ``ResolverRegistry`` interface the
+    candidate cascade iterates, backlog #59) — as a one-resolver cascade it is itself the sole resolver."""
 
     def __init__(self, by_doi=None):
         self.by_doi = by_doi or {}
@@ -41,6 +43,9 @@ class _FakeRegistry:
     def resolve(self, conn, ref):
         self.resolved.append(ref)
         return self.by_doi.get((ref.doi or "").lower())
+
+    def resolvers(self):
+        return (self,)
 
 
 class _FakeDownload:
@@ -207,10 +212,11 @@ def test_recheck_error_does_not_abort_run(temp_db_url):
     assert summary["checked"] == 2 and summary["errors"] == 1 and len(summary["acquired"]) == 1
 
 
-def test_recheck_error_preserves_exception_message(temp_db_url):
-    """The bulk path must not collapse a raised exception to just its class name — the single-paper acquire
-    endpoint already preserves the full message; the bulk path previously discarded it, making every one of
-    OaFetchError's several distinct messages indistinguishable in the Wanted list (inc 414)."""
+def test_recheck_oa_fetch_failure_is_a_distinct_exhausted_state(temp_db_url):
+    """An OaFetchError on the only candidate is now the distinct 'candidates exhausted' state, NOT an opaque
+    'error' (backlog #59) — the Wanted list records that a candidate was found but could not be downloaded,
+    with the structured reason surfaced, so it is distinguishable from 'no OA copy found' and from an
+    unexpected error. (inc 414 wanted the distinct cause preserved; #59 makes it a first-class state.)"""
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
         wid = wanted_repo.add_wanted(conn, doi="10.1/boom")
@@ -218,13 +224,17 @@ def test_recheck_error_preserves_exception_message(temp_db_url):
 
     class _RaisingDownload:
         def __call__(self, location):
-            raise OaFetchError("downloaded bytes are not a PDF (missing %PDF- header)")
+            raise OaFetchError("download returned HTTP 403", reason_code="http_error", http_status=403)
 
-    run_recheck(engine, reg, download=_RaisingDownload(), import_=_FakeImport())
+    summary = run_recheck(engine, reg, download=_RaisingDownload(), import_=_FakeImport())
 
+    assert summary["exhausted"] == 1 and summary["errors"] == 0 and not summary["acquired"]
     with engine.begin() as conn:
         row = wanted_repo.get_wanted(conn, wid)
-    assert row["last_result"] == "error: OaFetchError: downloaded bytes are not a PDF (missing %PDF- header)"
+    assert row["status"] == "wanted"
+    assert "HTTP 403" in row["last_result"] and "openalex" in row["last_result"]  # structured reason surfaced
+    assert not row["last_result"].startswith("error:")  # NOT the opaque unexpected-error path
+    assert row["last_result"] != "none"  # NOT the no-OA-copy path
 
 
 def test_recheck_error_caps_result_length(temp_db_url):

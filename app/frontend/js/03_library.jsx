@@ -58,17 +58,26 @@ function useLibrary(opts) {
   const clearLibrarySelect = useCallback(() => setSelectedLibraryIds(new Set()), []);
   const selectAllLibrary = useCallback((ids) => setSelectedLibraryIds(new Set(ids)), []);
 
+  // The one destructive "move to Trash" path (backlog #57): owns confirmation, the soft-delete calls, the
+  // Detail-pane/selection cleanup, and the library refresh. Both the bulk bar and the per-card ⋯ menu route
+  // through it, so single-item and batch deletion can never drift apart. Soft delete → Trash (recoverable);
+  // never a bypass of the existing confirm/trash/restore semantics.
+  const trashPapers = useCallback((ids) => {
+    const targets = [...new Set((ids || []).filter(id => id != null))];
+    if (!targets.length) return;
+    const n = targets.length;
+    if (!window.confirm(`Move ${n} ${n === 1 ? "paper" : "papers"} to Trash? You can restore from Trash.`)) return;
+    Promise.all(targets.map(id => apiDelete(`/papers/${id}`))).then(() => {
+      setSelectedLibraryIds(prev => { const next = new Set(prev); targets.forEach(id => next.delete(id)); return next; });
+      setSelected(prev => (targets.includes(prev) ? null : prev));  // clear the Detail pane if it was trashed
+      setLibRefresh(n2 => n2 + 1);
+    });
+  }, [setSelected]);
+
   // --- bulk actions over the selection ---
   const bulkDeletePapers = useCallback(() => {
-    const ids = [...selectedLibraryIds];
-    if (!ids.length) return;
-    if (!window.confirm(`Move ${ids.length} ${ids.length === 1 ? "paper" : "papers"} to Trash? You can restore from Trash.`)) return;
-    Promise.all(ids.map(id => apiDelete(`/papers/${id}`))).then(() => {
-      setSelectedLibraryIds(new Set());
-      setSelected(prev => (ids.includes(prev) ? null : prev));  // clear the Detail pane if it was trashed
-      setLibRefresh(n => n + 1);
-    });
-  }, [selectedLibraryIds, setSelected]);
+    trashPapers([...selectedLibraryIds]);
+  }, [selectedLibraryIds, trashPapers]);
 
   // inc-62 → inc 287/298: "summarize N" → drive Synthesize → Ask to summarize the selected subset.
   const bulkSummarizePapers = useCallback((focus) => {
@@ -543,6 +552,7 @@ function useLibrary(opts) {
     libraryReading, onReadingFilter: changeReadingFilter,
     libraryMissingPdf, onToggleMissingPdf: () => { setLibraryMissingPdf(v => !v); setPage(0); },
     onToggleLibrarySelect: toggleLibrarySelect, onClearLibrarySelect: clearLibrarySelect,
+    onTrashPaper: (id) => trashPapers([id]),  // #57: per-card "Move to Trash" (shares the bulk primitive)
     onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkPcurve: bulkPcurvePapers, onBulkZcurve: bulkZcurvePapers, onBulkMerge: bulkMergePapers, onBulkCriticalRead: bulkCriticalReadPapers, onBulkExport: bulkExportPapers, onBulkExportBundle: bulkExportBundle, onBulkShare: bulkSharePapers, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
     onBulkReferenceCheckDone: bulkReferenceCheckDone,
     libraryAxisFilter, onClearAxisFilter: clearAxisFilter,

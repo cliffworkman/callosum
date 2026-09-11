@@ -9,7 +9,7 @@ function DemoLockedLibraryButton({ label, title, message, path, className }) {
     onClick={() => explainDemoLock(message, path)}>{label}</button>;
 }
 
-function AddMenu({ onScan, onImport, onImportZotero, onImportBundle, onExportBundle, onSharedWithMe }) {
+function AddMenu({ onScan, onImport, onImportZotero, onImportBundle, onExportBundle, onSharedWithMe, onAddDoi }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -24,6 +24,7 @@ function AddMenu({ onScan, onImport, onImportZotero, onImportBundle, onExportBun
       <button className="trash-toggle add" onClick={() => setOpen(o => !o)} title="Add papers to the library">+ Add ▾</button>
       {open &&
         <div className="add-menu-pop">
+          {onAddDoi && <button onClick={() => pick(onAddDoi)} title="Paste a DOI to add a paper — resolves authoritative metadata and fetches a free open-access PDF if one exists">Add with DOI…</button>}
           <button onClick={() => pick(onScan)} title="Add &amp; watch folders of PDFs — new files are picked up automatically">Watched folders…</button>
           {onImportZotero && <button onClick={() => pick(onImportZotero)}
             title="Read Zotero directly — including a Mendeley library first imported into Zotero">

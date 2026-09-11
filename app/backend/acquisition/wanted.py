@@ -18,6 +18,7 @@ from typing import Any, Callable
 
 from sqlalchemy import Engine
 
+from app.backend.acquisition.acquire import acquire_first_working
 from app.backend.acquisition.fetch import download_oa_pdf, import_oa_pdf
 from app.backend.acquisition.registry import OaLocation, PaperRef, ResolverRegistry
 from app.backend.persistence import wanted_repo
@@ -54,6 +55,7 @@ def run_recheck(
         "checked": 0,
         "acquired": [],
         "still_wanted": 0,
+        "exhausted": 0,  # candidate(s) resolved but none downloadable (403/404/stale) — backlog #59
         "skipped": 0,
         "errors": 0,
         "truncated": truncated,
@@ -68,14 +70,21 @@ def run_recheck(
             summary["skipped"] += 1
             continue
         try:
-            with engine.begin() as conn:  # resolve writes the per-source external_api_cache
-                location = registry.resolve(conn, ref)
-            if location is None:
+            # Candidate cascade (backlog #59): try each authorized-OA candidate in resolver-priority order;
+            # a 403/404 on the first no longer terminates the item when other legitimate candidates remain.
+            outcome = acquire_first_working(engine, registry, ref, download=download)
+            if not outcome.acquired:
+                # Distinct honest states: NO candidate found ("none", still just wanted) vs candidate(s)
+                # found but none downloadable ("exhausted") — never collapsed into an opaque error.
+                result = "none" if outcome.reason_code == "no_candidate" else outcome.human_detail()[:_MAX_RESULT_LEN]
                 with engine.begin() as conn:
-                    wanted_repo.mark_checked(conn, row["id"], result="none")
-                summary["still_wanted"] += 1
+                    wanted_repo.mark_checked(conn, row["id"], result=result)
+                if outcome.reason_code == "no_candidate":
+                    summary["still_wanted"] += 1
+                else:
+                    summary["exhausted"] += 1
                 continue
-            temp_path = download(location)  # network — outside any DB transaction
+            location, temp_path = outcome.location, outcome.temp_path
             with engine.begin() as conn:
                 paper_id = row["paper_id"] if row["paper_id"] is not None else _create_paper_for_wanted(conn, row)
                 import_(conn, location, temp_path, paper_id=paper_id, crossref_client=crossref_client)
@@ -92,10 +101,9 @@ def run_recheck(
                 }
             )
         except Exception as exc:  # per-item; one bad item never aborts the run
-            # Preserve the message (not just the exception class), matching the single-paper acquire
-            # endpoint's detail (routers/acquisition.py) — the bulk path was collapsing every one of
-            # OaFetchError's several distinct causes (not-a-PDF, HTTP 403, oversize, ...) to the same
-            # indistinguishable "error: OaFetchError" (inc 414).
+            # The 4th state: a truly UNEXPECTED failure (not an OaFetchError — the cascade already handled
+            # those as candidate fallback / exhaustion). Preserve the message (not just the class), matching
+            # the single-paper acquire endpoint's detail (routers/acquisition.py); inc 414.
             detail = f"error: {type(exc).__name__}: {exc}"[:_MAX_RESULT_LEN]
             with engine.begin() as conn:
                 wanted_repo.mark_checked(conn, row["id"], result=detail)

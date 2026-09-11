@@ -79,6 +79,7 @@ function App() {
   const [beyondSavedOpen, setBeyondSavedOpen] = useState(false); // #30 persistent beyond-library saved queue (inc 465)
   const [scanOpen, setScanOpen] = useState(false);              // inc-87 scan-a-folder modal
   const [importOpen, setImportOpen] = useState(false);          // inc-93 import-citations modal
+  const [addDoiOpen, setAddDoiOpen] = useState(false);          // #58 add-a-paper-by-DOI modal
   const [zoteroImportOpen, setZoteroImportOpen] = useState(false); // backlog #57 Phase 1 Zotero import modal
   const [bundleImportOpen, setBundleImportOpen] = useState(false); // B2 SP1 import-library-bundle modal
   const [sharedWithMeOpen, setSharedWithMeOpen] = useState(false); // SP4c (backlog #15) — receive a live share
@@ -324,7 +325,7 @@ function App() {
   }, []);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
-  const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || zoteroImportOpen || bundleImportOpen || sharedWithMeOpen || !!pcurvePapers || !!zcurvePapers;
+  const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || addDoiOpen || zoteroImportOpen || bundleImportOpen || sharedWithMeOpen || !!pcurvePapers || !!zcurvePapers;
   useEffect(() => {
     if (!readingMode) return;
     const onKey = (e) => { if (e.key === "Escape" && !anyModalOpen) toggleReading(); };
@@ -437,6 +438,7 @@ function App() {
             onOpenTextHealth: () => openTextHealth(),
             onOpenReferenceWarnings: openReferenceWarnings,
             onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
+            onOpenAddDoi: () => setAddDoiOpen(true),
             onOpenImportZotero: () => setZoteroImportOpen(true),
             onOpenImportBundle: () => setBundleImportOpen(true), onOpenSharedWithMe: () => setSharedWithMeOpen(true),
             onExportBundle: () => downloadBundle("library"),
@@ -514,22 +516,16 @@ function App() {
         <PcurveModal paperIds={pcurvePapers} onClose={() => setPcurvePapers(null)} onOpenPaper={openPdf} onChanged={() => setLibRefresh(n => n + 1)} />}
       {zcurvePapers &&
         <ZcurveModal paperIds={zcurvePapers} onClose={() => setZcurvePapers(null)} onOpenPaper={openPdf} onChanged={() => setLibRefresh(n => n + 1)} />}
-      {scanOpen &&
-        <ScanModal onClose={() => setScanOpen(false)}
-          onScanned={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }} onShowUnsorted={showNeedsReview} />}
-      {importOpen &&
-        <ImportModal onClose={() => setImportOpen(false)}
-          onImported={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }} />}
-      {zoteroImportOpen &&
-        <ZoteroImportModal onClose={() => setZoteroImportOpen(false)}
-          onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }} />}
-      {bundleImportOpen &&
-        <BundleImportModal onClose={() => setBundleImportOpen(false)}
-          onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }} />}
-      {sharedWithMeOpen &&
-        <SharedWithMeModal onClose={() => setSharedWithMeOpen(false)}
-          onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }}
-          onOpenSettings={() => { setSharedWithMeOpen(false); selectWorkspace("settings"); }} />}
+      <LibraryAddModals
+        scanOpen={scanOpen} importOpen={importOpen} addDoiOpen={addDoiOpen} zoteroImportOpen={zoteroImportOpen}
+        bundleImportOpen={bundleImportOpen} sharedWithMeOpen={sharedWithMeOpen}
+        onCloseScan={() => setScanOpen(false)} onCloseImport={() => setImportOpen(false)}
+        onCloseAddDoi={() => setAddDoiOpen(false)} onCloseZotero={() => setZoteroImportOpen(false)}
+        onCloseBundle={() => setBundleImportOpen(false)} onCloseShared={() => setSharedWithMeOpen(false)}
+        onShowUnsorted={showNeedsReview}
+        refreshLibrary={() => { setLibRefresh(n => n + 1); libraryBits.onPage(0); }}
+        refreshLibraryAndAxes={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); libraryBits.onPage(0); }}
+        onSharedOpenSettings={() => { setSharedWithMeOpen(false); selectWorkspace("settings"); }} />
       {!authLocked && healthLoaded && !onboarding.done &&
         <OnboardingWizard onDone={() => setOnboarding(s => ({ ...s, done: true, refresh: false }))}
           refreshMode={onboarding.refresh} currentVersion={onboarding.version}
