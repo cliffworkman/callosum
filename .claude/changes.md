@@ -9,6 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-10 — workflow_dispatch on the release workflow (issue #33 / legacy backlog #80)
+- **Files:** `.github/workflows/desktop-shell-release.yml`.
+- **What:** added a `workflow_dispatch` trigger so a release can be re-run without deleting and
+  re-pushing the tag (for when `publish` fails after all three platform builds already succeeded).
+  Dispatch it against the tag ref (`gh workflow run desktop-shell-release.yml --ref vX.Y.Z`) so every
+  existing `github.ref_name` reference resolves to the tag exactly as on a tag push — zero other changes.
+- **Why:** the only prior recovery from a failed publish was delete-and-re-push-the-tag (issue #33).
+- **Note:** deliberately no `tag` input — an input would still let the build jobs compile whatever
+  branch the run was dispatched from and mis-name the assets; dispatching against the tag ref keeps
+  build, URLs, tag message, and publish all consistent.
+
 ## 2026-09-10 — release version-bump tool (issue #33 / legacy backlog #80)
 - **Files:** new `tools/bump_version.py`; `.claude/CLAUDE.md` (release flow + Commands table).
 - **What:** `python tools/bump_version.py X.Y.Z` edits the five desktop-shell version files in lockstep

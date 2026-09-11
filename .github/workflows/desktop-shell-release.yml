@@ -13,6 +13,14 @@ name: Desktop shell (release)
 on:
   push:
     tags: ["v*"]
+  # Manual re-run hatch (GitHub issue #33 / legacy backlog #80): if `publish` fails AFTER all three
+  # platform builds succeeded (a transient GitHub API error, a signing secret set late), re-run the
+  # whole release WITHOUT deleting and re-pushing the tag. Always dispatch it AGAINST THE TAG REF, so
+  # every `github.ref_name` below resolves to the tag exactly as it does on a tag push:
+  #     gh workflow run desktop-shell-release.yml --ref vX.Y.Z
+  # (or the Actions UI "Run workflow" control with the tag chosen as the ref). Dispatching against a
+  # branch would rebuild that branch's code and mis-name every asset — the tag ref is the whole point.
+  workflow_dispatch: {}
 
 jobs:
   build-windows:
