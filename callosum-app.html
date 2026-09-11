@@ -14618,6 +14618,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requestedSummary, onOpenSettings, onOpenTextHealth, settingsNonce, readOnly, onCriticalReviewSources }) {
     const [query, setQuery] = useState("");
     const [sectionFilter, setSectionFilter] = useState({});
+    const [includeReferences, setIncludeReferences] = useState(false);
     const [state, setState] = useState({ status: "idle" });
     const [scopeNote, setScopeNote] = useState(null);
     const [scopeMeta, setScopeMeta] = useState(null);
@@ -14686,9 +14687,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     }, [pollJob]);
     const launch = useCallback((requestBody, runningMessage) => {
       const sections = selectedSynthesisSections(sectionFilter);
-      const body = sections.length ? { ...requestBody, sections } : requestBody;
+      let body = sections.length ? { ...requestBody, sections } : requestBody;
+      if (requestBody.scope_type === "query" && includeReferences && !sections.length) {
+        body = { ...body, exclude_references: false };
+      }
       launchPrepared(body, runningMessage);
-    }, [launchPrepared, sectionFilter]);
+    }, [launchPrepared, sectionFilter, includeReferences]);
     const retryLast = useCallback(() => {
       const last = lastLaunchRef.current;
       if (!last) return;
@@ -14838,7 +14842,25 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         },
         sectionLabel(section)
       );
-    })), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !query.trim(), onClick: start }, "Synthesize"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? state.message || "Generating and verifying" : "query scope \xB7 top 8 chunks")), busy && /* @__PURE__ */ React.createElement(ProgressBar, { managedBy: "backend-job" })), !readOnly && aiUnavailable && state.status !== "error" && egressNudge, scopeNote && /* @__PURE__ */ React.createElement("div", { className: "synth-scope-note" }, "Summary of ", /* @__PURE__ */ React.createElement("b", null, scopeNote), " from the library selection."), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "30px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Verified synthesis"), "Ask a question. Callosum will generate a summary and independently verify each citation."), state.status === "error" && /* @__PURE__ */ React.createElement(
+    })), /* @__PURE__ */ React.createElement(
+      "label",
+      {
+        className: "synth-refs-toggle",
+        title: "A reference-list entry points to a finding rather than being one, so it can't be verbatim evidence for a claim. Reference lists are left out of the evidence pool by default. (Ignored when you pick specific sections above.)"
+      },
+      /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          type: "checkbox",
+          checked: includeReferences,
+          disabled: busy || !!selectedSynthesisSections(sectionFilter).length,
+          onChange: (e) => setIncludeReferences(e.target.checked)
+        }
+      ),
+      " ",
+      "Include reference lists",
+      /* @__PURE__ */ React.createElement("span", { className: "synth-refs-hint" }, " \xB7 excluded by default \u2014 they point to findings, not evidence")
+    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !query.trim(), onClick: start }, "Synthesize"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? state.message || "Generating and verifying" : "query scope \xB7 top 8 chunks" + (selectedSynthesisSections(sectionFilter).length ? "" : includeReferences ? " \xB7 incl. reference lists" : " \xB7 reference lists excluded"))), busy && /* @__PURE__ */ React.createElement(ProgressBar, { managedBy: "backend-job" })), !readOnly && aiUnavailable && state.status !== "error" && egressNudge, scopeNote && /* @__PURE__ */ React.createElement("div", { className: "synth-scope-note" }, "Summary of ", /* @__PURE__ */ React.createElement("b", null, scopeNote), " from the library selection."), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "30px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Verified synthesis"), "Ask a question. Callosum will generate a summary and independently verify each citation."), state.status === "error" && /* @__PURE__ */ React.createElement(
       SynthesisFailure,
       {
         error: state.error,

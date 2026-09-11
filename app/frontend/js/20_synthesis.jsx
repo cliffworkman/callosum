@@ -39,6 +39,9 @@ function sectionFilterSummary(sections) {
 function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requestedSummary, onOpenSettings, onOpenTextHealth, settingsNonce, readOnly, onCriticalReviewSources }) {
   const [query, setQuery] = useState("");
   const [sectionFilter, setSectionFilter] = useState({});
+  // Query-scope synthesis excludes reference-list-section chunks from the evidence pool by default
+  // (backlog #82); this opts them back in. Ignored by the backend when explicit sections are chosen.
+  const [includeReferences, setIncludeReferences] = useState(false);
   const [state, setState] = useState({ status: "idle" });
   const [scopeNote, setScopeNote] = useState(null);   // "N selected papers" when summarizing a library selection
   const [scopeMeta, setScopeMeta] = useState(null);   // {total, topK} for the papers scope → the coverage readout (inc 153)
@@ -114,9 +117,14 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
   // Shared POST + poll for any scope (a query or a papers selection).
   const launch = useCallback((requestBody, runningMessage) => {
     const sections = selectedSynthesisSections(sectionFilter);
-    const body = sections.length ? { ...requestBody, sections } : requestBody;
+    let body = sections.length ? { ...requestBody, sections } : requestBody;
+    // Opt reference lists back into the evidence pool (query scope only; the backend ignores this when
+    // an explicit section allow-list is given, so it's never sent redundantly there).
+    if (requestBody.scope_type === "query" && includeReferences && !sections.length) {
+      body = { ...body, exclude_references: false };
+    }
     launchPrepared(body, runningMessage);
-  }, [launchPrepared, sectionFilter]);
+  }, [launchPrepared, sectionFilter, includeReferences]);
 
   const retryLast = useCallback(() => {
     const last = lastLaunchRef.current;
@@ -289,10 +297,23 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
             );
           })}
         </div>
+        <label className="synth-refs-toggle"
+          title="A reference-list entry points to a finding rather than being one, so it can't be verbatim evidence for a claim. Reference lists are left out of the evidence pool by default. (Ignored when you pick specific sections above.)">
+          <input type="checkbox" checked={includeReferences}
+            disabled={busy || !!selectedSynthesisSections(sectionFilter).length}
+            onChange={e => setIncludeReferences(e.target.checked)} />
+          {" "}Include reference lists
+          <span className="synth-refs-hint"> · excluded by default — they point to findings, not evidence</span>
+        </label>
         <div className="synth-actions">
           <button disabled={busy || !query.trim()} onClick={start}>Synthesize</button>
           <span className={"synth-status" + (busy ? " running" : "")}>
-            {busy ? (state.message || "Generating and verifying") : "query scope · top 8 chunks"}
+            {busy
+              ? (state.message || "Generating and verifying")
+              : "query scope · top 8 chunks"
+                + (selectedSynthesisSections(sectionFilter).length
+                    ? ""
+                    : (includeReferences ? " · incl. reference lists" : " · reference lists excluded"))}
           </span>
         </div>
         {busy && <ProgressBar managedBy="backend-job" />}

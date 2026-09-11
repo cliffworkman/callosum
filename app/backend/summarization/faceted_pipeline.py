@@ -37,6 +37,7 @@ from app.backend.summarization.pipeline import (
     _refresh_source_chunks,
     _source_chunk_from_row,
     _verify_candidates,
+    exclude_reference_sections,
 )
 from app.backend.summarization.query_planner import QueryPlan
 from app.backend.summarization.responsiveness import classify_responsiveness
@@ -99,6 +100,7 @@ def summarize_faceted(
     verifier_config: VerificationConfig | None = None,
     support_scorer: SupportScorer | None = None,
     overview_requested: bool = False,
+    exclude_references: bool = True,
     on_stage: Callable[[str, str, int | None, bool], None] | None = None,
     on_progress: Callable[[int, int, str], None] | None = None,
 ) -> SummaryPersistenceResult:
@@ -107,7 +109,7 @@ def summarize_faceted(
     if on_stage is not None:
         on_stage("preparing_sources", "Preparing sources", None, False)
     with engine.begin() as conn:
-        pool = _load_article_pool(conn)
+        pool = _load_article_pool(conn, exclude_references=exclude_references)
         per_facet = _faceted_retrieval(conn, pool=pool, plan=plan, model=model, vector_store=vector_store)
         evidence_by_facet, retrieved_counts = _apply_hygiene_and_budget(conn, per_facet=per_facet, plan=plan)
 
@@ -169,7 +171,7 @@ def summarize_faceted(
             on_stage("finalizing_result", "Finalizing result", len(ordered_candidates), False)
         result = _persist_verified_summary(
             conn,
-            scope=SummaryScope(scope_type="query", query=question),
+            scope=SummaryScope(scope_type="query", query=question, exclude_references=exclude_references),
             candidates=ordered_candidates,
             verification_rows=ordered_rows,
             generated_by=generator.name,
@@ -180,8 +182,15 @@ def summarize_faceted(
     return result
 
 
-def _load_article_pool(conn: Connection) -> list[SourceChunk]:
-    """Every live article-role chunk, repeated boilerplate excluded (the existing safe hard filter)."""
+def _load_article_pool(conn: Connection, *, exclude_references: bool = True) -> list[SourceChunk]:
+    """Every live article-role chunk, repeated boilerplate excluded (the existing safe hard filter).
+
+    Reference-list-section chunks are excluded by default too (backlog #82) so the faceted path and the
+    single-query path treat references identically; ``exclude_references=False`` restores them. Unlike
+    the single-query builder there is no section-allow-list here, so no whole-pool boilerplate re-read is
+    needed -- ``exclude_repeated_boilerplate_chunks`` already runs over these same rows either way, and
+    reference-list chunks are not running heads, so excluding them cannot change boilerplate detection.
+    """
     live_papers = select(papers.c.id).where(papers.c.deleted_at.is_(None))
     stmt = (
         select(chunks)
@@ -189,6 +198,8 @@ def _load_article_pool(conn: Connection) -> list[SourceChunk]:
         .where(chunks.c.paper_id.in_(live_papers), attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES))
         .order_by(chunks.c.id)
     )
+    if exclude_references:
+        stmt = exclude_reference_sections(stmt)
     rows = [_source_chunk_from_row(row) for row in conn.execute(stmt).mappings()]
     return exclude_repeated_boilerplate_chunks(rows)
 

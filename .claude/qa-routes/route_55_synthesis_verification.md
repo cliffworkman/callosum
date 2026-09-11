@@ -20,6 +20,13 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
 - **Egress gate.** With egress unset, any request to a `generativelanguage`/Gemini/genai host is **Critical**.
 - **Coordinate honesty.** `exact` -> bbox rect; `region` -> scroll + note; `null` -> page-open, no rect. An approximate/absent location shown as an exact highlight is **Critical**.
 - **Signal not verdict.** No hidden composite score; no "bad papers" accusation. Filters + visible counts only.
+- **Reference-list exclusion is a disclosed, reversible default — not a hidden filter (backlog #82).** Query-scope
+  synthesis excludes reference-list-section chunks (GROBID-preferred over the heuristic `chunks.section`) from the
+  claim-evidence pool by default; the Ask UI must show an **Include reference lists** control that says references
+  are excluded by default, and checking it must send `exclude_references:false`. An exclusion applied with **no**
+  visible control, or that also drops unlabelled (`None`-family) chunks, is **High** (silence is not a certificate;
+  an unlabelled chunk is not a proven reference list). The control is legitimately disabled/ignored when an explicit
+  section allow-list is chosen — the allow-list governs inclusion there.
 - **Contradicted = signal, not a "false" verdict (inc 203, A9).** A citation whose source actively disagrees shows
   the distinct `contradicted` pill ("⚠ source disagrees", red `.cite-status.contradicted`) **with** its quote/page/
   confidence like any other evidence — never a pronouncement that the claim is false. A contradicted citation
@@ -40,6 +47,14 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
 2. Generate a paper-scope summary (`POST /summarize`) using the fake generator. Poll (`GET /summarize/{job_id}`) through completion; navigate away mid-job and return.
    - **inc 145 (Skeptical synthesizer):** select papers in the Library → the selection bar shows a **"Focus on…" input**; typing a question + **summarize** sends `scope_type:"papers"` **with `query=<focus>`** (a query-RANKED synthesis of just the selection) and the Synthesize → Ask scope-note reads "… · focused on '…'" (the focus also reflects into the Ask textarea). Blank focus → a general selection summary (no `query`). Confirm the focus is honest — it ranks coverage, never fabricates a claim the evidence doesn't support.
 3. Generate cluster and query summaries, including an empty/whitespace query. Confirm validation and no orphaned spinners.
+   - **References exclusion (backlog #82).** In the query-scope UI, confirm the **Include reference lists** control is
+     present and unchecked by default, with copy stating references are excluded by default. Default query-scope
+     `POST /summarize` sends no `exclude_references` (backend default = excluded); with the box checked it sends
+     `exclude_references:false`. Seed a paper with a `section='references'` chunk, a `section=None` chunk, and a body
+     chunk: a default query synthesis must draw evidence only from the non-reference chunks (the `None` chunk stays
+     eligible), while the checked run may cite the reference chunk. Selecting any explicit section disables the
+     control (the allow-list governs). Persisted `scope_ref_json` records `exclude_references:false` only on a
+     references-included run, never on the default.
 4. Open persisted summary detail (`GET /summaries/{summary_id}`). Confirm every sentence shows visible verification status and every citation shows confidence, quote, page, and coordinate precision.
 5. Click citations. Assert exact/region/null coordinate honesty in the PDF viewer.
 6. **Overview (inc 124):** with a fake overview generator injected (and a verified sentence), confirm a summary's

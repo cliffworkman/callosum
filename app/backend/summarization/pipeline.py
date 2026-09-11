@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
-from sqlalchemy import Connection, Engine, func, insert, select
+from sqlalchemy import Connection, Engine, Select, func, insert, or_, select
 
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.pipeline import current_chunk_embedding_ids, embed_chunks
@@ -22,6 +22,7 @@ from app.backend.persistence.schema import (
     summaries,
     summary_sentences,
 )
+from app.backend.persistence.schema_grobid import paper_sections
 from app.backend.summarization.chunk_filtering import (
     exclude_repeated_boilerplate_chunks,
     is_front_matter_chunk,
@@ -39,6 +40,11 @@ from app.backend.summarization.verification import (
     VerificationResult,
 )
 
+# The heuristic (chunks.section) and GROBID (paper_sections.section_kind, via classify_section_title →
+# detect_section_heading) both spell a reference LIST section this one way. Kept here so the query-scope
+# and faceted candidate builders exclude references identically. See backlog #82.
+REFERENCES_SECTION_KEY = "references"
+
 
 @dataclass(frozen=True)
 class SummaryScope:
@@ -47,6 +53,12 @@ class SummaryScope:
     cluster_node_id: int | None = None
     query: str | None = None
     sections: list[str] | None = None
+    # A reference-list entry is a pointer to a finding, not a finding, so it can never be the verbatim
+    # evidence for a scientific claim (backlog #82). Query-scope synthesis therefore excludes
+    # reference-list-section chunks from the claim-evidence pool by default; the user can turn it off.
+    # Ignored when an explicit `sections` allow-list is given (that governs inclusion) and for the
+    # papers/cluster scopes (the user chose those papers deliberately).
+    exclude_references: bool = True
 
     def to_ref(self) -> dict[str, object]:
         ref: dict[str, object] = {
@@ -56,6 +68,10 @@ class SummaryScope:
         }
         if self.sections:
             ref["sections"] = self.sections
+        # Record it only when the retrieval deviated from the default, so ordinary rows stay unchanged
+        # but a "references were included" run is inspectable in its own provenance.
+        if not self.exclude_references:
+            ref["exclude_references"] = False
         return ref
 
 
@@ -202,6 +218,23 @@ def _refresh_source_chunks(conn: Connection, source_chunks: list[SourceChunk]) -
     return [fresh_by_id[chunk_id] for chunk_id in ids if chunk_id in fresh_by_id]
 
 
+def exclude_reference_sections(stmt: Select) -> Select:
+    """Drop reference-LIST-section chunks from a ``select(chunks)`` candidate query (backlog #82).
+
+    A reference-list entry is a pointer to a finding, not a finding, so it can never be the verbatim
+    evidence for a scientific claim. GROBID's mapped ``section_kind`` is preferred over the heuristic
+    ``chunks.section`` -- the same strict preference ``candidate_section_family`` uses -- and
+    NULL/unlabelled chunks are KEPT (silence is not a certificate: an unlabelled chunk is not a proven
+    reference list, and dropping it would delete real evidence). Shared by both the query-scope and
+    faceted candidate builders so they exclude references identically. The outer join is on the indexed
+    ``grobid_section_id`` FK, negligible against the full-table scan it rides on.
+    """
+    family = func.coalesce(paper_sections.c.section_kind, chunks.c.section)
+    return stmt.outerjoin(paper_sections, paper_sections.c.id == chunks.c.grobid_section_id).where(
+        or_(family.is_(None), family != REFERENCES_SECTION_KEY)
+    )
+
+
 def _source_chunks_for_scope(
     conn: Connection,
     *,
@@ -233,22 +266,29 @@ def _source_chunks_for_scope(
             )
         ]
         stmt = stmt.where(chunks.c.paper_id.in_(paper_ids)) if paper_ids else stmt.where(False)
-    # Repeated-boilerplate DETECTION must see the paper's whole chunk set; the section filter narrows
-    # only what is RETURNED (inc 577). Fusing the two made the answer depend on which section-filtered
-    # list was handed in -- measured, a `sections=['methods']` synthesis kept 112 running-head chunks
-    # that whole-paper scope removes, because a header on five pages survived into too few selected
-    # chunks to reach the page-count floor.
+    # Query-scope synthesis excludes reference-list-section chunks from the claim-evidence pool by
+    # default (backlog #82); an explicit `sections` allow-list governs inclusion on its own, and the
+    # papers/cluster scopes summarize a deliberately-chosen set, so neither applies the default there.
+    apply_ref_exclusion = scope.scope_type == "query" and scope.exclude_references and not scope.sections
+    # Repeated-boilerplate DETECTION must see the paper's whole chunk set; any narrowing of the returned
+    # rows -- the section allow-list OR references exclusion -- narrows only what is RETURNED (inc 577).
+    # Fusing detection with narrowing made the answer depend on the narrowed list -- measured, a
+    # `sections=['methods']` synthesis kept 112 running-head chunks whole-paper scope removes, because a
+    # header on five pages survived into too few selected chunks to reach the page-count floor.
     #
-    # The extra query runs ONLY when a section filter exists: without one the candidate rows already
-    # ARE the whole-paper pool, so re-reading it would be pure cost on the path that already carries
-    # the O(library) query-scope expense. It also selects just the three columns the detector needs,
-    # never a second full chunk materialization.
+    # The extra detection query runs ONLY when a narrowing is applied: without one the candidate rows
+    # already ARE the whole-paper pool, so re-reading it would be pure cost on the path that already
+    # carries the O(library) query-scope expense. It also selects just the three columns the detector
+    # needs, never a second full chunk materialization, and precedes the references outer join.
     boilerplate_keys = None
-    if scope.sections:
+    if scope.sections or apply_ref_exclusion:
         boilerplate_keys = repeated_boilerplate_keys(
             conn.execute(stmt.with_only_columns(chunks.c.paper_id, chunks.c.page_start, chunks.c.text).order_by(None))
         )
+    if scope.sections:
         stmt = stmt.where(chunks.c.section.in_(scope.sections))
+    elif apply_ref_exclusion:
+        stmt = exclude_reference_sections(stmt)
     rows = [_source_chunk_from_row(row) for row in conn.execute(stmt).mappings()]
     rows = exclude_repeated_boilerplate_chunks(rows, keys=boilerplate_keys)
     if scope.query:
