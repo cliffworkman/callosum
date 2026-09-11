@@ -81,6 +81,10 @@ class SummarizeRequest(BaseModel):
     query: str | None = None
     top_k: int = Field(default=8, ge=1, le=50)
     sections: list[str] | None = Field(default=None, max_length=16)
+    # A reference-list entry is a pointer to a finding, not a finding, so query-scope synthesis excludes
+    # reference-list-section chunks from the claim-evidence pool by default (backlog #82). The client can
+    # send false to include them. Ignored with an explicit `sections` allow-list and for non-query scopes.
+    exclude_references: bool = True
 
 
 class SummarizeStartResponse(BaseModel):
@@ -210,6 +214,7 @@ def _summary_scope_from_request(request: SummarizeRequest) -> SummaryScope:
         cluster_node_id=request.cluster_node_id,
         query=request.query.strip() if request.query else None,
         sections=request.sections,
+        exclude_references=request.exclude_references,
     )
 
 
@@ -270,6 +275,7 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
                 verifier_config=config,
                 support_scorer=support_scorer,
                 overview_requested=overview_generator is not None,
+                exclude_references=request.exclude_references,
                 on_progress=lambda i, n, label: jobs.mark_progress(job_id, i, n, label),
                 on_stage=stage_reporter(jobs, job_id, calibration_key),
             )

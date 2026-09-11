@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-10 — inc 583: exclude reference lists from Ask evidence by default (issue #35 / legacy #82)
+- **Files:** `app/backend/summarization/pipeline.py`, `.../faceted_pipeline.py`,
+  `app/backend/api/routers/summaries.py`, `app/frontend/js/20_synthesis.jsx`,
+  `app/backend/help/help_content.md`, `.claude/qa-routes/route_55_synthesis_verification.md`,
+  `tests/test_reference_exclusion.py`, `.claude/docs/increment-notes/INCREMENT-583-NOTES.md`.
+- **What:** query-scope synthesis now excludes reference-list-section chunks from the claim-evidence
+  pool by default, via a shared `exclude_reference_sections()` deny-filter (GROBID `section_kind`
+  preferred over the heuristic `chunks.section`; `NULL`/unlabelled chunks kept) applied in both the
+  single-query and faceted builders. A new `exclude_references` request flag + an **Include reference
+  lists** Ask checkbox (default off) reverse it; the idle status line discloses the default.
+- **Why:** a bibliography entry is a pointer to a finding, not a finding, so it can't be verbatim
+  evidence for a claim — and reference lists (the biggest, most keyword-dense section) otherwise crowd
+  out real findings (backlog #82, measured inc 575).
+- **Principles gate:** aligned path chosen — a disclosed, reversible, GROBID-preferred default rather
+  than a hidden hard filter; unlabelled chunks never dropped (silence is not a certificate). Did NOT
+  wire in inc 577's `evidence_role` (deliberately non-load-bearing).
+- **Verify:** `pytest tests/test_reference_exclusion.py` (3) + the 4 summarization suites (52) + frontend
+  assembly (87); ruff clean; QA route 55 extended. Deferred: a live end-to-end Ask demo needs the
+  ~200-paper testing DB (absent this session).
+- **Revert:** revert the six source/doc files + delete `tests/test_reference_exclusion.py` and the notes.
+
 ## 2026-09-10 — workflow_dispatch on the release workflow (issue #33 / legacy backlog #80)
 - **Files:** `.github/workflows/desktop-shell-release.yml`.
 - **What:** added a `workflow_dispatch` trigger so a release can be re-run without deleting and

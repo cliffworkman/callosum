@@ -771,6 +771,8 @@ There are two ways to run a synthesis:
 
 Use the section buttons (**Methods**, **Results**, **Data availability**, and so on) when you want synthesis to search only particular parts of section-aware PDFs. No section selected means the normal all-chunks behavior. A section filter narrows retrieval only; it does not change verification thresholds or make a claim more certain. Older chunks without section metadata will not match a section filter until the PDF is reprocessed.
 
+**Reference lists are left out of the evidence pool by default** for an Ask question. A bibliography entry points *to* a finding rather than being one, so it can't be the verbatim evidence for a claim — and because reference lists are keyword-dense across many topics, they otherwise crowd out real findings. If you specifically want them included (say, to synthesize what your library *cites* about a topic), tick **Include reference lists** under the section buttons. This applies to the broad question box only; when you pick specific sections above, those govern what's searched.
+
 Each cited sentence carries a status pill: **verified** (green — the source supports it), **flagged** (amber — it could not be fully verified), or **contradicted** (red, "⚠ source disagrees") — the most consequential case, where the cited passage *actively disagrees* with the claim. A contradicted citation still shows its quote, page, and confidence like any other evidence — it is a **signal to look, not a verdict** that the claim is false. Read the quote and decide.
 
 Saved syntheses appear in **History** (a question shows its text; a selection shows "N papers"), where you can reload or delete them.
