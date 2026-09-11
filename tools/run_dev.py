@@ -26,6 +26,8 @@ from __future__ import annotations
 
 import argparse
 import os
+import signal
+import socket
 import subprocess
 import sys
 import time
@@ -42,7 +44,14 @@ POLL_INTERVAL = 0.5  # seconds
 
 
 def _spawn(argv: list[str], env: dict[str, str]) -> subprocess.Popen:
-    return subprocess.Popen(argv, cwd=str(ROOT), env=env)  # noqa: S603 (fixed argv, no request-derived input)
+    # On POSIX, give each child its own session/process group so teardown can signal the WHOLE tree
+    # (the grandchild llama-server is spawned by run_local_ai.py, a child of a child -- backlog #83).
+    # A plain terminate() only ever reaches the direct child, orphaning the grandchild. On Windows the
+    # tree is reaped by `taskkill /T` instead (see _terminate_tree), which needs no spawn-time flag.
+    kwargs: dict[str, object] = {}
+    if sys.platform != "win32":
+        kwargs["start_new_session"] = True
+    return subprocess.Popen(argv, cwd=str(ROOT), env=env, **kwargs)  # noqa: S603 (fixed argv, no request-derived input)
 
 
 def _clear_local_ai_descriptor(dev_dir: Path) -> None:
@@ -57,15 +66,62 @@ def _clear_local_ai_descriptor(dev_dir: Path) -> None:
             pass
 
 
+def _port_in_use(port: int) -> bool:
+    """True if 127.0.0.1:<port> is already bound. A plain bind (no SO_REUSEADDR) matches uvicorn's own
+    failure mode, so if this says taken, uvicorn's bind would 'Errno 10048 / address already in use' too.
+    Without this preflight run_dev announced 'serving on :8888', then died on the bind -- while /health
+    answered 200 the whole time because ANOTHER server already held the port, so the tooling looked
+    healthy while serving someone else's instance (backlog #83)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind(("127.0.0.1", port))
+            return False
+        except OSError:
+            return True
+
+
+def _terminate_tree(proc: subprocess.Popen) -> None:
+    """Signal a child AND its descendants. The direct child is a supervisor (uvicorn, or run_local_ai.py
+    which itself spawns llama-server); a plain terminate() reaches only the direct child and orphans the
+    grandchild (backlog #83). Windows: `taskkill /T` walks the live PID tree and force-kills it. POSIX:
+    the child leads its own group (see _spawn), so SIGTERM to the group reaches the grandchild too."""
+    if proc.poll() is not None:
+        return
+    if sys.platform == "win32":
+        subprocess.run(  # noqa: S603 - fixed argv apart from our own child's pid
+            ["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True, check=False
+        )
+        return
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        proc.terminate()  # group already gone, or we couldn't address it -- fall back to the direct child
+
+
+def _force_kill_tree(proc: subprocess.Popen) -> None:
+    if proc.poll() is not None:
+        return
+    if sys.platform == "win32":
+        proc.kill()  # taskkill /F already forced the tree; this is a belt-and-suspenders backstop
+        return
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        proc.kill()
+
+
 def _stop_all(procs: dict[str, subprocess.Popen]) -> None:
     for proc in procs.values():
-        if proc.poll() is None:
-            proc.terminate()
+        _terminate_tree(proc)
     for proc in procs.values():
         try:
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            proc.kill()
+            _force_kill_tree(proc)
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass  # nothing more we can do from here; reported below by the caller's descriptor cleanup
 
 
 def main() -> int:
@@ -79,6 +135,13 @@ def main() -> int:
     args = parser.parse_args()
 
     http_port = args.port if args.port is not None else int(os.environ.get("CALLOSUM_HTTP_PORT", "8888"))
+    if _port_in_use(http_port):
+        print(
+            f"[run_dev] ERROR: port {http_port} is already in use -- another server (a stray uvicorn, or an "
+            f"earlier run_dev?) is holding it. Stop that, or pass --port. Refusing to start, rather than "
+            f"announce 'serving' and die on the bind while /health answers someone else's instance (backlog #83)."
+        )
+        return 1
     env = os.environ.copy()  # both children inherit the SAME environment -- including CALLOSUM_DB_URL
 
     procs: dict[str, subprocess.Popen] = {}
@@ -98,8 +161,15 @@ def main() -> int:
 
     crt, _key = _dev_cert_paths()
     if crt is not None:
-        procs["https"] = _spawn([sys.executable, str(ROOT / "tools" / "run_https.py")], env)
-        print("[run_dev] https: serving on https://localhost:8443 (or CALLOSUM_HTTPS_PORT) -- for the Word add-in")
+        https_port = int(os.environ.get("CALLOSUM_HTTPS_PORT", "8443"))
+        if _port_in_use(https_port):
+            print(
+                f"[run_dev] https: skipped -- port {https_port} is already in use (an earlier run_https may be "
+                f"orphaned). Free it to enable the Word add-in this session."
+            )
+        else:
+            procs["https"] = _spawn([sys.executable, str(ROOT / "tools" / "run_https.py")], env)
+            print(f"[run_dev] https: serving on https://localhost:{https_port} -- for the Word add-in")
     else:
         print("[run_dev] https: skipped -- run `npx office-addin-dev-certs install` once to also enable Word")
 
