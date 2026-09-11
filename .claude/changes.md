@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-11 — run_dev.py: reap the whole process tree + port preflight (issue #36 / legacy #83)
+- **Files:** `tools/run_dev.py`, `tests/test_run_dev.py` (new).
+- **What:** `_stop_all` now kills each child's **whole process tree** (`taskkill /T /F` on Windows;
+  POSIX children spawned with `start_new_session=True` so `os.killpg` reaches the group), so the
+  grandchild `llama-server` (spawned by `run_local_ai.py`, a child of a child) is no longer orphaned on
+  teardown. Added a `_port_in_use` preflight: run_dev now refuses to start if the HTTP port is already
+  bound (instead of announcing "serving" then dying on the bind while `/health` answered someone else's
+  instance), and skips HTTPS with a note if 8443 is held (often by an orphaned `run_https`).
+- **Why:** inc 575's live verification leaked three processes (llama-server ×2, run_https ×1) — the
+  llama-server case left running *after* the descriptor that names it was deleted (backlog #83);
+  contradicted inc 569's own "no orphan" post-condition.
+- **Verify:** `pytest tests/test_run_dev.py` (3) — including a real spawn-a-grandchild-and-kill-the-tree
+  regression test that asserts the grandchild PID is dead after `_stop_all`; ruff clean. Full live
+  `run_dev.py --local-ai` → Ctrl-C → no-orphans check deferred (needs Local AI installed + a ~1 GiB load).
+- **Revert:** revert `tools/run_dev.py` + delete `tests/test_run_dev.py`.
+
 ## 2026-09-10 — credit llama.cpp/ggml + Qwen in THIRD-PARTY-NOTICES (issue #38 / legacy #77)
 - **Files:** `THIRD-PARTY-NOTICES.md`.
 - **What:** added a "Managed Local AI — inference runtime + model (inc 547)" subsection crediting
