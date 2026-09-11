@@ -36,6 +36,49 @@ function sectionFilterSummary(sections) {
   return selected.map(sectionLabel).join(" + ");
 }
 
+// issue #30: the "How Ask reads your question" explainer. The guidance prose is single-sourced in the
+// served help corpus (section id `ask-query-shape`) so it stays synced and the Help center/assistant
+// cover it too; this modal just renders that one section. Reuses the canonical axis-modal recipe.
+const ASK_GUIDE_SECTION_ID = "ask-query-shape";
+function AskGuideModal({ onClose }) {
+  const [state, setState] = useState({ status: "loading" });
+
+  useEffect(() => {
+    let live = true;
+    api("/help/corpus").then(r => {
+      if (!live) return;
+      const section = r.ok && r.data && (r.data.sections || []).find(s => s.id === ASK_GUIDE_SECTION_ID);
+      setState(section ? { status: "ready", section } : { status: "error" });
+    });
+    return () => { live = false; };
+  }, []);
+
+  useEffect(() => {
+    const onKey = e => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="axis-modal-overlay" onClick={onClose}>
+      <div className="axis-modal ask-guide-modal" role="dialog" aria-label="How Ask reads your question"
+        onClick={e => e.stopPropagation()}>
+        <div className="axis-modal-head">
+          <span>{state.status === "ready" ? state.section.title : "How Ask reads your question"}</span>
+          <button className="axis-link" aria-label="Close" onClick={onClose}>×</button>
+        </div>
+        <div className="axis-modal-note">
+          {state.status === "loading" && <p>Loading…</p>}
+          {state.status === "error" &&
+            <p>Couldn't load the guidance — open <b>Help</b> from the top menu for tips on phrasing questions.</p>}
+          {state.status === "ready" &&
+            <div className="help-body" dangerouslySetInnerHTML={{ __html: state.section.html }} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requestedSummary, onOpenSettings, onOpenTextHealth, settingsNonce, readOnly, onCriticalReviewSources }) {
   const [query, setQuery] = useState("");
   const [sectionFilter, setSectionFilter] = useState({});
@@ -43,6 +86,10 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
   // (backlog #82); this opts them back in. Ignored by the backend when explicit sections are chosen.
   const [includeReferences, setIncludeReferences] = useState(false);
   const [state, setState] = useState({ status: "idle" });
+  // issue #30: the "How Ask reads your question" explainer + a gentle, dismissible broadening hint.
+  const [showGuide, setShowGuide] = useState(false);
+  const [broadeningHint, setBroadeningHint] = useState(false);  // backend says this short question routes narrow
+  const [hintDismissed, setHintDismissed] = useState(false);    // suppressed for the session once dismissed
   const [scopeNote, setScopeNote] = useState(null);   // "N selected papers" when summarizing a library selection
   const [scopeMeta, setScopeMeta] = useState(null);   // {total, topK} for the papers scope → the coverage readout (inc 153)
   const [history, setHistory] = useState({ status: "loading", items: [] });
@@ -56,6 +103,22 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
   useEffect(() => {
     api("/settings").then(r => { if (r.ok && r.data) setAiUnavailable(!r.data.generation_provider_available); });
   }, [settingsNonce]);
+
+  // issue #30: debounce a pure, no-egress query-shape check as the user types a query-scope question with
+  // no explicit section filter (the only case the broadening hint is about). The backend owns the routing
+  // logic; the frontend never reimplements it. Empty input / an explicit section filter clears the hint.
+  const hasSectionFilter = selectedSynthesisSections(sectionFilter).length > 0;
+  useEffect(() => {
+    const q = query.trim();
+    if (!q || hasSectionFilter) { setBroadeningHint(false); return; }
+    let live = true;
+    const timer = setTimeout(() => {
+      apiPost("/summarize/query-shape", { query: q }).then(r => {
+        if (live) setBroadeningHint(!!(r.ok && r.data && r.data.show_broadening_hint));
+      });
+    }, 400);
+    return () => { live = false; clearTimeout(timer); };
+  }, [query, hasSectionFilter]);
 
   const loadHistory = useCallback(() => {
     setHistory(h => ({ ...h, status: "loading" }));
@@ -271,6 +334,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
         <div className="synth-nudge demo-synth-note">
           <span><b>Saved synthesis.</b> Generation is unavailable in the online demo; the claims, verification states, evidence quotations, and source locations below remain fully inspectable.</span>
         </div>}
+      {showGuide && <AskGuideModal onClose={() => setShowGuide(false)} />}
       {/* B5 SP2: on a read-only companion, hide the run controls — reading saved syntheses (below) still works. */}
       {!readOnly && <React.Fragment>
         <textarea
@@ -280,6 +344,12 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
           onChange={e => setQuery(e.target.value)}
           disabled={busy}
         />
+        {/* issue #30: gentle, dismissible disclosure that a short question routes to a single focused lookup. */}
+        {broadeningHint && !hintDismissed && !busy &&
+          <div className="synth-nudge">
+            <span>Ask will read this as one focused question. Want a broad overview? Naming the specific aspects — regions, populations, comparisons — helps it cover each. <button className="btn-link" onClick={() => setShowGuide(true)}>Learn more</button></span>
+            <button className="btn-link" aria-label="Dismiss this tip" onClick={() => setHintDismissed(true)}>Dismiss</button>
+          </div>}
         <div className="tags-srcfilter synth-section-filter" role="group" aria-label="Synthesis evidence section filter">
           <button type="button" className={"tags-srcfilter-btn" + (selectedSynthesisSections(sectionFilter).length ? "" : " on")}
             aria-pressed={!selectedSynthesisSections(sectionFilter).length} disabled={busy}
@@ -315,6 +385,8 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
                     ? ""
                     : (includeReferences ? " · incl. reference lists" : " · reference lists excluded"))}
           </span>
+          {/* issue #30: point-of-use disclosure of how Ask reads a question (opens the corpus-backed modal). */}
+          <button type="button" className="btn-link" onClick={() => setShowGuide(true)}>How Ask reads your question</button>
         </div>
         {busy && <ProgressBar managedBy="backend-job" />}
       </React.Fragment>}
@@ -420,148 +492,9 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
   );
 }
 
-function SummaryHistory({ state, activeSummaryId, onLoad, onDelete, readOnly }) {
-  return (
-    <div className="history">
-      <p className="eyebrow">History</p>
-      {state.status === "loading" &&
-        <div className="history-meta">Loading saved syntheses...</div>}
-      {state.status === "error" &&
-        <div className="errbox" style={{ margin: "8px 0 0" }}>Couldn't load synthesis history.<br />{state.error}</div>}
-      {state.status === "ready" && state.items.length === 0 &&
-        <div className="history-meta">No saved syntheses yet.</div>}
-      {state.status === "ready" && state.items.map(item => {
-        const verified = item.status === "verified";
-        return (
-          <button key={item.summary_id} className="history-row" onClick={() => onLoad(item.summary_id)}>
-            <span>
-              <span className="history-title">{item.scope_label || `Summary ${item.summary_id}`}</span>
-              <span className="history-meta">
-                #{item.summary_id} · {fmtDateTime(item.created_at)} · {item.sentence_count} sentences · {item.verified_sentence_count} verified · {item.flagged_sentence_count} flagged
-              </span>
-              {activeSummaryId === item.summary_id &&
-                <span className="history-meta" style={{ color: "var(--accent)" }}>current</span>}
-            </span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span className={"cite-status " + citeStatusClass(item.status)}>{item.status}</span>
-              {!readOnly && <span className="history-delete" onClick={(event) => onDelete(item.summary_id, event)}>Delete</span>}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// GroupedSummarySentences moved to 20b_summary_groups.jsx (inc 582, rule #1 line cap). It's a
-// function declaration hoisted across the shared IIFE, so SynthesisPane above calls it unchanged.
-
-function SummarySentence({ sentence, onOpenCitation, onSaveHighlight }) {
-  const flagged = !!sentence.flagged;
-  return (
-    <div id={"summary-claim-" + sentence.ordinal} className={"summary-sentence " + (flagged ? "flagged" : "verified")}>
-      <div className="sent-head">
-        <p className="sent-text">{sentence.text}</p>
-        <span className={"sent-badge " + (flagged ? "flagged" : "verified")}>{flagged ? "flagged" : "verified"}</span>
-      </div>
-      {sentence.citations && sentence.citations.length > 0
-        ? sentence.citations.map(citation => <CitationCard key={citation.mapping_id} citation={citation} onOpenCitation={onOpenCitation} onSaveHighlight={onSaveHighlight} />)
-        : <div className="citation"><span className="placeholder">No citations returned for this sentence.</span></div>}
-    </div>
-  );
-}
-
-function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
-  const verified = citation.status === "verified";
-  const precision = citation.coordinate_precision || "none";
-  const canOpen = onOpenCitation && citation.paper_id != null && (citation.page_start != null || citation.page_end != null);
-  // B2 SP2: an imported citation whose source paper the recipient doesn't have — evidence still shown, no link.
-  const srcLabel = citation.paper_title || (citation.paper_id != null ? `Paper ${citation.paper_id}` : "Source not in your library");
-  const [saveState, setSaveState] = useState("idle");  // idle | saving | saved | error
-  // Honesty contract: a citation may be saved as a *precise* durable highlight ONLY when
-  // it is verified AND its coordinates are exact (and there is at least one real bbox).
-  // Region/null precision or a flagged status → not saveable (button disabled + tooltip).
-  const canSave = !!onSaveHighlight
-    && citation.coordinate_precision === "exact"
-    && citation.status === "verified"
-    && citation.paper_id != null
-    && normalizeBboxes(citation.bbox_json).length > 0;
-  const onSave = async (event) => {
-    event.preventDefault();
-    if (!canSave || saveState === "saving") return;
-    setSaveState("saving");
-    const r = await onSaveHighlight(citation);
-    setSaveState(r && r.ok ? "saved" : "error");
-  };
-  return (
-    <details className="citation">
-      <summary>
-        <span>{srcLabel} · {pageLabel(citation)}</span>
-        <span className={"cite-status " + citeStatusClass(citation.status)}>
-          {citation.status === "contradicted" ? "⚠ source disagrees" : citation.status}
-        </span>
-      </summary>
-      <div className="citation-card">
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 12.5 }}>{srcLabel}</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 }}>
-              {citation.chunk_id != null ? `chunk ${citation.chunk_id} · ` : ""}{pageLabel(citation)}
-            </div>
-          </div>
-          <span className={"coord " + (precision === "exact" ? "exact" : precision === "region" ? "region" : "none")}>
-            {precisionText(citation.coordinate_precision)}
-          </span>
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-          {canOpen &&
-            <button
-              className="btn btn-ghost"
-              onClick={(event) => { event.preventDefault(); onOpenCitation(citation); }}
-            >
-              Open source {citation.coordinate_precision === "exact" ? "and highlight" : citation.coordinate_precision === "region" ? "region" : "page"}
-            </button>}
-          {onSaveHighlight && (saveState === "saved"
-            ? <span className="source-saved">✓ Saved to highlights</span>
-            : <button
-                className="source-save"
-                disabled={!canSave || saveState === "saving"}
-                title={canSave
-                  ? "Save this verified passage as a durable highlight"
-                  : "Only verified, exact-coordinate citations can be saved as a precise highlight."}
-                onClick={onSave}
-              >
-                {saveState === "saving" ? "Saving…" : saveState === "error" ? "Couldn't save — retry" : "Save as highlight"}
-              </button>)}
-        </div>
-        <EvidenceQuote
-          text={citation.quote}
-          label="Evidence quote"
-          section={citation.section}
-          precision={citation.coordinate_precision}
-          hasSourcePage={citation.page_start != null || citation.page_end != null}
-          className="quote"
-          maxChars={520}
-          onOpen={canOpen ? (event) => { event.preventDefault(); onOpenCitation(citation); } : null}
-          openLabel={citation.coordinate_precision === "exact" ? "Open source and highlight this quote" : "Open source page for this quote"}
-        />
-        {citation.coordinate_precision === "region" &&
-          <div style={{ fontSize: 11.5, color: "var(--flag)", marginTop: 4 }}>
-            Region-level source area only. Do not treat this as an exact quote highlight.
-          </div>}
-        {!citation.coordinate_precision &&
-          <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 4 }}>
-            No coordinate claim is available for this citation.
-          </div>}
-        <div className="conf-grid">
-          <div className="conf"><span className="k">Retrieval</span><span className="v">{fmtScore(citation.retrieval_confidence)}</span></div>
-          <div className="conf"><span className="k">Quote</span><span className="v">{fmtScore(citation.quote_confidence)}</span></div>
-          <div className="conf"><span className="k">Support</span><span className="v">{fmtScore(citation.support_confidence)}</span></div>
-        </div>
-      </div>
-    </details>
-  );
-}
+// SummaryHistory, SummarySentence, and CitationCard moved to 20c_synthesis_results.jsx (issue #30,
+// rule #1 600-line cap), alongside GroupedSummarySentences in 20b_summary_groups.jsx (inc 582). All are
+// function declarations hoisted across the shared IIFE, so SynthesisPane above calls them unchanged.
 
 // inc 121: the old RightPane (inc-57 vertical Synthesis/Details split with a draggable .divider-h) is retired.
 // inc 287: SYNTHESIS now lives in the center menu bar as its own workspace; DETAILS remains in METHODS.

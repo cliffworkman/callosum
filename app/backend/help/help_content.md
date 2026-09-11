@@ -787,6 +787,19 @@ Tips:
 - Treat flagged sentences as prompts for reading, not as claims to cite.
 - Use History to compare earlier syntheses as your library or question changes.
 
+<!-- section: ask-query-shape -->
+## How Ask reads your question
+
+You don't need special syntax to use Ask — but a couple of natural habits help Callosum gather the right evidence for what you actually want. This describes how Ask behaves **today**; it isn't a set of rules you'll always need.
+
+**Naming the specific things you care about helps.** When a question spans several aspects — different brain regions, populations, measures, time periods, or an explicit comparison — say so. A question like *"How do the amygdala, insula, and prefrontal cortex differ in studies of fear versus disgust?"* signals that Ask should gather evidence for each part, rather than squeezing everything into one search. Stating the comparisons, modalities, populations, or relationships you care about — when they matter — makes the answer more complete.
+
+**Focused, factual questions work as you'd expect.** *"What effect size is reported for the Stroop task in Smith 2020?"* is a single, specific lookup and comes back as a focused answer. You don't need to pad it out.
+
+**Short, open-ended questions are an area we're still improving.** A question like *"What does my library say about brains?"* is broad in meaning even though it's short — but Callosum may currently read a very short question as a single focused lookup and return a narrower answer than you intended. If you want broad coverage today, the reliable way to get it is to name the particular aspects you're interested in. **A short or quiet answer never means your library has no relevant evidence** — only that this question, phrased this way, retrieved little. Try naming a few specific aspects and asking again.
+
+**Where this is headed.** The goal is that ordinary scholarly questions just work — that Callosum infers how broadly to answer from what you actually asked, without you having to phrase things a particular way. Short, open-ended questions getting good broad answers is exactly the direction Ask is being improved toward, so expect the advice above to matter less over time.
+
 <!-- section: verifying-synthesis-citations -->
 ## How synthesis verification works
 Callosum does not trust AI-generated citations by default. The AI proposes summary sentences and candidate citations, then Callosum independently checks each sentence against local source chunks.

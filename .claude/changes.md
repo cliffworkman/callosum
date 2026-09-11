@@ -9,6 +9,32 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-11 — inc 584: explain how Ask reads a question + a broadening hint (issue #30)
+- **Files:** `app/backend/summarization/query_planner.py` (`broadening_hint_applies`),
+  `app/backend/api/routers/summaries.py` (`POST /summarize/query-shape`), `app/backend/help/help_content.md`
+  (new `ask-query-shape` section), `app/frontend/js/20_synthesis.jsx` (trigger + modal + hint) split with a
+  new `app/frontend/js/20c_synthesis_results.jsx` (rule #1 cap), `callosum-app.html`,
+  `.claude/qa-routes/route_55_synthesis_verification.md`, `tests/test_query_planner.py`,
+  `tests/test_summaries.py`, `.claude/security-audits/2026-09-11_query-shape-endpoint.md`,
+  `.claude/docs/increment-notes/INCREMENT-584-NOTES.md`.
+- **What:** a "How Ask reads your question" explainer (a `.btn-link` near Ask → a modal rendering the new
+  single-source help-corpus section) plus a debounced, dismissible **broadening hint** for short/open-ended
+  questions. The hint is driven by a new pure, no-egress `POST /summarize/query-shape` that reuses the live
+  `classify_breadth` — so the frontend never reimplements the routing thresholds and the hint stays in
+  lockstep with real behavior.
+- **Why:** Ask treats short semantically-broad questions ("What does my library say about brains?") as a
+  focused lookup; issue #30 wanted that disclosed honestly (not by making users learn prompting).
+- **Honesty:** guidance/hint state a quiet answer isn't proof of no evidence; no jargon or thresholds in
+  user-facing text; no quirks canonized (the modal says the deeper fix — scope inference — is coming).
+- **Help corpus:** added an `ask-query-shape` section (not moving the HELP-DOCS-SYNCED marker — this adds a
+  section, it doesn't reconcile all pending changes).
+- **Split:** #30 would have pushed `20_synthesis.jsx` over the 600-line cap → moved `SummaryHistory`/
+  `SummarySentence`/`CitationCard` to `20c_synthesis_results.jsx` (516 + 145 lines; shared-IIFE hoist).
+- **Verify:** `pytest tests/test_query_planner.py` (17) + `tests/test_summaries.py -k query_shape` + frontend
+  assembly (87); line budget OK; QA coverage OK; ruff clean; audit PASS. Live in-app UI check deferred
+  (needs the app + AI + the testing DB, absent this session).
+- **Revert:** revert the listed source/doc files + delete `20c_synthesis_results.jsx`, the audit, and the notes.
+
 ## 2026-09-11 — run_dev.py: reap the whole process tree + port preflight (issue #36 / legacy #83)
 - **Files:** `tools/run_dev.py`, `tests/test_run_dev.py` (new).
 - **What:** `_stop_all` now kills each child's **whole process tree** (`taskkill /T /F` on Windows;

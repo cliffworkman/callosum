@@ -56,7 +56,7 @@ from app.backend.summarization.faceted_pipeline import summarize_faceted
 from app.backend.summarization.generators import SummaryGenerator
 from app.backend.summarization.overview_lifecycle import generate_overview
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
-from app.backend.summarization.query_planner import plan_query
+from app.backend.summarization.query_planner import broadening_hint_applies, classify_breadth, plan_query
 from app.backend.summarization.reverify import NotImportedError, reverify_imported_summary
 
 router = APIRouter()
@@ -90,6 +90,36 @@ class SummarizeRequest(BaseModel):
 class SummarizeStartResponse(BaseModel):
     job_id: str
     status: Literal["pending", "running", "done", "error"]
+
+
+# Pre-submission query-shape classifier for the Ask UI's "How Ask reads your question" guidance (issue
+# #30). Deterministic and local: it runs ONLY the pure classifier -- no LLM, no egress, no DB -- so the
+# UI can debounce it on every keystroke. The length threshold that decides `show_broadening_hint` lives
+# in query_planner.py, never here or in the frontend, so the hint stays in lockstep with real routing
+# and no implementation quirk reaches user-facing text.
+_QUERY_SHAPE_MAX_CHARS = 4000  # a synthesis question is a sentence or two; cap the untrusted string (rule #4)
+
+
+class QueryShapeRequest(BaseModel):
+    query: str = Field(default="", max_length=_QUERY_SHAPE_MAX_CHARS)
+
+
+class QueryShapeResponse(BaseModel):
+    routing: Literal["narrow", "broad_candidate"]
+    show_broadening_hint: bool
+
+
+@router.post("/summarize/query-shape", response_model=QueryShapeResponse)
+def summarize_query_shape(payload: QueryShapeRequest) -> QueryShapeResponse:
+    """Report how the Ask input would currently be routed, for the disclosure guidance only.
+
+    `broad_candidate` means the question shows explicit breadth signals and would escalate to the
+    (possibly broad) planner; `narrow` means it routes straight to a single focused lookup. It never
+    runs the planner or generates anything, so it makes no provider call and is safe to poll live.
+    """
+    question = payload.query.strip()
+    routing = "broad_candidate" if classify_breadth(question) else "narrow"
+    return QueryShapeResponse(routing=routing, show_broadening_hint=broadening_hint_applies(question))
 
 
 SUMMARY_SECTION_KEYS = {

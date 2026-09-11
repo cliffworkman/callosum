@@ -8,6 +8,7 @@ from app.backend.summarization.query_planner import (
     MAX_FACETS,
     NARROW,
     QueryPlan,
+    broadening_hint_applies,
     classify_breadth,
     plan_query,
 )
@@ -49,6 +50,27 @@ def test_classify_breadth_broad_frozen_query():
 def test_classify_breadth_enumeration_without_marker():
     # Several coordinated items -> escalate even without an explicit breadth verb.
     assert classify_breadth("Tell me about amyloid, serotonin, glucose metabolism, and gray matter changes") is True
+
+
+def test_broadening_hint_fires_for_the_short_open_ended_case():
+    # The flagship issue-#30 example: broad in meaning, short in wording -> routed narrow -> hint.
+    assert broadening_hint_applies("What does my library say about brains?") is True
+
+
+def test_broadening_hint_not_fired_for_empty_or_broad_or_long_questions():
+    assert broadening_hint_applies("") is False
+    assert broadening_hint_applies("   ") is False
+    # A broad, enumerated question already escalates -> no hint (it will get broad treatment).
+    assert broadening_hint_applies(FROZEN_BROAD) is False
+    # A longer focused question is deliberately scoped -> not nagged even though it routes narrow.
+    assert broadening_hint_applies("What sample size did Smith 2019 use in the anxiety-treatment cohort?") is False
+
+
+def test_broadening_hint_only_fires_where_routing_is_narrow():
+    # Invariant: the hint is a strict subset of narrow-routed questions -- it never contradicts routing.
+    for q in ("What does my library say about brains?", "aging?", "", FROZEN_BROAD):
+        if broadening_hint_applies(q):
+            assert classify_breadth(q) is False
 
 
 # ---- routing / fallback --------------------------------------------------------------------------

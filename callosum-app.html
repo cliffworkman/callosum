@@ -14615,11 +14615,47 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     if (!selected.length) return "all sections";
     return selected.map(sectionLabel).join(" + ");
   }
+  const ASK_GUIDE_SECTION_ID = "ask-query-shape";
+  function AskGuideModal({ onClose }) {
+    const [state, setState] = useState({ status: "loading" });
+    useEffect(() => {
+      let live = true;
+      api("/help/corpus").then((r) => {
+        if (!live) return;
+        const section = r.ok && r.data && (r.data.sections || []).find((s) => s.id === ASK_GUIDE_SECTION_ID);
+        setState(section ? { status: "ready", section } : { status: "error" });
+      });
+      return () => {
+        live = false;
+      };
+    }, []);
+    useEffect(() => {
+      const onKey = (e) => {
+        if (e.key === "Escape") onClose();
+      };
+      window.addEventListener("keydown", onKey);
+      return () => window.removeEventListener("keydown", onKey);
+    }, [onClose]);
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "axis-modal ask-guide-modal",
+        role: "dialog",
+        "aria-label": "How Ask reads your question",
+        onClick: (e) => e.stopPropagation()
+      },
+      /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, state.status === "ready" ? state.section.title : "How Ask reads your question"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", "aria-label": "Close", onClick: onClose }, "\xD7")),
+      /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, state.status === "loading" && /* @__PURE__ */ React.createElement("p", null, "Loading\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("p", null, "Couldn't load the guidance \u2014 open ", /* @__PURE__ */ React.createElement("b", null, "Help"), " from the top menu for tips on phrasing questions."), state.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "help-body", dangerouslySetInnerHTML: { __html: state.section.html } }))
+    ));
+  }
   function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requestedSummary, onOpenSettings, onOpenTextHealth, settingsNonce, readOnly, onCriticalReviewSources }) {
     const [query, setQuery] = useState("");
     const [sectionFilter, setSectionFilter] = useState({});
     const [includeReferences, setIncludeReferences] = useState(false);
     const [state, setState] = useState({ status: "idle" });
+    const [showGuide, setShowGuide] = useState(false);
+    const [broadeningHint, setBroadeningHint] = useState(false);
+    const [hintDismissed, setHintDismissed] = useState(false);
     const [scopeNote, setScopeNote] = useState(null);
     const [scopeMeta, setScopeMeta] = useState(null);
     const [history, setHistory] = useState({ status: "loading", items: [] });
@@ -14633,6 +14669,24 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         if (r.ok && r.data) setAiUnavailable(!r.data.generation_provider_available);
       });
     }, [settingsNonce]);
+    const hasSectionFilter = selectedSynthesisSections(sectionFilter).length > 0;
+    useEffect(() => {
+      const q = query.trim();
+      if (!q || hasSectionFilter) {
+        setBroadeningHint(false);
+        return;
+      }
+      let live = true;
+      const timer = setTimeout(() => {
+        apiPost("/summarize/query-shape", { query: q }).then((r) => {
+          if (live) setBroadeningHint(!!(r.ok && r.data && r.data.show_broadening_hint));
+        });
+      }, 400);
+      return () => {
+        live = false;
+        clearTimeout(timer);
+      };
+    }, [query, hasSectionFilter]);
     const loadHistory = useCallback(() => {
       setHistory((h) => ({ ...h, status: "loading" }));
       api("/summaries?limit=20&offset=0").then((r) => {
@@ -14807,7 +14861,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     })();
     const drewFromPapers = citedPaperIds.length;
     const egressNudge = /* @__PURE__ */ React.createElement("div", { className: "synth-nudge" }, /* @__PURE__ */ React.createElement("span", null, "AI summaries are off. Turn on ", /* @__PURE__ */ React.createElement("b", null, "AI features"), " in Settings to generate a verified synthesis."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: () => onOpenSettings && onOpenSettings() }, "Enable in Settings \u2192"));
-    return /* @__PURE__ */ React.createElement("div", { className: "synth" }, isDemoMode() && /* @__PURE__ */ React.createElement("div", { className: "synth-nudge demo-synth-note" }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, "Saved synthesis."), " Generation is unavailable in the online demo; the claims, verification states, evidence quotations, and source locations below remain fully inspectable.")), !readOnly && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "synth" }, isDemoMode() && /* @__PURE__ */ React.createElement("div", { className: "synth-nudge demo-synth-note" }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, "Saved synthesis."), " Generation is unavailable in the online demo; the claims, verification states, evidence quotations, and source locations below remain fully inspectable.")), showGuide && /* @__PURE__ */ React.createElement(AskGuideModal, { onClose: () => setShowGuide(false) }), !readOnly && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
       "textarea",
       {
         className: "synth-input",
@@ -14816,7 +14870,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onChange: (e) => setQuery(e.target.value),
         disabled: busy
       }
-    ), /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter synth-section-filter", role: "group", "aria-label": "Synthesis evidence section filter" }, /* @__PURE__ */ React.createElement(
+    ), broadeningHint && !hintDismissed && !busy && /* @__PURE__ */ React.createElement("div", { className: "synth-nudge" }, /* @__PURE__ */ React.createElement("span", null, "Ask will read this as one focused question. Want a broad overview? Naming the specific aspects \u2014 regions, populations, comparisons \u2014 helps it cover each. ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => setShowGuide(true) }, "Learn more")), /* @__PURE__ */ React.createElement("button", { className: "btn-link", "aria-label": "Dismiss this tip", onClick: () => setHintDismissed(true) }, "Dismiss")), /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter synth-section-filter", role: "group", "aria-label": "Synthesis evidence section filter" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -14860,7 +14914,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       " ",
       "Include reference lists",
       /* @__PURE__ */ React.createElement("span", { className: "synth-refs-hint" }, " \xB7 excluded by default \u2014 they point to findings, not evidence")
-    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !query.trim(), onClick: start }, "Synthesize"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? state.message || "Generating and verifying" : "query scope \xB7 top 8 chunks" + (selectedSynthesisSections(sectionFilter).length ? "" : includeReferences ? " \xB7 incl. reference lists" : " \xB7 reference lists excluded"))), busy && /* @__PURE__ */ React.createElement(ProgressBar, { managedBy: "backend-job" })), !readOnly && aiUnavailable && state.status !== "error" && egressNudge, scopeNote && /* @__PURE__ */ React.createElement("div", { className: "synth-scope-note" }, "Summary of ", /* @__PURE__ */ React.createElement("b", null, scopeNote), " from the library selection."), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "30px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Verified synthesis"), "Ask a question. Callosum will generate a summary and independently verify each citation."), state.status === "error" && /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !query.trim(), onClick: start }, "Synthesize"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? state.message || "Generating and verifying" : "query scope \xB7 top 8 chunks" + (selectedSynthesisSections(sectionFilter).length ? "" : includeReferences ? " \xB7 incl. reference lists" : " \xB7 reference lists excluded")), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-link", onClick: () => setShowGuide(true) }, "How Ask reads your question")), busy && /* @__PURE__ */ React.createElement(ProgressBar, { managedBy: "backend-job" })), !readOnly && aiUnavailable && state.status !== "error" && egressNudge, scopeNote && /* @__PURE__ */ React.createElement("div", { className: "synth-scope-note" }, "Summary of ", /* @__PURE__ */ React.createElement("b", null, scopeNote), " from the library selection."), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "30px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Verified synthesis"), "Ask a question. Callosum will generate a summary and independently verify each citation."), state.status === "error" && /* @__PURE__ */ React.createElement(
       SynthesisFailure,
       {
         error: state.error,
@@ -14920,6 +14974,42 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onDelete: removeSummary
       }
     ));
+  }
+  registerWorkspace({
+    id: "synthesis",
+    label: "Synthesize",
+    order: 30,
+    hideInReadOnly: false
+  });
+  registerWorkspaceTab({ id: "synthesis" }, {
+    id: "ask",
+    label: "Ask",
+    order: 10,
+    hideInReadOnly: false,
+    render: (ctx) => /* @__PURE__ */ React.createElement(
+      SynthesisPane,
+      {
+        onOpenCitation: ctx.onOpenCitation,
+        onSaveHighlight: ctx.onSaveHighlight,
+        pendingSummarize: ctx.pendingSummarize,
+        requestedSummary: ctx.requestedSummary,
+        onOpenSettings: ctx.onOpenSettings,
+        settingsNonce: ctx.settingsNonce,
+        onOpenTextHealth: ctx.onOpenTextHealth,
+        readOnly: ctx.readOnly,
+        onCriticalReviewSources: ctx.onCriticalReviewSources
+      }
+    )
+  });
+  function GroupedSummarySentences({ sentences, onOpenCitation, onSaveHighlight }) {
+    const ordered = [...sentences].sort((a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0));
+    const verified = ordered.filter((sentence) => !sentence.flagged);
+    const flagged = ordered.filter((sentence) => sentence.flagged);
+    const hasResponsiveness = ordered.some((sentence) => sentence.responsiveness);
+    const findings = hasResponsiveness ? verified.filter((s) => s.responsiveness !== "descriptive") : verified;
+    const context = hasResponsiveness ? verified.filter((s) => s.responsiveness === "descriptive") : [];
+    const renderSentence = (sentence) => /* @__PURE__ */ React.createElement(SummarySentence, { key: sentence.sentence_id, sentence, onOpenCitation, onSaveHighlight });
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, findings.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "summary-section verified" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-head" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, hasResponsiveness ? "Findings" : "Verified"), /* @__PURE__ */ React.createElement("span", { className: "summary-section-note" }, findings.length, " stood-up sentence", findings.length === 1 ? "" : "s")), findings.map(renderSentence)), context.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "summary-section verified" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-head" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, "Study context"), /* @__PURE__ */ React.createElement("span", { className: "summary-section-note" }, context.length, " verified \xB7 lower answer-value framing")), context.map(renderSentence)), flagged.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "summary-section flagged" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-head" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, "Flagged \xB7 needs review"), /* @__PURE__ */ React.createElement("span", { className: "summary-section-note" }, flagged.length, " sentence", flagged.length === 1 ? "" : "s", " could not be fully verified")), verified.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "0 0 10px" } }, "No sentence in this synthesis cleared verification. Review the evidence below before relying on it."), flagged.map(renderSentence)));
   }
   function SummaryHistory({ state, activeSummaryId, onLoad, onDelete, readOnly }) {
     return /* @__PURE__ */ React.createElement("div", { className: "history" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "History"), state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "history-meta" }, "Loading saved syntheses..."), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "8px 0 0" } }, "Couldn't load synthesis history.", /* @__PURE__ */ React.createElement("br", null), state.error), state.status === "ready" && state.items.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "history-meta" }, "No saved syntheses yet."), state.status === "ready" && state.items.map((item) => {
@@ -14982,42 +15072,6 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         openLabel: citation.coordinate_precision === "exact" ? "Open source and highlight this quote" : "Open source page for this quote"
       }
     ), citation.coordinate_precision === "region" && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: "var(--flag)", marginTop: 4 } }, "Region-level source area only. Do not treat this as an exact quote highlight."), !citation.coordinate_precision && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: "var(--ink-3)", marginTop: 4 } }, "No coordinate claim is available for this citation."), /* @__PURE__ */ React.createElement("div", { className: "conf-grid" }, /* @__PURE__ */ React.createElement("div", { className: "conf" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Retrieval"), /* @__PURE__ */ React.createElement("span", { className: "v" }, fmtScore(citation.retrieval_confidence))), /* @__PURE__ */ React.createElement("div", { className: "conf" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Quote"), /* @__PURE__ */ React.createElement("span", { className: "v" }, fmtScore(citation.quote_confidence))), /* @__PURE__ */ React.createElement("div", { className: "conf" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Support"), /* @__PURE__ */ React.createElement("span", { className: "v" }, fmtScore(citation.support_confidence))))));
-  }
-  registerWorkspace({
-    id: "synthesis",
-    label: "Synthesize",
-    order: 30,
-    hideInReadOnly: false
-  });
-  registerWorkspaceTab({ id: "synthesis" }, {
-    id: "ask",
-    label: "Ask",
-    order: 10,
-    hideInReadOnly: false,
-    render: (ctx) => /* @__PURE__ */ React.createElement(
-      SynthesisPane,
-      {
-        onOpenCitation: ctx.onOpenCitation,
-        onSaveHighlight: ctx.onSaveHighlight,
-        pendingSummarize: ctx.pendingSummarize,
-        requestedSummary: ctx.requestedSummary,
-        onOpenSettings: ctx.onOpenSettings,
-        settingsNonce: ctx.settingsNonce,
-        onOpenTextHealth: ctx.onOpenTextHealth,
-        readOnly: ctx.readOnly,
-        onCriticalReviewSources: ctx.onCriticalReviewSources
-      }
-    )
-  });
-  function GroupedSummarySentences({ sentences, onOpenCitation, onSaveHighlight }) {
-    const ordered = [...sentences].sort((a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0));
-    const verified = ordered.filter((sentence) => !sentence.flagged);
-    const flagged = ordered.filter((sentence) => sentence.flagged);
-    const hasResponsiveness = ordered.some((sentence) => sentence.responsiveness);
-    const findings = hasResponsiveness ? verified.filter((s) => s.responsiveness !== "descriptive") : verified;
-    const context = hasResponsiveness ? verified.filter((s) => s.responsiveness === "descriptive") : [];
-    const renderSentence = (sentence) => /* @__PURE__ */ React.createElement(SummarySentence, { key: sentence.sentence_id, sentence, onOpenCitation, onSaveHighlight });
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, findings.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "summary-section verified" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-head" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, hasResponsiveness ? "Findings" : "Verified"), /* @__PURE__ */ React.createElement("span", { className: "summary-section-note" }, findings.length, " stood-up sentence", findings.length === 1 ? "" : "s")), findings.map(renderSentence)), context.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "summary-section verified" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-head" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, "Study context"), /* @__PURE__ */ React.createElement("span", { className: "summary-section-note" }, context.length, " verified \xB7 lower answer-value framing")), context.map(renderSentence)), flagged.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "summary-section flagged" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-head" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, "Flagged \xB7 needs review"), /* @__PURE__ */ React.createElement("span", { className: "summary-section-note" }, flagged.length, " sentence", flagged.length === 1 ? "" : "s", " could not be fully verified")), verified.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "0 0 10px" } }, "No sentence in this synthesis cleared verification. Review the evidence below before relying on it."), flagged.map(renderSentence)));
   }
   const DetailReadOnly = React.createContext(false);
   function EditableRow({ label, value, placeholder, onSave, mono, numeric }) {

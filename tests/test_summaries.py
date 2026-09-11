@@ -144,6 +144,28 @@ def test_summarize_papers_and_cluster_scopes_validate_and_run(temp_db_url: str) 
     assert client.get(f"/summarize/{cluster_job['job_id']}").json()["status"] == "done"
 
 
+def test_query_shape_endpoint_classifies_without_a_provider(temp_db_url: str) -> None:
+    """The pre-submission guidance classifier (issue #30): deterministic, no LLM/egress/DB. The short
+    open-ended flagship case asks for the broadening hint; a broad enumerated question does not."""
+    client = TestClient(_summarization_app(temp_db_url, generator=FakeSummaryGenerator(sentences=[])))
+
+    short_open = client.post("/summarize/query-shape", json={"query": "What does my library say about brains?"})
+    assert short_open.status_code == 200
+    assert short_open.json() == {"routing": "narrow", "show_broadening_hint": True}
+
+    broad = client.post(
+        "/summarize/query-shape",
+        json={"query": "Synthesize the neural, behavioral, and attitudinal correlates of empathy across studies"},
+    )
+    assert broad.json() == {"routing": "broad_candidate", "show_broadening_hint": False}
+
+    empty = client.post("/summarize/query-shape", json={"query": "   "})
+    assert empty.json() == {"routing": "narrow", "show_broadening_hint": False}
+
+    # Untrusted input is length-capped at the boundary (rule #4): an over-long string is rejected (422).
+    assert client.post("/summarize/query-shape", json={"query": "x" * 5000}).status_code == 422
+
+
 def test_query_scope_retrieval_excludes_trashed_papers(temp_db_url: str) -> None:
     # inc 66: the query scope selects chunks across the whole library — a trashed paper must drop out.
     seeded = _seed_summarization_library(temp_db_url)  # facial + banana (unrelated) papers, one chunk each

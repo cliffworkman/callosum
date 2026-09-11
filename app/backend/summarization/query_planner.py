@@ -103,6 +103,25 @@ def classify_breadth(question: str) -> bool:
     return (has_marker and len(q) >= 60) or listiness >= 4
 
 
+def broadening_hint_applies(question: str) -> bool:
+    """Should the UI show its 'this will be read as one focused question' broadening hint? (pure, no I/O)
+
+    True for a **short** question that shows no explicit breadth signal -- the short/open-ended zone
+    (e.g. "What does my library say about brains?") where the answer may come back narrower than the
+    user intended, which is exactly what the '?' guidance is about (backlog #30 / GitHub issue #30).
+
+    It reuses ``_MIN_QUESTION_CHARS`` and ``classify_breadth`` rather than inventing a threshold, so the
+    hint and the actual routing can never drift apart -- and, crucially, the length quirk lives ONLY
+    here in the backend, never in user-facing text or the frontend (the issue's "don't canonize quirks"
+    constraint). A longer question is not hinted even when it routes narrow: length is not the same
+    thing as focus, so nagging a deliberately-scoped longer question would be noise, not disclosure.
+    """
+    q = (question or "").strip()
+    if not q:
+        return False
+    return len(q) < _MIN_QUESTION_CHARS and not classify_breadth(q)
+
+
 def _planner_prompt(question: str) -> str:
     return (
         "You decompose a scholarly literature-synthesis question into facets for evidence retrieval. "
