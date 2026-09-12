@@ -9,7 +9,7 @@
 // the focus + selected props App still owns) plus the handful of values App's paneCtx / modals need.
 function useLibrary(opts) {
   const {
-    selected, setSelected, setActiveTab, cancelFocus,
+    selected, setSelected, setActiveTab, cancelFocus, closePapers,
     setMethodsOpen, setSettingsOpen, onOpenSynthesis,
     setTagRefresh, setAxisRefresh, readOnly, healthLoaded,
   } = opts;
@@ -69,10 +69,14 @@ function useLibrary(opts) {
     if (!window.confirm(`Move ${n} ${n === 1 ? "paper" : "papers"} to Trash? You can restore from Trash.`)) return;
     Promise.all(targets.map(id => apiDelete(`/papers/${id}`))).then(() => {
       setSelectedLibraryIds(prev => { const next = new Set(prev); targets.forEach(id => next.delete(id)); return next; });
+      // #60: close any open reading-pane tab for a trashed paper FIRST — while its tab stays open+active, the
+      // tab→selected derivation in 40_app.jsx re-sets `selected` to the trashed id (so clearing it alone is
+      // futile) and its Detail-pane CiteRow re-fires POST /citations/render → a benign-but-noisy 422.
+      if (closePapers) closePapers(targets);
       setSelected(prev => (targets.includes(prev) ? null : prev));  // clear the Detail pane if it was trashed
       setLibRefresh(n2 => n2 + 1);
     });
-  }, [setSelected]);
+  }, [setSelected, closePapers]);
 
   // --- bulk actions over the selection ---
   const bulkDeletePapers = useCallback(() => {

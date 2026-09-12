@@ -85,6 +85,7 @@ function App() {
   const [sharedWithMeOpen, setSharedWithMeOpen] = useState(false); // SP4c (backlog #15) — receive a live share
   const cancelFocusRef = useRef(() => {});
   const setAxisRefreshRef = useRef(() => {});
+  const closeTabRef = useRef(() => {});      // #60: forward ref so trashPapers can close a trashed paper's open tab
 
   // B5 SP2: read-only mode (from /health.read_only). Declared before useLibrary so the library hook can suppress its
   // on-load watched-folder rescan (a write) — a read-only companion never fires a write. healthLoaded gates the
@@ -110,6 +111,7 @@ function App() {
   // onEnterClearFilters must call lib.clearViewFilters — breaking the cycle.
   const lib = useLibrary({
     selected, setSelected, setActiveTab: gotoLibrary,
+    closePapers: (ids) => (ids || []).forEach(id => { if (id != null) closeTabRef.current("pdf:" + id); }),  // #60
     cancelFocus: () => cancelFocusRef.current(),
     setLeftOpen, setTheoryOpen, setMethodsOpen, setSettingsOpen: () => {}, onOpenSynthesis: openSynthesisWorkspace,
     setTagRefresh, setAxisRefresh: (fn) => setAxisRefreshRef.current(fn), readOnly, healthLoaded,
@@ -273,6 +275,8 @@ function App() {
     setTabs(prev => prev.filter(t => t.key !== key));
     setActiveTab(prev => (prev === key ? "library" : prev));
   }, []);
+
+  closeTabRef.current = closeTab;  // #60: resolve the forward ref useLibrary's trashPapers closes tabs through
 
   const activatePaperTab = useCallback((key) => {
     if (!key) return;

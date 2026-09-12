@@ -4159,6 +4159,7 @@
       setSelected,
       setActiveTab,
       cancelFocus,
+      closePapers,
       setMethodsOpen,
       setSettingsOpen,
       onOpenSynthesis,
@@ -4226,10 +4227,11 @@
           targets.forEach((id) => next.delete(id));
           return next;
         });
+        if (closePapers) closePapers(targets);
         setSelected((prev) => targets.includes(prev) ? null : prev);
         setLibRefresh((n2) => n2 + 1);
       });
-    }, [setSelected]);
+    }, [setSelected, closePapers]);
     const bulkDeletePapers = useCallback(() => {
       trashPapers([...selectedLibraryIds]);
     }, [selectedLibraryIds, trashPapers]);
@@ -23724,6 +23726,8 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     });
     const setAxisRefreshRef = useRef(() => {
     });
+    const closeTabRef = useRef(() => {
+    });
     const [readOnly, setReadOnly] = useState(isDemoMode() ? true : void 0);
     const [healthLoaded, setHealthLoaded] = useState(false);
     const [onboarding, setOnboarding] = useState({ done: true, refresh: false, version: 0 });
@@ -23740,6 +23744,10 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       selected,
       setSelected,
       setActiveTab: gotoLibrary,
+      closePapers: (ids) => (ids || []).forEach((id) => {
+        if (id != null) closeTabRef.current("pdf:" + id);
+      }),
+      // #60
       cancelFocus: () => cancelFocusRef.current(),
       setLeftOpen,
       setTheoryOpen,
@@ -23953,6 +23961,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       setTabs((prev) => prev.filter((t) => t.key !== key));
       setActiveTab((prev) => prev === key ? "library" : prev);
     }, []);
+    closeTabRef.current = closeTab;
     const activatePaperTab = useCallback((key) => {
       if (!key) return;
       selectWorkspace("library");

@@ -373,7 +373,19 @@ def render_citations(payload: RenderCitationsRequest, engine: Engine = Depends(g
             raise HTTPException(status_code=422, detail="Unknown citation style")
         rows = get_papers_for_export(conn, payload.paper_ids)
         if not rows:
-            raise HTTPException(status_code=422, detail="No existing (non-trashed) papers to render")
+            # #60: a well-formed request whose papers are ALL trashed/absent renders an empty bibliography, not
+            # a client error — consistent with the partial case (get_papers_for_export already silently drops
+            # trashed ids and renders the live subset; 0 live is just M=0). This also means trashing a
+            # currently-open paper mid-render no longer surfaces a benign 422 in the browser console (which the
+            # browser logs for any 4xx, un-suppressible from JS). Genuine bad input (unknown style/label, too
+            # many papers, engine errors) still 422s below. No citeproc call / usage event — nothing rendered.
+            return {
+                "style": payload.style,
+                "locale": payload.locale,
+                "items": [],
+                "bibliography_text": "",
+                "bibliography_html": [],
+            }
         try:
             result = render_papers(rows, style=payload.style, locale=payload.locale)
         except CitationEngineUnavailable as exc:

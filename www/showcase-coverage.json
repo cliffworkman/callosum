@@ -16,9 +16,9 @@
     "source_fingerprint": "45ba80f0516b1b8b242878c3b76f8b1520c3f4bc1ed1827d05930df4d97105c3",
     "note": "Reviewed inc 576 PDF recovery against every affected website claim and visual. Existing library/PDF claims remain accurate; no public copy or screenshot change is needed.",
     "declined_at": "2026-09-12",
-    "declined_rev": "e880a117",
-    "declined_increment": 590,
-    "decline_note": "inc 590: in-reader PDF find/search (#42). Frontend-only new feature; the demo/showcase pages are unchanged and this actually makes the existing cap-pdf-search claim true. Website shot recapture tracked as a separate follow-up."
+    "declined_rev": "c91e0843",
+    "declined_increment": 591,
+    "decline_note": "inc 591 (#60): trash-open-paper 422 fix \u2014 close the trashed paper's reader tab + render empty-set as 200 not 422. Bug fix; no showcased capability or website claim changed."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

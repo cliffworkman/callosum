@@ -719,10 +719,19 @@ def test_locally_tampered_custom_style_fails_soft(temp_db_url: str) -> None:
 def test_render_validation(temp_db_url: str) -> None:
     pid = _make_paper(temp_db_url)
     client = TestClient(create_app(db_url=temp_db_url))
+    # A genuinely invalid style stays a 422 (bad input remains observable).
     assert client.post("/citations/render", json={"paper_ids": [pid], "style": "not-a-style"}).status_code == 422
-    assert (
-        client.post("/citations/render", json={"paper_ids": [999999], "style": "apa"}).status_code == 422
-    )  # no live papers
+
+
+def test_render_all_absent_papers_is_empty_not_error(temp_db_url: str) -> None:
+    # #60: a well-formed request whose papers are all trashed/absent renders an EMPTY bibliography (200), not a
+    # 422 — consistent with the partial case (a mix of live + trashed already renders just the live subset).
+    # This keeps trashing a currently-open paper from surfacing a benign 422 in the browser console.
+    client = TestClient(create_app(db_url=temp_db_url))
+    response = client.post("/citations/render", json={"paper_ids": [999999], "style": "apa"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["items"] == [] and body["bibliography_text"] == "" and body["bibliography_html"] == []
 
 
 def test_engine_unavailable_returns_503(temp_db_url: str, monkeypatch) -> None:

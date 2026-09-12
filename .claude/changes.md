@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-12 — inc 591: trashing an open paper no longer logs a benign 422 (#60)
+- **Files:** `app/frontend/js/{40_app,03_library}.jsx`, `app/backend/api/routers/citations.py`,
+  `tests/test_citations.py`, `callosum-app.html`, `.claude/docs/increment-notes/INCREMENT-591-NOTES.md`.
+- **What:** Trashing a paper whose reading-pane tab was open re-fired `POST /citations/render` with the trashed
+  id → a benign 422 + console error. Fixed at two boundaries, without matching the human error string: (1) root
+  cause — `trashPapers` now closes the trashed paper's reader tab (reusing `closeTab`), so the tab→selected
+  derivation stops restoring `selected` to it; (2) the endpoint now renders an **empty bibliography (200)** for
+  an all-trashed/absent request — consistent with the already-tolerated partial case (it silently renders the
+  live subset), and it stops the browser logging its own un-suppressible 422. Genuine bad input (unknown style,
+  etc.) still 422s.
+- **Why:** #60 — console noise found during the #57 smoke test; the correct fix is the stale state + the
+  endpoint's inconsistent empty-set semantics, not prose-parsing.
+- **Verify:** live Playwright (open paper → trash → `RENDER 200`, 0 console errors from the race); 63 citations
+  tests pass; ruff + line budget OK (`40_app.jsx` now at the 600 cap — next edit there needs an extraction).
+- **Revert:** revert the listed edits.
+
 ## 2026-09-12 — inc 590: in-reader PDF find/search (backlog #42)
 - **Files:** `app/frontend/js/30i_pdf_find.jsx` (new), `app/frontend/js/30_viewer.jsx`, `app/frontend/styles.css`,
   `callosum-app.html`, `.claude/docs/increment-notes/INCREMENT-590-NOTES.md`.
