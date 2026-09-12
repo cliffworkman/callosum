@@ -57,6 +57,22 @@ it's pinned under the search/filter bar whenever a selection exists and — beca
 space — pushes the cards down instead of covering them. Gated `!fulltextMode` (pane-head renders in both modes).
 CSS scoped to `.pane-head .axis-bulk-bar` so other `.axis-bulk-bar` uses (axes, reference-integrity) are unchanged.
 
+## "database is locked" during a bulk Re-check OA (real bug, found in live 0.5.11 testing)
+
+A real ~200-paper re-check (0 acquired, 45 blocked/error) crashed a per-item write with
+`OperationalError: database is locked` on the `UPDATE wanted_items SET last_result=…` short write.
+`run_recheck` is a **background job**, so it is not covered by the request-path `SqliteWriteRetryMiddleware`,
+and it wrote via a raw `engine.begin()` with no retry — any transient writer-lock (a concurrent watched-folder
+scan, a WAL checkpoint, or a second re-check the user kicked off) failed it immediately. Two fixes:
+- **`acquisition/wanted.py`** — the per-item status writes now go through a small `_mark_checked` helper that
+  wraps `wanted_repo.mark_checked` in **`run_write`** (transaction-level retry on a transient lock; the documented
+  Layer-1 pattern). Only these SHORT writes are wrapped; the heavy fulfilled path (download + import) keeps its own
+  single `engine.begin()`, since `run_write`'s own docstring warns against wrapping a heavy unit a retry would
+  re-run — a locked import instead degrades to the retry-wrapped `error` status, never a crash.
+- **`routers/wanted.py`** — `recheck_start` now dedups to the single active re-check (`create_or_get_active`), so a
+  second "Re-check OA" click returns the running job instead of starting a concurrent re-check that would contend
+  on the same rows.
+
 ## Browser-extension importer (future-track issue)
 Filed GitHub issue: a browser extension to one-click-import a paper the user **already opened in their own
 browser** — framed strictly around capturing already-accessed material, never paywall circumvention or autonomous

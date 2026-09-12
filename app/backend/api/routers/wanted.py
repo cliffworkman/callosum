@@ -158,9 +158,13 @@ def sync_library(engine: Engine = Depends(get_engine)) -> SyncResponse:
 @router.post("/wanted/recheck", response_model=RecheckJobResponse, status_code=http_status.HTTP_202_ACCEPTED)
 def recheck_start(background_tasks: BackgroundTasks, request: Request) -> RecheckJobResponse:
     # Async (bulk lookups + downloads are slow): returns a job id to poll. OA-only by construction.
-    job_id = request.app.state.wanted_jobs.create()
-    background_tasks.add_task(_run_recheck_job, request.app, job_id)
-    return RecheckJobResponse(job_id=job_id, status="pending")
+    # inc 588: dedup to the single active re-check — a second click returns the running job instead of starting
+    # a concurrent re-check that would write to the same wanted_items rows and contend on SQLite's single writer.
+    job_id, created = request.app.state.wanted_jobs.create_or_get_active()
+    if created:
+        background_tasks.add_task(_run_recheck_job, request.app, job_id)
+    job = request.app.state.wanted_jobs.get(job_id)
+    return RecheckJobResponse(job_id=job_id, status=job.status if job else "pending")
 
 
 @router.get("/wanted/recheck/{job_id}", response_model=RecheckJobResponse)

@@ -23,6 +23,7 @@ from app.backend.acquisition.fetch import download_oa_pdf, import_oa_pdf
 from app.backend.acquisition.registry import OaLocation, PaperRef, ResolverRegistry
 from app.backend.persistence import wanted_repo
 from app.backend.persistence.repository import create_paper
+from app.backend.persistence.sqlite_retry import run_write
 
 logger = logging.getLogger("callosum.acquisition.wanted")
 
@@ -71,8 +72,7 @@ def run_recheck(
         summary["checked"] += 1
         ref = _ref_for_row(row)
         if ref is None:
-            with engine.begin() as conn:
-                wanted_repo.mark_checked(conn, row["id"], result="needs-id", reason_code=REASON_NEEDS_ID)
+            _mark_checked(engine, row["id"], result="needs-id", reason_code=REASON_NEEDS_ID)
             summary["skipped"] += 1
             continue
         try:
@@ -84,8 +84,7 @@ def run_recheck(
                 # found but none downloadable ("exhausted") — never collapsed into an opaque error. The
                 # structured outcome.reason_code (no_candidate | candidates_exhausted) is persisted directly.
                 result = "none" if outcome.reason_code == "no_candidate" else outcome.human_detail()[:_MAX_RESULT_LEN]
-                with engine.begin() as conn:
-                    wanted_repo.mark_checked(conn, row["id"], result=result, reason_code=outcome.reason_code)
+                _mark_checked(engine, row["id"], result=result, reason_code=outcome.reason_code)
                 if outcome.reason_code == "no_candidate":
                     summary["still_wanted"] += 1
                 else:
@@ -116,10 +115,19 @@ def run_recheck(
             # those as candidate fallback / exhaustion). Preserve the message (not just the class), matching
             # the single-paper acquire endpoint's detail (routers/acquisition.py); inc 414.
             detail = f"error: {type(exc).__name__}: {exc}"[:_MAX_RESULT_LEN]
-            with engine.begin() as conn:
-                wanted_repo.mark_checked(conn, row["id"], result=detail, reason_code=REASON_ERROR)
+            _mark_checked(engine, row["id"], result=detail, reason_code=REASON_ERROR)
             summary["errors"] += 1
     return summary
+
+
+def _mark_checked(engine: Engine, wanted_id: int, *, result: str, reason_code: str) -> None:
+    """Persist a short per-item re-check status through run_write — transaction-level retry on a transient
+    SQLite writer lock (inc 588). run_recheck is a background job (not covered by the request-path
+    SqliteWriteRetryMiddleware), and a real bulk re-check hit "database is locked" on this short UPDATE when
+    another writer briefly held the lock. Only these SHORT status writes are wrapped; the heavy fulfilled path
+    (download + import) keeps its own single engine.begin() — a retry there would re-run the import, which
+    run_write's own docstring warns against."""
+    run_write(engine, lambda conn: wanted_repo.mark_checked(conn, wanted_id, result=result, reason_code=reason_code))
 
 
 def _ref_for_row(row: dict[str, Any]) -> PaperRef | None:
