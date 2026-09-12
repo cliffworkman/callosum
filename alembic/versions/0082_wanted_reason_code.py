@@ -29,6 +29,11 @@ depends_on = None
 def upgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
+    # A real DB always has wanted_items (migration 0001 create_all's the full metadata). A synthetic
+    # partial-schema test DB (e.g. tests/test_migrations.py's hand-built pre-0074 DB) may not — skip rather
+    # than raise NoSuchTableError on the ALTER; the fresh-DB path builds the column via the model directly.
+    if "wanted_items" not in inspector.get_table_names():
+        return
     columns = {col["name"] for col in inspector.get_columns("wanted_items")}
     if "last_reason_code" in columns:
         return
