@@ -411,7 +411,7 @@ function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsC
         {!readOnly && <AddFieldRow onSave={saveField} />}
       </DetailSection>
 
-      {!readOnly && !hasPdf && <AcquireOaRow paperId={p.id} onAcquired={onAcquired} />}
+      {!readOnly && !hasPdf && <AcquireOaRow paperId={p.id} doi={p.doi} onAcquired={onAcquired} />}
       {!readOnly && hasPdf && p.chunk_count === 0 && <OcrRow paperId={p.id} onOcred={onAcquired} />}
       {!readOnly && hasPdf && p.chunk_count > 0 &&
         <button className="btn-link detail-fill" onClick={reprocessPdf} disabled={reprocessing}

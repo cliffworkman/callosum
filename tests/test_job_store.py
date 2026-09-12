@@ -28,6 +28,42 @@ def test_create_or_get_active_is_atomic_and_allows_a_new_job_after_completion() 
     assert created is True and next_id != active_id
 
 
+def test_create_or_get_active_matching_dedups_per_target_but_not_across_targets() -> None:
+    # inc 587: two OA acquisitions of the SAME paper must reuse one in-flight job (a second concurrent writer
+    # collides on SQLite's single writer → "database is locked"); different papers stay independent.
+    store: JobStore = JobStore()
+    first_id, created = store.create_or_get_active_matching({"paper_id": 82}, ("paper_id",))
+    assert created is True
+    again_id, again_created = store.create_or_get_active_matching({"paper_id": 82}, ("paper_id",))
+    assert again_created is False and again_id == first_id  # same paper → reuse the in-flight job
+    other_id, other_created = store.create_or_get_active_matching({"paper_id": 83}, ("paper_id",))
+    assert other_created is True and other_id != first_id  # different paper → its own job
+
+
+def test_create_or_get_active_matching_allows_a_fresh_job_after_the_prior_one_finished() -> None:
+    # A miss/failure must be retryable: once the paper's acquisition is terminal, a new attempt starts fresh.
+    store: JobStore = JobStore()
+    job_id, _ = store.create_or_get_active_matching({"paper_id": 82}, ("paper_id",))
+    store.mark_error(job_id, "no OA copy")
+    retry_id, created = store.create_or_get_active_matching({"paper_id": 82}, ("paper_id",))
+    assert created is True and retry_id != job_id
+
+
+def test_create_or_get_active_matching_is_atomic_under_concurrent_same_target_calls() -> None:
+    store: JobStore = JobStore()
+    barrier = Barrier(8)
+
+    def create() -> tuple[str, bool]:
+        barrier.wait()
+        return store.create_or_get_active_matching({"paper_id": 82}, ("paper_id",))
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda _: create(), range(8)))
+
+    assert len({job_id for job_id, _created in results}) == 1  # exactly one job for the paper
+    assert sum(created for _job_id, created in results) == 1  # exactly one caller schedules the worker
+
+
 def test_mark_progress_sets_running_with_determinate_progress() -> None:
     store: JobStore = JobStore()
     job_id = store.create()

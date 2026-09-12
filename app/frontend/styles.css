@@ -1167,6 +1167,10 @@
   .paper-priority:hover { border-color: var(--line-2); color: var(--ink-2); }
   .paper-priority.pr-high { color: var(--ink); background: var(--panel-2); border-color: var(--line-2); font-weight: 600; }
   .paper-priority.pr-normal, .paper-priority.pr-low { color: var(--ink-2); background: var(--panel-2); border-color: var(--line); }
+  /* #57 (inc 587): explicit per-card Delete. Same tiny pill footprint as .paper-priority; neutral at rest,
+     red on hover (--danger, DESIGN §4 destructive) — labelled, discoverable, safe (confirm + restorable Trash). */
+  .paper-trash { font-size: 10px; font-family: var(--sans); color: var(--ink-3); background: none; border: 1px solid transparent; border-radius: var(--radius-pill); padding: 1px 6px; cursor: pointer; }
+  .paper-trash:hover { border-color: var(--danger-line); color: var(--danger); }
   .priority-pop { position: absolute; top: 100%; right: 0; margin-top: 3px; z-index: 30; display: flex; flex-direction: column; min-width: 88px; background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius-sm); box-shadow: 0 6px 18px rgba(0,0,0,.12); padding: 3px; }
   .pr-opt { text-align: left; font-size: 11.5px; font-family: var(--sans); color: var(--ink); background: none; border: none; border-radius: var(--radius-sm); padding: 4px 8px; cursor: pointer; }
   .pr-opt:hover { background: var(--panel-2); }

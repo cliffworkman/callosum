@@ -133,6 +133,25 @@ class JobStore(Generic[R]):
             self._jobs[job_id] = Job(status="pending", nav=nav)
             return job_id, True
 
+    def create_or_get_active_matching(self, nav: dict[str, Any], match_keys: tuple[str, ...]) -> tuple[str, bool]:
+        """Atomically reuse a pending/running job whose ``nav`` equals ``nav`` on ``match_keys``, else create one.
+
+        The boolean is true only for the caller that created the job (it should schedule the worker). Unlike
+        ``create_or_get_active`` (one active job per store), this scopes the dedup to a target — e.g. one OA
+        acquisition per paper. Two acquisitions of the SAME paper would otherwise run concurrently and collide
+        on SQLite's single writer ("database is locked") when both import the downloaded PDF (inc 587). A
+        finished (done/error) job never matches, so a retry after completion still starts fresh.
+        """
+        wanted = tuple(nav.get(key) for key in match_keys)
+        with self._lock:
+            for job_id, job in self._jobs.items():
+                if job.status in {"pending", "running"} and job.nav is not None:
+                    if tuple(job.nav.get(key) for key in match_keys) == wanted:
+                        return job_id, False
+            job_id = uuid4().hex
+            self._jobs[job_id] = Job(status="pending", nav=nav)
+            return job_id, True
+
     def mark_running(self, job_id: str) -> None:
         with self._lock:
             previous = self._jobs.get(job_id)

@@ -131,6 +131,23 @@ def test_frontend_root_serves_configured_html_file(temp_db_url: str, tmp_path: P
     assert response.headers["content-type"].startswith("text/html")
     assert "<title>Callosum</title>" in response.text
     assert "Callosum shell" in response.text
+    # inc 586: the shell must never be served from a stale webview cache (the packaged desktop app
+    # reuses a stable loopback port across launches, so WebView2 heuristically kept an OLD shell
+    # after an in-place update). no-store forces a fresh fetch every load.
+    assert response.headers.get("cache-control") == "no-store"
+
+
+def test_frontend_shell_is_never_cached_in_any_serving_mode(temp_db_url: str, tmp_path: Path) -> None:
+    """The '/' shell carries Cache-Control: no-store whether it serves a configured file or the
+    graceful 'frontend unavailable' fallback (inc 586) — a cache-bust that must not depend on which
+    branch of frontend_shell() answered."""
+    configured = tmp_path / "callosum-app.html"
+    configured.write_text("<!doctype html><title>Callosum</title>")
+    with_file = TestClient(create_app(db_url=temp_db_url, frontend_path=configured))
+    assert with_file.get("/").headers.get("cache-control") == "no-store"
+
+    without_file = TestClient(create_app(db_url=temp_db_url, frontend_path=tmp_path / "missing.html"))
+    assert without_file.get("/").headers.get("cache-control") == "no-store"
 
 
 def test_frontend_static_route_does_not_shadow_json_endpoints(temp_db_url: str, tmp_path: Path) -> None:

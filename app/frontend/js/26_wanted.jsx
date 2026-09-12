@@ -135,6 +135,15 @@ function WantedModal({ onClose, onOpenPaper, onChanged }) {
             {it.paper_id && it.status === "fulfilled" &&
               <button className="axis-link"
                 onClick={() => onOpenPaper && onOpenPaper({ id: it.paper_id, title: _wantedTitle(it) })}>Open</button>}
+            {/* inc 587: a link to fetch it yourself when callosum couldn't download it (e.g. every OA candidate
+                returned 403 because the publisher blocks automated fetches). Opens the article's own page via its
+                DOI in the user's browser — the free-and-legal hand-off, never scraping (APPROACH-AVOIDANCE veto). */}
+            {it.doi && it.status !== "fulfilled" &&
+              <button className="axis-link"
+                title="Open this article's page (via its DOI) in your browser — if it's freely readable, download the PDF yourself and add it to your library."
+                onClick={() => window.open("https://doi.org/" + it.doi, "_blank", "noopener,noreferrer")}>
+                Open article ↗
+              </button>}
             <button className="axis-link" title="Remove from the wanted list" onClick={() => removeItem(it.id)}>×</button>
           </div>
         ))}

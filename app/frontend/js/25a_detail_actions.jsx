@@ -78,11 +78,17 @@ function CiteRow({ paperId }) {
 // Acquisition clean lane (Increment A): fetch a free, rights-holder-authorized open-access copy via OpenAlex
 // and import it into the local library. Shown only when a paper has no available PDF. Async job → poll →
 // refresh the detail on success (or an honest "no authorized open-access copy found").
-function AcquireOaRow({ paperId, onAcquired }) {
+function AcquireOaRow({ paperId, doi, onAcquired }) {
   const [status, setStatus] = useState("idle"); // idle | running | done | error
   const [msg, setMsg] = useState(null);
-  const [missed, setMissed] = useState(false); // OA cascade found nothing → offer the library hand-off
+  const [missed, setMissed] = useState(false); // OA cascade found nothing / all candidates blocked → offer hand-offs
   const [libMsg, setLibMsg] = useState(null);
+  // inc 587: the universal free-and-legal hand-off. When callosum can't download a copy for the user (no OA
+  // candidate, or every candidate returned 403/404 — often because the publisher blocks automated fetches),
+  // open the article's own page via its DOI in the user's browser so they can grab it themselves. This is NOT
+  // scraping/circumvention (APPROACH-AVOIDANCE veto): it's the user visiting the publisher's page with their
+  // own access, the same value as the "Get via my library" resolver hand-off — but always available (no setup).
+  const openArticle = () => { if (doi) window.open("https://doi.org/" + doi, "_blank", "noopener,noreferrer"); };
   // inc 263: the free-and-legal hand-off. callosum builds an OpenURL and opens the user's OWN institution's
   // official link resolver in the user's OWN browser (their SSO does the auth); it never fetches the paper and
   // never touches credentials. Opt-in — dormant until a resolver base is set in Settings.
@@ -127,6 +133,12 @@ function AcquireOaRow({ paperId, onAcquired }) {
       </button>
       {status === "running" && <ProgressBar label="Searching open-access sources…" managedBy="backend-job" />}
       {msg && <span className={"detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "")}>{msg}</span>}
+      {missed && doi && (
+        <button className="btn" onClick={openArticle}
+          title="Open this article's page (via its DOI) in your browser. Many are freely readable there — download the PDF yourself and drop it in your library folder. callosum never fetches it for you here.">
+          Open article page ↗
+        </button>
+      )}
       {missed && (
         <button className="btn" onClick={getViaLibrary}
           title="Open your institution's official link resolver in your browser — a free, legal route to a copy you're entitled to. callosum never fetches the paper or handles your login.">

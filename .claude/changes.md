@@ -9,6 +9,41 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-11 — inc 587: three fixes from live 0.5.9 testing (DB-lock, explicit delete, OA self-fetch link), shipped in 0.5.10
+- **Files:** `app/backend/api/job_store.py` (+`create_or_get_active_matching`), `app/backend/api/routers/acquisition.py`,
+  `app/frontend/js/{10d_papercard,25a_detail_actions,25_detail,26_wanted}.jsx`, `app/frontend/styles.css`,
+  `callosum-app.html`, `tests/test_job_store.py`, `.claude/docs/increment-notes/INCREMENT-587-NOTES.md`.
+- **DB-lock bug:** clicking "Acquire OA copy" (Details) while the by-DOI import's auto-OA was still fetching the
+  *same paper* started a second concurrent writer → `database is locked` on `INSERT INTO attachments`. Fixed with
+  per-paper acquire-job dedup (`create_or_get_active_matching`, atomic) at both entry points — one in-flight
+  acquisition per paper; a finished job stays retryable.
+- **#57 revision:** replaced the per-card `⋯` overflow menu with an explicit, always-visible **Delete** button
+  (the reporter noted hiding delete recreated the exact discoverability problem #57 fixed). Same confirm +
+  soft-delete-to-Trash primitive; neutral at rest, red on hover (`--danger`). Removed the dead dropdown.
+- **OA self-fetch link:** when a download is blocked (no candidate / all 403), both the Wanted modal and the
+  Details "Acquire OA copy" area now offer a link to the article's own page (`https://doi.org/<doi>`) so users
+  can grab it themselves — the free-and-legal hand-off, never scraping (APPROACH-AVOIDANCE). Frontend-only.
+- **Verify:** 191 affected-suite tests green incl. new dedup + atomicity tests; frontend rebuilt + assembly green;
+  ruff + line budget OK. No new endpoint/external fetch (DOI link is a browser navigation).
+- **Revert:** revert the listed edits; restore from `.claude/backups/` if needed.
+
+## 2026-09-11 — inc 586: app-shell cache-bust (stale WebView2 cache after in-place update), shipped in 0.5.10
+- **Files:** `app/backend/api/app.py` (`/` shell → `Cache-Control: no-store`),
+  `app/desktop-shell/src-tauri/src/lib.rs` (main window loads `…/?v={app_version}`),
+  `tests/test_health.py`, `.claude/docs/increment-notes/INCREMENT-586-NOTES.md`.
+- **What:** After updating in place to 0.5.9, a user saw the *old* UI (no Add-with-DOI, no per-card delete)
+  despite "Connected (0.5.9)"; a hard refresh fixed it. Root cause: the `/` shell shipped **no `Cache-Control`**
+  and the packaged app **reuses one stable loopback port across launches** (for the LibreOffice adapter), so
+  WebView2's heuristic cache kept serving the pre-update shell at the unchanged URL. Verified the installer,
+  bundle, and live backend response all *contained* the fixes — the webview cache was the only culprit.
+- **Why:** End users can't be expected to hard-refresh. `no-store` makes every future update immune;
+  the `?v=<version>` load URL busts the one-time 0.5.9→0.5.10 transition (a client caching the pre-fix shell
+  still re-fetches because the URL changed). FastAPI ignores the query for routing and the `/` access-control
+  exemption matches on `request.url.path`, so `/?v=…` stays exempt.
+- **Verify:** `tests/test_health.py`+`test_access_control.py` green incl. new no-store assertions; `cargo check`
+  clean; full suite `-n 4` green; ruff + line budget OK. Backend + Rust only — no JSX rebuild.
+- **Revert:** revert the two source edits; restore from `.claude/backups/` if needed.
+
 ## 2026-09-11 — inc 585: Bella's 3 reports (#57/#58/#59), shipped in 0.5.9
 - **Files:** `app/backend/acquisition/{fetch,acquire,wanted}.py`, `app/backend/api/routers/{acquisition,agent}.py`,
   `app/backend/metadata/{doi,doi_add}.py`, `app/frontend/js/{10b_libmenus,10_pdf_layer,10d_papercard,03_library,40_app,28e_add_doi,40c_library_add_modals}.jsx`,

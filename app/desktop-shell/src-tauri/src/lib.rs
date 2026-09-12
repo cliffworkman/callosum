@@ -84,7 +84,13 @@ async fn start_backend_and_show_main(app: AppHandle) {
 
     *app.state::<BackendState>().0.lock().unwrap() = Some(handle);
 
-    let url = format!("http://127.0.0.1:{port}")
+    // Cache-bust the app shell across updates (inc 586). The backend reuses ONE stable loopback
+    // port across launches (so the LibreOffice adapter can find it), so the shell URL is otherwise
+    // identical every version — and WebView2 kept serving a cached OLD shell after an in-place
+    // update (0.5.9 users saw the pre-update UI until a manual hard refresh). Appending the app
+    // version changes the URL on every update, guaranteeing a fresh fetch even for a client that
+    // still holds a pre-fix cached shell; the backend also serves the shell `Cache-Control: no-store`.
+    let url = format!("http://127.0.0.1:{port}/?v={app_version}")
         .parse()
         .expect("valid loopback URL");
     if WebviewWindowBuilder::new(&app, "main", WebviewUrl::External(url))

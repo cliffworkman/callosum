@@ -350,19 +350,31 @@ def create_app(
         # built callosum-app.html when present (the default, rebuilt from app/frontend/ via
         # tools/build_frontend.py); else assemble the modular source live so we are never broken.
         path = api.state.frontend_path
+        resp: FileResponse | HTMLResponse
         if path is not None:
-            return _frontend_response(path)
-        if DEFAULT_FRONTEND_PATH.is_file():
-            return FileResponse(DEFAULT_FRONTEND_PATH, media_type="text/html")
-        if frontend_sources_available():
+            resp = _frontend_response(path)
+        elif DEFAULT_FRONTEND_PATH.is_file():
+            resp = FileResponse(DEFAULT_FRONTEND_PATH, media_type="text/html")
+        elif frontend_sources_available():
             try:
                 # Live assembly precompiles the JSX with esbuild (inc 102). If the build toolchain
                 # is absent, degrade to the unavailable response rather than 500 — the normal path
                 # serves the prebuilt callosum-app.html and never reaches here.
-                return HTMLResponse(build_frontend_document(), media_type="text/html")
+                resp = HTMLResponse(build_frontend_document(), media_type="text/html")
             except RuntimeError:
-                return _assembly_unavailable_response()
-        return _assembly_unavailable_response()
+                resp = _assembly_unavailable_response()
+        else:
+            resp = _assembly_unavailable_response()
+        # inc 586: the app shell must never be served from a stale webview cache. The packaged
+        # desktop app deliberately reuses ONE stable loopback port across launches (so the
+        # LibreOffice adapter can find it) and serves the shell WITHOUT a Cache-Control header, so
+        # WebView2's heuristic caching kept showing the OLD shell after an in-place update — real
+        # 0.5.9 users saw the pre-update UI until a manual hard refresh. no-store forces a fresh
+        # fetch every load; the shell is one small loopback document, so the cost is negligible.
+        # (The desktop shell ALSO cache-busts via a ?v=<version> load URL, so even a client still
+        # holding a pre-fix cached shell re-fetches on the update that first ships this header.)
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
 
     api.include_router(health.router)
     api.include_router(diagnostics.router)  # /diagnostics — superuser-only operational stats (inc 468)

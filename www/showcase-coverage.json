@@ -16,9 +16,9 @@
     "source_fingerprint": "45ba80f0516b1b8b242878c3b76f8b1520c3f4bc1ed1827d05930df4d97105c3",
     "note": "Reviewed inc 576 PDF recovery against every affected website claim and visual. Existing library/PDF claims remain accurate; no public copy or screenshot change is needed.",
     "declined_at": "2026-09-11",
-    "declined_rev": "602a1a85",
-    "declined_increment": 585,
-    "decline_note": "0.5.9 patch (#57/#58/#59): the changed user-facing source is the library frontend (per-card overflow delete menu, Add-with-DOI menu) -- demo-locked backend/library affordances that don't alter what the website/showcase presents. No visual/copy re-capture needed for these fixes; a full website-currency review is out of scope for this fast patch (tracked, backlog #69)."
+    "declined_rev": "d3f21d29",
+    "declined_increment": 587,
+    "decline_note": "inc 586/587 (0.5.10): app-shell cache-bust + acquire DB-lock dedup + explicit per-card Delete + OA self-fetch DOI link. Infra/UX fixes; no showcased capability or website claim changed."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

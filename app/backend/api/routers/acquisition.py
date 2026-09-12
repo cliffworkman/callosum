@@ -65,9 +65,17 @@ def acquire_oa_start(
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    job_id = request.app.state.acquire_jobs.create(nav={"paper_id": paper_id})
-    background_tasks.add_task(_run_acquire_job, request.app, job_id, paper_id)
-    return AcquireOaStartResponse(job_id=job_id, status="pending")
+    # Dedup to any in-flight acquisition of THIS paper (inc 587): two concurrent acquire jobs for one
+    # paper both import the downloaded PDF and collide on SQLite's single writer ("database is locked").
+    # The real trigger: the by-DOI import's auto-OA job is still running when the user clicks "Acquire OA
+    # copy" in Details. A finished job never matches, so a retry after a miss still starts a fresh attempt.
+    job_id, created = request.app.state.acquire_jobs.create_or_get_active_matching(
+        {"paper_id": paper_id}, ("paper_id",)
+    )
+    if created:
+        background_tasks.add_task(_run_acquire_job, request.app, job_id, paper_id)
+    job = request.app.state.acquire_jobs.get(job_id)
+    return AcquireOaStartResponse(job_id=job_id, status=job.status if job else "pending")
 
 
 class AddByDoiRequest(BaseModel):
@@ -114,8 +122,13 @@ def add_paper_by_doi_endpoint(
     conn.commit()  # persist the created/looked-up paper before returning and before the OA job's own connection runs
     acquire_job_id: str | None = None
     if result.status == "created" and body.acquire_oa:
-        acquire_job_id = request.app.state.acquire_jobs.create(nav={"paper_id": result.paper_id})
-        background_tasks.add_task(_run_acquire_job, request.app, acquire_job_id, result.paper_id)
+        # Same per-paper dedup as acquire_oa_start (inc 587) — defensive/consistent (a brand-new paper has
+        # no in-flight job yet, but this keeps a single acquisition-per-paper invariant at every entry point).
+        acquire_job_id, created = request.app.state.acquire_jobs.create_or_get_active_matching(
+            {"paper_id": result.paper_id}, ("paper_id",)
+        )
+        if created:
+            background_tasks.add_task(_run_acquire_job, request.app, acquire_job_id, result.paper_id)
     return AddByDoiResponse(
         status=result.status,
         paper_id=result.paper_id,
