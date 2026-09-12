@@ -254,6 +254,92 @@ def test_recheck_error_caps_result_length(temp_db_url):
     assert len(row["last_result"]) <= 100
 
 
+# --- structured acquisition state (inc 588): reason_code round-trip + legacy compat ----------------------
+
+
+class _Raising403:
+    def __call__(self, location):
+        raise OaFetchError("download returned HTTP 403", reason_code="http_error", http_status=403)
+
+
+def test_recheck_persists_structured_reason_codes(temp_db_url):
+    """run_recheck stores AcquireOutcome.reason_code (and its own needs_id/error) in last_reason_code, so no
+    consumer has to parse the human last_result string (inc 588)."""
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        wid_ok = wanted_repo.add_wanted(conn, doi="10.1/ok")  # fulfilled -> acquired
+        wid_none = wanted_repo.add_wanted(conn, doi="10.1/none")  # no candidate -> no_candidate
+        wid_block = wanted_repo.add_wanted(conn, doi="10.1/block")  # 403 -> candidates_exhausted
+        wid_needsid = wanted_repo.add_wanted(conn, title="Title Only")  # no id -> needs_id
+    reg = _FakeRegistry(
+        {"10.1/ok": _loc("gold", "vor"), "10.1/block": _loc(url="https://oa.example/block.pdf")}
+    )  # 10.1/none resolves to None
+
+    class _Selective:
+        """Succeeds for the 'ok' candidate, 403s for the 'block' candidate."""
+
+        def __call__(self, location):
+            if "block" in location.pdf_url:
+                raise OaFetchError("HTTP 403", reason_code="http_error", http_status=403)
+            return Path("fake.pdf")
+
+    run_recheck(engine, reg, download=_Selective(), import_=_FakeImport())
+
+    with engine.begin() as conn:
+        codes = {
+            wid: wanted_repo.get_wanted(conn, wid)["last_reason_code"]
+            for wid in (wid_ok, wid_none, wid_block, wid_needsid)
+        }
+    assert codes[wid_ok] == "acquired"
+    assert codes[wid_none] == "no_candidate"
+    assert codes[wid_block] == "candidates_exhausted"
+    assert codes[wid_needsid] == "needs_id"
+
+
+def test_acquisition_state_round_trips_from_reason_code_to_api(temp_db_url):
+    """A blocked (403) library want surfaces via the API as acquisition_state='blocked' with the linked paper's
+    DOI coalesced onto the item (inc 588) — the exact data the frontend link + sort + filter consume."""
+    engine = make_engine(temp_db_url)
+    pid = _pdfless_paper(engine, doi="10.1/lib-blocked")
+    with engine.begin() as conn:
+        wanted_repo.add_wanted(conn, paper_id=pid)
+    reg = _FakeRegistry({"10.1/lib-blocked": _loc(url="https://oa.example/blocked.pdf")})
+
+    run_recheck(engine, reg, download=_Raising403(), import_=_FakeImport())
+
+    client = TestClient(create_app(db_url=temp_db_url))
+    items = client.get("/wanted").json()["items"]
+    assert len(items) == 1
+    item = items[0]
+    assert item["acquisition_state"] == "blocked"
+    assert item["doi"] == "10.1/lib-blocked"  # library rows carry the DOI on the paper — coalesced by the API
+    assert "HTTP 403" in (item["last_result"] or "")  # raw string still inspectable (tooltip), just not the key
+
+
+def test_legacy_state_from_last_result_is_compat_only_and_structured_wins():
+    """The legacy prose classifier covers ONLY pre-inc-588 rows (last_reason_code NULL); a present reason_code
+    always wins over it (inc 588)."""
+    from app.backend.api.routers.wanted import _acquisition_state, _legacy_state_from_last_result
+
+    # legacy classifier maps the old human strings a NULL-reason_code row still carries
+    assert (
+        _legacy_state_from_last_result(
+            "1 OA candidate found, but none could be downloaded (last: HTTP 403 from openalex)"
+        )
+        == "blocked"
+    )
+    assert _legacy_state_from_last_result("none") == "no_oa"
+    assert _legacy_state_from_last_result("needs-id") == "needs_id"
+    assert _legacy_state_from_last_result("error: RuntimeError: boom") == "error"
+    assert _legacy_state_from_last_result(None) == "unchecked"
+
+    # structured reason_code wins whenever present, regardless of the human string
+    assert _acquisition_state("wanted", "candidates_exhausted", "anything at all") == "blocked"
+    assert _acquisition_state("wanted", "no_candidate", "could be downloaded") == "no_oa"  # NOT parsed from prose
+    assert _acquisition_state("fulfilled", None, None) == "fulfilled"  # a fulfilled row is always fulfilled
+    assert _acquisition_state("wanted", None, "none") == "no_oa"  # NULL reason_code -> legacy fallback
+
+
 # --- endpoints --------------------------------------------------------------------------------------------
 
 

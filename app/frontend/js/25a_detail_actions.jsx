@@ -75,12 +75,25 @@ function CiteRow({ paperId }) {
   );
 }
 
+// inc 588: plain-language default message keyed off the STRUCTURED reason_code the acquire response carries — not
+// its raw human `detail`. Deliberately does NOT claim "the publisher blocked it" (the evidence only shows the
+// automatic download failed). The raw detail (e.g. "…HTTP 403 from openalex") stays inspectable under a
+// "Technical details" disclosure — humanize by default, keep provenance on demand.
+function _acquireFriendlyMessage(reasonCode) {
+  switch (reasonCode) {
+    case "candidates_exhausted": return "An open-access copy was found, but the automatic download was blocked.";
+    case "no_candidate": return "No open-access copy found.";
+    default: return "No open-access copy could be downloaded.";
+  }
+}
+
 // Acquisition clean lane (Increment A): fetch a free, rights-holder-authorized open-access copy via OpenAlex
 // and import it into the local library. Shown only when a paper has no available PDF. Async job → poll →
 // refresh the detail on success (or an honest "no authorized open-access copy found").
 function AcquireOaRow({ paperId, doi, onAcquired }) {
   const [status, setStatus] = useState("idle"); // idle | running | done | error
   const [msg, setMsg] = useState(null);
+  const [techDetail, setTechDetail] = useState(null); // raw provenance string, shown under a "Technical details" disclosure
   const [missed, setMissed] = useState(false); // OA cascade found nothing / all candidates blocked → offer hand-offs
   const [libMsg, setLibMsg] = useState(null);
   // inc 587: the universal free-and-legal hand-off. When callosum can't download a copy for the user (no OA
@@ -111,16 +124,18 @@ function AcquireOaRow({ paperId, doi, onAcquired }) {
         setMsg("Imported a " + j.oa_color + (j.bronze_unstable ? " (unstable)" : "") + " open-access copy.");
         onAcquired && onAcquired();
       } else {
-        setMsg(j.detail || "No authorized open-access copy found.");
+        // Friendly by default (from the structured reason_code); the raw detail stays under Technical details.
+        setMsg(_acquireFriendlyMessage(j.reason_code));
+        setTechDetail(j.detail || null);
         setMissed(true);
       }
       return;
     }
-    if (j.status === "error") { setStatus("error"); setMsg(j.detail || "Acquisition failed."); return; }
+    if (j.status === "error") { setStatus("error"); setMsg("The acquisition couldn’t be completed."); setTechDetail(j.detail || null); return; }
     setTimeout(() => poll(jobId), 1200); // pending / running → keep polling
   };
   const start = async () => {
-    setStatus("running"); setMsg(null); setMissed(false); setLibMsg(null);
+    setStatus("running"); setMsg(null); setTechDetail(null); setMissed(false); setLibMsg(null);
     const r = await apiPost(`/papers/${paperId}/acquire-oa`, {});
     if (!r.ok) { setStatus("error"); setMsg(r.error || "Couldn't start acquisition."); return; }
     poll(r.data.job_id);
@@ -133,6 +148,11 @@ function AcquireOaRow({ paperId, doi, onAcquired }) {
       </button>
       {status === "running" && <ProgressBar label="Searching open-access sources…" managedBy="backend-job" />}
       {msg && <span className={"detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "")}>{msg}</span>}
+      {techDetail &&
+        <details className="detail-acquire-tech">
+          <summary>Technical details</summary>
+          <span>{techDetail}</span>
+        </details>}
       {missed && doi && (
         <button className="btn" onClick={openArticle}
           title="Open this article's page (via its DOI) in your browser. Many are freely readable there — download the PDF yourself and drop it in your library folder. callosum never fetches it for you here.">

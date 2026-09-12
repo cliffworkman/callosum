@@ -19,10 +19,11 @@ function AddDoiModalBody({ onClose, onImported }) {
   const [oa, setOa] = useState(null);                    // null | {status:"running"|"done", found, detail}
 
   const pollOa = (jobId) => api(`/papers/acquire-oa/${jobId}`).then(r => {
-    if (!r.ok) { setOa({ status: "done", found: false, detail: "Could not check OA status." }); return; }
+    if (!r.ok) { setOa({ status: "done", found: false, reasonCode: "error", detail: "Could not check OA status." }); return; }
     const d = r.data;
-    if (d.status === "done") setOa({ status: "done", found: !!d.found, detail: d.detail });
-    else if (d.status === "error") setOa({ status: "done", found: false, detail: d.detail || "OA fetch failed." });
+    // Capture the STRUCTURED reason_code (inc 588) so the "why" is human-readable, not the raw "HTTP 403" string.
+    if (d.status === "done") setOa({ status: "done", found: !!d.found, reasonCode: d.reason_code, detail: d.detail });
+    else if (d.status === "error") setOa({ status: "done", found: false, reasonCode: "error", detail: d.detail || "OA fetch failed." });
     else { setOa({ status: "running" }); setTimeout(() => pollOa(jobId), 1500); }
   });
 
@@ -66,11 +67,21 @@ function AddDoiModalBody({ onClose, onImported }) {
         <div className="scan-summary"><b>Added.</b> {meta.title || meta.doi} is now in your library.</div>}
       {meta.status === "existing" &&
         <div className="scan-summary"><b>Already in your library.</b> {meta.title || meta.doi} — surfaced, not duplicated.</div>}
-      {/* OA full-text acquisition — a DISTINCT step from the metadata import above. */}
+      {/* OA full-text acquisition — a DISTINCT step from the metadata import above. inc 588: on failure, say WHY
+          in plain language (from the structured reason_code), offer the article page so the user can get it
+          themselves, and keep the raw provenance under a "Technical details" disclosure. */}
       {oa && oa.status === "running" && <ProgressBar label="Fetching open-access PDF…" managedBy="backend-job" />}
-      {oa && oa.status === "done" &&
+      {oa && oa.status === "done" && oa.found &&
+        <div className="axis-hint">Open-access PDF added.</div>}
+      {oa && oa.status === "done" && !oa.found &&
         <div className="axis-hint">
-          {oa.found ? "Open-access PDF added." : `No open-access PDF added${oa.detail ? " — " + oa.detail : "."}`}
+          {_acquireFriendlyMessage(oa.reasonCode)}
+          {meta.doi &&
+            <> <button className="axis-link"
+                 title="Open this article's page (via its DOI) in your browser — if it's freely readable, download the PDF yourself and attach it here."
+                 onClick={() => window.open("https://doi.org/" + meta.doi, "_blank", "noopener,noreferrer")}>Open article ↗</button></>}
+          {oa.detail &&
+            <details className="detail-acquire-tech"><summary>Technical details</summary><span>{oa.detail}</span></details>}
         </div>}
       <div className="axis-form-actions">
         <button className="axis-link" onClick={onClose}>Close</button>

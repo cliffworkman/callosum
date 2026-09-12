@@ -69,7 +69,11 @@ def add_wanted(
 
 
 def list_wanted(conn: Connection) -> list[dict[str, Any]]:
-    """All wanted rows, newest-first within status, with the linked paper's title/year (LEFT JOIN)."""
+    """All wanted rows, newest-first within status, with the linked paper's title/year/DOI (LEFT JOIN).
+
+    ``paper_doi`` surfaces a library-linked paper's own DOI (the wanted row's own ``doi`` column is NULL for a
+    library sync); the caller coalesces the two so every row exposes a resolvable DOI when one exists (inc 588).
+    ``last_reason_code`` is the structured OA-acquisition state (inc 588)."""
     j = wanted_items.outerjoin(papers, wanted_items.c.paper_id == papers.c.id)
     rows = conn.execute(
         select(
@@ -82,8 +86,10 @@ def list_wanted(conn: Connection) -> list[dict[str, Any]]:
             wanted_items.c.status,
             wanted_items.c.last_checked_at,
             wanted_items.c.last_result,
+            wanted_items.c.last_reason_code,
             papers.c.title.label("paper_title"),
             papers.c.year.label("paper_year"),
+            papers.c.doi.label("paper_doi"),
             papers.c.deleted_at.label("paper_deleted_at"),
         )
         .select_from(j)
@@ -141,15 +147,24 @@ def list_open(conn: Connection) -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
-def mark_checked(conn: Connection, wanted_id: int, *, result: str) -> None:
+def mark_checked(conn: Connection, wanted_id: int, *, result: str, reason_code: str | None = None) -> None:
+    """Record a re-check outcome. ``result`` is the human string (display only); ``reason_code`` is the STRUCTURED
+    state (inc 588) — the canonical field consumers read, so nothing parses ``result``."""
     conn.execute(
         update(wanted_items)
         .where(wanted_items.c.id == wanted_id)
-        .values(last_checked_at=func.current_timestamp(), last_result=result, updated_at=func.current_timestamp())
+        .values(
+            last_checked_at=func.current_timestamp(),
+            last_result=result,
+            last_reason_code=reason_code,
+            updated_at=func.current_timestamp(),
+        )
     )
 
 
-def mark_fulfilled(conn: Connection, wanted_id: int, *, paper_id: int, result: str) -> None:
+def mark_fulfilled(
+    conn: Connection, wanted_id: int, *, paper_id: int, result: str, reason_code: str | None = None
+) -> None:
     conn.execute(
         update(wanted_items)
         .where(wanted_items.c.id == wanted_id)
@@ -158,6 +173,7 @@ def mark_fulfilled(conn: Connection, wanted_id: int, *, paper_id: int, result: s
             paper_id=paper_id,
             last_checked_at=func.current_timestamp(),
             last_result=result,
+            last_reason_code=reason_code,
             updated_at=func.current_timestamp(),
         )
     )

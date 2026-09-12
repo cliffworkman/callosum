@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-12 — inc 588: Wanted-list OA triage + sticky selection bar + human-readable OA failures, shipped in 0.5.11
+- **Files:** `app/backend/{acquisition/wanted,api/routers/wanted,persistence/wanted_repo,persistence/schema}.py`,
+  `alembic/versions/0082_wanted_reason_code.py`, `app/frontend/js/{26_wanted,25a_detail_actions,28e_add_doi,10_pdf_layer}.jsx`,
+  `app/frontend/styles.css`, `callosum-app.html`, `tests/test_wanted.py`, `.claude/docs/increment-notes/INCREMENT-588-NOTES.md`.
+- **What:** Turn the Wanted modal into an OA-acquisition triage surface + keep the library selection bar visible on scroll.
+  (1) `list_wanted` now surfaces the linked paper's DOI (was NULL for library rows → the "Open article" link never showed).
+  (2) Persist the structured `AcquireOutcome.reason_code` in a new `wanted_items.last_reason_code` (migration 0082) →
+  API `acquisition_state` → frontend, instead of reconstructing state by parsing the human string; a narrow, tested
+  legacy classifier covers only pre-0082 rows. (3) Plain-language OA-failure messages on all three surfaces (Wanted,
+  Details, Add-with-DOI), raw detail kept under a tooltip / "Technical details" disclosure; language says "the automatic
+  download was blocked", never "the publisher". (4) Triage: sort blocked-to-top, "show only blocked" filter, honest
+  summary (openable = blocked *with a DOI*), bounded "Open all" (≈15/click, confirm, remaining-count). (5) The bulk
+  `.axis-bulk-bar` moved inside the sticky `.pane-head` (freeze-pane) so it stays pinned on scroll without covering cards.
+- **Why:** live 0.5.10 use — a real 1000-paper library's OA gaps were a wall of cryptic 403s, and the selection bar
+  scrolled out of view. Future-track GitHub issue #61 filed for a browser-extension importer (already-accessed material only).
+- **Verify:** 161 affected-suite tests incl. the structured round-trip + legacy-compat; live Playwright on a seeded
+  20-paper DB confirmed triage counts/sort/filter/messages + the sticky bar pins on scroll (bar top 232→232 through 500px);
+  ruff + line budget + QA map OK; drift gates declined at inc 588.
+- **Revert:** revert the listed edits + drop migration 0082; restore from `.claude/backups/` if needed.
+
 ## 2026-09-11 — inc 587: three fixes from live 0.5.9 testing (DB-lock, explicit delete, OA self-fetch link), shipped in 0.5.10
 - **Files:** `app/backend/api/job_store.py` (+`create_or_get_active_matching`), `app/backend/api/routers/acquisition.py`,
   `app/frontend/js/{10d_papercard,25a_detail_actions,25_detail,26_wanted}.jsx`, `app/frontend/styles.css`,

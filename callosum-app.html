@@ -1308,6 +1308,10 @@
     padding: 6px 10px; margin: 4px 0 8px; font-size: 11.5px;
   }
   .axis-bulk-count { color: var(--ink-2); font-weight: 600; margin-right: auto; }
+  /* inc 588: the library selection bar now lives inside the sticky .pane-head — sit it as the header's bottom
+     row (the header's own 12px bottom padding gives the gap to the cards). Scoped so other .axis-bulk-bar uses
+     (axes, reference-integrity) are unchanged. */
+  .pane-head .axis-bulk-bar { margin: 8px 0 0; }
 
   /* ---- axis merge comparison view (inc 43) ---- */
   .merge-source {
@@ -1681,6 +1685,10 @@
   .detail-acquire { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 2px; }
   .detail-acquire-msg { font-size: 12px; color: var(--ink-2); }
   .detail-acquire-err { color: var(--danger); }
+  /* inc 588: raw acquisition provenance kept inspectable on demand (humanize by default, detail on request). */
+  .detail-acquire-tech { flex-basis: 100%; font-size: 11px; color: var(--ink-3); }
+  .detail-acquire-tech summary { cursor: pointer; color: var(--ink-3); }
+  .detail-acquire-tech > span { display: block; margin-top: 3px; font-family: var(--mono); font-size: 10.5px; word-break: break-word; }
   .detail-tierline { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
   /* "More → + add field" — add an arbitrary CSL field by hand (inc 97). */
   .detail-addfield { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
@@ -1808,6 +1816,12 @@
   .wanted-row-info { flex: 1; min-width: 0; }
   .wanted-row-title { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wanted-row-meta { font-size: 11px; color: var(--ink-3); }
+  .wanted-row-state.is-blocked { color: var(--flag); }  /* actionable/unresolved status (amber), not danger, not verified (DESIGN §4) */
+  /* inc 588: blocked-OA triage banner — reuses the .axis-bulk-bar accent-soft "actionable" palette. */
+  .wanted-blocked-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-2); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 10px; }
+  .wanted-blocked-actions { display: inline-flex; align-items: center; gap: 12px; margin-left: auto; }
+  .wanted-filter-toggle { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+  .wanted-openall-msg { flex-basis: 100%; font-size: 11px; color: var(--ink-3); }
   .wanted-status { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; border-radius: var(--radius-pill); padding: 2px 8px; border: 1px solid var(--line-2); color: var(--ink-3); }
   .text-health-modal { max-width: 860px; }
   .text-health-group { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
@@ -10816,7 +10830,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         },
         fd.dir === "asc" ? "\u25B2" : "\u25BC"
       ));
-    })()), state.status === "ready" && !fulltextMode && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "Select All"))), fulltextMode && /* @__PURE__ */ React.createElement(FulltextResults, { query, onOpenPdf }), !fulltextMode && /* @__PURE__ */ React.createElement(React.Fragment, null, selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement(
+    })()), state.status === "ready" && !fulltextMode && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "Select All")), !fulltextMode && selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "bulk-focus",
@@ -10860,7 +10874,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       },
       /* @__PURE__ */ React.createElement("option", { value: "", disabled: true }, "Bibliography\u2026"),
       citeStyles.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.id, value: s.id }, s.title))
-    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", onClick: onBulkDelete }, "Delete"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearLibrarySelect }, "Clear")), state.status === "loading" && Array.from({ length: 8 }).map((_, i) => /* @__PURE__ */ React.createElement("div", { className: "skel", key: i }, /* @__PURE__ */ React.createElement("div", { className: "bar", style: { width: "70%", marginBottom: 8 } }), /* @__PURE__ */ React.createElement("div", { className: "bar", style: { width: "45%" } }))), state.status === "error" && state.authRequired && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Remote access is locked."), /* @__PURE__ */ React.createElement("br", null), "This browser isn't authorized. Use the recovery panel above to paste your access token, or turn Remote access off."), state.status === "error" && !state.authRequired && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Can't load the library."), /* @__PURE__ */ React.createElement("br", null), state.error, /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("br", null), "Start the backend, then reload:", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("code", null, "uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080")), state.status === "ready" && state.papers.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, trashView ? "Trash is empty." : `No papers${query ? " match that search" : " in this library"}.`), trashView ? "Deleted papers appear here and can be restored." : query ? "Try a different term." : "Ingest PDFs or import a Zotero library to begin."), state.status === "ready" && state.papers.map((p) => {
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", onClick: onBulkDelete }, "Delete"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearLibrarySelect }, "Clear"))), fulltextMode && /* @__PURE__ */ React.createElement(FulltextResults, { query, onOpenPdf }), !fulltextMode && /* @__PURE__ */ React.createElement(React.Fragment, null, state.status === "loading" && Array.from({ length: 8 }).map((_, i) => /* @__PURE__ */ React.createElement("div", { className: "skel", key: i }, /* @__PURE__ */ React.createElement("div", { className: "bar", style: { width: "70%", marginBottom: 8 } }), /* @__PURE__ */ React.createElement("div", { className: "bar", style: { width: "45%" } }))), state.status === "error" && state.authRequired && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Remote access is locked."), /* @__PURE__ */ React.createElement("br", null), "This browser isn't authorized. Use the recovery panel above to paste your access token, or turn Remote access off."), state.status === "error" && !state.authRequired && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Can't load the library."), /* @__PURE__ */ React.createElement("br", null), state.error, /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("br", null), "Start the backend, then reload:", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("code", null, "uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080")), state.status === "ready" && state.papers.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, trashView ? "Trash is empty." : `No papers${query ? " match that search" : " in this library"}.`), trashView ? "Deleted papers appear here and can be restored." : query ? "Try a different term." : "Ingest PDFs or import a Zotero library to begin."), state.status === "ready" && state.papers.map((p) => {
       const fStaged = focusAxis ? (focusPending || {})[p.id] : void 0;
       const fIn = fStaged ? fStaged === "add" : !!(focusAxis && focusMembers && focusMembers.has(p.id));
       const footExtra = /* @__PURE__ */ React.createElement(React.Fragment, null, focusAxis && /* @__PURE__ */ React.createElement(
@@ -15737,9 +15751,20 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     };
     return /* @__PURE__ */ React.createElement("div", { className: "detail-cite" }, /* @__PURE__ */ React.createElement("div", { className: "detail-cite-row" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, "Cite as"), /* @__PURE__ */ React.createElement("select", { className: "detail-cite-style", value: style, onChange: (e) => setStyle(e.target.value), title: "Citation style" }, styles.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.id, value: s.id }, s.title))), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: copyFormatted, disabled: !rendered, title: "Copy the formatted citation" }, fmtCopied ? "Copied \u2713" : "Copy")), rendered && rendered.reference_html && /* @__PURE__ */ React.createElement("div", { className: "detail-cite-preview", dangerouslySetInnerHTML: { __html: rendered.reference_html } }), /* @__PURE__ */ React.createElement("div", { className: "detail-cite-row" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, "Export"), [["bibtex", "BibTeX"], ["ris", "RIS"], ["csl-json", "CSL-JSON"]].map(([f, lbl]) => /* @__PURE__ */ React.createElement("button", { key: f, className: "btn-link", onClick: () => copyExport(f), title: `Copy ${lbl} to clipboard` }, copied === f ? "Copied \u2713" : lbl))));
   }
+  function _acquireFriendlyMessage(reasonCode) {
+    switch (reasonCode) {
+      case "candidates_exhausted":
+        return "An open-access copy was found, but the automatic download was blocked.";
+      case "no_candidate":
+        return "No open-access copy found.";
+      default:
+        return "No open-access copy could be downloaded.";
+    }
+  }
   function AcquireOaRow({ paperId, doi, onAcquired }) {
     const [status, setStatus] = useState("idle");
     const [msg, setMsg] = useState(null);
+    const [techDetail, setTechDetail] = useState(null);
     const [missed, setMissed] = useState(false);
     const [libMsg, setLibMsg] = useState(null);
     const openArticle = () => {
@@ -15777,14 +15802,16 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           setMsg("Imported a " + j.oa_color + (j.bronze_unstable ? " (unstable)" : "") + " open-access copy.");
           onAcquired && onAcquired();
         } else {
-          setMsg(j.detail || "No authorized open-access copy found.");
+          setMsg(_acquireFriendlyMessage(j.reason_code));
+          setTechDetail(j.detail || null);
           setMissed(true);
         }
         return;
       }
       if (j.status === "error") {
         setStatus("error");
-        setMsg(j.detail || "Acquisition failed.");
+        setMsg("The acquisition couldn\u2019t be completed.");
+        setTechDetail(j.detail || null);
         return;
       }
       setTimeout(() => poll(jobId), 1200);
@@ -15792,6 +15819,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const start = async () => {
       setStatus("running");
       setMsg(null);
+      setTechDetail(null);
       setMissed(false);
       setLibMsg(null);
       const r = await apiPost(`/papers/${paperId}/acquire-oa`, {});
@@ -15811,7 +15839,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         title: "Fetch a free, rights-holder-authorized open-access copy via OpenAlex and import it locally"
       },
       status === "running" ? "Acquiring\u2026" : "Acquire OA copy"
-    ), status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Searching open-access sources\u2026", managedBy: "backend-job" }), msg && /* @__PURE__ */ React.createElement("span", { className: "detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "") }, msg), missed && doi && /* @__PURE__ */ React.createElement(
+    ), status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Searching open-access sources\u2026", managedBy: "backend-job" }), msg && /* @__PURE__ */ React.createElement("span", { className: "detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "") }, msg), techDetail && /* @__PURE__ */ React.createElement("details", { className: "detail-acquire-tech" }, /* @__PURE__ */ React.createElement("summary", null, "Technical details"), /* @__PURE__ */ React.createElement("span", null, techDetail)), missed && doi && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn",
@@ -16211,6 +16239,25 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   function _wantedTitle(it) {
     return it.paper_title || it.title || it.doi || "Untitled";
   }
+  const _OPEN_ALL_CAP = 15;
+  const _WANTED_STATE_RANK = { blocked: 0, unchecked: 1, no_oa: 2, needs_id: 3, error: 4, fulfilled: 5 };
+  function _wantedStateMessage(it) {
+    switch (it.acquisition_state) {
+      case "blocked":
+        return "Open-access copy found, but the automatic download was blocked";
+      case "no_oa":
+        return "No open-access copy found";
+      case "needs_id":
+        return "Needs a DOI or PMID to search";
+      case "error":
+        return "Couldn\u2019t check (unexpected error)";
+      case "fulfilled":
+        return null;
+      // shown via the status pill + Open
+      default:
+        return "Not checked yet";
+    }
+  }
   function WantedModal({ onClose, onOpenPaper, onChanged }) {
     const [items, setItems] = useState([]);
     const [coverage, setCoverage] = useState(null);
@@ -16218,6 +16265,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [addDoi, setAddDoi] = useState("");
     const [busy, setBusy] = useState(false);
     const [recheck, setRecheck] = useState({ status: "idle" });
+    const [showOnlyBlocked, setShowOnlyBlocked] = useState(false);
+    const [openAllOffset, setOpenAllOffset] = useState(0);
+    const [openAllMsg, setOpenAllMsg] = useState(null);
     const refresh = useCallback(() => {
       return Promise.all([api("/wanted"), api("/wanted/coverage")]).then(([li, cov2]) => {
         if (li.ok) setItems(li.data.items || []);
@@ -16228,6 +16278,33 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     useEffect(() => {
       refresh();
     }, [refresh]);
+    useEffect(() => {
+      setOpenAllOffset(0);
+      setOpenAllMsg(null);
+    }, [items]);
+    const sortedItems = React.useMemo(
+      () => [...items].sort((a, b) => (_WANTED_STATE_RANK[a.acquisition_state] ?? 9) - (_WANTED_STATE_RANK[b.acquisition_state] ?? 9)),
+      [items]
+    );
+    const blockedItems = React.useMemo(() => sortedItems.filter((it) => it.acquisition_state === "blocked"), [sortedItems]);
+    const openableBlocked = React.useMemo(() => blockedItems.filter((it) => it.doi), [blockedItems]);
+    const visibleItems = showOnlyBlocked ? blockedItems : sortedItems;
+    const blockedCount = blockedItems.length;
+    const openableCount = openableBlocked.length;
+    const nextBatchCount = Math.min(_OPEN_ALL_CAP, Math.max(0, openableCount - openAllOffset));
+    const openAllBlocked = () => {
+      const batch = openableBlocked.slice(openAllOffset, openAllOffset + _OPEN_ALL_CAP);
+      if (!batch.length) {
+        setOpenAllOffset(0);
+        setOpenAllMsg("Reached the end \u2014 click once more to start over.");
+        return;
+      }
+      if (!window.confirm(`Open ${batch.length} article page${batch.length === 1 ? "" : "s"} in your browser?`)) return;
+      batch.forEach((it) => window.open("https://doi.org/" + it.doi, "_blank", "noopener,noreferrer"));
+      const next = openAllOffset + batch.length;
+      setOpenAllOffset(next);
+      setOpenAllMsg(next < openableCount ? `Opened ${batch.length} \u2014 ${openableCount - next} of ${openableCount} left. Click again for the next batch.` : `Opened the last ${batch.length} of ${openableCount}.`);
+    };
     const syncLibrary = async () => {
       setBusy(true);
       await apiPost("/wanted/sync-library", {});
@@ -16290,7 +16367,25 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           if (e.key === "Enter") addExternal();
         }
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: busy || !addDoi.trim(), onClick: addExternal }, "Add")), recheck.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Searching open-access sources\u2026", managedBy: "backend-job" }), recheck.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Re-check failed: ", recheck.error), recheck.status === "done" && summary && /* @__PURE__ */ React.createElement("div", { className: "wanted-summary" }, "Acquired ", summary.acquired.length, " \xB7 ", summary.still_wanted, " still wanted", summary.skipped ? ` \xB7 ${summary.skipped} need an identifier` : "", summary.errors ? ` \xB7 ${summary.errors} error${summary.errors === 1 ? "" : "s"}` : "", summary.acquired.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "oa-meta wanted-acquired" }, summary.acquired.map((a, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: "oa-chip " + (a.oa_color === "bronze" ? "oa-bronze" : "oa-durable") }, a.oa_color, "/", a.oa_version)))), loading && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"), !loading && items.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Your wanted list is empty. Sync from library or add a DOI."), items.map((it) => /* @__PURE__ */ React.createElement("div", { key: it.id, className: "wanted-row" }, /* @__PURE__ */ React.createElement("div", { className: "wanted-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "wanted-row-title" }, _wantedTitle(it)), /* @__PURE__ */ React.createElement("div", { className: "wanted-row-meta" }, it.paper_id ? "library" : "external", it.paper_year ? " \xB7 " + it.paper_year : "", it.last_result ? " \xB7 " + it.last_result : "")), /* @__PURE__ */ React.createElement("span", { className: "wanted-status" + (it.status === "fulfilled" ? " fulfilled" : "") }, it.status), it.paper_id && it.status === "fulfilled" && /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: busy || !addDoi.trim(), onClick: addExternal }, "Add")), blockedCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "wanted-blocked-summary" }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, blockedCount), " paper", blockedCount === 1 ? " has" : "s have", " an open-access copy that couldn\u2019t be downloaded automatically", openableCount < blockedCount ? ` \xB7 ${openableCount} can be opened directly` : "", "."), /* @__PURE__ */ React.createElement("span", { className: "wanted-blocked-actions" }, /* @__PURE__ */ React.createElement("label", { className: "wanted-filter-toggle", title: "Show only papers whose OA copy was blocked" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: showOnlyBlocked, onChange: (e) => setShowOnlyBlocked(e.target.checked) }), "Show only these"), openableCount > 0 && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-link",
+        onClick: openAllBlocked,
+        title: "Open the article pages (via DOI) for blocked open-access papers in your browser, in bounded batches \u2014 so you can download them yourself. Callosum never fetches them for you."
+      },
+      "Open ",
+      nextBatchCount || openableCount,
+      " in browser \u2197"
+    )), openAllMsg && /* @__PURE__ */ React.createElement("span", { className: "wanted-openall-msg" }, openAllMsg)), recheck.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Searching open-access sources\u2026", managedBy: "backend-job" }), recheck.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Re-check failed: ", recheck.error), recheck.status === "done" && summary && /* @__PURE__ */ React.createElement("div", { className: "wanted-summary" }, "Acquired ", summary.acquired.length, " \xB7 ", summary.still_wanted, " still wanted", summary.skipped ? ` \xB7 ${summary.skipped} need an identifier` : "", summary.errors ? ` \xB7 ${summary.errors} error${summary.errors === 1 ? "" : "s"}` : "", summary.acquired.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "oa-meta wanted-acquired" }, summary.acquired.map((a, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: "oa-chip " + (a.oa_color === "bronze" ? "oa-bronze" : "oa-durable") }, a.oa_color, "/", a.oa_version)))), loading && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"), !loading && items.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Your wanted list is empty. Sync from library or add a DOI."), !loading && items.length > 0 && visibleItems.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No blocked open-access papers. ", /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => setShowOnlyBlocked(false) }, "Show all")), visibleItems.map((it) => /* @__PURE__ */ React.createElement("div", { key: it.id, className: "wanted-row" }, /* @__PURE__ */ React.createElement("div", { className: "wanted-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "wanted-row-title" }, _wantedTitle(it)), /* @__PURE__ */ React.createElement("div", { className: "wanted-row-meta" }, it.paper_id ? "library" : "external", it.paper_year ? " \xB7 " + it.paper_year : "", _wantedStateMessage(it) && /* @__PURE__ */ React.createElement(
+      "span",
+      {
+        className: "wanted-row-state" + (it.acquisition_state === "blocked" ? " is-blocked" : ""),
+        title: it.last_result || void 0
+      },
+      " \xB7 ",
+      _wantedStateMessage(it)
+    ))), /* @__PURE__ */ React.createElement("span", { className: "wanted-status" + (it.status === "fulfilled" ? " fulfilled" : "") }, it.status), it.paper_id && it.status === "fulfilled" && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "axis-link",
@@ -16928,12 +17023,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [oa, setOa] = useState(null);
     const pollOa = (jobId) => api(`/papers/acquire-oa/${jobId}`).then((r) => {
       if (!r.ok) {
-        setOa({ status: "done", found: false, detail: "Could not check OA status." });
+        setOa({ status: "done", found: false, reasonCode: "error", detail: "Could not check OA status." });
         return;
       }
       const d = r.data;
-      if (d.status === "done") setOa({ status: "done", found: !!d.found, detail: d.detail });
-      else if (d.status === "error") setOa({ status: "done", found: false, detail: d.detail || "OA fetch failed." });
+      if (d.status === "done") setOa({ status: "done", found: !!d.found, reasonCode: d.reason_code, detail: d.detail });
+      else if (d.status === "error") setOa({ status: "done", found: false, reasonCode: "error", detail: d.detail || "OA fetch failed." });
       else {
         setOa({ status: "running" });
         setTimeout(() => pollOa(jobId), 1500);
@@ -16977,7 +17072,15 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onChange: (e) => setDoi(e.target.value),
         onKeyDown: onKey
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: meta.status === "running" || !doi.trim(), onClick: run }, meta.status === "running" ? "Adding\u2026" : "Add")), meta.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, meta.error), meta.status === "created" && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, "Added."), " ", meta.title || meta.doi, " is now in your library."), meta.status === "existing" && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, "Already in your library."), " ", meta.title || meta.doi, " \u2014 surfaced, not duplicated."), oa && oa.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Fetching open-access PDF\u2026", managedBy: "backend-job" }), oa && oa.status === "done" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, oa.found ? "Open-access PDF added." : `No open-access PDF added${oa.detail ? " \u2014 " + oa.detail : "."}`), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")));
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: meta.status === "running" || !doi.trim(), onClick: run }, meta.status === "running" ? "Adding\u2026" : "Add")), meta.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, meta.error), meta.status === "created" && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, "Added."), " ", meta.title || meta.doi, " is now in your library."), meta.status === "existing" && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, "Already in your library."), " ", meta.title || meta.doi, " \u2014 surfaced, not duplicated."), oa && oa.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Fetching open-access PDF\u2026", managedBy: "backend-job" }), oa && oa.status === "done" && oa.found && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Open-access PDF added."), oa && oa.status === "done" && !oa.found && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, _acquireFriendlyMessage(oa.reasonCode), meta.doi && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-link",
+        title: "Open this article's page (via its DOI) in your browser \u2014 if it's freely readable, download the PDF yourself and attach it here.",
+        onClick: () => window.open("https://doi.org/" + meta.doi, "_blank", "noopener,noreferrer")
+      },
+      "Open article \u2197"
+    )), oa.detail && /* @__PURE__ */ React.createElement("details", { className: "detail-acquire-tech" }, /* @__PURE__ */ React.createElement("summary", null, "Technical details"), /* @__PURE__ */ React.createElement("span", null, oa.detail))), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")));
   }
   const SNS2014_CSL = {
     type: "article-journal",

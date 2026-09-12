@@ -381,8 +381,9 @@ dismissed_duplicate_pairs = Table(
 # The wanted list (inc 76): papers the user wants an open-access copy of. A row is either library-linked
 # (``paper_id`` set — a PDF-less library paper to fill) or external (``paper_id`` NULL — a paper not yet
 # imported, carrying its own doi/pmid/title). The OA re-check runs the resolver cascade over open rows and
-# auto-acquires hits. ``status``: wanted | fulfilled. ``last_result`` is a short code (e.g. gold/vor, none,
-# needs-id, error:…).
+# auto-acquires hits. ``status``: wanted | fulfilled. ``last_result`` is a short HUMAN string (display only, NOT a
+# durable contract). ``last_reason_code`` (inc 588) is the STRUCTURED state from ``AcquireOutcome.reason_code``
+# (+ the re-check's needs_id | error) — the canonical source for the API's acquisition_state (NULL pre-inc-588).
 wanted_items = Table(
     "wanted_items",
     metadata,
@@ -395,6 +396,7 @@ wanted_items = Table(
     Column("status", String(20), nullable=False, server_default="wanted"),
     Column("last_checked_at", DateTime),
     Column("last_result", String(100)),
+    Column("last_reason_code", String(40)),  # structured state (inc 588); NULL on pre-inc-588 rows
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     Column("updated_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     Index("ix_wanted_items_paper_id", "paper_id"),

@@ -16,9 +16,9 @@
     "source_fingerprint": "45ba80f0516b1b8b242878c3b76f8b1520c3f4bc1ed1827d05930df4d97105c3",
     "note": "Reviewed inc 576 PDF recovery against every affected website claim and visual. Existing library/PDF claims remain accurate; no public copy or screenshot change is needed.",
     "declined_at": "2026-09-11",
-    "declined_rev": "d3f21d29",
-    "declined_increment": 587,
-    "decline_note": "inc 586/587 (0.5.10): app-shell cache-bust + acquire DB-lock dedup + explicit per-card Delete + OA self-fetch DOI link. Infra/UX fixes; no showcased capability or website claim changed."
+    "declined_rev": "22d252ab",
+    "declined_increment": 588,
+    "decline_note": "inc 588 (0.5.11): Wanted-modal OA triage (structured acquisition_state, sort/filter/summary/open-all, humanized messages) + sticky selection bar. Infra/UX; no showcased capability or website claim changed."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

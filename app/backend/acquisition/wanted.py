@@ -18,13 +18,19 @@ from typing import Any, Callable
 
 from sqlalchemy import Engine
 
-from app.backend.acquisition.acquire import acquire_first_working
+from app.backend.acquisition.acquire import ACQUIRED, acquire_first_working
 from app.backend.acquisition.fetch import download_oa_pdf, import_oa_pdf
 from app.backend.acquisition.registry import OaLocation, PaperRef, ResolverRegistry
 from app.backend.persistence import wanted_repo
 from app.backend.persistence.repository import create_paper
 
 logger = logging.getLogger("callosum.acquisition.wanted")
+
+# Structured re-check outcome codes persisted to wanted_items.last_reason_code (inc 588). The OA-cascade codes
+# (acquired / no_candidate / candidates_exhausted) come straight from AcquireOutcome.reason_code; needs_id / error
+# are the re-check's OWN control-flow states. The API reads these, never the human last_result string.
+REASON_NEEDS_ID = "needs_id"
+REASON_ERROR = "error"
 
 MAX_RECHECK_PER_RUN = 200  # politeness/resource cap; logged (never silent) if it truncates a run
 _MAX_RESULT_LEN = 100  # matches wanted_items.last_result's declared width (schema.py)
@@ -66,7 +72,7 @@ def run_recheck(
         ref = _ref_for_row(row)
         if ref is None:
             with engine.begin() as conn:
-                wanted_repo.mark_checked(conn, row["id"], result="needs-id")
+                wanted_repo.mark_checked(conn, row["id"], result="needs-id", reason_code=REASON_NEEDS_ID)
             summary["skipped"] += 1
             continue
         try:
@@ -75,10 +81,11 @@ def run_recheck(
             outcome = acquire_first_working(engine, registry, ref, download=download)
             if not outcome.acquired:
                 # Distinct honest states: NO candidate found ("none", still just wanted) vs candidate(s)
-                # found but none downloadable ("exhausted") — never collapsed into an opaque error.
+                # found but none downloadable ("exhausted") — never collapsed into an opaque error. The
+                # structured outcome.reason_code (no_candidate | candidates_exhausted) is persisted directly.
                 result = "none" if outcome.reason_code == "no_candidate" else outcome.human_detail()[:_MAX_RESULT_LEN]
                 with engine.begin() as conn:
-                    wanted_repo.mark_checked(conn, row["id"], result=result)
+                    wanted_repo.mark_checked(conn, row["id"], result=result, reason_code=outcome.reason_code)
                 if outcome.reason_code == "no_candidate":
                     summary["still_wanted"] += 1
                 else:
@@ -89,7 +96,11 @@ def run_recheck(
                 paper_id = row["paper_id"] if row["paper_id"] is not None else _create_paper_for_wanted(conn, row)
                 import_(conn, location, temp_path, paper_id=paper_id, crossref_client=crossref_client)
                 wanted_repo.mark_fulfilled(
-                    conn, row["id"], paper_id=paper_id, result=f"{location.oa_color}/{location.version}"
+                    conn,
+                    row["id"],
+                    paper_id=paper_id,
+                    result=f"{location.oa_color}/{location.version}",
+                    reason_code=ACQUIRED,
                 )
             summary["acquired"].append(
                 {
@@ -106,7 +117,7 @@ def run_recheck(
             # the single-paper acquire endpoint's detail (routers/acquisition.py); inc 414.
             detail = f"error: {type(exc).__name__}: {exc}"[:_MAX_RESULT_LEN]
             with engine.begin() as conn:
-                wanted_repo.mark_checked(conn, row["id"], result=detail)
+                wanted_repo.mark_checked(conn, row["id"], result=detail, reason_code=REASON_ERROR)
             summary["errors"] += 1
     return summary
 

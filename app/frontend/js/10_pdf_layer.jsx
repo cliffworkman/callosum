@@ -481,12 +481,9 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             {selecting && state.papers.length > 0 &&
               <button className="lib-select-all" onClick={() => onSelectAll(state.papers.map(p => p.id))}>Select All</button>}
           </div>}
-      </div>
-
-      {fulltextMode && <FulltextResults query={query} onOpenPdf={onOpenPdf} />}
-      {!fulltextMode && <>
-
-      {selecting && selCount > 0 &&
+          {/* inc 588: freeze-pane — the selection actions bar lives INSIDE the sticky .pane-head, so whenever a
+              selection exists it stays pinned under the search/filter bar and reserves space rather than covering cards. */}
+          {!fulltextMode && selecting && selCount > 0 &&
         <div className="axis-bulk-bar">
           <span className="axis-bulk-count">{selCount} selected</span>
           <input className="bulk-focus" placeholder="Focus on… (optional)" value={bulkFocus}
@@ -523,6 +520,10 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           <button className="axis-link axis-danger" onClick={onBulkDelete}>Delete</button>
           <button className="axis-link" onClick={onClearLibrarySelect}>Clear</button>
         </div>}
+      </div>
+
+      {fulltextMode && <FulltextResults query={query} onOpenPdf={onOpenPdf} />}
+      {!fulltextMode && <>
 
       {state.status === "loading" &&
         Array.from({ length: 8 }).map((_, i) => (

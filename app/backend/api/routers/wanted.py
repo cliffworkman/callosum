@@ -31,13 +31,16 @@ router = APIRouter()
 class WantedItemResponse(BaseModel):
     id: int
     paper_id: int | None = None
-    doi: str | None = None
+    doi: str | None = None  # inc 588: the wanted row's own DOI, else the linked paper's DOI (coalesced)
     pmid: str | None = None
     title: str | None = None
     note: str | None = None
     status: str
     last_checked_at: str | None = None
-    last_result: str | None = None
+    last_result: str | None = None  # human string — display/tooltip only, NOT the sort/filter key
+    # inc 588: the canonical STRUCTURED OA-acquisition state for triage — derived from last_reason_code, never by
+    # parsing last_result. One of: unchecked | blocked | no_oa | needs_id | error | fulfilled.
+    acquisition_state: str = "unchecked"
     paper_title: str | None = None
     paper_year: int | None = None
     paper_deleted: bool = False
@@ -170,18 +173,60 @@ def recheck_status(job_id: str, request: Request) -> RecheckJobResponse:
     return RecheckJobResponse(job_id=job_id, status=job.status, detail=job.detail)
 
 
+# API-facing OA-acquisition states (inc 588), derived from the STRUCTURED last_reason_code that run_recheck now
+# persists. `blocked` = an OA copy was found but the automatic download was blocked (candidate(s) exhausted).
+_STATE_FROM_REASON = {
+    "candidates_exhausted": "blocked",
+    "no_candidate": "no_oa",
+    "needs_id": "needs_id",
+    "error": "error",
+    "acquired": "fulfilled",
+}
+
+
+def _acquisition_state(status: str | None, reason_code: str | None, last_result: str | None) -> str:
+    """The canonical OA-acquisition state for a wanted row. A fulfilled row is always ``fulfilled``; otherwise the
+    STRUCTURED ``reason_code`` wins whenever present; only a pre-inc-588 row (reason_code NULL) falls back to the
+    legacy prose classifier below."""
+    if status == "fulfilled":
+        return "fulfilled"
+    if reason_code is not None:
+        return _STATE_FROM_REASON.get(reason_code, "unchecked")
+    return _legacy_state_from_last_result(last_result)
+
+
+def _legacy_state_from_last_result(last_result: str | None) -> str:
+    """COMPATIBILITY ONLY (inc 588): derive a state for a pre-inc-588 row whose ``last_reason_code`` is NULL, by
+    reading the human ``last_result`` string ``run_recheck`` used to persist. This is deliberately NOT the
+    canonical derivation — a row gains a structured ``last_reason_code`` the moment it is next re-checked, after
+    which this is never consulted. Kept narrow + explicitly tested so it can be removed once no NULL rows remain;
+    ``human_detail()`` wording is not otherwise a durable contract."""
+    if not last_result:
+        return "unchecked"
+    if last_result == "none":
+        return "no_oa"
+    if last_result == "needs-id":
+        return "needs_id"
+    if last_result.startswith("error:"):
+        return "error"
+    if "could be downloaded" in last_result:  # old human_detail() phrasing for candidates_exhausted
+        return "blocked"
+    return "unchecked"
+
+
 def _to_response(row: dict) -> WantedItemResponse:
     checked = row.get("last_checked_at")
     return WantedItemResponse(
         id=int(row["id"]),
         paper_id=row.get("paper_id"),
-        doi=row.get("doi"),
+        doi=row.get("doi") or row.get("paper_doi"),  # inc 588: library rows carry the DOI on the paper, not the want
         pmid=row.get("pmid"),
         title=row.get("title"),
         note=row.get("note"),
         status=row.get("status") or "wanted",
         last_checked_at=str(checked) if checked else None,
         last_result=row.get("last_result"),
+        acquisition_state=_acquisition_state(row.get("status"), row.get("last_reason_code"), row.get("last_result")),
         paper_title=row.get("paper_title"),
         paper_year=row.get("paper_year"),
         paper_deleted=bool(row.get("paper_deleted_at")),
