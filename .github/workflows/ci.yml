@@ -47,6 +47,8 @@ jobs:
         run: uv run python tools/qa/build_surface_map.py check || true
       - name: Website/showcase coverage drift check
         run: uv run python tools/qa/check_website_coverage.py
+      - name: What's-new banner release drift check (#43 — every shipped version has a banner entry or a decline)
+        run: uv run python tools/check_whatsnew_coverage.py
 
   e2e-smoke:
     runs-on: ubuntu-latest

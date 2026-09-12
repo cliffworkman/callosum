@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-12 — inc 593: release-keyed what's-new banner + mechanical drift gate (#43)
+- **Files:** `app/frontend/whatsnew.json` (new source of truth), `app/frontend/js/04e_whatsnew.jsx` (new),
+  `tools/check_whatsnew_coverage.py` (new gate), `tests/test_whatsnew_gate.py` (new),
+  `app/backend/api/frontend.py` (`{{WHATSNEW}}` inject), `app/frontend/index.html`, `app/frontend/js/30c_frame.jsx`
+  (removed `LocalAiWhatsNewHint`), `.github/workflows/ci.yml`, `.claude/CLAUDE.md`, `tests/test_frontend_assembly.py`,
+  `callosum-app.html`, `.claude/docs/increment-notes/INCREMENT-593-NOTES.md`.
+- **What:** Replaced the bespoke Local AI hint with one generic, version-keyed what's-new banner driven by
+  `whatsnew.json` (exact-semver → headline + typed `actionKind`; injected as `window.CALLOSUM_WHATSNEW`). Shows
+  the newest entry with `version > lastSeen` and `≤ app_version`; semantic-version ordering (not lexical);
+  malformed stored values fail safe; `actionKind` is typed/bounded (never behavior from prose). The Local AI
+  announcement is now a registry entry (migrated the old dismissal once). **The point: a mechanical release
+  drift gate** (`check_whatsnew_coverage.py`, wired into CI) that fails unless the current desktop version has a
+  banner entry OR an explicit `--decline --note` — so release↔banner drift can't happen silently.
+- **Why:** #43 — systematize the ad-hoc banner pattern and tie it to releases mechanically, not by memory.
+- **Verify:** 10-case pure-logic node test (semver/pick), 7 gate pytest, live Playwright (banner shows + action +
+  dismiss persists + migration), assembly tests updated; ruff + line budget + QA + all drift gates OK.
+- **Revert:** delete the 4 new files + revert the edits; the gate is additive.
+
 ## 2026-09-12 — inc 592: three new Feed sources — arXiv, Europe PMC, PsyArXiv (#40)
 - **Files:** `app/backend/discovery/{arxiv_source,europepmc_source,psyarxiv_source}.py` (new),
   `app/backend/discovery/feed.py`, `tests/test_feed{,_sources_40}.py`,

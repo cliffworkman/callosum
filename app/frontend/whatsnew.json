@@ -1,0 +1,16 @@
+{
+  "schema": "callosum-whatsnew/1",
+  "_doc": "Single source of truth for the in-app 'What's new' banner (#43). `entries` maps an EXACT desktop-shell semantic version to the banner it shows the first time a user runs that version (or newer). `actionKind` is a TYPED, bounded key the banner routes (see 04e_whatsnew.jsx `_ACTION_LABELS`); null = an informational banner with no action. `no_banner` records versions that deliberately ship without a banner (a bug-fix release), so the release drift gate (tools/check_whatsnew_coverage.py) passes on explicit silence rather than an accidental omission. build_frontend injects only `entries` into the page as window.CALLOSUM_WHATSNEW; the gate reads this whole file.",
+  "entries": {
+    "0.5.5": {
+      "headline": "New: Local AI — run Callosum's compatible AI features on this device, no API key or cloud account required.",
+      "actionKind": "local-ai"
+    }
+  },
+  "no_banner": {
+    "0.5.12": {
+      "note": "Bug-fix release (external links now open in the system browser); the what's-new mechanism did not exist when it shipped.",
+      "at": "2026-09-12"
+    }
+  }
+}

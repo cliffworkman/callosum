@@ -1933,6 +1933,12 @@ callosum is a **git repo** (remote `origin` → `github.com/cliffworkman/callosu
      without writing. This replaces the old by-hand edit and removes the whole error class the tag-time
      preflight only *caught*. **Never bump `pyproject.toml` for this** — it's inert Python-package metadata
      with its own independent lifecycle, unrelated to the desktop shell's version (the tool leaves it alone).
+   - **Add the release's "what's new" (inc 593, #43):** for the bumped version, add an entry to
+     `app/frontend/whatsnew.json`'s `entries` (a headline + optional typed `actionKind`) so the in-app banner
+     announces the change — **or**, for a patch release with nothing user-facing, record an explicit silence:
+     `python tools/check_whatsnew_coverage.py --decline --note "why"`. This is enforced **mechanically** — the CI
+     `check_whatsnew_coverage.py` gate fails a version that has neither — so this note is a reminder, not the
+     guardrail. (Then `python tools/build_frontend.py` to re-inject the registry into the bundle.)
    - Commit + push that bump to `main` exactly like any other change; confirm the three
      `desktop-shell-{windows,macos,linux}.yml` CI runs (they trigger on this push same as always) are
      green.

@@ -214,12 +214,14 @@ def test_workspace_menubar_structure_present():
     assert 'title="Papers you want an OA copy of' in raw and 'title="Works related to several of your papers' in raw
     assert 'title="Per axis: works relevant to it but under-cited' in raw
     assert "onFindDuplicates, onOpenWanted" not in raw and "onFindDuplicates, onOpenScan" in raw
-    # inc 553: the superseded layout hint becomes a fresh Local AI announcement with a durable setup entry point.
-    assert "callosum.local-ai-whatsnew.v1" in raw
-    assert "function LocalAiWhatsNewHint(" in raw
-    assert "New: Local AI." in raw and "no API key or cloud account required" in raw
+    # inc 593 (#43): the bespoke Local AI hint is replaced by the generic, release-keyed WhatsNewBanner (the
+    # Local AI announcement is now a registry entry in whatsnew.json keyed at its ship version, actionKind
+    # "local-ai"), with the old dismissal migrated once from the legacy key.
+    assert "function WhatsNewBanner(" in raw and "function pickWhatsNew(" in raw
+    assert "function LocalAiWhatsNewHint(" not in raw  # the bespoke hint is gone (rule #5)
+    assert "callosum.whatsnew.lastseen" in raw and 'actionKind === "local-ai"' in raw
     assert "Set up Local AI" in raw and "onOpenLocalAi" in raw
-    assert '_saveLayout(LOCAL_AI_WHATSNEW_KEY, "1")' in raw
+    assert "_saveLayout(WHATSNEW_LASTSEEN_KEY, appVersion)" in raw  # dismiss stamps last-seen = running version
     css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
     assert (
         ".workspace-body { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; overflow-y: auto; }"
@@ -1206,9 +1208,9 @@ def test_qa_20260719_mobile_batch_and_pdf_404_fix():
     # superseded by the padding-sweep fix below: .cite-pane now gets real base padding via .ws-pad, so the
     # mobile-only patch was removed rather than left as a contradictory one-off (DESIGN.md §3 #10).
     assert ".app.mobile .cite-pane { padding: 0 14px" not in css
-    # the current release hint retains a shorter mobile-specific copy (the old layout notice was 4 lines / 82px)
-    assert "function LocalAiWhatsNewHint({ readOnly, mobile, onOpenLocalAi })" in raw
-    assert "Run Callosum's AI features on this device — no API key required." in raw
+    # inc 593 (#43): the release hint is now the generic WhatsNewBanner (single headline from the registry, no
+    # separate mobile copy — the banner text lives in whatsnew.json, not hardcoded per-viewport).
+    assert "function WhatsNewBanner(" in raw
     assert "<b>Extract</b>" not in raw
     # a paper opened with a known attachment_count of 0 skips the doomed /pdf fetch entirely (no 404, no
     # console error) instead of relying on the 404 being handled gracefully after the fact

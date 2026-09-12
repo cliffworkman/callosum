@@ -3297,6 +3297,7 @@
 </head>
 <body>
 <div id="root"></div>
+<script>window.CALLOSUM_WHATSNEW = {"0.5.5": {"headline": "New: Local AI — run Callosum's compatible AI features on this device, no API key or cloud account required.", "actionKind": "local-ai"}};</script>
 <script>
 (() => {
   const CALLOSUM_DEMO = window.CALLOSUM_DEMO || null;
@@ -5925,6 +5926,90 @@
       },
       busy ? "Finishing\u2026" : localAiSetupRunning ? "Setup in progress\u2026" : isLast ? "Finish" : "Next \u2192"
     ))));
+  }
+  const WHATSNEW_LASTSEEN_KEY = "callosum.whatsnew.lastseen";
+  const _LOCAL_AI_LEGACY_KEY = "callosum.local-ai-whatsnew.v1";
+  const _LOCAL_AI_VERSION = "0.5.5";
+  function _semverParts(v) {
+    if (typeof v !== "string") return null;
+    const m = v.trim().match(/^(\d+)\.(\d+)\.(\d+)$/);
+    return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+  }
+  function _semverCmp(a, b) {
+    const pa = _semverParts(a);
+    const pb = _semverParts(b);
+    if (!pa && !pb) return 0;
+    if (!pa) return -1;
+    if (!pb) return 1;
+    for (let i = 0; i < 3; i++) {
+      if (pa[i] !== pb[i]) return pa[i] < pb[i] ? -1 : 1;
+    }
+    return 0;
+  }
+  function _whatsNewAction(actionKind, handlers) {
+    if (actionKind === "local-ai" && handlers.onOpenLocalAi) {
+      return { label: "Set up Local AI", run: handlers.onOpenLocalAi };
+    }
+    return null;
+  }
+  function pickWhatsNew(entries, appVersion, lastSeen) {
+    if (!entries || typeof entries !== "object" || !_semverParts(appVersion)) return null;
+    let best = null;
+    for (const [version, entry] of Object.entries(entries)) {
+      if (!entry || typeof entry.headline !== "string") continue;
+      if (_semverParts(version) === null) continue;
+      if (_semverCmp(version, lastSeen) <= 0) continue;
+      if (_semverCmp(version, appVersion) > 0) continue;
+      if (best === null || _semverCmp(version, best.version) > 0) {
+        best = { version, headline: entry.headline, actionKind: entry.actionKind || null };
+      }
+    }
+    return best;
+  }
+  function WhatsNewBanner({ readOnly, onOpenLocalAi }) {
+    const [appVersion, setAppVersion] = useState(null);
+    const [dismissed, setDismissed] = useState(false);
+    useEffect(() => {
+      try {
+        const seen = _loadLayout(WHATSNEW_LASTSEEN_KEY, "");
+        if (!seen && _loadLayout(_LOCAL_AI_LEGACY_KEY, "0") === "1") {
+          _saveLayout(WHATSNEW_LASTSEEN_KEY, _LOCAL_AI_VERSION);
+        }
+      } catch (e) {
+      }
+    }, []);
+    useEffect(() => {
+      if (readOnly !== false) return;
+      let alive = true;
+      api("/health").then((r) => {
+        if (alive && r.ok && r.data) setAppVersion(r.data.app_version || null);
+      });
+      return () => {
+        alive = false;
+      };
+    }, [readOnly]);
+    if (readOnly !== false || dismissed || !appVersion) return null;
+    const entries = typeof window !== "undefined" && window.CALLOSUM_WHATSNEW || {};
+    let lastSeen = "";
+    try {
+      lastSeen = _loadLayout(WHATSNEW_LASTSEEN_KEY, "");
+    } catch (e) {
+      lastSeen = "";
+    }
+    const pick = pickWhatsNew(entries, appVersion, lastSeen);
+    if (!pick) return null;
+    const action = _whatsNewAction(pick.actionKind, { onOpenLocalAi });
+    const dismiss = () => {
+      setDismissed(true);
+      try {
+        _saveLayout(WHATSNEW_LASTSEEN_KEY, appVersion);
+      } catch (e) {
+      }
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "region", "aria-label": "What's new" }, /* @__PURE__ */ React.createElement("span", null, pick.headline), /* @__PURE__ */ React.createElement("div", { className: "workspace-whatsnew-actions" }, action && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-link", onClick: () => {
+      action.run();
+      dismiss();
+    } }, action.label), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss what's new", title: "Dismiss", onClick: dismiss }, "\xD7")));
   }
   function creditItems(items) {
     return Array.isArray(items) ? items : [items];
@@ -17888,16 +17973,6 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       }
     ), /* @__PURE__ */ React.createElement("label", { className: "pdf-annot-notedonly", title: "Show only highlights that have a note" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: notedOnly, onChange: (e) => setNotedOnly(e.target.checked) }), " Noted")), annotations.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights yet. Select text in the PDF to add one, then click it to add a note."), annotations.length > 0 && shown.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights match this filter."), shown.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, className: "pdf-annot-item" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-row", onClick: () => onJump(a), title: "Jump to this highlight" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-chip", style: { background: a.color } }), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-page" }, "p.", a.page), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-snip" }, (a.anchor_text || "").slice(0, 90) || "(no text)")), a.note && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-note" }, a.note), /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-actions" }, /* @__PURE__ */ React.createElement("button", { onClick: (e) => onEdit(a, e.clientX - 250, e.clientY + 6) }, a.note ? "Edit Note" : "Add Note"), /* @__PURE__ */ React.createElement("button", { className: "danger", onClick: () => onDelete(a.id) }, "Delete")))));
   }
-  const LOCAL_AI_WHATSNEW_KEY = "callosum.local-ai-whatsnew.v1";
-  function LocalAiWhatsNewHint({ readOnly, mobile, onOpenLocalAi }) {
-    const [dismissed, setDismissed] = useState(() => _loadLayout(LOCAL_AI_WHATSNEW_KEY, "0") === "1");
-    if (readOnly !== false || dismissed) return null;
-    const dismiss = () => {
-      setDismissed(true);
-      _saveLayout(LOCAL_AI_WHATSNEW_KEY, "1");
-    };
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "region", "aria-label": "What's new" }, /* @__PURE__ */ React.createElement("span", null, mobile ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, "New: Local AI."), " Run Callosum's AI features on this device \u2014 no API key required.") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, "New: Local AI."), " Run Callosum's compatible AI features on this device \u2014 no API key or cloud account required.")), /* @__PURE__ */ React.createElement("div", { className: "workspace-whatsnew-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-link", onClick: onOpenLocalAi }, "Set up Local AI"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss Local AI notice", title: "Dismiss", onClick: dismiss }, "\xD7")));
-  }
   const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
   const WIP_TAB_DRAG_TYPE = "application/x-callosum-wiptab";
   function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi, onOpenLibraryFolders }) {
@@ -17906,7 +17981,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       if (!selectedPaperTab) return;
       onOpenPdf({ id: selectedPaperTab.id, title: selectedPaperTab.title });
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement(LocalAiWhatsNewHint, { readOnly: libraryProps && libraryProps.readOnly, mobile, onOpenLocalAi }), /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement(WhatsNewBanner, { readOnly: libraryProps && libraryProps.readOnly, onOpenLocalAi }), /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "frame-tab" + (activeTab === "library" ? " active" : ""),

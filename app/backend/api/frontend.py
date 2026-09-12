@@ -77,6 +77,21 @@ def _transpile_jsx(jsx: str) -> str:
     return result.stdout
 
 
+def _whatsnew_entries_json() -> str:
+    """The `entries` map from whatsnew.json (the #43 what's-new registry), injected into the page as
+    `window.CALLOSUM_WHATSNEW`. Only `entries` is exposed (the banner content); `no_banner` is gate-only. A
+    missing/malformed file degrades to `{}` (no banner) rather than breaking the build."""
+    import json
+
+    path = FRONTEND_DIR / "whatsnew.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        entries = data.get("entries", {})
+        return json.dumps(entries if isinstance(entries, dict) else {}, ensure_ascii=False)
+    except (OSError, ValueError):
+        return "{}"
+
+
 def build_frontend_document() -> str:
     """Assemble (and cache) index.html + styles.css + the esbuild-precompiled js/*.jsx into one HTML string."""
     global _cache
@@ -85,5 +100,9 @@ def build_frontend_document() -> str:
     template = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
     styles = (FRONTEND_DIR / "styles.css").read_text(encoding="utf-8")
     script = _transpile_jsx(assemble_jsx())
-    _cache = template.replace("{{STYLES}}", styles).replace("{{SCRIPT}}", script)
+    _cache = (
+        template.replace("{{STYLES}}", styles)
+        .replace("{{WHATSNEW}}", _whatsnew_entries_json())
+        .replace("{{SCRIPT}}", script)
+    )
     return _cache

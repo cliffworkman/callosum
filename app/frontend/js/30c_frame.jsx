@@ -6,28 +6,9 @@
 // through so a PdfViewer surfaces the capture UI + returns the anchor — arming it opens the paper under Library,
 // and applying it switches back to Work → Meta-Analyze. Hoists reference PdfViewer / PaperList regardless of
 // chunk order.
-const LOCAL_AI_WHATSNEW_KEY = "callosum.local-ai-whatsnew.v1";
-
-function LocalAiWhatsNewHint({ readOnly, mobile, onOpenLocalAi }) {
-  const [dismissed, setDismissed] = useState(() => _loadLayout(LOCAL_AI_WHATSNEW_KEY, "0") === "1");
-  if (readOnly !== false || dismissed) return null;
-  const dismiss = () => {
-    setDismissed(true);
-    _saveLayout(LOCAL_AI_WHATSNEW_KEY, "1");
-  };
-  return (
-    <div className="axis-hint workspace-whatsnew" role="region" aria-label="What's new">
-      <span>{mobile
-        ? <><b>New: Local AI.</b> Run Callosum's AI features on this device — no API key required.</>
-        : <><b>New: Local AI.</b> Run Callosum's compatible AI features on this device — no API key or cloud account required.</>}
-      </span>
-      <div className="workspace-whatsnew-actions">
-        <button type="button" className="btn btn-link" onClick={onOpenLocalAi}>Set up Local AI</button>
-        <button type="button" className="btn-icon workspace-whatsnew-dismiss" aria-label="Dismiss Local AI notice" title="Dismiss" onClick={dismiss}>×</button>
-      </div>
-    </div>
-  );
-}
+// #43 (inc 593): the bespoke LocalAiWhatsNewHint was replaced by the generic, release-keyed WhatsNewBanner
+// (04e_whatsnew.jsx, driven by whatsnew.json + a release drift gate). The Local AI announcement is now a
+// registry entry (keyed at its ship version) with actionKind "local-ai".
 
 const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
 const WIP_TAB_DRAG_TYPE = "application/x-callosum-wiptab";
@@ -40,7 +21,7 @@ function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, select
   };
   return (
     <div className="lib-frame">
-      <LocalAiWhatsNewHint readOnly={libraryProps && libraryProps.readOnly} mobile={mobile} onOpenLocalAi={onOpenLocalAi} />
+      <WhatsNewBanner readOnly={libraryProps && libraryProps.readOnly} onOpenLocalAi={onOpenLocalAi} />
       <div className="frame-tabs">
         <button
           className={"frame-tab" + (activeTab === "library" ? " active" : "")}

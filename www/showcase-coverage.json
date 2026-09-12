@@ -16,9 +16,9 @@
     "source_fingerprint": "45ba80f0516b1b8b242878c3b76f8b1520c3f4bc1ed1827d05930df4d97105c3",
     "note": "Reviewed inc 576 PDF recovery against every affected website claim and visual. Existing library/PDF claims remain accurate; no public copy or screenshot change is needed.",
     "declined_at": "2026-09-12",
-    "declined_rev": "8654105f",
-    "declined_increment": 592,
-    "decline_note": "inc 592 (#40): three new Feed sources (arXiv, Europe PMC, PsyArXiv). Backend-only; the Follow picker is data-driven, no showcased capability or website claim changed."
+    "declined_rev": "621ac5c3",
+    "declined_increment": 593,
+    "decline_note": "inc 593 (#43): generic version-keyed whats-new banner + mechanical release drift gate; migrated the Local AI hint. Infra/UX; no showcased capability or website claim changed."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",
