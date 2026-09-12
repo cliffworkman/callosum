@@ -69,7 +69,7 @@ function WantedModal({ onClose, onOpenPaper, onChanged }) {
     const batch = openableBlocked.slice(openAllOffset, openAllOffset + _OPEN_ALL_CAP);
     if (!batch.length) { setOpenAllOffset(0); setOpenAllMsg("Reached the end — click once more to start over."); return; }
     if (!window.confirm(`Open ${batch.length} article page${batch.length === 1 ? "" : "s"} in your browser?`)) return;
-    batch.forEach(it => window.open("https://doi.org/" + it.doi, "_blank", "noopener,noreferrer"));
+    batch.forEach(it => openExternalUrl("https://doi.org/" + it.doi));
     const next = openAllOffset + batch.length;
     setOpenAllOffset(next);
     setOpenAllMsg(next < openableCount
@@ -220,7 +220,7 @@ function WantedModal({ onClose, onOpenPaper, onChanged }) {
             {it.doi && it.status !== "fulfilled" &&
               <button className="axis-link"
                 title="Open this article's page (via its DOI) in your browser — if it's freely readable, download the PDF yourself and add it to your library."
-                onClick={() => window.open("https://doi.org/" + it.doi, "_blank", "noopener,noreferrer")}>
+                onClick={() => openExternalUrl("https://doi.org/" + it.doi)}>
                 Open article ↗
               </button>}
             <button className="axis-link" title="Remove from the wanted list" onClick={() => removeItem(it.id)}>×</button>

@@ -18,7 +18,6 @@ use tauri_plugin_updater::{Update, UpdaterExt};
 
 const STARTUP_DELAY: Duration = Duration::from_secs(30); // let the backend's own cold start have priority
 const CHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
-#[cfg(target_os = "linux")]
 const RELEASES_PAGE: &str = "https://github.com/cliffworkman/callosum/releases/latest";
 
 #[derive(Serialize, Clone)]
@@ -382,19 +381,10 @@ pub fn install_update_now(app: AppHandle) -> Result<(), String> {
 
 /// Linux: opens the GitHub release page in the system browser. A no-op elsewhere.
 #[tauri::command]
-pub fn open_release_page() -> Result<(), String> {
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(RELEASES_PAGE)
-            .spawn()
-            .map(|_| ())
-            .map_err(|e| e.to_string())
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        Ok(())
-    }
+pub fn open_release_page(app: AppHandle) -> Result<(), String> {
+    // inc 589: route through the shared cross-platform opener. The old xdg-open path worked only on Linux and
+    // was a silent no-op on Windows/macOS, so the manual-update "Open release page" button did nothing there.
+    crate::external::open_external_url(app, RELEASES_PAGE.to_string())
 }
 
 #[cfg(test)]

@@ -7,6 +7,9 @@ const { useState, useEffect, useCallback, useContext, useRef } = React;
 // narrower `DetailReadOnly` (24_detail_fields.jsx) for field editability.
 const AppReadOnly = React.createContext(undefined);
 
+// The external-URL opener boundary (openExternalUrl + the global anchor interceptor) lives in
+// 00b_external_links.jsx (inc 589) — extracted to keep this shared-lib chunk under the 600-line cap.
+
 // ─────────────────────────────────────────────────────────────
 // CONFIG — defaults to the same-origin API served by FastAPI.
 // Launch the backend with, e.g.:

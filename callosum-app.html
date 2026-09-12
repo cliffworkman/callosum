@@ -3921,6 +3921,42 @@
     };
     return /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost", onClick: copy }, copied ? "Diagnostics copied \u2713" : "Copy diagnostics");
   }
+  function openExternalUrl(url) {
+    if (!url) return;
+    if (typeof window !== "undefined" && window.__TAURI__) {
+      window.__TAURI__.core.invoke("open_external_url", { url }).catch((e) => console.warn("[callosum] open external URL failed:", e));
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+  function externalAnchorTarget(anchor, event) {
+    if (event && (event.defaultPrevented || event.button !== 0)) return null;
+    if (!anchor || !anchor.getAttribute || anchor.hasAttribute("download")) return null;
+    const raw = anchor.getAttribute("href");
+    if (!raw) return null;
+    let url;
+    try {
+      url = new URL(raw, window.location.href);
+    } catch (_) {
+      return null;
+    }
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    if (url.host === window.location.host) return null;
+    return url.href;
+  }
+  if (typeof window !== "undefined" && window.__TAURI__) {
+    document.addEventListener("click", (e) => {
+      try {
+        const anchor = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+        const target = externalAnchorTarget(anchor, e);
+        if (!target) return;
+        e.preventDefault();
+        openExternalUrl(target);
+      } catch (err) {
+        console.warn("[callosum] external-link interceptor:", err);
+      }
+    });
+  }
   function AccessLockOverlay() {
     const [tab, setTab] = useState("token");
     const [tokenInput, setTokenInput] = useState("");
@@ -7865,7 +7901,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onOpen: ref.page != null ? () => onOpen(ref, `registration-reference:${index}`) : null,
         openLabel: "Open source page for this registration reference"
       }
-    ), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, ref.canonical_url && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => window.open(ref.canonical_url, "_blank", "noopener") }, "Open externally"), /* @__PURE__ */ React.createElement("span", { className: "axis-hint" }, ref.explicitly_printed ? "printed in document" : ref.extraction_method === "manual" ? "supplied by you" : "PDF link target")))), !references.length && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "\u201CNot located\u201D is not equivalent to absent; the reference may be in unextracted metadata, a supplement, or visible only outside the document."));
+    ), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, ref.canonical_url && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => openExternalUrl(ref.canonical_url) }, "Open externally"), /* @__PURE__ */ React.createElement("span", { className: "axis-hint" }, ref.explicitly_printed ? "printed in document" : ref.extraction_method === "manual" ? "supplied by you" : "PDF link target")))), !references.length && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "\u201CNot located\u201D is not equivalent to absent; the reference may be in unextracted metadata, a supplement, or visible only outside the document."));
   }
   function RegistrationReferenceActions({ paperId, attachments, onChanged }) {
     const [value, setValue] = useState("");
@@ -8023,7 +8059,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const canAcquire = ["osf", "aspredicted", "manual-local"].includes(link.provider) && !["withdrawn", "unavailable", "embargoed"].includes(link.registration_status);
     const unavailableLink = ["withdrawn", "unavailable"].includes(link.link_status);
     const latestVersion = versions[0];
-    return /* @__PURE__ */ React.createElement("div", { className: "registration-candidate-card" }, /* @__PURE__ */ React.createElement("div", { className: "registration-candidate-top" }, /* @__PURE__ */ React.createElement("span", { className: `registration-linkage ${link.linkage_class}` }, confirmed ? "Linked by you" : link.linkage_label), link.registration_status && /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, link.registration_status)), /* @__PURE__ */ React.createElement("b", null, link.title || `${link.provider} registration ${link.external_id}`), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, link.provider, " \xB7 ", link.registration_doi || link.external_id, link.registered_at ? ` \xB7 ${link.registered_at.slice(0, 10)}` : ""), !!(link.contributors || []).length && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, link.contributors.join(", ")), !!evidence.length && /* @__PURE__ */ React.createElement("ul", { className: "registration-candidate-evidence" }, evidence.map((item, index) => /* @__PURE__ */ React.createElement("li", { key: index }, evidenceLabel(item)))), ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status) && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "The registry reports this registration as ", link.registration_status, ". Inspect its public metadata; Callosum will not try to download an unavailable artifact."), confirmed && latestVersion && /* @__PURE__ */ React.createElement("div", { className: "registration-version-summary" }, /* @__PURE__ */ React.createElement("b", null, "Stored locally"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Version ", latestVersion.content_hash.slice(0, 12), " \xB7 retrieved ", new Date(latestVersion.retrieved_at).toLocaleDateString(), versions.length > 1 ? ` \xB7 ${versions.length} preserved versions` : ""), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, isDemoMode() ? "The saved source version is independently identifiable; inspect its publication crosswalk below." : "Registration content is attached and can be inspected independently. No comparison has run yet.")), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, link.canonical_url && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => window.open(link.canonical_url, "_blank", "noopener") }, "Open externally"), !confirmed && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: isDemoMode() || busy || unavailableLink || ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status), onClick: onConfirm }, "Confirm Link"), !confirmed && /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: isDemoMode() || busy, onClick: onReject }, "Dismiss"), confirmed && canAcquire && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: isDemoMode() || busy, onClick: onAcquire }, latestVersion ? "Check for an updated version" : "Acquire registration"), confirmed && /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: isDemoMode() || busy, onClick: onIncorrect }, "Incorrect Registration Match")), confirmed && !latestVersion && !canAcquire && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "This provider has no bounded acquisition route. Attach a local registration PDF below."), /* @__PURE__ */ React.createElement("div", { className: "settings-sub registration-candidate-caveat" }, "Candidate evidence supports inspection, not a claim that this is the paper's correct registration or that the paper followed it."));
+    return /* @__PURE__ */ React.createElement("div", { className: "registration-candidate-card" }, /* @__PURE__ */ React.createElement("div", { className: "registration-candidate-top" }, /* @__PURE__ */ React.createElement("span", { className: `registration-linkage ${link.linkage_class}` }, confirmed ? "Linked by you" : link.linkage_label), link.registration_status && /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, link.registration_status)), /* @__PURE__ */ React.createElement("b", null, link.title || `${link.provider} registration ${link.external_id}`), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, link.provider, " \xB7 ", link.registration_doi || link.external_id, link.registered_at ? ` \xB7 ${link.registered_at.slice(0, 10)}` : ""), !!(link.contributors || []).length && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, link.contributors.join(", ")), !!evidence.length && /* @__PURE__ */ React.createElement("ul", { className: "registration-candidate-evidence" }, evidence.map((item, index) => /* @__PURE__ */ React.createElement("li", { key: index }, evidenceLabel(item)))), ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status) && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "The registry reports this registration as ", link.registration_status, ". Inspect its public metadata; Callosum will not try to download an unavailable artifact."), confirmed && latestVersion && /* @__PURE__ */ React.createElement("div", { className: "registration-version-summary" }, /* @__PURE__ */ React.createElement("b", null, "Stored locally"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Version ", latestVersion.content_hash.slice(0, 12), " \xB7 retrieved ", new Date(latestVersion.retrieved_at).toLocaleDateString(), versions.length > 1 ? ` \xB7 ${versions.length} preserved versions` : ""), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, isDemoMode() ? "The saved source version is independently identifiable; inspect its publication crosswalk below." : "Registration content is attached and can be inspected independently. No comparison has run yet.")), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, link.canonical_url && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => openExternalUrl(link.canonical_url) }, "Open externally"), !confirmed && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: isDemoMode() || busy || unavailableLink || ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status), onClick: onConfirm }, "Confirm Link"), !confirmed && /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: isDemoMode() || busy, onClick: onReject }, "Dismiss"), confirmed && canAcquire && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: isDemoMode() || busy, onClick: onAcquire }, latestVersion ? "Check for an updated version" : "Acquire registration"), confirmed && /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: isDemoMode() || busy, onClick: onIncorrect }, "Incorrect Registration Match")), confirmed && !latestVersion && !canAcquire && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "This provider has no bounded acquisition route. Attach a local registration PDF below."), /* @__PURE__ */ React.createElement("div", { className: "settings-sub registration-candidate-caveat" }, "Candidate evidence supports inspection, not a claim that this is the paper's correct registration or that the paper followed it."));
   }
   function TransparencyCredit() {
     return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Detectors:"), " data & code availability \u2014 ODDPub (Riedel et al. 2020); conflict-of-interest, funding & registration indicators \u2014 rtransparent (Serghiou et al. 2021); preregistration \u2014 Nosek et al. (2018).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: TRANSPARENCY_CSL }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "A reading aid \u2014 a rule-based text detector, never a transparency score or a judgment of the authors."), /* @__PURE__ */ React.createElement(LakensCredit, null));
@@ -15768,7 +15804,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [missed, setMissed] = useState(false);
     const [libMsg, setLibMsg] = useState(null);
     const openArticle = () => {
-      if (doi) window.open("https://doi.org/" + doi, "_blank", "noopener,noreferrer");
+      if (doi) openExternalUrl("https://doi.org/" + doi);
     };
     const getViaLibrary = async () => {
       setLibMsg(null);
@@ -15785,7 +15821,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         setLibMsg(r.data.detail || "This record can't be resolved by a library link.");
         return;
       }
-      window.open(r.data.url, "_blank", "noopener");
+      openExternalUrl(r.data.url);
       setLibMsg("Opened your library's resolver \u2014 sign in there, download the PDF, then attach it here or drop it in your library folder.");
     };
     const poll = async (jobId) => {
@@ -16300,7 +16336,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         return;
       }
       if (!window.confirm(`Open ${batch.length} article page${batch.length === 1 ? "" : "s"} in your browser?`)) return;
-      batch.forEach((it) => window.open("https://doi.org/" + it.doi, "_blank", "noopener,noreferrer"));
+      batch.forEach((it) => openExternalUrl("https://doi.org/" + it.doi));
       const next = openAllOffset + batch.length;
       setOpenAllOffset(next);
       setOpenAllMsg(next < openableCount ? `Opened ${batch.length} \u2014 ${openableCount - next} of ${openableCount} left. Click again for the next batch.` : `Opened the last ${batch.length} of ${openableCount}.`);
@@ -16397,7 +16433,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       {
         className: "axis-link",
         title: "Open this article's page (via its DOI) in your browser \u2014 if it's freely readable, download the PDF yourself and add it to your library.",
-        onClick: () => window.open("https://doi.org/" + it.doi, "_blank", "noopener,noreferrer")
+        onClick: () => openExternalUrl("https://doi.org/" + it.doi)
       },
       "Open article \u2197"
     ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", title: "Remove from the wanted list", onClick: () => removeItem(it.id) }, "\xD7"))), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));
@@ -17077,7 +17113,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       {
         className: "axis-link",
         title: "Open this article's page (via its DOI) in your browser \u2014 if it's freely readable, download the PDF yourself and attach it here.",
-        onClick: () => window.open("https://doi.org/" + meta.doi, "_blank", "noopener,noreferrer")
+        onClick: () => openExternalUrl("https://doi.org/" + meta.doi)
       },
       "Open article \u2197"
     )), oa.detail && /* @__PURE__ */ React.createElement("details", { className: "detail-acquire-tech" }, /* @__PURE__ */ React.createElement("summary", null, "Technical details"), /* @__PURE__ */ React.createElement("span", null, oa.detail))), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close")));

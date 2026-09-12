@@ -101,7 +101,7 @@ function AcquireOaRow({ paperId, doi, onAcquired }) {
   // open the article's own page via its DOI in the user's browser so they can grab it themselves. This is NOT
   // scraping/circumvention (APPROACH-AVOIDANCE veto): it's the user visiting the publisher's page with their
   // own access, the same value as the "Get via my library" resolver hand-off — but always available (no setup).
-  const openArticle = () => { if (doi) window.open("https://doi.org/" + doi, "_blank", "noopener,noreferrer"); };
+  const openArticle = () => { if (doi) openExternalUrl("https://doi.org/" + doi); };
   // inc 263: the free-and-legal hand-off. callosum builds an OpenURL and opens the user's OWN institution's
   // official link resolver in the user's OWN browser (their SSO does the auth); it never fetches the paper and
   // never touches credentials. Opt-in — dormant until a resolver base is set in Settings.
@@ -111,7 +111,7 @@ function AcquireOaRow({ paperId, doi, onAcquired }) {
     if (!r.ok) { setLibMsg(r.error || "Couldn't build a library link."); return; }
     if (!r.data.configured) { setLibMsg("Add your library's link resolver in Settings to use this."); return; }
     if (!r.data.url) { setLibMsg(r.data.detail || "This record can't be resolved by a library link."); return; }
-    window.open(r.data.url, "_blank", "noopener");
+    openExternalUrl(r.data.url);
     setLibMsg("Opened your library's resolver — sign in there, download the PDF, then attach it here or drop it in your library folder.");
   };
   const poll = async (jobId) => {

@@ -1,4 +1,5 @@
 mod backend;
+mod external;
 mod managed_local_ai;
 mod python_runtime;
 mod quick_tunnel;
@@ -302,6 +303,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_opener::init())  // inc 589: open external URLs in the system browser
         .manage(BackendState::default())
         .manage(WordHttpsState::default())
         .manage(QuickTunnelState::default())
@@ -321,7 +323,8 @@ pub fn run() {
             updater::install_update_now,
             updater::open_release_page,
             updater::check_for_updates_now,
-            updater::current_update_state
+            updater::current_update_state,
+            external::open_external_url
         ])
         .setup(|app| {
             let handle = app.handle().clone();

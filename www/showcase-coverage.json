@@ -15,10 +15,10 @@
     "reviewed_increment": 576,
     "source_fingerprint": "45ba80f0516b1b8b242878c3b76f8b1520c3f4bc1ed1827d05930df4d97105c3",
     "note": "Reviewed inc 576 PDF recovery against every affected website claim and visual. Existing library/PDF claims remain accurate; no public copy or screenshot change is needed.",
-    "declined_at": "2026-09-11",
-    "declined_rev": "22d252ab",
-    "declined_increment": 588,
-    "decline_note": "inc 588 (0.5.11): Wanted-modal OA triage (structured acquisition_state, sort/filter/summary/open-all, humanized messages) + sticky selection bar. Infra/UX; no showcased capability or website claim changed."
+    "declined_at": "2026-09-12",
+    "declined_rev": "7231c120",
+    "declined_increment": 589,
+    "decline_note": "inc 589 (0.5.12): app-shell external-URL opener boundary \u2014 tauri-plugin-opener + open_external_url command + global anchor interceptor; routes all external links through openExternalUrl. Desktop-shell/frontend plumbing; no showcased capability or website claim changed."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

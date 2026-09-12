@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the splash and main windows. The splash page only needs to listen for backend-status events and invoke retry_backend; the main window is the real callosum UI, which also listens for update-ready events and invokes install_update_now/open_release_page (the auto-updater, inc 'desktop-shell auto-updater').",
+  "description": "Capability for the splash and main windows. The splash page only needs to listen for backend-status events and invoke retry_backend; the main window is the real callosum UI, which also listens for update-ready events and invokes install_update_now/open_release_page (the auto-updater, inc 'desktop-shell auto-updater') and open_external_url (open a paper's DOI page etc. in the system browser, inc 589).",
   "windows": ["splash", "main"],
   "remote": {
     "urls": ["http://127.0.0.1:*/*"]
@@ -11,6 +11,7 @@
     "allow-retry-backend",
     "allow-install-update-now",
     "allow-open-release-page",
+    "allow-open-external-url",
     "allow-check-for-updates-now",
     "allow-current-update-state",
     "allow-start-word-https-companion",

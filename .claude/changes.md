@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-12 — inc 589: app-shell external-URL opener boundary (Open-article links never opened), shipped in 0.5.12
+- **Files:** `app/desktop-shell/src-tauri/{Cargo.toml,src/external.rs,src/lib.rs,src/updater.rs,permissions/default.toml,capabilities/default.json}`,
+  `app/frontend/js/{00_lib,00b_external_links,26_wanted,25a_detail_actions,28e_add_doi,08h_methods_transparency}.jsx`,
+  `callosum-app.html`, `.claude/security-audits/2026-09-12_external-url-opener.md`, `.claude/docs/increment-notes/INCREMENT-589-NOTES.md`.
+- **What:** In the packaged Tauri webview, `window.open(url,"_blank")` and `<a target="_blank">` don't reach the
+  system browser, so 0.5.11's "Open article ↗" / Open-all / Details links silently opened an empty tab. Added the
+  first-party `tauri-plugin-opener` + an ACL-gated, http(s)-only `open_external_url` command, a frontend
+  `openExternalUrl` helper (Tauri command → falls back to window.open in a plain browser), and a Tauri-only global
+  external-anchor interceptor that fixes the whole class (~28 `<a target=_blank>` external links) at the boundary
+  rather than per-component. Consolidated the Win/macOS-no-op `open_release_page` onto the same opener.
+- **Why:** release-integrity — the UI advertised a manual recovery action that did nothing in the packaged app.
+  The Wanted triage logic itself was correct; the failure was purely the desktop-shell external-URL boundary.
+- **Verify:** `cargo test --lib external` (scheme validation) + `cargo check` green; ACL manifest resolves the
+  command; Playwright DOM run confirmed all 7 interceptor scenarios; frontend assembly 87; line budget OK (split
+  `00b_external_links.jsx` out of `00_lib`); QA + drift declines; security audit PASS. Decisive packaged-app
+  click-test owed against the 0.5.12 installer (native window, not automatable).
+- **Revert:** revert the listed edits + drop the opener dependency; restore from `.claude/backups/` if needed.
+
 ## 2026-09-12 — inc 588: Wanted-list OA triage + sticky selection bar + human-readable OA failures, shipped in 0.5.11
 - **Files:** `app/backend/{acquisition/wanted,api/routers/wanted,persistence/wanted_repo,persistence/schema}.py`,
   `alembic/versions/0082_wanted_reason_code.py`, `app/frontend/js/{26_wanted,25a_detail_actions,28e_add_doi,10_pdf_layer}.jsx`,

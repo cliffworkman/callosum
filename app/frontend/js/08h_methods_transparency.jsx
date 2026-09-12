@@ -165,7 +165,7 @@ function RegistrationReferences({ references, state, onOpen }) {
           onOpen={ref.page != null ? () => onOpen(ref, `registration-reference:${index}`) : null}
           openLabel="Open source page for this registration reference" />}
         <div className="settings-actions">
-          {ref.canonical_url && <button className="axis-link" onClick={() => window.open(ref.canonical_url, "_blank", "noopener")}>Open externally</button>}
+          {ref.canonical_url && <button className="axis-link" onClick={() => openExternalUrl(ref.canonical_url)}>Open externally</button>}
           <span className="axis-hint">{ref.explicitly_printed ? "printed in document" : ref.extraction_method === "manual" ? "supplied by you" : "PDF link target"}</span>
         </div>
       </div>)}
@@ -400,7 +400,7 @@ function RegistrationCandidateCard({ link, confirmed, versions = [], busy, onCon
         : "Registration content is attached and can be inspected independently. No comparison has run yet."}</div>
     </div>}
     <div className="settings-actions">
-      {link.canonical_url && <button className="axis-link" onClick={() => window.open(link.canonical_url, "_blank", "noopener")}>Open externally</button>}
+      {link.canonical_url && <button className="axis-link" onClick={() => openExternalUrl(link.canonical_url)}>Open externally</button>}
       {!confirmed && <button className="btn btn-ghost" disabled={isDemoMode() || busy || unavailableLink || ["withdrawn", "unavailable", "embargoed"].includes(link.registration_status)} onClick={onConfirm}>Confirm Link</button>}
       {!confirmed && <button className="btn-link" disabled={isDemoMode() || busy} onClick={onReject}>Dismiss</button>}
       {confirmed && canAcquire && <button className="btn btn-ghost" disabled={isDemoMode() || busy} onClick={onAcquire}>

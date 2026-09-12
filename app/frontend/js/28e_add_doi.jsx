@@ -79,7 +79,7 @@ function AddDoiModalBody({ onClose, onImported }) {
           {meta.doi &&
             <> <button className="axis-link"
                  title="Open this article's page (via its DOI) in your browser — if it's freely readable, download the PDF yourself and attach it here."
-                 onClick={() => window.open("https://doi.org/" + meta.doi, "_blank", "noopener,noreferrer")}>Open article ↗</button></>}
+                 onClick={() => openExternalUrl("https://doi.org/" + meta.doi)}>Open article ↗</button></>}
           {oa.detail &&
             <details className="detail-acquire-tech"><summary>Technical details</summary><span>{oa.detail}</span></details>}
         </div>}
