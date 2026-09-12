@@ -16,9 +16,9 @@
     "source_fingerprint": "45ba80f0516b1b8b242878c3b76f8b1520c3f4bc1ed1827d05930df4d97105c3",
     "note": "Reviewed inc 576 PDF recovery against every affected website claim and visual. Existing library/PDF claims remain accurate; no public copy or screenshot change is needed.",
     "declined_at": "2026-09-12",
-    "declined_rev": "7231c120",
-    "declined_increment": 589,
-    "decline_note": "inc 589 (0.5.12): app-shell external-URL opener boundary \u2014 tauri-plugin-opener + open_external_url command + global anchor interceptor; routes all external links through openExternalUrl. Desktop-shell/frontend plumbing; no showcased capability or website claim changed."
+    "declined_rev": "e880a117",
+    "declined_increment": 590,
+    "decline_note": "inc 590: in-reader PDF find/search (#42). Frontend-only new feature; the demo/showcase pages are unchanged and this actually makes the existing cap-pdf-search claim true. Website shot recapture tracked as a separate follow-up."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

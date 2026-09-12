@@ -31,6 +31,10 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
   useEffect(() => { scaleRef.current = scale; }, [scale]);
   const armedRef = useRef(null);           // inc 255: current workbench "select-in-PDF" arm ({cb}) or null — read in the stable onPagesMouseUp
   useEffect(() => { armedRef.current = armedCapture && onCaptureAnchor ? { cb: onCaptureAnchor } : null; }, [armedCapture, onCaptureAnchor]);
+  // inc 590 (#42): in-reader find/search over the already-rendered text layer (hook owns search + highlighting).
+  const find = usePdfFind({ pagesRef, scrollRef });
+  const findRecomputeRef = useRef(find.recompute);
+  useEffect(() => { findRecomputeRef.current = find.recompute; }, [find.recompute]);
 
   // Surface a transient message (e.g. a failed save) so API errors aren't silent.
   const flashNotice = useCallback((msg) => {
@@ -232,6 +236,8 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
       if (!cancelled) {
         applyPdfCitationTarget(scrollRef.current, host, target);
         renderUserAnnotations(host, annotationsRef.current);
+        // inc 590: re-paint find highlights after a (re)render (zoom / fit-mode) so they track the new layout.
+        findRecomputeRef.current(true);
         // inc 175: restore remembered scroll once per paper-open (a citation target wins; not on zoom re-renders).
         if (restoredPaperRef.current !== paperId) {
           restoredPaperRef.current = paperId;
@@ -517,6 +523,9 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
                       onClick={() => changePageView(pageView === "two" ? "page" : "two")}
                       title="Two pages side by side">Two-up</button>}
             <span className="pdf-pageind">Page {page} / {state.numPages}</span>
+            <button className={"pdf-annot-toggle" + (find.open ? " active" : "")}
+                    onClick={() => (find.open ? find.closeFind() : find.openFind())}
+                    title="Find in this document (Ctrl/Cmd+F)">Find</button>
             {annotations.length > 0 && <>
               <button className="pdf-annot-toggle" onClick={() => stepMark(-1)} title="Jump to the previous highlight ( [ )">◂ Mark</button>
               <button className="pdf-annot-toggle" onClick={() => stepMark(1)} title="Jump to the next highlight ( ] )">Mark ▸</button>
@@ -527,6 +536,9 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
             </button>
           </>}
       </div>
+      {find.open && state.status === "ready" &&
+        <PdfFindBar query={find.query} onQuery={find.setQuery} count={find.count} current={find.current}
+          onPrev={find.prev} onNext={find.next} onClose={find.closeFind} inputRef={find.inputRef} />}
       {armedCapture &&
         <div className="pdf-armed-note" role="status">
           Select the reported value in the PDF to anchor <b>{armedCapture.fieldLabel}</b> — the text becomes the cell value (yours to edit).

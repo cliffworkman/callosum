@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-12 — inc 590: in-reader PDF find/search (backlog #42)
+- **Files:** `app/frontend/js/30i_pdf_find.jsx` (new), `app/frontend/js/30_viewer.jsx`, `app/frontend/styles.css`,
+  `callosum-app.html`, `.claude/docs/increment-notes/INCREMENT-590-NOTES.md`.
+- **What:** Real Ctrl/Cmd+F find inside the PDF reader — searches the already-rendered text layer (the app's
+  custom `renderTextLayer` pipeline doesn't use pdf.js's `FindController`/viewer stack), highlights matches with
+  amber overlay rects (never mutating the text layer, so selection/annotations are untouched), all pages,
+  next/prev + count, Esc to close. Makes the website's `cap-pdf-search` claim true (it advertised search for a
+  feature that was never built).
+- **Why:** the reader had no find-in-document, and the showcase over-claimed it (#42).
+- **Verify:** live Playwright on the real `seed.pdf` fixture (cross-page match, count "1/11", next/prev/Enter,
+  no-match, Esc-clears); pure matcher verified standalone (9 assertions); frontend assembly 87; line budget OK;
+  QA surface map OK. No backend change, no new dependency, no egress. Website shot recapture is a separate follow-up.
+- **Revert:** revert the listed edits; restore from `.claude/backups/` if needed.
+
 ## 2026-09-12 — inc 589: app-shell external-URL opener boundary (Open-article links never opened), shipped in 0.5.12
 - **Files:** `app/desktop-shell/src-tauri/{Cargo.toml,src/external.rs,src/lib.rs,src/updater.rs,permissions/default.toml,capabilities/default.json}`,
   `app/frontend/js/{00_lib,00b_external_links,26_wanted,25a_detail_actions,28e_add_doi,08h_methods_transparency}.jsx`,

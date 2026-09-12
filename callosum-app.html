@@ -2655,6 +2655,28 @@
     box-shadow: 0 0 0 1px rgba(255,255,255,.55), 0 0 12px rgba(92,85,176,.28);
     border-radius: 2px; mix-blend-mode: multiply;
   }
+  /* inc 590 (#42): in-reader find. The find bar reuses the toolbar chrome; match overlays are transient
+     "here"-markers, so amber (--flag), NOT verified-green / danger-red / provenance-indigo (DESIGN §4). */
+  .pdf-find-bar {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+    background: var(--panel-2); border-bottom: 1px solid var(--line);
+  }
+  .pdf-find-input {
+    flex: 1; max-width: 320px; border: 1px solid var(--line-2); border-radius: var(--radius);
+    background: var(--panel); color: var(--ink); font: inherit; font-size: 12.5px; padding: 5px 9px;
+  }
+  .pdf-find-input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .pdf-find-count { font-size: 11.5px; color: var(--ink-3); min-width: 62px; }
+  .pdf-find-btn {
+    border: 1px solid transparent; background: none; color: var(--ink-2); cursor: pointer;
+    border-radius: var(--radius-sm); padding: 2px 7px; font-size: 12px; line-height: 1.2;
+  }
+  .pdf-find-btn:not(:disabled):hover { border-color: var(--line-2); color: var(--ink); }
+  .pdf-find-btn:disabled { opacity: .4; cursor: default; }
+  .pdf-find-close:hover { color: var(--danger); border-color: var(--danger-line); }
+  .pdf-find-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
+  .pdf-find-hit { position: absolute; background: var(--flag-soft); mix-blend-mode: multiply; border-radius: 1px; }
+  .pdf-find-hit.current { background: var(--flag); box-shadow: 0 0 0 1px var(--flag); }
   /* User-authored highlight overlays — translucent fill in the chosen color, no
      border/glow, so they read as a marker pass and stay visually distinct from the
      bordered indigo citation/provenance highlight above. */
@@ -17300,6 +17322,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     useEffect(() => {
       armedRef.current = armedCapture && onCaptureAnchor ? { cb: onCaptureAnchor } : null;
     }, [armedCapture, onCaptureAnchor]);
+    const find = usePdfFind({ pagesRef, scrollRef });
+    const findRecomputeRef = useRef(find.recompute);
+    useEffect(() => {
+      findRecomputeRef.current = find.recompute;
+    }, [find.recompute]);
     const flashNotice = useCallback((msg) => {
       setNotice(msg);
       if (noticeTimer.current) clearTimeout(noticeTimer.current);
@@ -17493,6 +17520,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         if (!cancelled) {
           applyPdfCitationTarget(scrollRef.current, host, target);
           renderUserAnnotations(host, annotationsRef.current);
+          findRecomputeRef.current(true);
           if (restoredPaperRef.current !== paperId) {
             restoredPaperRef.current = paperId;
             const saved = !target && scrollRef.current ? Number(localStorage.getItem("callosum.pdfScroll." + paperId)) : 0;
@@ -17741,7 +17769,15 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         title: "Two pages side by side"
       },
       "Two-up"
-    ), /* @__PURE__ */ React.createElement("span", { className: "pdf-pageind" }, "Page ", page, " / ", state.numPages), annotations.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "pdf-annot-toggle", onClick: () => stepMark(-1), title: "Jump to the previous highlight ( [ )" }, "\u25C2 Mark"), /* @__PURE__ */ React.createElement("button", { className: "pdf-annot-toggle", onClick: () => stepMark(1), title: "Jump to the next highlight ( ] )" }, "Mark \u25B8")), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("span", { className: "pdf-pageind" }, "Page ", page, " / ", state.numPages), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "pdf-annot-toggle" + (find.open ? " active" : ""),
+        onClick: () => find.open ? find.closeFind() : find.openFind(),
+        title: "Find in this document (Ctrl/Cmd+F)"
+      },
+      "Find"
+    ), annotations.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "pdf-annot-toggle", onClick: () => stepMark(-1), title: "Jump to the previous highlight ( [ )" }, "\u25C2 Mark"), /* @__PURE__ */ React.createElement("button", { className: "pdf-annot-toggle", onClick: () => stepMark(1), title: "Jump to the next highlight ( ] )" }, "Mark \u25B8")), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "pdf-annot-toggle" + (panelOpen ? " active" : ""),
@@ -17751,7 +17787,19 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       "Notes (",
       annotations.length,
       ")"
-    ))), armedCapture && /* @__PURE__ */ React.createElement("div", { className: "pdf-armed-note", role: "status" }, "Select the reported value in the PDF to anchor ", /* @__PURE__ */ React.createElement("b", null, armedCapture.fieldLabel), " \u2014 the text becomes the cell value (yours to edit).", /* @__PURE__ */ React.createElement("button", { className: "pdf-armed-cancel", onClick: () => onCancelCapture && onCancelCapture() }, "Cancel")), /* @__PURE__ */ React.createElement("div", { className: "pdf-body" }, /* @__PURE__ */ React.createElement(
+    ))), find.open && state.status === "ready" && /* @__PURE__ */ React.createElement(
+      PdfFindBar,
+      {
+        query: find.query,
+        onQuery: find.setQuery,
+        count: find.count,
+        current: find.current,
+        onPrev: find.prev,
+        onNext: find.next,
+        onClose: find.closeFind,
+        inputRef: find.inputRef
+      }
+    ), armedCapture && /* @__PURE__ */ React.createElement("div", { className: "pdf-armed-note", role: "status" }, "Select the reported value in the PDF to anchor ", /* @__PURE__ */ React.createElement("b", null, armedCapture.fieldLabel), " \u2014 the text becomes the cell value (yours to edit).", /* @__PURE__ */ React.createElement("button", { className: "pdf-armed-cancel", onClick: () => onCancelCapture && onCancelCapture() }, "Cancel")), /* @__PURE__ */ React.createElement("div", { className: "pdf-body" }, /* @__PURE__ */ React.createElement(
       "div",
       {
         className: "pdf-scroll",
@@ -18926,6 +18974,199 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
   function PdfUnavailableState({ issue, onRetry, onReconnect }) {
     const value = issue || pdfUnavailableIssue("PDF_LOCAL_FILE_UNAVAILABLE");
     return /* @__PURE__ */ React.createElement("div", { className: "state pdf-unavailable-state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, value.title), /* @__PURE__ */ React.createElement("div", null, value.message), /* @__PURE__ */ React.createElement("div", { className: "pdf-unavailable-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-primary", onClick: onRetry }, "Retry"), onReconnect && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost", onClick: onReconnect }, "Find or Reconnect PDF"), /* @__PURE__ */ React.createElement(CopyDiagnosticButton, { diagnostic: value.diagnostic })), /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Exact matching uses the PDF's checksum; existing chunks, notes, and annotations are preserved."));
+  }
+  const PDF_FIND_MATCH_CAP = 500;
+  function findAllMatchStarts(haystack, needle) {
+    if (!haystack || !needle) return [];
+    const h = haystack.toLowerCase();
+    const n = needle.toLowerCase();
+    const starts = [];
+    let from = 0;
+    while (starts.length < PDF_FIND_MATCH_CAP) {
+      const i = h.indexOf(n, from);
+      if (i === -1) break;
+      starts.push(i);
+      from = i + n.length;
+    }
+    return starts;
+  }
+  function buildPageTextIndex(segments) {
+    let text = "";
+    const spans = [];
+    for (const seg of segments) {
+      const s = seg.textContent != null ? seg.textContent : "";
+      if (!s) continue;
+      spans.push({ seg, start: text.length, end: text.length + s.length });
+      text += s;
+    }
+    return { text, spans };
+  }
+  function PdfFindBar({ query, onQuery, count, current, onPrev, onNext, onClose, inputRef }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "pdf-find-bar", role: "search" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        ref: inputRef,
+        className: "pdf-find-input",
+        type: "text",
+        placeholder: "Find in document\u2026",
+        "aria-label": "Find in document",
+        value: query,
+        onChange: (e) => onQuery(e.target.value),
+        onKeyDown: (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.shiftKey ? onPrev() : onNext();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            onClose();
+          }
+        }
+      }
+    ), /* @__PURE__ */ React.createElement("span", { className: "pdf-find-count" }, query ? count === 0 ? "No matches" : `${current} / ${count >= PDF_FIND_MATCH_CAP ? PDF_FIND_MATCH_CAP + "+" : count}` : ""), /* @__PURE__ */ React.createElement("button", { className: "pdf-find-btn", onClick: onPrev, disabled: count === 0, title: "Previous match (Shift+Enter)", "aria-label": "Previous match" }, "\u25B4"), /* @__PURE__ */ React.createElement("button", { className: "pdf-find-btn", onClick: onNext, disabled: count === 0, title: "Next match (Enter)", "aria-label": "Next match" }, "\u25BE"), /* @__PURE__ */ React.createElement("button", { className: "pdf-find-btn pdf-find-close", onClick: onClose, title: "Close find (Esc)", "aria-label": "Close find" }, "\u2715"));
+  }
+  function usePdfFind({ pagesRef, scrollRef }) {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState("");
+    const [count, setCount] = useState(0);
+    const [current, setCurrent] = useState(0);
+    const inputRef = useRef(null);
+    const matchesRef = useRef([]);
+    const currentRef = useRef(0);
+    const clearHighlights = useCallback(() => {
+      const host = pagesRef.current;
+      if (host) host.querySelectorAll(".pdf-find-layer").forEach((l) => l.remove());
+      matchesRef.current = [];
+      currentRef.current = 0;
+      setCount(0);
+      setCurrent(0);
+    }, [pagesRef]);
+    const focusCurrent = useCallback((smooth) => {
+      const matches = matchesRef.current;
+      matches.forEach((m2, i) => m2.box.classList.toggle("current", i === currentRef.current));
+      const m = matches[currentRef.current];
+      if (m && m.box.scrollIntoView) m.box.scrollIntoView({ block: "center", behavior: smooth ? "smooth" : "auto" });
+      setCurrent(matches.length ? currentRef.current + 1 : 0);
+    }, []);
+    const highlightPage = useCallback((pageEl, needle) => {
+      const textLayer = pageEl.querySelector(".textLayer");
+      if (!textLayer) return [];
+      const wrapRect = pageEl.getBoundingClientRect();
+      if (!(wrapRect.width > 0 && wrapRect.height > 0)) return [];
+      const nodes = [];
+      const walker = document.createTreeWalker(textLayer, NodeFilter.SHOW_TEXT, null);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        nodes.push({ textContent: node.textContent, node });
+      }
+      const { text, spans } = buildPageTextIndex(nodes);
+      const starts = findAllMatchStarts(text, needle);
+      if (starts.length === 0) return [];
+      const layer = document.createElement("div");
+      layer.className = "pdf-find-layer";
+      pageEl.appendChild(layer);
+      const boxes = [];
+      for (const start of starts) {
+        const end = start + needle.length;
+        const from = spans.find((s) => start >= s.start && start < s.end);
+        const to = spans.find((s) => end > s.start && end <= s.end);
+        if (!from || !to) continue;
+        let range;
+        try {
+          range = document.createRange();
+          range.setStart(from.seg.node, start - from.start);
+          range.setEnd(to.seg.node, end - to.start);
+        } catch (_) {
+          continue;
+        }
+        const rects = range.getClientRects();
+        let firstBox = null;
+        for (const r of rects) {
+          if (!(r.width > 0 && r.height > 0)) continue;
+          const box = document.createElement("div");
+          box.className = "pdf-find-hit";
+          box.style.left = `${(r.left - wrapRect.left) / wrapRect.width * 100}%`;
+          box.style.top = `${(r.top - wrapRect.top) / wrapRect.height * 100}%`;
+          box.style.width = `${r.width / wrapRect.width * 100}%`;
+          box.style.height = `${r.height / wrapRect.height * 100}%`;
+          layer.appendChild(box);
+          if (!firstBox) firstBox = box;
+        }
+        if (firstBox) boxes.push({ box: firstBox, pageEl });
+      }
+      return boxes;
+    }, []);
+    const recompute = useCallback((preserveIndex) => {
+      const host = pagesRef.current;
+      if (host) host.querySelectorAll(".pdf-find-layer").forEach((l) => l.remove());
+      const needle = query.trim();
+      if (!host || !needle) {
+        matchesRef.current = [];
+        currentRef.current = 0;
+        setCount(0);
+        setCurrent(0);
+        return;
+      }
+      const all = [];
+      host.querySelectorAll(".pdf-page-wrap").forEach((pageEl) => {
+        for (const m of highlightPage(pageEl, needle)) all.push(m);
+      });
+      matchesRef.current = all;
+      setCount(all.length);
+      if (all.length === 0) {
+        currentRef.current = 0;
+        setCurrent(0);
+        return;
+      }
+      currentRef.current = preserveIndex ? Math.min(currentRef.current, all.length - 1) : 0;
+      focusCurrent(!preserveIndex);
+    }, [pagesRef, query, highlightPage, focusCurrent]);
+    useEffect(() => {
+      if (!open) return;
+      const t = setTimeout(() => recompute(false), 120);
+      return () => clearTimeout(t);
+    }, [query, open, recompute]);
+    const step = useCallback((dir) => {
+      const n = matchesRef.current.length;
+      if (!n) return;
+      currentRef.current = ((currentRef.current + dir) % n + n) % n;
+      focusCurrent(true);
+    }, [focusCurrent]);
+    const openFind = useCallback(() => {
+      setOpen(true);
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
+      }, 0);
+    }, []);
+    const closeFind = useCallback(() => {
+      setOpen(false);
+      clearHighlights();
+    }, [clearHighlights]);
+    useEffect(() => {
+      const onKey = (e) => {
+        if (e.key !== "f" || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+        if (!scrollRef.current || scrollRef.current.offsetParent === null) return;
+        e.preventDefault();
+        openFind();
+      };
+      window.addEventListener("keydown", onKey);
+      return () => window.removeEventListener("keydown", onKey);
+    }, [scrollRef, openFind]);
+    return {
+      open,
+      query,
+      count,
+      current,
+      inputRef,
+      setQuery,
+      openFind,
+      closeFind,
+      next: () => step(1),
+      prev: () => step(-1),
+      recompute
+      // the viewer calls this after a re-render while find is open
+    };
   }
   function MyPubsTile({ label, value }) {
     return /* @__PURE__ */ React.createElement("div", { className: "metric-tile" }, /* @__PURE__ */ React.createElement("div", { className: "metric-value" }, (value == null ? 0 : value).toLocaleString()), /* @__PURE__ */ React.createElement("div", { className: "metric-label" }, label));
