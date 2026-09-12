@@ -112,9 +112,12 @@ def build_default_feed_registry(
     the 4 pre-455 sources; only the real app boot path (`app.py`, which always has an engine) also registers the
     inc-455 followed-author source. This avoids ever mutating a caller-supplied/test-injected registry after the
     fact -- registration only ever happens here, at construction."""
+    from app.backend.discovery.arxiv_source import ArxivFeedSource
     from app.backend.discovery.biorxiv_source import BioRxivFeedSource
+    from app.backend.discovery.europepmc_source import EuropePmcFeedSource
     from app.backend.discovery.followed_author_feed_source import FollowedAuthorFeedSource
     from app.backend.discovery.journal_title_source import JournalTitleFeedSource
+    from app.backend.discovery.psyarxiv_source import PsyArxivFeedSource
     from app.backend.discovery.pubmed_provider import PubMedKeywordFeedSource
 
     registry = (
@@ -122,7 +125,10 @@ def build_default_feed_registry(
         .register(JournalTitleFeedSource())  # first → the default kind in the Follow picker
         .register(BioRxivFeedSource(server="biorxiv"))
         .register(BioRxivFeedSource(server="medrxiv"))
+        .register(ArxivFeedSource())  # #40: arXiv preprints by category (Atom XML)
         .register(PubMedKeywordFeedSource())
+        .register(EuropePmcFeedSource())  # #40: Europe PMC by keyword (biomedical, complements PubMed)
+        .register(PsyArxivFeedSource())  # #40: PsyArXiv preprints via the OSF provider feed
     )
     if engine is not None:
         registry.register(

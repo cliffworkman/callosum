@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-12 — inc 592: three new Feed sources — arXiv, Europe PMC, PsyArXiv (#40)
+- **Files:** `app/backend/discovery/{arxiv_source,europepmc_source,psyarxiv_source}.py` (new),
+  `app/backend/discovery/feed.py`, `tests/test_feed{,_sources_40}.py`,
+  `.claude/security-audits/2026-09-12_feed-sources-arxiv-europepmc-psyarxiv.md`,
+  `.claude/docs/increment-notes/INCREMENT-592-NOTES.md`.
+- **What:** Three new `FeedSource` adapters (one `register()` each; the Follow picker is data-driven, no
+  endpoint/UI edit) — arXiv (category, Atom XML), Europe PMC (keyword, biomedical), PsyArXiv (title keyword via
+  the OSF preprints JSON:API). Each written **contract-first** against the live-probed real API, uses
+  `bounded_get` (#56), an injectable fetcher (hermetic tests), one GET per poll, and `[]` on non-200/malformed.
+  arXiv XML is parsed behind the GROBID DOCTYPE/ENTITY+NUL XXE guard; OSF contributors are parsed defensively
+  (single `embed` request, no N+1). PsyArXiv is a title-keyword source rather than a value-less whole-provider
+  feed — so it fits the value-based picker without distorting `FeedSource`.
+- **Why:** #40 — more Feed coverage (preprints + biomedical + psychology preprints). No background polling
+  (the pull-first design stands).
+- **Verify:** 7 hermetic tests + `test_feed.py` registry assertions green; **live end-to-end** Europe PMC + PsyArXiv
+  (real entries); arXiv every component proven live (raw contract + direct parse of the real response + honest
+  429→[]), full green `.fetch()` deferred only by a self-inflicted dev-time 429. ruff + line budget + QA OK;
+  security audit PASS.
+- **Revert:** delete the three new modules + revert the `feed.py` registration and test updates.
+
 ## 2026-09-12 — inc 591: trashing an open paper no longer logs a benign 422 (#60)
 - **Files:** `app/frontend/js/{40_app,03_library}.jsx`, `app/backend/api/routers/citations.py`,
   `tests/test_citations.py`, `callosum-app.html`, `.claude/docs/increment-notes/INCREMENT-591-NOTES.md`.

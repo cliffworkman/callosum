@@ -100,13 +100,25 @@ def test_biorxiv_fetch_filters_category_and_dedups():
 def test_default_feed_registry_registers_sources():
     reg = build_default_feed_registry()
     # inc 295: journal-by-title is registered FIRST → it's the Follow picker's default; journal-by-ISSN dropped.
-    assert reg.kinds == ["journal", "biorxiv_category", "medrxiv_category", "pubmed_query"]
+    # inc 592 (#40): arXiv (after the bioRxiv/medRxiv preprint pair) + Europe PMC + PsyArXiv joined the set.
+    assert reg.kinds == [
+        "journal",
+        "biorxiv_category",
+        "medrxiv_category",
+        "arxiv_category",
+        "pubmed_query",
+        "europepmc_keyword",
+        "psyarxiv",
+    ]
     meta = {m["kind"]: m for m in reg.source_meta}
     assert meta["journal"]["label"] == "Journal"
     assert meta["biorxiv_category"]["label"] == "bioRxiv category" and meta["biorxiv_category"]["suggestions"]
     assert meta["medrxiv_category"]["label"] == "medRxiv category" and meta["medrxiv_category"]["suggestions"]
+    assert meta["arxiv_category"]["label"] == "arXiv category" and meta["arxiv_category"]["suggestions"]
     assert meta["pubmed_query"]["label"] == "PubMed search"
-    assert all(m["user_addable"] for m in reg.source_meta)  # the 4 built-ins are all directly Follow-able
+    assert meta["europepmc_keyword"]["label"] == "Europe PMC keyword"
+    assert meta["psyarxiv"]["label"] == "PsyArXiv keyword"
+    assert all(m["user_addable"] for m in reg.source_meta)  # every built-in is directly Follow-able
 
 
 # ---- followed-author Feed source (inc 455) ----------------------------------
@@ -117,7 +129,16 @@ def test_default_feed_registry_with_engine_registers_followed_author_source():
 
     engine = _make_engine("sqlite:///:memory:")
     reg = build_default_feed_registry(engine=engine)
-    assert reg.kinds == ["journal", "biorxiv_category", "medrxiv_category", "pubmed_query", "followed_author"]
+    assert reg.kinds == [
+        "journal",
+        "biorxiv_category",
+        "medrxiv_category",
+        "arxiv_category",
+        "pubmed_query",
+        "europepmc_keyword",
+        "psyarxiv",
+        "followed_author",
+    ]
     meta = {m["kind"]: m for m in reg.source_meta}
     assert meta["followed_author"]["label"] == "Followed author"
     assert meta["followed_author"]["user_addable"] is False  # never offered in the generic "Add source" picker
