@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-12 — release: Desktop 0.5.13
+- **Files:** the five lockstep version files (`src-tauri/tauri.conf.json`, `package.json`, `src-tauri/Cargo.toml`,
+  `package-lock.json`, `src-tauri/Cargo.lock`) via `tools/bump_version.py 0.5.13`; `app/frontend/whatsnew.json`
+  (0.5.13 banner entry); rebuilt `callosum-app.html`.
+- **What:** Cut the 0.5.13 desktop release — bundles Salvo 1+2's user-facing work: new Feed sources
+  (arXiv/Europe PMC/PsyArXiv, inc 592), the trash-open-paper 422 fix (inc 591), the version-keyed what's-new
+  banner + drift gate (inc 593), and the branded/stateful startup loader (inc 594). Tagged `v0.5.13` (the
+  annotated tag message is the GitHub Release body); `desktop-shell-release.yml` builds all three installers.
+- **Why:** Deliver the accumulated backlog fixes to colleagues in one installer.
+- **Verify:** all four pre-tag gates green on the bump commit `b0df3bab` (CI + the three desktop-shell
+  installer builds); the new `check_whatsnew_coverage` gate passes with the 0.5.13 entry. Post-tag: verify the
+  #39 splash + #43 banner against the real installer once the release publishes.
+- **Revert:** delete the `v0.5.13` tag + release; `git revert` the bump commit.
+
 ## 2026-09-12 — inc 594: startup loader — structured state + queryable snapshot (#39, bounded subset)
 - **Files:** `app/desktop-shell/src-tauri/src/startup.rs` (new), `.../src/{lib,python_runtime}.rs`,
   `.../permissions/default.toml`, `.../capabilities/default.json`, `app/desktop-shell/splash/{index.html,splash.css,splash.js,logo.png}`,
