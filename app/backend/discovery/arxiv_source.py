@@ -18,7 +18,7 @@ TEI parser uses), and the body is size-capped via ``bounded_get``.
 
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405 -- _safe_parse guards DOCTYPE/ENTITY/NUL on the decoded text
 from typing import Protocol
 
 from app.backend.discovery.feed import FeedEntry
@@ -80,7 +80,7 @@ def _safe_parse(xml_text: str) -> ET.Element | None:
     if "<!doctype" in head or "<!entity" in head:
         return None
     try:
-        return ET.fromstring(xml_text)
+        return ET.fromstring(xml_text)  # nosec B314 -- DOCTYPE/ENTITY/NUL rejected above; decoded str, not raw bytes
     except ET.ParseError:
         return None
 
