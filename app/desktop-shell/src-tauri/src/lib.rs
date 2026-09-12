@@ -3,6 +3,7 @@ mod external;
 mod managed_local_ai;
 mod python_runtime;
 mod quick_tunnel;
+mod startup;
 mod updater;
 
 use backend::{
@@ -17,7 +18,7 @@ use managed_local_ai::{
 use quick_tunnel::QuickTunnelState;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 use updater::UpdateState;
 
 /// Resolve paths, spawn the backend, poll it healthy, then swap the splash window for the real
@@ -154,11 +155,9 @@ fn emit_status(app: &AppHandle, state: &str, detail: &str) {
     if state == "failed" {
         record_startup_failure(app, detail);
     }
-    let _ = app.emit_to(
-        "splash",
-        "backend-status",
-        serde_json::json!({ "state": state, "detail": detail }),
-    );
+    // inc 594 (#39): route through the owned snapshot seam so a late-loading splash can seed the current state
+    // (backlog #78). This both records and broadcasts `backend-status`.
+    startup::record(app, state, detail, None, None);
 }
 
 /// Also write a startup failure somewhere readable, not only onto the splash window.
@@ -310,6 +309,7 @@ pub fn run() {
         .manage(ManagedLocalAiState::default())
         .manage(LocalAiInstallState::default())
         .manage(UpdateState::default())
+        .manage(startup::StartupState::default())
         .invoke_handler(tauri::generate_handler![
             retry_backend,
             start_word_https_companion,
@@ -324,7 +324,8 @@ pub fn run() {
             updater::open_release_page,
             updater::check_for_updates_now,
             updater::current_update_state,
-            external::open_external_url
+            external::open_external_url,
+            startup::current_startup_state
         ])
         .setup(|app| {
             let handle = app.handle().clone();

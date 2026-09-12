@@ -7,13 +7,18 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="mark">callosum</div>
-    <div class="spinner" aria-hidden="true"></div>
-    <div id="status" class="status">Starting…</div>
+    <img class="logo" src="logo.png" width="72" height="72" alt="" />
+    <div class="mark">Callosum</div>
+    <div class="spinner" id="spinner" aria-hidden="true"></div>
+    <!-- inc 594 (#39): the stage line is the structured, human-legible phase (from `state`, never parsed detail);
+         `detail` is secondary copy. aria-live so a screen reader announces each stage change. -->
+    <div id="stage" class="stage" role="status" aria-live="polite">Starting…</div>
+    <div id="detail" class="detail"></div>
     <div id="progress-wrap" class="progress-wrap" hidden>
       <progress id="progress" max="100" value="0"></progress>
       <div id="progress-detail" class="progress-detail"></div>
     </div>
+    <div id="elapsed" class="elapsed" hidden></div>
     <button id="retry" class="retry" hidden>Retry</button>
   </div>
   <script src="splash.js"></script>

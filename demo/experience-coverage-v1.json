@@ -196,8 +196,8 @@
     "source_fingerprint": "a3d51bd64e6c47ebb5ae5901b0da8404b3e041324cb05ea76c88bc0e824c5c24",
     "note": "Reviewed inc 576 exact-checksum PDF reconnection and cause-specific unavailable states. Recovery depends on local filesystem failures, so the backend-free demo remains intentionally unchanged.",
     "declined_at": "2026-09-12",
-    "declined_rev": "621ac5c3",
-    "declined_increment": 593,
-    "decline_note": "inc 593 (#43): generic version-keyed whats-new banner + mechanical release drift gate; migrated the Local AI hint. Infra/UX; no showcased capability or website claim changed."
+    "declined_rev": "ac0e5302",
+    "declined_increment": 594,
+    "decline_note": "inc 594 (#39, bounded subset): startup snapshot seam + queryable current_startup_state (#78 fix) + branded/stateful/honest splash. Desktop-shell only; no showcased capability or website claim changed."
   }
 }

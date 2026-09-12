@@ -29,6 +29,11 @@ description = "Allows the UI to read the updater's current phase on mount, so a 
 commands.allow = ["current_update_state"]
 
 [[permission]]
+identifier = "allow-current-startup-state"
+description = "Allows the splash to seed the current startup stage/progress on load, so an early backend-status event isn't lost if the listener registered late (inc 594, backlog #78)."
+commands.allow = ["current_startup_state"]
+
+[[permission]]
 identifier = "allow-start-word-https-companion"
 description = "Allows the packaged Settings window to start its explicitly enabled local Word HTTPS companion."
 commands.allow = ["start_word_https_companion"]
@@ -72,6 +77,7 @@ commands.allow = ["stop_local_ai"]
 description = "Default permissions for callosum-shell's own commands: backend retry + the auto-updater's manual-check/install/release-page actions."
 permissions = [
   "allow-retry-backend",
+  "allow-current-startup-state",
   "allow-install-update-now",
   "allow-open-release-page",
   "allow-open-external-url",

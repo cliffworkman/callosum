@@ -18,7 +18,7 @@ use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 use tauri::path::BaseDirectory;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 const INPUTS_JSON: &str = include_str!("../../packaging/python-runtime-inputs.json");
 const PUBLIC_KEY: &str = "untrusted comment: minisign public key: EDF3A3180C3324BA\nRWS6JDMMGKPz7QM6yWxfov3gNpZ7Yut6CGKjl4J7IS5dt5j5o3JCWcdw\n";
@@ -1180,16 +1180,9 @@ fn emit_progress(
     downloaded_bytes: Option<u64>,
     total_bytes: Option<u64>,
 ) {
-    let _ = app.emit_to(
-        "splash",
-        "backend-status",
-        serde_json::json!({
-            "state": state,
-            "detail": detail,
-            "downloaded_bytes": downloaded_bytes,
-            "total_bytes": total_bytes,
-        }),
-    );
+    // inc 594 (#39): route through the owned startup snapshot so a late-loading splash can seed the current
+    // stage/progress (backlog #78). record() both stores the snapshot and broadcasts `backend-status`.
+    crate::startup::record(app, state, detail, downloaded_bytes, total_bytes);
 }
 
 #[cfg(test)]

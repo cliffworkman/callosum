@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-12 — inc 594: startup loader — structured state + queryable snapshot (#39, bounded subset)
+- **Files:** `app/desktop-shell/src-tauri/src/startup.rs` (new), `.../src/{lib,python_runtime}.rs`,
+  `.../permissions/default.toml`, `.../capabilities/default.json`, `app/desktop-shell/splash/{index.html,splash.css,splash.js,logo.png}`,
+  `tests/test_splash_startup_states.py`, `.claude/docs/increment-notes/INCREMENT-594-NOTES.md`.
+- **What:** Fix the splash's lost-early-events race (backlog #78) and make it branded/stateful/honest. Rust now
+  OWNS the startup state in `StartupState`; `record()` is the single seam both emit paths route through (updates
+  the snapshot + broadcasts `backend-status`); a new `current_startup_state` command lets the splash **seed** on
+  load then listen (a late listener never loses the first stage). The splash switches on the structured `state`
+  (never parses `detail`), shows a determinate bar only for the measurable download and an honest **elapsed**
+  timer (no fake %/ETA) for slow phases, is branded with the app mark (bundled asset), and has an `aria-live`
+  status. Fixed an inherited `formatBytes` unit bug (1 MB → "1.0 GB").
+- **Why:** #39 — the startup loader looked frozen and could silently miss its first stage.
+- **Verify:** `cargo check` clean; 3 Rust unit tests; 4 contract pytest (every state has a label; seed-then-listen;
+  no fake progress); pure-JS format tests. ACL manifest resolves the command.
+- **Scope:** a **bounded subset** — #39 stays OPEN. Remaining: finer emit stages (Local AI / health-wait /
+  smoke-test need new Rust emit sites) and the live packaged-splash check (native window, owed vs the installer).
+- **Revert:** delete `startup.rs` + `logo.png` + revert the edits.
+
 ## 2026-09-12 — inc 593: release-keyed what's-new banner + mechanical drift gate (#43)
 - **Files:** `app/frontend/whatsnew.json` (new source of truth), `app/frontend/js/04e_whatsnew.jsx` (new),
   `tools/check_whatsnew_coverage.py` (new gate), `tests/test_whatsnew_gate.py` (new),
