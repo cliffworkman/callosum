@@ -196,8 +196,8 @@
     "source_fingerprint": "a3d51bd64e6c47ebb5ae5901b0da8404b3e041324cb05ea76c88bc0e824c5c24",
     "note": "Reviewed inc 576 exact-checksum PDF reconnection and cause-specific unavailable states. Recovery depends on local filesystem failures, so the backend-free demo remains intentionally unchanged.",
     "declined_at": "2026-09-12",
-    "declined_rev": "ac0e5302",
-    "declined_increment": 594,
-    "decline_note": "inc 594 (#39, bounded subset): startup snapshot seam + queryable current_startup_state (#78 fix) + branded/stateful/honest splash. Desktop-shell only; no showcased capability or website claim changed."
+    "declined_rev": "c63fa906",
+    "declined_increment": 595,
+    "decline_note": "inc 595 adds routers/reference_lookup.py (reader Find-referenced-paper), a live-backend feature (Crossref resolve + library add + OA) out of scope for the backend-free static demo; recent 0.5.x/infra increments (577-594) likewise add live-backend/platform surfaces not represented in the demo snapshot. Deliberate acknowledged gap -- a dedicated demo-currency review is deferred."
   }
 }
