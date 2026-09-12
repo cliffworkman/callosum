@@ -379,7 +379,7 @@ dependencies = [
 
 [[package]]
 name = "callosum-shell"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "base64 0.22.1",
  "flate2",
