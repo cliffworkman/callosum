@@ -919,6 +919,20 @@
     .feedback-actions { flex-wrap: wrap; }
     .feedback-action-spacer { flex-basis: 100%; height: 0; }
   }
+  /* Reader "Find referenced paper…" (inc 595): resolve a selected reference → add via the normal library path.
+     Reuses the .axis-modal shell + gap-row result rows; green = --verified (success/in-library), amber = --flag
+     (error/no-match) per DESIGN §4. */
+  .reffind-text {
+    width: 100%; box-sizing: border-box; min-height: 84px; resize: vertical; margin: 6px 0 10px;
+    padding: 8px 10px; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    background: var(--bg); color: var(--ink); font: 12px/1.5 var(--sans);
+  }
+  .reffind-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .reffind-doi { font: 10.5px var(--mono); color: var(--ink-3); overflow-wrap: anywhere; }
+  .reffind-inlib { font-size: 11.5px; color: var(--verified); }
+  .reffind-outcome { margin: 10px 0 0; padding: 8px 10px; border-radius: var(--radius-sm); font-size: 11.5px; line-height: 1.45; }
+  .reffind-outcome.ok { color: var(--verified); border: 1px solid var(--verified); }
+  .reffind-outcome.err { color: var(--flag-ink); border: 1px solid var(--flag-line); background: var(--flag-soft); }
   /* inc 254: remote-access LOCKOUT recovery overlay. Reuses the .axis-modal shell (backdrop/card/shadow/radius);
      only the lockout-specific bits are new. Amber (--flag) = the unresolved/locked status color (DESIGN §4). */
   .lockout-card { width: min(520px, 94vw); }
@@ -2710,15 +2724,15 @@
   .hl-remove { font-size: 12px; color: var(--ink-2); }
   .hl-swatch { width: 18px; height: 18px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(0,0,0,.22); }
   .hl-swatch:hover { transform: scale(1.12); }
-  .hl-note-add {
+  .hl-note-add, .hl-find-ref {
     margin-left: 4px; border: 1px solid var(--line-2); background: var(--bg); color: var(--ink-2);
     border-radius: var(--radius-sm); padding: 3px 8px; font-size: 11.5px; cursor: pointer; font-family: var(--sans);
   }
-  .hl-note-add:hover { border-color: var(--accent); color: var(--accent); }
+  .hl-note-add:hover, .hl-find-ref:hover { border-color: var(--accent); color: var(--accent); }
   /* B5 (inc 240): touch-native highlighting — finger-sized tap targets for the picker on a phone. */
   .app.mobile .hl-picker { gap: 10px; padding: 9px 12px; }
   .app.mobile .hl-swatch { width: 28px; height: 28px; border-radius: 6px; }
-  .app.mobile .hl-note-add { padding: 7px 12px; font-size: 13px; }
+  .app.mobile .hl-note-add, .app.mobile .hl-find-ref { padding: 7px 12px; font-size: 13px; }
   .hl-remove button {
     border: 1px solid var(--line-2); background: var(--bg); color: var(--ink-2);
     border-radius: var(--radius-sm); padding: 3px 9px; font-size: 12px; cursor: pointer;
@@ -17375,13 +17389,14 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       /* @__PURE__ */ React.createElement("span", { className: "pcurve-test-p" }, "z = ", t.z.toFixed(2))
     )))), /* @__PURE__ */ React.createElement("div", { className: "pcurve-coverage" }, "Coverage: z-curve reads only inline APA-style NHST tests with exact statistics (tables, Bayesian, and CI-only reporting are invisible); it includes every extracted significant test rather than each study's chosen focal statistic. Run it on a large, curated set for the most meaningful estimate.")), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " z-curve 2.0 \u2014 Barto\u0161 & Schimmack (2022), ", /* @__PURE__ */ React.createElement("i", null, "Meta-Psychology"), " 6, MP.2021.2720.", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [BS2022_CSL], onChanged }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; reference implementation: ", /* @__PURE__ */ React.createElement("i", null, "zcurve"), " (Franti\u0161ek Barto\u0161)."), /* @__PURE__ */ React.createElement(LakensCredit, null))));
   }
-  function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf, onOpenRepair }) {
+  function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf, onOpenRepair, onOpenPdf }) {
     const [state, setState] = useState({ status: "loading" });
     const [reloadKey, setReloadKey] = useState(0);
     const [scale, setScale] = useState(1.15);
     const [page, setPage] = useState(1);
     const [annotations, setAnnotations] = useState([]);
     const [picker, setPicker] = useState(null);
+    const [refFinder, setRefFinder] = useState(null);
     const [editor, setEditor] = useState(null);
     const [panelOpen, setPanelOpen] = useState(false);
     const [notice, setNotice] = useState(null);
@@ -17924,16 +17939,18 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onEdit: openEditor,
         onDelete: deleteAnnotation
       }
-    )), picker && /* @__PURE__ */ React.createElement("div", { className: "hl-picker", style: { left: picker.left, top: picker.top }, onMouseDown: (e) => e.preventDefault() }, HIGHLIGHT_COLORS.map((c) => /* @__PURE__ */ React.createElement(
-      "span",
+    )), picker && /* @__PURE__ */ React.createElement(
+      SelectionPicker,
       {
-        key: c,
-        className: "hl-swatch",
-        style: { background: c },
-        title: "Highlight with this color",
-        onClick: () => createHighlight(c)
+        picker,
+        onHighlight: createHighlight,
+        onHighlightNote: createHighlightWithNote,
+        onFindReference: () => {
+          setRefFinder({ text: picker.anchorText });
+          setPicker(null);
+        }
       }
-    )), /* @__PURE__ */ React.createElement("button", { className: "hl-note-add", title: "Highlight and add a note", onClick: createHighlightWithNote }, "\u270E note")), editor && /* @__PURE__ */ React.createElement("div", { className: "hl-editor", style: { left: editor.left, top: editor.top } }, /* @__PURE__ */ React.createElement(
+    ), refFinder && /* @__PURE__ */ React.createElement(ReferenceFinderModal, { text: refFinder.text, onClose: () => setRefFinder(null), onOpenPaper: onOpenPdf }), editor && /* @__PURE__ */ React.createElement("div", { className: "hl-editor", style: { left: editor.left, top: editor.top } }, /* @__PURE__ */ React.createElement(
       "textarea",
       {
         className: "hl-note",
@@ -18123,6 +18140,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         mobile,
         knownNoPdf: t.hasPdf === false,
         onOpenRepair: onOpenLibraryFolders,
+        onOpenPdf,
         armedCapture: capture && !capture.result && capture.paperId === t.paperId ? capture : null,
         onCaptureAnchor,
         onCancelCapture
@@ -18973,6 +18991,26 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       });
     }, []);
   }
+  function SelectionPicker({ picker, onHighlight, onHighlightNote, onFindReference }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "hl-picker", style: { left: picker.left, top: picker.top }, onMouseDown: (e) => e.preventDefault() }, HIGHLIGHT_COLORS.map((c) => /* @__PURE__ */ React.createElement(
+      "span",
+      {
+        key: c,
+        className: "hl-swatch",
+        style: { background: c },
+        title: "Highlight with this color",
+        onClick: () => onHighlight(c)
+      }
+    )), /* @__PURE__ */ React.createElement("button", { className: "hl-note-add", title: "Highlight and add a note", onClick: onHighlightNote }, "\u270E note"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "hl-find-ref",
+        title: "Look this reference up and add it to your library",
+        onClick: onFindReference
+      },
+      "\u{1F50E} find paper"
+    ));
+  }
   const PDF_UNAVAILABLE_COPY = {
     PDF_LIBRARY_FOLDER_MISSING: {
       title: "Callosum's library folder is unavailable",
@@ -19051,6 +19089,87 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
   function PdfUnavailableState({ issue, onRetry, onReconnect }) {
     const value = issue || pdfUnavailableIssue("PDF_LOCAL_FILE_UNAVAILABLE");
     return /* @__PURE__ */ React.createElement("div", { className: "state pdf-unavailable-state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, value.title), /* @__PURE__ */ React.createElement("div", null, value.message), /* @__PURE__ */ React.createElement("div", { className: "pdf-unavailable-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-primary", onClick: onRetry }, "Retry"), onReconnect && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost", onClick: onReconnect }, "Find or Reconnect PDF"), /* @__PURE__ */ React.createElement(CopyDiagnosticButton, { diagnostic: value.diagnostic })), /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Exact matching uses the PDF's checksum; existing chunks, notes, and annotations are preserved."));
+  }
+  function _refAuthorLine(c) {
+    const names = (c.authors || []).map((a) => String(a).split(",")[0].trim()).filter(Boolean);
+    if (names.length === 0) return "";
+    return names.length <= 3 ? names.join(", ") : names.slice(0, 3).join(", ") + ", et al.";
+  }
+  function ReferenceCandidateRow({ c, onAdd, onOpen, busy }) {
+    const meta = [_refAuthorLine(c), c.year, c.venue].filter(Boolean).join(" \xB7 ");
+    return /* @__PURE__ */ React.createElement("div", { className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title", title: c.title || c.doi || "" }, c.title || c.doi || "Untitled record"), meta && /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, meta), c.doi && /* @__PURE__ */ React.createElement("div", { className: "reffind-doi" }, c.doi)), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, c.in_library ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "reffind-inlib" }, "\u2713 In your library"), onOpen && c.existing_paper_id != null && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => onOpen(c) }, "Open")) : /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: () => onAdd(c) }, "Add to library")));
+  }
+  function ReferenceFinderModal({ text: initialText, onClose, onOpenPaper }) {
+    const [text, setText] = useState(initialText || "");
+    const [phase, setPhase] = useState("idle");
+    const [result, setResult] = useState(null);
+    const [outcome, setOutcome] = useState(null);
+    const reqRef = useRef(0);
+    const lookup = useCallback(async () => {
+      const q = (text || "").trim();
+      if (!q) return;
+      const token = ++reqRef.current;
+      setPhase("loading");
+      setOutcome(null);
+      setResult(null);
+      const r = await apiPost("/references/resolve", { text: q });
+      if (token !== reqRef.current) return;
+      setResult(r.ok && r.data ? r.data : { classification: "none", candidates: [], error: r.error || "The lookup failed. Please try again." });
+      setPhase("done");
+    }, [text]);
+    useEffect(() => {
+      if ((initialText || "").trim()) lookup();
+    }, []);
+    const add = useCallback(async (c) => {
+      setPhase("adding");
+      setOutcome(null);
+      const save = await apiPost("/discovery/save", {
+        title: c.title || c.doi || "Untitled",
+        doi: c.doi || null,
+        authors: c.authors || [],
+        journal: c.venue || null,
+        year: c.year || null,
+        url: c.url || null
+      });
+      if (!save.ok || !save.data) {
+        setOutcome({ kind: "error", message: "Couldn't add the paper \u2014 " + (save.error || "unknown error") });
+        setPhase("done");
+        return;
+      }
+      let oa = "existing";
+      if (save.data.created) {
+        const acq = await apiPost(`/papers/${save.data.paper_id}/acquire-oa`, {});
+        oa = acq.ok ? "started" : "unavailable";
+      }
+      setOutcome({ kind: "added", created: !!save.data.created, oa });
+      setPhase("done");
+    }, []);
+    const openExisting = useCallback((c) => {
+      if (onOpenPaper && c.existing_paper_id != null) {
+        onOpenPaper({ id: c.existing_paper_id, title: c.title });
+        onClose();
+      }
+    }, [onOpenPaper, onClose]);
+    const candidates = result && result.candidates || [];
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onMouseDown: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onMouseDown: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Find referenced paper"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Looks this reference up in Crossref (a public scholarly index), then adds the paper through your normal library import. Edit the text below if the selection was imperfect."), /* @__PURE__ */ React.createElement(
+      "textarea",
+      {
+        className: "reffind-text",
+        value: text,
+        maxLength: 2e3,
+        placeholder: "Reference text\u2026",
+        onChange: (e) => setText(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("div", { className: "reffind-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: onClose }, "Close"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: phase === "loading" || !text.trim(), onClick: lookup }, phase === "loading" ? "Looking up\u2026" : "Look up")), phase === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Searching Crossref\u2026"), outcome && outcome.kind === "added" && /* @__PURE__ */ React.createElement("div", { className: "reffind-outcome ok" }, outcome.created ? "Added to your library." : "This paper was already in your library.", outcome.created && outcome.oa === "started" && " Fetching an open-access copy in the background\u2026", outcome.created && outcome.oa === "unavailable" && " No open-access copy was available \u2014 the record was still added."), outcome && outcome.kind === "error" && /* @__PURE__ */ React.createElement("div", { className: "reffind-outcome err" }, outcome.message), phase !== "loading" && result && result.error && !outcome && /* @__PURE__ */ React.createElement("div", { className: "reffind-outcome err" }, result.error), phase !== "loading" && result && !result.error && !outcome && result.classification === "none" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No defensible match. Edit the reference text above and look up again."), phase !== "loading" && candidates.length > 0 && !outcome && /* @__PURE__ */ React.createElement("div", { className: "reffind-results" }, result.classification === "multiple_candidates" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Several possible matches \u2014 choose the right one:"), candidates.map((c, i) => /* @__PURE__ */ React.createElement(
+      ReferenceCandidateRow,
+      {
+        key: c.doi || i,
+        c,
+        onAdd: add,
+        onOpen: openExisting,
+        busy: phase === "adding"
+      }
+    )))));
   }
   const PDF_FIND_MATCH_CAP = 500;
   function findAllMatchStarts(haystack, needle) {

@@ -84,6 +84,7 @@ from app.backend.api.routers import (
     publishers,
     reading_queue,
     reference_integrity,
+    reference_lookup,
     registration_acquisition,
     registration_commitments,
     registration_comparisons,
@@ -429,6 +430,7 @@ def create_app(
     api.include_router(citation_equity.router)  # /methods/citation-equity/* — structural reference-list audit (inc 227)
     api.include_router(publishers.router)  # /methods/publishers/* — "where to submit" journal-finder (#40)
     api.include_router(reference_integrity.router)  # /papers/{id}/reference-integrity — Meta Reference List
+    api.include_router(reference_lookup.router)  # /references/resolve — reader "Find referenced paper…" resolver
     api.include_router(
         analytic_flexibility.router
     )  # /papers/{id}/analytic-flexibility — egress-gated decision-point surfacing (backlog #37)

@@ -63,3 +63,19 @@ function usePagesMouseUpHandler({ pagesRef, armedRef, setPicker }) {
     });
   }, []);
 }
+
+// The selection popover, extracted from 30_viewer.jsx (rule #1). Presentational only — all behavior is passed
+// in. Adds the reader "Find referenced paper…" action (inc 595) beside the existing highlight controls. Hoists
+// in the shared IIFE so PdfViewer (textually earlier in 30_viewer) references it regardless of chunk order.
+function SelectionPicker({ picker, onHighlight, onHighlightNote, onFindReference }) {
+  return (
+    <div className="hl-picker" style={{ left: picker.left, top: picker.top }} onMouseDown={e => e.preventDefault()}>
+      {HIGHLIGHT_COLORS.map(c =>
+        <span key={c} className="hl-swatch" style={{ background: c }} title="Highlight with this color"
+              onClick={() => onHighlight(c)} />)}
+      <button className="hl-note-add" title="Highlight and add a note" onClick={onHighlightNote}>✎ note</button>
+      <button className="hl-find-ref" title="Look this reference up and add it to your library"
+              onClick={onFindReference}>🔎 find paper</button>
+    </div>
+  );
+}

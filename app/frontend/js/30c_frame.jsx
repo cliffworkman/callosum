@@ -138,7 +138,7 @@ function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, select
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>
           <PdfViewer paperId={t.paperId} title={t.title} target={t.target || null} annoRefresh={annoRefresh} mobile={mobile}
             knownNoPdf={t.hasPdf === false}
-            onOpenRepair={onOpenLibraryFolders}
+            onOpenRepair={onOpenLibraryFolders} onOpenPdf={onOpenPdf}
             armedCapture={capture && !capture.result && capture.paperId === t.paperId ? capture : null}
             onCaptureAnchor={onCaptureAnchor} onCancelCapture={onCancelCapture} />
         </div>

@@ -1,11 +1,12 @@
 // buildAnnotationDigest (the highlights/notes Markdown digest) lives in 00_lib.jsx (a pure util; relocated inc 175).
-function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf, onOpenRepair }) {
+function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf, onOpenRepair, onOpenPdf }) {
   const [state, setState] = useState({ status: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
   const [scale, setScale] = useState(1.15);
   const [page, setPage] = useState(1);
   const [annotations, setAnnotations] = useState([]);
   const [picker, setPicker] = useState(null);   // { left, top, page, bboxes, anchorText, prefix, suffix }
+  const [refFinder, setRefFinder] = useState(null);   // inc 595: { text } — transient reference-lookup modal
   const [editor, setEditor] = useState(null);   // { id, left, top, note, color, anchorText, page }
   const [panelOpen, setPanelOpen] = useState(false);
   const [notice, setNotice] = useState(null);   // transient error/info toast
@@ -566,12 +567,10 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
             onJump={jumpToAnnotation} onEdit={openEditor} onDelete={deleteAnnotation} />}
       </div>
       {picker &&
-        <div className="hl-picker" style={{ left: picker.left, top: picker.top }} onMouseDown={e => e.preventDefault()}>
-          {HIGHLIGHT_COLORS.map(c =>
-            <span key={c} className="hl-swatch" style={{ background: c }} title="Highlight with this color"
-                  onClick={() => createHighlight(c)} />)}
-          <button className="hl-note-add" title="Highlight and add a note" onClick={createHighlightWithNote}>✎ note</button>
-        </div>}
+        <SelectionPicker picker={picker} onHighlight={createHighlight} onHighlightNote={createHighlightWithNote}
+          onFindReference={() => { setRefFinder({ text: picker.anchorText }); setPicker(null); }} />}
+      {refFinder &&
+        <ReferenceFinderModal text={refFinder.text} onClose={() => setRefFinder(null)} onOpenPaper={onOpenPdf} />}
       {editor &&
         <div className="hl-editor" style={{ left: editor.left, top: editor.top }}>
           <textarea className="hl-note" placeholder="Add a note…" value={editor.note} autoFocus

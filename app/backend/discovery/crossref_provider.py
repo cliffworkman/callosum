@@ -12,6 +12,7 @@ import httpx
 from app.backend.app_settings import resolved_mailto
 from app.backend.discovery.providers import Item
 from app.backend.metadata.abstract_display import abstract_plain_text
+from integrations.http_bounds import METADATA_RESPONSE_CAP, bounded_get
 
 CROSSREF_SEARCH_URL = "https://api.crossref.org/works"
 _SELECT = "DOI,title,abstract,author,container-title,issued,URL,type"
@@ -104,3 +105,45 @@ class CrossrefSearchProvider:
         raw = self.fetcher(q, rows, headers=self._headers(), timeout=self.timeout) or []
         items = [it for it in (message_to_item(m) for m in raw) if it is not None]
         return items[:rows]
+
+
+# --- reference resolution: Crossref `query.bibliographic` (backlog: reader "Find referenced paper…") ---------
+# A separate, tuned entry point for resolving a raw CITATION STRING (author/title/year/…) — distinct from the
+# general `query=` the discovery `search` above uses. Transport stays inside this provider module (the API
+# router only composes primitives). Errors PROPAGATE so the resolver can tell "no match" from "lookup failed".
+
+
+def _reference_headers() -> dict[str, str]:
+    mailto = resolved_mailto("CALLOSUM_CROSSREF_MAILTO")
+    ua = f"callosum/1.0 (mailto:{mailto})" if mailto else "callosum/1.0"
+    return {"User-Agent": ua, "Accept": "application/json"}
+
+
+def _httpx_bibliographic(query: str, rows: int, *, headers: dict[str, str], timeout: float) -> list[dict[str, Any]]:
+    resp = bounded_get(
+        CROSSREF_SEARCH_URL,
+        max_bytes=METADATA_RESPONSE_CAP,
+        params={"query.bibliographic": query, "rows": rows, "select": _SELECT},
+        headers=headers,
+        timeout=timeout,
+    )
+    resp.raise_for_status()
+    body = resp.json()
+    message = body.get("message") if isinstance(body, dict) else None
+    items = message.get("items") if isinstance(message, dict) else None
+    return items if isinstance(items, list) else []
+
+
+def bibliographic_search(
+    query: str, limit: int = 5, *, fetcher: SearchFetcher = _httpx_bibliographic, timeout: float = 10.0
+) -> list[Item]:
+    """Resolve a raw citation string via Crossref's ``query.bibliographic`` (tuned for full-reference strings).
+    Items come back in Crossref's own relevance order — never re-ranked here. Transport errors PROPAGATE (the
+    caller distinguishes 'no defensible match' from 'lookup failed'); this is deliberately NOT the discovery
+    ``search`` swallow-to-[] behavior."""
+    q = (query or "").strip()
+    if not q:
+        return []
+    rows = min(max(limit, 1), 20)
+    raw = fetcher(q, rows, headers=_reference_headers(), timeout=timeout) or []
+    return [it for it in (message_to_item(m) for m in raw) if it is not None][:rows]

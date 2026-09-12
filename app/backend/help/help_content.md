@@ -244,6 +244,16 @@ To manage highlights:
 
 Callosum uses a fixed set of highlight colors. Notes can be long, but they are capped to keep the library responsive.
 
+### Find a referenced paper and add it to your library
+When you're reading and hit a citation you want in your own library, select the reference text on the page and click **🔎 find paper** in the same popover you use to highlight. Callosum looks the reference up in Crossref (a public scholarly index) — nothing is sent until you click, and selecting text alone never triggers a lookup.
+
+- If the selection contains a **DOI**, Callosum resolves that exact record.
+- Otherwise it searches by the citation text and shows the best matches. If one clearly fits, you confirm it; if several are plausible, you choose; if nothing defensible turns up, it says so — Callosum never silently picks a paper for you.
+- If the reference is **already in your library**, it's surfaced as such (with an **Open** button) rather than duplicated.
+- The PDF text extraction isn't always clean, so the reference text is **editable** in the dialog — fix it and **Look up** again.
+
+Confirming a candidate adds it through your normal library import (metadata-only, deduped) and then tries to fetch an **open-access copy** in the background — exactly as **Add with DOI…** does. A failed open-access fetch never undoes the added record. This action creates **no** highlight or annotation; it's just a quick way to turn a citation you're reading into a library entry.
+
 Gotchas:
 
 - Highlights depend on selectable PDF text. If a scanned page has no text layer, you may not be able to create a text selection highlight there.

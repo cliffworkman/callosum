@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-12 — inc 595: reader "Find referenced paper…" (selection → resolve → add)
+- **Files:** `app/backend/metadata/reference_resolver.py` (new), `app/backend/api/routers/reference_lookup.py`
+  (new), `app/backend/discovery/crossref_provider.py` (+`bibliographic_search`), `app/backend/api/app.py`
+  (mount), `app/frontend/js/30h_reference_finder.jsx` (new), `30g_pdf_selection.jsx` (extract `SelectionPicker`
+  + the find-paper button), `30_viewer.jsx` + `30c_frame.jsx` (wire), `styles.css` (`reffind-*` + `hl-find-ref`),
+  `tests/test_reference_lookup.py` (new), `.claude/qa-routes/route_94_reference_lookup.md` (new),
+  `.claude/security-audits/2026-09-12_reference-lookup.md` (new), `INCREMENT-595-NOTES.md`.
+- **What:** Select a cited reference in the reader → **🔎 find paper** → `POST /references/resolve` (DOI-first,
+  else Crossref `query.bibliographic`, gated by inspectable title/author/year agreement into four states:
+  identifier_match / one_candidate / multiple_candidates / none) → confirm a candidate → the EXISTING canonical
+  add + OA path (`/discovery/save` then `/papers/{id}/acquire-oa`). Transient — no highlight/annotation, no new
+  add pipeline.
+- **Why:** Close the "I hit a citation I want in my library" loop in place, reusing the resolver/dedup/ingestion/
+  OA primitives that now exist (feasibility-spike-authorized thin slice).
+- **Verify:** `tests/test_reference_lookup.py` 15 passed/1 skipped; discovery+acquisition+new = 59/1; assembly 87;
+  QA API 440/440 covered; security audit PASS; line budget + ruff clean.
+- **Revert:** delete the two new backend modules + the router mount + `bibliographic_search`, the two new
+  frontend chunks, and revert the `30_viewer`/`30c_frame`/`styles.css` wiring.
+
 ## 2026-09-12 — release: Desktop 0.5.13
 - **Files:** the five lockstep version files (`src-tauri/tauri.conf.json`, `package.json`, `src-tauri/Cargo.toml`,
   `package-lock.json`, `src-tauri/Cargo.lock`) via `tools/bump_version.py 0.5.13`; `app/frontend/whatsnew.json`

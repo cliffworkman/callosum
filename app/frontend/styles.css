@@ -895,6 +895,20 @@
     .feedback-actions { flex-wrap: wrap; }
     .feedback-action-spacer { flex-basis: 100%; height: 0; }
   }
+  /* Reader "Find referenced paper…" (inc 595): resolve a selected reference → add via the normal library path.
+     Reuses the .axis-modal shell + gap-row result rows; green = --verified (success/in-library), amber = --flag
+     (error/no-match) per DESIGN §4. */
+  .reffind-text {
+    width: 100%; box-sizing: border-box; min-height: 84px; resize: vertical; margin: 6px 0 10px;
+    padding: 8px 10px; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    background: var(--bg); color: var(--ink); font: 12px/1.5 var(--sans);
+  }
+  .reffind-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .reffind-doi { font: 10.5px var(--mono); color: var(--ink-3); overflow-wrap: anywhere; }
+  .reffind-inlib { font-size: 11.5px; color: var(--verified); }
+  .reffind-outcome { margin: 10px 0 0; padding: 8px 10px; border-radius: var(--radius-sm); font-size: 11.5px; line-height: 1.45; }
+  .reffind-outcome.ok { color: var(--verified); border: 1px solid var(--verified); }
+  .reffind-outcome.err { color: var(--flag-ink); border: 1px solid var(--flag-line); background: var(--flag-soft); }
   /* inc 254: remote-access LOCKOUT recovery overlay. Reuses the .axis-modal shell (backdrop/card/shadow/radius);
      only the lockout-specific bits are new. Amber (--flag) = the unresolved/locked status color (DESIGN §4). */
   .lockout-card { width: min(520px, 94vw); }
@@ -2686,15 +2700,15 @@
   .hl-remove { font-size: 12px; color: var(--ink-2); }
   .hl-swatch { width: 18px; height: 18px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(0,0,0,.22); }
   .hl-swatch:hover { transform: scale(1.12); }
-  .hl-note-add {
+  .hl-note-add, .hl-find-ref {
     margin-left: 4px; border: 1px solid var(--line-2); background: var(--bg); color: var(--ink-2);
     border-radius: var(--radius-sm); padding: 3px 8px; font-size: 11.5px; cursor: pointer; font-family: var(--sans);
   }
-  .hl-note-add:hover { border-color: var(--accent); color: var(--accent); }
+  .hl-note-add:hover, .hl-find-ref:hover { border-color: var(--accent); color: var(--accent); }
   /* B5 (inc 240): touch-native highlighting — finger-sized tap targets for the picker on a phone. */
   .app.mobile .hl-picker { gap: 10px; padding: 9px 12px; }
   .app.mobile .hl-swatch { width: 28px; height: 28px; border-radius: 6px; }
-  .app.mobile .hl-note-add { padding: 7px 12px; font-size: 13px; }
+  .app.mobile .hl-note-add, .app.mobile .hl-find-ref { padding: 7px 12px; font-size: 13px; }
   .hl-remove button {
     border: 1px solid var(--line-2); background: var(--bg); color: var(--ink-2);
     border-radius: var(--radius-sm); padding: 3px 9px; font-size: 12px; cursor: pointer;
