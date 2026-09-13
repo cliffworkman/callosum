@@ -196,8 +196,8 @@
     "source_fingerprint": "a3d51bd64e6c47ebb5ae5901b0da8404b3e041324cb05ea76c88bc0e824c5c24",
     "note": "Reviewed inc 576 exact-checksum PDF reconnection and cause-specific unavailable states. Recovery depends on local filesystem failures, so the backend-free demo remains intentionally unchanged.",
     "declined_at": "2026-09-13",
-    "declined_rev": "dc3f7fee",
-    "declined_increment": 598,
-    "decline_note": "inc 598 (#79 reader acquire-OA + Critique) is frontend-only -- no backend router or demo-capture change, so the backend-free static demo's captured experience is unaffected. Deliberate acknowledged gap; demo-currency review deferred."
+    "declined_rev": "52fd0ae1",
+    "declined_increment": 599,
+    "decline_note": "inc 599 (#77 Discover Search providers) adds discovery search providers + registration -- no backend router or demo-capture change, so the backend-free static demo's captured experience is unaffected. Deliberate acknowledged gap; demo-currency review deferred."
   }
 }

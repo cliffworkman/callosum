@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-13 — inc 599: Discover Search — expose search-capable providers (GitHub #77)
+- **Files:** `app/backend/discovery/preprint_search.py` (new), `app/backend/discovery/providers.py`
+  (register), `app/backend/help/help_content.md`, `tests/test_discovery_preprint_search.py` (new),
+  `tests/test_discovery.py` (registry assertion), `.claude/qa-routes/route_43_discovery.md`,
+  `www/showcase-coverage.json` + `demo/experience-coverage-v1.json` (drift declines), `INCREMENT-599-NOTES.md`.
+- **What:** Discover → Search now exposes **arXiv**, **Europe PMC**, and **PsyArXiv** alongside Crossref/PubMed
+  — every source with a real free-text search API. Three new `SearchProvider`s reuse the Feed sources' HTTP +
+  parse and map to the canonical `Item`; registered in `build_default_registry`. bioRxiv/medRxiv stay Feed-only
+  (no keyword-search API; Crossref covers those preprints).
+- **Why:** GitHub #77 — the Search filter had lagged behind the supported sources.
+- **Verify:** **backend-only** (the dropdown already derives from `/discovery/sources`; zero frontend change).
+  `tests/test_discovery_preprint_search.py` (8: per-provider mapping + fan-out + cross-provider dedup +
+  in_library); `test_discovery.py` registry updated; tach + QA map green. Latency: `search_all` stays serial per
+  LATENCY.md §11 (10s per-provider bound; parallelization a measured future candidate) — "All sources" is now
+  slower, flagged.
+- **Revert:** delete `preprint_search.py`, revert the `build_default_registry` registration + the test/help/route.
+
 ## 2026-09-13 — inc 598: reader reference lookup → acquire OA + Critique (GitHub #79)
 - **Files:** `app/frontend/js/30h_reference_finder.jsx`, `app/backend/help/help_content.md`,
   `tests/test_reader_critique_boundary.py` (new), `.claude/qa-routes/route_94_reference_lookup.md`,

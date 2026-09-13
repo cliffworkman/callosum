@@ -121,10 +121,18 @@ def test_registry_search_all_skips_a_failing_provider():
     assert [i.title for i in out] == ["Survivor"]  # the boom provider was swallowed
 
 
-def test_build_default_registry_registers_crossref_and_pubmed():
+def test_build_default_registry_registers_the_search_capable_providers():
+    # crossref + pubmed (SP1a), plus the free-text-search preprint/database sources (arXiv/Europe PMC/PsyArXiv,
+    # #77). bioRxiv/medRxiv stay Feed-only (no free-text search API). Adding a source = one register().
     reg = build_default_registry()
-    assert [p.name for p in reg.providers] == ["crossref", "pubmed"]  # adding a source = one register() (SP1a)
-    assert reg.source_meta == [{"kind": "crossref", "label": "Crossref"}, {"kind": "pubmed", "label": "PubMed"}]
+    assert [p.name for p in reg.providers] == ["crossref", "pubmed", "arxiv", "europepmc", "psyarxiv"]
+    assert reg.source_meta == [
+        {"kind": "crossref", "label": "Crossref"},
+        {"kind": "pubmed", "label": "PubMed"},
+        {"kind": "arxiv", "label": "arXiv"},
+        {"kind": "europepmc", "label": "Europe PMC"},
+        {"kind": "psyarxiv", "label": "PsyArXiv"},
+    ]
 
 
 # ---- run_search: cross-provider dedup + in_library marking -----------------

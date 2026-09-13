@@ -19,10 +19,16 @@ Public-metadata search (Crossref now) — **never** the Gemini library-text gate
 Clean seeded instance (`_TEMPLATE.md` → Environment). **Egress UNSET** (the library-text gate must never fire;
 Crossref metadata is fine). Register console/pageerror/request listeners before navigation.
 
-**Sources:** the default registry holds **Crossref** + **PubMed** (NCBI E-utilities, SP1a inc 186) — both fan out
-behind `/discovery/search` with no endpoint/UI change (the registry's promise). A result from both (same DOI) collapses
-to one row with both source pills. The UI source dropdown defaults to **All sources** (the historical fan-out) and can
-restrict the provider fan-out to one registry source such as **Crossref** or **PubMed**.
+**Sources:** the default registry holds **Crossref** + **PubMed** (NCBI E-utilities, SP1a inc 186) plus the
+free-text-search preprint/database sources **arXiv**, **Europe PMC**, and **PsyArXiv** (#77, inc 599) — all five
+fan out behind `/discovery/search` with **no endpoint/UI change** (the dropdown derives from `/discovery/sources`;
+the registry's promise). bioRxiv/medRxiv stay Feed-only (date-window category pulls, no free-text search API;
+Crossref already indexes those preprints here). A result returned by two providers (same DOI) collapses to one
+row with both source pills; a DOI-less preprint dedups by normalized title (existing `Item.dedup_key` policy —
+provider is never a ranking signal). The UI source dropdown defaults to **All sources** (fan-out to all five) and
+can restrict to one source. **Latency:** `search_all` fans out serially (LATENCY.md §11 — casual concurrency is
+inadvisable given arXiv/OSF rate limits + ordering determinism), so "All sources" now issues five sequential
+external calls, each bounded by a 10s per-provider timeout; picking one source keeps a search fast.
 
 **Seed note:** the real Crossref/PubMed search hits the network. To exercise the flow **offline + deterministically**,
 inject `app.state.discovery_registry` with a `SourceRegistry` holding a fake provider (mirror `tests/test_discovery.py`'s

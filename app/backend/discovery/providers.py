@@ -128,9 +128,24 @@ class SourceRegistry:
 
 
 def build_default_registry() -> SourceRegistry:
-    """The shipped providers. Crossref (journals + preprints) + PubMed (biomedical, SP1a). Adding a source is one
-    `register()` — no endpoint/UI edit (the registry test proves it). bioRxiv lands in the Feed (SP2)."""
+    """The shipped search providers. Crossref (journals + preprints) + PubMed (biomedical, SP1a); plus the
+    preprint/database sources that expose a real free-text search API — arXiv, Europe PMC, PsyArXiv (#77).
+    Adding a source is one `register()` — no endpoint/UI edit (the dropdown derives from `source_meta`; the
+    registry test proves it). bioRxiv/medRxiv stay Feed-only (date-window category pulls, no free-text search;
+    Crossref already indexes those preprints in Search)."""
     from app.backend.discovery.crossref_provider import CrossrefSearchProvider
+    from app.backend.discovery.preprint_search import (
+        ArxivSearchProvider,
+        EuropePmcSearchProvider,
+        PsyArxivSearchProvider,
+    )
     from app.backend.discovery.pubmed_provider import PubMedSearchProvider
 
-    return SourceRegistry().register(CrossrefSearchProvider()).register(PubMedSearchProvider())
+    return (
+        SourceRegistry()
+        .register(CrossrefSearchProvider())
+        .register(PubMedSearchProvider())
+        .register(ArxivSearchProvider())
+        .register(EuropePmcSearchProvider())
+        .register(PsyArxivSearchProvider())
+    )
