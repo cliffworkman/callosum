@@ -9,6 +9,10 @@
     "0.5.13": {
       "headline": "New literature Feed sources: follow arXiv, Europe PMC, and PsyArXiv alongside bioRxiv, medRxiv, PubMed, and journals — in Discover → Feed.",
       "actionKind": null
+    },
+    "0.5.14": {
+      "headline": "Stay with the paper: while reading a PDF, ask a question about it, look up a cited reference, and add, acquire & critique that citation — all without leaving the reader.",
+      "actionKind": null
     }
   },
   "no_banner": {
