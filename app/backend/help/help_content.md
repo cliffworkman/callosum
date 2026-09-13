@@ -256,7 +256,9 @@ When you're reading and hit a citation you want in your own library, select the 
 - If the reference is **already in your library**, it's surfaced as such (with an **Open** button) rather than duplicated.
 - The PDF text extraction isn't always clean, so the reference text is **editable** in the dialog — fix it and **Look up** again.
 
-Confirming a candidate adds it through your normal library import (metadata-only, deduped) and then tries to fetch an **open-access copy** in the background — exactly as **Add with DOI…** does. A failed open-access fetch never undoes the added record. This action creates **no** highlight or annotation; it's just a quick way to turn a citation you're reading into a library entry.
+Confirming a candidate adds it through your normal library import (metadata-only, deduped) and then tries to fetch an **open-access copy** — exactly as **Add with DOI…** does. A failed open-access fetch never undoes the added record. This action creates **no** highlight or annotation; it's just a quick way to turn a citation you're reading into a library entry.
+
+Once the paper has usable **full text** (an open-access copy was found and processed, or you already had it), a **Critique this paper** button appears — one click runs Callosum's ordinary Critique so you can gauge whether the cited work's evidence is strong enough to lean on, without leaving the paper you're reading. It runs in the background and is reviewable afterwards in that paper's **Synthesize → Critique**. If no full text is available (no open-access copy, or the copy couldn't be processed), Callosum says so plainly and does not critique — Critique is never run on a title/abstract alone, and nothing is queued waiting; you can attach a PDF later and critique it from Synthesize → Critique.
 
 Gotchas:
 

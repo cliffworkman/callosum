@@ -19157,7 +19157,16 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [phase, setPhase] = useState("idle");
     const [result, setResult] = useState(null);
     const [outcome, setOutcome] = useState(null);
+    const [critique, setCritique] = useState({ phase: "idle" });
     const reqRef = useRef(0);
+    const mountedRef = useRef(true);
+    const acqPollRef = useRef(null);
+    const critPollRef = useRef(null);
+    useEffect(() => () => {
+      mountedRef.current = false;
+      if (acqPollRef.current) acqPollRef.current();
+      if (critPollRef.current) critPollRef.current();
+    }, []);
     const lookup = useCallback(async () => {
       const q = (text || "").trim();
       if (!q) return;
@@ -19173,9 +19182,14 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     useEffect(() => {
       if ((initialText || "").trim()) lookup();
     }, []);
+    const _fulltextReady = async (paperId) => {
+      const r = await api("/papers/" + paperId);
+      return !!(r.ok && r.data && (r.data.chunk_count || 0) > 0);
+    };
     const add = useCallback(async (c) => {
       setPhase("adding");
       setOutcome(null);
+      setCritique({ phase: "idle" });
       const save = await apiPost("/discovery/save", {
         title: c.title || c.doi || "Untitled",
         doi: c.doi || null,
@@ -19185,17 +19199,57 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         url: c.url || null
       });
       if (!save.ok || !save.data) {
-        setOutcome({ kind: "error", message: "Couldn't add the paper \u2014 " + (save.error || "unknown error") });
+        if (mountedRef.current) setOutcome({ kind: "error", message: "Couldn't add the paper \u2014 " + (save.error || "unknown error") });
         setPhase("done");
         return;
       }
-      let oa = "existing";
-      if (save.data.created) {
-        const acq = await apiPost(`/papers/${save.data.paper_id}/acquire-oa`, {});
-        oa = acq.ok ? "started" : "unavailable";
-      }
-      setOutcome({ kind: "added", created: !!save.data.created, oa });
+      const paperId = save.data.paper_id;
+      const created = !!save.data.created;
       setPhase("done");
+      if (await _fulltextReady(paperId)) {
+        if (mountedRef.current) setOutcome({ kind: "added", created, paperId, fulltextReady: true });
+        return;
+      }
+      if (mountedRef.current) setOutcome({ kind: "added", created, paperId, acquiring: true, fulltextReady: false });
+      const acq = await apiPost("/papers/" + paperId + "/acquire-oa", {});
+      if (!acq.ok || !acq.data || !acq.data.job_id) {
+        if (mountedRef.current) setOutcome({ kind: "added", created, paperId, fulltextReady: false, noAccess: "acquire-error" });
+        return;
+      }
+      acqPollRef.current = observeJobUntilTerminal("/papers/acquire-oa/" + acq.data.job_id, {
+        onDone: async (data) => {
+          acqPollRef.current = null;
+          if (!data.found) {
+            if (mountedRef.current) setOutcome({ kind: "added", created, paperId, fulltextReady: false, noAccess: "no-oa" });
+            return;
+          }
+          const ready = await _fulltextReady(paperId);
+          if (mountedRef.current) setOutcome({ kind: "added", created, paperId, fulltextReady: ready, noAccess: ready ? null : "no-fulltext" });
+        },
+        onError: () => {
+          acqPollRef.current = null;
+          if (mountedRef.current) setOutcome({ kind: "added", created, paperId, fulltextReady: false, noAccess: "acquire-error" });
+        }
+      });
+    }, []);
+    const startCritique = useCallback((paperId) => {
+      setCritique({ phase: "running", paperId });
+      apiPost("/papers/" + paperId + "/critical-read", {}).then((r) => {
+        if (!r.ok || !r.data || !r.data.job_id) {
+          if (mountedRef.current) setCritique({ phase: "error", paperId, error: r.error || "Couldn't start the critique." });
+          return;
+        }
+        critPollRef.current = observeJobUntilTerminal("/critical-read/" + r.data.job_id, {
+          onDone: () => {
+            critPollRef.current = null;
+            if (mountedRef.current) setCritique({ phase: "ready", paperId });
+          },
+          onError: (err) => {
+            critPollRef.current = null;
+            if (mountedRef.current) setCritique({ phase: "error", paperId, error: err || "Critique failed." });
+          }
+        });
+      });
     }, []);
     const openExisting = useCallback((c) => {
       if (onOpenPaper && c.existing_paper_id != null) {
@@ -19213,7 +19267,18 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         placeholder: "Reference text\u2026",
         onChange: (e) => setText(e.target.value)
       }
-    ), /* @__PURE__ */ React.createElement("div", { className: "reffind-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: onClose }, "Close"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: phase === "loading" || !text.trim(), onClick: lookup }, phase === "loading" ? "Looking up\u2026" : "Look up")), phase === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Searching Crossref\u2026"), outcome && outcome.kind === "added" && /* @__PURE__ */ React.createElement("div", { className: "reffind-outcome ok" }, outcome.created ? "Added to your library." : "This paper was already in your library.", outcome.created && outcome.oa === "started" && " Fetching an open-access copy in the background\u2026", outcome.created && outcome.oa === "unavailable" && " No open-access copy was available \u2014 the record was still added."), outcome && outcome.kind === "error" && /* @__PURE__ */ React.createElement("div", { className: "reffind-outcome err" }, outcome.message), phase !== "loading" && result && result.error && !outcome && /* @__PURE__ */ React.createElement("div", { className: "reffind-outcome err" }, result.error), phase !== "loading" && result && !result.error && !outcome && result.classification === "none" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No defensible match. Edit the reference text above and look up again."), phase !== "loading" && candidates.length > 0 && !outcome && /* @__PURE__ */ React.createElement("div", { className: "reffind-results" }, result.classification === "multiple_candidates" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Several possible matches \u2014 choose the right one:"), candidates.map((c, i) => /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("div", { className: "reffind-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: onClose }, "Close"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: phase === "loading" || !text.trim(), onClick: lookup }, phase === "loading" ? "Looking up\u2026" : "Look up")), phase === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Searching Crossref\u2026"), outcome && outcome.kind === "added" && /* @__PURE__ */ React.createElement("div", { className: "reffind-outcome ok" }, /* @__PURE__ */ React.createElement("div", null, outcome.created ? "Added to your library." : "This paper was already in your library."), outcome.acquiring && /* @__PURE__ */ React.createElement("div", { className: "axis-hint", style: { marginTop: 6 } }, "Finding an open-access copy and preparing the full text\u2026"), !outcome.acquiring && outcome.fulltextReady && /* @__PURE__ */ React.createElement("div", { className: "reffind-critique", style: { marginTop: 8 } }, critique.phase === "idle" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: () => startCritique(outcome.paperId) }, "Critique this paper"), /* @__PURE__ */ React.createElement("div", { className: "axis-hint", style: { marginTop: 4 } }, "Runs Callosum's ordinary Critique on this paper's full text \u2014 is its evidence strong enough to lean on?")), critique.phase === "running" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Critiquing\u2026 you can keep reading \u2014 it runs in the background."), critique.phase === "ready" && /* @__PURE__ */ React.createElement("div", null, "Critique ready \u2014 review it in this paper's ", /* @__PURE__ */ React.createElement("b", null, "Synthesize \u2192 Critique"), ".", onOpenPaper && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-ghost",
+        style: { marginLeft: 8 },
+        onClick: () => {
+          onOpenPaper({ id: outcome.paperId, title: null });
+          onClose();
+        }
+      },
+      "Open paper"
+    )), critique.phase === "error" && /* @__PURE__ */ React.createElement("div", { className: "reffind-outcome err", style: { marginTop: 0 } }, critique.error)), !outcome.acquiring && !outcome.fulltextReady && outcome.noAccess && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 6 } }, "Critique needs the full paper.", " ", outcome.noAccess === "no-oa" ? "No open-access copy was available, so it can't be critiqued from here yet." : outcome.noAccess === "no-fulltext" ? "The copy that was found couldn't be turned into usable full text, so it can't be critiqued yet." : "The open-access lookup didn't complete, so it can't be critiqued yet.", " ", "You can attach a PDF to this paper later and critique it from ", /* @__PURE__ */ React.createElement("b", null, "Synthesize \u2192 Critique"), ".")), outcome && outcome.kind === "error" && /* @__PURE__ */ React.createElement("div", { className: "reffind-outcome err" }, outcome.message), phase !== "loading" && result && result.error && !outcome && /* @__PURE__ */ React.createElement("div", { className: "reffind-outcome err" }, result.error), phase !== "loading" && result && !result.error && !outcome && result.classification === "none" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No defensible match. Edit the reference text above and look up again."), phase !== "loading" && candidates.length > 0 && !outcome && /* @__PURE__ */ React.createElement("div", { className: "reffind-results" }, result.classification === "multiple_candidates" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Several possible matches \u2014 choose the right one:"), candidates.map((c, i) => /* @__PURE__ */ React.createElement(
       ReferenceCandidateRow,
       {
         key: c.doi || i,

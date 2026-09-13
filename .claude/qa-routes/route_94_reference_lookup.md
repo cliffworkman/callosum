@@ -49,6 +49,16 @@ and monkeypatch `app.backend.metadata.reference_resolver.bibliographic_search` f
 - **OA failure ≠ add failure.** On confirm, `POST /discovery/save` creates the metadata paper first; a failed
   `POST /papers/{id}/acquire-oa` shows "No open-access copy was available — the record was still added" and the
   paper remains present in `GET /papers`.
+- **Critique-from-the-reader (#79), gated on USABLE FULL TEXT.** After confirm+add, the flow attempts OA
+  acquisition (poll `GET /papers/acquire-oa/{job_id}`), then re-checks `GET /papers/{id}.chunk_count`. **Only
+  when `chunk_count > 0`** does a **Critique this paper** action appear → the canonical single-paper
+  `POST /papers/{id}/critical-read` (the ONLY Critique path; polled via `/critical-read/{job_id}`), reviewable
+  later in that paper's Synthesize → Critique. An already-chunked paper enables Critique directly (no re-acquire).
+  **Hard epistemic boundary:** Critique is NEVER offered/started for a metadata-only paper — even one WITH an
+  abstract. This gate is **load-bearing**: `extract_claim_sentences` falls back to the abstract, so the backend
+  would otherwise critique from metadata; the reader flow must refuse (it never POSTs `critical-read` when
+  `chunk_count == 0`). Nothing is queued/retained: if OA fails, finds no copy, or downloads but doesn't chunk,
+  the modal states plainly that Critique needs the full paper and stops — **no pending intent, no watcher**.
 - **Fail closed.** Blank/oversized `text` → 422; a Crossref transport error → `error` set, **zero** papers
   created.
 

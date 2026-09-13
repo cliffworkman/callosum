@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-13 — inc 598: reader reference lookup → acquire OA + Critique (GitHub #79)
+- **Files:** `app/frontend/js/30h_reference_finder.jsx`, `app/backend/help/help_content.md`,
+  `tests/test_reader_critique_boundary.py` (new), `.claude/qa-routes/route_94_reference_lookup.md`,
+  `www/showcase-coverage.json` + `demo/experience-coverage-v1.json` (drift declines), `INCREMENT-598-NOTES.md`.
+- **What:** After confirming a cited reference (inc 595), the reader flow acquires OA and — **only once the
+  paper has usable full text** (`GET /papers/{id}.chunk_count > 0`) — offers a one-click **Critique this paper**
+  via the canonical single-paper `POST /papers/{id}/critical-read`. No usable full text → honest "Critique needs
+  the full paper" state; **nothing queued/retained** (synchronous, per the scope correction — no pending table,
+  endpoints, hook, or watcher).
+- **Why:** GitHub #79 — compress the distance between encountering a cornerstone citation and assessing its
+  evidence, without breaking reading flow.
+- **Verify:** **frontend-only, zero backend change**; the `chunk_count>0` gate is load-bearing for the epistemic
+  boundary (critical-read's `extract_claim_sentences` falls back to the abstract, so the reader must refuse to
+  invoke it on a chunkless paper). `tests/test_reader_critique_boundary.py` (2) pins the signal + why the gate
+  is required; assembly 87; ruff/line-budget/QA green. Interactive flow = manual (modal opens from a PDF
+  selection; not cheaply e2e-scriptable).
+- **Revert:** revert `30h_reference_finder.jsx` to the inc-595 add/acquire flow + drop the test.
+
 ## 2026-09-13 — inc 597: Feed "Suggested sources" completeness (GitHub #76 + suggestion-parity invariant)
 - **Files:** `app/frontend/js/30g_feed_suggest.jsx`, `app/frontend/styles.css` (`.feed-suggest-subtabs`),
   `app/backend/help/help_content.md`, `tests/test_feed_rxiv_suggest.py` (new),

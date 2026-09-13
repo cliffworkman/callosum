@@ -39,8 +39,17 @@ function ReferenceFinderModal({ text: initialText, onClose, onOpenPaper }) {
   const [text, setText] = useState(initialText || "");
   const [phase, setPhase] = useState("idle");   // idle | loading | adding | done
   const [result, setResult] = useState(null);   // { classification, candidates, normalized_text, error }
-  const [outcome, setOutcome] = useState(null);  // { kind: 'added'|'error', created, oa, ... }
+  const [outcome, setOutcome] = useState(null);  // {kind, created, paperId, acquiring, fulltextReady, noAccess} | {kind:'error', message}
+  const [critique, setCritique] = useState({ phase: "idle" });  // idle | running | ready | error (#79)
   const reqRef = useRef(0);
+  const mountedRef = useRef(true);
+  const acqPollRef = useRef(null);   // cancel fn for the OA-acquisition poll
+  const critPollRef = useRef(null);  // cancel fn for the critique poll
+  useEffect(() => () => {
+    mountedRef.current = false;
+    if (acqPollRef.current) acqPollRef.current();
+    if (critPollRef.current) critPollRef.current();
+  }, []);
 
   const lookup = useCallback(async () => {
     const q = (text || "").trim();
@@ -57,24 +66,71 @@ function ReferenceFinderModal({ text: initialText, onClose, onOpenPaper }) {
   // The click that opened this modal IS the explicit egress authorization — run the captured selection once.
   useEffect(() => { if ((initialText || "").trim()) lookup(); }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // "Usable full text" = the paper actually has chunks. A downloaded-but-unparsed PDF (attachment_count>0,
+  // chunk_count==0) is NOT usable — Critique needs real full text, never metadata/abstract (#79 boundary).
+  const _fulltextReady = async (paperId) => {
+    const r = await api("/papers/" + paperId);
+    return !!(r.ok && r.data && (r.data.chunk_count || 0) > 0);
+  };
+
   const add = useCallback(async (c) => {
-    setPhase("adding"); setOutcome(null);
+    setPhase("adding"); setOutcome(null); setCritique({ phase: "idle" });
     const save = await apiPost("/discovery/save", {
       title: c.title || c.doi || "Untitled",
       doi: c.doi || null, authors: c.authors || [], journal: c.venue || null,
       year: c.year || null, url: c.url || null,
     });
     if (!save.ok || !save.data) {
-      setOutcome({ kind: "error", message: "Couldn't add the paper — " + (save.error || "unknown error") });
+      if (mountedRef.current) setOutcome({ kind: "error", message: "Couldn't add the paper — " + (save.error || "unknown error") });
       setPhase("done"); return;
     }
-    let oa = "existing";
-    if (save.data.created) {
-      const acq = await apiPost(`/papers/${save.data.paper_id}/acquire-oa`, {});   // OA failure ≠ add failure
-      oa = acq.ok ? "started" : "unavailable";
-    }
-    setOutcome({ kind: "added", created: !!save.data.created, oa });
+    const paperId = save.data.paper_id;
+    const created = !!save.data.created;
     setPhase("done");
+    // Already have usable full text (an existing chunked paper, or a re-run)? Critique can proceed directly.
+    if (await _fulltextReady(paperId)) {
+      if (mountedRef.current) setOutcome({ kind: "added", created, paperId, fulltextReady: true });
+      return;
+    }
+    // Otherwise attempt the canonical OA acquisition, then RE-CHECK for usable full text. This resolves
+    // synchronously to ready or a clear no-access state — nothing is queued or retained for later (#79 scope).
+    if (mountedRef.current) setOutcome({ kind: "added", created, paperId, acquiring: true, fulltextReady: false });
+    const acq = await apiPost("/papers/" + paperId + "/acquire-oa", {});
+    if (!acq.ok || !acq.data || !acq.data.job_id) {
+      if (mountedRef.current) setOutcome({ kind: "added", created, paperId, fulltextReady: false, noAccess: "acquire-error" });
+      return;
+    }
+    acqPollRef.current = observeJobUntilTerminal("/papers/acquire-oa/" + acq.data.job_id, {
+      onDone: async (data) => {
+        acqPollRef.current = null;
+        if (!data.found) {
+          if (mountedRef.current) setOutcome({ kind: "added", created, paperId, fulltextReady: false, noAccess: "no-oa" });
+          return;
+        }
+        const ready = await _fulltextReady(paperId);   // downloaded, but did it ingest into usable chunks?
+        if (mountedRef.current) setOutcome({ kind: "added", created, paperId, fulltextReady: ready, noAccess: ready ? null : "no-fulltext" });
+      },
+      onError: () => {
+        acqPollRef.current = null;
+        if (mountedRef.current) setOutcome({ kind: "added", created, paperId, fulltextReady: false, noAccess: "acquire-error" });
+      },
+    });
+  }, []);
+
+  // Critique the (full-text-ready) paper via the canonical single-paper Critical Read — the ONLY Critique
+  // implementation. The run persists, so it's reviewable later in that paper's Synthesize → Critique.
+  const startCritique = useCallback((paperId) => {
+    setCritique({ phase: "running", paperId });
+    apiPost("/papers/" + paperId + "/critical-read", {}).then(r => {
+      if (!r.ok || !r.data || !r.data.job_id) {
+        if (mountedRef.current) setCritique({ phase: "error", paperId, error: r.error || "Couldn't start the critique." });
+        return;
+      }
+      critPollRef.current = observeJobUntilTerminal("/critical-read/" + r.data.job_id, {
+        onDone: () => { critPollRef.current = null; if (mountedRef.current) setCritique({ phase: "ready", paperId }); },
+        onError: (err) => { critPollRef.current = null; if (mountedRef.current) setCritique({ phase: "error", paperId, error: err || "Critique failed." }); },
+      });
+    });
   }, []);
 
   const openExisting = useCallback((c) => {
@@ -109,10 +165,40 @@ function ReferenceFinderModal({ text: initialText, onClose, onOpenPaper }) {
 
         {outcome && outcome.kind === "added" &&
           <div className="reffind-outcome ok">
-            {outcome.created ? "Added to your library." : "This paper was already in your library."}
-            {outcome.created && outcome.oa === "started" && " Fetching an open-access copy in the background…"}
-            {outcome.created && outcome.oa === "unavailable" &&
-              " No open-access copy was available — the record was still added."}
+            <div>{outcome.created ? "Added to your library." : "This paper was already in your library."}</div>
+            {outcome.acquiring &&
+              <div className="axis-hint" style={{ marginTop: 6 }}>Finding an open-access copy and preparing the full text…</div>}
+            {!outcome.acquiring && outcome.fulltextReady &&
+              <div className="reffind-critique" style={{ marginTop: 8 }}>
+                {critique.phase === "idle" &&
+                  <>
+                    <button className="btn btn-primary" onClick={() => startCritique(outcome.paperId)}>Critique this paper</button>
+                    <div className="axis-hint" style={{ marginTop: 4 }}>
+                      Runs Callosum's ordinary Critique on this paper's full text — is its evidence strong enough to lean on?
+                    </div>
+                  </>}
+                {critique.phase === "running" &&
+                  <div className="axis-hint">Critiquing… you can keep reading — it runs in the background.</div>}
+                {critique.phase === "ready" &&
+                  <div>
+                    Critique ready — review it in this paper's <b>Synthesize → Critique</b>.
+                    {onOpenPaper &&
+                      <button className="btn btn-ghost" style={{ marginLeft: 8 }}
+                        onClick={() => { onOpenPaper({ id: outcome.paperId, title: null }); onClose(); }}>Open paper</button>}
+                  </div>}
+                {critique.phase === "error" &&
+                  <div className="reffind-outcome err" style={{ marginTop: 0 }}>{critique.error}</div>}
+              </div>}
+            {!outcome.acquiring && !outcome.fulltextReady && outcome.noAccess &&
+              <div style={{ marginTop: 6 }}>
+                Critique needs the full paper.{" "}
+                {outcome.noAccess === "no-oa"
+                  ? "No open-access copy was available, so it can't be critiqued from here yet."
+                  : outcome.noAccess === "no-fulltext"
+                    ? "The copy that was found couldn't be turned into usable full text, so it can't be critiqued yet."
+                    : "The open-access lookup didn't complete, so it can't be critiqued yet."}{" "}
+                You can attach a PDF to this paper later and critique it from <b>Synthesize → Critique</b>.
+              </div>}
           </div>}
         {outcome && outcome.kind === "error" && <div className="reffind-outcome err">{outcome.message}</div>}
 
