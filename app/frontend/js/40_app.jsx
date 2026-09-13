@@ -450,7 +450,7 @@ function App() {
           wip={wip} wipTabs={hydratedWipTabs} selectedWipTab={selectedWipTab}
           tabs={tabs} selectedPaperTab={wipModeActive ? null : selectedPaperTab} activeTab={activeTab}
           onActivate={setActiveTab} onClose={closeTab} onCloseWip={closeWipTab}
-          onOpenPdf={openPdf} onOpenWip={openWip}
+          onOpenPdf={openPdf} onOpenWip={openWip} onOpenCitation={openCitation} onSaveHighlight={saveCitationHighlight} onOpenSettings={() => selectWorkspace("settings")}
           onReorderTabs={reorderPdfTabs} onReorderWipTabs={reorderWipTabs}
           annoRefresh={annoRefresh}
           readingMode={readingMode} onToggleReading={toggleReading}

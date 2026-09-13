@@ -2651,6 +2651,25 @@
   .pdf-annot-actions button:hover, .pdf-annot-toggle:hover { border-color: var(--accent); color: var(--accent); }
   .pdf-annot-actions button.danger { color: var(--danger); }
   .pdf-annot-toggle.active { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); font-weight: 600; }
+  /* Reader "Ask this paper" (inc 596): a compact, discoverable primary action in the toolbar (accent =
+     provenance/primary, DESIGN §4) opening the reader-Ask modal (reuses the axis-modal shell). */
+  .pdf-ask-btn {
+    border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent);
+    border-radius: var(--radius-sm); padding: 3px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+    font-family: var(--sans);
+  }
+  .pdf-ask-btn:hover { border-color: var(--accent); }
+  .pdf-ask-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .app.mobile .pdf-ask-btn { padding: 6px 12px; font-size: 13px; }
+  .reader-ask-modal { width: min(680px, 94vw); }
+  .reader-ask-scope { font-size: 12.5px; color: var(--ink-2); margin: 2px 0 4px; }
+  .reader-ask-input {
+    width: 100%; box-sizing: border-box; min-height: 72px; resize: vertical; margin: 8px 0 10px;
+    padding: 8px 10px; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    background: var(--bg); color: var(--ink); font: 13px/1.5 var(--sans);
+  }
+  .reader-ask-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .reader-ask-result { margin-top: 12px; }
   .pdf-pages { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px; }
   /* Two-up (side-by-side) page view (inc 110): pages wrap two per row; the JS fits each to ~half the width. */
   .pdf-pages.pdf-two-up { flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: center; }
@@ -17389,7 +17408,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       /* @__PURE__ */ React.createElement("span", { className: "pcurve-test-p" }, "z = ", t.z.toFixed(2))
     )))), /* @__PURE__ */ React.createElement("div", { className: "pcurve-coverage" }, "Coverage: z-curve reads only inline APA-style NHST tests with exact statistics (tables, Bayesian, and CI-only reporting are invisible); it includes every extracted significant test rather than each study's chosen focal statistic. Run it on a large, curated set for the most meaningful estimate.")), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " z-curve 2.0 \u2014 Barto\u0161 & Schimmack (2022), ", /* @__PURE__ */ React.createElement("i", null, "Meta-Psychology"), " 6, MP.2021.2720.", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [BS2022_CSL], onChanged }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; reference implementation: ", /* @__PURE__ */ React.createElement("i", null, "zcurve"), " (Franti\u0161ek Barto\u0161)."), /* @__PURE__ */ React.createElement(LakensCredit, null))));
   }
-  function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf, onOpenRepair, onOpenPdf }) {
+  function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf, onOpenRepair, onOpenPdf, onOpenCitation, onSaveHighlight, onOpenSettings }) {
     const [state, setState] = useState({ status: "loading" });
     const [reloadKey, setReloadKey] = useState(0);
     const [scale, setScale] = useState(1.15);
@@ -17855,7 +17874,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       window.addEventListener("keydown", onKey);
       return () => window.removeEventListener("keydown", onKey);
     }, [stepMark]);
-    return /* @__PURE__ */ React.createElement("div", { className: "pdf-viewer" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-toolbar" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-source-title" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-title", title }, title), state.filename && /* @__PURE__ */ React.createElement("span", { className: "pdf-filename", title: "Active local PDF: " + state.filename }, state.filename)), /* @__PURE__ */ React.createElement("span", { className: "pdf-spacer" }), state.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom" }, /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(-0.2), title: "Zoom out" }, "\u2212"), /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom-val" }, Math.round(scale * 100), "%"), /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(0.2), title: "Zoom in" }, "+")), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "pdf-viewer" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-toolbar" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-source-title" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-title", title }, title), state.filename && /* @__PURE__ */ React.createElement("span", { className: "pdf-filename", title: "Active local PDF: " + state.filename }, state.filename)), /* @__PURE__ */ React.createElement(ReaderAsk, { paperId, title, onOpenCitation, onSaveHighlight, onOpenSettings }), /* @__PURE__ */ React.createElement("span", { className: "pdf-spacer" }), state.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom" }, /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(-0.2), title: "Zoom out" }, "\u2212"), /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom-val" }, Math.round(scale * 100), "%"), /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(0.2), title: "Zoom in" }, "+")), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "pdf-annot-toggle" + (pageView === "width" ? " active" : ""),
@@ -17992,7 +18011,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   }
   const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
   const WIP_TAB_DRAG_TYPE = "application/x-callosum-wiptab";
-  function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi, onOpenLibraryFolders }) {
+  function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi, onOpenLibraryFolders, onOpenCitation, onSaveHighlight, onOpenSettings }) {
     const [dragOverKey, setDragOverKey] = useState(null);
     const openSelectedPaper = () => {
       if (!selectedPaperTab) return;
@@ -18141,6 +18160,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         knownNoPdf: t.hasPdf === false,
         onOpenRepair: onOpenLibraryFolders,
         onOpenPdf,
+        onOpenCitation,
+        onSaveHighlight,
+        onOpenSettings,
         armedCapture: capture && !capture.result && capture.paperId === t.paperId ? capture : null,
         onCaptureAnchor,
         onCancelCapture
@@ -19363,6 +19385,104 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       recompute
       // the viewer calls this after a re-render while find is open
     };
+  }
+  const READER_ASK_TOP_K = 8;
+  function readerAskRequest(paperId, query) {
+    return { scope_type: "papers", paper_ids: [paperId], query, top_k: READER_ASK_TOP_K };
+  }
+  function readerAskPaperValid(paperId) {
+    return Number.isInteger(paperId) && paperId > 0;
+  }
+  function ReaderAsk({ paperId, title, onOpenCitation, onSaveHighlight, onOpenSettings }) {
+    const valid = readerAskPaperValid(paperId);
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState("");
+    const [state, setState] = useState({ status: "idle" });
+    const pollRef = useRef(null);
+    useEffect(() => () => {
+      if (pollRef.current) pollRef.current();
+    }, []);
+    const close = useCallback(() => {
+      if (pollRef.current) {
+        pollRef.current();
+        pollRef.current = null;
+      }
+      setOpen(false);
+    }, []);
+    const ask = useCallback(() => {
+      const q = query.trim();
+      if (!q || !valid) return;
+      if (pollRef.current) pollRef.current();
+      setState({ status: "running", message: "Generating and verifying" });
+      apiPost("/summarize", readerAskRequest(paperId, q)).then((r) => {
+        if (!r.ok) {
+          setState({ status: "error", error: r.error });
+          return;
+        }
+        setState({ status: "running", jobId: r.data.job_id, message: "Generating and verifying" });
+        pollRef.current = observeJobUntilTerminal("/summarize/" + r.data.job_id, {
+          onProgress: (data) => setState({
+            status: "running",
+            message: data.status === "pending" ? "Queued for verification" : "Generating and verifying"
+          }),
+          onDone: (data) => {
+            pollRef.current = null;
+            setState({ status: "done", result: data });
+          },
+          onError: (error) => {
+            pollRef.current = null;
+            setState({ status: "error", error: error || "Ask failed." });
+          }
+        });
+      });
+    }, [query, valid, paperId]);
+    const openEvidence = useCallback((citation) => {
+      if (onOpenCitation) onOpenCitation(citation);
+      close();
+    }, [onOpenCitation, close]);
+    if (isDemoMode()) return null;
+    const busy = state.status === "running";
+    const result = state.result;
+    const sentences = result && result.sentences || [];
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "pdf-ask-btn",
+        disabled: !valid,
+        title: valid ? "Ask a question about this paper" : "Open a paper to ask about it",
+        onClick: () => setOpen(true)
+      },
+      "\u2726 Ask"
+    ), open && /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay reader-ask-overlay", onMouseDown: close }, /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "axis-modal reader-ask-modal",
+        role: "dialog",
+        "aria-label": "Ask this paper",
+        onMouseDown: (e) => e.stopPropagation()
+      },
+      /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Ask this paper"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", "aria-label": "Close", onClick: close }, "\xD7")),
+      /* @__PURE__ */ React.createElement("div", { className: "reader-ask-scope" }, "Asking about: ", /* @__PURE__ */ React.createElement("b", null, title || "Paper " + paperId)),
+      /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Runs Callosum's ordinary Ask \u2014 grounded only in this paper \u2014 and verifies every citation against it."),
+      /* @__PURE__ */ React.createElement(
+        "textarea",
+        {
+          className: "reader-ask-input",
+          placeholder: "Ask a question about this paper\u2026",
+          value: query,
+          disabled: busy,
+          maxLength: 4e3,
+          onChange: (e) => setQuery(e.target.value),
+          onKeyDown: (e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) ask();
+          }
+        }
+      ),
+      /* @__PURE__ */ React.createElement("div", { className: "reader-ask-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: close }, "Close"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy || !query.trim(), onClick: ask }, busy ? "Asking\u2026" : "Ask")),
+      busy && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, state.message || "Generating and verifying", "\u2026"),
+      state.status === "error" && /* @__PURE__ */ React.createElement(SynthesisFailure, { error: state.error, onOpenSettings, onRetry: ask, canRetry: !!query.trim() }),
+      state.status === "done" && result && /* @__PURE__ */ React.createElement("div", { className: "reader-ask-result" }, result.source_chunk_count != null && /* @__PURE__ */ React.createElement("div", { className: "synth-coverage" }, "Retrieved ", /* @__PURE__ */ React.createElement("b", null, result.source_chunk_count), " source chunk", result.source_chunk_count === 1 ? "" : "s", " from this paper"), result.generation_truncated && /* @__PURE__ */ React.createElement("div", { className: "errbox", role: "status", style: { margin: "8px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "This answer is incomplete."), " The AI ran out of room before finishing, so only part of what it set out to say is shown."), sentences.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "18px 6px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No groundable summary produced."), "The generator returned no sentences \u2014 your question may not be addressed in this paper."), sentences.length > 0 && /* @__PURE__ */ React.createElement(GroupedSummarySentences, { sentences, onOpenCitation: openEvidence, onSaveHighlight }))
+    )));
   }
   function MyPubsTile({ label, value }) {
     return /* @__PURE__ */ React.createElement("div", { className: "metric-tile" }, /* @__PURE__ */ React.createElement("div", { className: "metric-value" }, (value == null ? 0 : value).toLocaleString()), /* @__PURE__ */ React.createElement("div", { className: "metric-label" }, label));
@@ -24363,6 +24483,9 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onCloseWip: closeWipTab,
         onOpenPdf: openPdf,
         onOpenWip: openWip,
+        onOpenCitation: openCitation,
+        onSaveHighlight: saveCitationHighlight,
+        onOpenSettings: () => selectWorkspace("settings"),
         onReorderTabs: reorderPdfTabs,
         onReorderWipTabs: reorderWipTabs,
         annoRefresh,

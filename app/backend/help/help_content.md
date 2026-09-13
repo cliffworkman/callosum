@@ -187,9 +187,13 @@ The PDF viewer is for close reading, source checking, and annotation. Open a PDF
 The toolbar shows:
 
 - The paper title and the active local PDF filename, so a primary article and supplement are distinguishable.
+- An **✦ Ask** button — ask a question about *this* paper without leaving the reader (see below).
 - Zoom out and zoom in controls.
 - The current page number.
 - A **Notes** button with the number of saved annotations.
+
+### Ask about the paper you're reading
+While reading, click **✦ Ask** to ask a question about the current paper in a small window over the PDF. It clearly shows **"Asking about: {title}"** — the scope is always the paper you have open, and you never reselect it. This runs Callosum's ordinary **Ask** (the same one under Synthesize), grounded only in this paper, and independently verifies every citation against it — so the answer carries the same verified/flagged claims, evidence quotes, pages, and confidence you'd see anywhere else. Clicking a citation's **Open source** jumps the PDF to that passage; clicking **Close** leaves your page, scroll, and zoom exactly where they were. A weak or unanswerable question is shown honestly (Callosum never invents a friendly answer), and the run is saved to your Synthesize history like any other Ask. Ask needs AI features turned on (Settings); an AI-off or provider error is reported plainly and the PDF stays usable.
 
 Callosum renders the PDF pages and an invisible selectable text layer. That means you can select text to highlight, while the visible page stays aligned with highlights and citation overlays across zoom levels.
 

@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-12 — inc 596: paper-scoped Ask in the PDF reader ("stay with the paper")
+- **Files:** `app/frontend/js/30j_reader_ask.jsx` (new), `30_viewer.jsx` + `30c_frame.jsx` + `40_app.jsx`
+  (prop threading only), `styles.css` (`.pdf-ask-btn` + `.reader-ask-*`), `app/backend/help/help_content.md`,
+  `tests/test_reader_ask_scope.py` (new), `.claude/qa-routes/route_95_reader_ask.md` (new),
+  `www/showcase-coverage.json` + `demo/experience-coverage-v1.json` (route_95 excluded + drift declines),
+  `INCREMENT-596-NOTES.md`.
+- **What:** A compact **✦ Ask** button in the reader toolbar opens a modal over the undisturbed PDF, scoped to
+  the current paper, and runs the ORDINARY production Ask — `POST /summarize {scope_type:"papers",
+  paper_ids:[thisPaper], query, top_k:8}` → the shared `observeJobUntilTerminal` poller → the SAME
+  `GroupedSummarySentences`/`SynthesisFailure` result+failure components as Synthesize → Ask. A thin
+  frontend-only projection over canonical Ask.
+- **Why:** Bring Ask to where the scholar is reading, not only to Synthesize — "stay with the paper."
+- **Verify:** **zero backend change** (structural 0.6/0.7 isolation — no `experiments/**` or `summarization/**`
+  touched); `tests/test_reader_ask_scope.py` pins the single-paper scope invariant (2 passed); assembly 87; QA
+  API 440/440 (no new endpoint); line budget ≤600 (40_app 600 / 30_viewer 599 held); ruff clean.
+- **Revert:** delete `30j_reader_ask.jsx` + the test + route + revert the prop-threading and CSS.
+
 ## 2026-09-12 — inc 595: reader "Find referenced paper…" (selection → resolve → add)
 - **Files:** `app/backend/metadata/reference_resolver.py` (new), `app/backend/api/routers/reference_lookup.py`
   (new), `app/backend/discovery/crossref_provider.py` (+`bibliographic_search`), `app/backend/api/app.py`

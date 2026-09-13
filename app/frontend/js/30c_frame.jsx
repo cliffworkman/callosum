@@ -13,7 +13,7 @@
 const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
 const WIP_TAB_DRAG_TYPE = "application/x-callosum-wiptab";
 
-function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi, onOpenLibraryFolders }) {
+function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi, onOpenLibraryFolders, onOpenCitation, onSaveHighlight, onOpenSettings }) {
   const [dragOverKey, setDragOverKey] = useState(null);
   const openSelectedPaper = () => {
     if (!selectedPaperTab) return;
@@ -139,6 +139,7 @@ function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, select
           <PdfViewer paperId={t.paperId} title={t.title} target={t.target || null} annoRefresh={annoRefresh} mobile={mobile}
             knownNoPdf={t.hasPdf === false}
             onOpenRepair={onOpenLibraryFolders} onOpenPdf={onOpenPdf}
+            onOpenCitation={onOpenCitation} onSaveHighlight={onSaveHighlight} onOpenSettings={onOpenSettings}
             armedCapture={capture && !capture.result && capture.paperId === t.paperId ? capture : null}
             onCaptureAnchor={onCaptureAnchor} onCancelCapture={onCancelCapture} />
         </div>

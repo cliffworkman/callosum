@@ -1,5 +1,5 @@
 // buildAnnotationDigest (the highlights/notes Markdown digest) lives in 00_lib.jsx (a pure util; relocated inc 175).
-function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf, onOpenRepair, onOpenPdf }) {
+function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf, onOpenRepair, onOpenPdf, onOpenCitation, onSaveHighlight, onOpenSettings }) {
   const [state, setState] = useState({ status: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
   const [scale, setScale] = useState(1.15);
@@ -508,7 +508,7 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
           <span className="pdf-title" title={title}>{title}</span>
           {state.filename && <span className="pdf-filename" title={"Active local PDF: " + state.filename}>{state.filename}</span>}
         </div>
-        <span className="pdf-spacer"></span>
+        <ReaderAsk paperId={paperId} title={title} onOpenCitation={onOpenCitation} onSaveHighlight={onSaveHighlight} onOpenSettings={onOpenSettings} /><span className="pdf-spacer"></span>
         {state.status === "ready" &&
           <>
             <span className="pdf-zoom">

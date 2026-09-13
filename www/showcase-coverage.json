@@ -16,9 +16,9 @@
     "source_fingerprint": "45ba80f0516b1b8b242878c3b76f8b1520c3f4bc1ed1827d05930df4d97105c3",
     "note": "Reviewed inc 576 PDF recovery against every affected website claim and visual. Existing library/PDF claims remain accurate; no public copy or screenshot change is needed.",
     "declined_at": "2026-09-12",
-    "declined_rev": "c63fa906",
-    "declined_increment": 595,
-    "decline_note": "inc 595 (reader Find-referenced-paper) touches frontend chunks + help copy but adds no new public-showcase claim or screenshot; route_94 is recorded in excluded_qa_routes with its rationale. Frontend visual/copy re-review for the accumulated 0.5.x increments is deferred to a dedicated website pass."
+    "declined_rev": "de6698a7",
+    "declined_increment": 596,
+    "decline_note": "inc 596 (reader 'Ask this paper') touches frontend chunks + help copy but adds no new public-showcase claim or screenshot; it surfaces the SAME canonical verified-Ask capability (cap-synthesis) in the reader, and route_95 is recorded in excluded_qa_routes. Frontend visual/copy re-review for the accumulated increments is deferred to a dedicated website pass."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",
@@ -93,7 +93,8 @@
   },
   "excluded_qa_routes": {
     "route_91_grobid_document_structure": "GROBID is a separately-run, opt-in, user-configured Docker service (never bundled, never running in the frozen public snapshot); the static demo has no live GROBID container to demonstrate the parse action against, so this Settings/detail-pane mechanic is internal/admin-only for public-tour purposes (QA-POLICY.md's documented exclusion path).",
-    "route_94_reference_lookup": "The reader 'Find referenced paper' action (inc 595) composes existing showcased capabilities -- Crossref resolution + the canonical library add + OA acquisition (see cap-oa / cap-search) -- but has no DEDICATED public-showcase claim of its own yet. Rather than falsely map it onto another capability's screenshot/copy, it is excluded until a dedicated showcase entry is authored (a deferred website-content task); it is also a live-backend flow with no representation in the backend-free static snapshot."
+    "route_94_reference_lookup": "The reader 'Find referenced paper' action (inc 595) composes existing showcased capabilities -- Crossref resolution + the canonical library add + OA acquisition (see cap-oa / cap-search) -- but has no DEDICATED public-showcase claim of its own yet. Rather than falsely map it onto another capability's screenshot/copy, it is excluded until a dedicated showcase entry is authored (a deferred website-content task); it is also a live-backend flow with no representation in the backend-free static snapshot.",
+    "route_95_reader_ask": "Reader-hosted 'Ask this paper' (inc 596) is the SAME canonical verified-Ask capability already showcased as cap-synthesis, surfaced in the PDF reader with a deterministic single-paper scope -- not a new capability. The cap-synthesis entry's screenshot/copy depicts the Synthesize workspace, not the reader modal, so mapping route_95 onto it would overclaim; it is excluded until a dedicated showcase entry (or an updated cap-synthesis visual) depicts Ask-in-the-reader. A deferred website-content task; the underlying Ask capability's public claim is unchanged."
   },
   "external_surfaces": {
     "libreoffice": "#cap-libreoffice",
