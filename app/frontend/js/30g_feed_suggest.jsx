@@ -11,14 +11,35 @@
 
 const FEED_SUGGEST_TABS = [
   { id: "journal", label: "Journal" },
-  { id: "biorxiv_category", label: "bioRxiv Categories" },
-  { id: "medrxiv_category", label: "medRxiv Categories" },
-  { id: "pubmed_query", label: "PubMed Search" },
+  { id: "rxiv", label: "Rxiv Categories" },
+  { id: "keyword_search", label: "Keyword Search" },
   { id: "author", label: "Author" },
 ];
 
+// Presentation/grouping ONLY — ordered lists of canonical source kind IDs (issue #76 + the suggestion-parity
+// invariant). Every followable kind is represented in Suggested Sources: journal → Journal tab; the four
+// preprint archives → Rxiv Categories subtabs; the keyword literature databases → Keyword Search subtabs;
+// followed_author → Author tab. Labels, category lists, and category-vs-keyword mode are all DERIVED from the
+// registry's source_meta below — this holds no second source taxonomy.
+const RXIV_KINDS = ["biorxiv_category", "medrxiv_category", "arxiv_category", "psyarxiv"];
+const SEARCH_KINDS = ["pubmed_query", "europepmc_keyword"];
+
+// Short subtab label from the canonical source_meta label ("bioRxiv category" → "bioRxiv", "Europe PMC keyword"
+// → "Europe PMC", "PubMed search" → "PubMed").
+function _feedProviderLabel(meta) {
+  const label = (meta && meta.label) || (meta && meta.kind) || "";
+  return label.replace(/\s+(category|keyword|search)$/i, "") || label;
+}
+// A source that ships a fixed suggestion list is category-style; one without is keyword-style. This is a real
+// signal already in the canonical source contract — not a re-encoded taxonomy.
+function _feedIsCategoryKind(meta) {
+  return !!(meta && (meta.suggestions || []).length);
+}
+
 function FeedSuggestModal({ subs, libJournals, sourceMeta, onFollow, onFollowAuthor, onFilterToAuthorPapers, onClose }) {
   const [tab, setTab] = useState("journal");
+  const [rxivSub, setRxivSub] = useState(RXIV_KINDS[0]);        // active preprint-archive subtab
+  const [searchSub, setSearchSub] = useState(SEARCH_KINDS[0]);  // active keyword-database subtab
   const [axes, setAxes] = useState(null);
   const [tags, setTags] = useState(null);
   const [authorSuggestions, setAuthorSuggestions] = useState(null);
@@ -66,16 +87,35 @@ function FeedSuggestModal({ subs, libJournals, sourceMeta, onFollow, onFollowAut
         <div className="feed-suggest-body">
           {tab === "journal" &&
             <FeedSuggestJournals journals={libJournals} followed={followedByKind("journal")} onFollow={(v) => onFollow("journal", v)} />}
-          {(tab === "biorxiv_category" || tab === "medrxiv_category") &&
-            <FeedSuggestCategories
-              kind={tab}
-              categories={(sourceMeta.find(m => m.kind === tab) || {}).suggestions || []}
-              axes={axes} tags={tags}
-              followed={followedByKind(tab)}
-              onFollow={(v) => onFollow(tab, v)}
-            />}
-          {tab === "pubmed_query" &&
-            <FeedSuggestQueries axes={axes} tags={tags} followed={followedByKind("pubmed_query")} onFollow={(v) => onFollow("pubmed_query", v)} />}
+          {(tab === "rxiv" || tab === "keyword_search") && (() => {
+            // One shared grouped surface: provider subtabs under a "kind of thing" top-level tab. bioRxiv/
+            // medRxiv/arXiv are category-style; PsyArXiv/PubMed/Europe PMC are keyword-style — decided by the
+            // canonical source_meta (suggestions present ⇒ category), never a second taxonomy here.
+            const kinds = tab === "rxiv" ? RXIV_KINDS : SEARCH_KINDS;
+            const sub = tab === "rxiv" ? rxivSub : searchSub;
+            const setSub = tab === "rxiv" ? setRxivSub : setSearchSub;
+            const activeKind = kinds.includes(sub) ? sub : kinds[0];
+            const meta = sourceMeta.find(m => m.kind === activeKind) || { kind: activeKind };
+            return (
+              <>
+                <div className="tags-srcfilter feed-suggest-subtabs">
+                  {kinds.map(k => {
+                    const m = sourceMeta.find(x => x.kind === k) || { kind: k };
+                    return (
+                      <button key={k} className={"tags-srcfilter-btn" + (activeKind === k ? " on" : "")} onClick={() => setSub(k)}>
+                        {_feedProviderLabel(m)}
+                      </button>
+                    );
+                  })}
+                </div>
+                {_feedIsCategoryKind(meta)
+                  ? <FeedSuggestCategories providerLabel={_feedProviderLabel(meta)} categories={meta.suggestions || []}
+                      axes={axes} tags={tags} followed={followedByKind(activeKind)} onFollow={(v) => onFollow(activeKind, v)} />
+                  : <FeedSuggestQueries providerNoun={meta.label || _feedProviderLabel(meta)}
+                      axes={axes} tags={tags} followed={followedByKind(activeKind)} onFollow={(v) => onFollow(activeKind, v)} />}
+              </>
+            );
+          })()}
           {tab === "author" &&
             <FeedSuggestAuthors
               authors={authorSuggestions} onFollow={onFollowAuthor}
@@ -140,21 +180,22 @@ function _categoryMatchReasons(category, axes, tags) {
   return reasons;
 }
 
-function FeedSuggestCategories({ kind, categories, axes, tags, followed, onFollow }) {
+function FeedSuggestCategories({ providerLabel, categories, axes, tags, followed, onFollow }) {
   const loading = axes === null || tags === null;
-  const server = kind === "biorxiv_category" ? "bioRxiv" : "medRxiv";
   const sorted = categories
     .map(c => ({ category: c, reasons: loading ? [] : _categoryMatchReasons(c, axes, tags) }))
     .sort((a, b) => (b.reasons.length - a.reasons.length) || a.category.localeCompare(b.category));
   return (
     <>
       <div className="axis-modal-note">
-        Every {server} category. Ones matching one of your axes or tags are listed first, with the match named — a
-        plain text match, not a semantic score. <b>Follow</b> pulls its recent preprints into your feed.
+        Every {providerLabel} category. Ones matching one of your axes or tags are listed first, with the match
+        named — a plain text match, not a semantic score. <b>Follow</b> pulls its recent preprints into your feed.
       </div>
       {loading
         ? <div className="axis-hint">Checking your axes and tags…</div>
-        : sorted.map(({ category, reasons }) => {
+        : !categories.length
+          ? <div className="axis-hint">No categories are available for {providerLabel} yet.</div>
+          : sorted.map(({ category, reasons }) => {
           const isFollowed = followed.has(category.toLowerCase());
           return (
             <div key={category} className="gap-row">
@@ -174,7 +215,7 @@ function FeedSuggestCategories({ kind, categories, axes, tags, followed, onFollo
   );
 }
 
-function FeedSuggestQueries({ axes, tags, followed, onFollow }) {
+function FeedSuggestQueries({ axes, tags, followed, onFollow, providerNoun = "PubMed search" }) {
   const loading = axes === null || tags === null;
   const candidates = [];
   const seen = new Set();
@@ -194,7 +235,7 @@ function FeedSuggestQueries({ axes, tags, followed, onFollow }) {
     <>
       <div className="axis-modal-note">
         Suggested from your recent Search queries, your axes, and your tags (keywords + your own). <b>Follow</b>
-        saves the exact text as a PubMed search that polls for new matches.
+        saves the exact text as a {providerNoun} that polls for new matches.
       </div>
       {loading
         ? <div className="axis-hint">Checking your axes and tags…</div>

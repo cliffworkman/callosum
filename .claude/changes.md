@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-13 — inc 597: Feed "Suggested sources" completeness (GitHub #76 + suggestion-parity invariant)
+- **Files:** `app/frontend/js/30g_feed_suggest.jsx`, `app/frontend/styles.css` (`.feed-suggest-subtabs`),
+  `app/backend/help/help_content.md`, `tests/test_feed_rxiv_suggest.py` (new),
+  `tests/e2e/test_smoke.py` (new switching test), `.claude/qa-routes/route_44_feed.md`,
+  `www/showcase-coverage.json` + `demo/experience-coverage-v1.json` (drift declines), `INCREMENT-597-NOTES.md`.
+- **What:** Consolidate the Feed Suggest modal to `Journal | Rxiv Categories | Keyword Search | Author`, where
+  **Rxiv Categories** = bioRxiv/medRxiv/arXiv/PsyArXiv subtabs and **Keyword Search** = PubMed/Europe PMC
+  subtabs. Top-level tabs name the *kind of thing*; providers are subtabs. Brings arXiv/PsyArXiv **and Europe
+  PMC** (the parity gap) into Suggestions — satisfying the invariant that every followable source kind is
+  represented (or documented-exempt).
+- **Why:** GitHub #76 + the broader suggestion-parity invariant the user raised.
+- **Verify:** **frontend-only, zero backend change**; grouping is presentation-only (ordered kind-ID lists;
+  labels/suggestions/category-vs-keyword mode all derived from `source_meta` — no second taxonomy).
+  `tests/test_feed_rxiv_suggest.py` (3: parity invariant + canonical kind/value + derived mode); a real
+  Playwright switching test (`tests/e2e/test_smoke.py`, passes headless); assembly 87; ruff + line budget green.
+- **Revert:** revert `30g_feed_suggest.jsx` + the CSS/help/tests to the pre-#76 5-tab shape.
+
 ## 2026-09-12 — inc 596: paper-scoped Ask in the PDF reader ("stay with the paper")
 - **Files:** `app/frontend/js/30j_reader_ask.jsx` (new), `30_viewer.jsx` + `30c_frame.jsx` + `40_app.jsx`
   (prop threading only), `styles.css` (`.pdf-ask-btn` + `.reader-ask-*`), `app/backend/help/help_content.md`,

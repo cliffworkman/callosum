@@ -1333,3 +1333,46 @@ def test_tool_panes_resist_visual_drift(server: str):
         browser.close()
 
     assert errors == [], f"unexpected console/page errors during visual drift pass: {errors}"
+
+
+def test_feed_suggest_groups_providers_under_kind_of_thing_top_level_tabs(server: str):
+    """#76 + the suggestion-parity invariant: the Suggest modal's top-level tabs name the KIND of thing
+    (Rxiv Categories / Keyword Search) and provider distinctions live in subtabs. Exercises the required
+    top-level + subtab switching, and that Europe PMC now has a suggestion surface (the parity fix)."""
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+        page = browser.new_page(viewport={"width": 1366, "height": 900})
+        errors = _mount_app(page, server)
+
+        page.get_by_role("tab", name="Discover", exact=True).click()
+        page.get_by_role("tab", name="Feed", exact=True).click()
+        page.get_by_role("button", name="Suggest", exact=True).click()
+
+        modal = page.locator(".feed-suggest-modal")
+        modal.wait_for()
+        # Top-level tabs describe the kind of thing being suggested.
+        for label in ("Journal", "Rxiv Categories", "Keyword Search", "Author"):
+            assert modal.get_by_role("button", name=label, exact=True).count() == 1, label
+        # The old per-archive top-level tabs are gone (consolidated into Rxiv Categories).
+        assert modal.get_by_role("button", name="bioRxiv Categories", exact=True).count() == 0
+        assert modal.get_by_role("button", name="medRxiv Categories", exact=True).count() == 0
+
+        # Rxiv Categories → the four preprint-archive provider subtabs; switching to arXiv shows its categories.
+        modal.get_by_role("button", name="Rxiv Categories", exact=True).click()
+        for label in ("bioRxiv", "medRxiv", "arXiv", "PsyArXiv"):
+            modal.get_by_role("button", name=label, exact=True).wait_for()
+        modal.get_by_role("button", name="arXiv", exact=True).click()
+        modal.get_by_text("Every arXiv category", exact=False).wait_for()
+
+        # Keyword Search → the keyword-database provider subtabs, INCLUDING Europe PMC (the parity fix).
+        modal.get_by_role("button", name="Keyword Search", exact=True).click()
+        for label in ("PubMed", "Europe PMC"):
+            modal.get_by_role("button", name=label, exact=True).wait_for()
+        modal.get_by_role("button", name="Europe PMC", exact=True).click()
+        modal.get_by_text("Europe PMC keyword", exact=False).wait_for()
+
+        browser.close()
+    assert errors == [], f"unexpected console/page errors during feed-suggest switching: {errors}"

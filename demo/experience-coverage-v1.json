@@ -195,9 +195,9 @@
     "reviewed_increment": 576,
     "source_fingerprint": "a3d51bd64e6c47ebb5ae5901b0da8404b3e041324cb05ea76c88bc0e824c5c24",
     "note": "Reviewed inc 576 exact-checksum PDF reconnection and cause-specific unavailable states. Recovery depends on local filesystem failures, so the backend-free demo remains intentionally unchanged.",
-    "declined_at": "2026-09-12",
-    "declined_rev": "de6698a7",
-    "declined_increment": 596,
-    "decline_note": "inc 596 (reader 'Ask this paper') is frontend-only -- it adds no backend router or demo-capture script, so the backend-free static demo's captured experience is unaffected. Deliberate acknowledged gap; a dedicated demo-currency review remains deferred."
+    "declined_at": "2026-09-13",
+    "declined_rev": "d027b53b",
+    "declined_increment": 597,
+    "decline_note": "inc 597 (#76 Feed Suggest 'Rxiv Categories' + 'Keyword Search' grouping) is frontend-only -- no backend router or demo-capture script changed, so the backend-free static demo's captured experience is unaffected. Deliberate acknowledged gap; a dedicated demo-currency review remains deferred."
   }
 }

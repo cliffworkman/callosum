@@ -31,13 +31,24 @@ inc 188 (SP2b).
   badge next to the title. Unfollowing via this chip's × removes both the `feed_subscriptions` row and the
   underlying `followed_authors` row (the two were always kept in sync; there is no second tab to sync with
   anymore).
-- **Suggest is a 5-tab modal** (Journal / bioRxiv Categories / medRxiv Categories / PubMed Search / Author),
-  always opening on the Journal tab. Journal is unchanged (library-frequency journals, click-to-follow).
-  bioRxiv/medRxiv show every fixed category, matched ones first with the matching axis/tag named as the reason
-  (a plain text match, never a hidden score). PubMed Search suggests from your Discover→Search history, your
-  axes, and your tags (keywords + your own), each labeled by source. Author shows library-frequency authors
-  (excluding you and anyone already followed) via `GET /feed/suggest-authors`. Every tab's Follow click follows
-  immediately (no populate-then-click-Follow-again step).
+- **Suggest is a 4-tab modal** (#76): **Journal / Rxiv Categories / Keyword Search / Author**, always opening on
+  Journal. Top-level tabs name the *kind of thing*; provider distinctions live in subtabs. **Suggestion-parity
+  invariant:** every canonical followable source kind is represented here (or is an explicit documented
+  exemption — none today; enforced by `tests/test_feed_rxiv_suggest.py`).
+  - **Journal** — unchanged (library-frequency journals, click-to-follow).
+  - **Rxiv Categories** — provider subtabs **bioRxiv | medRxiv | arXiv | PsyArXiv**. bioRxiv/medRxiv/arXiv show
+    every fixed category (matched axis/tag named as the reason — a plain text match, never a hidden score);
+    PsyArXiv is keyword-style (no fixed categories) and suggests keywords from your Search history/axes/tags.
+  - **Keyword Search** — provider subtabs **PubMed | Europe PMC** (both keyword literature databases), suggesting
+    from your Discover→Search history, axes, and tags, each labeled by source.
+  - **Author** — library-frequency authors (excluding you and anyone already followed) via
+    `GET /feed/suggest-authors`.
+  Subtab labels, category lists, and the category-vs-keyword mode are **derived from the registry's
+  `source_meta`** (a fixed suggestion list ⇒ category-style) — the frontend holds only the ordered kind-ID
+  grouping, never a second taxonomy. Every tab's **Follow** creates the same canonical source (kind+value) as the
+  ordinary add-a-source row, immediately (no populate-then-Follow-again step). No-signal states are explicit
+  (human-readable empty text, never silently blank). The top-level/subtab **switching** is covered by a real
+  browser test (`tests/e2e/test_smoke.py::test_feed_suggest_groups_providers_under_kind_of_thing_top_level_tabs`).
 
 ## Environment
 

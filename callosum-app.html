@@ -542,6 +542,9 @@
   .axis-modal.feed-suggest-modal { width: min(640px, calc(100vw - 48px)); max-height: 86vh; overflow: hidden; display: flex; flex-direction: column; }
   .feed-suggest-modal .tags-srcfilter { flex: none; }
   .feed-suggest-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin-top: 4px; }
+  /* #76: nested provider subtabs (Rxiv Categories / Keyword Search) — the second tab row, separated from the
+     suggestion list below. Reuses the theme-aware, responsive .tags-srcfilter primitive. */
+  .feed-suggest-subtabs { margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   .settings-subsection { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
   .settings-section .settings-sub { max-width: none; }
   .settings-ai-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 24px; margin-top: 14px; }
@@ -18783,13 +18786,23 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
   }
   const FEED_SUGGEST_TABS = [
     { id: "journal", label: "Journal" },
-    { id: "biorxiv_category", label: "bioRxiv Categories" },
-    { id: "medrxiv_category", label: "medRxiv Categories" },
-    { id: "pubmed_query", label: "PubMed Search" },
+    { id: "rxiv", label: "Rxiv Categories" },
+    { id: "keyword_search", label: "Keyword Search" },
     { id: "author", label: "Author" }
   ];
+  const RXIV_KINDS = ["biorxiv_category", "medrxiv_category", "arxiv_category", "psyarxiv"];
+  const SEARCH_KINDS = ["pubmed_query", "europepmc_keyword"];
+  function _feedProviderLabel(meta) {
+    const label = meta && meta.label || meta && meta.kind || "";
+    return label.replace(/\s+(category|keyword|search)$/i, "") || label;
+  }
+  function _feedIsCategoryKind(meta) {
+    return !!(meta && (meta.suggestions || []).length);
+  }
   function FeedSuggestModal({ subs, libJournals, sourceMeta, onFollow, onFollowAuthor, onFilterToAuthorPapers, onClose }) {
     const [tab, setTab] = useState("journal");
+    const [rxivSub, setRxivSub] = useState(RXIV_KINDS[0]);
+    const [searchSub, setSearchSub] = useState(SEARCH_KINDS[0]);
     const [axes, setAxes] = useState(null);
     const [tags, setTags] = useState(null);
     const [authorSuggestions, setAuthorSuggestions] = useState(null);
@@ -18812,17 +18825,36 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const followedByKind = (kind) => new Set(
       (subs || []).filter((s) => s.kind === kind).map((s) => (s.value || "").toLowerCase())
     );
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal feed-suggest-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Suggested sources to follow"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, FEED_SUGGEST_TABS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t.id, className: "tags-srcfilter-btn" + (tab === t.id ? " on" : ""), onClick: () => setTab(t.id) }, t.label))), /* @__PURE__ */ React.createElement("div", { className: "feed-suggest-body" }, tab === "journal" && /* @__PURE__ */ React.createElement(FeedSuggestJournals, { journals: libJournals, followed: followedByKind("journal"), onFollow: (v) => onFollow("journal", v) }), (tab === "biorxiv_category" || tab === "medrxiv_category") && /* @__PURE__ */ React.createElement(
-      FeedSuggestCategories,
-      {
-        kind: tab,
-        categories: (sourceMeta.find((m) => m.kind === tab) || {}).suggestions || [],
-        axes,
-        tags,
-        followed: followedByKind(tab),
-        onFollow: (v) => onFollow(tab, v)
-      }
-    ), tab === "pubmed_query" && /* @__PURE__ */ React.createElement(FeedSuggestQueries, { axes, tags, followed: followedByKind("pubmed_query"), onFollow: (v) => onFollow("pubmed_query", v) }), tab === "author" && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal feed-suggest-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Suggested sources to follow"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, FEED_SUGGEST_TABS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t.id, className: "tags-srcfilter-btn" + (tab === t.id ? " on" : ""), onClick: () => setTab(t.id) }, t.label))), /* @__PURE__ */ React.createElement("div", { className: "feed-suggest-body" }, tab === "journal" && /* @__PURE__ */ React.createElement(FeedSuggestJournals, { journals: libJournals, followed: followedByKind("journal"), onFollow: (v) => onFollow("journal", v) }), (tab === "rxiv" || tab === "keyword_search") && (() => {
+      const kinds = tab === "rxiv" ? RXIV_KINDS : SEARCH_KINDS;
+      const sub = tab === "rxiv" ? rxivSub : searchSub;
+      const setSub = tab === "rxiv" ? setRxivSub : setSearchSub;
+      const activeKind = kinds.includes(sub) ? sub : kinds[0];
+      const meta = sourceMeta.find((m) => m.kind === activeKind) || { kind: activeKind };
+      return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter feed-suggest-subtabs" }, kinds.map((k) => {
+        const m = sourceMeta.find((x) => x.kind === k) || { kind: k };
+        return /* @__PURE__ */ React.createElement("button", { key: k, className: "tags-srcfilter-btn" + (activeKind === k ? " on" : ""), onClick: () => setSub(k) }, _feedProviderLabel(m));
+      })), _feedIsCategoryKind(meta) ? /* @__PURE__ */ React.createElement(
+        FeedSuggestCategories,
+        {
+          providerLabel: _feedProviderLabel(meta),
+          categories: meta.suggestions || [],
+          axes,
+          tags,
+          followed: followedByKind(activeKind),
+          onFollow: (v) => onFollow(activeKind, v)
+        }
+      ) : /* @__PURE__ */ React.createElement(
+        FeedSuggestQueries,
+        {
+          providerNoun: meta.label || _feedProviderLabel(meta),
+          axes,
+          tags,
+          followed: followedByKind(activeKind),
+          onFollow: (v) => onFollow(activeKind, v)
+        }
+      ));
+    })(), tab === "author" && /* @__PURE__ */ React.createElement(
       FeedSuggestAuthors,
       {
         authors: authorSuggestions,
@@ -18859,16 +18891,15 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     });
     return reasons;
   }
-  function FeedSuggestCategories({ kind, categories, axes, tags, followed, onFollow }) {
+  function FeedSuggestCategories({ providerLabel, categories, axes, tags, followed, onFollow }) {
     const loading = axes === null || tags === null;
-    const server = kind === "biorxiv_category" ? "bioRxiv" : "medRxiv";
     const sorted = categories.map((c) => ({ category: c, reasons: loading ? [] : _categoryMatchReasons(c, axes, tags) })).sort((a, b) => b.reasons.length - a.reasons.length || a.category.localeCompare(b.category));
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Every ", server, " category. Ones matching one of your axes or tags are listed first, with the match named \u2014 a plain text match, not a semantic score. ", /* @__PURE__ */ React.createElement("b", null, "Follow"), " pulls its recent preprints into your feed."), loading ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Checking your axes and tags\u2026") : sorted.map(({ category, reasons }) => {
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Every ", providerLabel, " category. Ones matching one of your axes or tags are listed first, with the match named \u2014 a plain text match, not a semantic score. ", /* @__PURE__ */ React.createElement("b", null, "Follow"), " pulls its recent preprints into your feed."), loading ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Checking your axes and tags\u2026") : !categories.length ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No categories are available for ", providerLabel, " yet.") : sorted.map(({ category, reasons }) => {
       const isFollowed = followed.has(category.toLowerCase());
       return /* @__PURE__ */ React.createElement("div", { key: category, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, category), reasons.length ? /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, "matches ", reasons.join(", "))) : null), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, isFollowed ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 Following") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onFollow(category) }, "Follow")));
     }));
   }
-  function FeedSuggestQueries({ axes, tags, followed, onFollow }) {
+  function FeedSuggestQueries({ axes, tags, followed, onFollow, providerNoun = "PubMed search" }) {
     const loading = axes === null || tags === null;
     const candidates = [];
     const seen = /* @__PURE__ */ new Set();
@@ -18884,7 +18915,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       (axes || []).forEach((a) => add(a.label, "one of your axes"));
       (tags || []).forEach((t) => add(t.name, tagIsImported(t.source) ? "an imported keyword tag" : "one of your tags"));
     }
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Suggested from your recent Search queries, your axes, and your tags (keywords + your own). ", /* @__PURE__ */ React.createElement("b", null, "Follow"), "saves the exact text as a PubMed search that polls for new matches."), loading ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Checking your axes and tags\u2026") : !candidates.length ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Nothing to suggest yet \u2014 search the literature, add an axis, or tag a paper first.") : candidates.map((c) => {
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Suggested from your recent Search queries, your axes, and your tags (keywords + your own). ", /* @__PURE__ */ React.createElement("b", null, "Follow"), "saves the exact text as a ", providerNoun, " that polls for new matches."), loading ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Checking your axes and tags\u2026") : !candidates.length ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Nothing to suggest yet \u2014 search the literature, add an axis, or tag a paper first.") : candidates.map((c) => {
       const isFollowed = followed.has(c.text.toLowerCase());
       return /* @__PURE__ */ React.createElement("div", { key: c.text, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, c.text), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, "from ", c.source))), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, isFollowed ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 Following") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onFollow(c.text) }, "Follow")));
     }));

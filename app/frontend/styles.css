@@ -518,6 +518,9 @@
   .axis-modal.feed-suggest-modal { width: min(640px, calc(100vw - 48px)); max-height: 86vh; overflow: hidden; display: flex; flex-direction: column; }
   .feed-suggest-modal .tags-srcfilter { flex: none; }
   .feed-suggest-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin-top: 4px; }
+  /* #76: nested provider subtabs (Rxiv Categories / Keyword Search) — the second tab row, separated from the
+     suggestion list below. Reuses the theme-aware, responsive .tags-srcfilter primitive. */
+  .feed-suggest-subtabs { margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   .settings-subsection { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
   .settings-section .settings-sub { max-width: none; }
   .settings-ai-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 24px; margin-top: 14px; }
