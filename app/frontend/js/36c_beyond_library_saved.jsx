@@ -35,7 +35,7 @@ function BeyondLibrarySavedModal({ onClose, onChanged }) {
     <div className="axis-modal-overlay" onClick={onClose}>
       <div className="axis-modal" onClick={e => e.stopPropagation()}>
         <div className="axis-modal-head">
-          <span>Saved for later</span>
+          <span>Saved</span>
           <button className="axis-link" onClick={onClose}>×</button>
         </div>
         <div className="axis-modal-note">

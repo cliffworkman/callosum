@@ -1348,6 +1348,15 @@
   .searchbar input { height: var(--control-h); box-sizing: border-box; }
   .searchbar .btn { height: var(--control-h); box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
   .searchbar .lib-sort { height: var(--control-h); box-sizing: border-box; border-radius: var(--radius); }
+  /* #78: Discover search inline clear (×) — the input's wrapper grows like the bare input did; the × sits
+     right-aligned inside it, shown only when there's text (rendered conditionally in JSX). */
+  .searchbar .discover-search-input { flex: 1; position: relative; display: flex; align-items: center; }
+  .searchbar .discover-search-input input { flex: 1; width: 100%; padding-right: 28px; }
+  .discover-search-clear {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: transparent;
+    color: var(--ink-3); font-size: 17px; line-height: 1; cursor: pointer; padding: 0 3px;
+  }
+  .discover-search-clear:hover { color: var(--ink); }
   /* library sort control (inc 69; inline with the search box since inc 88) */
   .lib-sort-label { flex: none; white-space: nowrap; font-family: var(--sans); font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
   .lib-sort {

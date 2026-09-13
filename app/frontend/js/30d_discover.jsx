@@ -19,7 +19,7 @@ function _discoverSaveSearchHistory(rows) {
   try { localStorage.setItem(DISCOVER_SEARCH_HISTORY_KEY, JSON.stringify(rows)); } catch (e) { /* ignore */ }
 }
 
-function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverlooked, onOpenBeyondSaved }) {
+function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGapsOverlooked, onOpenBeyondSaved }) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | ready | error
   const [items, setItems] = useState([]);
@@ -161,11 +161,16 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
     <div className="discover" onKeyDown={onKeyDown}>
       <div className="pane-head">
         <div className="searchbar">
-          <input
-            ref={inputRef} value={q} onChange={e => setQ(e.target.value)} autoFocus
-            disabled={isDemoMode()}
-            placeholder="Search the literature — title, author, keywords…"
-          />
+          <span className="discover-search-input">
+            <input
+              ref={inputRef} value={q} onChange={e => setQ(e.target.value)} autoFocus
+              disabled={isDemoMode()}
+              placeholder="Search the literature — title, author, keywords…"
+            />
+            {q && !isDemoMode() &&
+              <button type="button" className="discover-search-clear" aria-label="Clear search"
+                title="Clear the current query and results" onClick={clearActiveSearch}>×</button>}
+          </span>
           <select className="lib-sort" value={source} disabled={isDemoMode()} onChange={e => setSource(e.target.value)} title="Search source">
             <option value="">All sources</option>
             {sources.map(s => <option key={s.kind} value={s.kind}>{s.label || s.kind}</option>)}
@@ -173,9 +178,6 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
           <button className="btn btn-primary" onClick={() => runSearch()} disabled={isDemoMode() || status === "loading" || !q.trim()}>
             {status === "loading" ? "Searching…" : "Search"}
           </button>
-          <button className="btn btn-primary" onClick={clearActiveSearch}
-            disabled={!q && !items.length && status === "idle"}
-            title="Clear the current query and results (cancels an in-flight search)">Clear ×</button>
           <select className="lib-sort" value="" onChange={e => {
             const h = history[Number(e.target.value)];
             if (h) runSearch(h);
@@ -188,9 +190,8 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
           <button className="btn btn-primary" onClick={clearSearchHistory} disabled={!history.length}
             title="Clear recent Search query history stored in this browser">Clear History</button>
           {onOpenWanted && <button className="btn btn-primary" onClick={onOpenWanted} title="Papers you want an OA copy of — re-check open-access sources">Wanted</button>}
-          {onOpenGaps && <button className="btn btn-primary" onClick={onOpenGaps} title="Works related to several of your papers that you don't have yet — references you cite, or newer work citing you">Gaps</button>}
-          {onOpenOverlooked && <button className="btn btn-primary" onClick={onOpenOverlooked} title="Per axis: works relevant to it but under-cited for their year — work the field may have overlooked">Overlooked</button>}
-          {onOpenBeyondSaved && <button className="btn btn-primary" onClick={onOpenBeyondSaved} title="Beyond-library citation suggestions you flagged with Save for later while writing">Saved for Later</button>}
+          {onOpenGapsOverlooked && <button className="btn btn-primary" onClick={onOpenGapsOverlooked} title="Relevant works you don't have yet — works you cite or that cite you (Gaps), and axis-relevant work the field may have overlooked (Overlooked)">Gaps &amp; overlooked</button>}
+          {onOpenBeyondSaved && <button className="btn btn-primary" onClick={onOpenBeyondSaved} title="Beyond-library citation suggestions you flagged with Save for later while writing">Saved</button>}
         </div>
         <div className="discover-hint">
           Public metadata search · source choice controls where to query; the complete returned list is shown (nothing AI-filtered) · <b>j/k</b> move · <b>s</b> save · <b>Enter</b> abstract

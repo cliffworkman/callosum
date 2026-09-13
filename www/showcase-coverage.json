@@ -16,9 +16,9 @@
     "source_fingerprint": "45ba80f0516b1b8b242878c3b76f8b1520c3f4bc1ed1827d05930df4d97105c3",
     "note": "Reviewed inc 576 PDF recovery against every affected website claim and visual. Existing library/PDF claims remain accurate; no public copy or screenshot change is needed.",
     "declined_at": "2026-09-13",
-    "declined_rev": "52fd0ae1",
-    "declined_increment": 599,
-    "decline_note": "inc 599 (#77) is backend + help copy only (new Discover Search sources); the Search dropdown auto-derives from the registry with no JSX change, and no new public-showcase claim/screenshot. Frontend visual/copy re-review deferred to a dedicated website pass."
+    "declined_rev": "b9d0985b",
+    "declined_increment": 600,
+    "decline_note": "inc 600 (#78) is frontend + help copy only (Discover toolbar cleanup: inline clear, merged Gaps & overlooked, Saved rename); no new public-showcase claim/screenshot. Frontend visual/copy re-review deferred to a dedicated website pass."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

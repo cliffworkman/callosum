@@ -5,6 +5,12 @@ fe: 36_gaps.jsx
 
 # ROUTE 41 — Literature gap-finder (backward + forward, axis-scoped, cached)
 
+**#78 entry point:** Gaps + Overlooked are now ONE Discover destination. The **Gaps & overlooked** button
+(Discover → Search toolbar) opens this modal; its header carries a shared **Gaps | Overlooked** facet toggle
+(`GapsOverlookedFacets`) that swaps between this gap-finder and the Overlooked lens (route 72). Each facet keeps
+its own typed state/endpoints; they already share `/gaps/add` + `/gaps/dismiss`. Verify the toggle switches
+facets and that switching preserves each facet's distinct data.
+
 **Tier:** 2 external (OpenAlex metadata)
 **Goal:** Exhaust the gap-finder — both directions (works your papers cite ⇄ works that cite your papers), an
 axis scope, the persistent cache (GET reads instantly, Refresh recomputes), and the "cited by / cites N of your

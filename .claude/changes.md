@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-13 — inc 600 🎉: Discover UX cleanup (GitHub #78)
+- **Files:** `app/frontend/js/30d_discover.jsx` (inline × + merged/renamed buttons), `36_gaps.jsx` +
+  `36b_overlooked.jsx` (shared `GapsOverlookedFacets` header toggle + `facet`/`onSwitchFacet`), `40_app.jsx`
+  (merge two modal states → one `gapsOverlooked` facet), `04b_workspaces.jsx` (ctx callback),
+  `36c_beyond_library_saved.jsx` (header rename), `styles.css` (`.discover-search-clear`),
+  `app/backend/help/help_content.md`, `tests/e2e/test_smoke.py` (new switching test),
+  `tests/test_frontend_assembly.py` (updated 4 assertions), `route_41`/`route_43`,
+  `www/showcase-coverage.json` + `demo/experience-coverage-v1.json` (drift declines), `INCREMENT-600-NOTES.md`.
+- **What:** (1) standalone Search **Clear** button → an inline **×** inside the search input (shown when it has
+  text, same `clearActiveSearch`); (2) **Gaps** + **Overlooked** merged into one **Gaps & overlooked** Discover
+  destination with an in-modal facet toggle (each facet keeps its typed state/endpoints; they already share
+  `/gaps/add`+`/gaps/dismiss`); (3) **"Saved for later" → "Saved"** (label only).
+- **Why:** GitHub #78 — reduce Discover toolbar clutter; navigation should match distinctions users can predict.
+- **Verify:** **frontend-only, zero backend change**; a real Playwright test (`test_smoke.py`, passes headless)
+  covers the inline ×, merged nav + facet switch, and Saved rename; assembly 87; QA map + line budget green.
+- **Revert:** revert `30d_discover.jsx`/`40_app.jsx`/`36*`/`04b`/CSS/help to the pre-#78 separate-buttons shape.
+
 ## 2026-09-13 — inc 599: Discover Search — expose search-capable providers (GitHub #77)
 - **Files:** `app/backend/discovery/preprint_search.py` (new), `app/backend/discovery/providers.py`
   (register), `app/backend/help/help_content.md`, `tests/test_discovery_preprint_search.py` (new),

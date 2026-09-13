@@ -209,10 +209,10 @@ def test_workspace_menubar_structure_present():
         in raw
     )
     assert "<FeedPane onSaved={onSaved} active={active} embedded />" not in raw
-    assert "onOpenWanted={ctx.onOpenWanted}" in raw and "onOpenGaps={ctx.onOpenGaps}" in raw
-    assert "onOpenOverlooked={ctx.onOpenOverlooked}" in raw
-    assert 'title="Papers you want an OA copy of' in raw and 'title="Works related to several of your papers' in raw
-    assert 'title="Per axis: works relevant to it but under-cited' in raw
+    # #78: Gaps + Overlooked merged into one "Gaps & overlooked" Discover entry.
+    assert "onOpenWanted={ctx.onOpenWanted}" in raw and "onOpenGapsOverlooked={ctx.onOpenGapsOverlooked}" in raw
+    assert 'title="Papers you want an OA copy of' in raw
+    assert ">Gaps &amp; overlooked</button>" in raw and ">Saved</button>" in raw  # #78 merged/renamed entries
     assert "onFindDuplicates, onOpenWanted" not in raw and "onFindDuplicates, onOpenScan" in raw
     # inc 593 (#43): the bespoke Local AI hint is replaced by the generic, release-keyed WhatsNewBanner (the
     # Local AI announcement is now a registry entry in whatsnew.json keyed at its ship version, actionKind
@@ -243,9 +243,10 @@ def test_discover_search_and_journals_recent_history_controls():
     assert 'const DISCOVER_SEARCH_HISTORY_KEY = "callosum.discover.searchHistory.v1"' in raw
     assert "function _discoverLoadSearchHistory()" in raw and "rememberSearch({ q: query" in raw
     assert 'title="Recall and re-run a recent Search query"' in raw
-    assert 'title="Clear the current query and results (cancels an in-flight search)"' in raw
     assert 'setQ(""); setItems([]); setError(""); setCursor(-1)' in raw
-    assert "Clear ×" in raw and "Recent Searches" in raw and "Clear History" in raw
+    # #78: the standalone Clear button is replaced by an inline × inside the search input.
+    assert 'className="discover-search-clear"' in raw and 'aria-label="Clear search"' in raw
+    assert "Recent Searches" in raw and "Clear History" in raw
     assert 'const PUB_HISTORY_KEY = "callosum.discover.journalsHistory.v1"' in raw
     assert "function _pubLoadHistory()" in raw and "const rememberRun = (entry) =>" in raw
     assert 'title="Recall and re-run a recent Journals search"' in raw
@@ -394,7 +395,8 @@ def test_overlooked_lens_panel_present_and_honest():
     # The panel exists and wires to its endpoints.
     assert "function OverlookedLensModal(" in raw
     assert '"/overlooked/refresh"' in raw and "/overlooked?axis_id=" in raw
-    assert "onOpenOverlooked" in raw  # the header entry point is wired through
+    # #78: reached via the merged "Gaps & overlooked" entry + the shared facet toggle (not its own top-level button).
+    assert "onOpenGapsOverlooked" in raw and "function GapsOverlookedFacets(" in raw
     # The two SEPARABLE visible inputs are shown as distinct copy (relevance + citations-vs-vintage percentile)...
     assert "relevance" in raw and "percentile for" in raw and "cited" in raw
     # ...and framed honestly (silence-not-a-certificate): possibly overlooked, possibly just low-impact.

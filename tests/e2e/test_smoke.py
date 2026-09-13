@@ -1335,6 +1335,50 @@ def test_tool_panes_resist_visual_drift(server: str):
     assert errors == [], f"unexpected console/page errors during visual drift pass: {errors}"
 
 
+def test_discover_toolbar_inline_clear_and_merged_gaps_overlooked(server: str):
+    """#78: the Discover search row uses an inline × (no standalone Clear button), Gaps + Overlooked are one
+    "Gaps & overlooked" destination with an in-modal facet toggle, and "Saved for later" is now "Saved"."""
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+        page = browser.new_page(viewport={"width": 1366, "height": 900})
+        errors = _mount_app(page, server)
+
+        page.get_by_role("tab", name="Discover", exact=True).click()
+        page.get_by_role("tab", name="Search", exact=True).click()
+
+        # Inline clear ×: hidden when empty, appears with text, clears identically.
+        clear = page.locator(".discover-search-clear")
+        assert clear.count() == 0 or not clear.first.is_visible()
+        search = page.locator(".discover-search-input input")
+        search.fill("predictive coding")
+        page.locator(".discover-search-clear").wait_for(state="visible")
+        page.locator(".discover-search-clear").click()
+        assert search.input_value() == ""
+        # The standalone Clear button is gone.
+        assert page.get_by_role("button", name="Clear ×", exact=True).count() == 0
+
+        # One merged destination with a facet toggle; switching reveals the Overlooked facet.
+        assert page.get_by_role("button", name="Gaps & overlooked", exact=True).count() == 1
+        assert page.get_by_role("button", name="Overlooked", exact=True).count() == 0  # not its own top-level button
+        page.get_by_role("button", name="Gaps & overlooked", exact=True).click()
+        modal = page.locator(".axis-modal .gapsov-facets")
+        modal.wait_for()
+        assert modal.get_by_role("button", name="Gaps", exact=True).count() == 1
+        modal.get_by_role("button", name="Overlooked", exact=True).click()
+        page.get_by_text("work the field may have overlooked", exact=False).wait_for()
+        page.locator(".axis-modal-head .axis-link").first.click()  # close the modal
+
+        # "Saved for later" destination is relabelled "Saved".
+        assert page.get_by_role("button", name="Saved", exact=True).count() == 1
+        assert page.get_by_role("button", name="Saved for Later", exact=True).count() == 0
+
+        browser.close()
+    assert errors == [], f"unexpected console/page errors during Discover toolbar cleanup: {errors}"
+
+
 def test_feed_suggest_groups_providers_under_kind_of_thing_top_level_tabs(server: str):
     """#76 + the suggestion-parity invariant: the Suggest modal's top-level tabs name the KIND of thing
     (Rxiv Categories / Keyword Search) and provider distinctions live in subtabs. Exercises the required

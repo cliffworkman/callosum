@@ -32,7 +32,7 @@ function OverlookedCredit() {
   );
 }
 
-function OverlookedLensModal({ onClose, onChanged }) {
+function OverlookedLensModal({ onClose, onChanged, facet, onSwitchFacet }) {
   const [axisId, setAxisId] = useState("");                // required — the lens is per-axis
   const [axes, setAxes] = useState([]);
   const [rows, setRows] = useState([]);                    // cached candidates (read-time filtered server-side)
@@ -81,7 +81,7 @@ function OverlookedLensModal({ onClose, onChanged }) {
     <div className="axis-modal-overlay" onClick={onClose}>
       <div className="axis-modal" onClick={e => e.stopPropagation()}>
         <div className="axis-modal-head">
-          <span>Possibly overlooked work</span>
+          {onSwitchFacet ? <GapsOverlookedFacets facet={facet} onSwitch={onSwitchFacet} /> : <span>Possibly overlooked work</span>}
           <button className="axis-link" onClick={onClose}>×</button>
         </div>
         <div className="axis-modal-note">

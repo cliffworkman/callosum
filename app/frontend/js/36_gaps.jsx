@@ -5,7 +5,20 @@
 // count is a fact about YOUR library, never a quality/importance rank; Add imports metadata-only into the general
 // library (the PDF stays the separate OA-acquire lane). Clones the WantedModal shell.
 
-function GapsModal({ onClose, onChanged }) {
+// #78: Gaps and Overlooked are one Discover destination ("Gaps & overlooked") — both surface relevant works you
+// don't have yet (Gaps by citation edges, Overlooked by axis relevance), and they already share the /gaps/add +
+// /gaps/dismiss state. This shared header toggle unifies them: it renders in BOTH modals' heads, and switching
+// swaps which modal is mounted (each keeps its own typed state/logic underneath). Hoists across the shared IIFE.
+function GapsOverlookedFacets({ facet, onSwitch }) {
+  return (
+    <div className="tags-srcfilter gapsov-facets">
+      <button className={"tags-srcfilter-btn" + (facet === "gaps" ? " on" : "")} onClick={() => onSwitch("gaps")}>Gaps</button>
+      <button className={"tags-srcfilter-btn" + (facet === "overlooked" ? " on" : "")} onClick={() => onSwitch("overlooked")}>Overlooked</button>
+    </div>
+  );
+}
+
+function GapsModal({ onClose, onChanged, facet, onSwitchFacet }) {
   const [direction, setDirection] = useState("backward");  // backward | forward
   const [axisId, setAxisId] = useState("");                // "" = whole library
   const [axes, setAxes] = useState([]);
@@ -58,7 +71,7 @@ function GapsModal({ onClose, onChanged }) {
     <div className="axis-modal-overlay" onClick={onClose}>
       <div className="axis-modal" onClick={e => e.stopPropagation()}>
         <div className="axis-modal-head">
-          <span>Gaps in your library</span>
+          {onSwitchFacet ? <GapsOverlookedFacets facet={facet} onSwitch={onSwitchFacet} /> : <span>Gaps in your library</span>}
           <button className="axis-link" onClick={onClose}>×</button>
         </div>
         <div className="axis-modal-note">

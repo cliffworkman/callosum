@@ -74,8 +74,7 @@ function App() {
   const [wantedOpen, setWantedOpen] = useState(false);          // inc-76 wanted-list / OA re-check modal
   const [textHealthOpen, setTextHealthOpen] = useState(false);  // local PDF text-health maintenance queue
   const [textHealthContext, setTextHealthContext] = useState(null);  // optional source scope, e.g. Synthesis retry
-  const [gapsOpen, setGapsOpen] = useState(false);              // inc-135 literature gap-finder modal
-  const [overlookedOpen, setOverlookedOpen] = useState(false);  // #37 overlooked-work lens (per-axis discovery)
+  const [gapsOverlooked, setGapsOverlooked] = useState(null);   // #78: one "Gaps & overlooked" modal — null | "gaps" | "overlooked" facet
   const [beyondSavedOpen, setBeyondSavedOpen] = useState(false); // #30 persistent beyond-library saved queue (inc 465)
   const [scanOpen, setScanOpen] = useState(false);              // inc-87 scan-a-folder modal
   const [importOpen, setImportOpen] = useState(false);          // inc-93 import-citations modal
@@ -235,8 +234,8 @@ function App() {
     }
     if (nav.modal === "wanted") setWantedOpen(true);
     if (nav.modal === "text-health") { setTextHealthContext(null); setTextHealthOpen(true); }
-    if (nav.modal === "gaps") setGapsOpen(true);
-    if (nav.modal === "overlooked") setOverlookedOpen(true);
+    if (nav.modal === "gaps") setGapsOverlooked("gaps");
+    if (nav.modal === "overlooked") setGapsOverlooked("overlooked");
     if (nav.modal === "scan") setScanOpen(true);
     if (nav.modal === "import") setImportOpen(true);
     if (nav.modal === "zotero-import") setZoteroImportOpen(true);
@@ -329,7 +328,7 @@ function App() {
   }, []);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
-  const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || beyondSavedOpen || scanOpen || importOpen || addDoiOpen || zoteroImportOpen || bundleImportOpen || sharedWithMeOpen || !!pcurvePapers || !!zcurvePapers;
+  const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || !!gapsOverlooked || beyondSavedOpen || scanOpen || importOpen || addDoiOpen || zoteroImportOpen || bundleImportOpen || sharedWithMeOpen || !!pcurvePapers || !!zcurvePapers;
   useEffect(() => {
     if (!readingMode) return;
     const onKey = (e) => { if (e.key === "Escape" && !anyModalOpen) toggleReading(); };
@@ -401,8 +400,7 @@ function App() {
     onDiscoverSaved: () => { setLibRefresh(n => n + 1); libraryBits.onPage(0); },
     onOpenCreditBuilder: openCreditBuilder,  // backlog #26 (F1): PUBLISHERS ("Journals") → the CRediT builder
     onOpenWanted: () => setWantedOpen(true),
-    onOpenGaps: () => setGapsOpen(true),
-    onOpenOverlooked: () => setOverlookedOpen(true),
+    onOpenGapsOverlooked: () => setGapsOverlooked("gaps"),
     onOpenBeyondSaved: () => setBeyondSavedOpen(true),
     onOpenPdf: openPdf, onOpenPaper: openPdf,
     selectedPaper: contextPaperId,  // paper-only tools receive no stale Library paper while WIP is active
@@ -510,10 +508,12 @@ function App() {
         <TextHealthModal onClose={() => { setTextHealthOpen(false); setTextHealthContext(null); }} onOpenPaper={openPdf}
           onOpenDetails={openPaperDetails} onShowLibrary={showTextHealthFilter}
           onChanged={() => setLibRefresh(n => n + 1)} context={textHealthContext} />}
-      {gapsOpen &&
-        <GapsModal onClose={() => setGapsOpen(false)} onChanged={() => setLibRefresh(n => n + 1)} />}
-      {overlookedOpen &&
-        <OverlookedLensModal onClose={() => setOverlookedOpen(false)} onChanged={() => setLibRefresh(n => n + 1)} />}
+      {gapsOverlooked === "gaps" &&
+        <GapsModal onClose={() => setGapsOverlooked(null)} onChanged={() => setLibRefresh(n => n + 1)}
+          facet="gaps" onSwitchFacet={setGapsOverlooked} />}
+      {gapsOverlooked === "overlooked" &&
+        <OverlookedLensModal onClose={() => setGapsOverlooked(null)} onChanged={() => setLibRefresh(n => n + 1)}
+          facet="overlooked" onSwitchFacet={setGapsOverlooked} />}
       {beyondSavedOpen &&
         <BeyondLibrarySavedModal onClose={() => setBeyondSavedOpen(false)} onChanged={() => setLibRefresh(n => n + 1)} />}
       {pcurvePapers &&

@@ -209,7 +209,7 @@ registerWorkspaceTab({ id: "discover" }, {
 registerWorkspaceTab({ id: "discover" }, {
   id: "search", label: "Search", order: 20, hideInReadOnly: true,
   render: (ctx, active) => <DiscoverPane onSaved={ctx.onDiscoverSaved} active={active}
-    onOpenWanted={ctx.onOpenWanted} onOpenGaps={ctx.onOpenGaps} onOpenOverlooked={ctx.onOpenOverlooked}
+    onOpenWanted={ctx.onOpenWanted} onOpenGapsOverlooked={ctx.onOpenGapsOverlooked}
     onOpenBeyondSaved={ctx.onOpenBeyondSaved} />,
 });
 registerWorkspaceTab({ id: "work" }, {

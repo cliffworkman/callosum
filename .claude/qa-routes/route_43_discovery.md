@@ -81,8 +81,12 @@ inject `app.state.discovery_registry` with a `SourceRegistry` holding a fake pro
 - The center frame has a persistent **Discover** tab (beside Library). Opening it shows a query box + a "the complete
   list is shown (nothing filtered)" hint + keyboard-triage hints (`j/k` move, `s` save, `Enter` abstract).
 - The Search row has **Recent searches** and **Clear history** controls backed by browser `localStorage`; recalling
-  a recent query re-runs the stored query + source setting for fresh results. **Clear ×** empties the active query,
-  error, cursor, relevance badges, and result list without touching saved papers or the recent-query list.
+  a recent query re-runs the stored query + source setting for fresh results. **#78:** the standalone Clear button
+  is gone — an **inline × inside the search input** (`.discover-search-clear`, shown only when the field has text,
+  `aria-label="Clear search"`) empties the active query, error, cursor, relevance badges, and result list without
+  touching saved papers or the recent-query list (same `clearActiveSearch` semantics). The toolbar's tool buttons
+  are **Wanted · Gaps & overlooked · Saved** (#78 merged Gaps+Overlooked into one entry — route 41/72 — and
+  relabelled "Saved for later" → "Saved" — route 89).
 - Searching renders dense result rows: serif title, authors/year/journal meta, **source pill(s)** (e.g. `crossref`),
   and either a **Save** button or a green **✓ in library** marker. **j/k** move the cursor (`.discover-item.cur`
   highlight), **s** saves the focused row, **Enter** toggles its abstract.
