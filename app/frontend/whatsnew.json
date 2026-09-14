@@ -13,6 +13,10 @@
     "0.5.14": {
       "headline": "Stay with the paper: while reading a PDF, ask a question about it, look up a cited reference, and add, acquire & critique that citation — all without leaving the reader.",
       "actionKind": null
+    },
+    "0.5.15": {
+      "headline": "Ask a whole axis: point Ask at one of your semantic axes and it answers only from that axis's papers — the exact corpus is shown before you run, and a scoped run never falls back to the rest of your library. In Library → Axes, use the ✦ button on any axis.",
+      "actionKind": null
     }
   },
   "no_banner": {
