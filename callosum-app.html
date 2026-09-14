@@ -1250,8 +1250,28 @@
     border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2);
     border-radius: var(--radius-sm); padding: 2px 4px; font-size: 10.5px; font-family: var(--sans); cursor: pointer;
   }
-  .axis-row-head { display: flex; align-items: center; gap: 7px; }
-  .axis-row-head .axis-label { flex: 1; min-width: 0; line-height: 1.3; word-break: break-word; }  /* wraps only for long titles */
+  /* inc 603: ordinary axis cards are a 3×2 grid — checkbox (col 1) and count badge (col 3) are stable
+     side columns spanning both rows; the title sits on row 1 (its own full-width line) and the icon
+     buttons drop to row 2, so a growing action row no longer squeezes the title into a mid-word-breaking
+     sliver. My Publications is an explicit compact single-row exception (.compact), keyed on isMyPubs. */
+  .axis-row-head:not(.compact) {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 7px; row-gap: 3px;
+  }
+  .axis-row-head:not(.compact) > .axis-select { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
+  .axis-row-head:not(.compact) > .axis-label {
+    grid-column: 2; grid-row: 1; min-width: 0; line-height: 1.3;
+    word-break: normal; overflow-wrap: break-word;   /* wrap at word boundaries — never mid-word */
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;  /* <=2 clean lines, then ellipsis */
+  }
+  .axis-row-head:not(.compact) > .axis-card-actions { grid-column: 2; grid-row: 2; justify-content: flex-start; }  /* buttons share the title's left edge */
+  .axis-row-head:not(.compact) > .axis-count-badge { grid-column: 3; grid-row: 1 / span 2; align-self: center; margin-left: 0; }
+  /* My Publications — compact single row (fixed, short label; no checkbox column, controls stay inline) */
+  .axis-row-head.compact { display: flex; align-items: center; gap: 7px; }
+  .axis-row-head.compact > .axis-label { flex: 1; min-width: 0; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* axis card icon buttons + count badge (inc 45) */
   .axis-card-actions { display: flex; align-items: center; gap: 3px; flex: none; }
@@ -13748,7 +13768,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           }
         }) : void 0
       },
-      /* @__PURE__ */ React.createElement("div", { className: "axis-row-head" }, !readOnly && !isMyPubs && /* @__PURE__ */ React.createElement(
+      /* @__PURE__ */ React.createElement("div", { className: "axis-row-head" + (isMyPubs ? " compact" : "") }, !readOnly && !isMyPubs && /* @__PURE__ */ React.createElement(
         "input",
         {
           type: "checkbox",
@@ -13758,7 +13778,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           onClick: (e) => e.stopPropagation(),
           onChange: () => handlers.toggleSelect(axis.id)
         }
-      ), /* @__PURE__ */ React.createElement("span", { className: "axis-label" }, isMyPubs ? "\u{1F4C4} " + axis.label : isCurated ? "\u{1F4CC} " + axis.label : axis.label), /* @__PURE__ */ React.createElement("span", { className: "axis-card-actions" }, !readOnly && handlers.askAxis && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Ask a question across this axis's papers", onClick: stop(() => handlers.askAxis(axis)) }, "\u2726"), !readOnly && !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Edit axis", onClick: stop(() => handlers.openEdit(axis)) }, "\u270E"), !readOnly && !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Add papers from the library", onClick: stop(() => handlers.enterFocus(axis)) }, "\uFF0B"), !readOnly && !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement(
+      ), /* @__PURE__ */ React.createElement("span", { className: "axis-label", title: axis.label }, isMyPubs ? "\u{1F4C4} " + axis.label : isCurated ? "\u{1F4CC} " + axis.label : axis.label), /* @__PURE__ */ React.createElement("span", { className: "axis-card-actions" }, !readOnly && handlers.askAxis && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Ask a question across this axis's papers", onClick: stop(() => handlers.askAxis(axis)) }, "\u2726"), !readOnly && !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Edit axis", onClick: stop(() => handlers.openEdit(axis)) }, "\u270E"), !readOnly && !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Add papers from the library", onClick: stop(() => handlers.enterFocus(axis)) }, "\uFF0B"), !readOnly && !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "axis-icon-btn",
@@ -13782,7 +13802,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           onClick: stop(() => isMyPubs ? handlers.dismissMyPubs() : handlers.remove(axis.id))
         },
         "\u{1F5D1}"
-      ), /* @__PURE__ */ React.createElement(
+      )), /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "axis-count-badge" + (isMyPubs ? " is-scored" : isCurated ? " is-curated" : axis.scored ? axis.stale ? " is-stale" : " is-scored" : ""),
@@ -13790,7 +13810,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           onClick: stop(() => handlers.filterToAxis(axis, hideUncertain))
         },
         badgeCount
-      )))
+      ))
     ), expanded && /* @__PURE__ */ React.createElement("div", { className: "axis-body" }, !readOnly && isCurated && /* @__PURE__ */ React.createElement("div", { className: "axis-curated-hint" }, "Hand-picked set \u2014 drag papers from the library onto this card to add them; reorder with \u2191/\u2193."), !readOnly && !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement("div", { className: "axis-rescore-row" }, /* @__PURE__ */ React.createElement("span", { className: "axis-rescore-label" }, "Re-score:"), /* @__PURE__ */ React.createElement(AxisCutoffFlipper, { value: cutoff, onChange: setCutoff, disabled: scoring }), /* @__PURE__ */ React.createElement("button", { className: "axis-btn axis-rescore-btn", disabled: scoring, onClick: () => handlers.score(axis.id, cutoff) }, scoring ? "Scoring\u2026" : axis.scored ? "Re-score" : "Score"), uncertainCount > 0 && /* @__PURE__ */ React.createElement(
       "button",
       {

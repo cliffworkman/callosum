@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-14 — inc 603: axis cards → 3×2 grid (declutter the Axes pane)
+- **Files:** `app/frontend/js/15b_axis_card.jsx` (`AxisItem` — `.axis-row-head` becomes a 4-child grid; count
+  badge moved out of `.axis-card-actions` to col 3; `title=` tooltip on the label; `.compact` modifier from the
+  `isMyPubs` flag), `app/frontend/styles.css` (`.axis-row-head:not(.compact)` 3×2 grid + `.compact` single-row
+  exception + word-boundary ≤2-line title clamp + left-aligned action row), `callosum-app.html` (rebuilt).
+- **What:** After inc 602's ✦ button, the 5 icon buttons + count crowded the title onto one line and forced
+  mid-word-breaking 3–4-line wraps. Ordinary axes now show the title on its own row (clean ≤2-line wrap, then
+  ellipsis + hover) with the buttons left-aligned on the row below; checkbox (col 1) and count (col 3) are
+  stable side columns. My Publications is an explicit compact single-row exception.
+- **Why:** Keep the Axes pane readable as the per-axis action set grows, without changing any handler,
+  count behavior, or scoring-status colors.
+- **Verify:** Playwright on a disposable copy of the real library — checked default + the narrowest supported
+  rail width (300px, `LEFT_MIN`): 5-button row stays on one line with no overflow; long titles wrap without
+  mid-word breaks; My Publications stays compact. `test_frontend_assembly` 87 passed; ruff + line budget clean.
+- **Revert:** `git revert` the inc-603 commit (frontend-only; no schema/API change).
+
 ## 2026-09-13 — inc 602: axis-scoped Ask (GitHub #82)
 - **Files:** `app/backend/clustering/axis_membership.py` (new — shared resolver: member subquery, tier classifier,
   cutoff, retrieval-exact full-text eligibility, `resolve_axis_corpus`), `clustering/gapfinder.py` +

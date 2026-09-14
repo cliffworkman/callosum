@@ -143,7 +143,12 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
           const pid = parseInt(e.dataTransfer.getData("application/x-callosum-paper"), 10);
           if (pid) { e.preventDefault(); handlers.dropPaper(axis.id, pid); }
         }) : undefined}>
-        <div className="axis-row-head">
+        {/* inc 603: ordinary axes render a 3×2 grid (title on its own row; icon buttons on the row below)
+            so a proliferating action row no longer squeezes the title into a mid-word-breaking sliver.
+            My Publications is an EXPLICIT compact single-row exception (its label is fixed/short) — keyed
+            on the isMyPubs semantic flag, never inferred from "no checkbox"; read-only ordinary axes keep
+            the grid. .axis-select (col 1) and .axis-count-badge (col 3) are the stable side columns. */}
+        <div className={"axis-row-head" + (isMyPubs ? " compact" : "")}>
           {!readOnly && !isMyPubs &&
             <input
               type="checkbox" className="axis-select" checked={selected}
@@ -151,7 +156,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
               onClick={e => e.stopPropagation()}
               onChange={() => handlers.toggleSelect(axis.id)}
             />}
-          <span className="axis-label">{isMyPubs ? "📄 " + axis.label : isCurated ? "📌 " + axis.label : axis.label}</span>
+          <span className="axis-label" title={axis.label}>{isMyPubs ? "📄 " + axis.label : isCurated ? "📌 " + axis.label : axis.label}</span>
           <span className="axis-card-actions">
             {!readOnly && handlers.askAxis &&
               <button className="axis-icon-btn" title="Ask a question across this axis's papers" onClick={stop(() => handlers.askAxis(axis))}>✦</button>}
@@ -166,18 +171,18 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
             {!readOnly && <button className="axis-icon-btn axis-icon-danger"
               title={isMyPubs ? "Dismiss My Publications (keeps your profile)" : "Delete axis"}
               onClick={stop(() => (isMyPubs ? handlers.dismissMyPubs() : handlers.remove(axis.id)))}>🗑</button>}
-            <button
-              className={"axis-count-badge" + (isMyPubs ? " is-scored" : isCurated ? " is-curated" : axis.scored ? (axis.stale ? " is-stale" : " is-scored") : "")}
-              title={isMyPubs
-                ? `Show your ${axis.assignment_count || 0} papers in the library`
-                : isCurated
-                  ? `Show these ${axis.assignment_count || 0} hand-picked papers in the library`
-                  : (hideUncertain && (axis.uncertain_count || 0) > 0
-                      ? `${badgeCount} assigned · ${axis.uncertain_count} uncertain hidden — click to show this axis in the library`
-                      : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? (axis.stale ? " · edited since scoring" : " · scored & up to date") : " · not scored yet"))}
-              onClick={stop(() => handlers.filterToAxis(axis, hideUncertain))}
-            >{badgeCount}</button>
           </span>
+          <button
+            className={"axis-count-badge" + (isMyPubs ? " is-scored" : isCurated ? " is-curated" : axis.scored ? (axis.stale ? " is-stale" : " is-scored") : "")}
+            title={isMyPubs
+              ? `Show your ${axis.assignment_count || 0} papers in the library`
+              : isCurated
+                ? `Show these ${axis.assignment_count || 0} hand-picked papers in the library`
+                : (hideUncertain && (axis.uncertain_count || 0) > 0
+                    ? `${badgeCount} assigned · ${axis.uncertain_count} uncertain hidden — click to show this axis in the library`
+                    : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? (axis.stale ? " · edited since scoring" : " · scored & up to date") : " · not scored yet"))}
+            onClick={stop(() => handlers.filterToAxis(axis, hideUncertain))}
+          >{badgeCount}</button>
         </div>
       </div>
 
