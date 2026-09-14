@@ -16,9 +16,9 @@
     "source_fingerprint": "45ba80f0516b1b8b242878c3b76f8b1520c3f4bc1ed1827d05930df4d97105c3",
     "note": "Reviewed inc 576 PDF recovery against every affected website claim and visual. Existing library/PDF claims remain accurate; no public copy or screenshot change is needed.",
     "declined_at": "2026-09-14",
-    "declined_rev": "fd378b0d",
-    "declined_increment": 602,
-    "decline_note": "inc 602 (axis-scoped Ask, GitHub #82) surfaces the existing canonical verified-Ask capability (already publicly claimed as cap-synthesis) with an explicit axis corpus boundary; it adds no new public capability claim and route_96 is excluded with rationale until a dedicated scope-selection showcase visual is authored. Deferred website-content task; public claims unchanged."
+    "declined_rev": "8c2ddc6d",
+    "declined_increment": 603,
+    "decline_note": "inc 603 is a frontend-only axis-card grid layout reflow (app/frontend/js/15b_axis_card.jsx + styles.css): it repositions existing controls (checkbox, the Ask/edit/add/freeze/delete icon buttons, and the count badge) into a 3x2 grid and adds/removes/changes no public capability claim or showcase visual. Public claims unchanged; full website re-review deferred (mirrors the inc-602 decline)."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",
