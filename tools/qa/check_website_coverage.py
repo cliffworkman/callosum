@@ -263,6 +263,11 @@ def check() -> int:
 
 
 def main() -> int:
+    # An active-decline banner echoes the free-text review note, which can carry non-cp1252 glyphs; keep the
+    # final print from crashing the tool on a Windows console (class of commit 6b4b8d9 / bump_version.py's guard).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--refresh", action="store_true", help="record a completed website visual/copy review")
     parser.add_argument(
