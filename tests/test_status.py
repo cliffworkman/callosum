@@ -218,7 +218,9 @@ def test_job_navigation_survives_running_progress_and_error_transitions(temp_db_
     app.state.critical_review_jobs.mark_error(jid, "fixture failure")
 
     row = TestClient(app).get("/status/jobs").json()["jobs"][0]
-    assert row["nav"] == {"workspace": "synthesis", "tab": "critique", "paper_id": 42}
+    # inc 601: the single critical-read Status entry reopens the reaccessible critique MODAL for the job's own
+    # paper_id (not the selected-paper-bound Critique tab, which showed the wrong/empty paper).
+    assert row["nav"] == {"modal": "critical-read", "paper_id": 42}
     assert row["compute_kind"] == "Local AI"
 
 
