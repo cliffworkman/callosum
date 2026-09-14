@@ -195,9 +195,9 @@
     "reviewed_increment": 576,
     "source_fingerprint": "a3d51bd64e6c47ebb5ae5901b0da8404b3e041324cb05ea76c88bc0e824c5c24",
     "note": "Reviewed inc 576 exact-checksum PDF reconnection and cause-specific unavailable states. Recovery depends on local filesystem failures, so the backend-free demo remains intentionally unchanged.",
-    "declined_at": "2026-09-13",
-    "declined_rev": "eb2aec96",
-    "declined_increment": 601,
-    "decline_note": "inc 601 (persisted per-paper critique + reaccessible modal) adds a backend snapshot endpoint/table + frontend modal; the backend-free static demo already ships a canned saved critical read (/critical-read/saved) and this changes no demo-capture script, so the demo's captured experience is unaffected. Deliberate acknowledged gap; demo-currency review deferred."
+    "declined_at": "2026-09-14",
+    "declined_rev": "fd378b0d",
+    "declined_increment": 602,
+    "decline_note": "inc 602 (axis-scoped Ask, GitHub #82) adds a read-only /axes/{id}/ask-scope disclosure endpoint plus a scope_type=axis request resolving to an ordinary papers-scope Ask, and a frontend interstitial + shared Ask shell. It adds no new demo-capturable experience (axis Ask is the existing verified-synthesis experience with an explicit corpus boundary; the static demo already ships canned saved syntheses) and changes no demo-capture script. Deliberate acknowledged gap; demo-currency review deferred."
   }
 }

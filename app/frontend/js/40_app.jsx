@@ -515,7 +515,7 @@ function App() {
       })()}
       {beyondSavedOpen &&
         <BeyondLibrarySavedModal onClose={() => setBeyondSavedOpen(false)} onChanged={() => setLibRefresh(n => n + 1)} />}
-      <CriticalReadModalHost onOpenPaper={openPdf} />{/* inc 601: reaccessible per-paper critique (reader + Status) */}
+      <AppEventModalHosts onOpenPaper={openPdf} onOpenCitation={openCitation} onSaveHighlight={saveCitationHighlight} onOpenSettings={() => selectWorkspace("settings")} />{/* inc 601/602 self-hosted modal controllers */}
       {pcurvePapers &&
         <PcurveModal paperIds={pcurvePapers} onClose={() => setPcurvePapers(null)} onOpenPaper={openPdf} onChanged={() => setLibRefresh(n => n + 1)} />}
       {zcurvePapers &&

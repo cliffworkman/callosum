@@ -277,9 +277,15 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
     });
   }, [loadDetail]);
 
+  // #82 (inc 602): "Ask this axis" — hand off to the self-hosted AxisAskModalHost (15c) via a window event, the
+  // CriticalReadModalHost pattern, so the interstitial+run live at the app root without prop-threading here.
+  const askAxis = useCallback((axis) => {
+    window.dispatchEvent(new CustomEvent("callosum:open-axis-ask", { detail: { axisId: axis.id, axisLabel: axis.label } }));
+  }, []);
+
   const handlers = {
     toggle, score, remove, removePaper, confirmPaper, dropPaper, dismissMyPubs, enterFocus, filterToAxis,
-    starPaper, toggleSelect, openEdit, openPaper,
+    starPaper, toggleSelect, openEdit, openPaper, askAxis,
     reorderToIndex, freeze, convertToKeyword,  // A7: curated-axis drag-reorder (SP2) + freeze/revert switch
   };
 

@@ -59,6 +59,7 @@ from app.backend.clustering.axis_assignments import (
     revert_to_keyword,
     set_member_order,
 )
+from app.backend.clustering.axis_membership import classify_member, papers_with_usable_fulltext, resolve_axis_corpus
 from app.backend.clustering.axis_operations import merge_axes
 from app.backend.clustering.axis_scoring import (
     AxisScoringConfig,
@@ -316,10 +317,9 @@ def axis_clusters(axis_id: int, conn: Connection = Depends(get_connection)) -> l
     nodes = []
     for node in get_cluster_nodes_for_axis(conn, axis_id):
         rows = get_papers_for_cluster_node(conn, int(node["id"]))
-        # Recompute the tier from the stored confidences against this axis's cutoff (absolute, inc 45):
-        # assigned = scored similarity >= cutoff; uncertain = the rest. No persisted tier.
-        assigned_ids = {int(row["id"]) for row in rows if row["confidence"] is not None and row["confidence"] >= cutoff}
-        papers = [_cluster_paper_response(paper, assigned_ids, starred_ids, domain_by_id) for paper in rows]
+        # Tier is recomputed from stored confidence against this axis's cutoff via the shared canonical rule
+        # (inc 602: classify_member — the ONE implementation, also used by axis-scoped Ask). No persisted tier.
+        papers = [_cluster_paper_response(paper, cutoff, starred_ids, domain_by_id) for paper in rows]
         nodes.append(
             ClusterNodeResponse(
                 id=node["id"],
@@ -332,6 +332,34 @@ def axis_clusters(axis_id: int, conn: Connection = Depends(get_connection)) -> l
             )
         )
     return nodes
+
+
+class AxisAskScopeTier(BaseModel):
+    count: int  # papers in the axis under this eligibility tier
+    eligible_count: int  # of those, how many have usable full text (the exact Ask-retrieval eligibility)
+
+
+class AxisAskScopeResponse(BaseModel):
+    axis_id: int
+    axis_label: str
+    assigned: AxisAskScopeTier  # confident members only (manual + assigned) — the default Ask scope
+    all: AxisAskScopeTier  # + the uncertain ("candidate to confirm") tier
+
+
+@router.get("/axes/{axis_id}/ask-scope", response_model=AxisAskScopeResponse)
+def axis_ask_scope(axis_id: int, conn: Connection = Depends(get_connection)) -> AxisAskScopeResponse:
+    """Preview the CURRENT resolved corpus for an axis Ask, both eligibility tiers, so the interstitial can show
+    an honest paper count before running (the run re-resolves at execution time and records the exact set)."""
+    axis = get_axis(conn, axis_id)
+    if axis is None:
+        raise HTTPException(status_code=404, detail="Axis not found")
+    cutoff = _axis_cutoff(axis)
+
+    def _tier(tier: str) -> AxisAskScopeTier:
+        ids = resolve_axis_corpus(conn, axis_id, tier, cutoff=cutoff)
+        return AxisAskScopeTier(count=len(ids), eligible_count=len(papers_with_usable_fulltext(conn, ids)))
+
+    return AxisAskScopeResponse(axis_id=axis_id, axis_label=axis["label"], assigned=_tier("assigned"), all=_tier("all"))
 
 
 @router.post("/axes/{axis_id}/papers", response_model=ClusterPaperResponse, status_code=http_status.HTTP_201_CREATED)
@@ -547,15 +575,10 @@ def _axis_response(conn: Connection, row) -> AxisResponse:
 
 
 def _cluster_paper_response(
-    paper, assigned_ids: set[int], starred_ids: set[int] = frozenset(), domain_by_id: dict[int, str] | None = None
+    paper, cutoff: float, starred_ids: set[int] = frozenset(), domain_by_id: dict[int, str] | None = None
 ) -> ClusterPaperResponse:
     confidence = paper["confidence"]
-    if confidence is None:
-        status = "manual"  # confidence IS NULL → a human override, not a scored assignment
-    elif int(paper["id"]) in assigned_ids:
-        status = "assigned"  # above the natural break in this axis's ranking
-    else:
-        status = "uncertain"  # scored + stored, but below the break (a candidate to confirm)
+    status = classify_member(confidence, cutoff)  # inc 602: the shared canonical tier rule (manual/assigned/uncertain)
     return ClusterPaperResponse(
         id=paper["id"],
         title=paper["title"],

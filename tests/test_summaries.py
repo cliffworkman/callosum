@@ -321,7 +321,9 @@ def test_summary_section_filter_rejects_unknown_keys(temp_db_url: str) -> None:
 def test_summarize_invalid_body_and_unknown_job(temp_db_url: str) -> None:
     client = TestClient(_summarization_app(temp_db_url))
 
-    unknown_scope = client.post("/summarize", json={"scope_type": "axis"})
+    # A scope_type outside the Literal is a pydantic 422. ("axis" became a valid scope in inc 602 — its own
+    # missing-field validation (400) is pinned by tests/test_axis_scoped_ask.py.)
+    unknown_scope = client.post("/summarize", json={"scope_type": "not-a-scope"})
     missing_query = client.post("/summarize", json={"scope_type": "query"})
     missing_job = client.get("/summarize/not-a-job")
 

@@ -59,6 +59,8 @@ class SummaryScope:
     # Ignored when an explicit `sections` allow-list is given (that governs inclusion) and for the
     # papers/cluster scopes (the user chose those papers deliberately).
     exclude_references: bool = True
+    # inc 602: generic {kind,id,label,policy} run provenance (e.g. axis Ask); retrieval never reads it, to_ref does.
+    scope_origin: dict[str, object] | None = None
 
     def to_ref(self) -> dict[str, object]:
         ref: dict[str, object] = {
@@ -66,6 +68,8 @@ class SummaryScope:
             "cluster_node_id": self.cluster_node_id,
             "query": self.query,
         }
+        if self.scope_origin:
+            ref["scope_origin"] = self.scope_origin
         if self.sections:
             ref["sections"] = self.sections
         # Record it only when the retrieval deviated from the default, so ordinary rows stay unchanged

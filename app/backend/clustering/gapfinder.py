@@ -19,8 +19,9 @@ from dataclasses import dataclass
 from sqlalchemy import Connection, func, select
 
 from app.backend.acquisition.registry import PaperRef
+from app.backend.clustering.axis_membership import axis_member_paper_ids_select
 from app.backend.persistence.repository import find_existing_paper_by_identity
-from app.backend.persistence.schema import cluster_node_papers, cluster_nodes, papers
+from app.backend.persistence.schema import papers
 
 _NOTE_BACKWARD = (
     "Based on the references OpenAlex has for your library — coverage is partial, so this isn't an exhaustive "
@@ -46,12 +47,7 @@ def _scoped_paper_rows(conn: Connection, axis_id: int | None) -> list[tuple[int,
     """Live papers with a DOI; if axis_id given, restrict to that axis's members (inc-63 subquery)."""
     stmt = select(papers.c.id, papers.c.doi).where(papers.c.deleted_at.is_(None), papers.c.doi.isnot(None))
     if axis_id is not None:
-        axis_members = (
-            select(cluster_node_papers.c.paper_id)
-            .join(cluster_nodes, cluster_nodes.c.id == cluster_node_papers.c.cluster_node_id)
-            .where(cluster_nodes.c.axis_id == axis_id)
-        )
-        stmt = stmt.where(papers.c.id.in_(axis_members))
+        stmt = stmt.where(papers.c.id.in_(axis_member_paper_ids_select(axis_id)))
     return [(int(pid), doi) for pid, doi in conn.execute(stmt).all()]
 
 
@@ -59,12 +55,7 @@ def _scope_total(conn: Connection, axis_id: int | None) -> int:
     """Count of live papers in scope (with or without a DOI) — the denominator for the coverage line."""
     stmt = select(func.count()).select_from(papers).where(papers.c.deleted_at.is_(None))
     if axis_id is not None:
-        axis_members = (
-            select(cluster_node_papers.c.paper_id)
-            .join(cluster_nodes, cluster_nodes.c.id == cluster_node_papers.c.cluster_node_id)
-            .where(cluster_nodes.c.axis_id == axis_id)
-        )
-        stmt = stmt.where(papers.c.id.in_(axis_members))
+        stmt = stmt.where(papers.c.id.in_(axis_member_paper_ids_select(axis_id)))
     return int(conn.execute(stmt).scalar() or 0)
 
 

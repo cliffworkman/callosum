@@ -153,6 +153,8 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
             />}
           <span className="axis-label">{isMyPubs ? "📄 " + axis.label : isCurated ? "📌 " + axis.label : axis.label}</span>
           <span className="axis-card-actions">
+            {!readOnly && handlers.askAxis &&
+              <button className="axis-icon-btn" title="Ask a question across this axis's papers" onClick={stop(() => handlers.askAxis(axis))}>✦</button>}
             {!readOnly && !isMyPubs && <button className="axis-icon-btn" title="Edit axis" onClick={stop(() => handlers.openEdit(axis))}>✎</button>}
             {!readOnly && !isMyPubs && <button className="axis-icon-btn" title="Add papers from the library" onClick={stop(() => handlers.enterFocus(axis))}>＋</button>}
             {!readOnly && !isMyPubs && !isCurated &&

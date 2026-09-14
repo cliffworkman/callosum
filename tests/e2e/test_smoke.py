@@ -1412,6 +1412,97 @@ def test_reaccessible_critique_modal_opens_from_event_and_honors_fulltext_gate(s
     assert errors == [], f"unexpected console/page errors in the reaccessible-critique modal: {errors}"
 
 
+def test_axis_ask_interstitial_discloses_scope_and_routes_the_selected_tier(server: str):
+    """inc 602 (#82): the axis-Ask interstitial (opened via `callosum:open-axis-ask`) discloses the resolved
+    corpus BEFORE running — a live paper count + a full-text-eligible count for BOTH tiers so the user compares
+    before choosing (c4/c5). It fires NO /summarize on open/toggle/type (explicit egress); the selected tier is
+    what reaches the ordinary /summarize request (scope_type:'axis', membership_tier); and a tier with zero
+    usable full text shows the honest state with Ask disabled (never a silent widen)."""
+    import json as _json
+
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+        page = browser.new_page(viewport={"width": 1366, "height": 900})
+
+        summarize_bodies: list[str] = []
+        page.route(
+            "**/summarize",
+            lambda r: (summarize_bodies.append(r.request.post_data or ""), r.fulfill(json={"job_id": "x", "status": "pending"})),
+        )
+        # The job poll → a terminal result with no groundable sentences (hermetic; no real generator).
+        page.route(
+            "**/summarize/x*",
+            lambda r: r.fulfill(json={"status": "done", "sentences": [], "source_chunk_count": 2}),
+        )
+        # Axis 7: a normal axis — Assigned-only (3 papers, 2 with text) vs Include-uncertain (5 papers, 3 with text).
+        page.route(
+            "**/axes/7/ask-scope",
+            lambda r: r.fulfill(
+                json={
+                    "axis_label": "Cognitive control",
+                    "assigned": {"count": 3, "eligible_count": 2},
+                    "all": {"count": 5, "eligible_count": 3},
+                }
+            ),
+        )
+        # Axis 8: every member lacks usable full text → honest no-retrieval state, Ask stays disabled.
+        page.route(
+            "**/axes/8/ask-scope",
+            lambda r: r.fulfill(
+                json={
+                    "axis_label": "Sparse lens",
+                    "assigned": {"count": 2, "eligible_count": 0},
+                    "all": {"count": 2, "eligible_count": 0},
+                }
+            ),
+        )
+        errors = _mount_app(page, server)
+
+        page.evaluate(
+            "window.dispatchEvent(new CustomEvent('callosum:open-axis-ask', "
+            "{ detail: { axisId: 7, axisLabel: 'Cognitive control' } }))"
+        )
+        modal = page.locator(".reader-ask-modal[aria-label='Ask this axis']")
+        modal.wait_for()
+        assert "Cognitive control" in modal.inner_text()
+        # BOTH tiers' corpora are disclosed side by side (compare-before-choosing).
+        assert "3 papers" in modal.inner_text() and "2 with usable full text" in modal.inner_text()
+        assert "5 papers" in modal.inner_text() and "3 with usable full text" in modal.inner_text()
+        # Default selection is Assigned only (excludes uncertain, c6).
+        assert "Assigned only" in modal.locator(".axis-ask-tier.sel").inner_text()
+        # Toggle to Include uncertain → the SELECTION moves (the run will use it).
+        modal.locator("label.axis-ask-tier", has_text="Include uncertain").click()
+        assert "Include uncertain" in modal.locator(".axis-ask-tier.sel").inner_text()
+        # Typing a question does not fire /summarize; only the explicit Ask click does.
+        modal.locator(".reader-ask-input").fill("How do these papers define cognitive control?")
+        assert summarize_bodies == [], "no /summarize may fire from opening/toggling/typing the interstitial"
+        modal.get_by_role("button", name="Ask", exact=True).click()
+        # The result renders through the shared shell; exactly one request carried the selected tier.
+        page.locator(".synth-coverage", has_text="from this axis's papers").wait_for()
+        assert len(summarize_bodies) == 1
+        body = _json.loads(summarize_bodies[0])
+        assert body["scope_type"] == "axis" and body["axis_id"] == 7 and body["membership_tier"] == "all"
+        modal.locator(".axis-modal-head .axis-link").click()
+
+        # Axis 8: no usable full text in any tier → honest state, Ask disabled even with a question typed.
+        page.evaluate(
+            "window.dispatchEvent(new CustomEvent('callosum:open-axis-ask', "
+            "{ detail: { axisId: 8, axisLabel: 'Sparse lens' } }))"
+        )
+        modal.wait_for()
+        assert "Sparse lens" in modal.inner_text()
+        assert "usable" in modal.inner_text() and "nothing to retrieve" in modal.inner_text()
+        modal.locator(".reader-ask-input").fill("anything?")
+        assert modal.get_by_role("button", name="Ask", exact=True).is_disabled()
+        assert len(summarize_bodies) == 1  # axis 8 never ran
+
+        browser.close()
+    assert errors == [], f"unexpected console/page errors in the axis-Ask interstitial: {errors}"
+
+
 def test_discover_toolbar_inline_clear_and_merged_gaps_overlooked(server: str):
     """#78: the Discover search row uses an inline × (no standalone Clear button), Gaps + Overlooked are one
     "Gaps & overlooked" destination with an in-modal facet toggle, and "Saved for later" is now "Saved"."""

@@ -2687,6 +2687,19 @@
   }
   .reader-ask-actions { display: flex; justify-content: flex-end; gap: 8px; }
   .reader-ask-result { margin-top: 12px; }
+  /* Axis-Ask scope toggle (inc 602): the corpus tier is a scope choice — the selected one takes the accent
+     (provenance/primary), never green/amber, since it's a selection not a verified/flagged state. */
+  .axis-ask-tiers { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 4px; }
+  .axis-ask-tier {
+    display: flex; align-items: baseline; gap: 8px; padding: 8px 10px; cursor: pointer;
+    border: 1px solid var(--line-2); border-radius: var(--radius-sm); background: var(--bg);
+  }
+  .axis-ask-tier:hover { border-color: var(--accent-line); }
+  .axis-ask-tier.sel { border-color: var(--accent); background: var(--accent-soft); }
+  .axis-ask-tier input { margin: 0; accent-color: var(--accent); }
+  .axis-ask-tier-name { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+  .axis-ask-tier-count { font-size: 11.5px; color: var(--ink-3); margin-left: auto; }
+  .axis-ask-tier-note { margin-top: 2px; }
   .pdf-pages { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px; }
   /* Two-up (side-by-side) page view (inc 110): pages wrap two per row; the JS fits each to ~half the width. */
   .pdf-pages.pdf-two-up { flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: center; }
@@ -13444,6 +13457,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         if (r.ok) loadDetail(axisId);
       });
     }, [loadDetail]);
+    const askAxis = useCallback((axis) => {
+      window.dispatchEvent(new CustomEvent("callosum:open-axis-ask", { detail: { axisId: axis.id, axisLabel: axis.label } }));
+    }, []);
     const handlers = {
       toggle,
       score,
@@ -13458,6 +13474,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       toggleSelect,
       openEdit,
       openPaper,
+      askAxis,
       reorderToIndex,
       freeze,
       convertToKeyword
@@ -13741,7 +13758,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           onClick: (e) => e.stopPropagation(),
           onChange: () => handlers.toggleSelect(axis.id)
         }
-      ), /* @__PURE__ */ React.createElement("span", { className: "axis-label" }, isMyPubs ? "\u{1F4C4} " + axis.label : isCurated ? "\u{1F4CC} " + axis.label : axis.label), /* @__PURE__ */ React.createElement("span", { className: "axis-card-actions" }, !readOnly && !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Edit axis", onClick: stop(() => handlers.openEdit(axis)) }, "\u270E"), !readOnly && !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Add papers from the library", onClick: stop(() => handlers.enterFocus(axis)) }, "\uFF0B"), !readOnly && !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement(
+      ), /* @__PURE__ */ React.createElement("span", { className: "axis-label" }, isMyPubs ? "\u{1F4C4} " + axis.label : isCurated ? "\u{1F4CC} " + axis.label : axis.label), /* @__PURE__ */ React.createElement("span", { className: "axis-card-actions" }, !readOnly && handlers.askAxis && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Ask a question across this axis's papers", onClick: stop(() => handlers.askAxis(axis)) }, "\u2726"), !readOnly && !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Edit axis", onClick: stop(() => handlers.openEdit(axis)) }, "\u270E"), !readOnly && !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Add papers from the library", onClick: stop(() => handlers.enterFocus(axis)) }, "\uFF0B"), !readOnly && !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "axis-icon-btn",
@@ -13786,6 +13803,123 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   }
   function _tierRank(p) {
     return p.status === "assigned" ? 0 : p.status === "uncertain" ? 1 : 2;
+  }
+  const AXIS_ASK_TOP_K = 8;
+  function AxisAskModalHost({ onOpenCitation, onSaveHighlight, onOpenSettings }) {
+    const [axis, setAxis] = useState(null);
+    useEffect(() => {
+      const open = (e) => {
+        const id = e && e.detail && Number(e.detail.axisId);
+        if (Number.isInteger(id) && id > 0) setAxis({ axisId: id, axisLabel: e.detail && e.detail.axisLabel || "" });
+      };
+      window.addEventListener("callosum:open-axis-ask", open);
+      return () => window.removeEventListener("callosum:open-axis-ask", open);
+    }, []);
+    if (axis == null) return null;
+    return /* @__PURE__ */ React.createElement(
+      AxisAskModal,
+      {
+        axisId: axis.axisId,
+        axisLabel: axis.axisLabel,
+        onClose: () => setAxis(null),
+        onOpenCitation,
+        onSaveHighlight,
+        onOpenSettings
+      }
+    );
+  }
+  function AxisAskModal({ axisId, axisLabel, onClose, onOpenCitation, onSaveHighlight, onOpenSettings }) {
+    const [scope, setScope] = useState({ status: "loading" });
+    const [tier, setTier] = useState("assigned");
+    const [query, setQuery] = useState("");
+    const { state, run, cancel } = useScopedAsk();
+    useEffect(() => {
+      let live = true;
+      api(`/axes/${axisId}/ask-scope`).then((r) => {
+        if (!live) return;
+        setScope(r.ok ? { status: "ready", ...r.data } : { status: "error", error: r.error });
+      });
+      return () => {
+        live = false;
+      };
+    }, [axisId]);
+    const close = useCallback(() => {
+      cancel();
+      onClose();
+    }, [cancel, onClose]);
+    const openEvidence = useCallback((citation) => {
+      if (onOpenCitation) onOpenCitation(citation);
+      close();
+    }, [onOpenCitation, close]);
+    const ask = useCallback(() => {
+      const q = query.trim();
+      if (!q) return;
+      run({ scope_type: "axis", axis_id: axisId, membership_tier: tier, query: q, top_k: AXIS_ASK_TOP_K });
+    }, [query, axisId, tier, run]);
+    if (isDemoMode()) return null;
+    const busy = state.status === "running";
+    const result = state.result;
+    const label = scope.status === "ready" && scope.axis_label || axisLabel || "Axis " + axisId;
+    const cur = scope.status === "ready" ? scope[tier] : null;
+    const canAsk = !busy && !!query.trim() && cur && cur.eligible_count > 0;
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay reader-ask-overlay", onMouseDown: close }, /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "axis-modal reader-ask-modal",
+        role: "dialog",
+        "aria-label": "Ask this axis",
+        onMouseDown: (e) => e.stopPropagation()
+      },
+      /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Ask this axis"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", "aria-label": "Close", onClick: close }, "\xD7")),
+      /* @__PURE__ */ React.createElement("div", { className: "reader-ask-scope" }, "Asking across: ", /* @__PURE__ */ React.createElement("b", null, label)),
+      /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Runs Callosum's ordinary Ask \u2014 grounded only in this axis's papers \u2014 and verifies every citation against them. The axis sets which papers are eligible; it doesn't change how Ask reasons."),
+      scope.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Resolving this axis's papers\u2026"),
+      scope.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't read this axis: ", scope.error),
+      scope.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "axis-ask-tiers", role: "radiogroup", "aria-label": "Which papers to include" }, /* @__PURE__ */ React.createElement("label", { className: "axis-ask-tier" + (tier === "assigned" ? " sel" : "") }, /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          type: "radio",
+          name: "axis-ask-tier",
+          checked: tier === "assigned",
+          disabled: busy,
+          onChange: () => setTier("assigned")
+        }
+      ), /* @__PURE__ */ React.createElement("span", { className: "axis-ask-tier-name" }, "Assigned only"), /* @__PURE__ */ React.createElement("span", { className: "axis-ask-tier-count" }, scope.assigned.count, " paper", scope.assigned.count === 1 ? "" : "s", " \xB7 ", scope.assigned.eligible_count, " with usable full text")), /* @__PURE__ */ React.createElement("label", { className: "axis-ask-tier" + (tier === "all" ? " sel" : "") }, /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          type: "radio",
+          name: "axis-ask-tier",
+          checked: tier === "all",
+          disabled: busy,
+          onChange: () => setTier("all")
+        }
+      ), /* @__PURE__ */ React.createElement("span", { className: "axis-ask-tier-name" }, "Include uncertain"), /* @__PURE__ */ React.createElement("span", { className: "axis-ask-tier-count" }, scope.all.count, " paper", scope.all.count === 1 ? "" : "s", " \xB7 ", scope.all.eligible_count, " with usable full text"))), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note axis-ask-tier-note" }, "\u201CAssigned\u201D is this axis's similarity/display tier, not a claim that you've endorsed each paper. \u201CUncertain\u201D members scored below the cutoff \u2014 candidates to confirm. Only papers with usable full text can be retrieved; a run over this axis never falls back to the whole library."), cur && cur.count === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "This axis has no ", tier === "assigned" ? "assigned" : "", " papers yet.", tier === "assigned" && scope.all.count > 0 && " Try \u201CInclude uncertain\u201D, or add papers to the axis."), cur && cur.count > 0 && cur.eligible_count === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "None of this tier's ", cur.count, " paper", cur.count === 1 ? " has" : "s have", " usable full text, so there's nothing to retrieve. Acquire or attach PDFs, then ask."), /* @__PURE__ */ React.createElement(
+        "textarea",
+        {
+          className: "reader-ask-input",
+          placeholder: "Ask a question across this axis's papers\u2026",
+          value: query,
+          disabled: busy,
+          maxLength: 4e3,
+          onChange: (e) => setQuery(e.target.value),
+          onKeyDown: (e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && canAsk) ask();
+          }
+        }
+      ), /* @__PURE__ */ React.createElement("div", { className: "reader-ask-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: close }, "Close"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !canAsk, onClick: ask }, busy ? "Asking\u2026" : "Ask"))),
+      busy && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, state.message || "Generating and verifying", "\u2026"),
+      state.status === "error" && /* @__PURE__ */ React.createElement(SynthesisFailure, { error: state.error, onOpenSettings, onRetry: ask, canRetry: canAsk }),
+      state.status === "done" && result && /* @__PURE__ */ React.createElement(
+        ScopedAskResult,
+        {
+          result,
+          onOpenCitation: openEvidence,
+          onSaveHighlight,
+          coverageNoun: "from this axis's papers",
+          emptyNote: "The generator returned no sentences \u2014 your question may not be addressed in this axis's papers."
+        }
+      )
+    ));
   }
   function _axisBase(description) {
     return (description || "").split(/\n*Related:\s*/i)[0].trim();
@@ -15411,6 +15545,53 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         openLabel: citation.coordinate_precision === "exact" ? "Open source and highlight this quote" : "Open source page for this quote"
       }
     ), citation.coordinate_precision === "region" && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: "var(--flag)", marginTop: 4 } }, "Region-level source area only. Do not treat this as an exact quote highlight."), !citation.coordinate_precision && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: "var(--ink-3)", marginTop: 4 } }, "No coordinate claim is available for this citation."), /* @__PURE__ */ React.createElement("div", { className: "conf-grid" }, /* @__PURE__ */ React.createElement("div", { className: "conf" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Retrieval"), /* @__PURE__ */ React.createElement("span", { className: "v" }, fmtScore(citation.retrieval_confidence))), /* @__PURE__ */ React.createElement("div", { className: "conf" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Quote"), /* @__PURE__ */ React.createElement("span", { className: "v" }, fmtScore(citation.quote_confidence))), /* @__PURE__ */ React.createElement("div", { className: "conf" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Support"), /* @__PURE__ */ React.createElement("span", { className: "v" }, fmtScore(citation.support_confidence))))));
+  }
+  function useScopedAsk() {
+    const [state, setState] = useState({ status: "idle" });
+    const pollRef = useRef(null);
+    useEffect(() => () => {
+      if (pollRef.current) pollRef.current();
+    }, []);
+    const cancel = useCallback(() => {
+      if (pollRef.current) {
+        pollRef.current();
+        pollRef.current = null;
+      }
+    }, []);
+    const reset = useCallback(() => {
+      cancel();
+      setState({ status: "idle" });
+    }, [cancel]);
+    const run = useCallback((body) => {
+      cancel();
+      setState({ status: "running", message: "Generating and verifying" });
+      apiPost("/summarize", body).then((r) => {
+        if (!r.ok) {
+          setState({ status: "error", error: r.error });
+          return;
+        }
+        setState({ status: "running", jobId: r.data.job_id, message: "Generating and verifying" });
+        pollRef.current = observeJobUntilTerminal("/summarize/" + r.data.job_id, {
+          onProgress: (data) => setState({
+            status: "running",
+            message: data.status === "pending" ? "Queued for verification" : "Generating and verifying"
+          }),
+          onDone: (data) => {
+            pollRef.current = null;
+            setState({ status: "done", result: data });
+          },
+          onError: (error) => {
+            pollRef.current = null;
+            setState({ status: "error", error: error || "Ask failed." });
+          }
+        });
+      });
+    }, [cancel]);
+    return { state, run, cancel, reset };
+  }
+  function ScopedAskResult({ result, onOpenCitation, onSaveHighlight, coverageNoun, emptyNote }) {
+    const sentences = result && result.sentences || [];
+    return /* @__PURE__ */ React.createElement("div", { className: "reader-ask-result" }, result.source_chunk_count != null && /* @__PURE__ */ React.createElement("div", { className: "synth-coverage" }, "Retrieved ", /* @__PURE__ */ React.createElement("b", null, result.source_chunk_count), " source chunk", result.source_chunk_count === 1 ? "" : "s", " ", coverageNoun), result.generation_truncated && /* @__PURE__ */ React.createElement("div", { className: "errbox", role: "status", style: { margin: "8px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "This answer is incomplete."), " The AI ran out of room before finishing, so only part of what it set out to say is shown."), sentences.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "18px 6px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No groundable summary produced."), emptyNote), sentences.length > 0 && /* @__PURE__ */ React.createElement(GroupedSummarySentences, { sentences, onOpenCitation, onSaveHighlight }));
   }
   const DetailReadOnly = React.createContext(false);
   function EditableRow({ label, value, placeholder, onSave, mono, numeric }) {
@@ -19607,45 +19788,16 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const valid = readerAskPaperValid(paperId);
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
-    const [state, setState] = useState({ status: "idle" });
-    const pollRef = useRef(null);
-    useEffect(() => () => {
-      if (pollRef.current) pollRef.current();
-    }, []);
+    const { state, run, cancel } = useScopedAsk();
     const close = useCallback(() => {
-      if (pollRef.current) {
-        pollRef.current();
-        pollRef.current = null;
-      }
+      cancel();
       setOpen(false);
-    }, []);
+    }, [cancel]);
     const ask = useCallback(() => {
       const q = query.trim();
       if (!q || !valid) return;
-      if (pollRef.current) pollRef.current();
-      setState({ status: "running", message: "Generating and verifying" });
-      apiPost("/summarize", readerAskRequest(paperId, q)).then((r) => {
-        if (!r.ok) {
-          setState({ status: "error", error: r.error });
-          return;
-        }
-        setState({ status: "running", jobId: r.data.job_id, message: "Generating and verifying" });
-        pollRef.current = observeJobUntilTerminal("/summarize/" + r.data.job_id, {
-          onProgress: (data) => setState({
-            status: "running",
-            message: data.status === "pending" ? "Queued for verification" : "Generating and verifying"
-          }),
-          onDone: (data) => {
-            pollRef.current = null;
-            setState({ status: "done", result: data });
-          },
-          onError: (error) => {
-            pollRef.current = null;
-            setState({ status: "error", error: error || "Ask failed." });
-          }
-        });
-      });
-    }, [query, valid, paperId]);
+      run(readerAskRequest(paperId, q));
+    }, [query, valid, paperId, run]);
     const openEvidence = useCallback((citation) => {
       if (onOpenCitation) onOpenCitation(citation);
       close();
@@ -19653,7 +19805,6 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     if (isDemoMode()) return null;
     const busy = state.status === "running";
     const result = state.result;
-    const sentences = result && result.sentences || [];
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -19691,7 +19842,16 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       /* @__PURE__ */ React.createElement("div", { className: "reader-ask-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: close }, "Close"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy || !query.trim(), onClick: ask }, busy ? "Asking\u2026" : "Ask")),
       busy && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, state.message || "Generating and verifying", "\u2026"),
       state.status === "error" && /* @__PURE__ */ React.createElement(SynthesisFailure, { error: state.error, onOpenSettings, onRetry: ask, canRetry: !!query.trim() }),
-      state.status === "done" && result && /* @__PURE__ */ React.createElement("div", { className: "reader-ask-result" }, result.source_chunk_count != null && /* @__PURE__ */ React.createElement("div", { className: "synth-coverage" }, "Retrieved ", /* @__PURE__ */ React.createElement("b", null, result.source_chunk_count), " source chunk", result.source_chunk_count === 1 ? "" : "s", " from this paper"), result.generation_truncated && /* @__PURE__ */ React.createElement("div", { className: "errbox", role: "status", style: { margin: "8px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "This answer is incomplete."), " The AI ran out of room before finishing, so only part of what it set out to say is shown."), sentences.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "18px 6px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No groundable summary produced."), "The generator returned no sentences \u2014 your question may not be addressed in this paper."), sentences.length > 0 && /* @__PURE__ */ React.createElement(GroupedSummarySentences, { sentences, onOpenCitation: openEvidence, onSaveHighlight }))
+      state.status === "done" && result && /* @__PURE__ */ React.createElement(
+        ScopedAskResult,
+        {
+          result,
+          onOpenCitation: openEvidence,
+          onSaveHighlight,
+          coverageNoun: "from this paper",
+          emptyNote: "The generator returned no sentences \u2014 your question may not be addressed in this paper."
+        }
+      )
     )));
   }
   function MyPubsTile({ label, value }) {
@@ -24792,7 +24952,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           onSwitchFacet: setGapsOverlooked
         }
       );
-    })(), beyondSavedOpen && /* @__PURE__ */ React.createElement(BeyondLibrarySavedModal, { onClose: () => setBeyondSavedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), /* @__PURE__ */ React.createElement(CriticalReadModalHost, { onOpenPaper: openPdf }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), zcurvePapers && /* @__PURE__ */ React.createElement(ZcurveModal, { paperIds: zcurvePapers, onClose: () => setZcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), /* @__PURE__ */ React.createElement(
+    })(), beyondSavedOpen && /* @__PURE__ */ React.createElement(BeyondLibrarySavedModal, { onClose: () => setBeyondSavedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), /* @__PURE__ */ React.createElement(AppEventModalHosts, { onOpenPaper: openPdf, onOpenCitation: openCitation, onSaveHighlight: saveCitationHighlight, onOpenSettings: () => selectWorkspace("settings") }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), zcurvePapers && /* @__PURE__ */ React.createElement(ZcurveModal, { paperIds: zcurvePapers, onClose: () => setZcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), /* @__PURE__ */ React.createElement(
       LibraryAddModals,
       {
         scanOpen,
@@ -24939,6 +25099,16 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     onSharedOpenSettings
   }) {
     return /* @__PURE__ */ React.createElement(React.Fragment, null, scanOpen && /* @__PURE__ */ React.createElement(ScanModal, { onClose: onCloseScan, onScanned: refreshLibrary, onShowUnsorted }), importOpen && /* @__PURE__ */ React.createElement(ImportModal, { onClose: onCloseImport, onImported: refreshLibrary }), addDoiOpen && /* @__PURE__ */ React.createElement(AddDoiModal, { onClose: onCloseAddDoi, onImported: refreshLibrary }), zoteroImportOpen && /* @__PURE__ */ React.createElement(ZoteroImportModal, { onClose: onCloseZotero, onImported: refreshLibraryAndAxes }), bundleImportOpen && /* @__PURE__ */ React.createElement(BundleImportModal, { onClose: onCloseBundle, onImported: refreshLibraryAndAxes }), sharedWithMeOpen && /* @__PURE__ */ React.createElement(SharedWithMeModal, { onClose: onCloseShared, onImported: refreshLibraryAndAxes, onOpenSettings: onSharedOpenSettings }));
+  }
+  function AppEventModalHosts({ onOpenPaper, onOpenCitation, onSaveHighlight, onOpenSettings }) {
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(CriticalReadModalHost, { onOpenPaper }), /* @__PURE__ */ React.createElement(
+      AxisAskModalHost,
+      {
+        onOpenCitation,
+        onSaveHighlight,
+        onOpenSettings
+      }
+    ));
   }
   const WB_DESIGNS = [
     { key: "two_group_continuous", label: "Two-group continuous (means + SDs \u2192 Hedges' g)" },

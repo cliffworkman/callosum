@@ -9,6 +9,32 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-13 — inc 602: axis-scoped Ask (GitHub #82)
+- **Files:** `app/backend/clustering/axis_membership.py` (new — shared resolver: member subquery, tier classifier,
+  cutoff, retrieval-exact full-text eligibility, `resolve_axis_corpus`), `clustering/gapfinder.py` +
+  `routers/axes.py` (consume the shared resolver/classifier; new `GET /axes/{id}/ask-scope`),
+  `summarization/pipeline.py` (additive `SummaryScope.scope_origin`, read only by `to_ref()`),
+  `routers/summaries.py` (`scope_type="axis"` → resolved `papers` scope + honest 404/422, server-side
+  `scope_origin`), `app/frontend/js/20d_scoped_ask.jsx` (new shared `useScopedAsk`/`ScopedAskResult` shell),
+  `30j_reader_ask.jsx` (refactored onto the shell), `15c_axis_ask.jsx` (new interstitial + self-hosted host),
+  `15b_axis_card.jsx` + `15_axes.jsx` (✦ "Ask this axis" action), `40d_modal_hosts.jsx` (new — groups the two
+  self-hosted modal controllers so `40_app.jsx` stays ≤600), `40_app.jsx` (mount), `styles.css`, help,
+  `tests/test_axis_scoped_ask.py` (new, 6), `route_96_axis_ask.md` (new),
+  `.claude/security-audits/2026-09-13_axis-scoped-ask.md`, `INCREMENT-602-NOTES.md`.
+- **What:** "Ask this axis" resolves a semantic axis to a concrete canonical paper set and runs ORDINARY
+  production Ask over exactly that set — the axis changes WHICH papers are eligible, not HOW Ask reasons. An
+  interstitial discloses the corpus before running (`N papers · M with usable full text`, per Assigned-only /
+  Include-uncertain tier); the run resolves to `scope_type="papers"` so retrieval/verification are unchanged, and
+  the exact executed set is snapshotted into `scope_ref_json` (a later axis change can't rewrite a past run).
+- **Why:** The next scope rung after reader paper-Ask (paper → axis → library), as a real capability and a
+  bounded test of the corpus-scoping hypothesis — without touching the frozen 0.6/0.7 experiment.
+- **Verify:** honors c1–c8 (generic `scope_origin`; shared membership code + shared Ask shell; preview-vs-execution
+  precision; retrieval-exact eligibility count; v1 boundary + faithful non-endorsement wording; empty-scope 422
+  never widened). Security audit PASS; axis-ask tests 6; assembly + reader-ask + axes + summarization + gapfinder +
+  status regressions green; QA surface-map green; tach + ruff + line budget green. Manual scope-falsification is a
+  pre-release gate for 0.5.15 (c7, a separate task). **Not in a shipped release yet** (0.5.14 immutable).
+- **Revert:** delete the 4 new backend/frontend/test files + `route_96`/audit/notes, revert the edited files.
+
 ## 2026-09-13 — inc 601: persist single-paper critiques + a reaccessible critique modal
 - **Files:** `alembic/versions/0083_critical_read_snapshots.py` (new) + `schema_critical_review.py` + `schema.py`
   (the `critical_read_snapshots` table), `critical_review_repo.py` (read/save + monotonic guard),

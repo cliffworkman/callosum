@@ -46,11 +46,12 @@ from app.backend.api.routers.summaries_response import (
 )
 from app.backend.api.routers.summary_overview import resolve_overview_generator
 from app.backend.api.routers.summary_overview import router as overview_router
+from app.backend.clustering.axis_membership import axis_cutoff, resolve_axis_corpus
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.llm.cache import CachedSummaryGenerator
 from app.backend.llm.egress import EgressGatedSummaryGenerator
-from app.backend.persistence.repository import delete_summary, get_summary, list_summaries
+from app.backend.persistence.repository import delete_summary, get_axis, get_summary, list_summaries
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.summarization.faceted_pipeline import summarize_faceted
 from app.backend.summarization.generators import SummaryGenerator
@@ -75,9 +76,14 @@ __all__ = [
 
 
 class SummarizeRequest(BaseModel):
-    scope_type: Literal["papers", "cluster_node", "query"]
+    # inc 602: "axis" is a REQUEST-level scope resolved to a `papers` scope at the endpoint (axis -> concrete
+    # paper-id set) before the pipeline ever runs; the pipeline's SummaryScope only ever sees papers/cluster/query
+    # (retrieval never learns "axis"). membership_tier picks the eligibility policy (see axis_membership).
+    scope_type: Literal["papers", "cluster_node", "query", "axis"]
     paper_ids: list[int] | None = None
     cluster_node_id: int | None = None
+    axis_id: int | None = None
+    membership_tier: Literal["assigned", "all"] = "assigned"
     query: str | None = None
     top_k: int = Field(default=8, ge=1, le=50)
     sections: list[str] | None = Field(default=None, max_length=16)
@@ -149,10 +155,35 @@ def summarize_start(
     request: Request,
 ) -> SummarizeStartResponse:
     _validate_summary_request(payload)
+    # inc 602: an axis scope resolves to a concrete papers scope HERE (at execution time), so retrieval only ever
+    # sees a paper-id set and the resolved corpus is snapshotted with the run (no drift if the axis changes
+    # later). An empty/unresolvable axis fails honestly now — it is NEVER widened to the whole library.
+    scope_origin: dict[str, object] | None = None
+    if payload.scope_type == "axis":
+        payload, scope_origin = _resolve_axis_scope(request.app, payload)
     nav = {"paper_ids": payload.paper_ids} if payload.paper_ids else None
     job_id = request.app.state.summary_jobs.create(nav=nav)
-    background_tasks.add_task(_run_summarize_job, request.app, job_id, payload)
+    background_tasks.add_task(_run_summarize_job, request.app, job_id, payload, scope_origin)
     return SummarizeStartResponse(job_id=job_id, status="pending")
+
+
+def _resolve_axis_scope(app: FastAPI, payload: SummarizeRequest) -> tuple[SummarizeRequest, dict[str, object]]:
+    """Resolve an axis scope -> a concrete `papers` scope + generic scope_origin provenance. The scope_origin is
+    built server-side (never client-trusted) and records the axis identity + tier so the run is inspectable."""
+    with app.state.engine.connect() as conn:
+        axis = get_axis(conn, payload.axis_id)
+        if axis is None:
+            raise HTTPException(status_code=404, detail="Axis not found")
+        cutoff = axis_cutoff(axis["scoring_gain"])
+        paper_ids = resolve_axis_corpus(conn, int(payload.axis_id), payload.membership_tier, cutoff=cutoff)
+    if not paper_ids:
+        raise HTTPException(
+            status_code=422,
+            detail="No papers are in this axis for that scope — nothing to ask across. (Scope is never widened.)",
+        )
+    origin = {"kind": "axis", "id": int(payload.axis_id), "label": axis["label"], "policy": payload.membership_tier}
+    resolved = payload.model_copy(update={"scope_type": "papers", "paper_ids": paper_ids})
+    return resolved, origin
 
 
 @router.get("/summarize/{job_id}", response_model=SummarizeJobResponse)
@@ -234,10 +265,17 @@ def _validate_summary_request(request: SummarizeRequest) -> None:
         raise HTTPException(status_code=400, detail="scope_type='cluster_node' requires cluster_node_id")
     if request.scope_type == "query" and not (request.query and request.query.strip()):
         raise HTTPException(status_code=400, detail="scope_type='query' requires query")
+    if request.scope_type == "axis":
+        if request.axis_id is None:
+            raise HTTPException(status_code=400, detail="scope_type='axis' requires axis_id")
+        if not (request.query and request.query.strip()):
+            raise HTTPException(status_code=400, detail="scope_type='axis' requires query")
     request.sections = _normalize_summary_sections(request.sections)
 
 
-def _summary_scope_from_request(request: SummarizeRequest) -> SummaryScope:
+def _summary_scope_from_request(
+    request: SummarizeRequest, scope_origin: dict[str, object] | None = None
+) -> SummaryScope:
     return SummaryScope(
         scope_type=request.scope_type,
         paper_ids=request.paper_ids,
@@ -245,6 +283,7 @@ def _summary_scope_from_request(request: SummarizeRequest) -> SummaryScope:
         query=request.query.strip() if request.query else None,
         sections=request.sections,
         exclude_references=request.exclude_references,
+        scope_origin=scope_origin,
     )
 
 
@@ -267,7 +306,9 @@ def _normalize_summary_sections(sections: list[str] | None) -> list[str] | None:
     return normalized or None
 
 
-def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> None:
+def _run_summarize_job(
+    api: FastAPI, job_id: str, request: SummarizeRequest, scope_origin: dict[str, object] | None = None
+) -> None:
     from app.backend.llm.managed_local import ManagedLocalTargetError
 
     jobs: JobStore[SummarizeJobResponse] = api.state.summary_jobs
@@ -312,7 +353,7 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
         else:
             result = summarize_scope(
                 engine,
-                scope=_summary_scope_from_request(request),
+                scope=_summary_scope_from_request(request, scope_origin),
                 generator=generator,
                 model=model,
                 vector_store=store,
