@@ -178,13 +178,20 @@ function ReferenceFinderModal({ text: initialText, onClose, onOpenPaper }) {
                     </div>
                   </>}
                 {critique.phase === "running" &&
-                  <div className="axis-hint">Critiquing… you can keep reading — it runs in the background.</div>}
+                  <div className="axis-hint">
+                    Critiquing… you can keep reading — it runs in the background.{" "}
+                    <button className="btn btn-link"
+                      onClick={() => window.dispatchEvent(new CustomEvent("callosum:open-critical-read", { detail: { paperId: outcome.paperId } }))}>
+                      View critique
+                    </button>
+                  </div>}
                 {critique.phase === "ready" &&
                   <div>
-                    Critique ready — review it in this paper's <b>Synthesize → Critique</b>.
-                    {onOpenPaper &&
-                      <button className="btn btn-ghost" style={{ marginLeft: 8 }}
-                        onClick={() => { onOpenPaper({ id: outcome.paperId, title: null }); onClose(); }}>Open paper</button>}
+                    Critique ready.{" "}
+                    <button className="btn btn-primary"
+                      onClick={() => window.dispatchEvent(new CustomEvent("callosum:open-critical-read", { detail: { paperId: outcome.paperId } }))}>
+                      View critique
+                    </button>
                   </div>}
                 {critique.phase === "error" &&
                   <div className="reffind-outcome err" style={{ marginTop: 0 }}>{critique.error}</div>}

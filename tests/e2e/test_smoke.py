@@ -1335,6 +1335,83 @@ def test_tool_panes_resist_visual_drift(server: str):
     assert errors == [], f"unexpected console/page errors during visual drift pass: {errors}"
 
 
+def test_reaccessible_critique_modal_opens_from_event_and_honors_fulltext_gate(server: str):
+    """inc 601: the persisted critique reopens in a modal via the `callosum:open-critical-read` event (the
+    channel the reader's 'View critique' and the Status row both use), rendering the SAME backbone view as the
+    Synthesize tab; and a paper without usable full text shows the honest 'needs the full paper' state (c1) —
+    never a Run path over metadata."""
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+        page = browser.new_page(viewport={"width": 1366, "height": 900})
+
+        # Paper 7: has full text + a persisted critique with one method signal + one contested claim.
+        page.route("**/papers/7", lambda r: r.fulfill(json={"id": 7, "title": "Cornerstone Study", "chunk_count": 12}))
+        page.route(
+            "**/papers/7/critical-read/snapshot",
+            lambda r: r.fulfill(
+                json={
+                    "backbone": {
+                        "method_signals": [
+                            {
+                                "kind": "statcheck",
+                                "label": "1 reporting inconsistency",
+                                "detail": None,
+                                "notice_url": None,
+                            }
+                        ],
+                        "citation_signal": None,
+                        "contested_claims": [
+                            {
+                                "claim": "Effect is large.",
+                                "passage": "We found no effect.",
+                                "other_paper_id": 9,
+                                "page": 3,
+                                "stance": "contradict",
+                                "confidence": 0.82,
+                            }
+                        ],
+                        "triage_status": None,
+                    },
+                    "computed_at": "2026-09-13T12:00:00",
+                    "requested_at": "2026-09-13T12:00:00+00:00",
+                    "stale": True,
+                    "refresh_required": False,
+                    "running_job_id": None,
+                }
+            ),
+        )
+        # Paper 8: metadata-only (no chunks) + no snapshot → the honest unavailable state.
+        page.route("**/papers/8", lambda r: r.fulfill(json={"id": 8, "title": "Metadata Only", "chunk_count": 0}))
+        page.route("**/papers/8/critical-read/snapshot", lambda r: r.fulfill(json={"backbone": None}))
+        errors = _mount_app(page, server)
+
+        page.evaluate(
+            "window.dispatchEvent(new CustomEvent('callosum:open-critical-read', { detail: { paperId: 7 } }))"
+        )
+        modal = page.locator(".cr-modal")
+        modal.wait_for()
+        assert "Cornerstone Study" in modal.inner_text()
+        assert "1 reporting inconsistency" in modal.inner_text()  # the reused ScrutinyBackboneView rendered it
+        assert "full text has changed since" in modal.inner_text()  # the narrow stale hint (c3)
+        assert modal.get_by_role("button", name="Refresh", exact=True).count() == 1
+        modal.locator(".axis-modal-head .axis-link").click()
+
+        # A metadata-only paper: no Run/Refresh over metadata; the honest gate message instead (c1).
+        page.evaluate(
+            "window.dispatchEvent(new CustomEvent('callosum:open-critical-read', { detail: { paperId: 8 } }))"
+        )
+        modal.wait_for()
+        assert "needs the full paper" in modal.inner_text()
+        assert modal.get_by_role("button", name="Critique this paper", exact=True).count() == 0
+        assert modal.get_by_role("button", name="Refresh critique", exact=True).count() == 0
+
+        browser.close()
+    assert errors == [], f"unexpected console/page errors in the reaccessible-critique modal: {errors}"
+
+
 def test_discover_toolbar_inline_clear_and_merged_gaps_overlooked(server: str):
     """#78: the Discover search row uses an inline × (no standalone Clear button), Gaps + Overlooked are one
     "Gaps & overlooked" destination with an in-modal facet toggle, and "Saved for later" is now "Saved"."""

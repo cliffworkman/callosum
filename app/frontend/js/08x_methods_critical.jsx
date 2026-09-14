@@ -169,12 +169,21 @@ function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
     if (activeJobId) {
       setT1({ status: "running", jobId: activeJobId });
       pollT1Job(activeJobId);
+    } else if (isDemoMode()) {
+      api(`/papers/${paperId}/critical-read/saved`).then(r => {
+        if (!live) return;
+        if (r.ok && r.data.status === "done") setT1({ status: "done", backbone: r.data.backbone });
+        else if (!r.ok) setT1({ status: "error", error: r.error });
+      });
+    } else {
+      // inc 601: show the persisted critique instead of idle. A running Refresh (e.g. from the reader) stays
+      // running; a version-incompatible snapshot stays idle so the normal (fulltext-gated) Run path applies.
+      api(`/papers/${paperId}/critical-read/snapshot`).then(r => {
+        if (!live || !r.ok) return;
+        if (r.data.running_job_id) { setT1({ status: "running", jobId: r.data.running_job_id }); pollT1Job(r.data.running_job_id); }
+        else if (r.data.backbone) setT1({ status: "done", backbone: r.data.backbone });
+      });
     }
-    if (isDemoMode()) api(`/papers/${paperId}/critical-read/saved`).then(r => {
-      if (!live) return;
-      if (r.ok && r.data.status === "done") setT1({ status: "done", backbone: r.data.backbone });
-      else if (!r.ok) setT1({ status: "error", error: r.error });
-    });
     return () => {
       live = false;
       if (t1PollRef.current) t1PollRef.current();

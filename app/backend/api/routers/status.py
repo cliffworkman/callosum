@@ -131,7 +131,11 @@ JOB_NAV_DEFAULTS: dict[str, dict[str, Any]] = {
     "citation_equity_jobs": {"workspace": "work", "tab": "meta-reference"},
     "overlooked_jobs": {"workspace": "work", "tab": "meta-reference"},
     "citation_context_jobs": {"workspace": "work", "tab": "meta-reference"},
-    "critical_review_jobs": {"workspace": "synthesis", "tab": "critique"},
+    # inc 601: reopen the reaccessible per-paper critique MODAL (carries the job's paper_id) rather than the
+    # Critique tab, which renders only the GLOBALLY-selected paper -- clicking this Status row used to land on
+    # an empty critique for whatever paper happened to be selected, not the paper the job critiqued (the same
+    # class of bug the critical_review_set_jobs entry below already fixed by routing to its modal).
+    "critical_review_jobs": {"modal": "critical-read"},
     "wip_critical_review_jobs": {"workspace": "synthesis", "tab": "critique"},
     # The Critique tab renders a single paper's (or a WIP manuscript's) Critical Read only -- it has no concept
     # of a multi-paper "set" job. Reopen the modal that actually shows this job's progress/report instead of

@@ -9,6 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-13 — inc 601: persist single-paper critiques + a reaccessible critique modal
+- **Files:** `alembic/versions/0083_critical_read_snapshots.py` (new) + `schema_critical_review.py` + `schema.py`
+  (the `critical_read_snapshots` table), `critical_review_repo.py` (read/save + monotonic guard),
+  `routers/critical_review.py` (persist on completion + dedup one run/paper + `requested_at`),
+  `routers/critical_review_snapshot.py` (new sibling — `GET /papers/{id}/critical-read/snapshot`), `status.py`
+  (`critical_review_jobs` nav → the modal), `app.py` (mount), `08x2_critical_modal.jsx` (new modal + self-hosted
+  host), `08x_methods_critical.jsx` (load snapshot on mount), `30h_reference_finder.jsx` (View critique),
+  `40_app.jsx` (event dispatch + host + gaps/overlooked consolidation), `styles.css`, help,
+  `tests/test_critical_read_snapshot.py` (new) + `tests/e2e/test_smoke.py` (new), `route_67`,
+  `.claude/security-audits/2026-09-13_critical-read-snapshot.md`, `INCREMENT-601-NOTES.md`.
+- **What:** The single-paper Critical Read backbone is now PERSISTED per paper (one current-only snapshot;
+  Refresh replaces) and reopenable in a modal — from the reader's **View critique** and the **Status** popover
+  (which now carries the job's own paper_id instead of landing on the selected paper's empty Critique tab).
+  Reuses the canonical `ScrutinyBackboneView` + `POST /papers/{id}/critical-read` — no new Critique.
+- **Why:** The reader-launched critique (inc 598) was trapped in the ephemeral reference-finder modal and its
+  Status entry landed on the wrong paper. Reported by Cliff after 0.5.14 shipped.
+- **Verify:** honors c1–c7 (fulltext gate everywhere; race-safe monotonic write guard; narrow content-fingerprint
+  stale hint; versioned+validated payload → refresh_required; paper-identity Status nav; no cap-gaming — snapshot
+  READ split to a sibling router; current-only). Security audit PASS; snapshot tests 7; a real Playwright test
+  (event→modal + fulltext gate); assembly 87; QA 441/441; tach + ruff + line budget green. Evidence-source-change
+  auto-refresh deferred to GitHub #91. **Not in a shipped release yet** (0.5.14 immutable).
+- **Revert:** drop migration 0083 + the two new files, revert the 6 edited files.
+
 ## 2026-09-13 — inc 600 🎉: Discover UX cleanup (GitHub #78)
 - **Files:** `app/frontend/js/30d_discover.jsx` (inline × + merged/renamed buttons), `36_gaps.jsx` +
   `36b_overlooked.jsx` (shared `GapsOverlookedFacets` header toggle + `facet`/`onSwitchFacet`), `40_app.jsx`

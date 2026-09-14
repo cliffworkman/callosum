@@ -463,6 +463,7 @@ from app.backend.persistence.schema_chunk_structure import (  # noqa: E402,F401
     chunk_structure,
 )
 from app.backend.persistence.schema_critical_review import (  # noqa: E402,F401
+    critical_read_snapshots,
     critical_review_candidate_triage,
     critical_review_candidates,
 )

@@ -258,7 +258,7 @@ When you're reading and hit a citation you want in your own library, select the 
 
 Confirming a candidate adds it through your normal library import (metadata-only, deduped) and then tries to fetch an **open-access copy** — exactly as **Add with DOI…** does. A failed open-access fetch never undoes the added record. This action creates **no** highlight or annotation; it's just a quick way to turn a citation you're reading into a library entry.
 
-Once the paper has usable **full text** (an open-access copy was found and processed, or you already had it), a **Critique this paper** button appears — one click runs Callosum's ordinary Critique so you can gauge whether the cited work's evidence is strong enough to lean on, without leaving the paper you're reading. It runs in the background and is reviewable afterwards in that paper's **Synthesize → Critique**. If no full text is available (no open-access copy, or the copy couldn't be processed), Callosum says so plainly and does not critique — Critique is never run on a title/abstract alone, and nothing is queued waiting; you can attach a PDF later and critique it from Synthesize → Critique.
+Once the paper has usable **full text** (an open-access copy was found and processed, or you already had it), a **Critique this paper** button appears — one click runs Callosum's ordinary Critique so you can gauge whether the cited work's evidence is strong enough to lean on, without leaving the paper you're reading. It runs in the background: you can close the lookup and keep reading, then reopen the result any time with **View critique** (or from the **Status** popover) — the critique is saved to that paper, so it's not lost when the lookup closes, and it also appears in that paper's **Synthesize → Critique**. If no full text is available (no open-access copy, or the copy couldn't be processed), Callosum says so plainly and does not critique — Critique is never run on a title/abstract alone, and nothing is queued waiting; you can attach a PDF later and critique it from Synthesize → Critique.
 
 Gotchas:
 
@@ -1204,7 +1204,7 @@ Every value is **yours to enter and anchor** — the workspace extracts, structu
 <!-- section: critically-reading -->
 ## Critically reading a paper
 
-Open **Synthesize → Critique** with a paper selected. It assembles a *scrutiny surface* — what a skeptical reader should check before citing. It is a **signal, never a verdict**: there is no quality score, and it critiques the work's claims and methods, never the authors.
+Open **Synthesize → Critique** with a paper selected. It assembles a *scrutiny surface* — what a skeptical reader should check before citing. It is a **signal, never a verdict**: there is no quality score, and it critiques the work's claims and methods, never the authors. A critique you run is **saved to that paper** and reopens instantly (in the Critique tab, or the reaccessible critique window) without recomputing; if the paper's full text later changes, Callosum notes that and offers **Refresh** to re-run it.
 
 It has two tiers, kept deliberately distinct:
 

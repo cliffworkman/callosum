@@ -1,7 +1,24 @@
 <!-- qa-coverage
 api: /papers/{paper_id}/critical-read*, /critical-read/*, /wip/manuscripts/{manuscript_id}/critical-read, /wip/critical-read/{job_id}, /papers/{paper_id}/findings, /findings/{finding_id}/review, /findings/overview
-fe: 08x_methods_critical.jsx, 04b_workspaces.jsx, 08z_critical_triage.jsx
+fe: 08x_methods_critical.jsx, 08x2_critical_modal.jsx, 04b_workspaces.jsx, 08z_critical_triage.jsx
 -->
+
+<!-- inc 601: the single-paper Tier-1 backbone is now PERSISTED per paper (critical_read_snapshots) and reopenable
+via GET /papers/{id}/critical-read/snapshot + a reaccessible modal (08x2_critical_modal.jsx). Assertions:
+- Persistence: a completed critical-read writes ONE latest snapshot per paper; Refresh (POST .../critical-read)
+  replaces it. Race-safe: an out-of-order (older requested_at) completion never clobbers a newer snapshot.
+- Fulltext gate (c1 / inc 598): the modal offers Run/Refresh ONLY when chunk_count > 0. A metadata-only paper
+  (or a downloaded-but-unchunked one) shows the honest "Critique needs the full paper" state — never a path
+  that critiques metadata/title/abstract. backbone==null does NOT imply "Run".
+- Honesty (c3/c4): the snapshot read returns a NARROW stale hint ("the paper's full text has changed since this
+  was computed" — the content fingerprint; NOT evidence-source/retraction detection) and reads a version-
+  incompatible/unparseable payload as refresh_required (never a crash/misrender). Always shows when computed +
+  offers Refresh.
+- Status nav (c5): the critical_review_jobs Status entry opens this modal for the JOB's paper_id (never the
+  globally-selected paper); a running Refresh stays visibly running over a stale snapshot.
+- Reuses the canonical renderer (ScrutinyBackboneView) and computation (POST .../critical-read) — no new Critique
+  implementation. -->
+
 
 # ROUTE 67 - Critical read (scrutiny surface: Tier-1 facts + the findings queue + Tier-2 AI candidates + triage)
 

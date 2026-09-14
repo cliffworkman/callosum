@@ -71,3 +71,27 @@ critical_review_candidate_triage = Table(
     UniqueConstraint("candidate_id", name="uq_cr_candidate_triage_candidate"),
     Index("ix_cr_candidate_triage_candidate", "candidate_id"),
 )
+
+# inc 601: ONE durable latest Tier-1 backbone snapshot per paper (the deterministic method-signal + contested-claim
+# critique — distinct from the Tier-2 candidate store above). The in-memory job store discarded it on completion,
+# so a reader-launched critique was unreachable once its modal closed. Current-only (Refresh REPLACES the row —
+# no history). `requested_at` is the monotonic per-run guard: a completing run upserts only when its requested_at
+# is not older than the stored one, so an out-of-order Refresh can't clobber a newer result. `content_fingerprint`
+# is the canonical statcheck-cache fingerprint (chunk ids + attachment checksums) → a passive "the paper's full
+# text changed since this was computed" hint ONLY (never evidence-source/retraction detection — that's deferred).
+# `snapshot_schema_version` + `critical_review_version` make the durable payload survive future code: a mismatch
+# or a parse failure against ScrutinyBackboneResponse reads as "refresh required", never a crash.
+critical_read_snapshots = Table(
+    "critical_read_snapshots",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), nullable=False),
+    Column("backbone_json", JSON, nullable=False),
+    Column("snapshot_schema_version", Integer, nullable=False, server_default="1"),
+    Column("critical_review_version", String(20), nullable=False),
+    Column("content_fingerprint", String(128)),  # nullable: absent → no stale hint offered, only computed_at
+    Column("requested_at", String(40), nullable=False),  # UTC ISO-8601; monotonic per-run replacement guard
+    Column("computed_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    UniqueConstraint("paper_id", name="uq_critical_read_snapshot_paper"),
+    Index("ix_critical_read_snapshot_paper", "paper_id"),
+)

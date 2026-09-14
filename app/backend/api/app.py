@@ -39,6 +39,7 @@ from app.backend.api.routers import (
     citations,
     credit,
     critical_review,
+    critical_review_snapshot,
     critical_review_triage,
     diagnostics,
     discovery,
@@ -440,6 +441,9 @@ def create_app(
     api.include_router(
         critical_review.router
     )  # /papers/{id}/critical-read — the critical-review scrutiny surface (#12)
+    api.include_router(
+        critical_review_snapshot.router
+    )  # /papers/{id}/critical-read/snapshot — reaccessible persisted critique (inc 601)
     api.include_router(critical_review_triage.router)  # /critical-read/candidates/triage — reversible AI triage
     api.include_router(lmm.router)  # /papers/{id}/lmm — LMM-reporting completeness auditor (#23, inc 247)
     api.include_router(

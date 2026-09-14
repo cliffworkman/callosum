@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import Connection, insert, select, update
+from sqlalchemy import Connection, delete, insert, select, update
 
+from app.backend.persistence.schema import critical_read_snapshots as snapshots
 from app.backend.persistence.schema import critical_review_candidates as cands
 
 
@@ -62,3 +63,44 @@ def rejected_signatures(conn: Connection, paper_id: int) -> set[str]:
     """The signatures of this paper's rejected candidates — never re-proposed."""
     query = select(cands.c.signature).where(cands.c.paper_id == paper_id, cands.c.status == "rejected")
     return {row[0] for row in conn.execute(query)}
+
+
+# --- inc 601: one durable latest Tier-1 backbone snapshot per paper (current-only; Refresh replaces) ----------
+
+
+def read_backbone_snapshot(conn: Connection, paper_id: int) -> dict[str, Any] | None:
+    """The paper's latest persisted critique backbone, or None. Raw row — the caller validates the payload
+    through ScrutinyBackboneResponse and applies the version/fingerprint checks (fail into 'refresh required')."""
+    row = conn.execute(select(snapshots).where(snapshots.c.paper_id == paper_id)).mappings().first()
+    return dict(row) if row is not None else None
+
+
+def save_backbone_snapshot(
+    conn: Connection,
+    paper_id: int,
+    backbone: dict[str, Any],
+    *,
+    requested_at: str,
+    critical_review_version: str,
+    content_fingerprint: str | None,
+    snapshot_schema_version: int = 1,
+) -> bool:
+    """Replace the paper's snapshot with this run's result — but ONLY if this run is not older than the stored
+    one (`requested_at` monotonic guard, c2): a Refresh that overlapped and completed out of order must never
+    clobber a newer result. Returns True if written, False if a newer snapshot already exists. Current-only:
+    exactly one row per paper (delete-then-insert keeps the UNIQUE(paper_id) invariant trivially)."""
+    existing = conn.execute(select(snapshots.c.requested_at).where(snapshots.c.paper_id == paper_id)).first()
+    if existing is not None and str(existing[0]) > requested_at:
+        return False  # a newer run already persisted; do not regress
+    conn.execute(delete(snapshots).where(snapshots.c.paper_id == paper_id))
+    conn.execute(
+        insert(snapshots).values(
+            paper_id=paper_id,
+            backbone_json=backbone,
+            snapshot_schema_version=snapshot_schema_version,
+            critical_review_version=critical_review_version,
+            content_fingerprint=content_fingerprint,
+            requested_at=requested_at,
+        )
+    )
+    return True

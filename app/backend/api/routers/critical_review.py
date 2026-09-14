@@ -11,6 +11,7 @@ come from ``app.state`` with a test seam (``app.state.critical_review_deps``) so
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
@@ -35,6 +36,7 @@ from app.backend.api.routers.critical_review_triage import (
 )
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore
 from app.backend.methods.critical_review import (
+    CRITICAL_REVIEW_VERSION,
     build_scrutiny_backbone,
     extract_claim_sentences,
     find_contested_claims,
@@ -44,8 +46,13 @@ from app.backend.methods.critical_review import (
 from app.backend.persistence import critical_review_repo as repo
 from app.backend.persistence.repository import get_paper
 from app.backend.persistence.sqlite_retry import run_write
+from app.backend.persistence.statcheck_cache_repo import compute_content_fingerprint
 
 router = APIRouter()
+
+# inc 601: durable-snapshot payload version. Bumping this (or CRITICAL_REVIEW_VERSION) makes every persisted
+# snapshot read as "refresh required" rather than risk misrendering an old payload against new code.
+SNAPSHOT_SCHEMA_VERSION = 1
 
 
 class ContestedClaimResponse(BaseModel):
@@ -142,10 +149,18 @@ def critical_read_start(
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    job_id = request.app.state.critical_review_jobs.create(nav={"paper_id": paper_id})
-    want_triage = bool(body.triage) if body else False
-    background_tasks.add_task(_run_critical_read_job, request.app, job_id, paper_id, want_triage)
-    return CriticalReadStartResponse(job_id=job_id, status="pending")
+    # inc 601 (c2): dedup to at most one in-flight run per paper (the acquire-oa/inc-587 pattern) so two Refresh
+    # clicks can't race to out-of-order snapshot writes. A finished job never matches, so a Refresh after a prior
+    # run completed still starts fresh. The per-run `requested_at` is the monotonic snapshot-replacement guard.
+    requested_at = datetime.now(timezone.utc).isoformat()
+    job_id, created = request.app.state.critical_review_jobs.create_or_get_active_matching(
+        {"paper_id": paper_id}, ("paper_id",)
+    )
+    if created:
+        want_triage = bool(body.triage) if body else False
+        background_tasks.add_task(_run_critical_read_job, request.app, job_id, paper_id, want_triage, requested_at)
+    job = request.app.state.critical_review_jobs.get(job_id)
+    return CriticalReadStartResponse(job_id=job_id, status=job.status if job else "pending")
 
 
 @router.get("/critical-read/{job_id}", response_model=CriticalReadJobResponse)
@@ -163,7 +178,9 @@ async def critical_read_status(
     return CriticalReadJobResponse(job_id=job_id, status=job.status, detail=job.detail)
 
 
-def _run_critical_read_job(app: FastAPI, job_id: str, paper_id: int, want_triage: bool = False) -> None:
+def _run_critical_read_job(
+    app: FastAPI, job_id: str, paper_id: int, want_triage: bool = False, requested_at: str | None = None
+) -> None:
     jobs: JobStore[CriticalReadJobResponse] = app.state.critical_review_jobs
     jobs.mark_running(job_id)
     try:
@@ -212,19 +229,33 @@ def _run_critical_read_job(app: FastAPI, job_id: str, paper_id: int, want_triage
             )
             triage_status = triage_contested(app, contested_responses)
         jobs.mark_stage(job_id, "finalizing_result", "Finalizing result", timing_key=calibration_key)
-        jobs.mark_done(
-            job_id,
-            CriticalReadJobResponse(
-                job_id=job_id,
-                status="done",
-                backbone=ScrutinyBackboneResponse(
-                    method_signals=[MethodSignalResponse(**signal) for signal in backbone.method_signals],
-                    citation_signal=backbone.citation_signal,
-                    contested_claims=contested_responses,
-                    triage_status=triage_status,
-                ),
-            ),
+        backbone_response = ScrutinyBackboneResponse(
+            method_signals=[MethodSignalResponse(**signal) for signal in backbone.method_signals],
+            citation_signal=backbone.citation_signal,
+            contested_claims=contested_responses,
+            triage_status=triage_status,
         )
+        # inc 601: persist the latest backbone per paper so a reader-launched critique survives closing its modal
+        # and is reopenable without recompute. The requested_at guard (repo) drops an out-of-order write; the
+        # content fingerprint powers a passive "paper full text changed" hint on read. Best-effort — a persistence
+        # failure never fails the critique the user already has in hand (mirrors the acquire-oa auto-hook posture).
+        if requested_at is not None:
+            try:
+                run_write(
+                    app.state.engine,
+                    lambda conn: repo.save_backbone_snapshot(
+                        conn,
+                        paper_id,
+                        backbone_response.model_dump(),
+                        requested_at=requested_at,
+                        critical_review_version=CRITICAL_REVIEW_VERSION,
+                        content_fingerprint=compute_content_fingerprint(conn, paper_id),
+                        snapshot_schema_version=SNAPSHOT_SCHEMA_VERSION,
+                    ),
+                )
+            except Exception:  # noqa: BLE001 — persistence is best-effort; the in-hand result still returns
+                pass
+        jobs.mark_done(job_id, CriticalReadJobResponse(job_id=job_id, status="done", backbone=backbone_response))
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
 

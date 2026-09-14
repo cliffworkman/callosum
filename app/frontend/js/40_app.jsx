@@ -234,8 +234,8 @@ function App() {
     }
     if (nav.modal === "wanted") setWantedOpen(true);
     if (nav.modal === "text-health") { setTextHealthContext(null); setTextHealthOpen(true); }
-    if (nav.modal === "gaps") setGapsOverlooked("gaps");
-    if (nav.modal === "overlooked") setGapsOverlooked("overlooked");
+    if (nav.modal === "gaps" || nav.modal === "overlooked") setGapsOverlooked(nav.modal);  // the two facets of one destination
+    if (nav.modal === "critical-read") window.dispatchEvent(new CustomEvent("callosum:open-critical-read", { detail: { paperId: nav.paper_id } }));
     if (nav.modal === "scan") setScanOpen(true);
     if (nav.modal === "import") setImportOpen(true);
     if (nav.modal === "zotero-import") setZoteroImportOpen(true);
@@ -508,14 +508,14 @@ function App() {
         <TextHealthModal onClose={() => { setTextHealthOpen(false); setTextHealthContext(null); }} onOpenPaper={openPdf}
           onOpenDetails={openPaperDetails} onShowLibrary={showTextHealthFilter}
           onChanged={() => setLibRefresh(n => n + 1)} context={textHealthContext} />}
-      {gapsOverlooked === "gaps" &&
-        <GapsModal onClose={() => setGapsOverlooked(null)} onChanged={() => setLibRefresh(n => n + 1)}
-          facet="gaps" onSwitchFacet={setGapsOverlooked} />}
-      {gapsOverlooked === "overlooked" &&
-        <OverlookedLensModal onClose={() => setGapsOverlooked(null)} onChanged={() => setLibRefresh(n => n + 1)}
-          facet="overlooked" onSwitchFacet={setGapsOverlooked} />}
+      {gapsOverlooked && (() => {  // one destination, two facets (inc 600): render whichever the user is on
+        const Facet = gapsOverlooked === "gaps" ? GapsModal : OverlookedLensModal;
+        return <Facet onClose={() => setGapsOverlooked(null)} onChanged={() => setLibRefresh(n => n + 1)}
+          facet={gapsOverlooked} onSwitchFacet={setGapsOverlooked} />;
+      })()}
       {beyondSavedOpen &&
         <BeyondLibrarySavedModal onClose={() => setBeyondSavedOpen(false)} onChanged={() => setLibRefresh(n => n + 1)} />}
+      <CriticalReadModalHost onOpenPaper={openPdf} />{/* inc 601: reaccessible per-paper critique (reader + Status) */}
       {pcurvePapers &&
         <PcurveModal paperIds={pcurvePapers} onClose={() => setPcurvePapers(null)} onOpenPaper={openPdf} onChanged={() => setLibRefresh(n => n + 1)} />}
       {zcurvePapers &&
