@@ -11,6 +11,7 @@ come from ``app.state`` with a test seam (``app.state.critical_review_deps``) so
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -49,6 +50,7 @@ from app.backend.persistence.sqlite_retry import run_write
 from app.backend.persistence.statcheck_cache_repo import compute_content_fingerprint
 
 router = APIRouter()
+_log = logging.getLogger(__name__)
 
 # inc 601: durable-snapshot payload version. Bumping this (or CRITICAL_REVIEW_VERSION) makes every persisted
 # snapshot read as "refresh required" rather than risk misrendering an old payload against new code.
@@ -254,7 +256,9 @@ def _run_critical_read_job(
                     ),
                 )
             except Exception:  # noqa: BLE001 — persistence is best-effort; the in-hand result still returns
-                pass
+                # Logged, never swallowed (the inc-578 SAVEPOINT rule): a failed snapshot write must not fail
+                # the critique the user already has, but it must be visible in the log.
+                _log.warning("critical-read snapshot persistence failed for paper %s", paper_id, exc_info=True)
         jobs.mark_done(job_id, CriticalReadJobResponse(job_id=job_id, status="done", backbone=backbone_response))
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
