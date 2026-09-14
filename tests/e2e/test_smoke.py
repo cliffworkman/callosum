@@ -1430,7 +1430,10 @@ def test_axis_ask_interstitial_discloses_scope_and_routes_the_selected_tier(serv
         summarize_bodies: list[str] = []
         page.route(
             "**/summarize",
-            lambda r: (summarize_bodies.append(r.request.post_data or ""), r.fulfill(json={"job_id": "x", "status": "pending"})),
+            lambda r: (
+                summarize_bodies.append(r.request.post_data or ""),
+                r.fulfill(json={"job_id": "x", "status": "pending"}),
+            ),
         )
         # The job poll → a terminal result with no groundable sentences (hermetic; no real generator).
         page.route(
