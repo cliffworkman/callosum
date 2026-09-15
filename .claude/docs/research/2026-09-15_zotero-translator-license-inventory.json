@@ -1,0 +1,3846 @@
+{
+  "translators": [
+    {
+      "path": "translators/ABC News Australia.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020-2021 Joyce Chia"
+    },
+    {
+      "path": "translators/Access Engineering.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020-2021 Vinoth K - highwirepress.com"
+    },
+    {
+      "path": "translators/Access Medicine.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Jaret M. Karnuta"
+    },
+    {
+      "path": "translators/Access Science.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Vinoth K - highwirepress.com"
+    },
+    {
+      "path": "translators/ACLS Humanities EBook.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/ACLWeb.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Guy Aglionby"
+    },
+    {
+      "path": "translators/ACM Digital Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Guy Aglionby"
+    },
+    {
+      "path": "translators/ACM Queue.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Bogdan Lynn"
+    },
+    {
+      "path": "translators/Adam Matthew Digital.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/ADS Bibcode.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/AEA Web.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Agencia del ISBN.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/AGRIS.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Ahval News.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/AIP.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Air University Journals.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Airiti.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Alexander Street Press.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/AllAfrica.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/Alsharekh.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/AlterNet.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Aluka.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Amazon.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/American Archive of Public Broadcasting.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/American Institute of Aeronautics and Astronautics.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/American Prospect.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/AMS Journals.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/AMS MathSciNet (Legacy).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015-2023 Simon Kornblith & Sebastian Karcher"
+    },
+    {
+      "path": "translators/AMS MathSciNet.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Anarchist Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Dandelion Good and the righteous Anti Toil Theologians at Iliff"
+    },
+    {
+      "path": "translators/Ancestry.com US Federal Census.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Anne Frank Knowledge Base.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2026 Vera de Kok"
+    },
+    {
+      "path": "translators/Annual Reviews.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2012-2021 Aurimas Vinckevicius and Abe Jellinek"
+    },
+    {
+      "path": "translators/Antikvarium.hu.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2021 Vel\u0151sy P\u00e9ter Krist\u00f3f"
+    },
+    {
+      "path": "translators/APA PsycNET.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2021 Philipp Zumstein"
+    },
+    {
+      "path": "translators/APN.ru.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/APS-Physics.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/APS.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Aurimas Vinckevicius and Abe Jellinek"
+    },
+    {
+      "path": "translators/AquaDocs.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Archeion.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Archiv fuer Sozialgeschichte.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Archive Ouverte en Sciences de l'Information et de la Communication  (AOSIC).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Sylvain Machefert"
+    },
+    {
+      "path": "translators/Archives Canada.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Adam Crymble"
+    },
+    {
+      "path": "translators/Ariana News.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Art Institute of Chicago.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Art Institute of Chicago"
+    },
+    {
+      "path": "translators/Artefacts Canada.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/ARTFL Encyclopedie.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Artforum.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 czar"
+    },
+    {
+      "path": "translators/artnet.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/ARTnews.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/ARTstor.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/arXiv.org.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Sean Takats and Michael Berkowitz"
+    },
+    {
+      "path": "translators/ASCE.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 Sebastian Karcher"
+    },
+    {
+      "path": "translators/ASCO Meeting Library.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/ASTIS.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Atlanta Journal-Constitution.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/ATS International Journal.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Atypon Journals.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011-2022 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/AustLII and NZLII.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Justin Warren, Philipp Zumstein"
+    },
+    {
+      "path": "translators/Australian Dictionary of Biography.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012-2021 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/Baidu Scholar.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/BAILII.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Bill McKinney"
+    },
+    {
+      "path": "translators/Bangkok Post.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 Matt Mayer"
+    },
+    {
+      "path": "translators/Baruch Foundation.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/BBC Genome.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/BBC.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/beck-online.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Beobachter.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Bezneng Gajit.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/BibLaTeX.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Simon Kornblith, Richard Karnesky and Anders Johansson"
+    },
+    {
+      "path": "translators/Biblio.com.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Bibliontology RDF.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Biblioteca Nacional de Maestros.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Bibliotheque et Archives Nationale du Quebec (Pistard).js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Bibliotheque et Archives Nationales du Quebec.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Bibliotheque nationale de France.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2010-2024 Florian Ziche, Sylvain Machefert"
+    },
+    {
+      "path": "translators/BIBSYS.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/BibTeX.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 CHNM, Simon Kornblith, Richard Karnesky and Emiliano heyns"
+    },
+    {
+      "path": "translators/Bioconductor.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Qiang Hu"
+    },
+    {
+      "path": "translators/BioMed Central.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015 Philipp Zumstein"
+    },
+    {
+      "path": "translators/BioOne.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Blaetter.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2011 Martin Meyerhoff"
+    },
+    {
+      "path": "translators/Blogger.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Bloomberg.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Bloomsbury Food Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Bluesky.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Stephan H\u00fcgel <urschrei@gmail.com>"
+    },
+    {
+      "path": "translators/BnF ISBN.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/BOCC.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2010 Jos\u00e9 Antonio Meira da Rocha"
+    },
+    {
+      "path": "translators/BOE.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020-2021 F\u00e9lix Brezo, felixbrezo@disroot.org"
+    },
+    {
+      "path": "translators/BOFiP-Impots.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Bookmarks.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2011 Avram Lyon, ajlyon@gmail.com"
+    },
+    {
+      "path": "translators/Bookshop.org.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Boston Review.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012/2013 Sebastian Karcher, Zo\u00eb C. Ma, and contributors"
+    },
+    {
+      "path": "translators/Bosworth Toller's Anglo-Saxon Dictionary Online.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Zo\u00eb C. Ma"
+    },
+    {
+      "path": "translators/Bracero History Archive.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Brill.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Abe Jellinek"
+    },
+    {
+      "path": "translators/Brukerhandboken.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Sondre Bogen-Straume"
+    },
+    {
+      "path": "translators/Bryn Mawr Classical Review.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016-2021 Michael Berkowitz, John Muccigrosso, and Abe Jellinek"
+    },
+    {
+      "path": "translators/Bundesgesetzblatt.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Business Standard.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/CABI - CAB Abstracts.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Cairn.info.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013-2022 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Calisphere.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/CalMatters.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Camara Brasileira do Livro ISBN.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Abe Jellinek"
+    },
+    {
+      "path": "translators/Cambridge Core.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016-2024 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Cambridge Engage Preprints.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Canada.com.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Canadian Letters and Images.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Canadiana.ca.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/CanLII.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/CAOD.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Guy Aglionby"
+    },
+    {
+      "path": "translators/Cascadilla Proceedings Project.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/CBC.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Geoff Banh"
+    },
+    {
+      "path": "translators/CCfr (BnF).js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Cell Press.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Sebastian Karcher and Aurimas Vinckevicius"
+    },
+    {
+      "path": "translators/Central and Eastern European Online Library Journals.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Timotheus Kim"
+    },
+    {
+      "path": "translators/CERN Document Server.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Sebastian Karcher"
+    },
+    {
+      "path": "translators/CEUR Workshop Proceedings.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/CFF References.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Sebastian Karcher, Dave Bunten"
+    },
+    {
+      "path": "translators/CFF.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Champlain Society - Collection.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/ChatGPT.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Abe Jellinek"
+    },
+    {
+      "path": "translators/Chicago Journal of Theoretical Computer Science.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Morgan Shirley"
+    },
+    {
+      "path": "translators/Christian Science Monitor.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Chronicling America.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/CIA World Factbook.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/CiNii Research.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Michael Berkowitz, Mitsuo Yoshida and Satoshi Ando"
+    },
+    {
+      "path": "translators/Citavi 5 XML.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/CiteSeer.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Sebastian Karcher, Guy Aglionby"
+    },
+    {
+      "path": "translators/Citizen Lab.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Civilization.ca.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/CLACSO.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/CLASE.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Climate Change and Human Health Literature Portal.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Clinical Key.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Jaret M. Karnuta & Mike Davidson"
+    },
+    {
+      "path": "translators/clinicaltrials.gov.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 Ryan Velazquez and contributors"
+    },
+    {
+      "path": "translators/CNKI.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Aurimas Vinckevicius"
+    },
+    {
+      "path": "translators/COBISS.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Brendan O'Connell"
+    },
+    {
+      "path": "translators/Code4Lib Journal.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/COinS.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Simon Kornblith and Abe Jellinek"
+    },
+    {
+      "path": "translators/Colorado State Legislature.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 Andrew Schwartz"
+    },
+    {
+      "path": "translators/Columbia University Press.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Common-Place.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Computer History Museum Archive.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020-2021 Bo An"
+    },
+    {
+      "path": "translators/Copernicus.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Abe Jellinek"
+    },
+    {
+      "path": "translators/Cornell LII.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Cornell University Press.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/CourtListener.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Sebastian Karcher"
+    },
+    {
+      "path": "translators/CQ Press.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/CROSBI.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Crossref REST.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018"
+    },
+    {
+      "path": "translators/Crossref Unixref XML.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Sebastian Karcher"
+    },
+    {
+      "path": "translators/CSIRO Publishing.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/CSL JSON.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Simon Kornblith and Sebastian Karcher"
+    },
+    {
+      "path": "translators/CSV.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Philipp Zumstein, Aurimas Vinckevicius"
+    },
+    {
+      "path": "translators/Current Affairs.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/DABI.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Jens Mittelbach"
+    },
+    {
+      "path": "translators/Dagens Nyheter.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Sebastian Berlin"
+    },
+    {
+      "path": "translators/Dagstuhl Research Online Publication Server.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016-2025 Philipp Zumstein and Zotero contributors"
+    },
+    {
+      "path": "translators/DAI-Zenon.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014-2020 Philipp Zumstein and Sebastian Karcher"
+    },
+    {
+      "path": "translators/Dar Almandumah.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/DART-Europe.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Data.gov.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Databrary.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Datacite JSON.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Dataverse.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Abe Jellinek & Sebastian Karcher"
+    },
+    {
+      "path": "translators/Daum News.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Kagami Sascha Rosylight"
+    },
+    {
+      "path": "translators/DBLP Computer Science Bibliography.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011-2021 Sebastian Karcher, Philipp Zumstein, and Abe Jellinek"
+    },
+    {
+      "path": "translators/DBpia.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Yunwoo Song and Philipp Zumstein"
+    },
+    {
+      "path": "translators/De Gruyter Brill.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Defense Technical Information Center.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/dejure.org.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Delpher.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Demographic Research.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Denik CZ.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2026 Ji\u0159\u00ed Sedl\u00e1\u010dek, Philipp Zumstein"
+    },
+    {
+      "path": "translators/DEPATISnet.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Klaus Flittner"
+    },
+    {
+      "path": "translators/Der Freitag.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebatian Karcher"
+    },
+    {
+      "path": "translators/Der Spiegel.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Desiring God.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Luke van der Hoeven"
+    },
+    {
+      "path": "translators/Deutsche Fotothek.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Deutsche Nationalbibliothek.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015 Philipp Zumstein"
+    },
+    {
+      "path": "translators/dhistory.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Dialnet.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Die Zeit.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015 Philipp Zumstein"
+    },
+    {
+      "path": "translators/digibib.net.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2012 hbz NRW (http://www.hbz-nrw.de/)"
+    },
+    {
+      "path": "translators/Digital Humanities Quarterly.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012-2024 Michael Berkowitz"
+    },
+    {
+      "path": "translators/Digital Spy.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 czar"
+    },
+    {
+      "path": "translators/DigiZeitschriften.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Dimensions.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/dLibra.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Pawel Kolodziej, Kamil Gronowski"
+    },
+    {
+      "path": "translators/DOAJ.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/DOI Content Negotiation.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Sebastian Karcher"
+    },
+    {
+      "path": "translators/DOI.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Simon Kornblith"
+    },
+    {
+      "path": "translators/Douban.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2009-2010 TAO Cheng, acestrong@gmail.com"
+    },
+    {
+      "path": "translators/DPLA.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Dreier Neuerscheinungsdienst.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Denis Maier"
+    },
+    {
+      "path": "translators/DrugBank.ca.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Dryad Digital Repository.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Dryad Digital Repository"
+    },
+    {
+      "path": "translators/DSpace Intermediate Metadata.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Duke University Press Books.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Duodecim.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2026 Shiyu WANG"
+    },
+    {
+      "path": "translators/E-periodica Switzerland.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Alain Borel"
+    },
+    {
+      "path": "translators/Eastview.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014-2021 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/ebrary.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2014 Sebastian Karcher"
+    },
+    {
+      "path": "translators/EBSCO Discovery Layer.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Sebastian Karcher"
+    },
+    {
+      "path": "translators/EBSCOhost.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Simon Kornblith, Michael Berkowitz, Josh Geller"
+    },
+    {
+      "path": "translators/Education Week.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Sebastian Karcher"
+    },
+    {
+      "path": "translators/EIDR.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/El Comercio (Peru).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Sebsatian Karcher"
+    },
+    {
+      "path": "translators/El Pais.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Sebastian Karchger"
+    },
+    {
+      "path": "translators/Electronic Colloquium on Computational Complexity.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Jonas Schrieb and Morgan Shirley"
+    },
+    {
+      "path": "translators/eLibrary.ru.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2010-2011 Avram Lyon, ajlyon@gmail.com"
+    },
+    {
+      "path": "translators/Elicit.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Abe Jellinek"
+    },
+    {
+      "path": "translators/eLife.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Elsevier Health Journals.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013-2021 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Elsevier Pure.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Embedded Metadata.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Avram Lyon and the Center for History and New Media"
+    },
+    {
+      "path": "translators/eMedicine.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Emerald Insight.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Sebastian Karcher"
+    },
+    {
+      "path": "translators/eMJA.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Encyclopedia of Chicago.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Encyclopedia of Korean Culture.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 jacoblee36251"
+    },
+    {
+      "path": "translators/Endnote XML.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Engineering Village.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018-2022 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Envidat.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Alain Borel"
+    },
+    {
+      "path": "translators/EPA National Library Catalog.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2014 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Epicurious.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/ePrint IACR.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2010-2025 Jonas Schrieb and contributors"
+    },
+    {
+      "path": "translators/ERIC.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Erudit.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Philipp Zumstein"
+    },
+    {
+      "path": "translators/ESpacenet.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011-2021 Sebastian Karcher"
+    },
+    {
+      "path": "translators/etatar.ru.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Euclid.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Sebastian Karcher"
+    },
+    {
+      "path": "translators/EUR-Lex.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Abe Jellinek"
+    },
+    {
+      "path": "translators/EurasiaNet.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/EurogamerUSgamer.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 czar"
+    },
+    {
+      "path": "translators/Europe PMC.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Evernote.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2012 Volodymir Skipa"
+    },
+    {
+      "path": "translators/F1000 Research.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Fachportal Padagogik.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Factiva.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Failed Architecture.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Fairfax Australia.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/FAO Knowledge Repository.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Bin Liu"
+    },
+    {
+      "path": "translators/FAOLEX Database.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Bin Liu and Abe Jellinek"
+    },
+    {
+      "path": "translators/Fatcat.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/FAZ.NET.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/feb-web.ru.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Avram Lyon, ajlyon@gmail.com"
+    },
+    {
+      "path": "translators/Figshare.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013-2016 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Financial Times.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Finna.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/fishpond.co.nz.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2011 Sopheak Hean, University of Waikato, Faculty of Education"
+    },
+    {
+      "path": "translators/Flickr.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Foreign Affairs.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016-2022 Sebastian Karcher & Philipp Zumstein"
+    },
+    {
+      "path": "translators/Foreign Policy.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/ForumMagnum.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Federico Stafforini"
+    },
+    {
+      "path": "translators/fr-online.de.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2011 Martin Meyerhoff"
+    },
+    {
+      "path": "translators/FreeCite.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015 Philipp Zumstein"
+    },
+    {
+      "path": "translators/FreePatentsOnline.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Frieze.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018-2021 czar (http://en.wikipedia.org/wiki/User_talk:Czar)"
+    },
+    {
+      "path": "translators/Frontiers.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Gale Databases.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek and Jim Miazek"
+    },
+    {
+      "path": "translators/GaleGDC.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2011 Gale GDC"
+    },
+    {
+      "path": "translators/Galegroup.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012-2018 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Gallica.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Game Studies.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/GameSpot.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/GameStar GamePro.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Matthias Mail\u00e4nder"
+    },
+    {
+      "path": "translators/Gasyrlar Awazy.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Gemeinsamer Bibliotheksverbund ISBN.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Gene Ontology.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2010-2021 girlwithglasses (amelia.ireland@gmail.com)"
+    },
+    {
+      "path": "translators/GitHub.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2017-2021 Martin Fenner, Philipp Zumstein"
+    },
+    {
+      "path": "translators/Globes.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2019 Eran Rosenthal"
+    },
+    {
+      "path": "translators/Gmail.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/GMS German Medical Science.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Goodreads.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Google Books.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012-2019 Simon Kornblith, Michael Berkowitz, Rintze Zelle, and Sebastian Karche"
+    },
+    {
+      "path": "translators/Google Gemini.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Abe Jellinek"
+    },
+    {
+      "path": "translators/Google Patents.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Google Play.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Avram Lyon, ajlyon@gmail.com"
+    },
+    {
+      "path": "translators/Google Presentation.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Google Research.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Guy Aglionby"
+    },
+    {
+      "path": "translators/Google Scholar.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Simon Kornblith, Frank Bennett, Aurimas Vinckevicius, and"
+    },
+    {
+      "path": "translators/govinfo.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/GPO Access e-CFR.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Gulag Many Days, Many Lives.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Haaretz.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2015 Eran Rosenthal and contributors"
+    },
+    {
+      "path": "translators/Habr.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Ilya Zonov"
+    },
+    {
+      "path": "translators/HAL.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012-2014 Sebastian Karcher and contributors"
+    },
+    {
+      "path": "translators/Handelszeitung.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2011 ibex"
+    },
+    {
+      "path": "translators/Hanrei Watch.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Harper's Magazine.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Harvard Business Review.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Harvard Caselaw Access Project.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Franklin Pezzuti Dyer"
+    },
+    {
+      "path": "translators/Harvard University Press Books.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Sebastian Karcher"
+    },
+    {
+      "path": "translators/HathiTrust.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011-2021 Sebastian Karcher, Abe Jellinek"
+    },
+    {
+      "path": "translators/HCSP.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2015 Joris Muller"
+    },
+    {
+      "path": "translators/HeinOnline.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015-2016 Frank Bennett"
+    },
+    {
+      "path": "translators/Heise.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 optiprime, ApoB-100"
+    },
+    {
+      "path": "translators/Herder.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/HighBeam.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/HighWire 2.0.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014-2020 Matt Burton"
+    },
+    {
+      "path": "translators/HighWire.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Hindawi Publishers.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Hispanic-American Periodical Index.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Homeland Security Digital Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Hrvatska enciklopedija.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Ivo Pletikosi\u0107"
+    },
+    {
+      "path": "translators/HUDOC.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 JONAS SKORZAK"
+    },
+    {
+      "path": "translators/Huff Post.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Human Rights Watch.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/IBISWorld.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/IDEA ALM.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Idref.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Sylvain Machefert"
+    },
+    {
+      "path": "translators/IEEE Computer Society.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/IEEE Xplore.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Simon Kornblith, Michael Berkowitz, Bastian Koenings, and Avram Lyon"
+    },
+    {
+      "path": "translators/IETF.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/IGN.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/IMDb.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Philipp Zumstein and Abe Jellinek"
+    },
+    {
+      "path": "translators/In These Times.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Ined.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Mysciencework"
+    },
+    {
+      "path": "translators/Informationssystem Medienpaedagogik.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/informIT database.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/InfoTrac.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/IngentaConnect.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 Michael Berkowitz"
+    },
+    {
+      "path": "translators/Inside Higher Ed.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Insignia OPAC.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/INSPIRE.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Institute of Contemporary Art.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Institute of Physics.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013-2015 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Integrum.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Intellixir.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Inter-Research Science Center.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/International Nuclear Information System.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Internet Archive Scholar.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Internet Archive Wayback Machine.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2008 Sean Takats"
+    },
+    {
+      "path": "translators/Internet Archive.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Adam Crymble and Sebastian Karcher"
+    },
+    {
+      "path": "translators/InvenioRDM.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016-2023 Philipp Zumstein, Sebastian Karcher and contributors"
+    },
+    {
+      "path": "translators/io-port.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Sebastian Karcher"
+    },
+    {
+      "path": "translators/IPCC.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek and contributors"
+    },
+    {
+      "path": "translators/Isidore.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/ISTC.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Maike Kittelmann"
+    },
+    {
+      "path": "translators/J-Stage.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Jahrbuch.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Japan Times Online.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/JETS.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019-2021 Luke van der Hoeven"
+    },
+    {
+      "path": "translators/JISC Historical Texts.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Journal of Electronic Publishing.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Journal of Extension.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Journal of Machine Learning Research.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Journal of Religion and Society.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Vincent Carret"
+    },
+    {
+      "path": "translators/JRC Publications Repository.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Philipp Zumstein"
+    },
+    {
+      "path": "translators/JSTOR.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019-2022 Simon Kornblith, Sean Takats, Michael Berkowitz"
+    },
+    {
+      "path": "translators/Juricaf.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Guillaume Adreani and Abe Jellinek"
+    },
+    {
+      "path": "translators/jurion.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Juris.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Reto Mantz"
+    },
+    {
+      "path": "translators/JurPC.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/K10plus ISBN.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Kanopy.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Khaama Press.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/KiM.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2026 Ewout ter Hoeven"
+    },
+    {
+      "path": "translators/KitapYurdu.com.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": ""
+    },
+    {
+      "path": "translators/Kommersant.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Korean National Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Sebastian Karcher"
+    },
+    {
+      "path": "translators/KStudy.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2018 Yunwoo Song, Frank Bennett, and Philipp Zumstein"
+    },
+    {
+      "path": "translators/L'Annee Philologique.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/La Croix.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/La Nacion (Argentina).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020-2021 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/La Presse.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/La Republica (Peru).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Abe Jellinek"
+    },
+    {
+      "path": "translators/LA Times.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Lagen.nu.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Landesbibliographie Baden-Wurttemberg.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018-2021 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Lapham's Quarterly.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Zo\u00eb C. Ma"
+    },
+    {
+      "path": "translators/Le Devoir.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Le Figaro.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Le Maitron.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 czar"
+    },
+    {
+      "path": "translators/Le monde diplomatique.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2011 Martin Meyerhoff"
+    },
+    {
+      "path": "translators/Le Monde.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Legifrance.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Guillaume Adreani (guillaume.adreani@gmail.com @adreagui] for Droit.org"
+    },
+    {
+      "path": "translators/Legislative Insight.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2012  Kari Hemdal"
+    },
+    {
+      "path": "translators/Lexis+.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Brandon Fahrenfort"
+    },
+    {
+      "path": "translators/LexisNexis.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Libraries Tasmania.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2026 Tim Sherratt"
+    },
+    {
+      "path": "translators/Library Catalog (Aleph).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Simon Kornblith, Michael Berkowitz, and Ming Yeung Cheung"
+    },
+    {
+      "path": "translators/Library Catalog (Amicus).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": ""
+    },
+    {
+      "path": "translators/Library Catalog (Aquabrowser).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Sebastian Karcher and the Center for History and New Media"
+    },
+    {
+      "path": "translators/Library Catalog (BiblioCommons).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Avram Lyon <ajlyon@gmail.com> and Abe Jellinek"
+    },
+    {
+      "path": "translators/Library Catalog (Blacklight).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Library Catalog (Capita Prism).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Library Catalog (DRA).js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Library Catalog (Dynix).js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Library Catalog (EBSCO Locate).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/Library Catalog (Encore).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Library Catalog (InnoPAC).js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Library Catalog (Koha).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Library Catalog (Mango).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Sebastian Karcher and CHNM"
+    },
+    {
+      "path": "translators/Library Catalog (OPALS).js",
+      "license": "GPL (non-Affero)",
+      "holder": "2014  Thai Pham"
+    },
+    {
+      "path": "translators/Library Catalog (PICA).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Sean Takats, Michael Berkowitz, Sylvain Machefert, Sebastian Karcher, St\u00e9ph"
+    },
+    {
+      "path": "translators/Library Catalog (PICA2).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Library Catalog (Pika).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Library Catalog (Polaris).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015 Aurimas Vinckevicius"
+    },
+    {
+      "path": "translators/Library Catalog (Quolto).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 YOUR_NAME <- TODO"
+    },
+    {
+      "path": "translators/Library Catalog (RERO ILS).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Abe Jellinek"
+    },
+    {
+      "path": "translators/Library Catalog (SIRSI eLibrary).js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Library Catalog (SIRSI).js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Library Catalog (SLIMS).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Library Catalog (TIND ILS).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Library Catalog (TinREAD).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Franklin Pezzuti Dyer"
+    },
+    {
+      "path": "translators/Library Catalog (TLCYouSeeMore).js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Library Catalog (Visual Library 2021).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Library Catalog (Voyager 7).js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Library Catalog (Voyager).js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Library Catalog (VTLS).js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Library Genesis.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Rev. Wicks Cherrycoke"
+    },
+    {
+      "path": "translators/Library Hub Discover.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019-2021 Vincent Carret"
+    },
+    {
+      "path": "translators/Library of Congress Digital Collections.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Abe Jellinek"
+    },
+    {
+      "path": "translators/Library of Congress ISBN.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/LIBRIS ISBN.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Sebastian Berlin"
+    },
+    {
+      "path": "translators/LingBuzz.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 G\u00f6ktu\u011f Kayaalp <self at gkayaalp dot com> and Abe Jellinek"
+    },
+    {
+      "path": "translators/Lippincott Williams and Wilkins.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Literary Hub.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Zo\u00eb C. Ma"
+    },
+    {
+      "path": "translators/Litres.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Ilya Zonov"
+    },
+    {
+      "path": "translators/LiveJournal.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/LIVIVO.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/London Review of Books.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 Philipp Zumstein"
+    },
+    {
+      "path": "translators/LookUs.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Lulu.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/LWN.net.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Tim Hollmann"
+    },
+    {
+      "path": "translators/MAB2.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/magazines.russ.ru.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2010 Avram Lyon, ajlyon@gmail.com"
+    },
+    {
+      "path": "translators/Mailman.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Robin Paulson"
+    },
+    {
+      "path": "translators/Mainichi Daily News.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/MARC.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 Simon Kornblith, Sylvain Machefert"
+    },
+    {
+      "path": "translators/MARCXML.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Mastodon.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Matbugat.ru.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Max Planck Institute for the History of Science Virtual Laboratory Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Philipp Zumstein"
+    },
+    {
+      "path": "translators/MCV.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018-2021 czar (http://en.wikipedia.org/wiki/User_talk:Czar)"
+    },
+    {
+      "path": "translators/MDPI Journals.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/medes.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Medium.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016-2021 Philipp Zumstein and Abe Jellinek"
+    },
+    {
+      "path": "translators/MEDLINEnbib.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014-15 Sebastian Karcher"
+    },
+    {
+      "path": "translators/mEDRA.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/MetaLib.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2012 Aurimas Vinckevicius"
+    },
+    {
+      "path": "translators/METS.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Microbiology Society Journals.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Microsoft Academic.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/MIDAS Journals.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016-18 Rupert Brooks"
+    },
+    {
+      "path": "translators/Mikromarc.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Abe Jellinek"
+    },
+    {
+      "path": "translators/Milli Kutuphane.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2024 Philipp Zumstein & Sebastian Karcher"
+    },
+    {
+      "path": "translators/MIT Press Books.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019 Guy Aglionby"
+    },
+    {
+      "path": "translators/MODS.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019-2021 Simon Kornblith, Richard Karnesky, and Abe Jellinek"
+    },
+    {
+      "path": "translators/MPG PuRe.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Musee du Louvre.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Philipp Zumstein and Abe Jellinek"
+    },
+    {
+      "path": "translators/Nagoya University OPAC.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/NASA ADS.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019-2021 Tim Hostetler and Abe Jellinek"
+    },
+    {
+      "path": "translators/NASA NTRS.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Andrew Bergan and Abe Jellinek"
+    },
+    {
+      "path": "translators/National Academies Press.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/National Agriculture Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/National Archives of Australia.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Tim Sherratt (tim@discontents.com.au, @wragge)"
+    },
+    {
+      "path": "translators/National Archives of South Africa.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/National Archives UK Case Law.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2026 Michael Veale"
+    },
+    {
+      "path": "translators/National Bureau of Economic Research.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018-2021 Philipp Zumstein and Abe Jellinek"
+    },
+    {
+      "path": "translators/National Diet Library Catalogue.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015 Philipp Zumstein"
+    },
+    {
+      "path": "translators/National Gallery of Art - USA.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Adam Crymble and Abe Jellinek"
+    },
+    {
+      "path": "translators/National Gallery of Australia.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Ben Swift"
+    },
+    {
+      "path": "translators/National Library of Australia (new catalog).js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Philipp Zumstein"
+    },
+    {
+      "path": "translators/National Library of Belarus.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Philipp Zumstein"
+    },
+    {
+      "path": "translators/National Library of Norway.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Dan Michael O. Hegg\u00f8"
+    },
+    {
+      "path": "translators/National Library of Poland ISBN.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Maciej Nux Jaros"
+    },
+    {
+      "path": "translators/National Post.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/National Technical Reports Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/National Transportation Library ROSA P.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Nature Publishing Group.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2012 Aurimas Vinckevicius"
+    },
+    {
+      "path": "translators/NCBI Nucleotide.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2014 Martin Fenner"
+    },
+    {
+      "path": "translators/Neural Information Processing Systems.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014-2021 Fei Qi, Sebastian Karcher, Guy Aglionby, and Abe Jellinek"
+    },
+    {
+      "path": "translators/New Left Review.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Bo An"
+    },
+    {
+      "path": "translators/New Zealand Herald.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Newlines Magazine.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/News Corp Australia.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek and contributors"
+    },
+    {
+      "path": "translators/NewsBank.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Reuben Peterkin"
+    },
+    {
+      "path": "translators/newshub.co.nz.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/NewsnetTamedia.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/newspapers.com.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2019 Peter Binkley"
+    },
+    {
+      "path": "translators/NIST Publications.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2026 Abe Jellinek"
+    },
+    {
+      "path": "translators/Noor Digital Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Note HTML.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Corporation for Digital Scholarship"
+    },
+    {
+      "path": "translators/Note Markdown.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Corporation for Digital Scholarship"
+    },
+    {
+      "path": "translators/Notre Dame Philosophical Reviews.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Emiliano Heyns and Abe Jellinek"
+    },
+    {
+      "path": "translators/NPR.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/NRC Research Press.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/NRC.nl.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Martijn Staal"
+    },
+    {
+      "path": "translators/NTSB Accident Reports.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/NYPL Menus.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/NYPL Research Catalog.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/NYTimes.com.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/NZZ.ch.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/OAPEN.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/OCLC WorldCat FirstSearch.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/OECD.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012-2021 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/OhioLINK.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Old Bailey Online.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Sharon Howard"
+    },
+    {
+      "path": "translators/Open Conf.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Open Knowledge Repository.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Open WorldCat.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Simon Kornblith, Sebastian Karcher, and Abe Jellinek"
+    },
+    {
+      "path": "translators/OpenAlex JSON.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Sebastian Karcher"
+    },
+    {
+      "path": "translators/OpenAlex.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Sebastian Karcher"
+    },
+    {
+      "path": "translators/OpenEdition Books.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/OpenEdition Journals.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020-2021 Aurimas Vinckevicius, Pierre-Alain Mignot, Michael Berkowitz, H\u00e9l\u00e8ne P"
+    },
+    {
+      "path": "translators/openJur.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Optical Society of America.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Optimization Online.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Pascal Quach <pascal.quach@centralesupelec.fr>"
+    },
+    {
+      "path": "translators/ORCID.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/OSF Preprints.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Abe Jellinek"
+    },
+    {
+      "path": "translators/OSTI Energy Citations.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher an Avram Lyon"
+    },
+    {
+      "path": "translators/Ovid OCE.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Abe Jellinek"
+    },
+    {
+      "path": "translators/OVID Tagged.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Ovid.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2000-2012 Ovid Technologies, Inc., 2025 Abe Jellinek"
+    },
+    {
+      "path": "translators/Oxford Dictionaries Premium.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Oxford English Dictionary.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013-2021 Sebastian Karcher and Emiliano Heyns"
+    },
+    {
+      "path": "translators/Oxford Music and Art Online.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Oxford Reference.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Sonali Gupta"
+    },
+    {
+      "path": "translators/Oxford University Press.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/OZON.ru.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015 Mikhail Akimov"
+    },
+    {
+      "path": "translators/Pajhwok Afghan News.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Papers Past.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Philipp Zumstein, Abe Jellinek, and Jason Murphy"
+    },
+    {
+      "path": "translators/Paris Review.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2010 Avram Lyon, ajlyon@gmail.com"
+    },
+    {
+      "path": "translators/Pastebin.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 F\u00e9lix Brezo, felixbrezo@gmail.com"
+    },
+    {
+      "path": "translators/Patents - USPTO.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/PC Gamer.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018-2021 czar, Bao Trinh"
+    },
+    {
+      "path": "translators/PC Games.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Matthias Mail\u00e4nder"
+    },
+    {
+      "path": "translators/Peeters.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Timotheus Chang-Whae Kim, Johannes Ruscheinski, Philipp Zumstein"
+    },
+    {
+      "path": "translators/PEI Archival Information Network.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/PEP Web.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Perceiving Systems.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Perlego.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Brendan O'Connell"
+    },
+    {
+      "path": "translators/Philosopher's Imprint.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/PhilPapers.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Sebastian Karcher"
+    },
+    {
+      "path": "translators/PKP Catalog Systems.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012-2021 Aurimas Vinckevicius and Abe Jellinek"
+    },
+    {
+      "path": "translators/Pleade.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2003-2011 AJLSM"
+    },
+    {
+      "path": "translators/PLoS Journals.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012-2016 Rintze Zelle, Michael Berkowitz, and Sebastian Karcher"
+    },
+    {
+      "path": "translators/Polygon.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 czar"
+    },
+    {
+      "path": "translators/Potsdamer Neueste Nachrichten.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2011 Martin Meyerhoff"
+    },
+    {
+      "path": "translators/PRC History Review.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Bo An"
+    },
+    {
+      "path": "translators/Premium Times.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 VWF"
+    },
+    {
+      "path": "translators/Preprints.org.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Abe Jellinek"
+    },
+    {
+      "path": "translators/Prime 9ja Online.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 VWF"
+    },
+    {
+      "path": "translators/Primo 2018.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018-2021 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Primo Normalized XML.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Primo.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": ""
+    },
+    {
+      "path": "translators/Probing the Past.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Project Gutenberg.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Project MUSE.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Sebastian Karcher"
+    },
+    {
+      "path": "translators/ProMED.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/ProQuest Ebook Central.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Sebastian Karcher"
+    },
+    {
+      "path": "translators/ProQuest PolicyFile.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/ProQuest.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011-2020 Avram Lyon, ajlyon@gmail.com and Sebastian Karcher"
+    },
+    {
+      "path": "translators/Protein Data Bank.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/PubFactory Journals.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Brendan O'Connell"
+    },
+    {
+      "path": "translators/Public Record Office Victoria.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Tim Sherratt"
+    },
+    {
+      "path": "translators/Publications du Quebec.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2014 Marc Lajoie"
+    },
+    {
+      "path": "translators/Publications Office of the European Union.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/PubMed Central.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2019 Michael Berkowitz and Rintze Zelle"
+    },
+    {
+      "path": "translators/PubMed XML.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2020 Simon Kornblith, Michael Berkowitz, Avram Lyon, Sebastian Karcher, and"
+    },
+    {
+      "path": "translators/PubMed.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015 Philipp Zumstein"
+    },
+    {
+      "path": "translators/PubPub.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/PyPI.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Qatar Digital Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Queensland State Archives.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Tim Sherratt"
+    },
+    {
+      "path": "translators/R-Packages.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013-2021 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Radio Free Europe  Radio Liberty.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011-2021 Avram Lyon and Abe Jellinek"
+    },
+    {
+      "path": "translators/RAND.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/RDF.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Center for History and New Media"
+    },
+    {
+      "path": "translators/Rechtspraak.nl.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Pieter van der Wees"
+    },
+    {
+      "path": "translators/REDALYC.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/reddit.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020-2021 Lukas Kawerau"
+    },
+    {
+      "path": "translators/ReferBibIX.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/RefWorks Tagged.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Regeringskansliet.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/RePEc - Econpapers.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Sebastian Karcher and contributors"
+    },
+    {
+      "path": "translators/RePEc - IDEAS.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Research Square.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/ResearchGate.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Retsinformation.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Roald Fr\u00f8sig and Abe Jellinek"
+    },
+    {
+      "path": "translators/Reuters.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011-2021 Avram Lyon, Sebastian Karcher, and Abe Jellinek"
+    },
+    {
+      "path": "translators/RIS.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2006-2023 Simon Kornblith, Aurimas Vinckevicus, Abe Jellinek"
+    },
+    {
+      "path": "translators/Rock, Paper, Shotgun.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018-2021 czar, Bao Trinh"
+    },
+    {
+      "path": "translators/Roll Call.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/RSC Publishing.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Aurimas Vinckevicius"
+    },
+    {
+      "path": "translators/Russian State Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020-2021 PChemGuy"
+    },
+    {
+      "path": "translators/Sacramento Bee.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 czar"
+    },
+    {
+      "path": "translators/SAE Papers.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012-2015 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Safari Books Online.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2014 ProQuest LLC"
+    },
+    {
+      "path": "translators/SAGE Journals.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/SAGE Knowledge.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2014 ProQuest LLC, Philipp Zumstein"
+    },
+    {
+      "path": "translators/SAILDART.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/SALT Research Archives.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/sbn.it.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Scholars Portal Journals.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Bartek Kawula"
+    },
+    {
+      "path": "translators/Scholia.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Schweizer Radio und Fernsehen SRF.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2011 ibex, 2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/SciELO.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/ScienceDirect.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/scinapse.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019-2021 Vincent Carret"
+    },
+    {
+      "path": "translators/Scopus.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2008-2021 Center for History and New Media and Sebastian Karcher"
+    },
+    {
+      "path": "translators/Semantic Scholar.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Guy Aglionby"
+    },
+    {
+      "path": "translators/semantics Visual Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Philipp Zumstein"
+    },
+    {
+      "path": "translators/SFU IPinCH.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2010 Aurimas Vinckevicius"
+    },
+    {
+      "path": "translators/Silverchair.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020-2022 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/SIPRI.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/SIRS Knowledge Source.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2014 ProQuest LLC"
+    },
+    {
+      "path": "translators/Slate.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/SlideShare.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/SLUB Dresden.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/SORA.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Springer Link.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 Aurimas Vinckevicius and Sebastian Karcher"
+    },
+    {
+      "path": "translators/SSOAR.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Philipp Zumstein"
+    },
+    {
+      "path": "translators/SSRN.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013-2022 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/Stack Exchange.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Abe Jellinek"
+    },
+    {
+      "path": "translators/Standard Ebooks.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Brendan O'Connell"
+    },
+    {
+      "path": "translators/Stanford Encyclopedia of Philosophy.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011-2023 Sebastian Karcher and Zotero"
+    },
+    {
+      "path": "translators/Stanford University Press.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/State Records Office of Western Australia.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-18 Mike O'Connor"
+    },
+    {
+      "path": "translators/Stitcher.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Store norske leksikon.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 H\u00e5kon Malmedal"
+    },
+    {
+      "path": "translators/Stuff.co.nz.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2010 Sopheak Hean, University of Waikato, Faculty of Education"
+    },
+    {
+      "path": "translators/Substack.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Sud Ouest.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 Sylvain Machefert"
+    },
+    {
+      "path": "translators/Sueddeutsche.de.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2011 Martin Meyerhoff"
+    },
+    {
+      "path": "translators/Summon 2.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Superlib.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 018<lyb018@gmail.com>"
+    },
+    {
+      "path": "translators/Svenska Dagbladet.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Sebastian Berlin"
+    },
+    {
+      "path": "translators/Sveriges radio.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Sebastian Berlin"
+    },
+    {
+      "path": "translators/SVT Nyheter.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Abe Jellinek"
+    },
+    {
+      "path": "translators/Tagesspiegel.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2011 Martin Meyerhoff"
+    },
+    {
+      "path": "translators/Talis Aspire.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013-2021 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/TalisPrism.js",
+      "license": "GPL (non-Affero)",
+      "holder": ""
+    },
+    {
+      "path": "translators/Tatknigafund.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2009-2011 Avram Lyon, ajlyon@gmail.com"
+    },
+    {
+      "path": "translators/Tatpressa.ru.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/Taylor & Francis eBooks.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Taylor and Francis+NEJM.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/taz.de.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/TEI.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2010 Stefan Majewski <xml@stefanmajewski.eu>"
+    },
+    {
+      "path": "translators/Tesis Doctorals en Xarxa.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 CSUC"
+    },
+    {
+      "path": "translators/The Art Newspaper.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2019-2021 czar"
+    },
+    {
+      "path": "translators/The Atlantic.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Sebastian Karcher and contributors"
+    },
+    {
+      "path": "translators/The Boston Globe.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2026 Matthew Weymar"
+    },
+    {
+      "path": "translators/The Chronicle of Higher Education.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/The Daily Beast.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/The Economic Times - The Times of India.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2021 Sonali Gupta and Sebastian Karcher"
+    },
+    {
+      "path": "translators/The Economist.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/The Free Dictionary.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/The Globe and Mail.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2021 Sonali Gupta and Abe Jellinek"
+    },
+    {
+      "path": "translators/The Guardian.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2021 Philipp Zumstein, Bao Trinh"
+    },
+    {
+      "path": "translators/The Hamilton Spectator.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/The Hindu.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/The Independent.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2024 Laurence Stevens"
+    },
+    {
+      "path": "translators/The Intercept.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2021 czar"
+    },
+    {
+      "path": "translators/The Met.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2024 Philipp Zumstein and contributors"
+    },
+    {
+      "path": "translators/The Microfinance Gateway.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/The Nation.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/The National Archives (UK).js",
+      "license": "AGPL-3.0-only",
+      "holder": "2013-2021 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/The New Republic.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/The New York Review of Books.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein and contributors"
+    },
+    {
+      "path": "translators/The New Yorker.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2021 Philipp Zumstein and Abe Jellinek"
+    },
+    {
+      "path": "translators/The Open Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/The Straits Times.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 Robert Sim"
+    },
+    {
+      "path": "translators/The Telegraph.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/The Times and Sunday Times.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/The Times of Israel.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Bardi Harborow"
+    },
+    {
+      "path": "translators/TheMarker.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2015 Eran Rosenthal"
+    },
+    {
+      "path": "translators/Theory of Computing.js",
+      "license": "AGPL-3.0-only",
+      "holder": ""
+    },
+    {
+      "path": "translators/ThesesFR.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": ""
+    },
+    {
+      "path": "translators/Thieme.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Time.com.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2008 Michael Berkowitz"
+    },
+    {
+      "path": "translators/TimesMachine.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021-2024 Abe Jellinek, Sebastian Karcher"
+    },
+    {
+      "path": "translators/Tony Blair Institute for Global Change.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Toronto Star.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2021 Philipp Zumstein, Bao Trinh"
+    },
+    {
+      "path": "translators/Transportation Research Board.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Treesearch.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2012 Aurimas Vinckevicius"
+    },
+    {
+      "path": "translators/Trove.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016-2021 Tim Sherratt (tim@discontents.com.au, @wragge)"
+    },
+    {
+      "path": "translators/Tumblr.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020 F\u00e9lix Brezo, felixbrezo@gmail.com"
+    },
+    {
+      "path": "translators/TV by the Numbers.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Sonali Gupta"
+    },
+    {
+      "path": "translators/TVNZ.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Twitter.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2020-2021 Bo An, Dan Stillman"
+    },
+    {
+      "path": "translators/Ubiquity Journals.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015-2021 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/UChicago VuFind.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Matt Teichman"
+    },
+    {
+      "path": "translators/unAPI.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2007-2012 Simon Kornblith"
+    },
+    {
+      "path": "translators/University of California Press Books.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/University of Chicago Press Books.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Sebastian Karcher"
+    },
+    {
+      "path": "translators/University of Wisconsin-Madison Libraries Catalog.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/University Press Scholarship.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Unqualified Dublin Core RDF.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2008 Simon Kornblith"
+    },
+    {
+      "path": "translators/UNZ Print Archive.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 czar"
+    },
+    {
+      "path": "translators/UPCommons.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Sebastian Karcher, Philipp Zumstein"
+    },
+    {
+      "path": "translators/UpToDate References.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/US National Archives Research Catalog.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/USENIX.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Tim Leonhard Storm"
+    },
+    {
+      "path": "translators/Vanity Fair.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Verniana-Jules Verne Studies.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2012-2019 Aurimas Vinckevicius, Emiliano Heyns"
+    },
+    {
+      "path": "translators/Verso Books.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Bo An"
+    },
+    {
+      "path": "translators/Vice.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 czar"
+    },
+    {
+      "path": "translators/Victoria & Albert Museum.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 V&A Museum"
+    },
+    {
+      "path": "translators/Vimeo.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/VoxEU.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011, 2012 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Wall Street Journal.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Wanfang Data.js",
+      "license": "GPL (non-Affero)",
+      "holder": "2010 TAO Cheng, acestrong@gmail.com"
+    },
+    {
+      "path": "translators/Washington Monthly.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Washington Post.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Web of Science Nextgen.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Web of Science Tagged.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015-2021 Michael Berkowitz, Avram Lyon, and contributors"
+    },
+    {
+      "path": "translators/Web of Science.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Welt Online.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011-2019 Martin Meyerhoff, Philipp Zumstein"
+    },
+    {
+      "path": "translators/WestLaw UK.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 George Gebbett"
+    },
+    {
+      "path": "translators/WHO.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018-2021 Mario Trojan and Abe Jellinek"
+    },
+    {
+      "path": "translators/Wikidata QuickStatements.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2025 Philipp Zumstein with contributors"
+    },
+    {
+      "path": "translators/Wikidata.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/WikiLeaks PlusD.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2019 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Wikimedia Commons.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014-2019 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Wikipedia Citation Templates.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2019 Simon Kornblith"
+    },
+    {
+      "path": "translators/Wikipedia.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2021 Aurimas Vinckevicius and Abe Jellinek"
+    },
+    {
+      "path": "translators/Wikisource.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Wikiwand.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Wiktionary.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/Wildlife Biology in Practice.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2019 Michael Berkowitz and Aurimas Vinckevicius"
+    },
+    {
+      "path": "translators/Wiley Online Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011-2021 CHNM, Avram Lyon and Aurimas Vinckevicius"
+    },
+    {
+      "path": "translators/Wilson Center Digital Archive.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2022 Abe Jellinek"
+    },
+    {
+      "path": "translators/Winnipeg Free Press.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/WIPO.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2012 Sebastian Karcher an Avram Lyon"
+    },
+    {
+      "path": "translators/Wired.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 czar"
+    },
+    {
+      "path": "translators/wiso.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Philipp Zumstein"
+    },
+    {
+      "path": "translators/Womennews.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Kagami Sascha Rosylight"
+    },
+    {
+      "path": "translators/World Digital Library.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Abe Jellinek"
+    },
+    {
+      "path": "translators/World History Connected.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014-2019 Frederick Gibbs"
+    },
+    {
+      "path": "translators/World Shakespeare Bibliography Online.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Matthias Heim"
+    },
+    {
+      "path": "translators/WorldCat Discovery Service.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015-2026 Sebastian Karcher and Abe Jellinek"
+    },
+    {
+      "path": "translators/XML ContextObject.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2010 Avram Lyon, 2013 Sebastian Karcher"
+    },
+    {
+      "path": "translators/Yandex Books.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2025 Ilya Zonov"
+    },
+    {
+      "path": "translators/Ynet.js",
+      "license": "AGPL-3.0-only",
+      "holder": "2021 Eran Rosenthal and Abe Jellinek"
+    },
+    {
+      "path": "translators/YouTube.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2015-2024 Sean Takats, Michael Berkowitz, Matt Burton, Rintze Zelle, and Geoff B"
+    },
+    {
+      "path": "translators/YPSF.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2021 Corey Runkel"
+    },
+    {
+      "path": "translators/zbMATH.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2014 Philipp Zumstein"
+    },
+    {
+      "path": "translators/ZIPonline.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017 Philipp Zumstein"
+    },
+    {
+      "path": "translators/ZOBODAT.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2023 Lars Willighagen"
+    },
+    {
+      "path": "translators/Zotero RDF.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translators/zotero.org.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2017-2019 Dan Stillman and Aurimas Vinckevicius"
+    },
+    {
+      "path": "translators/ZoteroBib.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2018 Dan Stillman"
+    }
+  ],
+  "translate_src": [
+    {
+      "path": "translate/src/debug.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2009 Center for History and New Media"
+    },
+    {
+      "path": "translate/src/http.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Center for History and New Media"
+    },
+    {
+      "path": "translate/src/promise.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Center for History and New Media"
+    },
+    {
+      "path": "translate/src/proxy.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2016 Center for History and New Media"
+    },
+    {
+      "path": "translate/src/rdf/identity.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translate/src/rdf/init.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translate/src/rdf/n3parser.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translate/src/rdf/rdfparser.js",
+      "license": "W3C",
+      "holder": ""
+    },
+    {
+      "path": "translate/src/rdf/serialize.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translate/src/rdf/term.js",
+      "license": "W3C",
+      "holder": ""
+    },
+    {
+      "path": "translate/src/rdf/uri.js",
+      "license": "W3C",
+      "holder": ""
+    },
+    {
+      "path": "translate/src/repo.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Center for History and New Media"
+    },
+    {
+      "path": "translate/src/tlds.js",
+      "license": "NONE / unrecognized",
+      "holder": ""
+    },
+    {
+      "path": "translate/src/translation/sandboxManager.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2009 Center for History and New Media"
+    },
+    {
+      "path": "translate/src/translation/translate.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2009 Center for History and New Media"
+    },
+    {
+      "path": "translate/src/translation/translate_item.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2011 Center for History and New Media"
+    },
+    {
+      "path": "translate/src/translator.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2013 Center for History and New Media"
+    },
+    {
+      "path": "translate/src/translators.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2009 Center for History and New Media"
+    },
+    {
+      "path": "translate/src/utilities_translate.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2009 Center for History and New Media"
+    },
+    {
+      "path": "translate/src/zotero.js",
+      "license": "AGPL-3.0-or-later",
+      "holder": "2009 Center for History and New Media"
+    }
+  ]
+}
