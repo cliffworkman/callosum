@@ -2,6 +2,16 @@
 
 **Date:** 2026-09-15
 **Status:** research/design increment. No product code ships here.
+**Baseline:** all claims verified against **`main` @ `1aa3973a`**.
+
+> **Methodology note.** Initial code tracing ran against `experiment/ask-cli-staged-synthesis`,
+> which is 45 commits behind `main`. That produced two stale findings, both corrected here: the
+> shared DOI primitive `add_paper_by_doi` and `normalize_doi` (backlog #58) exist on `main` and were
+> reported as missing. Every load-bearing claim in this document has since been re-verified against
+> `main`; the CORS policy, the `local_only` header gate, `attach_pdf_to_paper`'s `role="primary"`
+> default, the null-`attachment_id` annotation visibility, the Word-HTTPS 8443 child, and the
+> missing `embed_papers` call all hold unchanged. Anyone extending this work should re-verify
+> against the branch they are building on rather than against this document.
 **Issue:** #61 (browser extension). Related: #25 (identity resolution), #62/#63/#64/#65 (Tauri
 boundary audits), #70 (packaged-vs-dev runtime boundary), #72 (attachment lifecycle).
 **Branch:** `browser-capture-research`
@@ -50,8 +60,9 @@ All references are `file:line` in this repo at `1aa3973a`.
 
 ### 1.1 Ingestion entry points
 
-There is **no generic "add this paper" endpoint**. Items enter the Library through feature-owned
-paths:
+Twelve independent `create_paper` call sites exist, with **no single shared ingestion service** —
+but, importantly, a **shared DOI-add primitive already exists** (§1.5). Items enter the Library
+through feature-owned paths:
 
 | Path | Route | Service |
 |---|---|---|
@@ -60,14 +71,48 @@ paths:
 | Zotero native library | `POST /library/zotero/import` | `importers/zotero.py` |
 | Portable bundle | `POST /library/bundle/import` | `metadata/library_bundle.py` |
 | **Discovery save** | `POST /discovery/save` | `discovery/search.py:59 save_item` |
-| Agent reference (DOI only) | `POST /agent/references` | `api/routers/agent.py:113` |
+| **Add with DOI…** | `POST` in `api/routers/acquisition.py:101` | `metadata/doi_add.py:40 add_paper_by_doi` |
+| Agent reference (DOI) | `POST /agent/references` | the same `add_paper_by_doi` primitive |
+| **Zotero citation resolve** | `POST /citations/zotero/resolve` | `api/routers/zotero_citations.py:48` |
 | Gaps / citing / my-publications | `POST /gaps/add`, `/my-publications/citing/import` | `clustering/my_publications.py:438` |
 | OA acquisition (attach to existing) | `POST /papers/{id}/acquire-oa` | `acquisition/fetch.py` |
 
-**`POST /discovery/save` is the closest existing analogue to browser capture.** Its `SaveRequest`
+**`POST /discovery/save` is the closest analogue for *noisy field* capture.** Its `SaveRequest`
 (`api/routers/discovery.py:59`) already accepts title, doi, pmid, abstract, authors, journal, year,
 url; it dedupes via `find_existing_paper_by_identity` and fires a background
-`enrich_paper_metadata_multi`. This is the reuse seam, not a template to copy into a parallel path.
+`enrich_paper_metadata_multi`. This is a reuse seam, not a template to copy into a parallel path.
+
+**`POST /citations/zotero/resolve` is the closest analogue for *untrusted external client* capture**
+(`api/routers/zotero_citations.py:48`). The LibreOffice/Word adapters decode Zotero-authored
+document fields locally and post the distinct works; the endpoint resolves-or-creates each against
+the full identity tuple. Its docstring is the trust posture a capture endpoint should mirror
+verbatim: *"a ReferenceMark/Word Field is untrusted content pulled from an opened document (rule
+#4), so this stays defensively bounded like every other adapter-facing endpoint"* — bounded by
+`MAX_ZOTERO_DISTINCT_WORKS = 300`, metadata-only, *"a faithful format migration, not a claim about
+the literature"*. Its `{paper_id, created}` result shape matches `/discovery/save`'s; that pair is
+the de facto ingestion response contract.
+
+### 1.5 The shared DOI primitive already exists (correction)
+
+`metadata/doi_add.py:40 add_paper_by_doi` is **"the shared identity-resolution primitive (backlog
+#58)"** — one implementation of "resolve a DOI to a real record and add it, or surface the existing
+one", used by *both* the Library "Add with DOI…" endpoint (`acquisition.py:101`) and the MCP agent's
+save-reference tool, *"so there is no DOI-specific metadata silo"*.
+
+It already has the properties this document would otherwise have proposed inventing:
+
+- a **machine-readable status enum** — `created` / `existing` / `invalid` / `unresolved`
+  (`DoiAddResult`), so an unresolvable DOI creates nothing rather than an invented placeholder;
+- **metadata-only and provider-honest**: it never fetches a PDF, so *"a failed download can never
+  masquerade as a failed DOI import"* — exactly the separation §8 requires;
+- **caller-owned transaction**, so it composes.
+
+`metadata/doi.py:72 normalize_doi` handles bare / `doi:` / `https://doi.org/` / `dx.doi.org` forms
+and validates the `10.` registrant prefix, and is documented as *"the ONE place every DOI-add path
+normalizes user input"*.
+
+**Capture should extend this primitive, not build a parallel one.** What it lacks for capture is
+(a) non-DOI signals and (b) an `AMBIGUOUS` status — see §9.
 
 ### 1.2 Metadata resolution
 
@@ -500,18 +545,29 @@ Two unrelated mechanisms that do not talk to each other:
 | Outcome | **Silently auto-picks the first hit** | Flags groups; never auto-merges |
 | Ambiguity | None — no candidates, no confidence | Reason + confidence |
 
-**Issue #25's core requirement — "expose uncertainty / candidate matches rather than silently
-choosing" — exists on no write path today.** That is the missing shared primitive, and browser
-capture is the front end that makes its absence visible: a page with a title but no DOI is exactly
+**Partially closed since this research began.** `add_paper_by_doi` (§1.5) is a real shared primitive
+with a machine-readable status, and backlog #58 delivered it. So the #25 gap is now **narrower and
+more precisely stateable** than "there is no primitive":
+
+- For a **DOI**, a shared, honest, metadata-only resolve-or-surface path exists.
+- For **non-DOI signals** (title/author/year, PMID-only, arXiv-only), there is still no shared
+  resolver — those go through `find_existing_paper_by_identity`'s exact-match auto-pick.
+- **No path of any kind can return `AMBIGUOUS`.** `DoiAddResult.status` has no such member, and
+  `find_existing_paper_by_identity` returns the first hit. Issue #25's requirement to *"expose
+  uncertainty / candidate matches rather than silently choosing"* remains unmet.
+
+Browser capture is the front end that makes this visible: a page with a title but no DOI is exactly
 the ambiguous case.
 
 ### 9.2 Defects a capture path would inherit (all verified)
 
 1. `find_existing_paper_by_identity` **does not filter `deleted_at`** — capture would dedupe onto a
    trashed paper. **Blocking; fix first.**
-2. `_normalize_doi` is `.strip().lower()` only — **no `https://doi.org/` prefix stripping**; callers
-   strip ad hoc (`routers/agent.py:115`). A browser DOI is almost always prefixed.
-   **Blocking; fix first.**
+2. ~~No DOI prefix stripping.~~ **Corrected — already fixed on `main`** by `metadata/doi.py:72
+   normalize_doi` (backlog #58). Note the residual trap: `repository._normalize_doi` is a *different,
+   weaker* function (`.strip().lower()` only) still used **inside**
+   `find_existing_paper_by_identity`. Capture must route DOIs through `normalize_doi`, not hand a
+   raw prefixed DOI to the repository function.
 3. Its `title_year_author` arm is raw SQL equality on the stored title — case-, punctuation-, and
    whitespace-sensitive. Much weaker than the scan's `normalize_text(strip_punctuation(...))`.
 4. No DOI-add path calls `embed_papers`, so captured papers are invisible to semantic search.
@@ -523,22 +579,28 @@ the ambiguous case.
 
 ### 9.3 Target flow
 
+**Extend `add_paper_by_doi` rather than build alongside it.** Two additive changes:
+
+1. Add an `ambiguous` member to `DoiAddResult.status`, carrying candidates with reason and
+   confidence — the one thing #25 asks for that no path provides.
+2. Generalise the input from a raw DOI to a candidate identity (DOI, PMID, arXiv, or
+   title/author/year), keeping the same honest-status contract.
+
 ```
 CaptureEnvelope.candidates
-  -> normalise identifiers (DOI prefix-stripped, PMID/arXiv extracted)
-  -> resolve_candidate_identity()        ← the #25 primitive
-       returns: MATCH(paper_id, reason, confidence)
-              | NO_MATCH
-              | AMBIGUOUS([candidates])   ← never auto-picked
-  -> MATCH      → gap-fill reconcile, attach if bytes present
-     NO_MATCH   → create via save_item, background enrich, embed
-     AMBIGUOUS  → explicit Callosum review state; extension says "needs review"
+  -> normalise identifiers (metadata/doi.py normalize_doi; PMID/arXiv extracted)
+  -> add_paper_by_doi(), generalised      ← extends the #58 primitive, shared with #25
+       returns: created | existing | invalid | unresolved
+              | ambiguous([candidates])   ← NEW; never auto-picked
+  -> existing   → gap-fill reconcile, attach if bytes present
+     created    → background enrich, then embed (defect 4)
+     ambiguous  → explicit Callosum review state; extension says "needs review"
+     unresolved → honest "couldn't identify this page"; nothing created
 ```
 
 **Principle: different capture front ends produce candidate scholarly identity; Callosum resolves
-canonical identity once.** No browser-specific dedupe rules. The primitive belongs in
-`persistence/` or `metadata/`, is shared with #25's other front ends, and returns candidates with
-reasons rather than a silent winner.
+canonical identity once.** No browser-specific dedupe rules, and no second primitive — #58 already
+established where this lives.
 
 ---
 
@@ -689,8 +751,10 @@ bounded capture API **only on the canonical eligible backend role**; minimal Chr
 (`activeTab` + explicit click); generic metadata / DOI / direct-PDF capture; `CaptureEnvelope`
 handoff; canonical identity/dedupe/import/indexing including the missing `embed_papers` call;
 visible result states including *closed* vs *starting*; hermetic fixture tests; **packaged Windows
-end-to-end smoke test**. Prerequisite fixes: §9.2 defects 1 and 2. Dev consumes the same contract
-via the dev adapter. **Not complete until it works against an installed desktop build.**
+end-to-end smoke test**. Prerequisite fix: §9.2 defect 1 (`deleted_at`) — defect 2 is already fixed
+on `main`. Identity work extends `add_paper_by_doi` (§9.3); it does not create a second primitive.
+Dev consumes the same contract via the dev adapter. **Not complete until it works against an
+installed desktop build.**
 
 **Phase 2 — translator feasibility.** Promote the spike (§14); prove a representative subset behind
 the Callosum adapter. No large-scale bundling until runtime, security, and licensing are settled.
@@ -714,7 +778,7 @@ connector-host registration); optional Axis/Project actions; macOS/Linux package
 |---|---|---|
 | License inventory | **DONE** | §11. Corpus is not uniformly AGPL; 133/748 non-AGPL or unlabelled. |
 | CORS boundary regression tests | **DONE** | `tests/test_cors_boundary.py`, 17 passed. |
-| Callosum source tracing | **DONE** | §1, §9.2 — all claims carry `file:line`. |
+| Callosum source tracing | **DONE** (re-verified against `main`) | §1, §9.2 — all claims carry `file:line`. Two stale findings corrected; see the methodology note at the top. |
 | Zotero runtime contract | **DONE** (documentary + source) | §2. |
 | **Chrome MV3 sandbox+offscreen translator spike** | **NOT RUN** | Requires an interactive browser load. Must show: a sandboxed page in an offscreen document loading the vendored runtime, and ≥1 translator producing correct item JSON from a saved fixture. |
 | **Native-messaging round-trip probe** | **NOT RUN** | Must show: installer-style manifest registration under `HKCU`, `connectNative` launching the host, and a measured round trip. §7.3 is conditional on this. |
