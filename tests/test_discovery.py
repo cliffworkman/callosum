@@ -14,6 +14,7 @@ from app.backend.discovery.providers import Item, SourceRegistry, build_default_
 from app.backend.discovery.search import DISCOVERY_SOURCE, run_search, save_item
 from app.backend.metadata.enrich_sources import EnrichmentRegistry
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.paper_lifecycle_repo import soft_delete_paper
 from app.backend.persistence.repository import create_paper, find_existing_paper_by_identity
 from app.backend.persistence.tags_repo import get_tags_for_paper
 
@@ -190,6 +191,32 @@ def test_run_search_marks_in_library(temp_db_url):
     engine.dispose()
     by_doi = {i.doi: i for i in items}
     assert by_doi["10.1/owned"].in_library is True and by_doi["10.1/new"].in_library is False
+    assert by_doi["10.1/owned"].library_state == "active"
+    assert by_doi["10.1/new"].library_state == "absent"
+
+
+def test_run_search_marks_a_trashed_paper_as_known_not_novel(temp_db_url):
+    """A trashed paper must never be rendered as a fresh discovery (browser-capture substrate, #61).
+
+    Identity resolution became live-only so imports stop silently resolving onto Trash. The read side
+    asks a different question — "do I already know this work?" — and a trashed paper still answers yes.
+    ``in_library`` therefore stays True, so an unmigrated consumer keeps today's rendering and cannot
+    invite a duplicate; ``library_state`` carries the detail a migrated surface needs to offer restore.
+    """
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        trashed_id = create_paper(
+            conn, title="Trashed", csl_json={"title": "Trashed", "DOI": "10.1/trashed"}, doi="10.1/trashed"
+        )
+        soft_delete_paper(conn, trashed_id)
+    reg = SourceRegistry().register(_FakeProvider("crossref", [Item("Trashed", doi="10.1/trashed")]))
+    with engine.begin() as conn:
+        items = run_search(conn, reg, "q")
+    engine.dispose()
+
+    assert items[0].library_state == "trashed"
+    assert items[0].in_library is True, "an unmigrated UI must not see a trashed paper as novel"
+    assert items[0].to_dict()["library_state"] == "trashed"
 
 
 # ---- save_item: dedup-aware metadata-only create ---------------------------

@@ -227,6 +227,26 @@ def find_existing_paper_by_identity(
     return None
 
 
+def resolve_library_state(conn: Connection, **identity: Any) -> tuple[str, RowMapping | None]:
+    """``("absent" | "active" | "trashed", row_or_None)`` for a *candidate* shown to the user.
+
+    The read-side counterpart to ``find_existing_paper_by_identity``. Suggestion surfaces
+    (discovery, gaps, overlooked, citation-equity, beyond-library) ask "do I already know this
+    work?", which is a different question from the write side's "may I resolve onto this row?" —
+    a trashed paper answers *yes* to the first and *no* to the second.
+
+    Keeping that distinction is what lets identity resolution become live-only without a candidate
+    the user deliberately trashed silently reappearing as a novel discovery. Callers derive the
+    legacy ``in_library`` boolean as ``state != "absent"`` so unmigrated consumers are unchanged,
+    and a migrated surface can distinguish "active" from "trashed" and offer restore instead of add.
+    """
+    match = find_existing_paper_by_identity(conn, **identity, include_trashed=True)
+    if match is None:
+        return "absent", None
+    row = match[1]
+    return ("trashed" if row["deleted_at"] is not None else "active"), row
+
+
 def find_trashed_identifier_holder(
     conn: Connection,
     *,

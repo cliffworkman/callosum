@@ -10,7 +10,11 @@ from typing import Any
 from sqlalchemy import Connection
 
 from app.backend.discovery.providers import Item, SourceRegistry
-from app.backend.persistence.repository import create_paper, find_existing_paper_by_identity
+from app.backend.persistence.repository import (
+    create_paper,
+    find_existing_paper_by_identity,
+    resolve_library_state,
+)
 
 DISCOVERY_SOURCE = "discovery-import"  # kept out of enrichment's crossref-update allowlist (like user-edited)
 
@@ -49,10 +53,10 @@ def run_search(
     items = [merged[k] for k in order][:limit]
     out: list[Item] = []
     for item in items:
-        existing = find_existing_paper_by_identity(
+        state, _row = resolve_library_state(
             conn, doi=item.doi, title=item.title, year=item.year, first_author_family_name=_first_family(item.authors)
         )
-        out.append(replace(item, in_library=existing is not None))
+        out.append(replace(item, library_state=state))
     return out
 
 

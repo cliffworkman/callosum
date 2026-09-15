@@ -451,7 +451,9 @@ def get_citing_works(work_id: str, request: Request, conn: Connection = Depends(
             year=w.year,
             cited_by_count=w.cited_by_count,
             authors=list(w.authors),
-            in_library=(w.doi is not None and find_existing_paper_by_identity(conn, doi=w.doi) is not None),
+            in_library=(
+                w.doi is not None and find_existing_paper_by_identity(conn, doi=w.doi, include_trashed=True) is not None
+            ),
         )
         for w in works
     ]

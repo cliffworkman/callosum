@@ -392,7 +392,7 @@ def _run_overlooked_job(app: FastAPI, job_id: str, paper_id: int) -> None:
             pool = list(by_id.values())
             for c in pool:  # mark "already in your library" (by W-id or DOI)
                 hit = find_existing_paper_by_identity(
-                    conn, openalex_work_id=c.get("openalex_work_id"), doi=c.get("doi")
+                    conn, openalex_work_id=c.get("openalex_work_id"), doi=c.get("doi"), include_trashed=True
                 )
                 c["in_library"] = hit is not None
             jobs.mark_progress(job_id, 3, 3, "Ranking by topical relevance")

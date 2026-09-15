@@ -386,7 +386,9 @@ def credit_status(payload: CreditStatusRequest, request: Request) -> CreditStatu
             normalized.append(value)
     with request.app.state.engine.begin() as conn:
         items = [
-            CreditStatusItem(doi=doi, present=find_existing_paper_by_identity(conn, doi=doi) is not None)
+            CreditStatusItem(
+                doi=doi, present=find_existing_paper_by_identity(conn, doi=doi, include_trashed=True) is not None
+            )
             for doi in normalized
         ]
     return CreditStatusResponse(items=items)

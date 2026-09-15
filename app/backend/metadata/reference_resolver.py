@@ -174,8 +174,15 @@ def _candidate_from_csl(csl: dict[str, Any]) -> ReferenceCandidate:
 
 
 def _mark_in_library(conn: Connection, cand: ReferenceCandidate) -> ReferenceCandidate:
+    # include_trashed: this marks a candidate as already-known for display. A trashed paper still
+    # counts as known — surfacing it as novel would invite a duplicate beside the trashed row.
     existing = find_existing_paper_by_identity(
-        conn, doi=cand.doi, title=cand.title, year=cand.year, first_author_family_name=_first_family(cand.authors)
+        conn,
+        doi=cand.doi,
+        title=cand.title,
+        year=cand.year,
+        first_author_family_name=_first_family(cand.authors),
+        include_trashed=True,
     )
     if existing is None:
         return cand

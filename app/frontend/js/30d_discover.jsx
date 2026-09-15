@@ -224,7 +224,9 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGapsOverlooked, onO
             <div className="discover-foot">
               {(it.sources || []).map(s => <span key={s} className="discover-source">{s}</span>)}
               {it.saved
-                ? <span className="discover-inlib">✓ in library</span>
+                ? (it.library_state === "trashed"
+                    ? <span className="discover-inlib" title="This paper is in your Trash. Restore it from Trash rather than saving a second copy.">✓ in Trash</span>
+                    : <span className="discover-inlib">✓ in library</span>)
                 : <button className="btn btn-link" disabled={isDemoMode() || savingKey === it.dedup_key}
                     onClick={(e) => { e.stopPropagation(); save(it); }}>
                     {savingKey === it.dedup_key ? "Saving…" : "Save"}
