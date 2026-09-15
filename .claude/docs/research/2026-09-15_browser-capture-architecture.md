@@ -515,7 +515,7 @@ to know these exist. (This is #70's lesson generalised.)
 | Browser already displays a PDF | Capture bytes from that context; validate; attach. |
 | Article page exposes an accessible PDF URL | Fetch **in the browser context** on the user's action; transfer bytes. If the fetch fails or is not entitled, report "no PDF captured" — never retry from the backend with different credentials. |
 | Translator discovers an attachment URL | Same as above. A translator-supplied URL is a *candidate*, not an entitlement. |
-| Metadata-only article page | Metadata-only import; optionally offer the Wanted list (inc 76). |
+| Metadata-only article page | Metadata-only import; optionally offer the Wanted list (feature inc 76; OA triage + "Open all blocked" hand-off inc 588, shipped 0.5.11 — the surface #61 succeeds). |
 | Callosum has metadata but no PDF | Attach through the existing path; this is #61's motivating case. Result: "Already in Callosum — PDF added". |
 | Callosum already has the same PDF | Checksum match → no-op; report "already present". Reuse `library_scan.py`'s `existing_by_checksum` logic rather than inventing a second byte-identity rule. |
 | Callosum has a *different* attachment for the same work | **Never overwrite.** Add as an additional attachment with an explicit role, or route to review. Attachment lifecycle belongs to #72. |
