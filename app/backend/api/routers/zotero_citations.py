@@ -22,7 +22,11 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
 from app.backend.importers.zotero import normalize_zotero_csl_item
-from app.backend.persistence.repository import create_paper, find_existing_paper_by_identity
+from app.backend.persistence.repository import (
+    create_paper,
+    find_existing_paper_by_identity,
+    find_trashed_identifier_holder,
+)
 
 router = APIRouter()
 
@@ -58,6 +62,16 @@ def resolve_zotero_citations(payload: ZoteroResolveRequest, request: Request) ->
                 year=canonical["year"],
                 first_author_family_name=canonical["first_author_family_name"],
             )
+            if existing is None:
+                # Identity resolution returns live papers only, but a trashed paper still holds its UNIQUE
+                # Zotero key — creating beside it raises IntegrityError (an uncaught 500 on this batch path).
+                # Surface that paper instead: the document's citation refers to that same work, and the user
+                # can restore it from Trash. Never a silent write to it, never a duplicate.
+                existing = find_trashed_identifier_holder(
+                    conn,
+                    zotero_library_id=canonical["zotero_library_id"],
+                    zotero_item_key=canonical["zotero_item_key"],
+                )
             if existing is not None:
                 results.append(ZoteroResolveResult(paper_id=int(existing[1]["id"]), created=False))
                 continue

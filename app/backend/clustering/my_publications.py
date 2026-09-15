@@ -26,7 +26,12 @@ from app.backend.persistence.profile_repo import (
     get_profile,
     set_openalex_author_id,
 )
-from app.backend.persistence.repository import create_paper, find_existing_paper_by_identity, get_paper
+from app.backend.persistence.repository import (
+    create_paper,
+    find_existing_paper_by_identity,
+    find_trashed_identifier_holder,
+    get_paper,
+)
 from app.backend.persistence.schema import axes, cluster_node_papers, cluster_nodes, papers
 from integrations.api_cache import get_cached
 from integrations.openalex.author import OPENALEX_WORKS_PROVIDER
@@ -453,6 +458,9 @@ def import_citing_work(
     if not normalized:
         return {"status": "invalid"}
     existing = find_existing_paper_by_identity(conn, doi=normalized)
+    if existing is None and openalex_work_id:
+        # A trashed paper still holds its UNIQUE openalex_work_id; creating beside it raises IntegrityError.
+        existing = find_trashed_identifier_holder(conn, openalex_work_id=openalex_work_id)
     if existing is not None:
         return {"status": "exists", "paper_id": int(existing[1]["id"])}
     from app.backend.metadata.enrichment import enrich_paper_metadata_from_crossref  # lazy: avoid import cycle

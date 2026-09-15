@@ -17,6 +17,7 @@ from app.backend.persistence.annotations_repo import (
 )
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
+from app.backend.persistence.paper_lifecycle_repo import restore_paper, soft_delete_paper
 from app.backend.persistence.repository import (
     create_attachment,
     create_chunk,
@@ -206,6 +207,100 @@ def test_identity_resolution_prefers_exact_doi_then_zotero_key(migrated_db_url: 
     assert zotero_match is not None
     assert zotero_match[0] == "zotero_key"
     assert zotero_match[1]["id"] == zotero_paper_id
+
+
+def test_identity_resolution_ignores_trashed_papers_by_default(migrated_db_url: str) -> None:
+    """A trashed paper is not a live identity match (browser-capture substrate, #61).
+
+    Before this, every import path resolved onto the trashed row and silently suppressed the add:
+    the user trashed a paper, re-imported it, and got nothing back — the paper was unreachable by
+    either route, since ``wanted_repo.list_open`` already skips trashed papers.
+    """
+    engine = make_engine(migrated_db_url)
+
+    with engine.begin() as conn:
+        trashed_id = create_paper(
+            conn,
+            title="Trashed paper",
+            year=2020,
+            doi="10.1000/trashed",
+            openalex_work_id="W-trashed",
+            zotero_library_id="lib-9",
+            zotero_item_key="TRASH1",
+            first_author_family_name="Nguyen",
+            csl_json={"id": "trashed", "type": "article-journal", "title": "Trashed paper"},
+        )
+        soft_delete_paper(conn, trashed_id)
+
+        # Every identity axis must agree: a trashed row is not a live match.
+        assert find_existing_paper_by_identity(conn, doi="10.1000/trashed") is None
+        assert find_existing_paper_by_identity(conn, openalex_work_id="W-trashed") is None
+        assert find_existing_paper_by_identity(conn, zotero_library_id="lib-9", zotero_item_key="TRASH1") is None
+        assert (
+            find_existing_paper_by_identity(conn, title="Trashed paper", year=2020, first_author_family_name="Nguyen")
+            is None
+        )
+
+        # Restoring it makes it matchable again — Trash/restore stays fully reversible.
+        restore_paper(conn, trashed_id)
+        restored = find_existing_paper_by_identity(conn, doi="10.1000/trashed")
+        assert restored is not None
+        assert restored[1]["id"] == trashed_id
+
+
+def test_identity_resolution_reports_a_trashed_match_instead_of_hiding_it(migrated_db_url: str) -> None:
+    """Excluding Trash must not become "invisible": the trashed row still holds UNIQUE identifiers.
+
+    ``papers`` has UNIQUE constraints on openalex_work_id / semantic_scholar_paper_id / the Zotero
+    key, and soft-delete keeps the row (see ``paper_merge``'s husk-nulling rationale). A caller that
+    treated "no live match" as "safe to create" would hit an IntegrityError, so the trashed match is
+    reported explicitly and the caller decides.
+    """
+    engine = make_engine(migrated_db_url)
+
+    with engine.begin() as conn:
+        trashed_id = create_paper(
+            conn,
+            title="Trashed paper",
+            year=2020,
+            doi="10.1000/trashed",
+            openalex_work_id="W-trashed",
+            csl_json={"id": "trashed", "type": "article-journal", "title": "Trashed paper"},
+        )
+        soft_delete_paper(conn, trashed_id)
+
+        match = find_existing_paper_by_identity(conn, openalex_work_id="W-trashed", include_trashed=True)
+
+    assert match is not None
+    assert match[0] == "openalex_work_id"
+    assert match[1]["id"] == trashed_id
+    assert match[1]["deleted_at"] is not None  # the caller can see it is trashed
+
+
+def test_creating_beside_a_trashed_unique_identifier_still_raises(migrated_db_url: str) -> None:
+    """Pins WHY the trashed match is reported rather than swallowed.
+
+    This is the 500 the design avoids: soft-delete keeps the row, so the UNIQUE constraint is still
+    live. If a write path ever treats "no live match" as "safe to create", this is what it gets.
+    """
+    engine = make_engine(migrated_db_url)
+
+    with engine.begin() as conn:
+        trashed_id = create_paper(
+            conn,
+            title="Trashed paper",
+            openalex_work_id="W-collide",
+            csl_json={"id": "trashed", "type": "article-journal", "title": "Trashed paper"},
+        )
+        soft_delete_paper(conn, trashed_id)
+
+    with pytest.raises(IntegrityError), engine.begin() as conn:
+        create_paper(
+            conn,
+            title="New paper reusing a trashed identifier",
+            openalex_work_id="W-collide",
+            csl_json={"id": "new", "type": "article-journal", "title": "New"},
+        )
 
 
 def test_chunk_requires_provenance_and_version_columns(migrated_db_url: str) -> None:
