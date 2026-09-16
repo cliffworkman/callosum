@@ -353,7 +353,7 @@ past its actual evidence. Four distinct levels, not two:
 | **Component behavior, run locally** | PROVEN | `cargo test --release` for both packages (`src-tauri`: 56 passed; `connector-host`: 8 passed; 64 total, 0 failed, 6 pre-existing `#[ignore]`s untouched by Stage 2); `cargo clippy --release -- -D warnings` clean for both packages; `pytest tests/test_capture.py tests/test_connector_identity.py tests/test_desktop_packaging.py tests/test_health.py` (88 passed, 0 pre-existing failures remaining — see below — 1 skipped); `node --test app/desktop-shell/extension/background.test.mjs` (12 passed); `ruff check` / `ruff format --check` on every touched Python file (clean). |
 | **Packaged behavior, run locally** | PROVEN | The full NSIS installer was built for real (`npx tauri build`) and installed via its actual silent `/S` path into a throwaway directory (`/D=`), never touching the maintainer's real Callosum install: correct ~16.9 MB `callosum-shell.exe`, `connector\callosum-connector.exe`, a correctly-populated `org.callosum.connector.json`, and both Chrome/Edge HKCU registry entries, all confirmed by direct inspection. The app was launched directly and stayed running (window titled "Callosum"), unlike three real defects this same local verification found and fixed (see Findings). Update-mode (`/UPDATE`) and ordinary uninstall were both run for real locally, with a pre-seeded third-party registry entry proven to survive both. |
 | **CI installer/update/uninstall behavior** | CI-PROVEN | A clean-runner Windows Actions run (`35134478341`, bound to commit `1c46a73e`, `workflow_dispatch`) executed and passed every new verification step, confirmed from actual log content, not just the green checkmark: `healthy on port 55873 after 117s` (real backend startup on a truly clean machine); per-browser manifest resolution (`Google\Chrome -> ...\connector\org.callosum.connector.json`, same for Edge) with `name`/`type`/`path`-resolves/`allowed_origins==[]` all asserted and none throwing; `confirmed: update-mode uninstall preserved both connector registry keys` after the REAL `/UPDATE` argv; `confirmed: ordinary uninstall removed both connector registry keys`; `confirmed: third-party NativeMessagingHosts entry survived untouched` after both uninstall paths. The uploaded screenshot additionally shows the real, fully-rendered Callosum UI (onboarding wizard, Library/My Publications/Synthesize tabs) running on the runner. |
-| **Real Edge click-through acceptance (cases A–E)** | NOT YET RUN | `acceptance_harness.py` was built (isolation procedure, dev-connector registration, local fixtures, Library-state assertions) but requires a human (or a session with real browser click control) to actually click the extension's toolbar icon. Empirically unverified — not yet exercised end-to-end. This is the one row CI success does not and cannot touch. |
+| **Real Edge click-through acceptance (cases A–E)** | PROVEN (dev/test identity path) | `run_acceptance_AtoE.py` executed all five cases in one isolated session against a real packaged `callosum-shell.exe` and a real Edge browser with the real (dev-keyed) extension loaded, driving the click via Windows UI Automation keyboard-focus navigation — proven in isolation against a throwaway probe extension (CDP-confirmed `activeTab` grant: `chrome.scripting.executeScript` read the real page's `document.title` after the click, badge/title updated) before being trusted here. Cases A, C, D passed exactly against their specified criteria (real DOI resolved and admitted with `capture:browser` provenance / single row on re-click / trashed paper stayed deleted). Cases B and E each independently confirmed the same architecturally-predicted, non-defect outcome (a direct-PDF envelope never carries a DOI or year/author, so it can never resolve onto an existing paper via any code path — `attachment_review_required` is consequently unreachable through this UI surface today, not a bug). See `evidence-run/evidence.json` and per-case screenshots. Two genuine defects (F8, F9) and one environment-only test hazard (F10) were found and fixed as a direct result of running this for real. |
 
 **Full-repo regression, run once this session:** `pytest tests/` (excluding the one pre-existing
 failure below, run separately) — 3154 passed, 6 skipped, 1 deselected, 0 failed among tests this
@@ -380,53 +380,115 @@ browser-driven behavior themselves. Neither of the last two rows is a risk anyon
 accepted — they are simply not yet exercised, and are called that rather than folded into a
 risk-acceptance framing that would overstate what happened here.
 
+## Findings F8–F10, from actually clicking the real extension in real Edge
+
+Same discipline as F5–F7: each was found by running the real product end to end, not by reading the
+code, and each was reproduced, root-caused with direct evidence, fixed, and re-verified before being
+trusted. None is a security defect; all three blocked the acceptance run from ever completing before
+being fixed.
+
+- **F8 — dev-only native-messaging launcher.** The `.bat` wrapper `_register_dev_connector` used to
+  generate (`set CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD=1` then exec the real binary) reliably broke the
+  real connector's outbound HTTP client: invoked as a grandchild of `cmd.exe` with piped stdio
+  (exactly how Chrome invokes a native-messaging host), `reqwest`'s blocking client timed out
+  connecting to `127.0.0.1` on every single attempt, while the identical binary invoked directly (no
+  `cmd.exe` in the process chain) connected instantly, every time, with no code difference at all.
+  Root cause not pinned down further than "going through `cmd.exe /c` with piped stdio breaks it."
+  Fixed by replacing the `.bat` with `dev_connector_launcher.exe`, a tiny real native binary
+  (`connector-host/src/bin/dev_connector_launcher.rs`) that sets the same env var and execs the real
+  connector with no shell in the process chain — verified fixed via 3 direct repeated invocations
+  (consistently `available`, <1s each) and via a real Edge click reaching a real `/capture/session`
+  200. Dev-only: never shipped, never referenced by the production installer, no change to the
+  production connector's trust model.
+- **F9 — browser capture's admission path never fell back to a default `CrossrefClient`.**
+  `capture.py` read `request.app.state.crossref_client` directly, which is `None` for the real app's
+  own module-level `app = create_app()` (the parameter exists for test injection only — confirmed by
+  reading `acquisition.py`'s sibling endpoint, which *already* has the identical fallback with a
+  comment referencing this exact class of bug: "Without this the running app's
+  app.state.crossref_client is None and every DOI would 'fail to resolve' even though Crossref is
+  reachable"). Effect: every DOI-bearing browser capture reported `unresolved_review_required`
+  regardless of the DOI's real resolvability — reproduced against a real, live DOI
+  (`10.1371/journal.pone.0000308`) before the fix, confirmed resolved (real title, `capture:browser`
+  provenance, single live row) after it. Fixed by adding the same
+  `request.app.state.crossref_client or CrossrefClient()` fallback `acquisition.py` already uses;
+  `tests/test_capture.py`'s 37 tests re-run clean (they inject a fake client explicitly, so the
+  fallback branch is untouched by them, matching `acquisition.py`'s own test coverage shape).
+- **F10 — real-machine test hazard, not a product defect: auto-scan-on-launch reached the
+  maintainer's real document library.** Callosum unconditionally auto-scans "the library folder" on
+  every launch (`library.py`: "Auto-triggered on app launch (default on)"), which defaults to
+  `<OS Documents dir>/callosum-library` — sensible for a real end user, but every disposable test
+  launch on the maintainer's own machine resolved the *same* real, Dropbox-synced folder as any real
+  install would, entirely independent of the isolated `%APPDATA%\com.callosum.desktop` directory this
+  audit's isolation procedure covers. Every scan attempt on real files failed harmlessly
+  (`[Errno 22] Invalid argument`, confirmed zero file mutation via unchanged pre-session mtimes on
+  every sampled file), but the resulting request volume was enough to (a) hold the SQLite WAL writer
+  lock long enough to make unrelated test fixture-seeding fail with "database is locked", and (b)
+  delay a real capture's own requests past a real Edge extension service worker's lifetime, aborting
+  a capture attempt mid-flight. A related PDF-attach path (`attach_pdf_to_paper`) separately writes
+  captured bytes into the same "library folder" by design (`library_dir()`) — a genuinely fresh
+  install's PDF-attach 500'd for an unrelated, correctly-scoped-out reason (no local embedding model
+  downloaded yet; see the release-readiness note below), but the *destination* for that write was
+  also the real folder before the fix below. Fixed with `CALLOSUM_LIBRARY_DIR_OVERRIDE`, a new,
+  narrowly-scoped environment-variable override in `backend.rs` (mirrors the existing
+  `CALLOSUM_SETTINGS_PATH` override pattern) that the acceptance harness sets to a disposable
+  directory before every launch; verified fixed by a clean run showing zero `callosum-library`
+  matches and zero warnings in `backend.log`. This is a test-isolation gap this audit's own isolation
+  procedure did not originally cover (it isolated the database, not the separate "library folder"
+  concept), not a defect in the product's own real-world behavior.
+
 ## Residual evidence gaps for Stage 2 (not risk acceptances)
 
-- **Integration acceptance pending: no live-browser click was exercised.** The Rust connector host,
-  the NSIS installer plumbing (now including a real clean-runner install/update/uninstall cycle),
-  and the Python startup wiring were each verified by automated tests and/or a real run. The one
-  remaining end-to-end product loop — a human clicking the real extension in a real Edge session
-  against a real packaged build — was built as
-  `.claude/experiments/browser-capture-acceptance/acceptance_harness.py` but not executed, because
-  driving a real browser click is outside what this session could do. This is an evidence gap to be
-  closed by an actual run, not a security risk that was identified and knowingly accepted.
 - A local process running as the user remains out of scope, unchanged from Stage 1: it can read the
   pairing file and call the API directly regardless of any browser-capture control. This one *is* a
   structural, already-understood boundary (not new to Stage 2), not an unexecuted test.
-- The extension's generic-page extraction (DOI/Highwire/JSON-LD) is fixture-tested
-  (`background.test.mjs`) but has not been run against real, currently-live publisher markup in this
-  session — a deliberate scope boundary (no CI dependency on a live publisher page staying stable),
-  not an oversight, but worth the maintainer's own spot-check before wide use.
+(The extension's generic-page extraction against real, currently-live publisher markup is also
+resolved — Case A of the real Edge acceptance run extracted `citation_doi` from a real, live PLOS
+ONE page and the DOI resolved correctly end to end. `background.test.mjs`'s fixture tests remain the
+CI-safe, publisher-independent baseline; this one real-page run does not replace them or become a CI
+dependency — it is a one-time, human-authorized acceptance exception, documented as such above.)
 
 (The CI installer/update/uninstall gap that was here is resolved — see the evidence-status table and
-F5–F7 above. It is the one row in this list that moved from "pending" to "proven" this session.)
+F5–F7 above. The real Edge click-through acceptance gap that was also here is resolved — see the
+evidence-status table and F8–F10 above. Both rows in this list moved from "pending" to "proven" this
+session; only the local-process-as-user structural boundary above remains, unchanged from Stage 1.)
 
 ## Release-readiness consequence of the empty production allowlist
 
 Stage 2's implementation is now proven, not just complete: the host, installer hooks, extension, and
-startup wiring all exist, are wired together correctly, are covered by tests that pass, and — as of
-this session — have been shown to actually produce a working, correctly-registered, cleanly
-updatable and uninstallable packaged app on a real clean Windows runner. But
+startup wiring all exist, are wired together correctly, are covered by tests that pass, have been
+shown to actually produce a working, correctly-registered, cleanly updatable and uninstallable
+packaged app on a real clean Windows runner, and — as of this session — a real Edge click has been
+shown to carry a real capture end to end (real DOI extracted, resolved, and admitted with
+`capture:browser` provenance) for the **dev/test native-host identity path**. But
 `connector/identity.json`'s empty `production_extension_ids` means the **production native-host
 identity is not yet activatable by any real store-distributed extension** — `allowed_origins` is an
 empty list, so even a perfectly-installed, perfectly-working connector currently accepts zero real
 callers. This is the correct, fail-closed state for an extension that has never been published, not
-a bug to route around. Phase 1 is still not release-ready on Stage 2 alone; it additionally needs,
-in order: (1) a real Chrome Web Store and/or Edge Add-ons submission producing a real extension ID,
-`production_extension_ids` updated to match, and a new build; (2) real Edge click-through acceptance
-(cases A–E) actually executed and passing. (The CI installer run that used to be item (2) here is
-done — see above.) Neither remaining item is Stage 2 implementation work — they are the remaining
-evidence-gathering and store-publication steps this audit deliberately does not claim.
+a bug to route around. **Phase 1 functional acceptance is complete for the Edge + development/test
+native-host identity path.** Phase 1 is still not release-ready overall; what remains is exclusively
+store-publication work, not implementation or acceptance work: a real Chrome Web Store and/or Edge
+Add-ons submission producing a real extension ID, `production_extension_ids` updated to match, and a
+new build. Every other item this audit previously listed as pending — CI installer lifecycle, real
+Edge click-through acceptance — is now proven, not just complete.
+
+One fresh-install characteristic surfaced by this run, noted here for completeness rather than as a
+Stage 2 finding: a genuinely fresh Callosum install (no local embedding model downloaded yet) will
+500 on a direct-PDF browser capture's attach step, because `attach_pdf_to_paper` treats embedding as
+mandatory to attaching (a deliberate, documented design choice — "indexing is a property of
+attaching, not a convention each front end re-implements" — that predates and is unrelated to browser
+capture). This is a pre-existing product characteristic of first-run state, not a browser-capture
+defect, and this audit takes no position on whether it should change.
 
 ---
 
-**Security Audit (Stage 2): PASS**, and — as of this session — CI-proven for the installer lifecycle,
-not just component-tested. No unresolved critical or high findings among the controls covered by the
-automated tests and the clean-runner CI run described above. Findings F5–F7, all discovered by
-actually running the installer end to end rather than by writing it, are fixed and independently
-re-verified (locally, then on a clean runner); none is a security defect, and F7 in particular would
-have shipped an app that silently never started at all, caught before any release. One item remains
-explicitly **empirically unverified, not risk-accepted**: the real Edge click-through (cases A–E),
-which needs a human click this session could not provide and no CI run can substitute for. F3
-(Stage 1's carry-forward) is now resolved both at the component level (F4's guard) and by a real
-clean-runner run proving it. Combined with Stage 1: **PASS**, scoped exactly as described above.
+**Security Audit (Stage 2): PASS**, and — as of this session — CI-proven for the installer lifecycle
+AND proven for real Edge click-through acceptance on the dev/test identity path, not just
+component-tested. No unresolved critical or high findings among the controls covered by the
+automated tests, the clean-runner CI run, and the real Edge acceptance run described above. Findings
+F5–F10, all discovered by actually running the real product end to end rather than by reading the
+code, are fixed and independently re-verified; none is a security defect, and F7 and F9 in particular
+would each have quietly defeated a real, user-facing capability (the app silently never starting;
+every DOI-bearing capture silently failing to resolve) if shipped unfixed. F3 (Stage 1's
+carry-forward) is now resolved both at the component level (F4's guard) and by a real clean-runner
+run proving it. **`production_extension_ids` remains `[]`, unchanged, fail-closed, and untouched by
+any code in this session.** Combined with Stage 1: **PASS**, scoped exactly as described above.

@@ -1,0 +1,173 @@
+{
+  "branch_head_note": "see git rev-parse HEAD in the final report",
+  "cases": [
+    {
+      "case": "A",
+      "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0000308",
+      "click_result": "RESULT:CLICKED_VIA_MENU via keyboard",
+      "click_log": "WINDOW_NAME:Sharing Detailed Research Data Is Associated with Increased Citation Rate | PLOS One - Profile 1 - Microsoft? Edge\nANCHORED_FOCUS_VIA_ADDRESS_BAR at 378,70\nTAB 0 -> 'Enter Reading mode (F9)'\nTAB 1 -> 'Add this page to favorites (Ctrl+D)'\nTAB 2 -> 'Extensions'\nOPENED_EXT_MENU\nMENU_TAB 0 -> 'Callosum Capture (dev) Allowed only when clicked New Extension'\nRESULT:CLICKED_VIA_MENU via keyboard\n",
+      "extension_state_raw": "RESULT:{\"id\":2,\"result\":{\"result\":{\"type\":\"string\",\"value\":\"[\\\"Capturing\\u2026\\\",\\\"\\u2026\\\"]\"}}}\nAdd-Type : Cannot add type. One or more required assemblies are missing.\nAt C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\brows\ner-capture-acceptance\\read_extension_state.ps1:8 char:1\n+ Add-Type -AssemblyName System.Net.WebSockets.Client -ErrorAction Sile ...\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : InvalidData: (:) [Add-Type], InvalidOperationException\n    + FullyQualifiedErrorId : ASSEMBLY_LOAD_ERRORS,Microsoft.PowerShell.Commands.AddTypeCommand\n \n",
+      "screenshot": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\browser-capture-acceptance\\evidence-run\\case_A_after_click.png",
+      "db_before": {
+        "rows": [
+          {
+            "id": 1,
+            "title": "Sharing Detailed Research Data Is Associated with Increased Citation Rate",
+            "doi": "10.1371/journal.pone.0000308",
+            "deleted_at": null,
+            "imported_source": "capture:browser",
+            "attachments": 0,
+            "annotations": 0,
+            "embeddings": 0
+          }
+        ]
+      },
+      "db_after": {
+        "rows": [
+          {
+            "id": 1,
+            "title": "Sharing Detailed Research Data Is Associated with Increased Citation Rate",
+            "doi": "10.1371/journal.pone.0000308",
+            "deleted_at": null,
+            "imported_source": "capture:browser",
+            "attachments": 0,
+            "annotations": 0,
+            "embeddings": 0
+          }
+        ]
+      },
+      "notes": []
+    },
+    {
+      "case": "B",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1817752/pdf/pone.0000308.pdf",
+      "click_result": "RESULT:CLICKED_VIA_MENU via keyboard",
+      "click_log": "WINDOW_NAME:pone.0000308 1..5 - Profile 1 - Microsoft? Edge\nANCHORED_FOCUS_VIA_ADDRESS_BAR at 392,70\nTAB 0 -> 'Add this page to favorites (Ctrl+D)'\nTAB 1 -> 'Extensions'\nOPENED_EXT_MENU\nMENU_TAB 0 -> 'Callosum Capture (dev) Allowed only when clicked New Extension'\nRESULT:CLICKED_VIA_MENU via keyboard\n",
+      "extension_state_raw": "RESULT:{\"id\":2,\"result\":{\"result\":{\"type\":\"string\",\"value\":\"[\\\"Added to your Callosum library.\\\",\\\"OK\\\"]\"}}}\nAdd-Type : Cannot add type. One or more required assemblies are missing.\nAt C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\brows\ner-capture-acceptance\\read_extension_state.ps1:8 char:1\n+ Add-Type -AssemblyName System.Net.WebSockets.Client -ErrorAction Sile ...\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : InvalidData: (:) [Add-Type], InvalidOperationException\n    + FullyQualifiedErrorId : ASSEMBLY_LOAD_ERRORS,Microsoft.PowerShell.Commands.AddTypeCommand\n \n",
+      "screenshot": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\browser-capture-acceptance\\evidence-run\\case_B_after_click.png",
+      "db_before": {
+        "rows": [
+          {
+            "id": 1,
+            "title": "Sharing Detailed Research Data Is Associated with Increased Citation Rate",
+            "doi": "10.1371/journal.pone.0000308",
+            "deleted_at": null,
+            "imported_source": "capture:browser",
+            "attachments": 0,
+            "annotations": 0,
+            "embeddings": 0
+          }
+        ]
+      },
+      "db_after": {
+        "rows": [
+          {
+            "id": 1,
+            "title": "Sharing Detailed Research Data Is Associated with Increased Citation Rate",
+            "doi": "10.1371/journal.pone.0000308",
+            "deleted_at": null,
+            "imported_source": "capture:browser",
+            "attachments": 0,
+            "annotations": 0,
+            "embeddings": 0
+          }
+        ]
+      },
+      "notes": [
+        "all papers after B: [{'id': 1, 'title': 'Sharing Detailed Research Data Is Associated with Increased Citation Rate', 'doi': '10.1371/journal.pone.0000308'}, {'id': 2, 'title': 'pone.0000308.pdf', 'doi': None}]"
+      ]
+    },
+    {
+      "case": "C",
+      "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0000308",
+      "click_result": "RESULT:CLICKED_VIA_MENU via keyboard",
+      "click_log": "WINDOW_NAME:Sharing Detailed Research Data Is Associated with Increased Citation Rate | PLOS One - Profile 1 - Microsoft? Edge\nANCHORED_FOCUS_VIA_ADDRESS_BAR at 378,70\nTAB 0 -> 'Enter Reading mode (F9)'\nTAB 1 -> 'Add this page to favorites (Ctrl+D)'\nTAB 2 -> 'Extensions'\nOPENED_EXT_MENU\nMENU_TAB 0 -> 'Callosum Capture (dev) Allowed only when clicked New Extension'\nRESULT:CLICKED_VIA_MENU via keyboard\n",
+      "extension_state_raw": "RESULT:{\"id\":2,\"result\":{\"result\":{\"type\":\"string\",\"value\":\"[\\\"Already in your Callosum library.\\\",\\\"=\\\"]\"}}}\nAdd-Type : Cannot add type. One or more required assemblies are missing.\nAt C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\brows\ner-capture-acceptance\\read_extension_state.ps1:8 char:1\n+ Add-Type -AssemblyName System.Net.WebSockets.Client -ErrorAction Sile ...\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : InvalidData: (:) [Add-Type], InvalidOperationException\n    + FullyQualifiedErrorId : ASSEMBLY_LOAD_ERRORS,Microsoft.PowerShell.Commands.AddTypeCommand\n \n",
+      "screenshot": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\browser-capture-acceptance\\evidence-run\\case_C_after_click.png",
+      "db_before": {
+        "count_with_doi": 1
+      },
+      "db_after": {
+        "count_with_doi": 1
+      },
+      "notes": []
+    },
+    {
+      "case": "D",
+      "url": "http://127.0.0.1:60654/fixture_d.html",
+      "click_result": "RESULT:CLICKED_VIA_MENU via keyboard",
+      "click_log": "WINDOW_NAME:A Fixture Paper (D) - Profile 1 - Microsoft? Edge\nANCHORED_FOCUS_VIA_ADDRESS_BAR at 374,70\nTAB 0 -> 'Add this page to favorites (Ctrl+D)'\nTAB 1 -> 'Extensions'\nOPENED_EXT_MENU\nMENU_TAB 0 -> 'Callosum Capture (dev) Allowed on this site New Extension'\nRESULT:CLICKED_VIA_MENU via keyboard\n",
+      "extension_state_raw": "RESULT:{\"id\":2,\"result\":{\"result\":{\"type\":\"string\",\"value\":\"[\\\"This paper is in your Callosum Trash. Not modified.\\\",\\\"TR\\\"]\"}}}\nAdd-Type : Cannot add type. One or more required assemblies are missing.\nAt C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\brows\ner-capture-acceptance\\read_extension_state.ps1:8 char:1\n+ Add-Type -AssemblyName System.Net.WebSockets.Client -ErrorAction Sile ...\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : InvalidData: (:) [Add-Type], InvalidOperationException\n    + FullyQualifiedErrorId : ASSEMBLY_LOAD_ERRORS,Microsoft.PowerShell.Commands.AddTypeCommand\n \n",
+      "screenshot": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\browser-capture-acceptance\\evidence-run\\case_D_after_click.png",
+      "db_before": {
+        "rows": [
+          {
+            "id": 3,
+            "title": "A Fixture Scholarly Paper D",
+            "doi": "10.9999/fixture-d",
+            "deleted_at": "2026-09-16T22:17:17.369644+00:00",
+            "imported_source": "capture:browser",
+            "attachments": 0,
+            "annotations": 0,
+            "embeddings": 0
+          }
+        ]
+      },
+      "db_after": {
+        "rows": [
+          {
+            "id": 3,
+            "title": "A Fixture Scholarly Paper D",
+            "doi": "10.9999/fixture-d",
+            "deleted_at": "2026-09-16T22:17:17.369644+00:00",
+            "imported_source": "capture:browser",
+            "attachments": 0,
+            "annotations": 0,
+            "embeddings": 0
+          }
+        ]
+      },
+      "notes": []
+    },
+    {
+      "case": "E",
+      "url": "http://127.0.0.1:60654/existing.pdf",
+      "click_result": "RESULT:CLICKED_VIA_MENU via keyboard",
+      "click_log": "WINDOW_NAME:existing.pdf - Profile 1 - Microsoft? Edge\nANCHORED_FOCUS_VIA_ADDRESS_BAR at 392,70\nTAB 0 -> 'Add this page to favorites (Ctrl+D)'\nTAB 1 -> 'Extensions'\nOPENED_EXT_MENU\nMENU_TAB 0 -> 'Callosum Capture (dev) Allowed on this site New Extension'\nRESULT:CLICKED_VIA_MENU via keyboard\n",
+      "extension_state_raw": "RESULT:{\"id\":2,\"result\":{\"result\":{\"type\":\"string\",\"value\":\"[\\\"Added to your Callosum library.\\\",\\\"OK\\\"]\"}}}\nAdd-Type : Cannot add type. One or more required assemblies are missing.\nAt C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\brows\ner-capture-acceptance\\read_extension_state.ps1:8 char:1\n+ Add-Type -AssemblyName System.Net.WebSockets.Client -ErrorAction Sile ...\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : InvalidData: (:) [Add-Type], InvalidOperationException\n    + FullyQualifiedErrorId : ASSEMBLY_LOAD_ERRORS,Microsoft.PowerShell.Commands.AddTypeCommand\n \n",
+      "screenshot": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\browser-capture-acceptance\\evidence-run\\case_E_after_click.png",
+      "db_before": {
+        "rows": [
+          {
+            "id": 4,
+            "title": "A Fixture Paper With An Existing Attachment",
+            "doi": "10.9999/fixture-e",
+            "deleted_at": null,
+            "imported_source": "capture:browser",
+            "attachments": 1,
+            "annotations": 0,
+            "embeddings": 0
+          }
+        ]
+      },
+      "db_after": {
+        "rows": [
+          {
+            "id": 4,
+            "title": "A Fixture Paper With An Existing Attachment",
+            "doi": "10.9999/fixture-e",
+            "deleted_at": null,
+            "imported_source": "capture:browser",
+            "attachments": 1,
+            "annotations": 0,
+            "embeddings": 0
+          }
+        ]
+      },
+      "notes": [
+        "all papers after E: [{'id': 1, 'title': 'Sharing Detailed Research Data Is Associated with Increased Citation Rate', 'doi': '10.1371/journal.pone.0000308'}, {'id': 2, 'title': 'pone.0000308.pdf', 'doi': None}, {'id': 3, 'title': 'A Fixture Scholarly Paper D', 'doi': '10.9999/fixture-d'}, {'id': 4, 'title': 'A Fixture Paper With An Existing Attachment', 'doi': '10.9999/fixture-e'}, {'id': 5, 'title': 'existing.pdf', 'doi': None}]",
+        "backend.log lines mentioning capture .../pdf: ['INFO:     127.0.0.1:64926 - \"POST /capture/item/3b27eb5559d44276a74741190490e76e/pdf HTTP/1.1\" 500 Internal Server Error', 'INFO:     127.0.0.1:61108 - \"POST /capture/item/566628d5bf9c42d1b01c10b0566cc155/pdf HTTP/1.1\" 500 Internal Server Error']"
+      ]
+    }
+  ]
+}

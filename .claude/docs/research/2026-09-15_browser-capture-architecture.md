@@ -1284,7 +1284,7 @@ changed at the architecture level and, precisely, what has and has not been empi
 | Component behavior (Rust unit tests, Python unit/integration tests, JS unit tests, clippy, ruff) | **Proven, run for real.** `cargo test --release` for both packages (`src-tauri` + `connector-host`): 64/64 passed. `cargo clippy -D warnings`: clean for both. Focused `pytest` (capture + connector-identity + desktop-packaging + health): 88 passed, 0 pre-existing failures remaining (see §34). `node --test`: 12/12. `ruff check`/`format --check`: clean. |
 | Packaged behavior, local | **Proven.** The full NSIS installer was built for real and silently installed (`/S`, `/D=<throwaway>`) without touching the maintainer's real install: correct-size main binary, connector resource, manifest, and both browsers' registry entries all directly inspected; the app launched and stayed running; `/UPDATE`-mode and ordinary uninstall were both run for real locally, including third-party-entry survival. |
 | CI installer/update/uninstall run | **CI-proven.** Clean-runner Windows Actions run `35134478341` (commit `1c46a73e`, `workflow_dispatch`) executed every new step and passed, verified from actual log content: the backend became healthy (`healthy on port 55873 after 117s`), both browsers' manifests were resolved and validated, `/UPDATE` preservation and ordinary-uninstall removal were both confirmed with exact registry-value comparisons, and the third-party entry survived both paths. A screenshot shows the real, fully-rendered Callosum UI running on the runner. |
-| Real Edge click-through acceptance, cases A–E | **Not yet run.** `.claude/experiments/browser-capture-acceptance/` has the isolation procedure, dev-connector registration reuse, local fixtures, and Library-state assertions, but actually clicking the extension's toolbar icon in a live Edge session needs a human (or a session with real browser-click control), which this one was not. This is now the ONLY unproven row. |
+| Real Edge click-through acceptance, cases A–E | **Proven, dev/test identity path.** `run_acceptance_AtoE.py` ran all five cases in one isolated session against a real packaged app and a real Edge browser, driving the click via Windows UI Automation keyboard-focus navigation (proven in isolation against a throwaway probe extension first — CDP-confirmed real `activeTab` grant). A/C/D passed exactly; B/E each confirmed the same architecturally-predicted non-defect outcome (direct-PDF can never resolve onto an existing paper). No row remains unproven except real production store identity, which is not an implementation or acceptance gap — see §37. |
 
 Getting to that CI-proven row took three real fixes, not one clean pass — see §36. None of the last
 row is a security risk anyone has weighed and accepted — it is simply not yet exercised, and the
@@ -1334,16 +1334,50 @@ correctly" and "the mechanism was verified to actually work."
    connector its own Cargo package (`connector-host/`) so `cargo tauri build` never sees it exist in
    the package it builds — removing the ambiguity at its root.
 
+## 38. Three findings from actually clicking the real extension, not from writing it
+
+Same pattern as §36: found by running the real product end to end, root-caused with direct evidence,
+fixed, re-verified. None are security defects; all three blocked the acceptance run from completing.
+
+1. **The dev connector's `.bat` launcher broke native messaging's own HTTP client.** Invoked as a
+   grandchild of `cmd.exe` with piped stdio — exactly how Chrome invokes a native-messaging host —
+   `reqwest`'s blocking client timed out connecting to `127.0.0.1` every single time; the identical
+   binary invoked directly (no `cmd.exe` in the chain) connected instantly, every time, no code
+   difference. Fixed by replacing the shell wrapper with `dev_connector_launcher.exe`, a tiny real
+   native binary that sets the same env var and execs the real connector with no shell involved —
+   dev-only, never shipped, no change to the production connector's trust model.
+2. **Browser capture's admission path never fell back to a default `CrossrefClient`.** It read
+   `app.state.crossref_client` directly, which is `None` for the real app's own default construction
+   — the parameter exists for test injection only. `acquisition.py`'s sibling DOI-add endpoint
+   already has the identical fallback, with a comment describing this exact failure mode. Effect:
+   every DOI-bearing browser capture reported `unresolved_review_required` regardless of the DOI's
+   real resolvability, reproduced against a real, live DOI before the fix and confirmed resolved
+   (real title, `capture:browser` provenance, single row) after it.
+3. **Real-machine test hazard, not a product defect: auto-scan-on-launch reached the maintainer's
+   real document library.** Callosum unconditionally auto-scans "the library folder" on every
+   launch, which defaults to the OS Documents directory — sensible for a real end user, but on the
+   maintainer's own machine this is the same real, Dropbox-synced folder any real install would use,
+   entirely independent of the isolated app-data directory this whole audit's isolation procedure
+   covers. Every scan attempt failed harmlessly (confirmed zero file mutation via unchanged mtimes),
+   but the request volume held the SQLite WAL writer lock long enough to cause unrelated
+   "database is locked" failures and delayed a real capture past a real Edge extension service
+   worker's lifetime, aborting it mid-flight. Fixed with `CALLOSUM_LIBRARY_DIR_OVERRIDE`, a new,
+   narrowly-scoped env-var override in `backend.rs` (mirrors the existing `CALLOSUM_SETTINGS_PATH`
+   pattern) that the acceptance harness sets to a disposable directory. A test-isolation gap the
+   original isolation procedure did not cover (it isolated the database, not the separate "library
+   folder" concept) — not a defect in the product's real-world behavior.
+
 ## 37. Exit question for Stage 2
 
 > **Given Stage 1 proved the backend boundary and this pass proved the host/installer/extension
-> mechanism component-by-component — and then proved it again end to end on a clean runner — is
-> Phase 1 browser capture ready to ship?**
+> mechanism component-by-component, proved it again end to end on a clean runner, and then proved a
+> real Edge click carries a real capture through to Library state — is Phase 1 browser capture ready
+> to ship?**
 
-**Not yet, and precisely two things are missing, neither of them implementation:** (1) a real Chrome
-Web Store and/or Edge Add-ons submission producing an actual extension id to populate
-`production_extension_ids` with — until then the production allowlist is empty and fails closed by
-design; (2) real Edge click-through acceptance (cases A–E) actually executed and its Library-state
-assertions actually passing. (The CI installer/update/uninstall run that used to be a third open item
-here is done — see §33 and §36.) Both remaining items are evidence-gathering and publication steps,
-deliberately left open rather than claimed, per the audit's own evidence-status table above.
+**Phase 1 functional acceptance is complete for the Edge + development/test native-host identity
+path.** Exactly one thing remains, and it is store-publication work, not implementation or
+acceptance work: a real Chrome Web Store and/or Edge Add-ons submission producing an actual extension
+id to populate `production_extension_ids` with — until then the production allowlist is empty and
+fails closed by design, unchanged and untouched by anything in this session. Every other item this
+document previously listed as open — CI installer lifecycle, real Edge click-through acceptance — is
+now proven, not just complete (see §33, §36, §38).
