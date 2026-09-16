@@ -25,6 +25,7 @@ available to an end user's installed copy, and a single cert baked into every in
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import signal
 import socket
@@ -41,6 +42,12 @@ sys.path.insert(0, str(ROOT))
 from tools.run_https import _dev_cert_paths  # noqa: E402
 
 POLL_INTERVAL = 0.5  # seconds
+
+# Browser-capture dev connector registration (#61 Phase 2, Part 6). A completely separate identity
+# from production's org.callosum.connector -- see _register_dev_connector's own docstring for why
+# that separation is load-bearing, not incidental.
+CONNECTOR_IDENTITY_PATH = ROOT / "app" / "desktop-shell" / "connector" / "identity.json"
+DEV_CONNECTOR_DIR = ROOT / ".local" / "dev-connector"
 
 
 def _spawn(argv: list[str], env: dict[str, str]) -> subprocess.Popen:
@@ -62,6 +69,109 @@ def _clear_local_ai_descriptor(dev_dir: Path) -> None:
     for name in ("target.json", "auth-token"):
         try:
             (managed / name).unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _dev_connector_binary() -> Path | None:
+    src_tauri = ROOT / "app" / "desktop-shell" / "src-tauri"
+    for profile in ("debug", "release"):  # dev iteration typically leaves a debug build; either works
+        candidate = src_tauri / "target" / profile / "callosum_connector.exe"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _register_dev_connector() -> None:
+    """Register org.callosum.connector.dev for local testing -- NEVER org.callosum.connector.
+
+    Windows only for now: native-messaging hosts are registry-based there, and Stage 2's installer
+    work (what this dev path exercises the same product contract against) is Windows-first for the
+    identical reason. A wrapper .bat sets CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD=1 before exec'ing the
+    real binary, because Chrome launches a native host with ITS OWN environment -- there is no way
+    to inject an env var through the manifest itself. The same wrapper-script technique the research
+    probe already used (host.bat) for exactly this reason.
+
+    A DISTINCT host name (not a temporary overwrite of the production key) is the whole point
+    (steering point 2): a dev session that gets hard-killed and skips `_clear_dev_connector` leaves
+    stale DEV registration behind, but it is structurally incapable of breaking, shadowing, or even
+    referencing the production connector's own registry key or manifest -- they do not share a name.
+    """
+    if sys.platform != "win32":
+        print("[run_dev] browser-capture dev connector: skipped (Windows-only for now)")
+        return
+    binary = _dev_connector_binary()
+    if binary is None:
+        print(
+            "[run_dev] browser-capture dev connector: skipped -- build it first with "
+            "`cargo build --bin callosum_connector --manifest-path app/desktop-shell/src-tauri/Cargo.toml`"
+        )
+        return
+
+    identity = json.loads(CONNECTOR_IDENTITY_PATH.read_text(encoding="utf-8"))
+    host_name = identity["dev_native_host_name"]
+    dev_extension_id = identity["dev_extension_id"]
+
+    DEV_CONNECTOR_DIR.mkdir(parents=True, exist_ok=True)
+    wrapper = DEV_CONNECTOR_DIR / "run-dev-connector.bat"
+    wrapper.write_text(
+        f'@echo off\r\nset CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD=1\r\n"{binary}" %*\r\n',
+        encoding="utf-8",
+    )
+    manifest_path = DEV_CONNECTOR_DIR / f"{host_name}.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "name": host_name,
+                "description": "Callosum browser-capture connector (DEV -- never shipped)",
+                "path": str(wrapper),
+                "type": "stdio",
+                "allowed_origins": [f"chrome-extension://{dev_extension_id}/"],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    import winreg
+
+    for browser_root in (
+        r"Software\Google\Chrome\NativeMessagingHosts",
+        r"Software\Microsoft\Edge\NativeMessagingHosts",
+    ):
+        key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, f"{browser_root}\\{host_name}")
+        try:
+            winreg.SetValue(key, "", winreg.REG_SZ, str(manifest_path))
+        finally:
+            winreg.CloseKey(key)
+    print(f"[run_dev] browser-capture dev connector: registered {host_name} (extension id {dev_extension_id})")
+
+
+def _clear_dev_connector() -> None:
+    """Best-effort teardown of the DEV registration only. Called on the way in (never inherit a
+    stale registration from a previously hard-killed run -- same idiom as
+    `_clear_local_ai_descriptor`) and on both exit paths below."""
+    if sys.platform != "win32":
+        return
+    try:
+        identity = json.loads(CONNECTOR_IDENTITY_PATH.read_text(encoding="utf-8"))
+        host_name = identity["dev_native_host_name"]
+    except (OSError, ValueError, KeyError):
+        return
+
+    import winreg
+
+    for browser_root in (
+        r"Software\Google\Chrome\NativeMessagingHosts",
+        r"Software\Microsoft\Edge\NativeMessagingHosts",
+    ):
+        try:
+            winreg.DeleteKey(winreg.HKEY_CURRENT_USER, f"{browser_root}\\{host_name}")
+        except OSError:
+            pass  # never registered this session, or already cleared -- both fine
+    for name in (f"{host_name}.json", "run-dev-connector.bat"):
+        try:
+            (DEV_CONNECTOR_DIR / name).unlink(missing_ok=True)
         except OSError:
             pass
 
@@ -146,6 +256,7 @@ def main() -> int:
 
     procs: dict[str, subprocess.Popen] = {}
     dev_dir = ROOT / ".local" / "dev-app-data"
+    _clear_dev_connector()  # never inherit a dev connector registration from a previously hard-killed run
     if args.local_ai:
         # Start Local AI FIRST and set CALLOSUM_APP_DATA_DIR before the servers spawn: the env var is
         # process-local and read at request time, so a server started without it can never see the descriptor.
@@ -161,6 +272,7 @@ def main() -> int:
         {**env, "CALLOSUM_INSTANCE_ROLE": "ui"},
     )
     print(f"[run_dev] http:  serving on http://127.0.0.1:{http_port}")
+    _register_dev_connector()  # after the ui child spawns -- same ordering the packaged shell follows
 
     crt, _key = _dev_cert_paths()
     if crt is not None:
@@ -186,11 +298,13 @@ def main() -> int:
                     print(f"[run_dev] {name} exited (code {code}) -- stopping the rest.")
                     _stop_all(procs)
                     _clear_local_ai_descriptor(dev_dir)
+                    _clear_dev_connector()
                     return 1
     except KeyboardInterrupt:
         print("\n[run_dev] stopping...")
         _stop_all(procs)
         _clear_local_ai_descriptor(dev_dir)
+        _clear_dev_connector()
         return 0
 
 

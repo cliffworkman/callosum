@@ -1,0 +1,17 @@
+{
+  "_comment": "Single source of truth for browser-capture connector identity (#61 Phase 2 / steering point 1). Read directly by the Rust connector host (src-tauri/src/bin/callosum_connector.rs via include_str!), the NSIS installer hook generator (packaging/generate_connector_nsh.py), the extension's dev-build tooling, and tests/test_connector_identity.py. Nothing hardcodes these strings a second time.",
+
+  "protocol_version": 1,
+
+  "native_host_name": "org.callosum.connector",
+  "dev_native_host_name": "org.callosum.connector.dev",
+
+  "production_extension_ids": [],
+  "_production_extension_ids_comment": "Deliberately EMPTY. Neither the Chrome Web Store nor Microsoft Edge Add-ons has ever assigned this extension a real ID -- it has not been published to either store yet. Do NOT fill this in with a guessed or arbitrary ID: Chrome ignores a manifest 'key' field on a NEW Web Store item and assigns its own ID at first publish, so there is no way to know the real ID before that happens. An empty allowed_origins list is the honest, SAFE state: the installer still writes a fully-formed, valid native-messaging manifest, so the plumbing (registry write/remove, ownership checks, /UPDATE guard) is verifiable now -- it just allows no caller yet, which is correct for an unpublished extension. When Chrome Web Store and/or Edge Add-ons assign real IDs, add them here (they may differ between the two stores; both are supported since this is a list) and ship that as an ordinary app update -- the installer hook re-writes this manifest on every install/update from whatever is configured at build time.",
+
+  "dev_extension_id": "joepcflpilfcdllmbfihgcihaloahcdd",
+  "dev_extension_public_key_base64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkRU76LVBNvtplHHp1s7jpyO7ACtn5Op2rF5XucdUtq8kghvRK8HIzh2juB1gROkDEjf0ExZfnNBeMF9TBQ/breBfDsmUuxerTHQ9AwulhEnc6BBs0gcrKHmqzA8f5tadzXeRxoxS9UZKIQlS2DlAegJHieExP9UBdgUWS5o1IHY2oT6IA0feQpJre5DNKRH1CzcAEnFCyI9d834hGmp8pYqC0BwqsPTaU2DsiANado33/B8wJl6KijlrNiZN8FIi3kwJ/8psl5n3vQ/C7uiNauaWwpHYXaX+wCIY6R+EUnsrZKYdABx7FbIyADnlabsMeewfNPoJMYbTdG43ZxXoWQIDAQAB",
+  "_dev_extension_comment": "A REAL RSA-2048 public key, generated once for this project so 'Load unpacked' produces the SAME 32-character extension ID on every machine and in CI -- Chrome's unpacked-ID derivation otherwise hashes the extension's absolute filesystem path, which differs per checkout. The private key was discarded immediately after deriving this ID: 'Load unpacked' only ever reads manifest.json's 'key' field (the public key), nothing signs with the private half locally. This ID is registered ONLY under dev_native_host_name by tools/run_dev.py, gated behind CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD=1, and is NEVER shipped or added to production_extension_ids.",
+
+  "distribution_model": "Chrome Web Store and Microsoft Edge Add-ons are two separate store submissions (separate developer accounts, separate review pipelines) sharing ONE production manifest.json. If a future publish pins the same manifest 'key' for both packages, both stores can be made to honor the same derived ID, which is why production_extension_ids is a LIST rather than a single string -- but do not assume that happens automatically; each store's assigned ID must be confirmed after that store's own first publish and added here explicitly."
+}

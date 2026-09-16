@@ -99,6 +99,12 @@ jobs:
       - name: Stage callosum source into resources/callosum-src
         run: python app/desktop-shell/packaging/stage_source.py
 
+      - name: Generate the connector's NSIS include from connector/identity.json
+        run: python app/desktop-shell/packaging/generate_connector_nsh.py
+
+      - name: Build and stage the browser-capture connector host into resources/connector
+        run: python app/desktop-shell/packaging/stage_connector.py
+
       - name: Install Tauri CLI
         working-directory: app/desktop-shell
         run: npm install
@@ -205,6 +211,82 @@ jobs:
               ForEach-Object { Write-Host "--- $($_.FullName) ---"; Get-Content $_.FullName -Tail 120 }
             throw "installed Windows application lifecycle verification failed"
           }
+
+      - name: "Verify: browser-capture connector registration is correct after install"
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          function Get-DefaultRegValue($regPath) {
+            if (-not (Test-Path $regPath)) { throw "$regPath was not created by the installer" }
+            $value = (Get-Item -LiteralPath $regPath).GetValue("")
+            if ([string]::IsNullOrEmpty($value)) { throw "$regPath has no default value" }
+            return $value
+          }
+
+          foreach ($browserKey in @("Google\Chrome", "Microsoft\Edge")) {
+            $regPath = "HKCU:\Software\$browserKey\NativeMessagingHosts\org.callosum.connector"
+            $manifestPath = Get-DefaultRegValue $regPath
+            Write-Host "$browserKey -> $manifestPath"
+            if (-not (Test-Path $manifestPath)) { throw "manifest does not exist at $manifestPath" }
+            $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+            if ($manifest.name -ne "org.callosum.connector") { throw "unexpected manifest name: $($manifest.name)" }
+            if ($manifest.type -ne "stdio") { throw "unexpected manifest type: $($manifest.type)" }
+            if (-not (Test-Path $manifest.path)) { throw "manifest 'path' does not resolve to a real file: $($manifest.path)" }
+            # allowed_origins is deliberately EMPTY pending real Chrome Web Store / Edge Add-ons
+            # publication (see connector/identity.json's own comment on why). This asserts the
+            # installer threads whatever identity.json is CONFIGURED with, not a specific real id --
+            # there isn't one yet, and there won't be one until this extension is actually published.
+            if (@($manifest.allowed_origins).Count -ne 0) {
+              throw "expected an empty allowed_origins (unpublished extension); got: $($manifest.allowed_origins -join ',')"
+            }
+          }
+          Write-Host "connector registration verified for Chrome and Edge"
+
+      - name: "Verify: update-mode uninstall preserves connector registration; ordinary uninstall removes it"
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $installDir = "$env:LOCALAPPDATA\Callosum"
+          $uninstaller = "$installDir\uninstall.exe"
+          if (-not (Test-Path $uninstaller)) { throw "uninstaller not found at $uninstaller" }
+
+          $chromeKey = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\org.callosum.connector"
+          $edgeKey = "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\org.callosum.connector"
+
+          # Pre-seed an unrelated third-party entry to prove neither uninstall path below ever
+          # touches a NativeMessagingHosts sibling registered under a different name.
+          $thirdPartyKey = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.example.thirdparty"
+          New-Item -Path $thirdPartyKey -Force | Out-Null
+          Set-ItemProperty -Path $thirdPartyKey -Name "(default)" -Value "C:\not-callosum\manifest.json"
+
+          # These exact arguments are not a guess: extracted from the actual NSIS template embedded
+          # in @tauri-apps/cli-win32-x64-msvc. The installer, when itself launched with /UPDATE by
+          # tauri-plugin-updater, re-invokes the OLD version's "$INSTDIR\uninstall.exe" with /UPDATE
+          # appended (plus /P, since this app's updater.windows.installMode is "passive") before the
+          # new version's files land. /S is added purely for CI unattendedness; it does not change
+          # $UpdateMode. _?=$INSTDIR makes the uninstaller run in place and synchronously, so -Wait
+          # actually waits for completion rather than for a self-copy-and-relaunch stub.
+          Write-Host "Running update-mode uninstall: $uninstaller /S /UPDATE _?=$installDir"
+          Start-Process -FilePath $uninstaller -ArgumentList "/S", "/UPDATE", "_?=$installDir" -Wait
+
+          if (-not (Test-Path $chromeKey)) { throw "update-mode uninstall removed the Chrome connector key -- the /UPDATE guard is broken" }
+          if (-not (Test-Path $edgeKey)) { throw "update-mode uninstall removed the Edge connector key -- the /UPDATE guard is broken" }
+          Write-Host "confirmed: update-mode uninstall preserved both connector registry keys"
+
+          Write-Host "Running ordinary uninstall: $uninstaller /S _?=$installDir"
+          Start-Process -FilePath $uninstaller -ArgumentList "/S", "_?=$installDir" -Wait
+
+          if (Test-Path $chromeKey) { throw "ordinary uninstall left the Chrome connector key behind" }
+          if (Test-Path $edgeKey) { throw "ordinary uninstall left the Edge connector key behind" }
+          Write-Host "confirmed: ordinary uninstall removed both connector registry keys"
+
+          if (-not (Test-Path $thirdPartyKey)) { throw "ordinary uninstall deleted an unrelated third-party NativeMessagingHosts entry -- the ownership check is broken" }
+          if ((Get-Item -LiteralPath $thirdPartyKey).GetValue("") -ne "C:\not-callosum\manifest.json") {
+            throw "third-party NativeMessagingHosts entry's value was modified"
+          }
+          Write-Host "confirmed: third-party NativeMessagingHosts entry survived untouched"
+          Remove-Item -Path $thirdPartyKey -Force -ErrorAction SilentlyContinue
 
       - name: Upload verification screenshot
         if: always()

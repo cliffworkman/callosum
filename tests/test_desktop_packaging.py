@@ -89,6 +89,57 @@ def test_windows_update_replaces_source_but_preserves_legacy_runtime_for_migrati
     assert "$APPDATA" not in hook and "$LOCALAPPDATA" not in hook
 
 
+def test_connector_registration_guards_shortcut_and_registry_removal_on_update() -> None:
+    """The finding that justified this whole increment: Tauri's own updater invokes the OLD
+    version's uninstaller with /UPDATE (confirmed against the actual NSIS template bytes embedded
+    in @tauri-apps/cli-win32-x64-msvc, not assumed) before laying down new files. Without the same
+    guard the stock template uses for shortcuts, every auto-update would silently unregister the
+    browser-capture connector."""
+    hook = (ROOT / "app/desktop-shell/src-tauri/windows/installer-hooks.nsh").read_text(encoding="utf-8")
+    assert "!macro NSIS_HOOK_PREUNINSTALL" in hook
+    assert "${If} $UpdateMode <> 1" in hook
+    # Ownership is exact-path equality, not "starts with $INSTDIR" (steering point 5).
+    assert "${If} $8 == $9" in hook
+    assert hook.count("${If} $8 == $9") == 2  # once per browser (Chrome, Edge)
+
+
+def test_connector_registration_never_touches_a_third_party_manifest_by_construction() -> None:
+    """The uninstall hook only ever DeleteRegKey's after confirming the stored value still points at
+    THIS install's own manifest path -- a third-party NativeMessagingHosts sibling registered under
+    a different name is never read, written, or matched by this comparison."""
+    hook = (ROOT / "app/desktop-shell/src-tauri/windows/installer-hooks.nsh").read_text(encoding="utf-8")
+    assert 'StrCpy $9 "$INSTDIR\\connector\\${CONNECTOR_NATIVE_HOST_NAME}.json"' in hook
+    assert hook.count("DeleteRegKey HKCU") == 2
+
+
+def test_connector_resource_ships_in_its_own_subdirectory_not_the_install_root() -> None:
+    """A resource named callosum-connector.exe placed directly under $INSTDIR would collide with
+    cargo's own target/release/ output of the same name and churn fingerprints -- shipping it in a
+    connector/ subdirectory avoids that regardless of naming."""
+    config = json.loads((ROOT / "app/desktop-shell/src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
+    resources = config["bundle"]["resources"]
+    assert resources["../resources/connector"] == "connector"
+
+
+def test_preinstall_hook_clears_the_stale_connector_resource_like_callosum_src() -> None:
+    hook = (ROOT / "app/desktop-shell/src-tauri/windows/installer-hooks.nsh").read_text(encoding="utf-8")
+    assert 'RMDir /r "$INSTDIR\\connector"' in hook
+
+
+def test_windows_ci_verifies_connector_registration_and_uninstall_ownership() -> None:
+    """Steering points 4/5: beyond 'the registry key exists', CI asserts the manifest is exact and
+    parses, exercises the REAL /UPDATE argv Tauri's own bundler constructs (not a guess), and proves
+    a pre-seeded third-party NativeMessagingHosts sibling survives both uninstall paths untouched."""
+    workflow = (ROOT / ".github/workflows/desktop-shell-windows.yml").read_text(encoding="utf-8")
+    assert "generate_connector_nsh.py" in workflow
+    assert "stage_connector.py" in workflow
+    assert "NativeMessagingHosts\\org.callosum.connector" in workflow
+    assert '"/S", "/UPDATE", "_?=$installDir"' in workflow
+    assert '"/S", "_?=$installDir"' in workflow
+    assert "com.example.thirdparty" in workflow
+    assert "allowed_origins" in workflow
+
+
 def test_python_runtime_is_not_a_tauri_bundle_resource() -> None:
     config = json.loads((ROOT / "app/desktop-shell/src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     resources = config["bundle"]["resources"]

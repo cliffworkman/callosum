@@ -7,6 +7,7 @@ All endpoint logic + response models live in those router modules.
 
 from __future__ import annotations
 
+import logging
 import os
 from contextlib import asynccontextmanager
 from html import escape
@@ -117,8 +118,10 @@ from app.backend.api.routers import (
     workbench,
     zotero_citations,
 )
+from app.backend.api.routers.health import UI_ROLE, reported_instance_role
 from app.backend.api.sqlite_retry_middleware import SqliteWriteRetryMiddleware
 from app.backend.api.startup import PROJECT_ROOT, _upgrade_database_to_head, load_local_env
+from app.backend.capture import pairing
 from app.backend.discovery.feed import FeedRegistry, build_default_feed_registry
 from app.backend.discovery.providers import SourceRegistry, build_default_registry
 from app.backend.embeddings.models import EmbeddingModel
@@ -147,6 +150,8 @@ from integrations.retraction_watch import RetractionWatchClient
 from integrations.scielo.journals import ScieloJournalsClient
 from integrations.semantic_scholar.adapter import SemanticScholarClient
 from integrations.top_factor import TopFactorClient
+
+_log = logging.getLogger(__name__)
 
 DEFAULT_DB_URL = "sqlite:///.local/validation/validation.sqlite"
 FRONTEND_PATH_ENV = "CALLOSUM_FRONTEND_PATH"
@@ -205,6 +210,7 @@ def create_app(
         # row yet -- back-fill it so their works flow into the Feed without the user re-following.
         with engine.begin() as conn:
             backfill_feed_subscriptions(conn)
+        _ensure_capture_pairing_ready()
         try:
             yield
         finally:
@@ -520,6 +526,35 @@ def create_app(
     api.include_router(word.router)  # /integrations/word/* — serve the Word add-in task pane + manifest (inc 164)
 
     return api
+
+
+def _ensure_capture_pairing_ready() -> None:
+    """Mint the browser-capture pairing secret on startup, UI instances only (#61 Phase 2, Part 5).
+
+    Stage 1 built ``pairing.ensure_pairing_secret()`` but nothing called it in production, so
+    ``/capture/session`` 401'd for every host no matter how correctly it was paired -- there was no
+    secret to pair against. This closes that gap the same way every other capture control is
+    scoped: only the canonical UI backend ever creates it, matching `require_capture_boundary`'s own
+    role gate, so a sibling (Word-HTTPS, tunnel-target) never touches the pairing file.
+
+    A failure here (read-only filesystem, permissions, disk full) must fail CLOSED for browser
+    capture only, never take down the rest of the app: capture is an optional integration, and
+    every other Callosum feature already tolerates an absent pairing secret by design --
+    `/capture/session` simply 401s with no secret to check against, which is exactly the state a
+    failed mint leaves it in. Logged once, loudly, so a real failure is diagnosable rather than a
+    silent "browser capture just doesn't work" report with no lead.
+    """
+    if reported_instance_role() != UI_ROLE:
+        return
+    try:
+        pairing.ensure_pairing_secret()
+    except OSError:
+        _log.warning(
+            "Browser capture is disabled: could not create the pairing secret at %s. "
+            "The rest of Callosum is unaffected; /capture/session will 401 until this is resolved.",
+            pairing.pairing_file_path(),
+            exc_info=True,
+        )
 
 
 def _resolve_frontend_path(frontend_path: str | Path | None) -> Path | None:

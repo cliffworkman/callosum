@@ -36,7 +36,8 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../resources/callosum-src": "callosum-src"
+      "../resources/callosum-src": "callosum-src",
+      "../resources/connector": "connector"
     },
     "windows": {
       "nsis": {

@@ -1242,3 +1242,76 @@ sets out, now that its prerequisite is met:
 
 That increment trips the security audit gate (`CLAUDE.md` items 1, 3, 4, 5, and 6 for the new host),
 so it requires `.claude/security-audits/YYYY-MM-DD_browser-capture.md` before it is called done.
+
+---
+
+# Part IV — Stage 2 implementation and evidence status (2026-09-16)
+
+The increment §31 called for is built: `src-tauri/src/bin/callosum_connector.rs` (the production
+connector host), `connector/identity.json` (the single identity source), NSIS installer registration
+in `installer-hooks.nsh`, the `app/desktop-shell/extension/` MV3 extension, `ensure_pairing_secret()`
+wired at UI-instance startup, and a dev-only registration path in `tools/run_dev.py`. Full detail —
+threat model, per-control test references, findings — lives in
+`.claude/security-audits/2026-09-16_browser-capture.md`'s Stage 2 section; this entry records what
+changed at the architecture level and, precisely, what has and has not been empirically exercised.
+
+## 32. Four findings that changed the design mid-build
+
+1. **The `/UPDATE` guard was not a hypothesis — it was verified against the actual NSIS template
+   bytes** embedded in `@tauri-apps/cli-win32-x64-msvc` (grepped directly: `${GetOptions} $CMDLINE
+   "/UPDATE" $UpdateMode` in `un.onInit`, and the installer's own re-invocation of the prior
+   version's `uninstall.exe` with `/UPDATE` appended when itself launched in update mode). Without
+   the identical `${If} $UpdateMode <> 1` guard on the new registry-removal code, every Tauri
+   auto-update would have silently unregistered the connector. This is F4 in the Stage 2 audit.
+2. Tauri's bundler validates every `bundle.resources` path exists on **any** `cargo build` of the
+   package, not only during `tauri build` — so `packaging/stage_connector.py` must create
+   `resources/connector/` (even empty) *before* compiling the connector binary, not after. A
+   real, load-bearing ordering constraint, not a style choice.
+3. Chrome's manifest `key` field only fixes an **unpacked** extension's id deterministically;
+   neither store is known to honor a self-chosen id for a brand-new item. There is therefore no way
+   to know this extension's real production id before it is actually published — `identity.json`'s
+   `production_extension_ids` starts as an empty list on principle, not as a placeholder to be
+   filled with a guess.
+4. Chrome launches a native-messaging host with **its own environment**, never the manifest's — so a
+   dev-only capability flag (`CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD=1`) can only reach the connector
+   process via a wrapper script the manifest's `path` points at instead of the binary directly
+   (mirrors the research probe's own `host.bat` technique, §22).
+
+## 33. Evidence status — the same four-way distinction the audit uses, at a glance
+
+| Level | Status |
+|---|---|
+| Component behavior (Rust unit tests, Python unit/integration tests, JS unit tests, clippy, ruff) | **Proven, run for real this session.** `cargo test --release`: 64/64 passed. `cargo clippy -D warnings`: clean. Focused `pytest` (capture + connector-identity + desktop-packaging + health): 87 passed, 1 pre-existing failure excluded (see §34). `node --test`: 12/12. `ruff check`/`format --check`: clean. |
+| Packaged behavior, local | **Partially proven.** The connector binary and generated NSIS include were built via the real staging scripts and checked against ground-truth template bytes. The NSIS installer itself was not built or run this session; the local acceptance harness that would exercise a real install was written but not executed. |
+| CI installer/update/uninstall run | **Not yet run.** Steps were added to `desktop-shell-windows.yml` (registry/manifest exactness, `/UPDATE`-mode preservation, ordinary-uninstall removal, third-party-entry survival) and the YAML parses, but none of it has executed on a runner — that needs the push the maintainer is holding for separate authorization. |
+| Real Edge click-through acceptance, cases A–E | **Not yet run.** `.claude/experiments/browser-capture-acceptance/` has the isolation procedure, dev-connector registration reuse, local fixtures, and Library-state assertions, but actually clicking the extension's toolbar icon in a live Edge session needs a human (or a session with real browser-click control), which this one was not.
+
+Neither of the last two rows is a security risk anyone has weighed and accepted — they are simply
+not yet exercised, and the Stage 2 audit is explicit that it does not claim otherwise.
+
+## 34. Baseline-proven pre-existing failures, not assumed
+
+A full-repo `pytest tests/` run surfaced 41 failures across `test_citation_style_repository.py`,
+`test_citations.py`, `test_demo_snapshot.py`, `test_frontend_assembly.py`, and
+`test_website_how_it_works.py` — none of them files Stage 2 touches. Rather than infer irrelevance
+from that alone, a temporary detached worktree was created at the Stage 1 baseline commit
+`eddc97ed` and the same 41 tests were run there: **all 41 failed identically**, traced to a missing
+`node_modules/` at the repo root (an environment gap present at both commits) and an unrelated
+citeproc-styles cluster. `test_python_runtime_ids_are_current_deterministic_and_platform_specific`
+was independently reproduced at that same baseline commit, failing with the identical stale-hash
+value — proof, not inference, that it predates Stage 2. The reported regression result is: *full
+regression suite passed excluding one baseline-confirmed pre-existing failure*, deliberately not
+phrased as an unrestricted all-green run.
+
+## 35. Exit question for Stage 2
+
+> **Given Stage 1 proved the backend boundary and this pass proved the host/installer/extension
+> mechanism component-by-component, is Phase 1 browser capture ready to ship?**
+
+**Not yet, and precisely three things are missing, none of them implementation:** (1) a real Chrome
+Web Store and/or Edge Add-ons submission producing an actual extension id to populate
+`production_extension_ids` with — until then the production allowlist is empty and fails closed by
+design; (2) the new CI installer/update/uninstall steps actually executing green on a clean runner;
+(3) real Edge click-through acceptance (cases A–E) actually executed and its Library-state
+assertions actually passing. All three are evidence-gathering and publication steps, deliberately
+left open rather than claimed, per the audit's own evidence-status table above.

@@ -589,6 +589,55 @@ def test_pairing_secret_lives_beside_the_settings_file(tmp_path, monkeypatch) ->
     assert pairing.ensure_pairing_secret() == secret, "ensure is idempotent"
 
 
+# ── wiring the pairing secret at startup (#61 Phase 2, Part 5) ─────────────────────────────────
+
+
+def _app_module():
+    """The `app.backend.api.app` SUBMODULE, not the FastAPI instance.
+
+    `app/backend/api/__init__.py` does `from app.backend.api.app import app`, which rebinds the
+    `app` attribute on the `app.backend.api` package to the FastAPI instance — so both
+    `from app.backend.api import app` and `import app.backend.api.app as x` resolve to the
+    instance, not the module, once that package has been imported. `sys.modules` is the only
+    lookup that isn't shadowed by that rebinding.
+    """
+    import sys
+
+    import app.backend.api.app  # noqa: F401 - ensures it is registered in sys.modules
+
+    return sys.modules["app.backend.api.app"]
+
+
+def test_startup_mints_the_pairing_secret_for_the_ui_instance_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stage 1 left `ensure_pairing_secret()` with no production caller; this closes that gap."""
+    monkeypatch.setenv("CALLOSUM_INSTANCE_ROLE", "ui")
+    assert pairing.read_pairing_secret() is None
+    _app_module()._ensure_capture_pairing_ready()
+    assert pairing.read_pairing_secret() is not None
+
+
+def test_startup_never_mints_a_pairing_secret_for_a_sibling_instance(monkeypatch: pytest.MonkeyPatch) -> None:
+    for role in ("word-https", "tunnel-target"):
+        monkeypatch.setenv("CALLOSUM_INSTANCE_ROLE", role)
+        _app_module()._ensure_capture_pairing_ready()
+        assert pairing.read_pairing_secret() is None, f"role {role!r} must never create the pairing file"
+
+
+def test_startup_pairing_failure_is_logged_and_does_not_raise(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A permissions/disk-full failure must disable browser capture, never take down startup."""
+    monkeypatch.setenv("CALLOSUM_INSTANCE_ROLE", "ui")
+
+    def _boom() -> str:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(pairing, "ensure_pairing_secret", _boom)
+    with caplog.at_level("WARNING"):
+        _app_module()._ensure_capture_pairing_ready()  # must not raise
+    assert any("Browser capture is disabled" in record.message for record in caplog.records)
+
+
 def test_idempotency_map_is_bounded() -> None:
     idempotency.clear()
     for index in range(idempotency.MAX_REMEMBERED + 20):
